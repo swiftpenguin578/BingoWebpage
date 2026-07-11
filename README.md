@@ -1,0 +1,93 @@
+# OSRS Community Bingo
+
+An event platform for running OSRS bingo events for one Discord community.
+
+The repository currently contains the Milestone 1 foundation and the approved planning documents.
+
+## Requirements
+
+- .NET 10 SDK (pinned by `global.json`)
+- Docker with Docker Compose
+- Git
+
+See [DEVELOPMENT_SETUP.md](DEVELOPMENT_SETUP.md) for the complete Mac setup.
+
+## Run locally
+
+Start PostgreSQL:
+
+```bash
+docker compose up -d postgres
+```
+
+Restore packages and apply migrations:
+
+```bash
+dotnet restore Bingo.slnx
+dotnet tool restore
+dotnet ef database update \
+  --project src/Bingo.Infrastructure \
+  --startup-project src/Bingo.Web
+```
+
+Run the web application:
+
+```bash
+dotnet run --project src/Bingo.Web
+```
+
+Use the URL printed by ASP.NET Core. The health endpoints are:
+
+- `/health/live`: application process is running
+- `/health/ready`: PostgreSQL is reachable
+
+Stop PostgreSQL without deleting local data:
+
+```bash
+docker compose stop postgres
+```
+
+Delete the local database volume and start clean:
+
+```bash
+docker compose down --volumes
+```
+
+## Test
+
+Docker must be running because the integration suite starts an isolated PostgreSQL container.
+
+```bash
+dotnet test Bingo.slnx
+```
+
+Format and verify:
+
+```bash
+dotnet format Bingo.slnx
+dotnet build Bingo.slnx --configuration Release
+```
+
+## Project structure
+
+```text
+src/Bingo.Web             Razor pages, HTTP, authorization, and presentation
+src/Bingo.Application     Use cases and workflow orchestration
+src/Bingo.Domain          Business rules and domain types
+src/Bingo.Infrastructure  PostgreSQL, storage, and external integrations
+tests/                    Unit, integration, and browser-level tests
+```
+
+## Configuration
+
+The default connection string is intentionally local-only and matches `compose.yml`.
+
+Production secrets must be provided through environment variables or a secret store. Never commit `.env` files or real credentials.
+
+## Planning documents
+
+- [Product requirements](PRODUCT_REQUIREMENTS.md)
+- [Data model](DATA_MODEL.md)
+- [Technical architecture](TECHNICAL_ARCHITECTURE.md)
+- [Implementation roadmap](IMPLEMENTATION_ROADMAP.md)
+

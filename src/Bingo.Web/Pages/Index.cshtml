@@ -1,0 +1,38 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Foundation";
+}
+
+<section class="hero" aria-labelledby="page-title">
+    <p class="eyebrow">Milestone 1</p>
+    <h1 id="page-title">The bingo foundation is running.</h1>
+    <p class="hero-copy">
+        The public board, signup, drafting, and evidence workflows will be built on this
+        tested ASP.NET Core and PostgreSQL foundation.
+    </p>
+</section>
+
+<section class="foundation-grid" aria-label="Foundation status">
+    <article class="foundation-card">
+        <span class="status-dot" aria-hidden="true"></span>
+        <div>
+            <h2>Application</h2>
+            <p>ASP.NET Core on .NET 10 with server-rendered Razor pages.</p>
+        </div>
+    </article>
+    <article class="foundation-card">
+        <span class="status-dot" aria-hidden="true"></span>
+        <div>
+            <h2>Database</h2>
+            <p>PostgreSQL through Entity Framework Core and Npgsql.</p>
+        </div>
+    </article>
+    <article class="foundation-card">
+        <span class="status-dot" aria-hidden="true"></span>
+        <div>
+            <h2>Health</h2>
+            <p><a href="/health/live">Liveness</a> and <a href="/health/ready">readiness</a> endpoints are available.</p>
+        </div>
+    </article>
+</section>

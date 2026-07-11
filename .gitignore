@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+.vs/
+.vscode/*.user
+.idea/
+*.user
+*.suo
+*.swp
+.DS_Store
+.env
+.env.*
+!.env.example
+TestResults/
+coverage/
+artifacts/
+playwright-report/
+src/Bingo.Web/appsettings.Local.json

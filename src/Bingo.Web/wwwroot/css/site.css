@@ -1,0 +1,156 @@
+:root {
+  --page: #11100d;
+  --surface: #1d1a15;
+  --surface-raised: #28231b;
+  --text: #f3ead7;
+  --muted: #b9ad97;
+  --border: #4c4234;
+  --accent: #d6a84f;
+  --success: #72b879;
+}
+
+html {
+  font-size: 16px;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(214, 168, 79, 0.09), transparent 32rem),
+    var(--page);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  color: #f0ca7a;
+}
+
+.app-nav {
+  background: rgba(17, 16, 13, 0.92);
+  border-color: var(--border) !important;
+}
+
+.navbar-brand,
+.nav-link,
+.navbar-brand:hover,
+.nav-link:hover {
+  color: var(--text);
+}
+
+.navbar-toggler {
+  border-color: var(--border);
+}
+
+.navbar-toggler-icon {
+  filter: invert(1);
+}
+
+main {
+  min-height: calc(100vh - 10rem);
+}
+
+.hero {
+  max-width: 48rem;
+  padding: 4.5rem 0 3rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hero h1,
+.content-page h1 {
+  max-width: 16ch;
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.4rem, 7vw, 5rem);
+  line-height: 0.98;
+}
+
+.hero-copy,
+.content-page p {
+  max-width: 42rem;
+  margin: 1.5rem 0 0;
+  color: var(--muted);
+  font-size: 1.08rem;
+  line-height: 1.7;
+}
+
+.foundation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  padding-bottom: 4rem;
+}
+
+.foundation-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.8rem;
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+}
+
+.foundation-card h2 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+}
+
+.foundation-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.status-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-top: 0.3rem;
+  background: var(--success);
+  border-radius: 50%;
+  box-shadow: 0 0 0 0.25rem rgba(114, 184, 121, 0.13);
+}
+
+.content-page {
+  padding: 4rem 0;
+}
+
+.footer {
+  padding: 1.25rem 0;
+  color: var(--muted) !important;
+  border-color: var(--border) !important;
+}
+
+.btn:focus,
+.nav-link:focus,
+.form-control:focus,
+.form-check-input:focus,
+a:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
+@media (max-width: 767px) {
+  .hero {
+    padding-top: 3rem;
+  }
+
+  .foundation-grid {
+    grid-template-columns: 1fr;
+  }
+}
