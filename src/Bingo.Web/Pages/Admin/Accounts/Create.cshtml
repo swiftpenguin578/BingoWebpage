@@ -1,0 +1,27 @@
+@page
+@model Bingo.Web.Pages.Admin.Accounts.CreateModel
+@using Bingo.Domain.Access
+@{
+    ViewData["Title"] = "Create account";
+}
+
+<section class="form-page wide-form">
+    <p class="eyebrow">Account management</p>
+    <h1>Create account</h1>
+    <p class="form-intro">Captain accounts must be tied to one event and one team. Event and team selectors will replace the IDs when those features are built.</p>
+    <form method="post" class="panel form-stack">
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+        <label asp-for="Input.Username"></label><input asp-for="Input.Username" class="form-control" /><span asp-validation-for="Input.Username" class="field-error"></span>
+        <label asp-for="Input.Password"></label><input asp-for="Input.Password" class="form-control" /><span asp-validation-for="Input.Password" class="field-error"></span>
+        <label asp-for="Input.Role"></label><select asp-for="Input.Role" asp-items="Html.GetEnumSelectList<AccountRole>()" class="form-select"></select>
+        <label asp-for="Input.EventId"></label><input asp-for="Input.EventId" class="form-control" /><span asp-validation-for="Input.EventId" class="field-error"></span>
+        <label asp-for="Input.TeamId"></label><input asp-for="Input.TeamId" class="form-control" /><span asp-validation-for="Input.TeamId" class="field-error"></span>
+        <label asp-for="Input.ActiveFrom"></label><input asp-for="Input.ActiveFrom" class="form-control" /><span asp-validation-for="Input.ActiveFrom" class="field-error"></span>
+        <label asp-for="Input.CorrectionOnlyFrom"></label><input asp-for="Input.CorrectionOnlyFrom" class="form-control" /><span asp-validation-for="Input.CorrectionOnlyFrom" class="field-error"></span>
+        <label asp-for="Input.ExpiresAt"></label><input asp-for="Input.ExpiresAt" class="form-control" /><span asp-validation-for="Input.ExpiresAt" class="field-error"></span>
+        <label class="check-row"><input asp-for="Input.MustChangePassword" /> Require password change at next sign-in</label>
+        <div class="button-row"><button class="btn btn-primary" type="submit">Create</button><a class="btn btn-outline-light" asp-page="Index">Cancel</a></div>
+    </form>
+</section>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

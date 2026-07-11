@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Bingo.Infrastructure\Bingo.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Bingo.Application\Bingo.Application.csproj" />
+    <ProjectReference Include="..\..\src\Bingo.Web\Bingo.Web.csproj" />
   </ItemGroup>
 
 </Project>

@@ -10,6 +10,8 @@
 
 The product is a private-purpose website for running Old School RuneScape bingo events for one Discord community. The community normally holds two or three events per year. The website replaces the current Google Sheets board and Discord evidence-submission workflow while leaving Discord as the community's communication platform.
 
+An event may also include invited teams from outside the community, such as another clan in a clan-versus-clan bingo. Those teams may arrive with an internally selected roster and do not have to participate in the website draft.
+
 The website will manage:
 
 - Public event boards and live team progress
@@ -114,6 +116,7 @@ They can:
 
 - Create, configure, publish, and archive events
 - Create teams and manage rosters
+- Add pre-formed internal or external teams before or after the website draft
 - Create, disable, re-enable, and expire captain accounts
 - Manage bosses, activities, items, drops, rates, and EHB values
 - Build and deliberately arrange bingo boards
@@ -222,6 +225,8 @@ An admin creates the event before signups, drafting, or board publication. The s
 
 The event remains a private admin draft until signups are explicitly opened. Opening the event makes only the signup page and the minimum signup information public, such as event name, signup deadline, expected event dates, and signup instructions.
 
+Event setup is not a single-session process. Admins may create the event, open signups, and continue building or revising its private board throughout the signup and pre-draft period. The board does not need to be complete when signups open. Board validation and publication, rather than event creation or signup publication, determine when the competitive board becomes fixed and public.
+
 The following have separate publication controls and are not exposed by opening signups:
 
 - Participant list
@@ -236,6 +241,9 @@ Finalized draft results publish when the draft is finalized. The approved bingo 
 Event-creation values for team count, players per team, and board dimensions are planning defaults rather than locked competitive configuration.
 
 - Draft setup may change the number of teams and target team size based on confirmed participation.
+- Admins may create pre-formed teams before or after the website draft and manage their rosters manually.
+- A pre-formed team created before the draft is excluded from draft order, turns, team-size calculations, and draft picks unless an admin explicitly changes it to a draft-participating team before the first pick.
+- A pre-formed team created after the draft joins the same event and competitive board without rewriting the completed draft history.
 - The board editor may change board dimensions before board publication.
 - Changes made in the draft setup and board editor become the authoritative values shown elsewhere.
 - Changing team configuration after drafting has begun requires a warning because it can invalidate pick order and existing assignments.

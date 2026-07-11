@@ -1,3 +1,5 @@
+using Bingo.Application.Auditing;
+using Bingo.Infrastructure.Auditing;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -21,6 +23,9 @@ public static class DependencyInjection
 
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString));
+
+        services.AddSingleton(TimeProvider.System);
+        services.AddScoped<IAuditWriter, AuditWriter>();
 
         return services;
     }

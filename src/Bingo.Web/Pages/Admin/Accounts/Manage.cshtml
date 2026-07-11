@@ -1,0 +1,45 @@
+@page "{id:guid}"
+@model Bingo.Web.Pages.Admin.Accounts.ManageModel
+@{
+    ViewData["Title"] = "Manage account";
+}
+
+<section class="form-page wide-form">
+    <p class="eyebrow">Account management</p>
+    <h1>@Model.AccountView!.Username</h1>
+    <div class="panel details-list">
+        <p><strong>Role</strong><span>@Model.AccountView.Role</span></p>
+        <p><strong>Event</strong><span>@(Model.AccountView.EventId?.ToString() ?? "Global")</span></p>
+        <p><strong>Team</strong><span>@(Model.AccountView.TeamId?.ToString() ?? "—")</span></p>
+        <p><strong>Current access</strong><span>@Model.AccountView.AccessMode</span></p>
+        <p><strong>Last login</strong><span>@(Model.AccountView.LastLoginAt?.ToLocalTime().ToString("g") ?? "Never")</span></p>
+    </div>
+
+    <form method="post" asp-page-handler="ResetPassword" class="panel form-stack">
+        <h2>Reset password</h2>
+        <label asp-for="NewPassword"></label><input asp-for="NewPassword" class="form-control" />
+        <span asp-validation-for="NewPassword" class="field-error"></span>
+        <button class="btn btn-warning" type="submit">Reset and require change</button>
+    </form>
+
+    @if (Model.AccountView.AccessMode == Bingo.Domain.Access.AccountAccessMode.Disabled)
+    {
+        <form method="post" asp-page-handler="Enable" class="panel form-stack">
+            <h2>Re-enable account</h2>
+            <label asp-for="NewExpiry"></label><input asp-for="NewExpiry" class="form-control" />
+            <p class="form-hint">Leave blank to keep it active until manually disabled.</p>
+            <button class="btn btn-success" type="submit">Re-enable</button>
+        </form>
+    }
+    else
+    {
+        <form method="post" asp-page-handler="Disable" class="panel form-stack">
+            <h2>Disable account</h2>
+            <label asp-for="Reason"></label><textarea asp-for="Reason" class="form-control" rows="3"></textarea>
+            <span asp-validation-for="Reason" class="field-error"></span>
+            <button class="btn btn-danger" type="submit">Disable now</button>
+        </form>
+    }
+</section>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

@@ -26,6 +26,23 @@
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-page="/Privacy">Privacy</a>
                         </li>
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item"><a class="nav-link" asp-page="/Admin/Index">Admin</a></li>
+                        }
+                    </ul>
+                    <ul class="navbar-nav">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item"><a class="nav-link" asp-page="/Account/ChangePassword">@User.Identity.Name</a></li>
+                            <li class="nav-item">
+                                <form method="post" asp-page="/Account/Logout"><button type="submit" class="nav-link nav-button">Sign out</button></form>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item"><a class="nav-link" asp-page="/Account/Login">Admin / captain sign in</a></li>
+                        }
                     </ul>
                 </div>
             </div>
@@ -33,6 +50,10 @@
     </header>
     <div class="container">
         <main role="main" class="pb-3">
+            @if (TempData["StatusMessage"] is string statusMessage)
+            {
+                <p class="status-message">@statusMessage</p>
+            }
             @RenderBody()
         </main>
     </div>

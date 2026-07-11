@@ -1,0 +1,32 @@
+@page
+@model Bingo.Web.Pages.Admin.Accounts.IndexModel
+@using Bingo.Domain.Access
+@{
+    ViewData["Title"] = "Accounts";
+}
+
+<section class="table-page">
+    <div class="page-heading">
+        <div><p class="eyebrow">Administration</p><h1>Accounts</h1></div>
+        <a class="btn btn-primary" asp-page="Create">Create account</a>
+    </div>
+    @if (TempData["StatusMessage"] is string message) { <p class="status-message">@message</p> }
+    <div class="table-wrap panel">
+        <table>
+            <thead><tr><th>Username</th><th>Role</th><th>Scope</th><th>Access</th><th>Expiry</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var account in Model.Accounts)
+            {
+                <tr>
+                    <td>@account.Username</td>
+                    <td>@account.Role</td>
+                    <td>@(account.Role == AccountRole.Captain ? $"Event {account.EventId} / Team {account.TeamId}" : "Global")</td>
+                    <td><span class="badge-status badge-@account.AccessMode.ToString().ToLowerInvariant()">@account.AccessMode</span></td>
+                    <td>@(account.ExpiresAt?.ToLocalTime().ToString("g") ?? "Never")</td>
+                    <td><a asp-page="Manage" asp-route-id="@account.Id">Manage</a></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>

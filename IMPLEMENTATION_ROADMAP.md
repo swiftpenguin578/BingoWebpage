@@ -196,6 +196,8 @@ Allow admins to create an event, configure signup, open only the signup page, an
 - Signup-code configuration.
 - Separate publication flags.
 - Event state transitions and audit history.
+- Create the event and open signups without requiring a completed board.
+- Continue private board preparation independently throughout signup and pre-draft setup.
 
 #### Signup form
 
@@ -296,6 +298,8 @@ Allow admins to maintain source-specific OSRS data and build every known tile wi
 - Balance spread warning.
 - Structural validation.
 - Publish immutable event snapshots.
+- Save and resume an incomplete private board across multiple admin sessions.
+- Permit continued private editing while event signups are open or closed, until board publication.
 
 ### Representative acceptance tiles
 
@@ -326,13 +330,17 @@ Allow admins to maintain source-specific OSRS data and build every known tile wi
 
 ### Objective
 
-Allow admins to decide final team configuration and complete a private admin-operated snake draft.
+Allow admins to combine website-drafted teams with manually managed pre-formed teams and complete a private admin-operated snake draft without altering external rosters.
 
 ### Deliverables
 
 - Final team count and target size setup.
 - Participant remainder/size preview.
 - Team name and image management.
+- Add pre-formed internal or external teams before or after the draft.
+- Optional team affiliation/clan label.
+- Manually add, remove, and move members on pre-formed rosters with an audit reason.
+- Exclude pre-formed teams and their assigned players from draft order and the available draft pool.
 - Captain and co-captain assignment.
 - Separate captain accounts.
 - Random initial team-order scramble.
@@ -355,14 +363,19 @@ Allow admins to decide final team configuration and complete a private admin-ope
 - Undo restores participant and turn correctly.
 - Team configuration cannot change silently after first pick.
 - Waiting-list promotion stops when draft locks.
+- Pre-formed teams receive no snake-draft turns.
+- Pre-formed roster members cannot be selected in the website draft.
+- Adding a pre-formed team after finalization preserves draft order and pick history.
 
 ### Browser acceptance
 
 - Admin scrambles six teams.
+- Admin adds an already-drafted external clan team before the draft and confirms it receives no turns.
 - Records multiple rounds of picks.
 - Captains can maintain an overview of all participants.
 - Draft remains private until finalization.
 - Finalized rosters become public together.
+- Admin adds or corrects a pre-formed team after draft finalization without modifying historical picks.
 
 ### Completion criteria
 
@@ -626,25 +639,26 @@ Prove the complete system before the first real bingo.
 3. Fill capacity and waiting list.
 4. Increase capacity and verify promotion.
 5. Close signup.
-6. Configure teams.
-7. Run and undo part of a snake draft.
-8. Finalize draft.
-9. Build, resize, balance, and publish board.
-10. Activate captain accounts.
-11. Submit normal, duplicate, weighted, and manual evidence.
-12. Request changes and replace evidence.
-13. Approve, reject, hide, and reverse evidence.
-14. Verify live boards and rankings.
-15. Enter grace period.
-16. Reopen submissions without extending obtained window.
-17. Resolve and override finalization blockers.
-18. Correct a completion time.
-19. Finalize results.
-20. Verify captain expiry.
-21. Archive event.
-22. Create backup.
-23. Restore to a clean environment.
-24. Verify historical results and evidence.
+6. Continue editing the incomplete private board created before or during signup.
+7. Configure draft teams and add a pre-formed external team.
+8. Run and undo part of a snake draft, confirming the pre-formed team receives no turns.
+9. Finalize draft and then add/correct another pre-formed roster without changing pick history.
+10. Build, resize, balance, and publish board.
+11. Activate captain accounts.
+12. Submit normal, duplicate, weighted, and manual evidence.
+13. Request changes and replace evidence.
+14. Approve, reject, hide, and reverse evidence.
+15. Verify live boards and rankings.
+16. Enter grace period.
+17. Reopen submissions without extending obtained window.
+18. Resolve and override finalization blockers.
+19. Correct a completion time.
+20. Finalize results.
+21. Verify captain expiry.
+22. Archive event.
+23. Create backup.
+24. Restore to a clean environment.
+25. Verify historical results and evidence.
 
 ### Release gate
 

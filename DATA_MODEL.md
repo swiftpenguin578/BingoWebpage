@@ -345,9 +345,14 @@ Fields:
 - `name`
 - `slug`
 - `image_asset_id`
+- `formation_type`: `DRAFTED` or `PREFORMED`
+- `affiliation_name`: optional clan or community name
+- `included_in_draft`
 - `draft_position`
 - `active`
 - `finalized_at`
+
+`included_in_draft` determines whether the team receives snake-draft turns. A pre-formed team can be added before or after the website draft and can have its roster assigned manually. Pre-formed teams compete normally but do not affect draft order, draft team count, target-size calculations, or pick ownership. Once the first pick is recorded, changing whether a team participates in that draft is blocked; an admin instead manages the team as pre-formed and records roster changes with an audit reason.
 
 ### 7.2 TeamMembership
 
@@ -360,6 +365,8 @@ Fields:
 - `left_at`
 - `assigned_by_draft_pick_id`
 - `assignment_reason`
+
+`assigned_by_draft_pick_id` is null for manually assigned members of a pre-formed team. Manual roster assignments record an `assignment_reason` and audit actor. A participant may be created directly within the event for an invited roster and does not need to have submitted the public signup form.
 
 Membership role:
 
@@ -395,6 +402,8 @@ LIVE
 PAUSED
 FINALIZED
 ```
+
+`team_count` counts only teams included in this draft. The event may contain additional pre-formed teams that are intentionally absent from `DraftTeamOrder`.
 
 ### 7.4 DraftTeamOrder
 
@@ -439,6 +448,8 @@ The team at `initial_order[order_index]` owns the pick.
 Undone picks remain stored but become inactive. Undoing the latest active pick removes its active team membership and returns the participant to available status.
 
 Every confirmed participant remains visible during the draft. Drafted players display their assigned team rather than disappearing.
+
+The available draft pool excludes participants already assigned to pre-formed teams. Adding or editing a pre-formed team after draft finalization does not add retrospective picks or alter the immutable draft order and pick history.
 
 ## 8. Account and access domain
 
@@ -568,6 +579,8 @@ ARCHIVED
 ```
 
 Only one board is active for competitive progress in version one.
+
+A board draft may be created as soon as its event exists and remains privately editable while signups are open or closed and while teams are being prepared. Event publication and signup opening do not require a complete board and do not publish it. Only explicit board validation/publication fixes the competitive snapshot and exposes it according to the event's publication workflow.
 
 ### 10.2 Tile
 
@@ -1152,6 +1165,8 @@ The implementation must enforce these rules atomically:
 8. A contribution cannot exceed requirement or per-drop caps.
 9. Finalization cannot occur while blockers remain.
 10. Historical snapshots are not rewritten by catalogue updates.
+11. Pre-formed teams do not receive draft turns or alter snake-draft calculations.
+12. A participant assigned to a pre-formed team is excluded from the available draft pool.
 
 ## 21. Representative tile mappings
 
@@ -1259,3 +1274,5 @@ The data model is ready for architecture planning when it can represent and expl
 18. Historical event snapshots that survive catalogue updates.
 19. Temporary captain access and post-finalization expiry.
 20. Auditable corrections without destructive history deletion.
+21. Pre-formed internal or external teams added before or after a draft without altering draft history.
+22. A partially built private board that remains editable while event signups are open.

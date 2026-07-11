@@ -2,7 +2,7 @@
 
 An event platform for running OSRS bingo events for one Discord community.
 
-The repository currently contains the Milestone 1 foundation and the approved planning documents.
+The repository currently contains the Milestone 1 foundation, Milestone 2 identity/access/audit features, and the approved planning documents.
 
 ## Requirements
 
@@ -40,6 +40,18 @@ Use the URL printed by ASP.NET Core. The health endpoints are:
 
 - `/health/live`: application process is running
 - `/health/ready`: PostgreSQL is reachable
+
+### Create the first local administrator
+
+After applying migrations and starting the app, open `/Account/Setup` on the printed localhost URL. For example:
+
+```text
+http://localhost:5164/Account/Setup
+```
+
+This setup page is available only in the Development environment, only from the local machine, and only while no administrator exists. Use a password of at least 12 characters. After creation, sign in through `/Account/Login`.
+
+As an alternative for automated local setup, configure `DevelopmentAdminBootstrap` through user secrets or environment variables. Never put a real password in committed settings.
 
 Stop PostgreSQL without deleting local data:
 
@@ -90,4 +102,3 @@ Production secrets must be provided through environment variables or a secret st
 - [Data model](DATA_MODEL.md)
 - [Technical architecture](TECHNICAL_ARCHITECTURE.md)
 - [Implementation roadmap](IMPLEMENTATION_ROADMAP.md)
-

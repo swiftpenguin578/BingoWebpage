@@ -159,7 +159,7 @@ PostgreSQL stores:
 
 - Event configuration
 - Signup and waiting-list data
-- Teams, rosters, and draft picks
+- Draft-participating and pre-formed teams, manual rosters, and draft picks
 - Boss/drop catalogue and event snapshots
 - Boards, tiles, and requirements
 - Submission metadata and review history
@@ -511,6 +511,7 @@ Seed data should create:
 
 - One sample event in each important state
 - Six teams
+- One pre-formed external team excluded from the website draft
 - Representative captains and admins
 - A 5x5 example board
 - Pending, approved, rejected, and reversed evidence metadata
@@ -524,6 +525,7 @@ No real participant comments or evidence screenshots belong in seed data.
 
 - Waiting-list promotion
 - Snake-draft order
+- Pre-formed-team exclusion from draft order and participant pool
 - Duplicate drop rules
 - Higher-weight submission rules
 - Multi-requirement tile completion
@@ -551,6 +553,7 @@ No real participant comments or evidence screenshots belong in seed data.
 - Admin review and reversal
 - Board building and resizing
 - Snake draft
+- Pre-formed team creation and roster correction before and after draft finalization
 - Event finalization
 
 ## 21. Architecture acceptance criteria
