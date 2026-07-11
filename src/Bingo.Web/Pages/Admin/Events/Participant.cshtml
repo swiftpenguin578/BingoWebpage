@@ -1,0 +1,6 @@
+@page "{id:guid}/Participants/{participantId:guid}"
+@model Bingo.Web.Pages.Admin.Events.ParticipantModel
+@using Bingo.Domain.Signups
+@{ ViewData["Title"]="Participant"; }
+<section class="form-page"><p class="eyebrow">Participant administration</p><h1>@Model.Name</h1><div class="panel details-list"><p><strong>Player comments</strong><span>@(Model.Comments??"—")</span></p><p><strong>Status</strong><span>@Model.Status</span></p></div>
+<form method="post" class="panel form-stack"><label asp-for="Payment"></label><select asp-for="Payment" asp-items="Html.GetEnumSelectList<PaymentStatus>()" class="form-select"></select><label asp-for="AdminNotes"></label><textarea asp-for="AdminNotes" class="form-control" rows="5"></textarea><button class="btn btn-primary">Save admin fields</button></form><p><a asp-page="Manage" asp-route-id="@RouteData.Values["id"]">Back to event</a></p></section>

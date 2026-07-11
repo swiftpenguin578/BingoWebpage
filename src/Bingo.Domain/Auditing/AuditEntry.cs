@@ -17,7 +17,7 @@ public sealed class AuditEntry
         string? details)
     {
         Id = id;
-        OccurredAt = occurredAt;
+        OccurredAt = occurredAt.ToUniversalTime();
         ActorAccountId = actorAccountId;
         ActorUsername = actorUsername;
         Action = action;

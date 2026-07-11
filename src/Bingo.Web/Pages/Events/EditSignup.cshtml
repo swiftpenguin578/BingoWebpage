@@ -1,0 +1,23 @@
+@page "/Events/{slug}/Signup/Edit/{token}"
+@model Bingo.Web.Pages.Events.EditSignupModel
+@using Bingo.Domain.Signups
+@{
+    ViewData["Title"] = "Edit signup";
+}
+<section class="form-page"><p class="eyebrow">Private signup link</p><h1>Edit signup</h1><p class="form-intro">Your queue time and position do not change when you correct these details.</p>
+<form method="post" class="panel form-stack"><div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+<label asp-for="Input.PrimaryAccountName"></label><input asp-for="Input.PrimaryAccountName" class="form-control" />
+<label asp-for="Input.Ehb"></label><input asp-for="Input.Ehb" class="form-control" />
+<label asp-for="Input.SecondAccountName"></label><input asp-for="Input.SecondAccountName" class="form-control" />
+<label asp-for="Input.DiscordIdentity"></label><input asp-for="Input.DiscordIdentity" class="form-control" />
+<label asp-for="Input.Comments"></label><textarea asp-for="Input.Comments" class="form-control" rows="4"></textarea>
+<label class="check-row"><input asp-for="Input.CaptainVolunteer" /> I am willing to be a captain</label>
+@foreach (var question in Model.Questions) {
+<label for="question-@question.Id">@question.Label @if(question.Required){<span aria-hidden="true">*</span>}</label>
+@if(question.Type == SignupQuestionType.LongText){<textarea id="question-@question.Id" name="Input.CustomAnswers[@question.Id]" class="form-control" rows="3">@Model.Input.CustomAnswers.GetValueOrDefault(question.Id)</textarea>}
+else if(question.Type == SignupQuestionType.YesNo){<select id="question-@question.Id" name="Input.CustomAnswers[@question.Id]" class="form-select"><option value="">Choose…</option>@if(Model.Input.CustomAnswers.GetValueOrDefault(question.Id)=="Yes"){<option selected>Yes</option>}else{<option>Yes</option>}@if(Model.Input.CustomAnswers.GetValueOrDefault(question.Id)=="No"){<option selected>No</option>}else{<option>No</option>}</select>}
+else if(question.Type == SignupQuestionType.SingleChoice){<select id="question-@question.Id" name="Input.CustomAnswers[@question.Id]" class="form-select"><option value="">Choose…</option>@foreach(var option in question.OptionList){if(Model.Input.CustomAnswers.GetValueOrDefault(question.Id)==option){<option selected>@option</option>}else{<option>@option</option>}}</select>}
+else {<input id="question-@question.Id" name="Input.CustomAnswers[@question.Id]" value="@Model.Input.CustomAnswers.GetValueOrDefault(question.Id)" class="form-control" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" />}
+}
+<button class="btn btn-primary" type="submit">Save corrections</button></form></section>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

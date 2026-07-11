@@ -1,0 +1,40 @@
+using Bingo.Domain.Signups;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace Bingo.Infrastructure.Persistence.Configurations;
+
+public sealed class EventParticipantConfiguration : IEntityTypeConfiguration<EventParticipant>
+{
+    public void Configure(EntityTypeBuilder<EventParticipant> builder)
+    {
+        var entity = builder;
+        entity.ToTable("event_participants");
+        entity.HasKey(item => item.Id);
+        entity.Property(item => item.Id).HasColumnName("id");
+        entity.Property(item => item.EventId).HasColumnName("event_id");
+        entity.Property(item => item.PrimaryAccountName).HasColumnName("primary_account_name").HasMaxLength(100);
+        entity.Property(item => item.NormalizedPrimaryAccountName).HasColumnName("normalized_primary_account_name").HasMaxLength(100);
+        entity.Property(item => item.SecondAccountName).HasColumnName("second_account_name").HasMaxLength(100);
+        entity.Property(item => item.DiscordIdentity).HasColumnName("discord_identity").HasMaxLength(100);
+        entity.Property(item => item.EhbSnapshot).HasColumnName("ehb_snapshot").HasPrecision(12, 2);
+        entity.Property(item => item.Comments).HasColumnName("comments").HasMaxLength(4_000);
+        entity.Property(item => item.AdminNotes).HasColumnName("admin_notes").HasMaxLength(4_000);
+        entity.Property(item => item.CaptainVolunteer).HasColumnName("captain_volunteer");
+        entity.Property(item => item.PaymentStatus).HasColumnName("payment_status").HasConversion<string>().HasMaxLength(30);
+        entity.Property(item => item.SignupStatus).HasColumnName("signup_status").HasConversion<string>().HasMaxLength(30);
+        entity.Property(item => item.SignupSequence).HasColumnName("signup_sequence");
+        entity.Property(item => item.SignedUpAt).HasColumnName("signed_up_at");
+        entity.Property(item => item.ConfirmedAt).HasColumnName("confirmed_at");
+        entity.Property(item => item.WaitingListedAt).HasColumnName("waiting_listed_at");
+        entity.Property(item => item.WithdrawnAt).HasColumnName("withdrawn_at");
+        entity.Property(item => item.RemovedAt).HasColumnName("removed_at");
+        entity.Property(item => item.StatusReason).HasColumnName("status_reason").HasMaxLength(1_000);
+        entity.Property(item => item.PrivateEditTokenHash).HasColumnName("private_edit_token_hash").HasMaxLength(100);
+        entity.Property(item => item.FormVersion).HasColumnName("form_version");
+        entity.Property(item => item.Source).HasColumnName("source").HasConversion<string>().HasMaxLength(30);
+        entity.HasIndex(item => new { item.EventId, item.SignupSequence }).IsUnique();
+        entity.HasIndex(item => new { item.EventId, item.NormalizedPrimaryAccountName });
+        entity.HasIndex(item => item.PrivateEditTokenHash).IsUnique();
+    }
+}

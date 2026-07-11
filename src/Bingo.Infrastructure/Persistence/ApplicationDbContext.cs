@@ -1,5 +1,7 @@
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
+using Bingo.Domain.Events;
+using Bingo.Domain.Signups;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Infrastructure.Persistence;
@@ -12,10 +14,17 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<Account> Accounts => Set<Account>();
 
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
+    public DbSet<BingoEvent> Events => Set<BingoEvent>();
+    public DbSet<EventStateTransition> EventStateTransitions => Set<EventStateTransition>();
+    public DbSet<EventParticipant> EventParticipants => Set<EventParticipant>();
+    public DbSet<SignupQuestion> SignupQuestions => Set<SignupQuestion>();
+    public DbSet<SignupAnswer> SignupAnswers => Set<SignupAnswer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
 
         modelBuilder.Entity<SystemMetadata>(entity =>
         {

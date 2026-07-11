@@ -1,0 +1,11 @@
+@page
+@model Bingo.Web.Pages.Admin.Events.IndexModel
+@{
+    ViewData["Title"] = "Events";
+}
+<section class="table-page">
+    <div class="page-heading"><div><p class="eyebrow">Administration</p><h1>Events</h1></div><a class="btn btn-primary" asp-page="Create">Create event</a></div>
+    <div class="table-wrap panel"><table><thead><tr><th>Event</th><th>State</th><th>Signup window</th><th>Capacity</th><th></th></tr></thead><tbody>
+    @foreach (var item in Model.Events) { <tr><td>@item.Name<br /><small>/@item.Slug</small></td><td>@item.State</td><td>@item.SignupOpensAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm") – @item.SignupClosesAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td>@item.Confirmed / @item.ParticipantCap <small>(@item.Waiting waiting)</small></td><td><a asp-page="Manage" asp-route-id="@item.Id">Manage</a></td></tr> }
+    </tbody></table></div>
+</section>

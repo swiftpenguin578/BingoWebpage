@@ -1,0 +1,18 @@
+@page "{id:guid}"
+@model Bingo.Web.Pages.Admin.Events.ManageModel
+@using Bingo.Domain.Events
+@using Bingo.Domain.Signups
+@{
+    ViewData["Title"] = Model.EventView?.Name ?? "Event";
+}
+<section class="table-page">
+<div class="page-heading"><div><p class="eyebrow">Event workspace</p><h1>@Model.EventView!.Name</h1><p class="form-intro">@Model.EventView.State · signup URL: <a href="/Events/@Model.EventView.Slug/Signup">/Events/@Model.EventView.Slug/Signup</a></p></div><a class="btn btn-outline-light" asp-page="Index">All events</a></div>
+<div class="action-grid">
+<form method="post" asp-page-handler="State" class="panel form-stack"><h2>Signup publication</h2><p>Opening signups publishes only event information and the signup form. It does not publish teams or the board.</p><input type="hidden" name="target" value="@(Model.EventView.State == EventState.SignupOpen ? EventState.SignupClosed : EventState.SignupOpen)" />@if(Model.EventView.State==EventState.SignupClosed){<label asp-for="StateReason"></label><input asp-for="StateReason" class="form-control" required />}<button class="btn btn-primary" type="submit">@(Model.EventView.State == EventState.SignupOpen ? "Close signups" : "Open signups")</button></form>
+<form method="post" asp-page-handler="Capacity" class="panel form-stack"><h2>Capacity</h2><p>@Model.EventView.Confirmed confirmed · @Model.EventView.Waiting waiting · cap @Model.EventView.ParticipantCap</p><label asp-for="NewCap"></label><input asp-for="NewCap" class="form-control" min="@Model.EventView.ParticipantCap" /><button class="btn btn-primary" type="submit">Increase and promote</button></form>
+<form method="post" asp-page-handler="Extend" class="panel form-stack"><h2>Extend signups</h2><p>Current close: @Model.EventView.SignupClosesAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p><label asp-for="NewSignupClosing"></label><input asp-for="NewSignupClosing" asp-format="{0:yyyy-MM-ddTHH:mm}" class="form-control" step="1800" /><button class="btn btn-primary" type="submit">Extend closing time</button></form>
+</div>
+<div class="page-heading subheading"><h2>Participants</h2><div><a class="btn btn-outline-light" asp-page="Questions" asp-route-id="@Model.EventView.Id">Signup questions</a> <a class="btn btn-outline-light" asp-page="Csv" asp-route-id="@Model.EventView.Id">CSV import</a></div></div>
+<div class="table-wrap panel"><table><thead><tr><th>#</th><th>Player</th><th>EHB</th><th>Status</th><th>Payment</th><th>Signed up</th><th>Actions</th></tr></thead><tbody>
+@foreach (var p in Model.Participants) { <tr><td>@p.Sequence</td><td><a asp-page="Participant" asp-route-id="@Model.EventView.Id" asp-route-participantId="@p.Id">@p.Name</a> @if(p.CaptainVolunteer){<small>captain</small>}</td><td>@p.Ehb</td><td>@p.Status @if(p.WaitingPosition is not null){<small>#@p.WaitingPosition</small>}</td><td>@p.Payment</td><td>@p.SignedUpAt.ToLocalTime().ToString("g")</td><td>@if(p.Status is SignupStatus.Confirmed or SignupStatus.WaitingList){<form method="post" class="inline-form"><input type="hidden" name="participantId" value="@p.Id" /><input name="reason" required placeholder="Reason" /><button asp-page-handler="Withdraw" class="btn btn-sm btn-outline-light">Withdraw</button><button asp-page-handler="Remove" class="btn btn-sm btn-danger">Remove</button></form>}</td></tr> }
+</tbody></table></div></section>

@@ -2,7 +2,7 @@
 
 An event platform for running OSRS bingo events for one Discord community.
 
-The repository currently contains the Milestone 1 foundation, Milestone 2 identity/access/audit features, and the approved planning documents.
+The repository currently contains the Milestone 1 foundation, Milestone 2 identity/access/audit features, Milestone 3 event/signup workflows, and the approved planning documents.
 
 ## Requirements
 
@@ -52,6 +52,18 @@ http://localhost:5164/Account/Setup
 This setup page is available only in the Development environment, only from the local machine, and only while no administrator exists. Use a password of at least 12 characters. After creation, sign in through `/Account/Login`.
 
 As an alternative for automated local setup, configure `DevelopmentAdminBootstrap` through user secrets or environment variables. Never put a real password in committed settings.
+
+### Create and test an event
+
+After signing in as an administrator:
+
+1. Open **Admin → Events → Create event**.
+2. Save the event as a private draft.
+3. Add optional signup questions or preview a CSV import from the event workspace.
+4. Open signups. This publishes only the event signup page, not teams or the board.
+5. Follow the displayed public signup URL in a private browser window to test participant signup.
+
+Signup edit links are shown once on the confirmation page. Only a hash of each private token is stored in PostgreSQL.
 
 Stop PostgreSQL without deleting local data:
 

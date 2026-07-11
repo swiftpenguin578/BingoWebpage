@@ -1,6 +1,10 @@
 using Bingo.Application.Auditing;
+using Bingo.Application.Security;
+using Bingo.Application.Signups;
 using Bingo.Infrastructure.Auditing;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Security;
+using Bingo.Infrastructure.Signups;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +30,9 @@ public static class DependencyInjection
 
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IAuditWriter, AuditWriter>();
+        services.AddSingleton<ISecretHasher, SecretHasher>();
+        services.AddSingleton<IPrivateEditTokenService, PrivateEditTokenService>();
+        services.AddScoped<ISignupService, SignupService>();
 
         return services;
     }

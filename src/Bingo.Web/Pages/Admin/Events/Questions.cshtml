@@ -1,0 +1,14 @@
+@page "{id:guid}"
+@model Bingo.Web.Pages.Admin.Events.QuestionsModel
+@using Bingo.Domain.Signups
+@{
+    ViewData["Title"] = "Signup questions";
+}
+<section class="form-page wide-form"><p class="eyebrow">Event setup · Step 2</p><h1>Signup questions</h1><p class="form-intro">Every signup automatically asks for the primary account, EHB, an optional secondary account, and whether the player will volunteer as captain. Add only event-specific questions below. Questions lock permanently when signups are first opened.</p>
+<div class="panel">@if(Model.Questions.Count==0){<p>No custom questions yet.</p>}else{<ol>@foreach(var q in Model.Questions){<li><strong>@q.Label</strong> · @QuestionsModel.FormatType(q.Type) · @(q.Required?"required":"optional") @if(Model.CanEdit){<form method="post" asp-page-handler="Deactivate" class="inline-form"><input type="hidden" name="questionId" value="@q.Id"/><button class="btn btn-sm btn-outline-light">Remove</button></form>}</li>}</ol>}</div>
+@if(Model.CanEdit){<form method="post" class="panel form-stack"><h2>Add question</h2><div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+<label asp-for="Input.Label"></label><input asp-for="Input.Label" class="form-control" />
+<label asp-for="Input.Type"></label><select asp-for="Input.Type" class="form-select"><option value="ShortText">Short answer</option><option value="LongText">Long answer</option><option value="Number">Number</option><option value="YesNo">Yes or no</option><option value="SingleChoice">Choose one from a list</option></select>
+<label class="check-row"><input asp-for="Input.Required" /> Player must answer this question</label><div id="choice-options" hidden="@(Model.Input.Type != SignupQuestionType.SingleChoice)"><label asp-for="Input.Options"></label><textarea asp-for="Input.Options" class="form-control" rows="4" placeholder="Weekdays&#10;Weekend&#10;No preference"></textarea><p class="form-hint">Enter each available answer on a separate line. Players will choose one. Example: Weekdays, Weekend, and No preference would use three lines.</p></div>
+<button class="btn btn-primary">Add question</button></form>}else{<div class="panel"><p>Questions are locked because signups have already been opened.</p></div>}<p><a class="btn btn-primary" asp-page="Manage" asp-route-id="@RouteData.Values["id"]">Finish event setup</a></p></section>
+@section Scripts { <partial name="_ValidationScriptsPartial" /><script>const typeSelect=document.getElementById('Input_Type');const choiceOptions=document.getElementById('choice-options');function updateChoiceOptions(){choiceOptions.hidden=typeSelect.value!=='SingleChoice';}typeSelect?.addEventListener('change',updateChoiceOptions);updateChoiceOptions();</script> }
