@@ -1,0 +1,25 @@
+@page "/Errors/{code:int}"
+@model Bingo.Web.Pages.Errors.StatusCodeModel
+@{
+    ViewData["Title"] = Model.Code == 404 ? "Page not found" : "Request could not be completed";
+}
+
+<section class="status-code-page panel">
+    <p class="eyebrow">Error @Model.Code</p>
+    @if (Model.Code == 404)
+    {
+        <h1>That page could not be found.</h1>
+        <p>The event, team, tile, or evidence may not exist or may not be publicly available.</p>
+    }
+    else if (Model.Code == 403)
+    {
+        <h1>You do not have permission to view this page.</h1>
+        <p>Sign in with an account that has access, or return to the public boards.</p>
+    }
+    else
+    {
+        <h1>The request could not be completed.</h1>
+        <p>Please return to the public boards and try again.</p>
+    }
+    <a class="btn btn-primary" asp-page="/Index">Return to public boards</a>
+</section>

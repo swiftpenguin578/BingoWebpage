@@ -3,6 +3,7 @@ using System;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Bingo.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260713162433_AddAdminConcurrencyHardening")]
+    partial class AddAdminConcurrencyHardening
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -170,19 +173,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.Property<int>("Columns")
                         .HasColumnType("integer")
                         .HasColumnName("columns");
-
-                    b.Property<long>("EditControlVersion")
-                        .IsConcurrencyToken()
-                        .HasColumnType("bigint")
-                        .HasColumnName("edit_control_version");
-
-                    b.Property<Guid?>("EditorAccountId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("editor_account_id");
-
-                    b.Property<DateTimeOffset?>("EditorLeaseExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("editor_lease_expires_at");
 
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid")
@@ -725,10 +715,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("allow_private_signup_editing");
 
-                    b.Property<DateTimeOffset?>("ArchivedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("archived_at");
-
                     b.Property<bool>("BoardPublished")
                         .HasColumnType("boolean")
                         .HasColumnName("board_published");
@@ -787,10 +773,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.Property<int?>("ExpectedTeamSize")
                         .HasColumnType("integer")
                         .HasColumnName("expected_team_size");
-
-                    b.Property<DateTimeOffset?>("FinalizedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("finalized_at");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -879,50 +861,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.ToTable("events", (string)null);
                 });
 
-            modelBuilder.Entity("Bingo.Domain.Events.EventFinalizationSnapshot", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("event_id");
-
-                    b.Property<DateTimeOffset>("FinalizedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("finalized_at");
-
-                    b.Property<Guid>("FinalizedByAccountId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("finalized_by_account_id");
-
-                    b.Property<string>("UnfinalizeReason")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("unfinalize_reason");
-
-                    b.Property<DateTimeOffset?>("UnfinalizedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("unfinalized_at");
-
-                    b.Property<Guid?>("UnfinalizedByAccountId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("unfinalized_by_account_id");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("integer")
-                        .HasColumnName("version");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventId", "Version")
-                        .IsUnique();
-
-                    b.ToTable("event_finalizations", (string)null);
-                });
-
             modelBuilder.Entity("Bingo.Domain.Events.EventStateTransition", b =>
                 {
                     b.Property<Guid>("Id")
@@ -964,149 +902,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.HasIndex("EventId", "PerformedAt");
 
                     b.ToTable("event_state_transitions", (string)null);
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Events.FinalReviewResolution", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("BlockerDescription")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("blocker_description");
-
-                    b.Property<string>("BlockerKey")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("blocker_key");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("event_id");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("reason");
-
-                    b.Property<DateTimeOffset>("ResolvedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("resolved_at");
-
-                    b.Property<Guid>("ResolvedByAccountId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("resolved_by_account_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventId", "BlockerKey");
-
-                    b.ToTable("final_review_resolutions", (string)null);
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Events.OfficialPlacementSnapshot", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<bool>("BoardComplete")
-                        .HasColumnType("boolean")
-                        .HasColumnName("board_complete");
-
-                    b.Property<DateTimeOffset?>("BoardCompletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("board_completed_at");
-
-                    b.Property<int>("CompletedLines")
-                        .HasColumnType("integer")
-                        .HasColumnName("completed_lines");
-
-                    b.Property<int>("CompletedTiles")
-                        .HasColumnType("integer")
-                        .HasColumnName("completed_tiles");
-
-                    b.Property<decimal>("EhbTiebreak")
-                        .HasPrecision(14, 4)
-                        .HasColumnType("numeric(14,4)")
-                        .HasColumnName("ehb_tiebreak");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("event_id");
-
-                    b.Property<Guid>("FinalizationId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("finalization_id");
-
-                    b.Property<int>("Placement")
-                        .HasColumnType("integer")
-                        .HasColumnName("placement");
-
-                    b.Property<Guid>("TeamId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("team_id");
-
-                    b.Property<string>("TeamName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("team_name");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FinalizationId", "TeamId")
-                        .IsUnique();
-
-                    b.ToTable("official_placements", (string)null);
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Events.TeamCompletionCorrection", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("CorrectedByAccountId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("corrected_by_account_id");
-
-                    b.Property<DateTimeOffset>("CorrectedCompletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("corrected_completed_at");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("event_id");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("reason");
-
-                    b.Property<DateTimeOffset>("RecordedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("recorded_at");
-
-                    b.Property<Guid>("TeamId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("team_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventId", "TeamId")
-                        .IsUnique();
-
-                    b.ToTable("team_completion_corrections", (string)null);
                 });
 
             modelBuilder.Entity("Bingo.Domain.Evidence.EvidenceAsset", b =>

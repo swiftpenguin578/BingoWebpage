@@ -1,30 +1,62 @@
+using System.Globalization;
 using System.Threading.RateLimiting;
 using Bingo.Application.Access;
+using Bingo.Application.Boards;
+using Bingo.Application.Teams;
 using Bingo.Domain.Access;
 using Bingo.Infrastructure;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
+using Bingo.Web.Catalogue;
+using Bingo.Web.Events;
+using Bingo.Web.TestData;
+using Bingo.Web.Hubs;
+using Bingo.Web.Navigation;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Localization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    var supportedCultures = new[] { new CultureInfo("en"), new CultureInfo("da") };
+    options.DefaultRequestCulture = new RequestCulture("en");
+    options.SupportedCultures = supportedCultures;
+    options.SupportedUICultures = supportedCultures;
+    options.RequestCultureProviders =
+    [
+        new CookieRequestCultureProvider(),
+        new AcceptLanguageHeaderRequestCultureProvider()
+    ];
+});
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Admin", AuthorizationPolicies.Admin);
     options.Conventions.AuthorizeFolder("/Captain", AuthorizationPolicies.CaptainCorrectionAccess);
 });
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddSignalR();
+builder.Services.AddScoped<IProgressNotifier, SignalRProgressNotifier>();
+builder.Services.AddScoped<IAdminCollaborationNotifier, SignalRAdminCollaborationNotifier>();
 builder.Services.Configure<DevelopmentAdminBootstrapOptions>(
     builder.Configuration.GetSection(DevelopmentAdminBootstrapOptions.SectionName));
 builder.Services.AddScoped<IPasswordHasher<Account>, PasswordHasher<Account>>();
 builder.Services.AddScoped<AccountAuthenticationService>();
+builder.Services.AddScoped<CaptainAccountProvisioner>();
 builder.Services.AddScoped<AccountCookieEvents>();
 builder.Services.AddScoped<DevelopmentAdminBootstrapper>();
+builder.Services.AddScoped<ClanCatalogueImporter>();
+builder.Services.AddHttpClient<LegacyTestSignupImporter>();
+builder.Services.AddScoped<DevelopmentScenarioSeeder>();
+builder.Services.AddScoped<SharedShellService>();
+builder.Services.AddHostedService<EventLifecycleWorker>();
 builder.Services.AddScoped<IAuthorizationHandler, AccountAuthorizationHandler>();
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -89,6 +121,41 @@ builder.Services
 
 var app = builder.Build();
 
+if (args.Contains("--reset-test-data", StringComparer.Ordinal))
+{
+    if (!app.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException("--reset-test-data can be used only in the Development environment.");
+    }
+
+    await using var seedScope = app.Services.CreateAsyncScope();
+    var seedDb = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await seedDb.Database.MigrateAsync();
+    var seeder = seedScope.ServiceProvider.GetRequiredService<DevelopmentScenarioSeeder>();
+    var result = await seeder.ResetAndSeedAsync();
+    Console.WriteLine($"Test database reset complete. Preserved admin: {result.AdminUsername}");
+    Console.WriteLine($"Second admin for concurrency tests: {result.SecondaryAdminUsername} / {result.SecondaryAdminPassword}");
+    Console.WriteLine($"Board blueprint: {result.BoardBlueprint}");
+    foreach (var scenario in result.Scenarios)
+    {
+        Console.WriteLine($"- {scenario.EventName} [{scenario.EventState}; board: {scenario.BoardState?.ToString() ?? "none"}]");
+        foreach (var username in scenario.CaptainUsernames)
+        {
+            Console.WriteLine($"  Captain login: {username} / {result.CaptainPassword}");
+        }
+    }
+    return;
+}
+
+var clanCatalogueArgument = args.SkipWhile(value => !string.Equals(value, "--import-clan-catalogue", StringComparison.Ordinal)).Skip(1).FirstOrDefault();
+if (clanCatalogueArgument is not null)
+{
+    await using var importScope = app.Services.CreateAsyncScope(); var importer = importScope.ServiceProvider.GetRequiredService<ClanCatalogueImporter>(); var result = await importer.ImportAsync(clanCatalogueArgument);
+    Console.WriteLine($"Clan catalogue import complete. Bosses created: {result.BossesCreated}; drops created: {result.DropsCreated}; skipped: {result.Skipped.Count}.");
+    if (result.Skipped.Count > 0) Console.WriteLine($"Skipped rows: {string.Join("; ", result.Skipped)}");
+    return;
+}
+
 if (app.Environment.IsDevelopment())
 {
     await using var scope = app.Services.CreateAsyncScope();
@@ -103,8 +170,11 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseStatusCodePagesWithReExecute("/Errors/{0}");
+
 app.UseHttpsRedirection();
 
+app.UseRequestLocalization();
 app.UseRouting();
 
 app.UseRateLimiter();
@@ -138,6 +208,8 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 });
 app.MapRazorPages()
    .WithStaticAssets();
+app.MapHub<ProgressHub>("/hubs/progress");
+app.MapHub<AdminCollaborationHub>("/hubs/admin-collaboration");
 
 app.Run();
 

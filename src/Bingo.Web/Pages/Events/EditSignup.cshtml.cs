@@ -35,7 +35,7 @@ public sealed class EditSignupModel(ApplicationDbContext dbContext, IPrivateEdit
     }
     private async Task<EventParticipant?> FindAsync(string slug, string token, CancellationToken ct)
     {
-        var hash = tokenService.Hash(token); return await (from p in dbContext.EventParticipants join e in dbContext.Events on p.EventId equals e.Id where e.Slug == slug && e.AllowPrivateSignupEditing && p.PrivateEditTokenHash == hash && (p.SignupStatus == SignupStatus.Confirmed || p.SignupStatus == SignupStatus.WaitingList) select p).SingleOrDefaultAsync(ct);
+        var hash = tokenService.Hash(token); return await (from p in dbContext.EventParticipants join e in dbContext.Events on p.EventId equals e.Id where e.Slug == slug && e.AllowPrivateSignupEditing && !e.DraftLocked && p.PrivateEditTokenHash == hash && (p.SignupStatus == SignupStatus.Confirmed || p.SignupStatus == SignupStatus.WaitingList) select p).SingleOrDefaultAsync(ct);
     }
     private async Task LoadQuestionsAsync(Guid eventId, CancellationToken ct) => Questions = await dbContext.SignupQuestions.AsNoTracking().Where(q => q.EventId == eventId && q.Active).OrderBy(q => q.Position).Select(q => new QuestionView(q.Id, q.Label, q.Type, q.Required, q.Options == null ? Array.Empty<string>() : q.Options.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))).ToListAsync(ct);
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

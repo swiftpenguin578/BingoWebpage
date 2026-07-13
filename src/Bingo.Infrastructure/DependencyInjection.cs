@@ -1,10 +1,18 @@
 using Bingo.Application.Auditing;
+using Bingo.Application.Boards;
 using Bingo.Application.Security;
 using Bingo.Application.Signups;
+using Bingo.Application.Teams;
+using Bingo.Application.Evidence;
+using Bingo.Application.Events;
 using Bingo.Infrastructure.Auditing;
+using Bingo.Infrastructure.Evidence;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Security;
 using Bingo.Infrastructure.Signups;
+using Bingo.Infrastructure.Teams;
+using Bingo.Infrastructure.Boards;
+using Bingo.Infrastructure.Events;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +41,15 @@ public static class DependencyInjection
         services.AddSingleton<ISecretHasher, SecretHasher>();
         services.AddSingleton<IPrivateEditTokenService, PrivateEditTokenService>();
         services.AddScoped<ISignupService, SignupService>();
+        if (string.Equals(configuration["EvidenceStorage:Provider"], "R2", StringComparison.OrdinalIgnoreCase))
+            services.AddSingleton<IEvidenceStorage, R2EvidenceStorage>();
+        else
+            services.AddSingleton<IEvidenceStorage, LocalEvidenceStorage>();
+        services.AddScoped<ISubmissionService, SubmissionService>();
+        services.AddScoped<IPublicBoardService, PublicBoardService>();
+        services.AddScoped<IEventFinalizationService, EventFinalizationService>();
+        services.AddScoped<IProgressNotifier, NullProgressNotifier>();
+        services.AddScoped<IAdminCollaborationNotifier, NullAdminCollaborationNotifier>();
 
         return services;
     }

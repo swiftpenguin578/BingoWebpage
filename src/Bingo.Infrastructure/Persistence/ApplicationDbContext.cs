@@ -1,7 +1,11 @@
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
+using Bingo.Domain.Boards;
+using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
+using Bingo.Domain.Evidence;
 using Bingo.Domain.Signups;
+using Bingo.Domain.Teams;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Infrastructure.Persistence;
@@ -16,9 +20,34 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<BingoEvent> Events => Set<BingoEvent>();
     public DbSet<EventStateTransition> EventStateTransitions => Set<EventStateTransition>();
+    public DbSet<EventFinalizationSnapshot> EventFinalizations => Set<EventFinalizationSnapshot>();
+    public DbSet<OfficialPlacementSnapshot> OfficialPlacements => Set<OfficialPlacementSnapshot>();
+    public DbSet<FinalReviewResolution> FinalReviewResolutions => Set<FinalReviewResolution>();
+    public DbSet<TeamCompletionCorrection> TeamCompletionCorrections => Set<TeamCompletionCorrection>();
     public DbSet<EventParticipant> EventParticipants => Set<EventParticipant>();
     public DbSet<SignupQuestion> SignupQuestions => Set<SignupQuestion>();
     public DbSet<SignupAnswer> SignupAnswers => Set<SignupAnswer>();
+    public DbSet<BossActivity> BossActivities => Set<BossActivity>();
+    public DbSet<CatalogueItem> CatalogueItems => Set<CatalogueItem>();
+    public DbSet<SourceDrop> SourceDrops => Set<SourceDrop>();
+    public DbSet<Board> Boards => Set<Board>();
+    public DbSet<TileTemplate> TileTemplates => Set<TileTemplate>();
+    public DbSet<TileTemplateRequirement> TileTemplateRequirements => Set<TileTemplateRequirement>();
+    public DbSet<TemplateRequirementBoss> TemplateRequirementBosses => Set<TemplateRequirementBoss>();
+    public DbSet<TemplateRequirementDrop> TemplateRequirementDrops => Set<TemplateRequirementDrop>();
+    public DbSet<BoardTile> BoardTiles => Set<BoardTile>();
+    public DbSet<BoardRequirementSnapshot> BoardRequirementSnapshots => Set<BoardRequirementSnapshot>();
+    public DbSet<BoardRequirementBossSnapshot> BoardRequirementBossSnapshots => Set<BoardRequirementBossSnapshot>();
+    public DbSet<BoardRequirementDropSnapshot> BoardRequirementDropSnapshots => Set<BoardRequirementDropSnapshot>();
+    public DbSet<Team> Teams => Set<Team>();
+    public DbSet<TeamMembership> TeamMemberships => Set<TeamMembership>();
+    public DbSet<DraftSession> DraftSessions => Set<DraftSession>();
+    public DbSet<DraftPick> DraftPicks => Set<DraftPick>();
+    public DbSet<EvidenceCode> EvidenceCodes => Set<EvidenceCode>();
+    public DbSet<Submission> Submissions => Set<Submission>();
+    public DbSet<EvidenceAsset> EvidenceAssets => Set<EvidenceAsset>();
+    public DbSet<ReviewAction> ReviewActions => Set<ReviewAction>();
+    public DbSet<SubmissionContribution> SubmissionContributions => Set<SubmissionContribution>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -47,6 +76,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(account => account.Role).HasColumnName("role").HasConversion<string>().HasMaxLength(20);
             entity.Property(account => account.EventId).HasColumnName("event_id");
             entity.Property(account => account.TeamId).HasColumnName("team_id");
+            entity.Property(account => account.CaptainParticipantId).HasColumnName("captain_participant_id");
+            entity.HasIndex(account => account.CaptainParticipantId).IsUnique();
             entity.Property(account => account.ActiveFrom).HasColumnName("active_from");
             entity.Property(account => account.CorrectionOnlyFrom).HasColumnName("correction_only_from");
             entity.Property(account => account.ExpiresAt).HasColumnName("expires_at");

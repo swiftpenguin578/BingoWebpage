@@ -51,6 +51,7 @@ public sealed class BingoEvent
     public DateTimeOffset EventStartsAt { get; private set; }
     public DateTimeOffset EventEndsAt { get; private set; }
     public DateTimeOffset SubmissionCutoffAt { get; private set; }
+    public DateTimeOffset? ReopenedSubmissionCutoffAt { get; private set; }
     public int ParticipantCap { get; private set; }
     public bool WaitingListEnabled { get; private set; }
     public bool AllowPrivateSignupEditing { get; private set; }
@@ -69,11 +70,24 @@ public sealed class BingoEvent
     public bool BoardPublished { get; private set; }
     public bool ResultsPublished { get; private set; }
     public bool DraftLocked { get; private set; }
+    public bool EvidenceCodeEnabled { get; private set; }
+    public DateTimeOffset? FinalizedAt { get; private set; }
+    public DateTimeOffset? ArchivedAt { get; private set; }
     public Guid CreatedByAccountId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
     public bool AcceptsSignups(DateTimeOffset now) =>
         State == EventState.SignupOpen && now >= SignupOpensAt && now < SignupClosesAt;
+
+    public bool AcceptsNewSubmissions(DateTimeOffset now)
+    {
+        var cutoff = ReopenedSubmissionCutoffAt is not null && ReopenedSubmissionCutoffAt > SubmissionCutoffAt
+            ? ReopenedSubmissionCutoffAt.Value
+            : SubmissionCutoffAt;
+        return (State is EventState.Live or EventState.AwaitingFinalReview)
+            && now >= EventStartsAt
+            && now <= cutoff;
+    }
 
     public void ConfigureSignup(bool waitingListEnabled, bool allowPrivateEditing, bool requireCode, string? codeHash)
     {
@@ -111,6 +125,20 @@ public sealed class BingoEvent
     }
 
     public void CloseSignups() => State = EventState.SignupClosed;
+
+    public void StartEvent(DateTimeOffset now)
+    {
+        if (State is EventState.Finalized or EventState.Archived) throw new InvalidOperationException("A finalized event cannot be started.");
+        if (now < EventStartsAt) EventStartsAt = now.ToUniversalTime();
+        State = EventState.Live;
+    }
+
+    public void EndEvent() { if (State != EventState.Live) throw new InvalidOperationException("Only a live event can be ended."); State = EventState.AwaitingFinalReview; }
+    public void ReopenSubmissions(DateTimeOffset until, DateTimeOffset now) { if (State is EventState.Finalized or EventState.Archived) throw new InvalidOperationException("Finalized events cannot accept submissions."); if (State is not (EventState.Live or EventState.AwaitingFinalReview)) throw new InvalidOperationException("Only a started event can accept submissions."); if (until <= now) throw new InvalidOperationException("The new cutoff must be in the future."); ReopenedSubmissionCutoffAt = until.ToUniversalTime(); }
+    public void SetEvidenceCodeEnabled(bool enabled) => EvidenceCodeEnabled = enabled;
+    public void FinalizeResults(DateTimeOffset now) { if (State != EventState.AwaitingFinalReview) throw new InvalidOperationException("Only an event awaiting final review can be finalized."); State = EventState.Finalized; ResultsPublished = true; FinalizedAt = now.ToUniversalTime(); ArchivedAt = null; }
+    public void Unfinalize() { if (State is not (EventState.Finalized or EventState.Archived)) throw new InvalidOperationException("Only a finalized or archived event can be reopened for corrections."); State = EventState.AwaitingFinalReview; ResultsPublished = false; ArchivedAt = null; }
+    public void Archive(DateTimeOffset now) { if (State != EventState.Finalized) throw new InvalidOperationException("Finalize the event before archiving it."); State = EventState.Archived; ArchivedAt = now.ToUniversalTime(); }
 
     public void IncreaseParticipantCap(int newCap)
     {

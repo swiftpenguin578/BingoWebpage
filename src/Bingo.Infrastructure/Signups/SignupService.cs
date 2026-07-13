@@ -20,12 +20,22 @@ public sealed class SignupService(
             .FromSqlInterpolated($"SELECT * FROM events WHERE id = {request.EventId} FOR UPDATE")
             .SingleOrDefaultAsync(cancellationToken);
         var now = timeProvider.GetUtcNow();
-        if (bingoEvent is null || (!request.BypassAvailability && !bingoEvent.AcceptsSignups(now)))
+        if (bingoEvent is null)
         {
             return new SignupResult(false, "Signups are not currently open.", null, null, null, null);
         }
 
-        if (bingoEvent.RequireSignupCode &&
+        if (bingoEvent.DraftLocked)
+        {
+            return new SignupResult(false, "The participant pool is locked because the draft has started.", null, null, null, null);
+        }
+
+        if (!request.BypassAvailability && !bingoEvent.AcceptsSignups(now))
+        {
+            return new SignupResult(false, "Signups are not currently open.", null, null, null, null);
+        }
+
+        if (!request.BypassAvailability && bingoEvent.RequireSignupCode &&
             (string.IsNullOrWhiteSpace(request.SignupCode) || bingoEvent.SignupCodeHash is null ||
              !secretHasher.Verify(request.SignupCode, bingoEvent.SignupCodeHash)))
         {
@@ -54,12 +64,14 @@ public sealed class SignupService(
         }
 
         var confirmedCount = await dbContext.EventParticipants.CountAsync(
-            participant => participant.EventId == request.EventId && participant.SignupStatus == SignupStatus.Confirmed,
+            participant => participant.EventId == request.EventId &&
+                participant.Source != SignupSource.AdminCreated &&
+                participant.SignupStatus == SignupStatus.Confirmed,
             cancellationToken);
         var status = confirmedCount < bingoEvent.ParticipantCap
             ? SignupStatus.Confirmed
             : SignupStatus.WaitingList;
-        if (status == SignupStatus.WaitingList && !bingoEvent.WaitingListEnabled)
+        if (status == SignupStatus.WaitingList && !bingoEvent.WaitingListEnabled && !request.BypassAvailability)
         {
             return new SignupResult(false, "This event is full and does not have a waiting list.", null, null, null, null);
         }
@@ -99,6 +111,10 @@ public sealed class SignupService(
         var bingoEvent = await dbContext.Events
             .FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} FOR UPDATE")
             .SingleAsync(cancellationToken);
+        if (bingoEvent.DraftLocked)
+        {
+            throw new InvalidOperationException("The participant cap is locked because the draft has started.");
+        }
         bingoEvent.IncreaseParticipantCap(newCap);
         var promoted = await PromoteWithinLockedEventAsync(bingoEvent, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -122,7 +138,9 @@ public sealed class SignupService(
     {
         if (bingoEvent.DraftLocked) return 0;
         var confirmed = await dbContext.EventParticipants.CountAsync(
-            participant => participant.EventId == bingoEvent.Id && participant.SignupStatus == SignupStatus.Confirmed,
+            participant => participant.EventId == bingoEvent.Id &&
+                participant.Source != SignupSource.AdminCreated &&
+                participant.SignupStatus == SignupStatus.Confirmed,
             cancellationToken);
         var places = Math.Max(0, bingoEvent.ParticipantCap - confirmed);
         if (places == 0) return 0;
