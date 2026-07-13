@@ -71,7 +71,7 @@ public sealed class LoginModel(
             return RedirectToPage("/Account/ChangePassword");
         }
 
-        return LocalRedirect(Url.IsLocalUrl(ReturnUrl) ? ReturnUrl : "/");
+        return LocalRedirect(Url.IsLocalUrl(ReturnUrl) ? ReturnUrl : account.Role == Bingo.Domain.Access.AccountRole.Captain ? "/Captain" : "/Admin");
     }
 
     public sealed class LoginInput

@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace Bingo.Web.Pages.Admin.Accounts;
 
@@ -21,10 +22,21 @@ public sealed class CreateModel(
 {
     [BindProperty]
     public CreateInput Input { get; set; } = new();
+    public IReadOnlyList<SelectListItem> Events { get; private set; } = [];
+    public IReadOnlyList<TeamOption> Teams { get; private set; } = [];
+
+    public async Task OnGetAsync(Guid? eventId, Guid? teamId, CancellationToken cancellationToken)
+    {
+        Input.EventId = eventId; Input.TeamId = teamId;
+        if (eventId is not null) await ApplyCaptainDefaults(eventId.Value, cancellationToken);
+        await LoadOptions(cancellationToken);
+    }
 
     public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
     {
+        if (Input.Role == AccountRole.Captain && Input.EventId is not null) await ApplyCaptainDefaults(Input.EventId.Value, cancellationToken);
         ValidateCaptainScope();
+        if (Input.Role == AccountRole.Captain && Input.EventId is not null && Input.TeamId is not null && !await dbContext.Teams.AnyAsync(team => team.Id == Input.TeamId && team.EventId == Input.EventId && team.Active, cancellationToken)) ModelState.AddModelError("Input.TeamId", "Choose a team belonging to the selected event.");
         var normalizedUsername = AccountAuthenticationService.NormalizeUsername(Input.Username);
         if (await dbContext.Accounts.AnyAsync(account => account.NormalizedUsername == normalizedUsername, cancellationToken))
         {
@@ -33,6 +45,7 @@ public sealed class CreateModel(
 
         if (!ModelState.IsValid)
         {
+            await LoadOptions(cancellationToken);
             return Page();
         }
 
@@ -65,6 +78,21 @@ public sealed class CreateModel(
             cancellationToken);
         TempData["StatusMessage"] = $"Created {account.Username}.";
         return RedirectToPage("Index");
+    }
+
+    private async Task LoadOptions(CancellationToken ct)
+    {
+        Events = await dbContext.Events.AsNoTracking().OrderBy(x => x.Name).Select(x => new SelectListItem(x.Name, x.Id.ToString())).ToListAsync(ct);
+        Teams = await (from team in dbContext.Teams.AsNoTracking() join bingoEvent in dbContext.Events on team.EventId equals bingoEvent.Id where team.Active orderby bingoEvent.Name, team.Name select new TeamOption(team.Id, team.EventId, $"{bingoEvent.Name} — {team.Name}")).ToListAsync(ct);
+    }
+
+    private async Task ApplyCaptainDefaults(Guid eventId, CancellationToken ct)
+    {
+        var ev = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId, ct);
+        if (ev is null) return;
+        Input.ActiveFrom ??= ev.EventStartsAt;
+        Input.CorrectionOnlyFrom ??= ev.SubmissionCutoffAt;
+        Input.ExpiresAt ??= ev.EventEndsAt.AddHours(24);
     }
 
     private void ValidateCaptainScope()
@@ -123,4 +151,5 @@ public sealed class CreateModel(
         [Display(Name = "Require password change")]
         public bool MustChangePassword { get; set; } = true;
     }
+    public sealed record TeamOption(Guid Id, Guid EventId, string Label);
 }

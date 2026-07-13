@@ -29,6 +29,8 @@ public sealed class Account
 
     public Guid? TeamId { get; private set; }
 
+    public Guid? CaptainParticipantId { get; private set; }
+
     public DateTimeOffset? ActiveFrom { get; private set; }
 
     public DateTimeOffset? CorrectionOnlyFrom { get; private set; }
@@ -54,7 +56,8 @@ public sealed class Account
         Guid teamId,
         DateTimeOffset? activeFrom,
         DateTimeOffset? correctionOnlyFrom,
-        DateTimeOffset? expiresAt)
+        DateTimeOffset? expiresAt,
+        Guid? captainParticipantId = null)
     {
         if (Role != AccountRole.Captain)
         {
@@ -63,6 +66,7 @@ public sealed class Account
 
         EventId = eventId;
         TeamId = teamId;
+        CaptainParticipantId = captainParticipantId;
         ActiveFrom = activeFrom?.ToUniversalTime();
         CorrectionOnlyFrom = correctionOnlyFrom?.ToUniversalTime();
         ExpiresAt = expiresAt?.ToUniversalTime();
@@ -75,6 +79,8 @@ public sealed class Account
         DisabledAt = null;
         ExpiresAt = expiresAt?.ToUniversalTime();
     }
+
+    public void ScheduleExpiry(DateTimeOffset? expiresAt) => ExpiresAt = expiresAt?.ToUniversalTime();
 
     public void RecordLogin(DateTimeOffset now) => LastLoginAt = now.ToUniversalTime();
 
