@@ -103,4 +103,6 @@
   <data name="CSV import" xml:space="preserve"><value>CSV-import</value></data>
   <data name="Finish event" xml:space="preserve"><value>Afslut bingo</value></data>
   <data name="Current page" xml:space="preserve"><value>Nuværende side</value></data>
+  <data name="Settings" xml:space="preserve"><value>Indstillinger</value></data>
+  <data name="Signed in as" xml:space="preserve"><value>Logget ind som</value></data>
 </root>

@@ -89,27 +89,6 @@ a:hover {
   text-align: left;
 }
 
-.nav-language {
-  display: flex;
-  align-items: center;
-}
-
-.language-form {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0 0.5rem;
-}
-
-.language-form select {
-  padding: 0.28rem 1.6rem 0.28rem 0.45rem;
-  color: var(--text);
-  background-color: var(--page);
-  border: 1px solid var(--border);
-  border-radius: 0.4rem;
-  font-size: 0.78rem;
-}
-
 .nav-popover {
   position: relative;
   display: flex;
@@ -167,25 +146,6 @@ a:hover {
   text-align: center;
 }
 
-.account-summary {
-  max-width: 14rem;
-  padding: 0.48rem 0.7rem;
-  overflow: hidden;
-  color: var(--text);
-  border-radius: 0.45rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.account-summary::after {
-  display: inline-block;
-  margin-left: 0.4rem;
-  content: "";
-  border: 0.28rem solid transparent;
-  border-top-color: var(--muted);
-  transform: translateY(0.2rem);
-}
-
 .nav-panel {
   position: absolute;
   z-index: 1050;
@@ -200,10 +160,23 @@ a:hover {
   box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.38);
 }
 
-.account-panel { display: grid; gap: 0.25rem; }
-.account-panel > strong { padding: 0.55rem 0.65rem; overflow-wrap: anywhere; }
-.account-panel a,
-.account-panel button {
+.settings-panel { display: grid; gap: 0.25rem; width: min(18rem, calc(100vw - 2rem)); }
+.settings-heading { padding: 0.55rem 0.65rem; border-bottom: 1px solid var(--border); }
+.settings-language-form { display: grid; grid-template-columns: 1fr auto; gap: 0.6rem; align-items: center; padding: 0.55rem 0.65rem; }
+.settings-language-form label { color: var(--muted); font-size: 0.82rem; font-weight: 650; }
+.settings-language-form select {
+  padding: 0.3rem 1.7rem 0.3rem 0.5rem;
+  color: var(--text);
+  background: var(--page);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  font-size: 0.82rem;
+}
+.settings-account { display: grid; gap: 0.1rem; margin-top: 0.2rem; padding: 0.65rem; border-top: 1px solid var(--border); }
+.settings-account span { color: var(--muted); font-size: 0.72rem; }
+.settings-account strong { overflow-wrap: anywhere; }
+.settings-panel a,
+.settings-panel button {
   display: block;
   width: 100%;
   padding: 0.55rem 0.65rem;
@@ -214,8 +187,8 @@ a:hover {
   text-align: left;
   text-decoration: none;
 }
-.account-panel a:hover,
-.account-panel button:hover { background: var(--surface-raised); color: var(--text); }
+.settings-panel a:hover,
+.settings-panel button:hover { background: var(--surface-raised); color: var(--text); }
 
 .notification-panel { width: min(24rem, calc(100vw - 2rem)); }
 .nav-panel-heading { display: flex; gap: 0.75rem; justify-content: space-between; padding: 0.55rem 0.65rem; border-bottom: 1px solid var(--border); }
@@ -751,7 +724,6 @@ main h1 {
 @media (max-width: 767.98px) {
   .nav-popover { display: block; }
   .nav-icon-button { margin: 0.2rem 0.4rem; }
-  .account-summary { max-width: none; margin: 0.15rem 0; }
   .nav-panel { position: static; width: 100%; margin: 0.25rem 0 0.5rem; box-shadow: none; }
   .app-breadcrumbs li:not(:nth-last-child(-n+2)) { display: none; }
   .app-breadcrumbs li:nth-last-child(2)::before { margin-left: 0; content: "←"; }
