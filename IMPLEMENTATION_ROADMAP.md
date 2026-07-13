@@ -4,7 +4,7 @@
 
 **Status:** Approved roadmap v1.0  
 **Last updated:** 2026-07-11  
-**Companion documents:** `PRODUCT_REQUIREMENTS.md`, `DATA_MODEL.md`, `TECHNICAL_ARCHITECTURE.md`
+**Companion documents:** `PRODUCT_REQUIREMENTS.md`, `DATA_MODEL.md`, `TECHNICAL_ARCHITECTURE.md`, `UI_OVERHAUL_ROADMAP.md`
 
 ## 1. Purpose
 
@@ -48,11 +48,15 @@ The first production event must be preceded by a complete test-event rehearsal i
 | 5. Teams and snake draft | Admin can create teams and complete a private draft | 3 |
 | 6. Evidence submission and review | Captains submit; admins review and reverse evidence | 4, 5 |
 | 7. Public boards, progress, and rankings | Visitors see live team boards and evidence | 6 |
-| 8. Event operations and finalization | Admin closes, reviews, finalizes, and archives events | 7 |
-| 9. Production operations | VPS, R2, deployment, backups, monitoring, and restore work | 1–8 |
-| 10. Full rehearsal and release | A representative test event passes end to end | 9 |
+| 7A. Concurrent administration hardening | Multiple admins cannot overwrite board work or compete for draft control | 4, 5, 7 |
+| 8. Event operations and finalization | Admin closes, reviews, finalizes, and archives events | 7A |
+| 9. UI overhaul and regression | Every workflow is clear, consistent, responsive, and retested locally | 1–8 |
+| 10. Local rehearsal and production preparation | A release candidate passes end to end and deployment/restore tooling is ready | 9 |
+| 11. Production deployment and validation | The approved release candidate is deployed last and passes production checks | 10 |
 
 Milestones 4 and 5 can partly proceed in parallel after the event/signup foundation is stable, but their integration must be verified before evidence submission begins.
+
+Milestone 7A is a follow-up hardening milestone for already completed workflows. It must be completed before Milestone 8 and before a real multi-admin draft or board-editing session.
 
 ## 4. Milestone 0 — Project readiness
 
@@ -342,7 +346,7 @@ Allow admins to combine website-drafted teams with manually managed pre-formed t
 - Manually add, remove, and move members on pre-formed rosters with an audit reason.
 - Exclude pre-formed teams and their assigned players from draft order and the available draft pool.
 - Captain and co-captain assignment.
-- Separate captain accounts.
+- Automatically generated separate captain/co-captain accounts with name-based randomized usernames, one-time temporary passwords, and participant linkage.
 - Random initial team-order scramble.
 - Snake-draft turn calculation.
 - Complete participant pool sorted by EHB.
@@ -397,9 +401,10 @@ Replace Discord drop-channel submissions and manual spreadsheet updates.
 - Eligible boss/drop selection.
 - Credited weight default `1`.
 - Higher weight editable only when tile permits it.
-- Obtained time default current and editable.
+- Immutable server-generated submission time; no captain-entered obtained time.
 - One image upload.
 - Optional note.
+- Optional captain request to hide the approved screenshot and credited player publicly.
 - Pending history.
 - Edit/withdraw pending submission.
 - Changes-requested correction and resubmission.
@@ -414,12 +419,13 @@ Replace Discord drop-channel submissions and manual spreadsheet updates.
 - Checksums and generated keys.
 - Original/replacement evidence history.
 - Safe evidence display.
+- Separate enabled/disabled evidence-code mode with custom or generated codes, immediate/scheduled activation, and immutable per-submission code snapshots.
 
 #### Admin review
 
-- Event/team/status review queue.
+- Current active-event review queue with team/tile/status filters and newest submissions first.
 - Evidence preview and full-size view.
-- Tile/player/drop/weight/time metadata.
+- Tile/player/drop/weight metadata plus immutable submission time.
 - Prior approved evidence for context.
 - Edit metadata with audit before/after.
 - Approve.
@@ -427,6 +433,7 @@ Replace Discord drop-channel submissions and manual spreadsheet updates.
 - Request changes with required note.
 - Mark duplicate.
 - Hide public image and player together.
+- Restore public image and player when an automatic captain privacy request is unnecessary.
 - Reverse approval with reason.
 
 ### Transaction tests
@@ -437,7 +444,7 @@ Replace Discord drop-channel submissions and manual spreadsheet updates.
 - One drop contributes to one tile.
 - Weight above one rejected when tile disallows it.
 - Contribution capped at remaining requirement target.
-- Reversal removes exactly its approved contribution.
+- Reversal removes its contribution and reallocates freed capacity to later eligible approved evidence.
 - Replacement evidence preserves the original.
 
 ### Completion criteria
@@ -488,7 +495,7 @@ Deliver the participant-facing centerpiece and automatic competitive calculation
 
 - Center tile contributes to its row and column but counts as one tile.
 - Overlapping completed lines count separately.
-- Full-board completion uses obtained time, not review time.
+- Full-board completion uses immutable submission time, not review time.
 - Finishers outrank non-finishers.
 - Non-finishers rank by lines, then tiles, then EHB tie-break.
 - Reversal can remove a line, full board, and provisional win.
@@ -505,6 +512,56 @@ Deliver the participant-facing centerpiece and automatic competitive calculation
 
 - Public state is reproducible from approved evidence.
 - No private pending evidence is exposed.
+
+## 11.1 Milestone 7A — Concurrent administration hardening
+
+### Objective
+
+Make the completed board-builder and draft workflows safe when multiple administrators have the same event open.
+
+### Deliverables
+
+#### Board editing
+
+- Show when another administrator is actively editing the board.
+- Open the board in view mode by default so multiple administrators can review it together without claiming editing control.
+- Add one renewable board-editor lease that is acquired only through an explicit Edit board action.
+- Keep other administrators in a live view-only mode and allow confirmed takeover or manual release.
+- Add one optimistic concurrency version to the board aggregate, covering its tiles, requirements, layout, and publication state.
+- Include the loaded version with every board mutation, including tile edits, moves, swaps, removal, and resizing.
+- Reject stale saves with a clear reload-and-review message while preserving the newer saved version.
+- Renew the editing lease only while the editor interacts with the board and release it after five minutes of inactivity, so an abandoned open tab does not permanently lock the board.
+
+#### Draft control
+
+- Add a single active draft-controller lease.
+- Restrict start, pick, undo, pause/resume, and finalization to the controlling administrator.
+- Give other administrators a live read-only view showing the controller, current turn, and picks.
+- Allow an explicit confirmed takeover when the controller is unavailable.
+- Audit controller acquisition, release, and takeover.
+- Retain serializable pick transactions and database uniqueness constraints as final integrity safeguards.
+
+### Tests
+
+- Two admins cannot hold board editing control simultaneously, and a racing claim cannot silently overwrite the current editor.
+- Concurrent move, resize, and tile edits either complete atomically or return a recoverable conflict without corrupting positions.
+- Two admins cannot start or mutate the same draft concurrently.
+- A non-controlling admin can observe current turns and picks but cannot record or undo a pick.
+- Controller takeover transfers write authority without changing pick history or turn order.
+- Retried or racing draft requests cannot assign one participant twice or create two picks for one turn.
+
+### Browser acceptance
+
+- A second admin opening an actively edited board sees the other admin’s presence.
+- Multiple admins can review the same board together without taking the editing lease.
+- A confirmed takeover immediately returns the previous editor to view mode.
+- A stale board form is still rejected as a final integrity safeguard.
+- A second admin opening an active draft sees a live read-only view and the current controller.
+- A confirmed takeover immediately makes the previous controller read-only and records who transferred control.
+
+### Completion criteria
+
+- Multiple administrators can safely observe the same event without silently overwriting board changes or competing for draft actions.
 
 ## 12. Milestone 8 — Event operations and finalization
 
@@ -541,85 +598,71 @@ Allow admins to safely run the event lifecycle and create official historical re
 - Finalization snapshot matches recalculated rankings.
 - Unfinalization preserves previous official snapshot.
 - Captain expiry calculated 24 hours after finalization.
+- The real-clock scheduled-end transition is manually verified during Milestone 10's full rehearsal; Milestone 8 verifies its state rule automatically.
 
 ### Completion criteria
 
 - Admin can move an event from signup through archived history without direct database edits.
 
-## 13. Milestone 9 — Production operations
+## 13. Milestone 9 — UI overhaul and regression
 
 ### Objective
 
-Make deployment, backup, monitoring, and recovery reliable enough for a live community event.
+Turn the functionally complete application into a clear and consistent experience before any production deployment work begins.
 
 ### Deliverables
 
-#### Infrastructure
+#### Workflow and navigation
 
-- Hetzner VPS.
-- Linux hardening and firewall.
-- Docker and Docker Compose.
-- Caddy and HTTPS.
-- PostgreSQL private network exposure only.
-- R2 production bucket and restricted credentials.
-- DNS and production domain.
+- Review every admin, captain, and public workflow from start to finish.
+- Make the current event and team context visible on every relevant page.
+- Separate accounts, events, and workflow records so entries from different events are not visually bundled together.
+- Improve navigation, breadcrumbs, return paths, empty states, confirmation messages, and error messages.
+- Replace developer-oriented wording with community-friendly labels and explanations.
 
-#### Deployment
+#### Visual and interaction consistency
 
-- GitHub Actions build/test/image workflow.
-- Production image in registry.
-- Server deployment command/script.
-- Controlled migration step.
-- Health check and rollback procedure.
-- Configuration and secret inventory.
+- Establish consistent page widths, spacing, forms, tables, buttons, dialogs, and status indicators.
+- Replace oversized controls and panels with the compact density and alignment system defined in `UI_OVERHAUL_ROADMAP.md`.
+- Progressively enhance frequent inline actions so only the affected component updates, while retaining standard Razor form fallbacks.
+- Introduce semantic success, error, warning, and information notifications instead of styling every response as success.
+- Add a top-right role-based action inbox: pending review for admins and changes-requested submissions for captains.
+- Revisit dense event creation, board editing, draft, review, finalization, and account pages.
+- Reuse the combined date-time picker across date/time workflows.
+- Improve desktop and mobile layouts without changing approved business rules.
+- Complete keyboard, focus, colour-contrast, and permission/error-page checks.
 
-#### Backup
+#### Regression
 
-- Nightly PostgreSQL logical backup.
-- More frequent active-event backup schedule.
-- Pre-migration backup.
-- Encryption and upload off-server.
-- Retention cleanup.
-- Backup failure alert.
-- Documented test restore.
-- Final event backup.
-
-#### Monitoring
-
-- External uptime check.
-- Application and container logs.
-- Disk, memory, and database usage observation.
-- R2/storage failure visibility.
-- Background-service health.
-- Cost and provider billing alerts.
-
-#### VPS lifecycle
-
-- Bootstrap procedure.
-- Maintenance mode.
-- Hibernation checklist.
-- Delete-server checklist.
-- Restore-from-backup checklist.
-- DNS restoration procedure.
-
-### Operational acceptance
-
-- Fresh VPS can be provisioned from documentation.
-- Application deploys without manually editing source.
-- Backup restores into a clean PostgreSQL instance.
-- Restored app reconnects every tested evidence object.
-- A failed deployment can be rolled back safely.
-- Deleting a rehearsal VPS does not destroy durable event data.
+- Repeat every milestone manual test against the overhauled interface.
+- Add browser automation for stable critical paths discovered during manual testing.
+- Recheck multi-admin board and draft control.
+- Recheck mobile captain evidence upload and public Mission Control views.
+- Record and resolve UI edge cases before declaring a release candidate.
+- Complete the ordered page passes and approval gates in `UI_OVERHAUL_ROADMAP.md`.
 
 ### Completion criteria
 
-- Another future session can recreate production using documentation, source, secrets, database backup, and R2 data.
+- The complete local application is understandable without developer knowledge and passes the full regression list.
 
-## 14. Milestone 10 — Full rehearsal and release
+## 14. Milestone 10 — Local rehearsal and production preparation
 
 ### Objective
 
-Prove the complete system before the first real bingo.
+Prove the polished application end to end and prepare every deployment asset before creating the production server.
+
+### Production preparation
+
+- Production Docker image and Compose configuration.
+- GitHub Actions build, test, and image workflow.
+- Controlled database migration and rollback commands.
+- Cloudflare R2 integration tested locally with restricted credentials.
+- Configuration and secret inventory.
+- Health checks and background-service health reporting.
+- PostgreSQL backup, encryption, retention, and restore scripts.
+- Pre-migration and final-event backup procedures.
+- Monitoring and alert configuration prepared but not yet pointed at production.
+- Hetzner bootstrap, firewall, Caddy, DNS, maintenance, hibernation, deletion, and restoration runbooks.
 
 ### Rehearsal data
 
@@ -649,35 +692,64 @@ Prove the complete system before the first real bingo.
 13. Request changes and replace evidence.
 14. Approve, reject, hide, and reverse evidence.
 15. Verify live boards and rankings.
-16. Enter grace period.
+16. Leave the application running across the scheduled event-end time and confirm it automatically enters grace/final review within one lifecycle polling interval.
 17. Reopen submissions without extending obtained window.
 18. Resolve and override finalization blockers.
 19. Correct a completion time.
 20. Finalize results.
 21. Verify captain expiry.
 22. Archive event.
-23. Create backup.
-24. Restore to a clean environment.
-25. Verify historical results and evidence.
+23. Create a local release-candidate backup.
+24. Restore into a clean local environment.
+25. Verify historical results and evidence after restoration.
 
-### Release gate
-
-The first live event cannot begin until:
+### Pre-deployment release gate
 
 - No critical or high-severity defect remains.
-- Domain and authorization test suites pass.
-- Browser acceptance tests pass on current desktop and mobile browsers.
-- Backup and clean restore succeed.
+- Domain, authorization, integration, and browser suites pass.
+- Current desktop and mobile browser acceptance tests pass.
+- Backup and clean local restore succeed.
 - Admins have rehearsed review, reversal, and finalization.
 - Captains have trialed mobile screenshot submission.
 - Evidence upload limits are tested with realistic screenshots.
 - Public privacy behavior is verified.
-- Monitoring and contact responsibilities are assigned.
 - A manual emergency fallback procedure exists.
 
-## 15. Cross-cutting test matrix
+### Completion criteria
 
-### 15.1 Domain unit tests
+- A tagged release candidate and all deployment, backup, restore, and rollback assets are ready before the production VPS is created.
+
+## 15. Milestone 11 — Production deployment and post-deployment validation
+
+### Objective
+
+Deploy the already approved release candidate as the final implementation step, then perform focused production checks and corrections.
+
+### Deployment
+
+- Create and harden the Hetzner VPS.
+- Configure Docker, Caddy, HTTPS, DNS, PostgreSQL private exposure, and production secrets.
+- Create the R2 production bucket and restricted credentials.
+- Deploy the exact rehearsed image and run controlled migrations.
+- Enable backups, monitoring, uptime checks, logs, resource alerts, storage alerts, and provider billing alerts.
+
+### Post-deployment validation
+
+- Run public, admin, and captain smoke tests over the production domain.
+- Verify signup, image upload/R2 retrieval, review, live progress, and SignalR updates.
+- Verify scheduled background services and health checks.
+- Create an encrypted production backup and restore it into a clean temporary environment.
+- Exercise rollback once before the first real event.
+- Correct deployment-specific defects, redeploy, and repeat affected checks.
+- Verify maintenance, hibernation, server deletion, DNS restoration, and durable-data recovery documentation.
+
+### Completion criteria
+
+- Production passes smoke, backup, restore, monitoring, and rollback checks without changing the approved application scope.
+
+## 16. Cross-cutting test matrix
+
+### 16.1 Domain unit tests
 
 Prioritize exhaustive deterministic tests for:
 
@@ -692,7 +764,7 @@ Prioritize exhaustive deterministic tests for:
 - Reversal
 - Finalization blockers
 
-### 15.2 Integration tests
+### 16.2 Integration tests
 
 Use real PostgreSQL in containers for:
 
@@ -704,7 +776,7 @@ Use real PostgreSQL in containers for:
 - Authorization queries
 - Audit persistence
 
-### 15.3 Browser tests
+### 16.3 Browser tests
 
 Cover only high-value workflows rather than every visual detail:
 
@@ -717,7 +789,7 @@ Cover only high-value workflows rather than every visual detail:
 - Board builder
 - Finalization
 
-### 15.4 Manual exploratory tests
+### 16.4 Manual exploratory tests
 
 - Mobile photo upload
 - Slow or interrupted connection
@@ -728,7 +800,7 @@ Cover only high-value workflows rather than every visual detail:
 - Keyboard board editing
 - Screen-reader labels on critical controls
 
-### 15.5 Security tests
+### 16.5 Security tests
 
 - Route authorization
 - Team identifier tampering
@@ -741,7 +813,7 @@ Cover only high-value workflows rather than every visual detail:
 - Expired account access
 - Secret leakage in logs
 
-## 16. Data and privacy tasks
+## 17. Data and privacy tasks
 
 Before production:
 
@@ -757,7 +829,7 @@ These decisions do not require a complex legal system but must be written clearl
 
 Detailed decisions may be deferred until the signup and evidence milestones, when the real controls and storage behavior are being implemented. They must be finalized before production signup opens and before real evidence is uploaded.
 
-## 17. Operational risks and mitigations
+## 18. Operational risks and mitigations
 
 | Risk | Mitigation |
 | --- | --- |
@@ -774,7 +846,7 @@ Detailed decisions may be deferred until the signup and evidence milestones, whe
 | VPS deleted without recoverable backup | Mandatory verified hibernation checklist |
 | Scope expansion delays release | Version-one boundary and deferred-feature list |
 
-## 18. Suggested implementation order inside each milestone
+## 19. Suggested implementation order inside each milestone
 
 For each workflow:
 
@@ -791,7 +863,7 @@ For each workflow:
 
 This sequence keeps business rules independent from the page implementation.
 
-## 19. Definition of done for a feature
+## 20. Definition of done for a feature
 
 A feature is done only when:
 
@@ -808,7 +880,7 @@ A feature is done only when:
 - Documentation is updated.
 - No known critical defect remains.
 
-## 20. Ready-to-code checklist
+## 21. Ready-to-code checklist
 
 Planning is sufficiently complete to begin implementation when the following are true:
 
@@ -833,7 +905,7 @@ Planning is sufficiently complete to begin implementation when the following are
 
 The last two unchecked external items do not prevent local Milestone 1 development, but production deployment cannot complete without them.
 
-## 21. Recommended first coding boundary
+## 22. Recommended first coding boundary
 
 When coding is authorized, begin only with Milestones 1 and 2:
 

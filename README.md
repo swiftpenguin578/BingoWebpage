@@ -2,7 +2,7 @@
 
 An event platform for running OSRS bingo events for one Discord community.
 
-The repository currently contains the Milestone 1 foundation, Milestone 2 identity/access/audit features, Milestone 3 event/signup workflows, and the approved planning documents.
+The repository currently contains Milestones 1–7: the application foundation; identity, access, and audit; event signup; catalogue and board building; teams and snake draft; evidence review; and public live boards with rankings.
 
 ## Requirements
 
@@ -70,6 +70,28 @@ Stop PostgreSQL without deleting local data:
 ```bash
 docker compose stop postgres
 ```
+
+### Reset and seed manual-test scenarios
+
+The development-only reset command removes existing event workflow data and generates clearly named scenarios for each workflow stage. It preserves the existing administrator account, its password, and the OSRS boss/drop catalogue.
+
+Stop the running web application, keep PostgreSQL running, and execute:
+
+```bash
+dotnet run --project src/Bingo.Web -- --reset-test-data
+```
+
+The command creates events named `TEST 01` through `TEST 11` covering open signups, waiting lists, pre-board setup, board editing, draft setup, an in-progress draft, finalized teams, a live event, final review, a populated submission-review queue, finalized official results, and a fully completed board. Board scenarios use a canonical edge-case board generated from the retained OSRS catalogue.
+
+`TEST 09 — Evidence` is the newest live event and is therefore selected automatically by the admin review queue. It contains real local evidence images and fixtures for pending, changes-requested, rejected, withdrawn, approved, privacy-hidden, duplicate-checksum, replacement-history, weighted, capped, and reversal-rebalancing cases.
+
+Use `TEST 08 — Review` for the final-review checklist, blocker overrides, and finalization. Use `TEST 10 — Finished` for official snapshot, archive, unfinalization, historical-version, and locked-submission testing. Use `TEST 11 — Complete` for completion-time corrections and completed-board finalization.
+
+The command prints every seeded captain username. All seeded captain accounts use the local-only password `SeedCaptain!1234`. Your existing administrator username and password are unchanged. It also creates or refreshes the development-only administrator `SeedAdminTwo` with password `SeedAdmin!1234`, which is used to test simultaneous board editing and draft control from a second browser session.
+
+For public-board testing, open the site home page after seeding and select `TEST 09 — Evidence`. Its public overview contains ranked teams, approved progress, and a completed first row for `Seeded Ravens`. Open that team, then select completed or in-progress tiles to verify public evidence and the hidden-evidence placeholder. Approval, reversal, and evidence-visibility changes invalidate open public pages through SignalR; a 30-second refresh remains as a fallback.
+
+This operation is intentionally unavailable outside the Development environment.
 
 Delete the local database volume and start clean:
 

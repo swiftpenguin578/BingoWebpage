@@ -196,6 +196,14 @@ The following operations require a database transaction:
 
 Submission review uses a concurrency token or row lock so two admins cannot apply the same evidence twice.
 
+Board and draft administration use two complementary concurrency mechanisms:
+
+- Each board aggregate carries an optimistic concurrency version covering its tiles, requirements, layout, and publication state. Every mutating request includes the loaded version; stale writes return a recoverable conflict and do not overwrite newer content.
+- A separate renewable board-editor lease provides the normal user-facing edit lock. Opening a board does not acquire it; explicit edit, release, and confirmed takeover actions change ownership while viewers receive live updates. Navigating away sends a keepalive release request, while client activity renews the lease at a throttled interval. The five-minute inactivity expiry remains the fallback for interrupted or abandoned browsers.
+- A draft session carries an active-controller lease tied to an administrator account and lease/version value. Server-side authorization checks that lease for start, pick, undo, pause/resume, and finalization.
+- Draft observers receive live state but remain read-only. A confirmed takeover atomically replaces the controller lease and writes an audit entry.
+- Draft-pick transactions retain serializable isolation and uniqueness constraints as the final integrity boundary even when controller requests race or are retried.
+
 ## 7. Object storage
 
 Cloudflare R2 stores:
@@ -262,7 +270,7 @@ It may:
 
 - Open or close scheduled signup availability
 - Close normal submission availability
-- Expire captain accounts 24 hours after finalization
+- Expire captain accounts 24 hours after the event ends
 - Promote waiting-list participants after capacity changes when not completed synchronously
 - Perform low-priority cache reconciliation
 

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="Skip to main content" xml:space="preserve"><value>Gå til hovedindhold</value></data>
+  <data name="Home" xml:space="preserve"><value>Forside</value></data>
+  <data name="Admin" xml:space="preserve"><value>Admin</value></data>
+  <data name="Captain board" xml:space="preserve"><value>Holdets bingoplade</value></data>
+  <data name="Language" xml:space="preserve"><value>Sprog</value></data>
+  <data name="Apply language" xml:space="preserve"><value>Skift sprog</value></data>
+  <data name="Sign out" xml:space="preserve"><value>Log ud</value></data>
+  <data name="Sign in" xml:space="preserve"><value>Log ind</value></data>
+  <data name="Privacy" xml:space="preserve"><value>Privatliv</value></data>
+
+  <data name="Bingo events" xml:space="preserve"><value>Bingoer</value></data>
+  <data name="Follow every team, tile and drop." xml:space="preserve"><value>Følg alle hold, tiles og drops.</value></data>
+  <data name="Open an event to see how every team is doing, then choose a team to view their board and completed tiles." xml:space="preserve"><value>Åbn et bingo for at se, hvordan alle hold klarer sig, og vælg derefter et hold for at se deres bingoplade og færdige tiles.</value></data>
+  <data name="No public boards yet" xml:space="preserve"><value>Der er ingen offentlige bingoplader endnu</value></data>
+  <data name="The next board will appear here as soon as the draft is completed and the board is published." xml:space="preserve"><value>Den næste bingoplade vises her, så snart draften er færdig, og pladen er offentliggjort.</value></data>
+  <data name="Signups open" xml:space="preserve"><value>Tilmelding åben</value></data>
+  <data name="Live now" xml:space="preserve"><value>Live nu</value></data>
+  <data name="Final review" xml:space="preserve"><value>Afsluttende gennemgang</value></data>
+  <data name="Finalized" xml:space="preserve"><value>Afsluttet</value></data>
+  <data name="Archived" xml:space="preserve"><value>Arkiveret</value></data>
+  <data name="Upcoming" xml:space="preserve"><value>Kommende</value></data>
+  <data name="{0} × {1} board" xml:space="preserve"><value>{0} × {1} plade</value></data>
+  <data name="View bingo" xml:space="preserve"><value>Se bingo</value></data>
+
+  <data name="Administration" xml:space="preserve"><value>Administration</value></data>
+  <data name="Admin tools" xml:space="preserve"><value>Adminværktøjer</value></data>
+  <data name="Events" xml:space="preserve"><value>Bingoer</value></data>
+  <data name="Set up events, open signups and manage players." xml:space="preserve"><value>Opret bingoer, åbn for tilmelding og administrer spillere.</value></data>
+  <data name="OSRS catalogue" xml:space="preserve"><value>OSRS-katalog</value></data>
+  <data name="Manage bosses, activities, drops, drop rates and EHB." xml:space="preserve"><value>Administrer bosser, aktiviteter, drops, drop rates og EHB.</value></data>
+  <data name="Tile templates" xml:space="preserve"><value>Tile-skabeloner</value></data>
+  <data name="Create reusable drop and challenge tiles." xml:space="preserve"><value>Opret genbrugelige drop- og udfordrings-tiles.</value></data>
+  <data name="Evidence review" xml:space="preserve"><value>Gennemgå indsendelser</value></data>
+  <data name="Review tile submissions from captains." xml:space="preserve"><value>Gennemgå kaptajnernes tile-indsendelser.</value></data>
+  <data name="Accounts" xml:space="preserve"><value>Konti</value></data>
+  <data name="Manage admins and captain accounts." xml:space="preserve"><value>Administrer admins og kaptajnkonti.</value></data>
+  <data name="Audit log" xml:space="preserve"><value>Ændringslog</value></data>
+  <data name="See sign-ins and changes made by admins." xml:space="preserve"><value>Se login og ændringer foretaget af admins.</value></data>
+
+  <data name="Filter events" xml:space="preserve"><value>Filtrer bingoer</value></data>
+  <data name="Create event" xml:space="preserve"><value>Opret bingo</value></data>
+  <data name="No matching events" xml:space="preserve"><value>Ingen bingoer matcher</value></data>
+  <data name="Choose another filter or create a new event." xml:space="preserve"><value>Vælg et andet filter, eller opret et nyt bingo.</value></data>
+  <data name="Event" xml:space="preserve"><value>Bingo</value></data>
+  <data name="Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Event dates" xml:space="preserve"><value>Datoer</value></data>
+  <data name="Signups" xml:space="preserve"><value>Tilmelding</value></data>
+  <data name="Needs attention" xml:space="preserve"><value>Kræver handling</value></data>
+  <data name="Actions" xml:space="preserve"><value>Handlinger</value></data>
+  <data name="All" xml:space="preserve"><value>Alle</value></data>
+  <data name="Live" xml:space="preserve"><value>Live</value></data>
+  <data name="Wrapping up" xml:space="preserve"><value>Afslutning</value></data>
+  <data name="{0} / {1} players" xml:space="preserve"><value>{0} / {1} spillere</value></data>
+  <data name="{0} / {1} players · {2} waiting" xml:space="preserve"><value>{0} / {1} spillere · {2} på venteliste</value></data>
+  <data name="to" xml:space="preserve"><value>til</value></data>
+  <data name="{0} to review" xml:space="preserve"><value>{0} til gennemgang</value></data>
+  <data name="Nothing needs attention" xml:space="preserve"><value>Intet kræver handling</value></data>
+  <data name="Manage event" xml:space="preserve"><value>Administrer bingo</value></data>
+  <data name="Setup" xml:space="preserve"><value>Opsætning</value></data>
+  <data name="Signups closed" xml:space="preserve"><value>Tilmelding lukket</value></data>
+  <data name="Finished" xml:space="preserve"><value>Færdig</value></data>
+  <data name="Unknown" xml:space="preserve"><value>Ukendt</value></data>
+  <data name="Open until {0}" xml:space="preserve"><value>Åben indtil {0}</value></data>
+  <data name="Opens {0}" xml:space="preserve"><value>Åbner {0}</value></data>
+  <data name="Not open" xml:space="preserve"><value>Ikke åben</value></data>
+  <data name="Closed" xml:space="preserve"><value>Lukket</value></data>
+  <data name="Public boards" xml:space="preserve"><value>Offentlige bingoplader</value></data>
+  <data name="Notifications" xml:space="preserve"><value>Notifikationer</value></data>
+  <data name="No active event needs attention." xml:space="preserve"><value>Ingen aktive bingoer kræver handling.</value></data>
+  <data name="Open evidence review" xml:space="preserve"><value>Åbn gennemgang</value></data>
+  <data name="Tile submissions" xml:space="preserve"><value>Tile-indsendelser</value></data>
+  <data name="No tile submissions need review." xml:space="preserve"><value>Ingen tile-indsendelser skal gennemgås.</value></data>
+  <data name="View all submissions" xml:space="preserve"><value>Se alle indsendelser</value></data>
+  <data name="{0} · submitted {1}" xml:space="preserve"><value>{0} · indsendt {1}</value></data>
+  <data name="Submissions to correct" xml:space="preserve"><value>Indsendelser der skal rettes</value></data>
+  <data name="No submissions need changes." xml:space="preserve"><value>Ingen indsendelser skal ændres.</value></data>
+  <data name="Open team board" xml:space="preserve"><value>Åbn holdets bingoplade</value></data>
+  <data name="Changes requested" xml:space="preserve"><value>Ændringer ønskes</value></data>
+  <data name="Change password" xml:space="preserve"><value>Skift adgangskode</value></data>
+  <data name="Breadcrumb" xml:space="preserve"><value>Brødkrummer</value></data>
+  <data name="Success" xml:space="preserve"><value>Gennemført</value></data>
+  <data name="Warning" xml:space="preserve"><value>Bemærk</value></data>
+  <data name="Error" xml:space="preserve"><value>Fejl</value></data>
+  <data name="Information" xml:space="preserve"><value>Information</value></data>
+  <data name="Admin submission" xml:space="preserve"><value>Admin-indsendelse</value></data>
+  <data name="Player" xml:space="preserve"><value>Spiller</value></data>
+  <data name="Create account" xml:space="preserve"><value>Opret konto</value></data>
+  <data name="Account" xml:space="preserve"><value>Konto</value></data>
+  <data name="Tile" xml:space="preserve"><value>Tile</value></data>
+  <data name="Team board" xml:space="preserve"><value>Holdets bingoplade</value></data>
+  <data name="Submit drop" xml:space="preserve"><value>Indsend drop</value></data>
+  <data name="Submission" xml:space="preserve"><value>Indsendelse</value></data>
+  <data name="Teams" xml:space="preserve"><value>Hold</value></data>
+  <data name="Board editor" xml:space="preserve"><value>Board editor</value></data>
+  <data name="Teams and draft" xml:space="preserve"><value>Hold og draft</value></data>
+  <data name="Signup questions" xml:space="preserve"><value>Tilmeldingsspørgsmål</value></data>
+  <data name="CSV import" xml:space="preserve"><value>CSV-import</value></data>
+  <data name="Finish event" xml:space="preserve"><value>Afslut bingo</value></data>
+  <data name="Current page" xml:space="preserve"><value>Nuværende side</value></data>
+</root>

@@ -88,7 +88,7 @@ Players still exist as event records so drops can be credited to them and they c
 
 ### 5.2 Captain and co-captain
 
-Captains and co-captains receive separate accounts tied to one team and one event.
+Captains and co-captains receive separate accounts tied to one team and one event. Accounts are generated automatically from finalized roster roles. The username is based on the player's in-game name plus random digits, and a generated temporary password is shown once to the admin for distribution.
 
 They can:
 
@@ -117,7 +117,7 @@ They can:
 - Create, configure, publish, and archive events
 - Create teams and manage rosters
 - Add pre-formed internal or external teams before or after the website draft
-- Create, disable, re-enable, and expire captain accounts
+- Automatically provision, disable, re-enable, reset, and expire captain accounts
 - Manage bosses, activities, items, drops, rates, and EHB values
 - Build and deliberately arrange bingo boards
 - Operate and publish the draft
@@ -137,9 +137,12 @@ They can:
 
 - Each captain and co-captain receives a separate account.
 - Each account is restricted to one event and one team.
-- Accounts become active at an admin-configured time.
+- Accounts are generated when rosters are finalized, or when a captain/co-captain role is assigned later to a finalized roster.
+- Generated usernames use the player's in-game name plus random digits.
+- Generated temporary passwords are shown once, stored only as hashes, and must be changed at first sign-in.
+- Accounts become active when the event starts.
 - When the submission cutoff passes, accounts enter correction-only mode.
-- Accounts automatically disable 24 hours after the event is finalized.
+- Accounts automatically disable 24 hours after the event ends.
 - An admin can disable an account early.
 - An admin can re-enable an account after expiry and optionally set a new expiry.
 - An admin may leave a re-enabled account active until manually disabled.
@@ -269,14 +272,14 @@ Event-creation values for team count, players per team, and board dimensions are
 
 Ranking priority is:
 
-1. Full-board completion, ordered by obtained time of the final qualifying drop
+1. Full-board completion, ordered by immutable submission time of the final qualifying submission
 2. Most completed rows and columns
 3. Most completed tiles
 4. Highest configured EHB tie-break value
 
 The first team to complete the entire board wins. The event and board remain open until the official event end and admin finalization. Other teams may continue for fun or for second- and third-place prizes.
 
-Full-board completion is based on the obtained time of the drop that completed the final tile, not the time an admin reviewed it. Admins may correct obtained times based on evidence before placements are finalized.
+Full-board completion is based on the immutable server submission time of the evidence that completed the final tile, not the time an admin reviewed it. Captains and admins do not edit this timestamp.
 
 EHB is used for board estimation, line balancing, player contribution statistics, and final tie-breaking. It does not otherwise award team points.
 
@@ -447,8 +450,7 @@ It records:
 - Credited player
 - Credited weight, defaulting to `1` and editable above `1` only when the tile allows higher weightings
 - Total approved contribution, capped by the remaining requirement progress and confirmed by an admin
-- Obtained time, defaulting to the current time and editable
-- Submitted time, generated automatically
+- Submitted time, generated automatically by the server and immutable
 - Screenshot
 - Optional captain note
 - Status and admin feedback
@@ -464,9 +466,9 @@ A normal screenshot should show:
 - Timestamp overlay when required by event rules
 - Event-specific verification code when enabled by event rules
 
-The verification code is an event setting with two modes: enabled or disabled. When enabled, the configured code is required in evidence unless an admin approves an exception.
+The verification code is an event setting with two modes: enabled or disabled. Admins normally enter a custom fun code, may generate one, and may activate a replacement immediately or schedule it. Every submission snapshots the code interval active at its immutable server submission time. Review is visual only; there is no OCR. An admin may approve a mismatch as an explicit exception.
 
-The obtained time does not need manual adjustment for routine submissions. It defaults to submission time and can be corrected from the screenshot when timing affects a placement or tie-break.
+The system does not store a captain-entered obtained time. The immutable server submission time is authoritative for ordering. Screenshot timestamps remain visual evidence that an admin may consider during an exceptional final tie review, without changing the stored submission timestamp.
 
 ### 12.3 Validation
 
@@ -510,7 +512,7 @@ Editable metadata includes:
 - Boss/activity
 - Drop
 - Contribution
-- Obtained time
+- Immutable submission time
 - Public image visibility
 
 All corrections store the original and new values in the audit log. An admin should not silently replace the submitted evidence image. Replacement evidence should come from a captain or be recorded as a clearly identified admin attachment.
@@ -521,6 +523,7 @@ Reversing an approval:
 
 - Deducts the exact contribution created by that submission
 - Recalculates tile, row, column, board, leaderboard, and placement state
+- Reallocates newly available capacity to later approved evidence up to its original eligible claim
 - Records the admin, time, and reason
 - Preserves the submission and its history
 
@@ -530,11 +533,13 @@ Reversing an approval:
 - Approved evidence is publicly visible from the relevant tile.
 - Other teams do not see pending progress.
 - Admins may hide an approved screenshot from public view for privacy or sensitive content.
+- Captains may request public privacy when submitting or correcting evidence. Approval then hides the screenshot and credited player automatically.
+- Admins may restore visibility when a privacy request is unnecessary or was selected by mistake.
 - A hidden screenshot still counts and remains visible to admins.
 - When an approved screenshot is hidden, the credited player's identity is also hidden everywhere outside the admin submission view. This includes the public tile view and views available to other teams' captains.
 - Public viewers see that qualifying evidence exists but that its image and player identity were hidden by an admin.
 
-The public tile view should show approved drop, player, team, obtained time, contribution, and evidence unless hidden.
+The public tile view should show approved drop, player, team, submission time, contribution, and evidence unless hidden.
 
 ## 15. Progress calculations
 
@@ -596,7 +601,19 @@ The full participant pool remains visible during drafting so captains can mainta
 
 Team count and target size shown during initial event creation are only estimates. Draft setup calculates and displays the effect of the final values on roster sizes and any remainder before the draft begins.
 
-### 17.2 Deferred draft enhancements
+### 17.2 Concurrent administration
+
+- Board editing uses optimistic concurrency. Each editing form is tied to the version of the complete board aggregate it loaded, so tile and layout changes cannot silently cross.
+- If another admin saves a newer version first, a stale save is rejected instead of overwriting it. The admin is told to reload and review the newer content.
+- Opening the board is view-only by default so several administrators can inspect it together during voice discussions.
+- An administrator explicitly enters edit mode and receives one renewable editing lease. Other administrators remain live viewers and see who is editing.
+- Editing control can be released or explicitly taken over after confirmation. Navigating away attempts to release it immediately; it otherwise renews only through actual board activity and expires after five inactive minutes, including when an editor simply leaves the tab open.
+- A running draft has one active controller with server-enforced authority to start, pick, undo, pause, resume, and finalize.
+- Other administrators can follow the draft in a live read-only view.
+- An administrator can explicitly take over control after a confirmation. The transfer is audited and immediately removes write authority from the previous controller.
+- Concurrent requests must never create two picks for one turn, assign one participant twice, or silently overwrite board content.
+
+### 17.3 Deferred draft enhancements
 
 - Captain-controlled picks
 - Automated turns
@@ -846,7 +863,7 @@ Detailed visual design and wireframes will be produced after this requirements d
 
 Version one is ready for a live event when:
 
-1. Admins can create an event, teams, players, captain accounts, and a board.
+1. Admins can create an event, teams, players, captain/co-captain assignments, and a board; captain accounts are generated automatically.
 2. Admins can model every objective on the provided example 5x5 board without custom code.
 3. The editor calculates tile, line, and total EHB while arranging the board.
 4. Captains can submit one screenshot and drop for a player on their team.
@@ -854,10 +871,10 @@ Version one is ready for a live event when:
 6. Admins can approve, reject, request changes, edit metadata, and reverse approvals.
 7. Approval and reversal correctly update all related progress and standings.
 8. Public visitors can inspect all teams, completed tiles, and non-hidden approved evidence.
-9. Full-board finish time and provisional placement use obtained time.
+9. Full-board finish time and provisional placement use immutable server submission time.
 10. Submissions close at the cutoff while existing evidence remains reviewable.
 11. Event finalization requires an admin action.
-12. Captain accounts disable 24 hours after finalization and can be re-enabled.
+12. Captain accounts disable 24 hours after the event ends and can be re-enabled.
 13. Admins can operate a private snake draft and publish its completed results.
 14. Admins can create and publish an event and its website signup form.
 15. Participants can submit and privately edit a signup without creating an account.
@@ -867,6 +884,8 @@ Version one is ready for a live event when:
 19. Admins can import and validate participants using the documented CSV template.
 20. Finalized events remain publicly viewable in event history.
 21. Competitive corrections and administrative changes are auditable.
+22. Concurrent board edits cannot silently overwrite one another.
+23. Only the active draft controller can mutate a running draft; other admins can observe or explicitly take over with an audit trail.
 
 ## 24. Decisions deferred to later planning
 

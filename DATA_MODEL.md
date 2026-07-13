@@ -134,8 +134,8 @@ Optional fields:
 - `finalized_at`
 - `archived_at`
 - `signup_code_hash`
-- `verification_code`
-- `verification_code_enabled`
+- `evidence_code_enabled`
+- `reopened_submission_cutoff_at`
 - `buy_in_description`
 - `prize_description`
 - `public_rules`
@@ -482,6 +482,7 @@ Fields:
 - `account_id`
 - `event_id`
 - `team_id`, required for captain accounts
+- `captain_participant_id`, unique when the account was generated from a captain/co-captain roster assignment
 - `access_role`
 - `active_from`
 - `expires_at`
@@ -699,13 +700,13 @@ Fields:
 - `credited_weight`
 - `total_claimed_contribution`
 - `total_approved_contribution`
-- `obtained_at`
 - `submitted_at`
 - `captain_note`
 - `status`
 - `public_evidence_hidden`
 - `public_player_hidden`
 - `current_reviewer_note`
+- `expected_evidence_code`: Immutable snapshot of the code interval active at `submitted_at`; null when verification was disabled
 
 Submission status:
 
@@ -717,6 +718,20 @@ REJECTED
 WITHDRAWN
 REVERSED
 ```
+
+### 11.1.1 EvidenceCode
+
+Stores manual or generated verification-code history for one event:
+
+- `event_id`
+- `code`
+- `activates_at`
+- `retires_at`, null for the final scheduled interval
+- `created_by_account_id`
+- `created_at`
+- `note`
+
+Intervals may be scheduled in advance. Adding a code recalculates adjacent retirement boundaries, while each existing submission keeps its original `expected_evidence_code` snapshot.
 
 `credited_weight` defaults to `1`. It cannot be edited above `1` unless the tile requirement enables higher weightings. A captain may, for example, enter `2` for a megarare. The admin can correct the weight before approval.
 
@@ -797,7 +812,7 @@ An admin may correct metadata while pending or changes requested. Correcting an 
 For a normal drop submission:
 
 ```text
-event_starts_at <= obtained_at <= event_ends_at
+event_starts_at <= submitted_at <= effective_submission_cutoff_at
 submitted_at <= active submission cutoff or approved reopening cutoff
 ```
 
@@ -862,7 +877,7 @@ tile_complete = manual_progress >= manual target_contribution
 
 This supports both one-off objectives and repeated objectives such as three Inferno completions.
 
-`tile_completed_at` is the latest obtained time among the contributions necessary to first satisfy every requirement.
+`tile_completed_at` is the latest immutable submission time among the contributions necessary to first satisfy every requirement.
 
 ### 12.6 Row and column completion
 
@@ -891,13 +906,14 @@ The first team by `board_completed_at` is the provisional winner. Approval time 
 When an approved submission is reversed:
 
 1. Mark its approved contribution inactive.
-2. Recalculate the affected requirement.
-3. Recalculate the affected tile.
-4. Recalculate its row and column.
-5. Recalculate full-board completion.
-6. Recalculate team placements.
-7. Recalculate the credited player's statistics.
-8. Record before and after values in the audit log.
+2. Re-evaluate later approved evidence for the same requirement and increase previously capped contributions up to their original eligible claims.
+3. Record each automatic contribution adjustment in review history.
+4. Recalculate the affected requirement and tile.
+5. Recalculate its row and column.
+6. Recalculate full-board completion.
+7. Recalculate team placements.
+8. Recalculate the credited player's statistics.
+9. Record before and after values in the audit log.
 
 ## 13. Ranking calculations
 
@@ -929,7 +945,7 @@ If every defined value is equal, the teams remain tied until an admin applies th
 
 Placements are provisional while the event is live or awaiting final review. Finalization stores official placement snapshots.
 
-Fields for an official `EventPlacement` record:
+Fields for an official `OfficialPlacementSnapshot` record:
 
 - `event_id`
 - `team_id`
@@ -1037,6 +1053,7 @@ Submission visibility is derived from status, team access, and privacy flags.
 - Approved evidence only
 - Screenshot hidden when `public_evidence_hidden` is true
 - Credited player hidden when `public_player_hidden` is true
+- A captain's `public_privacy_requested` flag automatically sets both hidden flags when the submission is approved
 - Hidden record still shows that qualifying evidence was approved
 
 ### Captain/co-captain
@@ -1050,6 +1067,7 @@ Submission visibility is derived from status, team access, and privacy flags.
 - Complete evidence, metadata, prior evidence versions, review actions, and audit history
 
 Hiding a screenshot publicly automatically hides the credited player outside admin views.
+An admin can restore both public fields after approval without deleting the captain's recorded privacy request.
 
 ## 17. Finalization and blockers
 
@@ -1083,7 +1101,7 @@ Finalization:
 3. Stores official placement snapshots.
 4. Records the finalization actor and time.
 5. Publishes official results.
-6. Schedules captain account expiry 24 hours later.
+6. Reschedules captain account expiry to 24 hours after finalization.
 
 ### 17.3 Unfinalization
 

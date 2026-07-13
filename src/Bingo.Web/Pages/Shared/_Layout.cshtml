@@ -1,17 +1,26 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+﻿@using Bingo.Web.Navigation
+@using Bingo.Web.UI
+@inject SharedShellService SharedShell
+@{
+    var shell = await SharedShell.GetAsync(User, ViewContext.RouteData.Values, Context.RequestAborted);
+}
+<!DOCTYPE html>
+<html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - OSRS Community Bingo</title>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/flatpickr/flatpickr.min.css" />
+    <link rel="stylesheet" href="~/lib/flatpickr/flatpickr-dark.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Bingo.Web.styles.css" asp-append-version="true" />
 </head>
 <body>
+    <a class="skip-link" href="#main-content">@T["Skip to main content"]</a>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm border-bottom mb-3 app-nav">
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm border-bottom @(ViewData["CompactNavigation"] as bool? == true ? string.Empty : "mb-3") app-nav">
             <div class="container">
                 <a class="navbar-brand" asp-area="" asp-page="/Index">OSRS Community Bingo</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
@@ -21,38 +30,116 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/Privacy">Privacy</a>
+                            <a class="nav-link" asp-area="" asp-page="/Index">@T["Public boards"]</a>
                         </li>
                         @if (User.IsInRole("Admin"))
                         {
-                            <li class="nav-item"><a class="nav-link" asp-page="/Admin/Index">Admin</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-page="/Admin/Index">@T["Admin"]</a></li>
+                        }
+                        @if (User.IsInRole("Captain"))
+                        {
+                            <li class="nav-item"><a class="nav-link" asp-page="/Captain/Index">@T["Captain board"]</a></li>
                         }
                     </ul>
                     <ul class="navbar-nav">
+                        <li class="nav-item nav-language">
+                            <form method="post" asp-page="/Language" class="language-form">
+                                <input type="hidden" name="returnUrl" value="@($"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}")" />
+                                <label class="visually-hidden" for="site-language">@T["Language"]</label>
+                                <select id="site-language" name="culture" aria-label="@T["Language"]" onchange="this.form.submit()">
+                                    <option value="en" selected="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en")">English</option>
+                                    <option value="da" selected="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "da")">Dansk</option>
+                                </select>
+                                <noscript><button type="submit" class="btn btn-sm btn-outline-light">@T["Apply language"]</button></noscript>
+                            </form>
+                        </li>
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            <li class="nav-item"><a class="nav-link" asp-page="/Account/ChangePassword">@User.Identity.Name</a></li>
-                            <li class="nav-item">
-                                <form method="post" asp-page="/Account/Logout"><button type="submit" class="nav-link nav-button">Sign out</button></form>
+                            <li class="nav-item nav-popover" data-notification-inbox data-event-id="@shell.Notifications.EventId">
+                                <details>
+                                    <summary class="nav-icon-button" aria-label="@T["Notifications"]">
+                                        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
+                                        <span class="notification-count" data-notification-count hidden="@(shell.Notifications.Count == 0)">@(shell.Notifications.Count > 99 ? "99+" : shell.Notifications.Count)</span>
+                                    </summary>
+                                    <div class="nav-panel notification-panel">
+                                        <div class="nav-panel-heading">
+                                            <strong data-notification-heading>@shell.Notifications.Heading</strong>
+                                            <span class="notification-total">@T["Notifications"]</span>
+                                        </div>
+                                        <div class="notification-list" data-notification-list>
+                                            @foreach (var item in shell.Notifications.Items)
+                                            {
+                                                <a class="notification-item" href="@item.Url"><strong>@item.Title</strong><span>@item.Detail</span></a>
+                                            }
+                                        </div>
+                                        <p class="notification-empty" data-notification-empty hidden="@(shell.Notifications.Count > 0)">@shell.Notifications.EmptyText</p>
+                                        <a class="notification-overview" data-notification-overview href="@shell.Notifications.OverviewUrl" hidden="@(string.IsNullOrWhiteSpace(shell.Notifications.OverviewUrl))">@shell.Notifications.OverviewLabel</a>
+                                    </div>
+                                </details>
+                            </li>
+                            <li class="nav-item nav-popover account-popover">
+                                <details>
+                                    <summary class="account-summary">@User.Identity.Name</summary>
+                                    <div class="nav-panel account-panel">
+                                        <strong>@User.Identity.Name</strong>
+                                        <a asp-page="/Account/ChangePassword">@T["Change password"]</a>
+                                        <form method="post" asp-page="/Account/Logout"><button type="submit">@T["Sign out"]</button></form>
+                                    </div>
+                                </details>
                             </li>
                         }
                         else
                         {
-                            <li class="nav-item"><a class="nav-link" asp-page="/Account/Login">Admin / captain sign in</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-page="/Account/Login">@T["Sign in"]</a></li>
                         }
                     </ul>
                 </div>
             </div>
         </nav>
     </header>
+    @if (shell.Breadcrumbs.Count > 0)
+    {
+        <nav class="breadcrumb-bar" aria-label="@T["Breadcrumb"]">
+            <div class="container">
+                <ol class="app-breadcrumbs">
+                    @for (var index = 0; index < shell.Breadcrumbs.Count; index++)
+                    {
+                        var crumb = shell.Breadcrumbs[index];
+                        <li class="@(index == shell.Breadcrumbs.Count - 1 ? "current" : null)">
+                            @if (!string.IsNullOrWhiteSpace(crumb.Url))
+                            {
+                                <a href="@crumb.Url">@crumb.Label</a>
+                            }
+                            else
+                            {
+                                <span aria-current="page">@crumb.Label</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(crumb.Status))
+                            {
+                                <span class="breadcrumb-status status-@crumb.StatusClass">@crumb.Status</span>
+                            }
+                        </li>
+                    }
+                </ol>
+            </div>
+        </nav>
+    }
     <div class="container">
-        <main role="main" class="pb-3">
+        <main id="main-content" role="main" class="pb-3" tabindex="-1">
             @if (TempData["StatusMessage"] is string statusMessage)
             {
-                <p class="status-message">@statusMessage</p>
+                var messageType = UiMessage.Resolve(statusMessage, TempData[UiMessage.TypeKey]?.ToString());
+                var messageLabel = messageType switch
+                {
+                    UiMessageType.Success => T["Success"],
+                    UiMessageType.Warning => T["Warning"],
+                    UiMessageType.Error => T["Error"],
+                    _ => T["Information"]
+                };
+                <div class="app-notice notice-@messageType.ToString().ToLowerInvariant()" role="@(messageType == UiMessageType.Error ? "alert" : "status")">
+                    <strong>@messageLabel</strong>
+                    <span>@statusMessage</span>
+                </div>
             }
             @RenderBody()
         </main>
@@ -60,12 +147,18 @@
 
     <footer class="border-top footer text-muted">
         <div class="container">
-            &copy; 2026 OSRS Community Bingo · <a asp-area="" asp-page="/Privacy">Privacy</a>
+            &copy; 2026 OSRS Community Bingo · <a asp-area="" asp-page="/Privacy">@T["Privacy"]</a>
         </div>
     </footer>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/flatpickr/flatpickr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <script src="~/js/notification-inbox.js" asp-append-version="true"></script>
+    }
     <script src="~/js/site.js" asp-append-version="true"></script>
 
     @await RenderSectionAsync("Scripts", required: false)

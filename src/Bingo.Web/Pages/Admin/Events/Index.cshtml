@@ -1,11 +1,88 @@
 @page
 @model Bingo.Web.Pages.Admin.Events.IndexModel
 @{
-    ViewData["Title"] = "Events";
+    ViewData["Title"] = T["Events"];
+    ViewData["CompactNavigation"] = true;
 }
-<section class="table-page">
-    <div class="page-heading"><div><p class="eyebrow">Administration</p><h1>Events</h1></div><a class="btn btn-primary" asp-page="Create">Create event</a></div>
-    <div class="table-wrap panel"><table><thead><tr><th>Event</th><th>State</th><th>Signup window</th><th>Capacity</th><th></th></tr></thead><tbody>
-    @foreach (var item in Model.Events) { <tr><td>@item.Name<br /><small>/@item.Slug</small></td><td>@item.State</td><td>@item.SignupOpensAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm") – @item.SignupClosesAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td>@item.Confirmed / @item.ParticipantCap <small>(@item.Waiting waiting)</small></td><td><a asp-page="Manage" asp-route-id="@item.Id">Manage</a></td></tr> }
-    </tbody></table></div>
+
+<section class="table-page event-index-page">
+    <div class="event-index-heading">
+        <div>
+            <p class="eyebrow">@T["Administration"]</p>
+            <h1>@T["Events"]</h1>
+        </div>
+    </div>
+
+    <div class="event-list-toolbar">
+        <nav class="event-filters" aria-label="@T["Filter events"]">
+            @foreach (var option in Model.FilterOptions)
+            {
+                <a class="event-filter @(Model.ActiveFilter == option.Value ? "active" : null)"
+                   asp-route-filter="@option.Value"
+                   aria-current="@(Model.ActiveFilter == option.Value ? "page" : null)">
+                    @option.Label
+                    <span>@option.Count</span>
+                </a>
+            }
+        </nav>
+        <a class="btn btn-primary event-create-button" asp-page="Create">@T["Create event"]</a>
+    </div>
+
+    <div class="table-wrap panel event-table-wrap">
+        @if (Model.Events.Count == 0)
+        {
+            <div class="event-list-empty">
+                <h2>@T["No matching events"]</h2>
+                <p>@T["Choose another filter or create a new event."]</p>
+            </div>
+        }
+        else
+        {
+            <table class="event-table">
+                <thead>
+                    <tr>
+                        <th>@T["Event"]</th>
+                        <th>@T["Status"]</th>
+                        <th>@T["Event dates"]</th>
+                        <th>@T["Signups"]</th>
+                        <th>@T["Needs attention"]</th>
+                        <th><span class="visually-hidden">@T["Actions"]</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Events)
+                    {
+                        var playerSummary = item.Waiting > 0
+                            ? T["{0} / {1} players · {2} waiting", item.Confirmed, item.ParticipantCap, item.Waiting]
+                            : T["{0} / {1} players", item.Confirmed, item.ParticipantCap];
+                        <tr>
+                            <td data-label="@T["Event"]"><strong>@item.Name</strong></td>
+                            <td data-label="@T["Status"]">
+                                <span class="event-list-status state-@item.State.ToString().ToLowerInvariant()">@Model.StatusLabel(item.State)</span>
+                            </td>
+                            <td data-label="@T["Event dates"]" class="event-date-cell">
+                                <strong>@Model.FormatDate(item.EventStartsAt, item.Timezone)</strong>
+                                <small>@T["to"] @Model.FormatDate(item.EventEndsAt, item.Timezone)</small>
+                            </td>
+                            <td data-label="@T["Signups"]" class="event-signup-cell">
+                                <strong>@Model.SignupSummary(item)</strong>
+                                <small>@playerSummary</small>
+                            </td>
+                            <td data-label="@T["Needs attention"]">
+                                @if (item.PendingReviews > 0)
+                                {
+                                    <span class="attention-count">@T["{0} to review", item.PendingReviews]</span>
+                                }
+                                else
+                                {
+                                    <span class="muted-value" aria-label="@T["Nothing needs attention"]">—</span>
+                                }
+                            </td>
+                            <td class="event-row-action"><a asp-page="Manage" asp-route-id="@item.Id">@T["Manage event"] <span aria-hidden="true">→</span></a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
 </section>

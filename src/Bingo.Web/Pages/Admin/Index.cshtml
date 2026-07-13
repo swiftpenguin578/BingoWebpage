@@ -1,20 +1,23 @@
 @page
 @{
-    ViewData["Title"] = "Administration";
+    ViewData["Title"] = T["Administration"];
 }
 
 <section class="content-page admin-home">
-    <p class="eyebrow">Administration</p>
-    <h1>Operations</h1>
+    <p class="eyebrow">@T["Administration"]</p>
+    <h1>@T["Admin tools"]</h1>
     <div class="foundation-grid admin-links">
         <a class="foundation-card" asp-page="/Admin/Events/Index">
-            <div><h2>Events</h2><p>Create events, open signups, and manage participants.</p></div>
+            <div><h2>@T["Events"]</h2><p>@T["Set up events, open signups and manage players."]</p></div>
         </a>
+        <a class="foundation-card" asp-page="/Admin/Catalogue/Index"><div><h2>@T["OSRS catalogue"]</h2><p>@T["Manage bosses, activities, drops, drop rates and EHB."]</p></div></a>
+        <a class="foundation-card" asp-page="/Admin/Tiles/Index"><div><h2>@T["Tile templates"]</h2><p>@T["Create reusable drop and challenge tiles."]</p></div></a>
+        <a class="foundation-card" asp-page="/Admin/Review/Index"><div><h2>@T["Evidence review"]</h2><p>@T["Review tile submissions from captains."]</p></div></a>
         <a class="foundation-card" asp-page="/Admin/Accounts/Index">
-            <div><h2>Accounts</h2><p>Manage administrators and temporary captain access.</p></div>
+            <div><h2>@T["Accounts"]</h2><p>@T["Manage admins and captain accounts."]</p></div>
         </a>
         <a class="foundation-card" asp-page="/Admin/Audit/Index">
-            <div><h2>Audit log</h2><p>Review authentication and administrative changes.</p></div>
+            <div><h2>@T["Audit log"]</h2><p>@T["See sign-ins and changes made by admins."]</p></div>
         </a>
     </div>
 </section>

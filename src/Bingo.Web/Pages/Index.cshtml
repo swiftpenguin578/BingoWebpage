@@ -1,38 +1,46 @@
-﻿@page
+@page
 @model IndexModel
+@using Bingo.Domain.Events
 @{
-    ViewData["Title"] = "Foundation";
+    ViewData["Title"] = T["Bingo events"];
+    ViewData["CompactNavigation"] = true;
 }
 
-<section class="hero" aria-labelledby="page-title">
-    <p class="eyebrow">Milestone 1</p>
-    <h1 id="page-title">The bingo foundation is running.</h1>
-    <p class="hero-copy">
-        The public board, signup, drafting, and evidence workflows will be built on this
-        tested ASP.NET Core and PostgreSQL foundation.
-    </p>
-</section>
+<section class="public-home">
+    <header class="public-hero">
+        <p class="eyebrow">OSRS Community Bingo</p>
+        <h1>@T["Follow every team, tile and drop."]</h1>
+        <p>@T["Open an event to see how every team is doing, then choose a team to view their board and completed tiles."]</p>
+    </header>
 
-<section class="foundation-grid" aria-label="Foundation status">
-    <article class="foundation-card">
-        <span class="status-dot" aria-hidden="true"></span>
-        <div>
-            <h2>Application</h2>
-            <p>ASP.NET Core on .NET 10 with server-rendered Razor pages.</p>
+    @if (Model.Events.Count == 0)
+    {
+        <section class="panel empty-public-state">
+            <h2>@T["No public boards yet"]</h2>
+            <p>@T["The next board will appear here as soon as the draft is completed and the board is published."]</p>
+        </section>
+    }
+    else
+    {
+        <div class="public-event-list" aria-label="Public bingo events">
+            @foreach (var bingoEvent in Model.Events)
+            {
+                var status = bingoEvent.State switch
+                {
+                    EventState.SignupOpen => T["Signups open"],
+                    EventState.Live => T["Live now"],
+                    EventState.AwaitingFinalReview => T["Final review"],
+                    EventState.Finalized => T["Finalized"],
+                    EventState.Archived => T["Archived"],
+                    _ => T["Upcoming"]
+                };
+                <a class="public-event-card panel" asp-page="/Events/Board" asp-route-slug="@bingoEvent.Slug">
+                    <span class="public-event-status state-@bingoEvent.State.ToString().ToLowerInvariant()">@status</span>
+                    <span class="public-event-title">@bingoEvent.Name</span>
+                    <span class="public-event-meta">@T["{0} × {1} board", bingoEvent.Rows, bingoEvent.Columns] · @bingoEvent.StartsAt.ToString("d MMM yyyy, HH:mm")</span>
+                    <span class="public-event-action">@T["View bingo"] <span aria-hidden="true">→</span></span>
+                </a>
+            }
         </div>
-    </article>
-    <article class="foundation-card">
-        <span class="status-dot" aria-hidden="true"></span>
-        <div>
-            <h2>Database</h2>
-            <p>PostgreSQL through Entity Framework Core and Npgsql.</p>
-        </div>
-    </article>
-    <article class="foundation-card">
-        <span class="status-dot" aria-hidden="true"></span>
-        <div>
-            <h2>Health</h2>
-            <p><a href="/health/live">Liveness</a> and <a href="/health/ready">readiness</a> endpoints are available.</p>
-        </div>
-    </article>
+    }
 </section>
