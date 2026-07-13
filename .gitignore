@@ -15,3 +15,4 @@ coverage/
 artifacts/
 playwright-report/
 src/Bingo.Web/appsettings.Local.json
+src/Bingo.Web/data/

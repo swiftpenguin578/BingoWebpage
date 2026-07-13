@@ -1,0 +1,82 @@
+@page
+@model Bingo.Web.Pages.Admin.Catalogue.IndexModel
+@using System.Globalization
+@{ ViewData["Title"] = "OSRS catalogue"; }
+
+<section class="table-page catalogue-page">
+    <p class="eyebrow">Administration</p>
+    <div class="page-heading"><div><h1>OSRS catalogue</h1><p class="form-intro">Find a boss, then manage its available drops directly.</p></div><a class="btn btn-outline-light" asp-page="Import">Initial CSV import</a></div>
+    <div asp-validation-summary="All" class="text-danger"></div>
+
+    <details class="panel add-boss-panel">
+        <summary><strong>＋ Add boss or activity</strong></summary>
+        <form method="post" asp-page-handler="Boss" class="form-grid catalogue-boss-form">
+            <div><label asp-for="Boss.Name"></label><input asp-for="Boss.Name" class="form-control" /></div>
+            <div><label asp-for="Boss.Category"></label><select asp-for="Boss.Category" class="form-select"><option>Boss</option><option>Skilling boss</option><option>Minigame</option></select></div>
+            <div><label asp-for="Boss.EfficientRate"></label><input asp-for="Boss.EfficientRate" class="form-control" /></div>
+            <div><label asp-for="Boss.DataSource"></label><input asp-for="Boss.DataSource" class="form-control" /></div>
+            <div><label asp-for="Boss.ImageUrl"></label><input asp-for="Boss.ImageUrl" class="form-control" /></div>
+            <div><label asp-for="Boss.Notes"></label><textarea asp-for="Boss.Notes" class="form-control"></textarea></div>
+            <button class="btn btn-primary">Add boss or activity</button>
+        </form>
+    </details>
+
+    <div class="catalogue-heading"><div><h2>Sources and drops</h2><span id="boss-result-count">@Model.Bosses.Count sources</span></div><div class="catalogue-search"><label for="boss-search">Search bosses and drops</label><input id="boss-search" class="form-control" type="search" placeholder="Zulrah, God Wars, fang…" autocomplete="off" /></div></div>
+    <p id="no-boss-results" class="panel" hidden>No bosses or drops match that search.</p>
+
+    <div id="boss-list">
+    @foreach (var boss in Model.Bosses)
+    {
+        var bossDrops = Model.Drops.Where(x => x.BossActivityId == boss.Id).ToList(); var searchText = $"{boss.Name} {boss.Category} {string.Join(" ", bossDrops.Select(x => x.ItemName))}".ToLowerInvariant();
+        <details class="panel catalogue-record" data-boss-record data-search="@searchText">
+            <summary><span><strong>@boss.Name</strong><small>@boss.Category · @(boss.EfficientRate?.ToString("0.####") ?? "No rate") / hour · @bossDrops.Count drop(s) · @(boss.Active ? "Active" : "Inactive")</small></span></summary>
+            <div class="catalogue-record-body">
+                <form method="post" asp-page-handler="UpdateBoss" class="filter-row catalogue-source-fields">
+                    <input type="hidden" name="recordId" value="@boss.Id" />
+                    <div><label>Name</label><input name="name" value="@boss.Name" class="form-control" required /></div>
+                    <div><label>Category</label><select name="category" class="form-select">@foreach (var category in new[] { "Boss", "Skilling boss", "Minigame" }) { if (category == boss.Category) { <option selected>@category</option> } else { <option>@category</option> } }</select></div>
+                    <div><label>Efficient / hour</label><input name="efficientRate" value="@(boss.EfficientRate?.ToString("0.############", CultureInfo.InvariantCulture))" class="form-control" type="number" step="any" /></div>
+                    <div><label>Data source</label><input name="dataSource" value="@boss.DataSource" class="form-control" /></div>
+                    <div><label>Image URL</label><input name="imageUrl" value="@boss.ImageUrl" class="form-control" type="url" /></div>
+                    <button class="btn btn-outline-light">Save source</button>
+                </form>
+                <div class="catalogue-source-actions"><button type="button" class="btn btn-primary add-boss-drop" data-boss-id="@boss.Id" data-boss-name="@boss.Name">＋ Add drop</button><form method="post" asp-page-handler="ToggleBoss"><input type="hidden" name="recordId" value="@boss.Id" /><button class="btn btn-sm btn-warning">@(boss.Active ? "Deactivate" : "Reactivate") source</button></form></div>
+                @if (bossDrops.Count == 0) { <p class="empty-drop-list">No drops have been added to this boss yet.</p> }
+                else
+                {
+                    <div class="table-wrap"><table><thead><tr><th>Item</th><th>Displayed rate</th><th>Probability</th><th>Calculated EHB</th><th>Data source</th><th></th></tr></thead><tbody>
+                    @foreach (var drop in bossDrops)
+                    {
+                        <tr><td><strong>@drop.ItemName</strong> @if (!drop.Active) { <small>(inactive)</small> }</td><td colspan="4"><form method="post" asp-page-handler="UpdateDrop" class="drop-edit-grid"><input type="hidden" name="recordId" value="@drop.Id" /><input name="displayRate" value="@drop.DisplayRate" class="form-control" aria-label="Displayed rate" required /><input name="numericProbability" value="@(drop.Probability?.ToString("0.############", CultureInfo.InvariantCulture))" class="form-control" type="number" step="any" aria-label="Numeric probability" /><output aria-label="Calculated EHB">@(drop.DefaultEhb?.ToString("0.####") ?? "Not calculable")</output><input name="dataSource" value="@drop.DataSource" class="form-control" aria-label="Data source" /><button class="btn btn-sm btn-outline-light">Save</button></form></td><td><form method="post" asp-page-handler="ToggleDrop"><input type="hidden" name="recordId" value="@drop.Id" /><button class="btn btn-sm btn-warning">@(drop.Active ? "Deactivate" : "Reactivate")</button></form></td></tr>
+                    }
+                    </tbody></table></div>
+                }
+            </div>
+        </details>
+    }
+    </div>
+
+    <dialog id="add-drop-dialog" class="tile-dialog catalogue-drop-dialog">
+        <button type="button" class="dialog-close" aria-label="Close">×</button><p class="eyebrow">Add drop</p><h2 id="drop-dialog-heading">Add drop to boss</h2>
+        <form method="post" asp-page-handler="BossDrop" class="form-stack" id="add-drop-form">
+            <input type="hidden" asp-for="BossDrop.BossActivityId" id="drop-boss-id" />
+            <label asp-for="BossDrop.ItemName"></label><input asp-for="BossDrop.ItemName" class="form-control" placeholder="For example: Tanzanite fang" />
+            <label asp-for="BossDrop.DisplayRate"></label><input asp-for="BossDrop.DisplayRate" class="form-control" placeholder="For example: 2 × 1/1,024" />
+            <label asp-for="BossDrop.NumericProbability">Numeric probability <small>Optional, but required for automatic EHB. Example: 1/100 is entered as 0.01.</small></label><input asp-for="BossDrop.NumericProbability" class="form-control" type="number" min="0" max="1" step="any" />
+            <label asp-for="BossDrop.Condition"></label><input asp-for="BossDrop.Condition" class="form-control" placeholder="Optional restrictions or notes" />
+            <details class="advanced-fields"><summary>Advanced metadata</summary><label asp-for="BossDrop.DataSource"></label><input asp-for="BossDrop.DataSource" class="form-control" /><label asp-for="BossDrop.ImageUrl"></label><input asp-for="BossDrop.ImageUrl" class="form-control" type="url" /></details>
+            <div class="dialog-actions"><button type="button" class="btn btn-outline-light dialog-cancel">Cancel</button><button class="btn btn-primary">Add drop</button></div>
+        </form>
+    </dialog>
+</section>
+
+@section Scripts {
+<partial name="_ValidationScriptsPartial" />
+<script>
+const search = document.getElementById('boss-search'); const records = [...document.querySelectorAll('[data-boss-record]')]; const count = document.getElementById('boss-result-count'); const empty = document.getElementById('no-boss-results');
+search.addEventListener('input', () => { const term = search.value.trim().toLowerCase(); let visible = 0; records.forEach(record => { const matches = !term || record.dataset.search.includes(term); record.hidden = !matches; if (matches) { visible++; if (term) record.open = true; } }); count.textContent = `${visible} source${visible === 1 ? '' : 's'}`; empty.hidden = visible !== 0; });
+const dropDialog = document.getElementById('add-drop-dialog');
+document.querySelectorAll('.add-boss-drop').forEach(button => button.addEventListener('click', () => { document.getElementById('drop-boss-id').value = button.dataset.bossId; document.getElementById('drop-dialog-heading').textContent = `Add drop to ${button.dataset.bossName}`; dropDialog.showModal(); }));
+document.querySelectorAll('.dialog-close, .dialog-cancel').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
+</script>
+}

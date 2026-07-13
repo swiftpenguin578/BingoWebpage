@@ -1,0 +1,38 @@
+@page "{id:guid}"
+@model Bingo.Web.Pages.Admin.Tiles.RequirementsModel
+@using Bingo.Domain.Boards
+@{ ViewData["Title"] = "Tile requirements"; }
+<section class="form-page wide-form">
+    <p class="eyebrow">Tile editor</p><h1>@Model.TileName</h1>
+    <details class="panel" open>
+        <summary><strong>Tile metadata and EHB override</strong></summary>
+        <form method="post" asp-page-handler="Metadata" class="form-stack">
+            <label for="tile-name">Name</label><input id="tile-name" name="name" value="@Model.Metadata.Name" class="form-control" required />
+            <label for="tile-description">Description</label><textarea id="tile-description" name="description" class="form-control" required>@Model.Metadata.Description</textarea>
+            <label for="objective-type">Objective type</label><select id="objective-type" name="objectiveType" class="form-select">@foreach (var objectiveType in Enum.GetValues<ObjectiveType>()) { if (objectiveType == Model.Metadata.ObjectiveType) { <option value="@objectiveType" selected>@objectiveType</option> } else { <option value="@objectiveType">@objectiveType</option> } }</select>
+            <label for="evidence-instructions">Evidence instructions</label><textarea id="evidence-instructions" name="evidenceInstructions" class="form-control" required>@Model.Metadata.EvidenceInstructions</textarea>
+            <label for="manual-ehb">Manual EHB override</label><input id="manual-ehb" name="manualEhb" value="@Model.Metadata.ManualEhb" type="number" step="any" min="0" class="form-control" />
+            <button class="btn btn-outline-light">Save tile metadata</button>
+        </form>
+    </details>
+    <div class="panel">
+        <h2>Requirements</h2>
+        @if (Model.Existing.Count == 0) { <p>No requirements yet. A tile cannot be published until it has at least one.</p> }
+        @foreach (var requirement in Model.Existing)
+        {
+            <div class="requirement-row"><div><strong>@requirement.Position. @requirement.Description</strong><br />Target @requirement.Target · @(requirement.Manual ? "Manual objective" : "Drop requirement") · @(requirement.DuplicatesAllowed ? "Duplicates allowed" : "Distinct drops") · @(requirement.HigherWeights ? "Higher weights allowed" : "Weight 1 only") · EHB @(requirement.Ehb?.ToString("0.##") ?? "needs manual estimate")</div><form method="post" asp-page-handler="Remove" onsubmit="return confirm('Remove this requirement?');"><input type="hidden" name="requirementId" value="@requirement.Id" /><button class="btn btn-sm btn-danger">Remove</button></form></div>
+        }
+    </div>
+    <form method="post" class="panel form-stack">
+        <h2>Add requirement</h2><div asp-validation-summary="All" class="text-danger"></div>
+        <label asp-for="Input.Description"></label><input asp-for="Input.Description" class="form-control" />
+        <label asp-for="Input.Target"></label><input asp-for="Input.Target" class="form-control" />
+        <label class="check-row"><input asp-for="Input.Manual" /> Manual objective (for example, complete three Infernos or a timed ToB)</label>
+        <label class="check-row"><input asp-for="Input.DuplicatesAllowed" /> Duplicates allowed</label>
+        <label class="check-row"><input asp-for="Input.AllowHigherWeightings" /> Allow a captain to enter a submission weight above 1</label>
+        <label asp-for="Input.BossIds"></label><select asp-for="Input.BossIds" class="form-select" multiple size="6">@foreach (var boss in Model.Bosses) { <option value="@boss.Id">@boss.Name</option> }</select>
+        <label asp-for="Input.DropIds"></label><select asp-for="Input.DropIds" class="form-select" multiple size="10">@foreach (var drop in Model.Drops) { <option value="@drop.Id">@drop.Boss — @drop.Item (@drop.Rate)</option> }</select>
+        <button class="btn btn-primary">Add requirement</button>
+    </form>
+    <p><a asp-page="Index">Back to tiles</a></p>
+</section>

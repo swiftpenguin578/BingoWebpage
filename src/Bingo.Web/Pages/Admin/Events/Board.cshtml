@@ -1,0 +1,140 @@
+@page "{id:guid}"
+@model Bingo.Web.Pages.Admin.Events.BoardModel
+@using Bingo.Domain.Boards
+@{ ViewData["Title"] = "Board editor"; var boardCanBeEdited = Model.BoardView?.State == BoardState.Draft; var editable = boardCanBeEdited && Model.CanEditBoard; }
+
+<section class="table-page board-page">
+    <div class="page-heading"><div><p class="eyebrow">Board editor</p><h1>@Model.EventName</h1></div><a asp-page="Manage" asp-route-id="@RouteData.Values["id"]">Back to event</a></div>
+    <aside class="collaboration-status board-presence" data-admin-board-event="@RouteData.Values["id"]" data-current-account="@Model.CurrentAccountId" data-can-edit="@Model.CanEditBoard.ToString().ToLowerInvariant()" data-editor-expires-at="@Model.BoardEditorLeaseExpiresAt?.ToUniversalTime().ToString("O")" hidden>
+        <strong>Other administrators are viewing this board.</strong><span data-board-presence-names></span>
+    </aside>
+    @if (Model.BoardView is null)
+    {
+        <form method="post" asp-page-handler="Create" class="panel compact-board-setup"><div><h2>Create the board</h2><p>Choose the starting size. You can change it while the board remains private.</p></div><div><label asp-for="Rows"></label><input asp-for="Rows" class="form-control" /></div><div><label asp-for="Columns"></label><input asp-for="Columns" class="form-control" /></div><button class="btn btn-primary">Create board</button></form>
+    }
+    else
+    {
+        @if (boardCanBeEdited)
+        {
+            <section class="panel collaboration-status board-editing-status">
+                @if (Model.CanEditBoard)
+                {
+                    <div><strong>You are editing this board.</strong><span>Other administrators can continue reviewing it. Editing control is released when you leave this page or after five minutes without board activity.</span></div>
+                    <form method="post" asp-page-handler="ReleaseEditing" data-release-board-editing><button class="btn btn-sm btn-outline-light">Finish editing</button></form>
+                }
+                else if (Model.BoardEditorAccountId is not null)
+                {
+                    <div><strong>@(Model.BoardEditorName ?? "Another administrator") is currently editing this board.</strong><span>You can inspect everything in view mode. Their editing control expires automatically when inactive.</span></div>
+                    <form method="post" asp-page-handler="TakeEditing" onsubmit="return confirm('Take editing control? The current editor will immediately return to view mode and may lose unsaved form changes.');"><button class="btn btn-sm btn-warning">Take over editing</button></form>
+                }
+                else
+                {
+                    <div><strong>You are viewing this board.</strong><span>Enter edit mode when you are ready to make changes.</span></div>
+                    <form method="post" asp-page-handler="TakeEditing"><button class="btn btn-sm btn-primary">Edit board</button></form>
+                }
+            </section>
+        }
+        <div class="board-toolbar panel">
+            <div><strong>@Model.BoardView.Rows × @Model.BoardView.Columns board</strong><span>@Model.Tiles.Count / @(Model.BoardView.Rows * Model.BoardView.Columns) tiles · @Model.BoardView.State</span></div>
+            @if (editable)
+            {
+                <details><summary class="btn btn-outline-light">Board size</summary><form method="post" asp-page-handler="Resize" class="toolbar-popover"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><label asp-for="Rows"></label><input asp-for="Rows" class="form-control" /><label asp-for="Columns"></label><input asp-for="Columns" class="form-control" /><button class="btn btn-primary">Resize</button></form></details>
+                <form method="post" asp-page-handler="Publish" onsubmit="return confirm('Publish this board? Its event snapshots will become immutable.');"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn btn-warning" disabled="@(Model.Tiles.Count != Model.BoardView.Rows * Model.BoardView.Columns)">Publish board</button></form>
+            }
+        </div>
+
+        @if (editable) { <form method="post" asp-page-handler="Move" id="move-form">@Html.AntiForgeryToken()<input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><input type="hidden" name="sourceId" id="move-source" /><input type="hidden" name="targetPosition" id="move-target" /></form> }
+
+        <div class="board-workspace redesigned-board-workspace">
+            <div class="board-editor" style="--board-columns:@Model.BoardView.Columns">
+            @for (var position = 0; position < Model.BoardView.Rows * Model.BoardView.Columns; position++)
+            {
+                var row = position / Model.BoardView.Columns; var column = position % Model.BoardView.Columns; var tile = Model.Tiles.SingleOrDefault(x => x.Position == position);
+                if (tile is null)
+                {
+                    <div class="board-cell empty" data-position="@position" data-row="@row" data-column="@column">@if (editable) { <button type="button" class="create-tile-button" data-position="@position"><span>＋</span>Create tile</button> } else { <span>Empty</span> }</div>
+                }
+                else
+                {
+                    <div class="board-cell populated" draggable="@editable.ToString().ToLowerInvariant()" data-tile-id="@tile.Id" data-position="@position" data-row="@row" data-column="@column" tabindex="0">
+                        @if (editable) { <span class="drag-handle" title="Drag onto another position">⠿</span> }
+                        <button type="button" class="tile-details-button @(editable ? "edit-tile-button" : string.Empty)" data-details-id="details-@tile.Id" data-tile-id="@tile.Id"><strong>@tile.Name</strong><span>@tile.Ehb.ToString("0.##") EHB</span></button>
+                    </div>
+                    <dialog id="details-@tile.Id" class="tile-dialog"><button type="button" class="dialog-close" aria-label="Close">×</button><p class="eyebrow">Position @(position + 1)</p><h2>@tile.Name</h2><p>@tile.Description</p><h3>Evidence</h3><p>@(string.IsNullOrWhiteSpace(tile.EvidenceInstructions) ? "No special evidence instructions." : tile.EvidenceInstructions)</p><p><strong>@tile.Ehb.ToString("0.##") EHB</strong></p>@if (editable) { <form method="post" asp-page-handler="Remove" onsubmit="return confirm('Remove this tile? The position will become empty.');"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><input type="hidden" name="tileId" value="@tile.Id" /><button class="btn btn-danger">Remove tile</button></form> }</dialog>
+                }
+            }
+            </div>
+
+            <aside class="board-sidebar">
+                @if (Model.Statistics is not null)
+                {
+                    <section class="panel stats-panel"><div class="page-heading"><h2>Statistics</h2><span>@Model.Statistics.DurationDays.ToString("0.#") days</span></div><dl><div><dt>Total EHB</dt><dd>@Model.Statistics.TotalEhb.ToString("0.##")</dd></div><div><dt>Expected team size</dt><dd>@(Model.Statistics.TeamSize?.ToString() ?? "Not set")</dd></div><div><dt>EHB per player</dt><dd>@(Model.Statistics.EhbPerPlayer?.ToString("0.##") ?? "—")</dd></div><div><dt>EHB per player/day</dt><dd>@(Model.Statistics.EhbPerPlayerPerDay?.ToString("0.##") ?? "—")</dd></div><div><dt>Average tile</dt><dd>@Model.Statistics.AverageTileEhb.ToString("0.##")</dd></div><div><dt>Lowest / highest line</dt><dd>@Model.Statistics.LowestLineEhb.ToString("0.##") / @Model.Statistics.HighestLineEhb.ToString("0.##")</dd></div></dl>@if (editable) { <form method="post" asp-page-handler="TeamSize" class="inline-stat-form"><label for="expected-team-size">Change expected team size</label><div><input id="expected-team-size" name="expectedTeamSize" value="@Model.Statistics.TeamSize" type="number" min="1" max="100" class="form-control" /><button class="btn btn-sm btn-outline-light">Update</button></div></form> }@if (Model.Statistics.MissingEhbTiles > 0) { <p class="balance-warning">@Model.Statistics.MissingEhbTiles tile(s) still need an EHB estimate.</p> }</section>
+                }
+                @if(Model.TeamWorkloads.Count > 0){<details class="panel line-summary" open><summary><strong>EHB per team member</strong></summary>@foreach(var team in Model.TeamWorkloads){<div class="line-stat"><span>@team.TeamName <small>@team.FormationType · @(team.SizeUsed?.ToString() ?? "no") player(s) used@if(team.ActualRosterSize != team.SizeUsed){<text> · @team.ActualRosterSize currently assigned</text>}</small></span><strong>@(team.EhbPerPlayer?.ToString("0.##") ?? "—")</strong></div>}</details>}
+                <details class="panel line-summary" open><summary><strong>Rows and columns</strong></summary>@foreach (var line in Model.Lines) { <div class="line-stat" data-line-kind="@line.Kind" data-line-index="@line.Index" tabindex="0"><span>@line.Key</span><strong>@line.Ehb.ToString("0.##")</strong></div> }@if (Model.BalanceSpread > 0) { <p class="balance-warning">Line spread: @Model.BalanceSpread.ToString("0.##") EHB</p> }</details>
+            </aside>
+        </div>
+
+        @if (editable)
+        {
+            <dialog id="create-tile-dialog" class="tile-dialog create-tile-dialog">
+                <button type="button" class="dialog-close" aria-label="Close">×</button><p class="eyebrow">Create tile</p><h2 id="create-tile-heading">New board tile</h2>
+                <form method="post" asp-page-handler="CreateTile" class="form-stack" id="create-tile-form" data-create-action="@Url.Page("Board", "CreateTile", new { id = RouteData.Values["id"] })" data-edit-action="@Url.Page("Board", "EditTile", new { id = RouteData.Values["id"] })">
+                    <input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" />
+                    <input type="hidden" asp-for="TileDraft.TileId" id="tile-id" />
+                    <input type="hidden" asp-for="TileDraft.Position" id="tile-position" />
+                    <label asp-for="TileDraft.Name">Tile name <small>Suggested from the selected bosses, but always editable</small></label><input asp-for="TileDraft.Name" id="tile-name" class="form-control" placeholder="Suggested automatically" />
+                    <label asp-for="TileDraft.Description">Additional tile description <small>Optional</small></label><textarea asp-for="TileDraft.Description" class="form-control"></textarea>
+                    <div id="requirements"><partial name="_BoardRequirementEditor" model="@(new Bingo.Web.Pages.Admin.Events.BoardRequirementEditorViewModel(0, Model.Bosses, Model.Drops))" /></div>
+                    <button type="button" class="btn btn-outline-light" id="add-requirement">＋ Add another requirement</button>
+                    <label asp-for="TileDraft.EvidenceInstructions">Evidence instructions <small>Optional</small></label><textarea asp-for="TileDraft.EvidenceInstructions" class="form-control"></textarea>
+                    <label asp-for="TileDraft.ManualEhb">Manual total EHB estimate <small>Optional; overrides the calculated value</small></label><input asp-for="TileDraft.ManualEhb" class="form-control" type="number" min="0" step="any" />
+                    <div class="dialog-actions"><button type="button" class="btn btn-outline-light dialog-cancel">Cancel</button><button class="btn btn-primary" id="save-tile-button">Create tile here</button></div>
+                </form>
+            </dialog>
+            <template id="requirement-template"><partial name="_BoardRequirementEditor" model="@(new Bingo.Web.Pages.Admin.Events.BoardRequirementEditorViewModel(-1, Model.Bosses, Model.Drops))" /></template>
+            <script type="application/json" id="tile-editor-data">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TileEditors, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }))</script>
+        }
+    }
+</section>
+
+@section Scripts {
+<script src="~/js/admin-collaboration.js" asp-append-version="true"></script>
+<script>
+const moveForm = document.getElementById('move-form'); let dragged = null;
+document.querySelectorAll('.board-cell[data-position]').forEach(cell => {
+    cell.addEventListener('dragstart', event => { if (!cell.dataset.tileId) return; dragged = cell.dataset.tileId; cell.classList.add('dragging'); event.dataTransfer.effectAllowed = 'move'; });
+    cell.addEventListener('dragend', () => { dragged = null; document.querySelectorAll('.board-cell').forEach(x => x.classList.remove('dragging', 'drop-target')); });
+    cell.addEventListener('dragover', event => { if (!dragged) return; event.preventDefault(); cell.classList.add('drop-target'); });
+    cell.addEventListener('dragleave', () => cell.classList.remove('drop-target'));
+    cell.addEventListener('drop', event => { event.preventDefault(); if (!dragged || cell.dataset.tileId === dragged) return; document.getElementById('move-source').value = dragged; document.getElementById('move-target').value = cell.dataset.position; moveForm.submit(); });
+});
+document.querySelectorAll('.line-stat').forEach(line => { const toggle = active => document.querySelectorAll(`[data-${line.dataset.lineKind}="${line.dataset.lineIndex}"]`).forEach(cell => cell.classList.toggle('line-highlight', active)); line.addEventListener('mouseenter', () => toggle(true)); line.addEventListener('mouseleave', () => toggle(false)); line.addEventListener('focus', () => toggle(true)); line.addEventListener('blur', () => toggle(false)); });
+document.querySelectorAll('.tile-details-button:not(.edit-tile-button)').forEach(button => button.addEventListener('click', () => document.getElementById(button.dataset.detailsId).showModal()));
+document.querySelectorAll('.dialog-close, .dialog-cancel').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
+
+const createDialog = document.getElementById('create-tile-dialog'); const tileForm = document.getElementById('create-tile-form');
+const tileEditorData = new Map(JSON.parse(document.getElementById('tile-editor-data')?.textContent || '[]').map(tile => [tile.id, tile]));
+let tileNameEdited = false; document.getElementById('tile-name')?.addEventListener('input', event => tileNameEdited = event.target.value.trim().length > 0);
+function resetTileForm() { tileForm.reset(); tileForm.action = tileForm.dataset.createAction; document.getElementById('tile-id').value = ''; document.getElementById('requirements').innerHTML = document.getElementById('requirement-template').innerHTML.replaceAll('Requirements[-1]', 'Requirements[0]').replaceAll('requirement--1', 'requirement-0').replaceAll('data-index="-1"', 'data-index="0"'); requirementIndex = 1; tileNameEdited = false; initializeRequirements(); }
+document.querySelectorAll('.create-tile-button').forEach(button => button.addEventListener('click', () => { resetTileForm(); document.getElementById('tile-position').value = button.dataset.position; document.getElementById('create-tile-heading').textContent = `Create tile in position ${Number(button.dataset.position) + 1}`; document.getElementById('save-tile-button').textContent = 'Create tile here'; createDialog.showModal(); }));
+let requirementIndex = 1;
+function addRequirement(values = null) { const index = requirementIndex++; const html = document.getElementById('requirement-template').innerHTML.replaceAll('Requirements[-1]', `Requirements[${index}]`).replaceAll('requirement--1', `requirement-${index}`).replaceAll('data-index="-1"', `data-index="${index}"`); document.getElementById('requirements').insertAdjacentHTML('beforeend', html); initializeRequirements(); const editor = document.getElementById(`requirement-${index}`); if (values) populateRequirement(editor, values); return editor; }
+document.getElementById('add-requirement')?.addEventListener('click', () => addRequirement());
+function populateRequirement(editor, values) { editor.querySelector('.requirement-kind').value = values.kind; editor.querySelector('.requirement-kind').dispatchEvent(new Event('change')); editor.querySelector('.challenge-description').value = values.kind === 'challenge' ? values.description : ''; editor.querySelector('input[type="number"]').value = values.target; editor.querySelector('input[name$=".DuplicatesAllowed"]').checked = values.duplicatesAllowed; editor.querySelector('input[name$=".AllowHigherWeightings"]').checked = values.allowHigherWeightings; editor.querySelectorAll('.boss-checkbox').forEach(input => input.checked = values.bossIds.includes(input.value)); editor.querySelector('.boss-checkbox')?.dispatchEvent(new Event('change')); editor.querySelectorAll('.eligible-drop-option input').forEach(input => input.checked = values.dropIds.includes(input.value)); }
+document.querySelectorAll('.edit-tile-button').forEach(button => button.addEventListener('click', () => { const tile = tileEditorData.get(button.dataset.tileId); if (!tile) return; resetTileForm(); tileForm.action = tileForm.dataset.editAction; document.getElementById('tile-id').value = tile.id; document.getElementById('tile-name').value = tile.name; document.getElementById('TileDraft_Description').value = tile.description; document.getElementById('TileDraft_EvidenceInstructions').value = tile.evidenceInstructions; document.getElementById('TileDraft_ManualEhb').value = tile.manualEhb ?? ''; tileNameEdited = true; document.getElementById('requirements').innerHTML = ''; requirementIndex = 0; tile.requirements.forEach(requirement => addRequirement(requirement)); document.getElementById('create-tile-heading').textContent = `Edit ${tile.name}`; document.getElementById('save-tile-button').textContent = 'Save tile'; createDialog.showModal(); }));
+function initializeRequirements() {
+    document.querySelectorAll('.requirement-editor:not([data-ready])').forEach(editor => {
+        editor.dataset.ready = 'true'; const kind = editor.querySelector('.requirement-kind'); const dropFields = editor.querySelector('.drop-only-fields'); const challengeFields = editor.querySelector('.challenge-only-fields'); const challengeDescription = editor.querySelector('.challenge-description'); const bossChecks = [...editor.querySelectorAll('.boss-checkbox')]; const dropGroups = [...editor.querySelectorAll('.eligible-drop-group')]; const bossSummary = editor.querySelector('.boss-picker summary'); const emptyDrops = editor.querySelector('.drop-picker-empty');
+        const updateKind = () => { const challenge = kind.value === 'challenge'; dropFields.hidden = challenge; challengeFields.hidden = !challenge; challengeDescription.required = challenge; }; kind.addEventListener('change', updateKind); updateKind();
+        const updateBosses = () => { const selected = bossChecks.filter(x => x.checked); const ids = selected.map(x => x.dataset.bossId); let visibleDrops = 0; dropGroups.forEach(group => { const visible = ids.includes(group.dataset.bossId); group.hidden = !visible; if (!visible) group.querySelectorAll('input').forEach(input => input.checked = false); else visibleDrops += group.querySelectorAll('input').length; }); bossSummary.textContent = selected.length === 0 ? 'Choose bosses or activities' : selected.length === 1 ? selected[0].dataset.bossName : `${selected.length} bosses selected`; emptyDrops.textContent = selected.length === 0 ? 'Choose a boss to see its drops.' : visibleDrops === 0 ? 'No drops have been added to the selected bosses yet.' : ''; emptyDrops.hidden = visibleDrops > 0; if (editor.dataset.index === '0' && !tileNameEdited) document.getElementById('tile-name').value = selected.map(x => x.dataset.bossName).join(' + '); };
+        bossChecks.forEach(checkbox => checkbox.addEventListener('change', updateBosses)); updateBosses();
+        editor.querySelector('.select-all-drops')?.addEventListener('click', () => dropGroups.filter(group => !group.hidden).forEach(group => group.querySelectorAll('input').forEach(input => input.checked = true)));
+        editor.querySelector('.deselect-all-drops')?.addEventListener('click', () => dropGroups.filter(group => !group.hidden).forEach(group => group.querySelectorAll('input').forEach(input => input.checked = false)));
+        editor.querySelector('.remove-requirement')?.addEventListener('click', () => editor.remove());
+    });
+}
+initializeRequirements();
+document.getElementById('create-tile-form')?.addEventListener('submit', () => { document.querySelectorAll('#requirements .requirement-editor').forEach((editor, index) => editor.querySelectorAll('[name]').forEach(field => field.name = field.name.replace(/Requirements\[-?\d+\]/, `Requirements[${index}]`))); });
+</script>
+}

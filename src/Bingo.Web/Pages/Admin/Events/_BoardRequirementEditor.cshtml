@@ -1,0 +1,29 @@
+@model Bingo.Web.Pages.Admin.Events.BoardRequirementEditorViewModel
+@{ var prefix = Model.Index < 0 ? "Requirements[-1]" : $"Requirements[{Model.Index}]"; var id = $"requirement-{Model.Index}"; }
+<fieldset class="requirement-editor" id="@id" data-index="@Model.Index">
+    <div class="page-heading"><legend>What must players do?</legend>@if (Model.Index != 0) { <button type="button" class="remove-requirement" aria-label="Remove requirement">Remove</button> }</div>
+    <label for="@id-kind">Task</label><select id="@id-kind" name="@($"TileDraft.{prefix}.Kind")" class="form-select requirement-kind"><option value="drops">Collect drops</option><option value="challenge">Complete an activity or challenge</option></select>
+    <div class="challenge-only-fields" hidden><label for="@id-description">Challenge requirements</label><input id="@id-description" name="@($"TileDraft.{prefix}.Description")" class="form-control challenge-description" placeholder="For example: Complete Theatre of Blood in a four-player team under 25 minutes" /></div>
+    <label for="@id-target">Required quantity</label><input id="@id-target" name="@($"TileDraft.{prefix}.Target")" class="form-control" type="number" min="1" value="1" required />
+    <label>Bosses or activities</label><details class="checkbox-dropdown boss-picker"><summary>Choose bosses or activities</summary><div class="checkbox-dropdown-menu">@foreach (var boss in Model.Bosses) { <label><input type="checkbox" name="@($"TileDraft.{prefix}.BossIds")" value="@boss.Id" class="boss-checkbox" data-boss-id="@boss.Id" data-boss-name="@boss.Name" /> <span>@boss.Name</span></label> }</div></details>
+    <div class="drop-only-fields">
+        <div class="page-heading eligible-drop-heading"><label>Eligible drops</label><div><button type="button" class="btn btn-sm btn-outline-light select-all-drops">Select all</button><button type="button" class="btn btn-sm btn-outline-light deselect-all-drops">Deselect all</button></div></div>
+        <p class="drop-picker-empty">Choose a boss to see its drops.</p>
+        <div class="eligible-drop-list">
+            @foreach (var boss in Model.Bosses)
+            {
+                var bossDrops = Model.Drops.Where(drop => drop.BossId == boss.Id).ToList();
+                <section class="eligible-drop-group" data-boss-id="@boss.Id" hidden>
+                    <h4>@boss.Name</h4>
+                    @foreach (var drop in bossDrops)
+                    {
+                        <label class="eligible-drop-option"><input type="checkbox" name="@($"TileDraft.{prefix}.DropIds")" value="@drop.Id" /> <span>@drop.ItemName <small>@drop.Rate</small></span></label>
+                    }
+                </section>
+            }
+        </div>
+        <small>Missing a drop? <a href="/Admin/Catalogue" target="_blank">Add it to the OSRS catalogue</a>, then reopen this tile.</small>
+        <label class="check-row"><input type="checkbox" name="@($"TileDraft.{prefix}.DuplicatesAllowed")" value="true" checked /> Repeated copies of the same eligible drop count</label>
+        <label class="check-row"><input type="checkbox" name="@($"TileDraft.{prefix}.AllowHigherWeightings")" value="true" /> Allow a submission to count for more than one</label>
+    </div>
+</fieldset>
