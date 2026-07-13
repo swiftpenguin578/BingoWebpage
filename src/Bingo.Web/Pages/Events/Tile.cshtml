@@ -1,0 +1,48 @@
+@page "/Events/{slug}/Board/{teamSlug}/Tiles/{tileId:guid}"
+@model Bingo.Web.Pages.Events.TileModel
+@{
+    ViewData["Title"] = $"{Model.Tile.TileName} · {Model.Tile.TeamName}";
+}
+<section class="public-tile-page" data-progress-event="@Model.EventId">
+    <nav class="board-breadcrumb" aria-label="Board navigation"><a asp-page="/Events/TeamBoard" asp-route-slug="@Model.Tile.EventSlug" asp-route-teamSlug="@Model.Tile.TeamSlug">← @Model.Tile.TeamName board</a><span>@Model.Tile.EventName</span></nav>
+    <header class="tile-detail-header">
+        <div><p class="eyebrow">@(Model.Tile.Complete ? "Completed tile" : "Tile progress")</p><h1>@Model.Tile.TileName</h1><p>@Model.Tile.Description</p></div>
+        <div class="tile-total"><strong>@Model.Tile.Approved / @Model.Tile.Target</strong><span>approved</span></div>
+    </header>
+    <div class="progress-update" data-progress-update hidden role="status">New approved progress is available. <button type="button" data-progress-refresh>Refresh now</button></div>
+    <div class="tile-detail-layout">
+        <section class="panel requirement-progress-list">
+            <h2>Requirements</h2>
+            @foreach (var requirement in Model.Tile.Requirements)
+            {
+                <div class="requirement-progress @(requirement.Complete ? "complete" : null)"><span><strong>@requirement.Description</strong><small>@requirement.Approved of @requirement.Target approved</small></span><span aria-label="@(requirement.Complete ? "Complete" : "In progress")">@(requirement.Complete ? "✓" : $"{requirement.Approved}/{requirement.Target}")</span></div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Tile.EvidenceInstructions)) { <div class="evidence-instructions"><strong>Evidence instructions</strong><p>@Model.Tile.EvidenceInstructions</p></div> }
+        </section>
+        <section class="approved-evidence">
+            <header><div><p class="eyebrow">Public proof</p><h2>Approved evidence</h2></div><span>@Model.Tile.Evidence.Count submission(s)</span></header>
+            @if (Model.Tile.Evidence.Count == 0) { <div class="panel empty-public-state"><p>No approved evidence for this tile yet.</p></div> }
+            else
+            {
+                <div class="evidence-gallery">
+                @foreach (var evidence in Model.Tile.Evidence)
+                {
+                    if (evidence.Hidden)
+                    {
+                        <article class="panel hidden-evidence"><span aria-hidden="true">◌</span><strong>Evidence hidden</strong><p>The screenshot and player name are private. Its approved contribution still counts.</p><small>@evidence.SubmittedAt.ToString("d MMM yyyy, HH:mm")</small></article>
+                    }
+                    else
+                    {
+                        <article class="panel evidence-card">
+                            @if (evidence.EvidenceAssetId is Guid assetId) { <button type="button" class="evidence-image-button" data-evidence-image="/Evidence/@assetId" data-evidence-alt="Approved evidence from @evidence.PlayerName"><img src="/Evidence/@assetId" alt="Approved evidence from @evidence.PlayerName" loading="lazy" /></button> }
+                            <div><strong>@evidence.PlayerName</strong><span>@(evidence.DropName ?? "Manual completion") @if(evidence.Contribution > 1){<text>· weight @evidence.Contribution</text>}</span>@if(!string.IsNullOrWhiteSpace(evidence.BossName)){<small>@evidence.BossName</small>}<small>Submitted @evidence.SubmittedAt.ToString("d MMM yyyy, HH:mm")</small></div>
+                        </article>
+                    }
+                }
+                </div>
+            }
+        </section>
+    </div>
+</section>
+<dialog class="public-lightbox" data-evidence-dialog><button type="button" data-evidence-close aria-label="Close enlarged evidence">×</button><img data-evidence-dialog-image alt="" /></dialog>
+@section Scripts { <partial name="_PublicProgressScripts" model="Model.EventId" /><script src="~/js/public-evidence.js" asp-append-version="true"></script> }

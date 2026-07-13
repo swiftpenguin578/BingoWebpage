@@ -1,0 +1,8 @@
+@page
+@model Bingo.Web.Pages.Admin.Review.IndexModel
+@using Bingo.Domain.Evidence
+@{ViewData["Title"]="Evidence review";}
+<section class="table-page"><div class="page-heading"><div><p class="eyebrow">Active event review</p><h1>Evidence queue</h1><p>@(Model.EventId is null?"No live or final-review event":Model.EventName)</p></div><a asp-page="/Admin/Index">Administration</a></div>
+@if(Model.EventId is not null){<form method="get" class="panel filter-bar"><select name="teamId" class="form-select"><option value="">All teams</option>@foreach(var t in Model.Teams){<option value="@t.Id">@t.Name</option>}</select><select name="tileId" class="form-select"><option value="">All tiles</option>@foreach(var t in Model.Tiles){<option value="@t.Id">@t.Name</option>}</select><select name="status" class="form-select"><option value="">All statuses</option>@foreach(var s in Enum.GetValues<SubmissionStatus>()){<option value="@s">@s</option>}</select><button class="btn btn-outline-light">Filter</button><a class="btn btn-primary" asp-page="Submit">Admin submission</a></form>
+<div class="table-wrap panel"><table><thead><tr><th>Submitted</th><th>Team</th><th>Tile</th><th>Player</th><th>Status</th><th>Contribution</th><th>Code</th></tr></thead><tbody>@foreach(var row in Model.Rows){<tr><td><a asp-page="Details" asp-route-id="@row.Id">@row.SubmittedAt.ToLocalTime().ToString("g")</a>@if(row.DuringGrace){<small class="balance-warning">After event end — verify screenshot time</small>}</td><td>@row.Team</td><td>@row.Tile</td><td>@row.Player</td><td>@row.Status</td><td>@row.Claimed@if(row.Approved>0){<text> → @row.Approved</text>}</td><td>@(row.ExpectedCode??"Disabled")</td></tr>}</tbody></table></div>}
+</section>

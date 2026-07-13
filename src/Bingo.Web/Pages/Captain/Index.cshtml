@@ -1,0 +1,12 @@
+@page "/Captain"
+@model Bingo.Web.Pages.Captain.IndexModel
+@{ViewData["Title"]=$"{Model.TeamName} submissions";}
+<section class="table-page">
+<div class="page-heading"><div><p class="eyebrow">Captain workspace</p><h1>@Model.TeamName</h1><p>@Model.EventName</p></div></div>
+@if(Model.CodeEnabled){<section class="panel evidence-code-banner"><span>Current screenshot code</span><strong>@(Model.CurrentCode??"No active code")</strong></section>}
+@if(!Model.NewSubmissionsOpen){<p class="status-message">New submissions are currently closed. Requested corrections remain available below.</p>}
+<div class="page-heading subheading"><h2>Choose a board tile</h2></div>
+<div class="captain-board">@foreach(var tile in Model.Tiles){<article class="panel captain-tile @(tile.Complete?"complete":"")"><small>Row @(tile.Row+1) · Column @(tile.Column+1)</small><h3>@tile.Name</h3><p>@tile.Description</p><strong>@tile.Progress / @tile.Target</strong>@if(Model.NewSubmissionsOpen&&!tile.Complete){<a class="btn btn-sm btn-primary" asp-page="Submit" asp-route-tileId="@tile.Id">Submit evidence</a>}</article>}</div>
+<div class="page-heading subheading"><h2>Team submission history</h2></div>
+<div class="table-wrap panel"><table><thead><tr><th>Submitted</th><th>Tile</th><th>Player</th><th>Status</th><th>Contribution</th><th>Feedback</th></tr></thead><tbody>@foreach(var s in Model.Submissions){<tr><td><a asp-page="Submission" asp-route-id="@s.Id">@s.SubmittedAt.ToLocalTime().ToString("g")</a></td><td>@s.Tile</td><td>@s.Player</td><td>@s.Status</td><td>@s.Claimed@if(s.Approved>0){<text> → @s.Approved</text>}</td><td>@s.Feedback</td></tr>}</tbody></table></div>
+</section>

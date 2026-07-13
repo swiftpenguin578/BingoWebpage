@@ -1,0 +1,46 @@
+@page "/Events/{slug}/Board/{teamSlug}"
+@model Bingo.Web.Pages.Events.TeamBoardModel
+@{
+    ViewData["Title"] = $"{Model.Team.TeamName} · {Model.Board.EventName}";
+    var totalTiles = Model.Board.Rows * Model.Board.Columns;
+    var lineCount = Model.Team.Progress.CompletedRows.Count + Model.Team.Progress.CompletedColumns.Count;
+}
+<section class="team-board-page" data-progress-event="@Model.Board.EventId">
+    <nav class="board-breadcrumb" aria-label="Board navigation">
+        <a asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug">← All boards</a>
+        <span>@Model.Board.EventName</span>
+    </nav>
+    <header class="team-board-header">
+        <div>
+            <p class="eyebrow">Rank #@Model.Team.Rank</p>
+            <h1>@Model.Team.TeamName</h1>
+            @if (!string.IsNullOrWhiteSpace(Model.Team.Affiliation)) { <p>@Model.Team.Affiliation</p> }
+        </div>
+        @if (Model.Team.ProvisionalWinner) { <strong class="winner-label large">Provisional winner</strong> }
+    </header>
+    <div class="progress-update" data-progress-update hidden role="status">New approved progress is available. <button type="button" data-progress-refresh>Refresh now</button></div>
+    <div class="team-progress-strip panel">
+        <span><strong>@Model.Team.Progress.CompletedTiles/@totalTiles</strong><small>Tiles</small></span>
+        <span><strong>@Model.Team.Progress.CompletedRows.Count</strong><small>Rows</small></span>
+        <span><strong>@Model.Team.Progress.CompletedColumns.Count</strong><small>Columns</small></span>
+        <span><strong>@Model.Team.Progress.EhbTiebreak.ToString("0.##")</strong><small>Approved EHB</small></span>
+        @if (Model.Team.Progress.BoardCompletedAt is DateTimeOffset finished) { <span><strong>@finished.ToString("d MMM, HH:mm")</strong><small>Board completed</small></span> }
+    </div>
+    <div class="public-full-board" style="--public-board-columns:@Model.Board.Columns" aria-label="@Model.Team.TeamName bingo board">
+        @foreach (var tile in Model.Team.Tiles)
+        {
+            <a class="public-tile panel @(tile.Complete ? "complete" : tile.Approved > 0 ? "in-progress" : null)"
+               asp-page="/Events/Tile" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Team.TeamSlug" asp-route-tileId="@tile.TileId">
+                <span class="tile-position">R@(tile.Row + 1) · C@(tile.Column + 1)</span>
+                <strong>@tile.Name</strong>
+                <span class="tile-progress"><span style="width:@(tile.Target == 0 ? 0 : Math.Min(100, tile.Approved * 100 / tile.Target))%"></span></span>
+                <span>@tile.Approved / @tile.Target @(tile.Complete ? "complete" : "approved")</span>
+            </a>
+        }
+    </div>
+    <nav class="team-switcher" aria-label="Switch team">
+        @if (Model.Previous is not null) { <a asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Previous.TeamSlug">← #@Model.Previous.Rank @Model.Previous.TeamName</a> } else { <span></span> }
+        @if (Model.Next is not null) { <a asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Next.TeamSlug">#@Model.Next.Rank @Model.Next.TeamName →</a> }
+    </nav>
+</section>
+@section Scripts { <partial name="_PublicProgressScripts" model="Model.Board.EventId" /> }

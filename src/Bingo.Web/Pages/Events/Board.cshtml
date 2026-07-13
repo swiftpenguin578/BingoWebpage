@@ -1,0 +1,73 @@
+@page "/Events/{slug}/Board"
+@model Bingo.Web.Pages.Events.BoardModel
+@using Bingo.Domain.Events
+@{
+    ViewData["Title"] = $"{Model.Board.EventName} board";
+    var totalTiles = Model.Board.Rows * Model.Board.Columns;
+}
+
+<section class="mission-control" data-progress-event="@Model.Board.EventId">
+    <header class="mission-header">
+        <div>
+            <p class="eyebrow">Mission Control</p>
+            <h1>@Model.Board.EventName</h1>
+            <p>Every team on the same board. Select a board to zoom in.</p>
+        </div>
+        <div class="mission-actions">
+            <span class="event-state-badge">@Model.Board.EventState</span>
+            <a asp-page="/Events/Teams" asp-route-slug="@Model.Board.EventSlug">Teams &amp; draft</a>
+        </div>
+    </header>
+
+    <div class="progress-update" data-progress-update hidden role="status">
+        New approved progress is available. <button type="button" data-progress-refresh>Refresh now</button>
+    </div>
+
+    <div class="mission-grid" aria-label="Team board overview">
+        @foreach (var team in Model.Board.Teams)
+        {
+            var lineCount = team.Progress.CompletedRows.Count + team.Progress.CompletedColumns.Count;
+            <a class="mission-team-card panel @(team.ProvisionalWinner ? "provisional-winner" : null)"
+               asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@team.TeamSlug">
+                <header>
+                    <span class="rank-medallion">#@team.Rank</span>
+                    <span>
+                        <strong>@team.TeamName</strong>
+                        @if (!string.IsNullOrWhiteSpace(team.Affiliation)) { <small>@team.Affiliation</small> }
+                    </span>
+                    @if (team.ProvisionalWinner) { <span class="winner-label">Provisional winner</span> }
+                </header>
+                <div class="mini-board" style="--public-board-columns:@Model.Board.Columns" aria-label="@team.TeamName board, @team.Progress.CompletedTiles of @totalTiles tiles completed">
+                    @foreach (var tile in team.Tiles)
+                    {
+                        <span class="mini-tile @(tile.Complete ? "complete" : tile.Approved > 0 ? "in-progress" : null)" title="@tile.Name: @tile.Approved/@tile.Target"><span class="visually-hidden">@tile.Name @tile.Approved of @tile.Target</span></span>
+                    }
+                </div>
+                <footer>
+                    <span><strong>@team.Progress.CompletedTiles/@totalTiles</strong> tiles</span>
+                    <span><strong>@lineCount</strong> lines</span>
+                    <span><strong>@team.Progress.EhbTiebreak.ToString("0.##")</strong> EHB</span>
+                </footer>
+            </a>
+        }
+    </div>
+
+    <section class="public-leaderboard panel">
+        <header><div><p class="eyebrow">Contribution leaderboard</p><h2>Players by approved EHB</h2></div><span>Hidden evidence is excluded</span></header>
+        @if (Model.Board.PlayerLeaderboard.Count == 0)
+        {
+            <p class="muted-copy">No approved player contributions yet.</p>
+        }
+        else
+        {
+            <div class="table-wrap"><table><thead><tr><th>Rank</th><th>Player</th><th>Team</th><th>Approved EHB</th><th>Submissions</th></tr></thead><tbody>
+            @foreach (var player in Model.Board.PlayerLeaderboard)
+            {
+                <tr><td>#@player.Rank</td><td><strong>@player.PlayerName</strong></td><td>@player.TeamName</td><td>@player.EstimatedEhb.ToString("0.##")</td><td>@player.ApprovedSubmissions</td></tr>
+            }
+            </tbody></table></div>
+        }
+    </section>
+</section>
+
+@section Scripts { <partial name="_PublicProgressScripts" model="Model.Board.EventId" /> }
