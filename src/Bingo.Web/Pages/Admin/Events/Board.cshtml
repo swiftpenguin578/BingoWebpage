@@ -98,7 +98,7 @@
         {
             <dialog id="create-tile-dialog" class="tile-dialog create-tile-dialog">
                 <button type="button" class="dialog-close" aria-label="Close">×</button><p class="eyebrow">Create tile</p><h2 id="create-tile-heading">New board tile</h2>
-                <form method="post" asp-page-handler="CreateTile" class="form-stack" id="create-tile-form" data-create-action="@Url.Page("Board", "CreateTile", new { id = RouteData.Values["id"] })" data-edit-action="@Url.Page("Board", "EditTile", new { id = RouteData.Values["id"] })">
+                <form method="post" asp-page-handler="CreateTile" class="form-stack" id="create-tile-form" data-native-submit data-create-action="@Url.Page("Board", "CreateTile", new { id = RouteData.Values["id"] })" data-edit-action="@Url.Page("Board", "EditTile", new { id = RouteData.Values["id"] })">
                     <input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" />
                     <input type="hidden" asp-for="TileDraft.TileId" id="tile-id" />
                     <input type="hidden" asp-for="TileDraft.Position" id="tile-position" />

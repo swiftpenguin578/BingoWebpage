@@ -12,6 +12,7 @@
 
     let reloadTimer;
     let boardExpiryTimer;
+    let localBoardChangeUntil = 0;
     let localDraftChangeUntil = 0;
     let preserveBoardEditingOnPageHide = false;
     const reloadWithoutReleasingBoard = () => {
@@ -25,6 +26,10 @@
         window.clearTimeout(reloadTimer);
         reloadTimer = window.setTimeout(reloadWithoutReleasingBoard, 700);
     };
+    const scheduleBoardReload = () => {
+        if (Date.now() < localBoardChangeUntil) return;
+        scheduleDraftReload();
+    };
 
     if (boardRoot) {
         connection.on('boardPresenceChanged', viewers => {
@@ -34,7 +39,7 @@
             const names = boardRoot.querySelector('[data-board-presence-names]');
             if (names) names.textContent = others.length === 0 ? '' : `Also viewing: ${others.map(viewer => viewer.username).join(', ')}.`;
         });
-        connection.on('boardChanged', scheduleDraftReload);
+        connection.on('boardChanged', scheduleBoardReload);
         const scheduleBoardExpiryReload = expiresAt => {
             window.clearTimeout(boardExpiryTimer);
             const expiry = Date.parse(expiresAt || '');
@@ -57,10 +62,23 @@
         });
     }
 
+    if (boardRoot) {
+        document.addEventListener('submit', event => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement)
+                || form.hasAttribute('data-release-board-editing')) return;
+            localBoardChangeUntil = Date.now() + 5000;
+            window.clearTimeout(reloadTimer);
+        });
+    }
+
     const subscribe = async () => {
         if (boardRoot) {
             await connection.invoke('WatchBoard', boardRoot.dataset.adminBoardEvent);
-            if (boardRoot.dataset.canEdit === 'true') await connection.invoke('RenewBoardEditing', boardRoot.dataset.adminBoardEvent);
+            if (boardRoot.dataset.canEdit === 'true') {
+                await connection.invoke('RenewBoardEditing', boardRoot.dataset.adminBoardEvent);
+                boardRoot.scheduleExpiryReload?.(new Date(Date.now() + 300000).toISOString());
+            }
         }
         if (draftRoot) {
             await connection.invoke('WatchDraft', draftRoot.dataset.adminDraftEvent);
