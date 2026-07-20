@@ -193,19 +193,53 @@ document.querySelectorAll('.board-cell[data-position]').forEach(cell => {
     });
 });
 document.querySelectorAll('.line-stat').forEach(line => { const toggle = active => document.querySelectorAll(`[data-${line.dataset.lineKind}="${line.dataset.lineIndex}"]`).forEach(cell => cell.classList.toggle('line-highlight', active)); line.addEventListener('mouseenter', () => toggle(true)); line.addEventListener('mouseleave', () => toggle(false)); line.addEventListener('focus', () => toggle(true)); line.addEventListener('blur', () => toggle(false)); });
-document.querySelectorAll('.tile-details-button:not(.edit-tile-button)').forEach(button => button.addEventListener('click', () => document.getElementById(button.dataset.detailsId).showModal()));
 document.querySelectorAll('.dialog-close, .dialog-cancel').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 
 const createDialog = document.getElementById('create-tile-dialog'); const tileForm = document.getElementById('create-tile-form');
 const tileEditorData = new Map(JSON.parse(document.getElementById('tile-editor-data')?.textContent || '[]').map(tile => [tile.id, tile]));
 let tileNameEdited = false; document.getElementById('tile-name')?.addEventListener('input', event => tileNameEdited = event.target.value.trim().length > 0);
 function resetTileForm() { tileForm.reset(); tileForm.action = tileForm.dataset.createAction; document.getElementById('tile-id').value = ''; document.getElementById('requirements').innerHTML = document.getElementById('requirement-template').innerHTML.replaceAll('Requirements[-1]', 'Requirements[0]').replaceAll('requirement--1', 'requirement-0').replaceAll('data-index="-1"', 'data-index="0"'); requirementIndex = 1; tileNameEdited = false; initializeRequirements(); }
-document.querySelectorAll('.create-tile-button').forEach(button => button.addEventListener('click', () => { resetTileForm(); document.getElementById('tile-position').value = button.dataset.position; document.getElementById('create-tile-heading').textContent = `Create tile in position ${Number(button.dataset.position) + 1}`; document.getElementById('save-tile-button').textContent = 'Create tile here'; createDialog.showModal(); }));
 let requirementIndex = 1;
 function addRequirement(values = null) { const index = requirementIndex++; const html = document.getElementById('requirement-template').innerHTML.replaceAll('Requirements[-1]', `Requirements[${index}]`).replaceAll('requirement--1', `requirement-${index}`).replaceAll('data-index="-1"', `data-index="${index}"`); document.getElementById('requirements').insertAdjacentHTML('beforeend', html); initializeRequirements(); const editor = document.getElementById(`requirement-${index}`); if (values) populateRequirement(editor, values); return editor; }
 document.getElementById('add-requirement')?.addEventListener('click', () => addRequirement());
 function populateRequirement(editor, values) { editor.querySelector('.requirement-kind').value = values.kind; editor.querySelector('.requirement-kind').dispatchEvent(new Event('change')); editor.querySelector('.challenge-description').value = values.kind === 'challenge' ? values.description : ''; editor.querySelector('input[type="number"]').value = values.target; editor.querySelector('input[name$=".DuplicatesAllowed"]').checked = values.duplicatesAllowed; editor.querySelector('input[name$=".AllowHigherWeightings"]').checked = values.allowHigherWeightings; editor.querySelectorAll('.boss-checkbox').forEach(input => input.checked = values.bossIds.includes(input.value)); editor.querySelector('.boss-checkbox')?.dispatchEvent(new Event('change')); editor.querySelectorAll('.eligible-drop-option input').forEach(input => input.checked = values.dropIds.includes(input.value)); }
-document.querySelectorAll('.edit-tile-button').forEach(button => button.addEventListener('click', () => { const tile = tileEditorData.get(button.dataset.tileId); if (!tile) return; resetTileForm(); tileForm.action = tileForm.dataset.editAction; document.getElementById('tile-id').value = tile.id; document.getElementById('tile-name').value = tile.name; document.getElementById('TileDraft_Description').value = tile.description; document.getElementById('TileDraft_EvidenceInstructions').value = tile.evidenceInstructions; document.getElementById('TileDraft_ManualEhb').value = tile.manualEhb ?? ''; tileNameEdited = true; document.getElementById('requirements').innerHTML = ''; requirementIndex = 0; tile.requirements.forEach(requirement => addRequirement(requirement)); document.getElementById('create-tile-heading').textContent = `Edit ${tile.name}`; document.getElementById('save-tile-button').textContent = 'Save tile'; createDialog.showModal(); }));
+document.addEventListener('click', event => {
+    if (!(event.target instanceof Element)) return;
+
+    const createButton = event.target.closest('.create-tile-button');
+    if (createButton) {
+        resetTileForm();
+        document.getElementById('tile-position').value = createButton.dataset.position;
+        document.getElementById('create-tile-heading').textContent = `Create tile in position ${Number(createButton.dataset.position) + 1}`;
+        document.getElementById('save-tile-button').textContent = 'Create tile here';
+        createDialog.showModal();
+        return;
+    }
+
+    const editButton = event.target.closest('.edit-tile-button');
+    if (editButton) {
+        const tile = tileEditorData.get(editButton.dataset.tileId);
+        if (!tile) return;
+        resetTileForm();
+        tileForm.action = tileForm.dataset.editAction;
+        document.getElementById('tile-id').value = tile.id;
+        document.getElementById('tile-name').value = tile.name;
+        document.getElementById('TileDraft_Description').value = tile.description;
+        document.getElementById('TileDraft_EvidenceInstructions').value = tile.evidenceInstructions;
+        document.getElementById('TileDraft_ManualEhb').value = tile.manualEhb ?? '';
+        tileNameEdited = true;
+        document.getElementById('requirements').innerHTML = '';
+        requirementIndex = 0;
+        tile.requirements.forEach(requirement => addRequirement(requirement));
+        document.getElementById('create-tile-heading').textContent = `Edit ${tile.name}`;
+        document.getElementById('save-tile-button').textContent = 'Save tile';
+        createDialog.showModal();
+        return;
+    }
+
+    const detailsButton = event.target.closest('.tile-details-button');
+    if (detailsButton) document.getElementById(detailsButton.dataset.detailsId)?.showModal();
+});
 function initializeRequirements() {
     document.querySelectorAll('.requirement-editor:not([data-ready])').forEach(editor => {
         editor.dataset.ready = 'true'; const kind = editor.querySelector('.requirement-kind'); const dropFields = editor.querySelector('.drop-only-fields'); const challengeFields = editor.querySelector('.challenge-only-fields'); const challengeDescription = editor.querySelector('.challenge-description'); const bossChecks = [...editor.querySelectorAll('.boss-checkbox')]; const dropGroups = [...editor.querySelectorAll('.eligible-drop-group')]; const bossSummary = editor.querySelector('.boss-picker summary'); const emptyDrops = editor.querySelector('.drop-picker-empty');

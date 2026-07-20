@@ -27,6 +27,25 @@ public sealed class BoardEditingUiTests
         Assert.Contains("form:not([data-release-board-editing])", collaborationScript);
     }
 
+    [Fact]
+    public void TileActionsSurviveBoardCellSwaps()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var boardMarkup = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "src",
+            "Bingo.Web",
+            "Pages",
+            "Admin",
+            "Events",
+            "Board.cshtml"));
+
+        Assert.Contains("event.target.closest('.create-tile-button')", boardMarkup);
+        Assert.Contains("event.target.closest('.edit-tile-button')", boardMarkup);
+        Assert.Contains("event.target.closest('.tile-details-button')", boardMarkup);
+        Assert.DoesNotContain("document.querySelectorAll('.create-tile-button').forEach", boardMarkup);
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
