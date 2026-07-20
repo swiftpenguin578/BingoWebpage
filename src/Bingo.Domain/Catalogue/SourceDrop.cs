@@ -14,5 +14,6 @@ public sealed class SourceDrop
     public DateTimeOffset DataUpdatedAt { get; private set; }
     public bool Active { get; private set; }
     public void Update(string displayRate, decimal? probability, string? condition, decimal? ehb, string? source, DateTimeOffset now) { DisplayRate = displayRate; NumericProbability = probability; RateConditionNote = condition; DefaultEhbEstimate = ehb; DataSource = source; DataUpdatedAt = now.ToUniversalTime(); }
+    public void ChangeItem(Guid itemId) => ItemId = itemId;
     public void SetActive(bool active) => Active = active;
 }

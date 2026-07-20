@@ -651,13 +651,15 @@ The standard form contains:
 
 To limit unwanted submissions, an admin may protect the form with an event-specific signup code distributed through Discord. Admins can close and reopen signups at any time.
 
-After submitting, the participant receives a private edit link or confirmation code so they can correct their signup without creating an account. Admins can edit, invalidate, or remove submissions.
+After submitting, the participant receives a private edit link or confirmation code so they can correct their signup without creating an account. Admins can edit, invalidate, or remove submissions. For security, an existing private link cannot be displayed again. An admin can create a replacement link, which immediately invalidates the previous link and displays the replacement once for copying.
 
 The system records signup time automatically. Buy-in/payment status is not collected from the public participant form; it is managed by admins on the participant record.
 
-Custom questions support common field types such as short text, long text, yes/no, and single choice. Answers remain attached to that event's signup record even if the form changes later.
+Custom questions support common field types such as short text, long text, yes/no, and single choice. Admins may change custom questions whenever signups are closed, until the draft starts. Answers remain attached to that event's signup record even if the form changes later.
 
-Required system fields such as primary account and EHB cannot be removed from the form when they are necessary for drafting and balancing. Optional custom questions can be added, reordered, edited before signups begin, or disabled for future submissions.
+Signup forms may therefore differ between participants in the same event. Admin and public team/roster views must treat every custom answer as optional historical data. A participant who signed up before a question was added has no answer record for that question; the page must show a neutral fallback such as **Not answered** and must never fail because an answer is missing.
+
+Required system fields such as primary account and EHB cannot be removed from the form when they are necessary for drafting and balancing. Optional custom questions can be added, reordered, edited while signups are closed and the draft has not started, or disabled for future submissions.
 
 ### 18.2 Capacity and waiting list
 

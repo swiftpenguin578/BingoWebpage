@@ -20,14 +20,39 @@
 <body>
     <a class="skip-link" href="#main-content">@T["Skip to main content"]</a>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm border-bottom @(ViewData["CompactNavigation"] as bool? == true ? string.Empty : "mb-3") app-nav">
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm border-bottom @((ViewData["CompactNavigation"] as bool? == true || shell.Breadcrumbs.Count > 0) ? string.Empty : "mb-3") app-nav">
             <div class="container">
                 <a class="navbar-brand" asp-area="" asp-page="/Index">OSRS Community Bingo</a>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <div class="nav-popover header-notification" data-notification-inbox data-event-id="@shell.Notifications.EventId">
+                        <details>
+                            <summary class="nav-icon-button" aria-label="@T["Notifications"]">
+                                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
+                                <span class="notification-count" data-notification-count hidden="@(shell.Notifications.Count == 0)">@(shell.Notifications.Count > 99 ? "99+" : shell.Notifications.Count)</span>
+                            </summary>
+                            <div class="nav-panel notification-panel">
+                                <div class="nav-panel-heading">
+                                    <strong data-notification-heading>@shell.Notifications.Heading</strong>
+                                    <span class="notification-total">@T["Notifications"]</span>
+                                </div>
+                                <div class="notification-list" data-notification-list>
+                                    @foreach (var item in shell.Notifications.Items)
+                                    {
+                                        <a class="notification-item" href="@item.Url"><strong>@item.Title</strong><span>@item.Detail</span></a>
+                                    }
+                                </div>
+                                <p class="notification-empty" data-notification-empty hidden="@(shell.Notifications.Count > 0)">@shell.Notifications.EmptyText</p>
+                                <a class="notification-overview" data-notification-overview href="@shell.Notifications.OverviewUrl" hidden="@(string.IsNullOrWhiteSpace(shell.Notifications.OverviewUrl))">@shell.Notifications.OverviewLabel</a>
+                            </div>
+                        </details>
+                    </div>
+                }
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between @(User.Identity?.IsAuthenticated == true ? "nav-authenticated" : null)">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-page="/Index">@T["Public boards"]</a>
@@ -41,32 +66,7 @@
                             <li class="nav-item"><a class="nav-link" asp-page="/Captain/Index">@T["Captain board"]</a></li>
                         }
                     </ul>
-                    <ul class="navbar-nav">
-                        @if (User.Identity?.IsAuthenticated == true)
-                        {
-                            <li class="nav-item nav-popover" data-notification-inbox data-event-id="@shell.Notifications.EventId">
-                                <details>
-                                    <summary class="nav-icon-button" aria-label="@T["Notifications"]">
-                                        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
-                                        <span class="notification-count" data-notification-count hidden="@(shell.Notifications.Count == 0)">@(shell.Notifications.Count > 99 ? "99+" : shell.Notifications.Count)</span>
-                                    </summary>
-                                    <div class="nav-panel notification-panel">
-                                        <div class="nav-panel-heading">
-                                            <strong data-notification-heading>@shell.Notifications.Heading</strong>
-                                            <span class="notification-total">@T["Notifications"]</span>
-                                        </div>
-                                        <div class="notification-list" data-notification-list>
-                                            @foreach (var item in shell.Notifications.Items)
-                                            {
-                                                <a class="notification-item" href="@item.Url"><strong>@item.Title</strong><span>@item.Detail</span></a>
-                                            }
-                                        </div>
-                                        <p class="notification-empty" data-notification-empty hidden="@(shell.Notifications.Count > 0)">@shell.Notifications.EmptyText</p>
-                                        <a class="notification-overview" data-notification-overview href="@shell.Notifications.OverviewUrl" hidden="@(string.IsNullOrWhiteSpace(shell.Notifications.OverviewUrl))">@shell.Notifications.OverviewLabel</a>
-                                    </div>
-                                </details>
-                            </li>
-                        }
+                    <ul class="navbar-nav nav-utilities">
                         <li class="nav-item nav-popover settings-popover">
                             <details>
                                 <summary class="nav-icon-button" aria-label="@T["Settings"]">
@@ -104,10 +104,10 @@
             </div>
         </nav>
     </header>
-    @if (shell.Breadcrumbs.Count > 0)
+    @if (shell.Breadcrumbs.Count > 0 && ViewData["HideBreadcrumbs"] as bool? != true)
     {
         <nav class="breadcrumb-bar" aria-label="@T["Breadcrumb"]">
-            <div class="container">
+            <div class="container breadcrumb-bar-content">
                 <ol class="app-breadcrumbs">
                     @for (var index = 0; index < shell.Breadcrumbs.Count; index++)
                     {
@@ -121,33 +121,39 @@
                             {
                                 <span aria-current="page">@crumb.Label</span>
                             }
-                            @if (!string.IsNullOrWhiteSpace(crumb.Status))
-                            {
-                                <span class="breadcrumb-status status-@crumb.StatusClass">@crumb.Status</span>
-                            }
                         </li>
                     }
                 </ol>
+                @if (ViewData["BreadcrumbActionLabel"] is string breadcrumbActionLabel &&
+                     ViewData["BreadcrumbActionUrl"] is string breadcrumbActionUrl &&
+                     !string.IsNullOrWhiteSpace(breadcrumbActionLabel) &&
+                     !string.IsNullOrWhiteSpace(breadcrumbActionUrl))
+                {
+                    <a class="breadcrumb-action" href="@breadcrumbActionUrl">@breadcrumbActionLabel</a>
+                }
             </div>
         </nav>
     }
     <div class="container">
         <main id="main-content" role="main" class="pb-3" tabindex="-1">
-            @if (TempData["StatusMessage"] is string statusMessage)
-            {
-                var messageType = UiMessage.Resolve(statusMessage, TempData[UiMessage.TypeKey]?.ToString());
-                var messageLabel = messageType switch
+            <div id="app-notice-region" aria-live="polite">
+                @if (TempData["StatusMessage"] is string statusMessage)
                 {
-                    UiMessageType.Success => T["Success"],
-                    UiMessageType.Warning => T["Warning"],
-                    UiMessageType.Error => T["Error"],
-                    _ => T["Information"]
-                };
-                <div class="app-notice notice-@messageType.ToString().ToLowerInvariant()" role="@(messageType == UiMessageType.Error ? "alert" : "status")">
-                    <strong>@messageLabel</strong>
-                    <span>@statusMessage</span>
-                </div>
-            }
+                    var messageType = UiMessage.Resolve(statusMessage, TempData[UiMessage.TypeKey]?.ToString());
+                    var messageLabel = messageType switch
+                    {
+                        UiMessageType.Success => T["Success"],
+                        UiMessageType.Warning => T["Warning"],
+                        UiMessageType.Error => T["Error"],
+                        _ => T["Information"]
+                    };
+                    <div class="app-notice notice-@messageType.ToString().ToLowerInvariant()" role="@(messageType == UiMessageType.Error ? "alert" : "status")">
+                        <strong>@messageLabel</strong>
+                        <span>@statusMessage</span>
+                        <button type="button" class="app-notice-dismiss" data-dismiss-notice aria-label="@T["Dismiss message"]">×</button>
+                    </div>
+                }
+            </div>
             @RenderBody()
         </main>
     </div>

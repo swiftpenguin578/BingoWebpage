@@ -3,35 +3,289 @@
 @using Bingo.Domain.Events
 @using Bingo.Domain.Signups
 @{
-    ViewData["Title"] = Model.EventView?.Name ?? "Event";
-}
-<section class="table-page">
-<div class="page-heading"><div><p class="eyebrow">Event workspace</p><h1>@Model.EventView!.Name</h1><p class="form-intro">@Model.EventView.State · signup URL: <a href="/Events/@Model.EventView.Slug/Signup">/Events/@Model.EventView.Slug/Signup</a></p></div><a class="btn btn-outline-light" asp-page="Index">All events</a></div>
-<div class="action-grid">
-<section class="panel form-stack"><h2>Event operation</h2><p>@Model.EventView.StartsAt.ToLocalTime().ToString("g") – @Model.EventView.EndsAt.ToLocalTime().ToString("g")</p>@if(Model.EventView.State is not(EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived)){<form method="post" asp-page-handler="StartEvent" onsubmit="return confirm('Start this event and open captain submissions?');"><button class="btn btn-primary">Start event</button></form>}@if(Model.EventView.State==EventState.Live){<form method="post" asp-page-handler="EndEvent" onsubmit="return confirm('End the event and enter final review?');"><button class="btn btn-warning">End event</button></form>}<p>Submission cutoff: @Model.EventView.SubmissionCutoff.ToLocalTime().ToString("g")</p>@if(Model.EventView.ReopenedCutoff is not null){<p>Reopened until: @Model.EventView.ReopenedCutoff.Value.ToLocalTime().ToString("g")</p>}@if(Model.EventView.State==EventState.AwaitingFinalReview){<form method="post" asp-page-handler="ReopenSubmissions" class="form-stack"><label asp-for="ReopenUntil"></label><input asp-for="ReopenUntil" asp-format="{0:yyyy-MM-ddTHH:mm}" type="datetime-local"/><label asp-for="StateReason"></label><input asp-for="StateReason" required/><button class="btn btn-outline-light">Reopen submissions</button></form>}<a class="btn btn-outline-light" asp-page="/Admin/Review/Index">Open evidence review</a>@if(Model.EventView.State is EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived){<a class="btn btn-primary" asp-page="Finalize" asp-route-id="@Model.EventView.Id">Final review and results</a>}</section>
-<section class="panel form-stack"><div class="page-heading"><h2>Screenshot verification codes</h2><form method="post" asp-page-handler="EvidenceCodeMode"><input type="hidden" name="enabled" value="@(!Model.EventView.EvidenceCodeEnabled)"/><button class="btn btn-sm @(Model.EventView.EvidenceCodeEnabled?"btn-warning":"btn-primary")">@(Model.EventView.EvidenceCodeEnabled?"Disable":"Enable")</button></form></div><p>Separate from the signup code. Reviewers compare the code active at immutable submission time.</p><fieldset disabled="@(!Model.EventView.EvidenceCodeEnabled)" class="form-stack"><form method="post" asp-page-handler="CreateEvidenceCode" class="form-stack"><label asp-for="NewEvidenceCode"></label><input asp-for="NewEvidenceCode" placeholder="Your fun custom code"/><label asp-for="EvidenceCodeActivatesAt"></label><input asp-for="EvidenceCodeActivatesAt" asp-format="{0:yyyy-MM-ddTHH:mm}" type="datetime-local"/><label asp-for="EvidenceCodeNote"></label><input asp-for="EvidenceCodeNote"/><div><button class="btn btn-primary">Save custom code</button><button class="btn btn-outline-light" asp-page-handler="GenerateEvidenceCode">Generate code instead</button></div></form></fieldset><ul class="code-history">@foreach(var code in Model.EvidenceCodes){<li><strong>@code.Code</strong><span>@code.ActivatesAt.ToLocalTime().ToString("g") → @(code.RetiresAt?.ToLocalTime().ToString("g")??"active indefinitely")</span>@if(code.Note is not null){<small>@code.Note</small>}</li>}</ul></section>
-</div>
-<div class="action-grid">
-<form method="post" asp-page-handler="State" class="panel form-stack"><h2>Signup publication</h2><p>Opening signups publishes only event information and the signup form. It does not publish teams or the board.</p><input type="hidden" name="target" value="@(Model.EventView.State == EventState.SignupOpen ? EventState.SignupClosed : EventState.SignupOpen)" />@if(Model.EventView.State==EventState.SignupClosed&&!Model.EventView.DraftLocked){<label asp-for="StateReason"></label><input asp-for="StateReason" class="form-control" required />}<button class="btn btn-primary" type="submit" disabled="@Model.EventView.DraftLocked">@(Model.EventView.State == EventState.SignupOpen ? "Close signups" : "Open signups")</button>@if(Model.EventView.DraftLocked){<small>Signups are permanently closed for this draft.</small>}</form>
-<form method="post" asp-page-handler="Capacity" class="panel form-stack"><h2>Capacity</h2><p>@Model.EventView.Confirmed confirmed · @Model.EventView.Waiting waiting · cap @Model.EventView.ParticipantCap</p><label asp-for="NewCap"></label><input asp-for="NewCap" class="form-control" min="@Model.EventView.ParticipantCap" disabled="@Model.EventView.DraftLocked" /><button class="btn btn-primary" type="submit" disabled="@Model.EventView.DraftLocked">Increase and promote</button>@if(Model.EventView.DraftLocked){<small>The participant pool is locked because the draft has started.</small>}</form>
-<form method="post" asp-page-handler="Extend" class="panel form-stack"><h2>Extend signups</h2><p>Current close: @Model.EventView.SignupClosesAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p><label asp-for="NewSignupClosing"></label><input asp-for="NewSignupClosing" asp-format="{0:yyyy-MM-ddTHH:mm}" class="form-control" step="1800" /><button class="btn btn-primary" type="submit">Extend closing time</button></form>
-@if(Model.IsDevelopment){<form method="post" asp-page-handler="AddTestSignups" class="panel form-stack" onsubmit="return confirm('Add the 60 published-sheet participants to this event? Existing account names will be skipped.');"><h2>Development test data</h2><p>Add all 60 participants from the published legacy signup sheet. Capacity is respected, so overflow enters the waiting list.</p><button class="btn btn-warning">Add 60 test signups</button></form>}
-</div>
-<div class="page-heading subheading"><h2>Participants</h2><div><a class="btn btn-outline-light" asp-page="Draft" asp-route-id="@Model.EventView.Id">Teams and draft</a> <a class="btn btn-outline-light" asp-page="Board" asp-route-id="@Model.EventView.Id">Board editor</a> <a class="btn btn-outline-light" asp-page="Questions" asp-route-id="@Model.EventView.Id">Signup questions</a> <a class="btn btn-outline-light" asp-page="Csv" asp-route-id="@Model.EventView.Id">CSV import</a></div></div>
-@{
+    ViewData["Title"] = Model.EventView?.Name ?? T["Event"];
+    ViewData["CompactNavigation"] = true;
+
+    var eventView = Model.EventView!;
+    var statusLabel = eventView.State switch
+    {
+        EventState.SignupOpen => T["Signups open"],
+        EventState.SignupClosed => T["Signups closed"],
+        EventState.Draft => T["Private setup"],
+        EventState.Live => T["Live"],
+        EventState.AwaitingFinalReview => T["Final review"],
+        EventState.Finalized => T["Finished"],
+        EventState.Archived => T["Archived"],
+        _ => T["Private setup"]
+    };
+    var statusClass = eventView.State == EventState.Draft ? "setup" : eventView.State.ToString().ToLowerInvariant();
+    var signupAndPlayersLocked = eventView.DraftLocked || eventView.State is EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived;
+    var showSignupControls = !signupAndPlayersLocked && eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
+    var showStartControl = eventView.CanStartEvent && eventView.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed);
+    var showLiveControls = eventView.State == EventState.Live;
+    var showFinalReviewControls = eventView.State == EventState.AwaitingFinalReview;
+    var showResultsControl = eventView.State is EventState.Finalized or EventState.Archived;
+    var partialUpdateTargets = "#app-notice-region, .event-manage-heading, .event-control-workspace, .event-participants-section";
     var participantGroups = new[]
     {
-        (Title: "Confirmed participants", Description: "These players are in the website draft pool.", Rows: Model.Participants.Where(p => p.Status == SignupStatus.Confirmed).ToList()),
-        (Title: "Waiting list", Description: "These players are not available to the draft unless promoted before it starts.", Rows: Model.Participants.Where(p => p.Status == SignupStatus.WaitingList).ToList()),
-        (Title: "Inactive signups", Description: "Withdrawn and removed signup records.", Rows: Model.Participants.Where(p => p.Status is SignupStatus.Withdrawn or SignupStatus.Removed).ToList())
+        (Key: "confirmed", Title: T["Confirmed participants"], Description: T["Available for the website draft."], Rows: Model.Participants.Where(p => p.Status == SignupStatus.Confirmed).ToList(), Open: true),
+        (Key: "waiting", Title: T["Waiting list"], Description: T["Promoted in signup order when space becomes available."], Rows: Model.Participants.Where(p => p.Status == SignupStatus.WaitingList).ToList(), Open: true),
+        (Key: "inactive", Title: T["Inactive signups"], Description: T["Withdrawn and removed signup records."], Rows: Model.Participants.Where(p => p.Status is SignupStatus.Withdrawn or SignupStatus.Removed).ToList(), Open: false)
     };
 }
-@foreach (var group in participantGroups)
-{
-    <div class="page-heading subheading"><div><h3>@group.Title</h3><p>@group.Description</p></div><strong>@group.Rows.Count</strong></div>
-    <div class="table-wrap panel"><table><thead><tr><th>#</th><th>Player</th><th>EHB</th><th>Status</th><th>Payment</th><th>Signed up</th><th>Actions</th></tr></thead><tbody>
-    @if (group.Rows.Count == 0) { <tr><td colspan="7"><small>No players in this section.</small></td></tr> }
-    @foreach (var p in group.Rows) { <tr><td>@p.Sequence</td><td><a asp-page="Participant" asp-route-id="@Model.EventView.Id" asp-route-participantId="@p.Id">@p.Name</a> @if(p.CaptainVolunteer){<small>captain</small>}</td><td>@p.Ehb</td><td>@p.Status @if(p.WaitingPosition is not null){<small>#@p.WaitingPosition</small>}</td><td>@p.Payment</td><td>@p.SignedUpAt.ToLocalTime().ToString("g")</td><td>@if(p.Status is SignupStatus.Confirmed or SignupStatus.WaitingList){@if(Model.EventView.DraftLocked){<small>Locked for draft</small>}else{<form method="post" class="inline-form"><input type="hidden" name="participantId" value="@p.Id" /><input name="reason" required placeholder="Reason" /><button asp-page-handler="Withdraw" class="btn btn-sm btn-outline-light">Withdraw</button><button asp-page-handler="Remove" class="btn btn-sm btn-danger">Remove</button></form>}}</td></tr> }
-    </tbody></table></div>
-}
+
+<section class="table-page event-manage-page">
+    <header class="event-manage-heading">
+        <div>
+            <p class="eyebrow">@T["Manage event"]</p>
+            <div class="event-manage-title-row">
+                <h1>@eventView.Name</h1>
+                <span class="event-list-status state-@statusClass">@statusLabel</span>
+            </div>
+            <p>@T["Manage the event, its signups and its players from one place."]</p>
+        </div>
+        <a class="btn btn-outline-light" asp-page="Index">← @T["All events"]</a>
+    </header>
+
+    <nav class="event-manage-links" aria-label="@T["Event tools"]">
+        <a asp-page="Board" asp-route-id="@eventView.Id"><strong>@T["Board editor"]</strong><small>@T["Build and publish the board"]</small></a>
+        <a asp-page="Draft" asp-route-id="@eventView.Id"><strong>@T["Teams and draft"]</strong><small>@T["Set up teams and run the draft"]</small></a>
+        <a asp-page="Questions" asp-route-id="@eventView.Id"><strong>@T["Signup form"]</strong><small>@T["Edit questions while signups are closed"]</small></a>
+        <a href="/Events/@eventView.Slug/Signup"><strong>@T["Public signup"]</strong><small>/Events/@eventView.Slug/Signup</small></a>
+    </nav>
+
+    <section class="event-manage-section">
+        <p class="eyebrow">@T["Event controls"]</p>
+        <div class="event-control-workspace">
+            <article class="panel event-admin-controls">
+                <header><h2>@T["Admin controls"]</h2><p>@T["Only actions available at this stage are shown."]</p></header>
+
+                @if (showSignupControls)
+                {
+                    <section class="event-admin-control-group event-signup-group">
+                        <div class="event-signup-primary">
+                            <div>
+                                <strong>@T["Manual signup control"]</strong>
+                                <small>@(eventView.State == EventState.SignupOpen ? T["Close signups now. Players already on the list are not affected."] : T["Open signups now with a closing time three months from today. You can edit it below."])</small>
+                            </div>
+                            <form method="post" asp-page-handler="State" class="event-admin-action-form event-signup-toggle-form @(eventView.State == EventState.SignupClosed ? "has-reason" : "button-only")" data-update-targets="@partialUpdateTargets">
+                                <input type="hidden" name="target" value="@(eventView.State == EventState.SignupOpen ? EventState.SignupClosed : EventState.SignupOpen)" />
+                                @if (eventView.State == EventState.SignupClosed)
+                                {
+                                    <label asp-for="StateReason">@T["Reason for reopening"]</label>
+                                    <input asp-for="StateReason" class="form-control" required disabled="@(signupAndPlayersLocked ? "disabled" : null)" />
+                                }
+                                <button class="btn btn-primary" type="submit" disabled="@(signupAndPlayersLocked ? "disabled" : null)">@(eventView.State == EventState.SignupOpen ? T["Close now"] : eventView.State == EventState.SignupClosed ? T["Reopen now"] : T["Open now"])</button>
+                            </form>
+                        </div>
+
+                        <details class="event-signup-deadline">
+                            <summary>
+                                <span><strong>@T["Automatic signup schedule"]</strong><small>@T["Opens"] @eventView.SignupOpensAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm") · @T["Closes"] @eventView.SignupClosesAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</small></span>
+                                <span class="event-signup-deadline-action">@T["Edit schedule"]</span>
+                            </summary>
+                            <form method="post" asp-page-handler="SignupWindow" class="event-signup-window-form" data-update-targets="@partialUpdateTargets">
+                                <label asp-for="NewSignupOpening"><span>@T["Signups open"]</span><input asp-for="NewSignupOpening" asp-format="{0:yyyy-MM-ddTHH:mm:ss.fffzzz}" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" disabled="@(signupAndPlayersLocked ? "disabled" : null)" /></label>
+                                <label asp-for="NewSignupClosing"><span>@T["Signups close"]</span><input asp-for="NewSignupClosing" asp-format="{0:yyyy-MM-ddTHH:mm:ss.fffzzz}" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" disabled="@(signupAndPlayersLocked ? "disabled" : null)" /></label>
+                                <div class="event-signup-window-actions">
+                                    <small>@T["These times control the automatic opening and closing. Opening signups manually replaces them with a new three-month window."]</small>
+                                    <button class="btn btn-outline-light" type="submit" disabled="@(signupAndPlayersLocked ? "disabled" : null)">@T["Save schedule"]</button>
+                                </div>
+                            </form>
+                        </details>
+                    </section>
+
+                    <section class="event-admin-control-group">
+                        <div><h3>@T["Player capacity"]</h3><p>@T["Increasing the cap promotes players from the waiting list."]</p></div>
+                        <form method="post" asp-page-handler="Capacity" class="event-admin-inline-form" data-update-targets="@partialUpdateTargets">
+                            <label asp-for="NewCap">@T["New player cap"]</label>
+                            <input asp-for="NewCap" class="form-control" min="@eventView.ParticipantCap" disabled="@(signupAndPlayersLocked ? "disabled" : null)" />
+                            <button class="btn btn-primary" type="submit" disabled="@(signupAndPlayersLocked ? "disabled" : null)">@T["Increase cap"]</button>
+                        </form>
+                    </section>
+                }
+
+                @if (showStartControl || showLiveControls || showFinalReviewControls || showResultsControl)
+                {
+                    <section class="event-admin-control-group">
+                    <div>
+                        <h3>@T["Event"]</h3>
+                        <p>
+                            @if (showLiveControls) { @T["The bingo is currently live."] }
+                            else if (showFinalReviewControls) { @T["Finish reviewing submissions before publishing the results."] }
+                            else if (showResultsControl) { @T["The official results are available."] }
+                            else { @T["Start the bingo when the board and teams are ready."] }
+                        </p>
+                    </div>
+                    <div class="event-admin-event-actions">
+                        @if (showStartControl)
+                        {
+                            <form method="post" asp-page-handler="StartEvent" data-update-targets="@partialUpdateTargets" onsubmit="return confirm('Start this event and open captain submissions?');"><button class="btn btn-primary" type="submit">@T["Start event"]</button></form>
+                        }
+                        @if (showLiveControls)
+                        {
+                            <a class="btn btn-outline-light" asp-page="/Admin/Review/Index">@T["Review submissions"]</a>
+                            <form method="post" asp-page-handler="EndEvent" data-update-targets="@partialUpdateTargets" onsubmit="return confirm('End the event and enter final review?');"><button class="btn btn-danger" type="submit">@T["End event"]</button></form>
+                        }
+                        @if (showFinalReviewControls)
+                        {
+                            <a class="btn btn-outline-light" asp-page="/Admin/Review/Index">@T["Review submissions"]</a>
+                            <a class="btn btn-primary" asp-page="Finalize" asp-route-id="@eventView.Id">@T["Final review and results"]</a>
+                        }
+                        @if (showResultsControl)
+                        {
+                            <a class="btn btn-primary" asp-page="Finalize" asp-route-id="@eventView.Id">@T["View results"]</a>
+                        }
+                    </div>
+                    @if (showFinalReviewControls)
+                    {
+                        <form method="post" asp-page-handler="ReopenSubmissions" class="event-reopen-form" data-update-targets="@partialUpdateTargets">
+                            <label asp-for="ReopenUntil"><span>@T["Reopen submissions until"]</span><input asp-for="ReopenUntil" asp-format="{0:yyyy-MM-ddTHH:mm:ss.fffzzz}" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" /></label>
+                            <label asp-for="StateReason"><span>@T["Reason"]</span><input asp-for="StateReason" class="form-control" required /></label>
+                            <button class="btn btn-outline-light" type="submit">@T["Reopen submissions"]</button>
+                        </form>
+                        @if (eventView.ReopenedCutoff is not null) { <small class="event-reopened-note">@T["Submissions reopened until"] @eventView.ReopenedCutoff.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</small> }
+                    }
+                    </section>
+                }
+
+                <section class="event-admin-control-group event-admin-code-group">
+                    <div>
+                        <h3>@T["Verification codes"]</h3>
+                        <p>@T["Captains include the active code in screenshots so reviewers know when the evidence was captured."]</p>
+                    </div>
+                    <form method="post" asp-page-handler="@(eventView.EvidenceCodeEnabled ? "DisableEvidenceCodes" : "EnableEvidenceCodes")" class="event-code-toggle-form" data-update-targets="@partialUpdateTargets">
+                        <button class="btn @(eventView.EvidenceCodeEnabled ? "btn-outline-light" : "btn-primary")" type="submit">@(eventView.EvidenceCodeEnabled ? T["Disable codes"] : T["Enable codes"])</button>
+                    </form>
+
+                    @if (eventView.EvidenceCodeEnabled)
+                    {
+                        <div class="event-evidence-content">
+                            <form method="post" asp-page-handler="CreateEvidenceCode" class="event-evidence-form" data-update-targets="@partialUpdateTargets">
+                                <div><label asp-for="NewEvidenceCode">@T["Code"]</label><input asp-for="NewEvidenceCode" class="form-control" placeholder="@T["Your custom code"]" /></div>
+                                <div><label asp-for="EvidenceCodeActivatesAt">@T["Active from"]</label><input asp-for="EvidenceCodeActivatesAt" asp-format="{0:yyyy-MM-ddTHH:mm:ss.fffzzz}" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" /></div>
+                                <div class="event-evidence-note"><label asp-for="EvidenceCodeNote">@T["Note"]</label><input asp-for="EvidenceCodeNote" class="form-control" /></div>
+                                <div class="event-evidence-actions"><button class="btn btn-primary" type="submit">@T["Save code"]</button><button class="btn btn-outline-light" type="button" onclick="var field=this.closest('form').querySelector('[name=&quot;NewEvidenceCode&quot;]');var chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';field.value='';for(var i=0;i&lt;6;i++)field.value+=chars.charAt(Math.floor(Math.random()*chars.length));field.focus();">@T["Generate code"]</button></div>
+                            </form>
+                            <div class="event-code-history">
+                                <h3>@T["Code history"]</h3>
+                                @if (Model.EvidenceCodes.Count == 0) { <p>@T["No codes have been added yet."]</p> }
+                                else
+                                {
+                                    <ul>@foreach (var code in Model.EvidenceCodes) { <li><strong>@code.Code</strong><span>@code.ActivatesAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</span><small>@(code.RetiresAt is null ? T["Currently active"] : $"{T["Ended"]} {code.RetiresAt.Value.ToLocalTime():dd MMM yyyy, HH:mm}")</small>@if (!string.IsNullOrWhiteSpace(code.Note)) { <small>@code.Note</small> }</li> }</ul>
+                                }
+                            </div>
+                        </div>
+                    }
+                </section>
+            </article>
+
+            <aside class="panel event-information" aria-label="@T["Event information"]">
+                <header><h2>@T["Event information"]</h2><span class="event-list-status state-@statusClass">@statusLabel</span></header>
+                <dl>
+                    <div>
+                        <dt>@T["Signups"]</dt>
+                        <dd>
+                            @if (eventView.State == EventState.SignupOpen) { @T["Open until {0}", eventView.SignupClosesAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")] }
+                            else if (eventView.State == EventState.Draft) { @T["Not open"] }
+                            else { @T["Closed"] }
+                        </dd>
+                    </div>
+                    <div><dt>@T["Players"]</dt><dd><strong>@eventView.Confirmed / @eventView.ParticipantCap</strong> @T["confirmed"]</dd></div>
+                    <div><dt>@T["Waiting list"]</dt><dd>@eventView.Waiting @T["players"]</dd></div>
+                    <div><dt>@T["Teams"]</dt><dd>@(eventView.ActualTeamCount > 0 ? eventView.ActualTeamCount.ToString() : eventView.ExpectedTeamCount is not null ? $"{eventView.ExpectedTeamCount} {T["planned"]}" : T["Not set"])</dd></div>
+                    <div><dt>@(eventView.ActualTeamSize?.Contains('–') == true ? T["Team sizes"] : T["Team size"])</dt><dd>@(eventView.ActualTeamCount > 0 ? $"{eventView.ActualTeamSize} {T["players"]}" : eventView.ExpectedTeamSize is not null ? $"{eventView.ExpectedTeamSize} {T["players"]} · {T["planned"]}" : T["Not set"])</dd></div>
+                    <div><dt>@T["Board size"]</dt><dd>@(eventView.ActualBoardSize is not null ? eventView.ActualBoardSize : eventView.ExpectedBoardSize is not null ? $"{eventView.ExpectedBoardSize} · {T["planned"]}" : T["Not set"])</dd></div>
+                    <div><dt>@T["Event starts"]</dt><dd>@eventView.StartsAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</dd></div>
+                    <div><dt>@T["Event ends"]</dt><dd>@eventView.EndsAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</dd></div>
+                    <div><dt>@T["Submission cutoff"]</dt><dd>@eventView.SubmissionCutoff.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</dd></div>
+                </dl>
+                @if (eventView.ReopenedCutoff is not null)
+                {
+                    <p class="event-information-note">@T["Submissions are reopened until"] <strong>@eventView.ReopenedCutoff.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</strong>.</p>
+                }
+            </aside>
+        </div>
+    </section>
+
+    <section class="event-participants-section">
+        <div class="event-participants-heading">
+            <div><p class="eyebrow">@T["Signups"]</p><h2>@T["Players"]</h2><p>@T["Review signup details or remove a player before the draft begins."]</p></div>
+            <div><a class="btn btn-outline-light" asp-page="Csv" asp-route-id="@eventView.Id">@T["Import CSV"]</a></div>
+        </div>
+
+        <div class="participant-group-list">
+            @foreach (var group in participantGroups)
+            {
+                <details class="panel participant-group" open="@group.Open" data-participant-group data-no-matches="@T["No matching players."]">
+                    <summary>
+                        <span><strong>@group.Title</strong><small>@group.Description</small></span>
+                    </summary>
+                    <div class="participant-group-tools">
+                        <input type="search" placeholder="@T["Search players"]" aria-label="@T["Search {0}", group.Title]" data-participant-search />
+                        <span class="participant-count">@group.Rows.Count</span>
+                    </div>
+                    <div class="participant-table-wrap">
+                        <table class="participant-table">
+                            <thead><tr>
+                                <th><button type="button" class="participant-sort" data-participant-sort data-sort-type="number" data-sort-index="0">#</button></th>
+                                <th><button type="button" class="participant-sort" data-participant-sort data-sort-type="text" data-sort-index="1">@T["Player"]</button></th>
+                                <th><button type="button" class="participant-sort" data-participant-sort data-sort-type="number" data-sort-index="2">@T["EHB"]</button></th>
+                                <th><button type="button" class="participant-sort" data-participant-sort data-sort-type="text" data-sort-index="3">@T["Status"]</button></th>
+                                <th><button type="button" class="participant-sort" data-participant-sort data-sort-type="text" data-sort-index="4">@T["Payment"]</button></th>
+                                <th><button type="button" class="participant-sort" data-participant-sort data-sort-type="date" data-sort-index="5">@T["Signed up"]</button></th>
+                                <th><span class="visually-hidden">@T["Actions"]</span></th>
+                            </tr></thead>
+                            <tbody>
+                                @if (group.Rows.Count == 0) { <tr><td colspan="7" class="participant-empty">@T["No players in this section."]</td></tr> }
+                                @foreach (var participant in group.Rows)
+                                {
+                                    var participantStatus = participant.Status switch { SignupStatus.Confirmed => T["Confirmed"], SignupStatus.WaitingList => T["Waiting list"], SignupStatus.Withdrawn => T["Withdrawn"], _ => T["Removed"] };
+                                    <tr id="participant-row-@participant.Id" data-participant-row>
+                                        <td data-label="#" data-sort-value="@participant.Sequence">@participant.Sequence</td>
+                                        <td data-label="@T["Player"]" data-sort-value="@participant.Name"><a asp-page="Participant" asp-route-id="@eventView.Id" asp-route-participantId="@participant.Id"><strong>@participant.Name</strong></a>@if (participant.CaptainVolunteer) { <small class="participant-captain">@T["Captain volunteer"]</small> }</td>
+                                        <td data-label="@T["EHB"]" data-sort-value="@participant.Ehb.ToString(System.Globalization.CultureInfo.InvariantCulture)">@participant.Ehb.ToString("0.##")</td>
+                                        <td data-label="@T["Status"]" data-sort-value="@participantStatus"><span class="participant-status">@participantStatus</span>@if (participant.WaitingPosition is not null) { <small>#@participant.WaitingPosition</small> }</td>
+                                        <td data-label="@T["Payment"]" data-sort-value="@participant.Payment">
+                                            <form method="post" asp-page-handler="Payment" class="participant-payment-form" data-update-targets="#app-notice-region, #participant-row-@participant.Id">
+                                                <input type="hidden" name="participantId" value="@participant.Id" />
+                                                <select name="payment" aria-label="@T["Payment for {0}", participant.Name]" data-auto-submit>
+                                                    <option value="Unknown" selected="@(participant.Payment == PaymentStatus.Unknown)">@T["Unknown"]</option>
+                                                    <option value="Unpaid" selected="@(participant.Payment == PaymentStatus.Unpaid)">@T["Unpaid"]</option>
+                                                    <option value="Paid" selected="@(participant.Payment == PaymentStatus.Paid)">@T["Paid"]</option>
+                                                    <option value="Waived" selected="@(participant.Payment == PaymentStatus.Waived)">@T["Waived"]</option>
+                                                    <option value="NotRequired" selected="@(participant.Payment == PaymentStatus.NotRequired)">@T["Not required"]</option>
+                                                </select>
+                                            </form>
+                                        </td>
+                                        <td data-label="@T["Signed up"]" data-sort-value="@participant.SignedUpAt.ToUnixTimeMilliseconds()">@participant.SignedUpAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</td>
+                                        <td class="participant-row-actions">
+                                            @if (participant.Status is SignupStatus.Confirmed or SignupStatus.WaitingList)
+                                            {
+                                                @if (signupAndPlayersLocked) { <small>@T["Locked for draft"]</small> }
+                                                else
+                                                {
+                                                    <form method="post" class="participant-action-form" data-update-targets="@partialUpdateTargets">
+                                                        <input type="hidden" name="participantId" value="@participant.Id" />
+                                                        <input name="reason" required placeholder="@T["Reason"]" aria-label="@T["Reason for changing {0}", participant.Name]" />
+                                                        <button asp-page-handler="Withdraw" class="btn btn-sm btn-outline-light" type="submit">@T["Withdraw"]</button>
+                                                        <button asp-page-handler="Remove" class="btn btn-sm btn-danger" type="submit">@T["Remove"]</button>
+                                                    </form>
+                                                }
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+            }
+        </div>
+    </section>
+
 </section>
+
+@section Scripts {
+    <script src="~/js/event-manage.js" asp-append-version="true"></script>
+}

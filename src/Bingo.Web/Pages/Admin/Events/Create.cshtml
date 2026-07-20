@@ -1,16 +1,277 @@
 @page
 @model Bingo.Web.Pages.Admin.Events.CreateModel
+@using Bingo.Domain.Signups
 @{
-    ViewData["Title"] = "Create event";
+    ViewData["Title"] = T["Create event"];
 }
-<section class="form-page wide-form"><p class="eyebrow">Event setup</p><h1>Create event</h1><p class="form-intro">This creates a private draft. You can open signups before its board exists.</p>
-<form method="post" class="panel form-stack"><div asp-validation-summary="ModelOnly" class="validation-summary"></div>
-<label asp-for="Input.Name"></label><input asp-for="Input.Name" class="form-control" /><span asp-validation-for="Input.Name" class="field-error"></span>
-<label asp-for="Input.Description"></label><textarea asp-for="Input.Description" class="form-control" rows="4"></textarea>
-<label asp-for="Input.Timezone"></label><input asp-for="Input.Timezone" class="form-control" />
-<div class="form-grid"><div><label asp-for="Input.SignupOpensDate"></label><input asp-for="Input.SignupOpensDate" class="form-control" /><label asp-for="Input.SignupOpensTime"></label><select asp-for="Input.SignupOpensTime" class="form-select">@foreach(var time in Model.HalfHourTimes){<option value="@time">@time</option>}</select></div><div><label asp-for="Input.SignupClosesDate"></label><input asp-for="Input.SignupClosesDate" class="form-control" /><label asp-for="Input.SignupClosesTime"></label><select asp-for="Input.SignupClosesTime" class="form-select">@foreach(var time in Model.HalfHourTimes){<option value="@time">@time</option>}</select></div><div><label asp-for="Input.EventStartsDate"></label><input asp-for="Input.EventStartsDate" class="form-control" /><label asp-for="Input.EventStartsTime"></label><select asp-for="Input.EventStartsTime" class="form-select">@foreach(var time in Model.HalfHourTimes){<option value="@time">@time</option>}</select></div><div><label asp-for="Input.EventEndsDate"></label><input asp-for="Input.EventEndsDate" class="form-control" /><label asp-for="Input.EventEndsTime"></label><select asp-for="Input.EventEndsTime" class="form-select">@foreach(var time in Model.HalfHourTimes){<option value="@time">@time</option>}</select></div><div><label asp-for="Input.ParticipantCap"></label><input asp-for="Input.ParticipantCap" class="form-control" /></div></div>
-<label class="check-row"><input asp-for="Input.WaitingListEnabled" /> Enable waiting list</label><span class="check-row"><label><input asp-for="Input.AllowPrivateEditing" /> Allow private signup editing</label><span class="info-icon" tabindex="0" role="img" aria-label="Participants receive a private link after signup that lets them correct their own signup without an account." data-tooltip="Participants receive a private link after signup that lets them correct their own signup without an account.">i</span></span><label class="check-row"><input asp-for="Input.RequireSignupCode" /> Require event code</label>
-<label asp-for="Input.SignupCode"></label><input asp-for="Input.SignupCode" class="form-control" autocomplete="off" disabled="@(!Model.Input.RequireSignupCode)" /><span asp-validation-for="Input.SignupCode" class="field-error"></span>
-<h2>Planning estimates</h2><div class="form-grid"><div><label asp-for="Input.ExpectedTeamCount"></label><input asp-for="Input.ExpectedTeamCount" class="form-control" /></div><div><label asp-for="Input.ExpectedTeamSize"></label><input asp-for="Input.ExpectedTeamSize" class="form-control" /></div><div><label asp-for="Input.ExpectedBoardRows"></label><input asp-for="Input.ExpectedBoardRows" class="form-control" /></div><div><label asp-for="Input.ExpectedBoardColumns"></label><input asp-for="Input.ExpectedBoardColumns" class="form-control" /></div></div>
-<button class="btn btn-primary" type="submit">Create private event</button></form></section>
-@section Scripts { <partial name="_ValidationScriptsPartial" /><script>document.getElementById('Input_RequireSignupCode')?.addEventListener('change',function(){document.getElementById('Input_SignupCode').disabled=!this.checked;});</script> }
+
+<section class="event-create-page" data-event-create
+         data-step-word="@T["Step"]" data-of-word="@T["of"]"
+         data-question-word="@T["Question"]" data-players-word="@T["players"]"
+         data-waiting-list-text="@T["waiting list enabled"]"
+         data-teams-word="@T["Teams"]" data-per-team-text="@T["players per team"]"
+         data-board-word="@T["board"]" data-unnamed-text="@T["Unnamed event"]"
+         data-no-description-text="@T["No description yet"]" data-not-set-text="@T["Not set"]"
+         data-time-word="@T["Time"]">
+    <header class="event-create-heading">
+        <p class="eyebrow">@T["Event setup"]</p>
+        <h1>@T["Create event"]</h1>
+        <p>@T["Set up the event as a private draft. Nothing becomes public until you open signups later."]</p>
+    </header>
+
+    <form method="post" class="event-create-form" novalidate>
+        <div asp-validation-summary="ModelOnly" class="validation-summary app-notice notice-error"></div>
+
+        <div class="event-create-layout">
+            <nav class="event-create-steps" aria-label="@T["Event setup steps"]">
+                <button type="button" class="event-create-step" data-create-step="0" aria-controls="event-details-panel">
+                    <span>1</span><strong>@T["Event details"]</strong>
+                </button>
+                <button type="button" class="event-create-step" data-create-step="1" aria-controls="schedule-panel">
+                    <span>2</span><strong>@T["Schedule and capacity"]</strong>
+                </button>
+                <button type="button" class="event-create-step" data-create-step="2" aria-controls="signup-panel">
+                    <span>3</span><strong>@T["Signup form"]</strong>
+                </button>
+                <button type="button" class="event-create-step" data-create-step="3" aria-controls="planning-panel">
+                    <span>4</span><strong>@T["Planning estimates"]</strong>
+                </button>
+                <button type="button" class="event-create-step" data-create-step="4" aria-controls="review-panel">
+                    <span>5</span><strong>@T["Review and create"]</strong>
+                </button>
+            </nav>
+
+            <div class="event-create-workspace panel">
+                <section id="event-details-panel" class="event-create-panel" data-create-panel="0">
+                    <div class="event-create-panel-heading">
+                        <div><p class="step-kicker">@T["Step 1 of 5"]</p><h2>@T["Event details"]</h2></div>
+                        <p>@T["These details appear on the public signup page after signups open."]</p>
+                    </div>
+                    <div class="event-create-fields">
+                        <div class="event-create-field">
+                            <label asp-for="Input.Name">@T["Event name"]</label>
+                            <input asp-for="Input.Name" class="form-control" autocomplete="off" data-summary-source="name" />
+                            <span asp-validation-for="Input.Name" class="field-error"></span>
+                            <small>@T["The public link is generated automatically from this name."]</small>
+                        </div>
+                        <div class="event-create-field">
+                            <label asp-for="Input.Timezone">@T["Timezone"]</label>
+                            <input asp-for="Input.Timezone" class="form-control" autocomplete="off" />
+                            <span asp-validation-for="Input.Timezone" class="field-error"></span>
+                            <small>@T["All event times use this timezone."]</small>
+                        </div>
+                        <div class="event-create-field full-field">
+                            <label asp-for="Input.Description">@T["Signup description"]</label>
+                            <textarea asp-for="Input.Description" class="form-control" rows="4" data-summary-source="description"></textarea>
+                            <span asp-validation-for="Input.Description" class="field-error"></span>
+                            <small>@T["A short explanation for players considering the event."]</small>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="schedule-panel" class="event-create-panel" data-create-panel="1">
+                    <div class="event-create-panel-heading">
+                        <div><p class="step-kicker">@T["Step 2 of 5"]</p><h2>@T["Schedule and capacity"]</h2></div>
+                        <p>@T["Set the dates and player cap. You can change them after creating the event."]</p>
+                    </div>
+                    <div class="event-create-fields schedule-fields">
+                        <div class="event-create-field event-datetime-field">
+                            <span class="field-label">@T["Signup opens"]</span>
+                            <input class="form-control event-datetime-picker" type="text"
+                                   value="@(Model.Input.SignupOpensDate.ToString("yyyy-MM-dd")) @Model.Input.SignupOpensTime"
+                                   data-event-datetime-picker data-date-target="Input_SignupOpensDate" data-time-target="Input_SignupOpensTime" />
+                            <div class="event-datetime-fallback">
+                                <div><label asp-for="Input.SignupOpensDate">@T["Date"]</label><input asp-for="Input.SignupOpensDate" class="form-control" /></div>
+                                <div><label asp-for="Input.SignupOpensTime">@T["Time"]</label><select asp-for="Input.SignupOpensTime" class="form-select">@foreach (var time in Model.HalfHourTimes) { <option value="@time">@time</option> }</select></div>
+                            </div>
+                            <span asp-validation-for="Input.SignupOpensDate" class="field-error"></span>
+                            <span asp-validation-for="Input.SignupOpensTime" class="field-error"></span>
+                        </div>
+                        <div class="event-create-field event-datetime-field">
+                            <span class="field-label">@T["Signup closes"]</span>
+                            <input class="form-control event-datetime-picker" type="text"
+                                   value="@(Model.Input.SignupClosesDate.ToString("yyyy-MM-dd")) @Model.Input.SignupClosesTime"
+                                   data-event-datetime-picker data-date-target="Input_SignupClosesDate" data-time-target="Input_SignupClosesTime" />
+                            <div class="event-datetime-fallback">
+                                <div><label asp-for="Input.SignupClosesDate">@T["Date"]</label><input asp-for="Input.SignupClosesDate" class="form-control" /></div>
+                                <div><label asp-for="Input.SignupClosesTime">@T["Time"]</label><select asp-for="Input.SignupClosesTime" class="form-select">@foreach (var time in Model.HalfHourTimes) { <option value="@time">@time</option> }</select></div>
+                            </div>
+                            <span asp-validation-for="Input.SignupClosesDate" class="field-error"></span>
+                            <span asp-validation-for="Input.SignupClosesTime" class="field-error"></span>
+                        </div>
+                        <div class="event-create-field event-datetime-field">
+                            <span class="field-label">@T["Event starts"]</span>
+                            <input class="form-control event-datetime-picker" type="text"
+                                   value="@(Model.Input.EventStartsDate.ToString("yyyy-MM-dd")) @Model.Input.EventStartsTime"
+                                   data-event-datetime-picker data-date-target="Input_EventStartsDate" data-time-target="Input_EventStartsTime" />
+                            <div class="event-datetime-fallback">
+                                <div><label asp-for="Input.EventStartsDate">@T["Date"]</label><input asp-for="Input.EventStartsDate" class="form-control" /></div>
+                                <div><label asp-for="Input.EventStartsTime">@T["Time"]</label><select asp-for="Input.EventStartsTime" class="form-select">@foreach (var time in Model.HalfHourTimes) { <option value="@time">@time</option> }</select></div>
+                            </div>
+                            <span asp-validation-for="Input.EventStartsDate" class="field-error"></span>
+                            <span asp-validation-for="Input.EventStartsTime" class="field-error"></span>
+                        </div>
+                        <div class="event-create-field event-datetime-field">
+                            <span class="field-label">@T["Event ends"]</span>
+                            <input class="form-control event-datetime-picker" type="text"
+                                   value="@(Model.Input.EventEndsDate.ToString("yyyy-MM-dd")) @Model.Input.EventEndsTime"
+                                   data-event-datetime-picker data-date-target="Input_EventEndsDate" data-time-target="Input_EventEndsTime" />
+                            <div class="event-datetime-fallback">
+                                <div><label asp-for="Input.EventEndsDate">@T["Date"]</label><input asp-for="Input.EventEndsDate" class="form-control" /></div>
+                                <div><label asp-for="Input.EventEndsTime">@T["Time"]</label><select asp-for="Input.EventEndsTime" class="form-select">@foreach (var time in Model.HalfHourTimes) { <option value="@time">@time</option> }</select></div>
+                            </div>
+                            <span asp-validation-for="Input.EventEndsDate" class="field-error"></span>
+                            <span asp-validation-for="Input.EventEndsTime" class="field-error"></span>
+                        </div>
+                        <div class="event-create-field">
+                            <label asp-for="Input.ParticipantCap">@T["Maximum confirmed players"]</label>
+                            <input asp-for="Input.ParticipantCap" class="form-control" data-summary-source="capacity" />
+                            <span asp-validation-for="Input.ParticipantCap" class="field-error"></span>
+                        </div>
+                        <div class="event-create-field">
+                            <span class="field-label">@T["Waiting list"]</span>
+                            <label class="setting-card schedule-option-card">
+                                <input asp-for="Input.WaitingListEnabled" />
+                                <span><strong>@T["Use a waiting list"]</strong><small>@T["Players who sign up after the cap are kept in signup order."]</small></span>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="signup-panel" class="event-create-panel" data-create-panel="2">
+                    <div class="event-create-panel-heading">
+                        <div><p class="step-kicker">@T["Step 3 of 5"]</p><h2>@T["Signup form"]</h2></div>
+                        <p>@T["Standard fields are already included. Add any extra questions needed for this bingo."]</p>
+                    </div>
+
+                    <div class="signup-field-list" aria-label="@T["Standard signup fields"]">
+                        <div><span><strong>@T["Primary OSRS account"]</strong><small>@T["Required short answer"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
+                        <div><span><strong>@T["EHB (Wise Old Man)"]</strong><small>@T["Required number"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
+                        <div><span><strong>@T["Second OSRS account"]</strong><small>@T["Optional short answer"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
+                        <div><span><strong>@T["Discord name"]</strong><small>@T["Optional short answer"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
+                        <div><span><strong>@T["Comments and availability"]</strong><small>@T["Optional long answer"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
+                        <div><span><strong>@T["Volunteer as captain?"]</strong><small>@T["Optional yes or no"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
+                    </div>
+
+                    <div class="custom-question-heading">
+                        <div><h3>@T["Custom questions"]</h3><p>@T["Ask only for information specific to this bingo."]</p></div>
+                        <button type="button" class="btn btn-outline-light" data-add-question>+ @T["Add question"]</button>
+                    </div>
+                    <p class="custom-question-empty" data-question-empty hidden="@(Model.Input.CustomQuestions.Count > 0)">@T["No custom questions added."]</p>
+                    <div class="custom-question-list" data-question-list>
+                        @for (var index = 0; index < Model.Input.CustomQuestions.Count; index++)
+                        {
+                            <div class="custom-question-card" data-custom-question>
+                                <div class="custom-question-card-heading"><strong data-question-number>@T["Question"] @(index + 1)</strong><button type="button" class="btn btn-sm btn-outline-light" data-remove-question>@T["Remove"]</button></div>
+                                <div class="event-create-fields">
+                                    <div class="event-create-field">
+                                        <label asp-for="Input.CustomQuestions[index].Label">@T["Question shown to players"]</label>
+                                        <input asp-for="Input.CustomQuestions[index].Label" class="form-control" />
+                                        <span asp-validation-for="Input.CustomQuestions[index].Label" class="field-error"></span>
+                                    </div>
+                                    <div class="event-create-field">
+                                        <label asp-for="Input.CustomQuestions[index].Type">@T["How players answer"]</label>
+                                        <select asp-for="Input.CustomQuestions[index].Type" class="form-select" data-question-type>
+                                            <option value="ShortText">@T["Short answer"]</option>
+                                            <option value="LongText">@T["Long answer"]</option>
+                                            <option value="Number">@T["Number"]</option>
+                                            <option value="YesNo">@T["Yes or no"]</option>
+                                            <option value="SingleChoice">@T["Choose one answer"]</option>
+                                        </select>
+                                    </div>
+                                    <label class="setting-card compact-setting"><input asp-for="Input.CustomQuestions[index].Required" /><span><strong>@T["Answer required"]</strong><small>@T["Players cannot submit without answering."]</small></span></label>
+                                    <div class="event-create-field full-field choice-options" data-choice-options hidden="@(Model.Input.CustomQuestions[index].Type != SignupQuestionType.SingleChoice)">
+                                        <label asp-for="Input.CustomQuestions[index].Options">@T["Available answers"]</label>
+                                        <textarea asp-for="Input.CustomQuestions[index].Options" class="form-control" rows="3" placeholder="@T["One answer per line"]"></textarea>
+                                        <span asp-validation-for="Input.CustomQuestions[index].Options" class="field-error"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="signup-settings-grid">
+                        <label class="setting-card">
+                            <input asp-for="Input.AllowPrivateEditing" />
+                            <span><strong>@T["Allow private signup editing"]</strong><small>@T["Players receive a private link that lets them correct their signup without an account."]</small></span>
+                        </label>
+                        <label class="setting-card">
+                            <input asp-for="Input.RequireSignupCode" data-signup-code-toggle />
+                            <span><strong>@T["Require an event code"]</strong><small>@T["Players must enter the shared code when signing up."]</small></span>
+                        </label>
+                    </div>
+                    <div class="event-create-field signup-code-field" data-signup-code-field hidden="@(!Model.Input.RequireSignupCode)">
+                        <label asp-for="Input.SignupCode">@T["Event code"]</label>
+                        <input asp-for="Input.SignupCode" class="form-control" autocomplete="off" disabled="@(!Model.Input.RequireSignupCode)" />
+                        <span asp-validation-for="Input.SignupCode" class="field-error"></span>
+                    </div>
+                </section>
+
+                <section id="planning-panel" class="event-create-panel" data-create-panel="3">
+                    <div class="event-create-panel-heading">
+                        <div><p class="step-kicker">@T["Step 4 of 5"]</p><h2>@T["Planning estimates"]</h2></div>
+                        <p>@T["Add rough numbers to help set up the board and draft."]</p>
+                    </div>
+                    <div class="event-create-fields planning-fields">
+                        <div class="event-create-field"><label asp-for="Input.ExpectedTeamCount">@T["Expected teams"]</label><input asp-for="Input.ExpectedTeamCount" class="form-control" data-summary-source="teams" /><span asp-validation-for="Input.ExpectedTeamCount" class="field-error"></span></div>
+                        <div class="event-create-field"><label asp-for="Input.ExpectedTeamSize">@T["Expected players per team"]</label><input asp-for="Input.ExpectedTeamSize" class="form-control" data-summary-source="team-size" /><span asp-validation-for="Input.ExpectedTeamSize" class="field-error"></span></div>
+                        <div class="event-create-field"><label asp-for="Input.ExpectedBoardRows">@T["Expected board rows"]</label><input asp-for="Input.ExpectedBoardRows" class="form-control" data-summary-source="rows" /><span asp-validation-for="Input.ExpectedBoardRows" class="field-error"></span></div>
+                        <div class="event-create-field"><label asp-for="Input.ExpectedBoardColumns">@T["Expected board columns"]</label><input asp-for="Input.ExpectedBoardColumns" class="form-control" data-summary-source="columns" /><span asp-validation-for="Input.ExpectedBoardColumns" class="field-error"></span></div>
+                    </div>
+                    <div class="information-callout"><strong>@T["These are estimates"]</strong><span>@T["This does not lock in the number of teams or the board size."]</span></div>
+                </section>
+
+                <section id="review-panel" class="event-create-panel" data-create-panel="4">
+                    <div class="event-create-panel-heading">
+                        <div><p class="step-kicker">@T["Step 5 of 5"]</p><h2>@T["Review and create"]</h2></div>
+                        <p>@T["Review the setup. You can still edit the private event afterward."]</p>
+                    </div>
+                    <div class="event-create-summary">
+                        <div><span>@T["Event"]</span><strong data-summary-value="name">@T["Unnamed event"]</strong><small data-summary-value="description">@T["No description yet"]</small></div>
+                        <div><span>@T["Signup window"]</span><strong data-summary-value="signup-window">—</strong><small data-summary-value="capacity">—</small></div>
+                        <div><span>@T["Event dates"]</span><strong data-summary-value="event-window">—</strong><small>@T["Submission cutoff is automatically 30 minutes after the event ends."]</small></div>
+                        <div><span>@T["Planning"]</span><strong data-summary-value="teams">—</strong><small data-summary-value="board">—</small></div>
+                    </div>
+                    <div class="information-callout important-callout"><strong>@T["The event stays private"]</strong><span>@T["Creating it does not open signups, publish the board, publish teams or start the draft."]</span></div>
+                </section>
+
+                <footer class="event-create-guided-actions">
+                    <button type="button" class="btn btn-outline-light" data-create-previous>@T["Previous"]</button>
+                    <span data-step-progress>@T["Step 1 of 5"]</span>
+                    <button type="button" class="btn btn-primary" data-create-next>@T["Next"]</button>
+                    <button class="btn btn-primary create-event-submit" type="submit" data-create-submit hidden>@T["Create private event"]</button>
+                </footer>
+            </div>
+        </div>
+    </form>
+</section>
+
+<template id="custom-question-template">
+    <div class="custom-question-card" data-custom-question>
+        <div class="custom-question-card-heading"><strong data-question-number>@T["Question"]</strong><button type="button" class="btn btn-sm btn-outline-light" data-remove-question>@T["Remove"]</button></div>
+        <div class="event-create-fields">
+            <div class="event-create-field">
+                <label for="Input_CustomQuestions___index___Label">@T["Question shown to players"]</label>
+                <input id="Input_CustomQuestions___index___Label" name="Input.CustomQuestions[__index__].Label" class="form-control" maxlength="300" />
+                <span class="field-error" data-valmsg-for="Input.CustomQuestions[__index__].Label" data-valmsg-replace="true"></span>
+            </div>
+            <div class="event-create-field">
+                <label for="Input_CustomQuestions___index___Type">@T["How players answer"]</label>
+                <select id="Input_CustomQuestions___index___Type" name="Input.CustomQuestions[__index__].Type" class="form-select" data-question-type>
+                    <option value="ShortText">@T["Short answer"]</option><option value="LongText">@T["Long answer"]</option><option value="Number">@T["Number"]</option><option value="YesNo">@T["Yes or no"]</option><option value="SingleChoice">@T["Choose one answer"]</option>
+                </select>
+            </div>
+            <label class="setting-card compact-setting"><input id="Input_CustomQuestions___index___Required" name="Input.CustomQuestions[__index__].Required" type="checkbox" value="true" /><span><strong>@T["Answer required"]</strong><small>@T["Players cannot submit without answering."]</small></span></label>
+            <div class="event-create-field full-field choice-options" data-choice-options hidden>
+                <label for="Input_CustomQuestions___index___Options">@T["Available answers"]</label>
+                <textarea id="Input_CustomQuestions___index___Options" name="Input.CustomQuestions[__index__].Options" class="form-control" rows="3" maxlength="4000" placeholder="@T["One answer per line"]"></textarea>
+                <span class="field-error" data-valmsg-for="Input.CustomQuestions[__index__].Options" data-valmsg-replace="true"></span>
+            </div>
+        </div>
+    </div>
+</template>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/event-create.js" asp-append-version="true"></script>
+}

@@ -1,70 +1,290 @@
 @page
 @model Bingo.Web.Pages.Admin.Catalogue.IndexModel
 @using System.Globalization
-@{ ViewData["Title"] = "OSRS catalogue"; }
+@{
+    ViewData["Title"] = "OSRS catalogue";
+    var categories = new[] { "Boss", "Skilling boss", "Minigame" };
+}
 
 <section class="table-page catalogue-page">
     <p class="eyebrow">Administration</p>
-    <div class="page-heading"><div><h1>OSRS catalogue</h1><p class="form-intro">Find a boss, then manage its available drops directly.</p></div><a class="btn btn-outline-light" asp-page="Import">Initial CSV import</a></div>
-    <div asp-validation-summary="All" class="text-danger"></div>
+    <div class="page-heading catalogue-page-heading">
+        <div>
+            <h1>OSRS catalogue</h1>
+            <p class="form-intro">Manage bosses, activities, their drops and the values used to calculate EHB.</p>
+        </div>
+    </div>
 
-    <details class="panel add-boss-panel">
-        <summary><strong>＋ Add boss or activity</strong></summary>
-        <form method="post" asp-page-handler="Boss" class="form-grid catalogue-boss-form">
-            <div><label asp-for="Boss.Name"></label><input asp-for="Boss.Name" class="form-control" /></div>
-            <div><label asp-for="Boss.Category"></label><select asp-for="Boss.Category" class="form-select"><option>Boss</option><option>Skilling boss</option><option>Minigame</option></select></div>
-            <div><label asp-for="Boss.EfficientRate"></label><input asp-for="Boss.EfficientRate" class="form-control" /></div>
-            <div><label asp-for="Boss.DataSource"></label><input asp-for="Boss.DataSource" class="form-control" /></div>
-            <div><label asp-for="Boss.ImageUrl"></label><input asp-for="Boss.ImageUrl" class="form-control" /></div>
-            <div><label asp-for="Boss.Notes"></label><textarea asp-for="Boss.Notes" class="form-control"></textarea></div>
-            <button class="btn btn-primary">Add boss or activity</button>
-        </form>
-    </details>
+    <div class="catalogue-heading">
+        <div>
+            <h2>Bosses and activities</h2>
+            <span id="boss-result-count">@Model.Bosses.Count shown</span>
+        </div>
+        <div class="catalogue-heading-actions">
+            <button class="btn btn-sm btn-outline-primary catalogue-add-action" type="button" id="open-add-boss">＋ Add boss or activity</button>
+        </div>
+    </div>
 
-    <div class="catalogue-heading"><div><h2>Sources and drops</h2><span id="boss-result-count">@Model.Bosses.Count sources</span></div><div class="catalogue-search"><label for="boss-search">Search bosses and drops</label><input id="boss-search" class="form-control" type="search" placeholder="Zulrah, God Wars, fang…" autocomplete="off" /></div></div>
-    <p id="no-boss-results" class="panel" hidden>No bosses or drops match that search.</p>
+    <div class="catalogue-toolbar">
+        <div class="catalogue-filters" aria-label="Filter the catalogue">
+            <button type="button" class="catalogue-filter active" data-catalogue-filter="all" aria-pressed="true">All <span>@Model.Bosses.Count</span></button>
+            @foreach (var category in categories)
+            {
+                <button type="button" class="catalogue-filter" data-catalogue-filter="@category.ToLowerInvariant()" aria-pressed="false">@category <span>@Model.Bosses.Count(x => x.Category == category)</span></button>
+            }
+            <button type="button" class="catalogue-filter" data-catalogue-filter="inactive" aria-pressed="false">Inactive <span>@Model.Bosses.Count(x => !x.Active)</span></button>
+        </div>
+        <div class="catalogue-search">
+            <label class="visually-hidden" for="boss-search">Search bosses and drops</label>
+            <input id="boss-search" class="form-control" type="search" placeholder="Zulrah, God Wars, fang…" autocomplete="off" />
+        </div>
+    </div>
 
-    <div id="boss-list">
+    <p id="no-boss-results" class="panel catalogue-empty-results" hidden>No bosses or drops match those filters.</p>
+
+    <div id="boss-list" class="catalogue-list">
     @foreach (var boss in Model.Bosses)
     {
-        var bossDrops = Model.Drops.Where(x => x.BossActivityId == boss.Id).ToList(); var searchText = $"{boss.Name} {boss.Category} {string.Join(" ", bossDrops.Select(x => x.ItemName))}".ToLowerInvariant();
-        <details class="panel catalogue-record" data-boss-record data-search="@searchText">
-            <summary><span><strong>@boss.Name</strong><small>@boss.Category · @(boss.EfficientRate?.ToString("0.####") ?? "No rate") / hour · @bossDrops.Count drop(s) · @(boss.Active ? "Active" : "Inactive")</small></span></summary>
+        var bossDrops = Model.Drops.Where(x => x.BossActivityId == boss.Id).OrderByDescending(x => x.Active).ThenBy(x => x.ItemName).ToList();
+        var searchText = $"{boss.Name} {boss.Category} {string.Join(" ", bossDrops.Select(x => x.ItemName))}".ToLowerInvariant();
+        var missingRate = boss.EfficientRate is null or <= 0;
+        var missingDropValues = bossDrops.Count(x => x.Active && (x.Probability is null or <= 0));
+        <details class="panel catalogue-record @(!boss.Active ? "is-inactive" : null)"
+                 data-boss-record
+                 data-category="@boss.Category.ToLowerInvariant()"
+                 data-active="@boss.Active.ToString().ToLowerInvariant()"
+                 data-search="@searchText">
+            <summary class="catalogue-record-summary">
+                <span class="catalogue-image-placeholder @(!string.IsNullOrWhiteSpace(boss.ImageUrl) ? "has-image" : null)" aria-label="Boss image">
+                    @if (!string.IsNullOrWhiteSpace(boss.ImageUrl))
+                    {
+                        <img src="@boss.ImageUrl" alt="" loading="lazy" />
+                    }
+                    else
+                    {
+                        <span>Image</span>
+                    }
+                </span>
+                <span class="catalogue-record-title">
+                    <strong>@boss.Name</strong>
+                    <small>@boss.Category · @(boss.EfficientRate?.ToString("0.####") ?? "No rate") per hour · @bossDrops.Count drop@(bossDrops.Count == 1 ? "" : "s")</small>
+                    @if (missingRate || missingDropValues > 0)
+                    {
+                        <span class="catalogue-warnings">
+                            @if (missingRate) { <span class="catalogue-warning">Missing efficient rate</span> }
+                            @if (missingDropValues > 0) { <span class="catalogue-warning">@missingDropValues drop@(missingDropValues == 1 ? "" : "s") missing probability</span> }
+                        </span>
+                    }
+                </span>
+                <span class="catalogue-status @(boss.Active ? "is-active" : "is-inactive")">@(boss.Active ? "Active" : "Inactive")</span>
+            </summary>
+
             <div class="catalogue-record-body">
-                <form method="post" asp-page-handler="UpdateBoss" class="filter-row catalogue-source-fields">
-                    <input type="hidden" name="recordId" value="@boss.Id" />
-                    <div><label>Name</label><input name="name" value="@boss.Name" class="form-control" required /></div>
-                    <div><label>Category</label><select name="category" class="form-select">@foreach (var category in new[] { "Boss", "Skilling boss", "Minigame" }) { if (category == boss.Category) { <option selected>@category</option> } else { <option>@category</option> } }</select></div>
-                    <div><label>Efficient / hour</label><input name="efficientRate" value="@(boss.EfficientRate?.ToString("0.############", CultureInfo.InvariantCulture))" class="form-control" type="number" step="any" /></div>
-                    <div><label>Data source</label><input name="dataSource" value="@boss.DataSource" class="form-control" /></div>
-                    <div><label>Image URL</label><input name="imageUrl" value="@boss.ImageUrl" class="form-control" type="url" /></div>
-                    <button class="btn btn-outline-light">Save source</button>
-                </form>
-                <div class="catalogue-source-actions"><button type="button" class="btn btn-primary add-boss-drop" data-boss-id="@boss.Id" data-boss-name="@boss.Name">＋ Add drop</button><form method="post" asp-page-handler="ToggleBoss"><input type="hidden" name="recordId" value="@boss.Id" /><button class="btn btn-sm btn-warning">@(boss.Active ? "Deactivate" : "Reactivate") source</button></form></div>
-                @if (bossDrops.Count == 0) { <p class="empty-drop-list">No drops have been added to this boss yet.</p> }
+                <div class="catalogue-boss-editor">
+                    <div class="catalogue-editor-image">
+                        <span class="catalogue-image-placeholder catalogue-image-placeholder-large @(!string.IsNullOrWhiteSpace(boss.ImageUrl) ? "has-image" : null)" aria-label="Boss image">
+                            @if (!string.IsNullOrWhiteSpace(boss.ImageUrl))
+                            {
+                                <img src="@boss.ImageUrl" alt="@boss.Name" loading="lazy" />
+                            }
+                            else
+                            {
+                                <span>Boss image</span>
+                            }
+                        </span>
+                        @if (string.IsNullOrWhiteSpace(boss.ImageUrl))
+                        {
+                            <small>Add an image link under additional details.</small>
+                        }
+                    </div>
+                    <form method="post" asp-page-handler="UpdateBoss" class="catalogue-source-fields">
+                        <input type="hidden" name="recordId" value="@boss.Id" />
+                        <div><label>Name</label><input name="name" value="@boss.Name" class="form-control" required /></div>
+                        <div>
+                            <label>Category</label>
+                            <select name="category" class="form-select">
+                                @foreach (var category in categories)
+                                {
+                                    if (category == boss.Category) { <option selected>@category</option> }
+                                    else { <option>@category</option> }
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label>Efficient completions per hour</label>
+                            <input name="efficientRate" value="@(boss.EfficientRate?.ToString("0.############", CultureInfo.InvariantCulture))" class="form-control" type="number" min="0" step="any" />
+                        </div>
+                        <details class="catalogue-additional-details">
+                            <summary>Additional details</summary>
+                            <div class="catalogue-additional-grid">
+                                <div><label>Data source</label><input name="dataSource" value="@boss.DataSource" class="form-control" /></div>
+                                <div><label>Image URL</label><input name="imageUrl" value="@boss.ImageUrl" class="form-control" type="url" placeholder="Direct image or OSRS Wiki media link" /></div>
+                            </div>
+                        </details>
+                        <button class="btn btn-outline-light catalogue-compact-action catalogue-save-boss">Save changes</button>
+                    </form>
+                </div>
+
+                <div class="catalogue-source-actions">
+                    <div>
+                        <h3>Drops</h3>
+                        <small>Expected EHB = 1 ÷ (efficient completions per hour × probability).</small>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-outline-primary catalogue-add-action catalogue-compact-action add-boss-drop" data-boss-id="@boss.Id" data-boss-name="@boss.Name" data-boss-rate="@(boss.EfficientRate?.ToString(CultureInfo.InvariantCulture))">＋ Add drop</button>
+                        <form method="post" asp-page-handler="ToggleBoss" class="catalogue-toggle-form" data-confirm="@(boss.Active ? $"Deactivate {boss.Name}? It will remain in the catalogue and can be reactivated later." : null)">
+                            <input type="hidden" name="recordId" value="@boss.Id" />
+                            <button class="btn btn-sm catalogue-compact-action @(boss.Active ? "btn-outline-danger" : "btn-outline-light")">@(boss.Active ? "Deactivate" : "Reactivate")</button>
+                        </form>
+                    </div>
+                </div>
+
+                @if (bossDrops.Count == 0)
+                {
+                    <p class="empty-drop-list">No drops have been added yet.</p>
+                }
                 else
                 {
-                    <div class="table-wrap"><table><thead><tr><th>Item</th><th>Displayed rate</th><th>Probability</th><th>Calculated EHB</th><th>Data source</th><th></th></tr></thead><tbody>
+                    <div class="catalogue-drop-list">
                     @foreach (var drop in bossDrops)
                     {
-                        <tr><td><strong>@drop.ItemName</strong> @if (!drop.Active) { <small>(inactive)</small> }</td><td colspan="4"><form method="post" asp-page-handler="UpdateDrop" class="drop-edit-grid"><input type="hidden" name="recordId" value="@drop.Id" /><input name="displayRate" value="@drop.DisplayRate" class="form-control" aria-label="Displayed rate" required /><input name="numericProbability" value="@(drop.Probability?.ToString("0.############", CultureInfo.InvariantCulture))" class="form-control" type="number" step="any" aria-label="Numeric probability" /><output aria-label="Calculated EHB">@(drop.DefaultEhb?.ToString("0.####") ?? "Not calculable")</output><input name="dataSource" value="@drop.DataSource" class="form-control" aria-label="Data source" /><button class="btn btn-sm btn-outline-light">Save</button></form></td><td><form method="post" asp-page-handler="ToggleDrop"><input type="hidden" name="recordId" value="@drop.Id" /><button class="btn btn-sm btn-warning">@(drop.Active ? "Deactivate" : "Reactivate")</button></form></td></tr>
+                        var dropMissingProbability = drop.Probability is null or <= 0;
+                        <article class="catalogue-drop-card @(!drop.Active ? "is-inactive" : null)">
+                            <header>
+                                <div class="catalogue-drop-heading">
+                                    <span class="catalogue-drop-image @(!string.IsNullOrWhiteSpace(drop.ImageUrl) ? "has-image" : null)" aria-label="Item image">
+                                        @if (!string.IsNullOrWhiteSpace(drop.ImageUrl))
+                                        {
+                                            <img src="@drop.ImageUrl" alt="" loading="lazy" />
+                                        }
+                                        else
+                                        {
+                                            <span>Image</span>
+                                        }
+                                    </span>
+                                    <div>
+                                        <strong>@drop.ItemName</strong>
+                                        <button class="catalogue-name-edit" type="button" aria-label="Edit @drop.ItemName name" title="Edit name" data-edit-drop-name>✎</button>
+                                        @if (dropMissingProbability) { <span class="catalogue-warning">Missing probability</span> }
+                                    </div>
+                                </div>
+                                <span class="catalogue-status @(drop.Active ? "is-active" : "is-inactive")">@(drop.Active ? "Active" : "Inactive")</span>
+                            </header>
+                            <form method="post" asp-page-handler="UpdateDrop" class="catalogue-drop-edit-form" id="drop-edit-@drop.Id">
+                                <input type="hidden" name="recordId" value="@drop.Id" />
+                                <input type="hidden" name="useExistingItem" value="false" data-use-existing-item />
+                                <input type="hidden" name="originalDisplayRate" value="@drop.DisplayRate" />
+                                <input type="hidden" name="originalNumericProbability" value="@(drop.Probability?.ToString("0.############", CultureInfo.InvariantCulture))" />
+                                <div class="catalogue-drop-name-editor" hidden>
+                                    <label>Item name</label>
+                                    <input name="itemName" value="@drop.ItemName" data-original-item-name="@drop.ItemName" class="form-control" maxlength="200" required />
+                                </div>
+                                <div><label>Displayed drop rate</label><input name="displayRate" value="@drop.DisplayRate" class="form-control" required /></div>
+                                <div>
+                                    <label>Probability per completion</label>
+                                    <input name="numericProbability" value="@(drop.Probability?.ToString("0.############", CultureInfo.InvariantCulture))" class="form-control catalogue-probability-input" type="number" min="0" max="1" step="any" />
+                                    <small>For example, 1/100 is 0.01.</small>
+                                </div>
+                                <div class="catalogue-ehb-result">
+                                    <label>Calculated EHB</label>
+                                    <output>@(drop.DefaultEhb?.ToString("0.####") ?? "Not available")</output>
+                                </div>
+                                <details class="catalogue-additional-details catalogue-drop-additional">
+                                    <summary>Additional details</summary>
+                                    <div class="catalogue-additional-grid">
+                                        <div><label>Data source</label><input name="dataSource" value="@drop.DataSource" class="form-control" /></div>
+                                        <div><label>Image URL</label><input name="imageUrl" value="@drop.ImageUrl" class="form-control" type="url" placeholder="Direct image or OSRS Wiki media link" /></div>
+                                    </div>
+                                    @if (drop.RateVariants.Count > 1)
+                                    {
+                                        <div class="catalogue-rate-variants">
+                                            <strong>Drop-rate variants</strong>
+                                            @foreach (var variant in drop.RateVariants)
+                                            {
+                                                <div class="catalogue-rate-variant">
+                                                    <span>@variant.Label</span>
+                                                    <span>@variant.DisplayRate</span>
+                                                    @if (!string.IsNullOrWhiteSpace(variant.Condition))
+                                                    {
+                                                        <small>@variant.Condition</small>
+                                                    }
+                                                </div>
+                                            }
+                                            <small>These conditional rates are kept separately instead of being combined into one misleading probability.</small>
+                                        </div>
+                                    }
+                                </details>
+                            </form>
+                            <div class="catalogue-drop-card-actions">
+                                <button class="btn btn-sm btn-outline-light catalogue-compact-action" type="submit" form="drop-edit-@drop.Id">Save changes</button>
+                                <form method="post" asp-page-handler="ToggleDrop" class="catalogue-drop-toggle" data-confirm="@(drop.Active ? $"Deactivate {drop.ItemName}? It can be reactivated later." : null)">
+                                    <input type="hidden" name="recordId" value="@drop.Id" />
+                                    <button class="btn btn-sm catalogue-compact-action @(drop.Active ? "btn-outline-danger" : "btn-outline-light")">@(drop.Active ? "Deactivate drop" : "Reactivate drop")</button>
+                                </form>
+                            </div>
+                        </article>
                     }
-                    </tbody></table></div>
+                    </div>
                 }
             </div>
         </details>
     }
     </div>
 
-    <dialog id="add-drop-dialog" class="tile-dialog catalogue-drop-dialog">
-        <button type="button" class="dialog-close" aria-label="Close">×</button><p class="eyebrow">Add drop</p><h2 id="drop-dialog-heading">Add drop to boss</h2>
-        <form method="post" asp-page-handler="BossDrop" class="form-stack" id="add-drop-form">
+    <dialog id="add-boss-dialog" class="tile-dialog team-roster-dialog catalogue-editor-dialog">
+        <header class="team-roster-dialog-header">
+            <div><p class="eyebrow">Catalogue</p><h2>Add boss or activity</h2></div>
+            <button type="button" class="dialog-close" aria-label="Close">×</button>
+        </header>
+        <p class="catalogue-dialog-intro">Add the activity first. Its drops can be added from the catalogue afterward.</p>
+        <form method="post" asp-page-handler="Boss" class="form-stack catalogue-dialog-form">
+            <div class="catalogue-dialog-grid">
+                <div><label asp-for="Boss.Name"></label><input asp-for="Boss.Name" class="form-control" /></div>
+                <div><label asp-for="Boss.Category"></label><select asp-for="Boss.Category" class="form-select"><option>Boss</option><option>Skilling boss</option><option>Minigame</option></select></div>
+            </div>
+            <div>
+                <label asp-for="Boss.EfficientRate">Efficient completions per hour</label>
+                <input asp-for="Boss.EfficientRate" class="form-control" />
+                <small>Can be left empty and added later.</small>
+            </div>
+            <div><label asp-for="Boss.Notes"></label><textarea asp-for="Boss.Notes" class="form-control" rows="3"></textarea></div>
+            <details class="catalogue-additional-details">
+                <summary>Additional details</summary>
+                <div class="catalogue-additional-grid">
+                    <div><label asp-for="Boss.DataSource"></label><input asp-for="Boss.DataSource" class="form-control" /></div>
+                    <div><label asp-for="Boss.ImageUrl"></label><input asp-for="Boss.ImageUrl" class="form-control" /></div>
+                </div>
+            </details>
+            <div class="dialog-actions"><button type="button" class="btn btn-outline-light dialog-cancel">Cancel</button><button class="btn btn-primary">Add boss or activity</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="add-drop-dialog" class="tile-dialog team-roster-dialog catalogue-editor-dialog">
+        <header class="team-roster-dialog-header">
+            <div><p class="eyebrow">Catalogue</p><h2 id="drop-dialog-heading">Add drop</h2></div>
+            <button type="button" class="dialog-close" aria-label="Close">×</button>
+        </header>
+        <p class="catalogue-dialog-intro">Add an item and the chance of receiving it from this boss or activity.</p>
+        <form method="post" asp-page-handler="BossDrop" class="form-stack catalogue-dialog-form" id="add-drop-form">
             <input type="hidden" asp-for="BossDrop.BossActivityId" id="drop-boss-id" />
-            <label asp-for="BossDrop.ItemName"></label><input asp-for="BossDrop.ItemName" class="form-control" placeholder="For example: Tanzanite fang" />
-            <label asp-for="BossDrop.DisplayRate"></label><input asp-for="BossDrop.DisplayRate" class="form-control" placeholder="For example: 2 × 1/1,024" />
-            <label asp-for="BossDrop.NumericProbability">Numeric probability <small>Optional, but required for automatic EHB. Example: 1/100 is entered as 0.01.</small></label><input asp-for="BossDrop.NumericProbability" class="form-control" type="number" min="0" max="1" step="any" />
-            <label asp-for="BossDrop.Condition"></label><input asp-for="BossDrop.Condition" class="form-control" placeholder="Optional restrictions or notes" />
-            <details class="advanced-fields"><summary>Advanced metadata</summary><label asp-for="BossDrop.DataSource"></label><input asp-for="BossDrop.DataSource" class="form-control" /><label asp-for="BossDrop.ImageUrl"></label><input asp-for="BossDrop.ImageUrl" class="form-control" type="url" /></details>
+            <div><label asp-for="BossDrop.ItemName"></label><input asp-for="BossDrop.ItemName" class="form-control" placeholder="For example: Tanzanite fang" /></div>
+            <div class="catalogue-dialog-grid">
+                <div><label asp-for="BossDrop.DisplayRate"></label><input asp-for="BossDrop.DisplayRate" class="form-control" placeholder="For example: 2 × 1/1,024" /></div>
+                <div>
+                    <label asp-for="BossDrop.NumericProbability">Probability per completion</label>
+                    <input asp-for="BossDrop.NumericProbability" class="form-control" type="number" min="0" max="1" step="any" placeholder="0.0009765625" />
+                    <small>Optional when the displayed rate can be read automatically.</small>
+                </div>
+            </div>
+            <div><label asp-for="BossDrop.Condition"></label><input asp-for="BossDrop.Condition" class="form-control" placeholder="Optional restrictions or notes" /></div>
+            <aside class="catalogue-formula-note">Expected EHB is calculated as <strong>1 ÷ (efficient completions per hour × probability)</strong>.</aside>
+            <details class="catalogue-additional-details">
+                <summary>Additional details</summary>
+                <div class="catalogue-additional-grid">
+                    <div><label asp-for="BossDrop.DataSource"></label><input asp-for="BossDrop.DataSource" class="form-control" /></div>
+                    <div><label asp-for="BossDrop.ImageUrl"></label><input asp-for="BossDrop.ImageUrl" class="form-control" type="url" /></div>
+                </div>
+            </details>
             <div class="dialog-actions"><button type="button" class="btn btn-outline-light dialog-cancel">Cancel</button><button class="btn btn-primary">Add drop</button></div>
         </form>
     </dialog>
@@ -73,10 +293,87 @@
 @section Scripts {
 <partial name="_ValidationScriptsPartial" />
 <script>
-const search = document.getElementById('boss-search'); const records = [...document.querySelectorAll('[data-boss-record]')]; const count = document.getElementById('boss-result-count'); const empty = document.getElementById('no-boss-results');
-search.addEventListener('input', () => { const term = search.value.trim().toLowerCase(); let visible = 0; records.forEach(record => { const matches = !term || record.dataset.search.includes(term); record.hidden = !matches; if (matches) { visible++; if (term) record.open = true; } }); count.textContent = `${visible} source${visible === 1 ? '' : 's'}`; empty.hidden = visible !== 0; });
-const dropDialog = document.getElementById('add-drop-dialog');
-document.querySelectorAll('.add-boss-drop').forEach(button => button.addEventListener('click', () => { document.getElementById('drop-boss-id').value = button.dataset.bossId; document.getElementById('drop-dialog-heading').textContent = `Add drop to ${button.dataset.bossName}`; dropDialog.showModal(); }));
-document.querySelectorAll('.dialog-close, .dialog-cancel').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
+(() => {
+    const storageKey = `catalogue:${location.pathname}`;
+    const search = document.getElementById('boss-search');
+    const records = [...document.querySelectorAll('[data-boss-record]')];
+    const filters = [...document.querySelectorAll('[data-catalogue-filter]')];
+    const count = document.getElementById('boss-result-count');
+    const empty = document.getElementById('no-boss-results');
+    let activeFilter = 'all';
+
+    try {
+        const saved = JSON.parse(sessionStorage.getItem(storageKey) || '{}');
+        search.value = saved.search || '';
+        activeFilter = saved.filter || 'all';
+    } catch { }
+
+    function applyFilters() {
+        const term = search.value.trim().toLowerCase();
+        let visible = 0;
+        records.forEach(record => {
+            const matchesSearch = !term || record.dataset.search.includes(term);
+            const matchesFilter = activeFilter === 'all'
+                || (activeFilter === 'inactive' && record.dataset.active === 'false')
+                || record.dataset.category === activeFilter;
+            const matches = matchesSearch && matchesFilter;
+            record.hidden = !matches;
+            if (matches) { visible++; if (term) record.open = true; }
+        });
+        filters.forEach(button => {
+            const selected = button.dataset.catalogueFilter === activeFilter;
+            button.classList.toggle('active', selected);
+            button.setAttribute('aria-pressed', selected.toString());
+        });
+        count.textContent = `${visible} shown`;
+        empty.hidden = visible !== 0;
+        sessionStorage.setItem(storageKey, JSON.stringify({ search: search.value, filter: activeFilter }));
+    }
+
+    search.addEventListener('input', applyFilters);
+    filters.forEach(button => button.addEventListener('click', () => { activeFilter = button.dataset.catalogueFilter; applyFilters(); }));
+    applyFilters();
+
+    const bossDialog = document.getElementById('add-boss-dialog');
+    document.getElementById('open-add-boss').addEventListener('click', () => bossDialog.showModal());
+
+    const dropDialog = document.getElementById('add-drop-dialog');
+    document.querySelectorAll('.add-boss-drop').forEach(button => button.addEventListener('click', () => {
+        document.getElementById('drop-boss-id').value = button.dataset.bossId;
+        document.getElementById('drop-dialog-heading').textContent = `Add drop to ${button.dataset.bossName}`;
+        dropDialog.showModal();
+    }));
+
+    document.querySelectorAll('[data-edit-drop-name]').forEach(button => button.addEventListener('click', () => {
+        const card = button.closest('.catalogue-drop-card');
+        const editor = card.querySelector('.catalogue-drop-name-editor');
+        editor.hidden = !editor.hidden;
+        button.setAttribute('aria-expanded', (!editor.hidden).toString());
+        if (!editor.hidden) editor.querySelector('input').focus();
+    }));
+
+    const itemNameInputs = [...document.querySelectorAll('input[data-original-item-name]')];
+    const normalizeItemName = value => value.trim().toLocaleUpperCase();
+    itemNameInputs.forEach(input => input.form.addEventListener('submit', () => {
+        const original = input.dataset.originalItemName;
+        const proposed = input.value.trim();
+        const duplicate = itemNameInputs.some(other => other !== input && normalizeItemName(other.dataset.originalItemName) === normalizeItemName(proposed));
+        const useExisting = input.form.querySelector('[data-use-existing-item]');
+        useExisting.value = 'false';
+        if (proposed !== original && duplicate) {
+            if (confirm(`${proposed} already exists. Use the existing shared item?\n\nChoose Cancel to keep this drop's current name while saving the other changes.`)) {
+                useExisting.value = 'true';
+            } else {
+                input.value = original;
+            }
+        }
+    }));
+
+    document.querySelectorAll('.dialog-close, .dialog-cancel').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
+    document.querySelectorAll('form[data-confirm]').forEach(form => form.addEventListener('submit', event => {
+        const message = form.dataset.confirm;
+        if (message && !confirm(message)) event.preventDefault();
+    }));
+})();
 </script>
 }

@@ -92,8 +92,6 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             return [AdminRoot(), new(text["OSRS catalogue"], "/Admin/Catalogue"), new(PageLabel(page), null)];
         if (page.StartsWith("/Admin/Accounts/", StringComparison.Ordinal) && page != "/Admin/Accounts/Index")
             return await BuildAccountBreadcrumbs(page, values, cancellationToken);
-        if (page.StartsWith("/Admin/Tiles/", StringComparison.Ordinal) && page != "/Admin/Tiles/Index")
-            return await BuildTileTemplateBreadcrumbs(page, values, cancellationToken);
         if (page.StartsWith("/Captain/", StringComparison.Ordinal) && page != "/Captain/Index")
             return await BuildCaptainBreadcrumbs(page, values, cancellationToken);
         if (page.StartsWith("/Events/", StringComparison.Ordinal))
@@ -144,17 +142,6 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         {
             var username = await db.Accounts.AsNoTracking().Where(item => item.Id == accountId).Select(item => item.Username).SingleOrDefaultAsync(cancellationToken);
             items.Add(new(username ?? text["Account"], null));
-        }
-        return items;
-    }
-
-    private async Task<IReadOnlyList<BreadcrumbItem>> BuildTileTemplateBreadcrumbs(string page, RouteValueDictionary values, CancellationToken cancellationToken)
-    {
-        var items = new List<BreadcrumbItem> { AdminRoot(), new(text["Tile templates"], "/Admin/Tiles") };
-        if (TryGuid(values, "id", out var tileId))
-        {
-            var name = await db.TileTemplates.AsNoTracking().Where(item => item.Id == tileId).Select(item => item.Name).SingleOrDefaultAsync(cancellationToken);
-            items.Add(new(name ?? text["Tile"], null));
         }
         return items;
     }
@@ -210,10 +197,9 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
     {
         "/Admin/Events/Board" => text["Board editor"],
         "/Admin/Events/Draft" => text["Teams and draft"],
-        "/Admin/Events/Questions" => text["Signup questions"],
+        "/Admin/Events/Questions" => text["Signup form"],
         "/Admin/Events/Csv" => text["CSV import"],
         "/Admin/Events/Finalize" => text["Finish event"],
-        "/Admin/Catalogue/Import" => text["CSV import"],
         _ => text["Current page"]
     };
 

@@ -100,9 +100,159 @@
   <data name="Board editor" xml:space="preserve"><value>Board editor</value></data>
   <data name="Teams and draft" xml:space="preserve"><value>Hold og draft</value></data>
   <data name="Signup questions" xml:space="preserve"><value>Tilmeldingsspørgsmål</value></data>
-  <data name="CSV import" xml:space="preserve"><value>CSV-import</value></data>
   <data name="Finish event" xml:space="preserve"><value>Afslut bingo</value></data>
   <data name="Current page" xml:space="preserve"><value>Nuværende side</value></data>
   <data name="Settings" xml:space="preserve"><value>Indstillinger</value></data>
   <data name="Signed in as" xml:space="preserve"><value>Logget ind som</value></data>
+  <data name="Event setup" xml:space="preserve"><value>Opsæt bingo</value></data>
+  <data name="Set up the event as a private draft. Nothing becomes public until you open signups later." xml:space="preserve"><value>Opret bingoet som en privat kladde. Intet bliver offentligt, før du senere åbner for tilmelding.</value></data>
+  <data name="Event setup steps" xml:space="preserve"><value>Trin i bingoopsætningen</value></data>
+  <data name="Event details" xml:space="preserve"><value>Detaljer</value></data>
+  <data name="Schedule and capacity" xml:space="preserve"><value>Tidsplan og antal spillere</value></data>
+  <data name="Signup form" xml:space="preserve"><value>Tilmeldingsformular</value></data>
+  <data name="Planning estimates" xml:space="preserve"><value>Foreløbig plan</value></data>
+  <data name="Review and create" xml:space="preserve"><value>Gennemgå og opret</value></data>
+  <data name="Step" xml:space="preserve"><value>Trin</value></data>
+  <data name="of" xml:space="preserve"><value>af</value></data>
+  <data name="Step 1 of 5" xml:space="preserve"><value>Trin 1 af 5</value></data>
+  <data name="Step 2 of 5" xml:space="preserve"><value>Trin 2 af 5</value></data>
+  <data name="Step 3 of 5" xml:space="preserve"><value>Trin 3 af 5</value></data>
+  <data name="Step 4 of 5" xml:space="preserve"><value>Trin 4 af 5</value></data>
+  <data name="Step 5 of 5" xml:space="preserve"><value>Trin 5 af 5</value></data>
+  <data name="These details appear on the public signup page after signups open." xml:space="preserve"><value>Disse oplysninger vises på den offentlige tilmeldingsside, når tilmeldingen åbner.</value></data>
+  <data name="Event name" xml:space="preserve"><value>Navn på bingo</value></data>
+  <data name="The public link is generated automatically from this name." xml:space="preserve"><value>Det offentlige link laves automatisk ud fra navnet.</value></data>
+  <data name="Timezone" xml:space="preserve"><value>Tidszone</value></data>
+  <data name="All event times use this timezone." xml:space="preserve"><value>Alle tider i bingoet bruger denne tidszone.</value></data>
+  <data name="Signup description" xml:space="preserve"><value>Beskrivelse til tilmeldingen</value></data>
+  <data name="A short explanation for players considering the event." xml:space="preserve"><value>En kort forklaring til spillere, der overvejer at deltage.</value></data>
+  <data name="All dates, times and the player cap can be changed before the relevant deadline." xml:space="preserve"><value>Alle datoer, tider og spillergrænsen kan ændres inden den relevante frist.</value></data>
+  <data name="Signup opens" xml:space="preserve"><value>Tilmelding åbner</value></data>
+  <data name="Signup closes" xml:space="preserve"><value>Tilmelding lukker</value></data>
+  <data name="Event starts" xml:space="preserve"><value>Bingo starter</value></data>
+  <data name="Event ends" xml:space="preserve"><value>Bingo slutter</value></data>
+  <data name="Date" xml:space="preserve"><value>Dato</value></data>
+  <data name="Time" xml:space="preserve"><value>Tid</value></data>
+  <data name="Maximum confirmed players" xml:space="preserve"><value>Maksimalt antal bekræftede spillere</value></data>
+  <data name="Use a waiting list" xml:space="preserve"><value>Brug en venteliste</value></data>
+  <data name="Waiting list" xml:space="preserve"><value>Venteliste</value></data>
+  <data name="Players who sign up after the cap are kept in signup order." xml:space="preserve"><value>Spillere over grænsen sættes på ventelisten i tilmeldingsrækkefølge.</value></data>
+  <data name="Standard fields are always included. Custom questions can be edited until signups open." xml:space="preserve"><value>Standardfelterne er altid med. Egne spørgsmål kan ændres, indtil tilmeldingen åbner.</value></data>
+  <data name="Standard signup fields" xml:space="preserve"><value>Faste tilmeldingsfelter</value></data>
+  <data name="Primary OSRS account" xml:space="preserve"><value>Primær OSRS-konto</value></data>
+  <data name="Second OSRS account" xml:space="preserve"><value>Anden OSRS-konto</value></data>
+  <data name="Discord name" xml:space="preserve"><value>Discord-navn</value></data>
+  <data name="Comments and availability" xml:space="preserve"><value>Kommentarer og tilgængelighed</value></data>
+  <data name="Volunteer as captain?" xml:space="preserve"><value>Vil du være kaptajn?</value></data>
+  <data name="Required short answer" xml:space="preserve"><value>Påkrævet kort svar</value></data>
+  <data name="Required number" xml:space="preserve"><value>Påkrævet tal</value></data>
+  <data name="Optional short answer" xml:space="preserve"><value>Valgfrit kort svar</value></data>
+  <data name="Optional long answer" xml:space="preserve"><value>Valgfrit langt svar</value></data>
+  <data name="Optional yes or no" xml:space="preserve"><value>Valgfrit ja eller nej</value></data>
+  <data name="Standard" xml:space="preserve"><value>Fast</value></data>
+  <data name="Custom questions" xml:space="preserve"><value>Egne spørgsmål</value></data>
+  <data name="Ask only for information specific to this bingo." xml:space="preserve"><value>Spørg kun om oplysninger, der er relevante for dette bingo.</value></data>
+  <data name="Add question" xml:space="preserve"><value>Tilføj spørgsmål</value></data>
+  <data name="No custom questions added." xml:space="preserve"><value>Ingen egne spørgsmål tilføjet.</value></data>
+  <data name="Question" xml:space="preserve"><value>Spørgsmål</value></data>
+  <data name="Remove" xml:space="preserve"><value>Fjern</value></data>
+  <data name="Question shown to players" xml:space="preserve"><value>Spørgsmål til spillerne</value></data>
+  <data name="How players answer" xml:space="preserve"><value>Svartype</value></data>
+  <data name="Short answer" xml:space="preserve"><value>Kort svar</value></data>
+  <data name="Long answer" xml:space="preserve"><value>Langt svar</value></data>
+  <data name="Number" xml:space="preserve"><value>Tal</value></data>
+  <data name="Yes or no" xml:space="preserve"><value>Ja eller nej</value></data>
+  <data name="Choose one answer" xml:space="preserve"><value>Vælg ét svar</value></data>
+  <data name="Answer required" xml:space="preserve"><value>Svar påkrævet</value></data>
+  <data name="Players cannot submit without answering." xml:space="preserve"><value>Spillere kan ikke tilmelde sig uden at svare.</value></data>
+  <data name="Available answers" xml:space="preserve"><value>Svarmuligheder</value></data>
+  <data name="One answer per line" xml:space="preserve"><value>Ét svar pr. linje</value></data>
+  <data name="Allow private signup editing" xml:space="preserve"><value>Tillad privat redigering af tilmelding</value></data>
+  <data name="Players receive a private link that lets them correct their signup without an account." xml:space="preserve"><value>Spillere får et privat link, så de kan rette tilmeldingen uden en konto.</value></data>
+  <data name="Require an event code" xml:space="preserve"><value>Kræv en bingokode</value></data>
+  <data name="Players must enter the shared code when signing up." xml:space="preserve"><value>Spillere skal indtaste den fælles kode ved tilmelding.</value></data>
+  <data name="Event code" xml:space="preserve"><value>Bingokode</value></data>
+  <data name="These values help with early planning. Final team and board sizes remain editable in their own tools." xml:space="preserve"><value>Disse tal hjælper med den tidlige planlægning. De endelige hold- og pladestørrelser kan stadig ændres senere.</value></data>
+  <data name="Give the board editor a useful starting point. You can change these numbers later." xml:space="preserve"><value>Giv pladeeditoren et godt udgangspunkt. Du kan ændre tallene senere.</value></data>
+  <data name="Add rough numbers to help set up the board and draft." xml:space="preserve"><value>Tilføj foreløbige tal som hjælp til opsætningen af pladen og draften.</value></data>
+  <data name="This does not lock in the number of teams or the board size." xml:space="preserve"><value>Dette låser ikke antallet af hold eller pladens størrelse.</value></data>
+  <data name="Review the setup. You can still edit the private event afterward." xml:space="preserve"><value>Gennemgå opsætningen. Du kan stadig redigere den private bingo bagefter.</value></data>
+  <data name="Set the signup window, event dates and player cap." xml:space="preserve"><value>Vælg tilmeldingsperiode, bingodatoer og deltagergrænse.</value></data>
+  <data name="Standard fields are included automatically. Add any questions needed for this bingo." xml:space="preserve"><value>Standardfelter tilføjes automatisk. Tilføj de spørgsmål, der er nødvendige for denne bingo.</value></data>
+  <data name="Set the dates and player cap. You can change them after creating the event." xml:space="preserve"><value>Vælg datoer og deltagergrænse. Du kan ændre dem, efter bingoen er oprettet.</value></data>
+  <data name="Standard fields are already included. Add any extra questions needed for this bingo." xml:space="preserve"><value>Standardfelterne er allerede med. Tilføj eventuelle ekstra spørgsmål til denne bingo.</value></data>
+  <data name="Search players" xml:space="preserve"><value>Søg efter spillere</value></data>
+  <data name="Search {0}" xml:space="preserve"><value>Søg i {0}</value></data>
+  <data name="No matching players." xml:space="preserve"><value>Ingen spillere matcher søgningen.</value></data>
+  <data name="Admin controls" xml:space="preserve"><value>Administratorkontrol</value></data>
+  <data name="Private setup" xml:space="preserve"><value>Privat opsætning</value></data>
+  <data name="Only actions currently available for this event are shown." xml:space="preserve"><value>Kun de handlinger, der er tilgængelige for denne bingo lige nu, vises.</value></data>
+  <data name="All controls are shown while the page design is being reviewed." xml:space="preserve"><value>Alle funktioner vises, mens sidens design gennemgås.</value></data>
+  <data name="Increasing the cap promotes players from the waiting list." xml:space="preserve"><value>Når grænsen hæves, flyttes spillere ind fra ventelisten.</value></data>
+  <data name="Start the bingo when the board and teams are ready." xml:space="preserve"><value>Start bingoen, når pladen og holdene er klar.</value></data>
+  <data name="Event information" xml:space="preserve"><value>Information om bingoen</value></data>
+  <data name="Open" xml:space="preserve"><value>Åben</value></data>
+  <data name="Save" xml:space="preserve"><value>Gem</value></data>
+  <data name="confirmed" xml:space="preserve"><value>bekræftet</value></data>
+  <data name="Submissions are reopened until" xml:space="preserve"><value>Indsendelser er genåbnet indtil</value></data>
+  <data name="Expected teams" xml:space="preserve"><value>Forventet antal hold</value></data>
+  <data name="Expected players per team" xml:space="preserve"><value>Forventede spillere pr. hold</value></data>
+  <data name="Expected board rows" xml:space="preserve"><value>Forventede rækker</value></data>
+  <data name="Expected board columns" xml:space="preserve"><value>Forventede kolonner</value></data>
+  <data name="These are estimates" xml:space="preserve"><value>Dette er kun et estimat</value></data>
+  <data name="Pre-formed teams are handled separately, and changing these values does not create teams or board tiles." xml:space="preserve"><value>Færdiglavede hold håndteres separat, og disse tal opretter ikke hold eller tiles.</value></data>
+  <data name="Check the main setup. You can continue editing the private event afterward." xml:space="preserve"><value>Tjek opsætningen. Du kan fortsætte med at ændre det private bingo bagefter.</value></data>
+  <data name="Signup window" xml:space="preserve"><value>Tilmeldingsperiode</value></data>
+  <data name="Planning" xml:space="preserve"><value>Plan</value></data>
+  <data name="Unnamed event" xml:space="preserve"><value>Bingo uden navn</value></data>
+  <data name="No description yet" xml:space="preserve"><value>Ingen beskrivelse endnu</value></data>
+  <data name="Not set" xml:space="preserve"><value>Ikke angivet</value></data>
+  <data name="players" xml:space="preserve"><value>spillere</value></data>
+  <data name="waiting list enabled" xml:space="preserve"><value>venteliste slået til</value></data>
+  <data name="players per team" xml:space="preserve"><value>spillere pr. hold</value></data>
+  <data name="board" xml:space="preserve"><value>plade</value></data>
+  <data name="Submission cutoff is automatically 30 minutes after the event ends." xml:space="preserve"><value>Fristen for indsendelser er automatisk 30 minutter efter bingoet slutter.</value></data>
+  <data name="The event stays private" xml:space="preserve"><value>Bingoet forbliver privat</value></data>
+  <data name="Creating it does not open signups, publish the board, publish teams or start the draft." xml:space="preserve"><value>Oprettelsen åbner ikke tilmeldingen, offentliggør ikke pladen eller holdene og starter ikke draften.</value></data>
+  <data name="Create private event" xml:space="preserve"><value>Opret privat bingo</value></data>
+  <data name="Previous" xml:space="preserve"><value>Forrige</value></data>
+  <data name="Next" xml:space="preserve"><value>Næste</value></data>
+  <data name="Dismiss message" xml:space="preserve"><value>Luk besked</value></data>
+  <data name="Participant" xml:space="preserve"><value>Deltager</value></data>
+  <data name="Review and correct this player's signup details." xml:space="preserve"><value>Gennemgå og ret spillerens tilmeldingsoplysninger.</value></data>
+  <data name="Back to event" xml:space="preserve"><value>Tilbage til bingoen</value></data>
+  <data name="Participant details" xml:space="preserve"><value>Deltageroplysninger</value></data>
+  <data name="Update information supplied during signup." xml:space="preserve"><value>Ret oplysningerne fra tilmeldingen.</value></data>
+  <data name="Save changes" xml:space="preserve"><value>Gem ændringer</value></data>
+  <data name="Not provided" xml:space="preserve"><value>Ikke angivet</value></data>
+  <data name="Available as a captain" xml:space="preserve"><value>Kan være kaptajn</value></data>
+  <data name="Questions added after this player signed up may be unanswered." xml:space="preserve"><value>Spørgsmål, der blev tilføjet efter spillerens tilmelding, kan være ubesvarede.</value></data>
+  <data name="Required for new signups" xml:space="preserve"><value>Påkrævet for nye tilmeldinger</value></data>
+  <data name="Not answered" xml:space="preserve"><value>Ikke besvaret</value></data>
+  <data name="Yes" xml:space="preserve"><value>Ja</value></data>
+  <data name="No" xml:space="preserve"><value>Nej</value></data>
+  <data name="Only administrators can see these notes." xml:space="preserve"><value>Kun administratorer kan se disse noter.</value></data>
+  <data name="Previous signup questions" xml:space="preserve"><value>Tidligere tilmeldingsspørgsmål</value></data>
+  <data name="Signup information" xml:space="preserve"><value>Tilmeldingsoplysninger</value></data>
+  <data name="Signed up" xml:space="preserve"><value>Tilmeldt</value></data>
+  <data name="Signup order" xml:space="preserve"><value>Tilmeldingsrækkefølge</value></data>
+  <data name="Signup source" xml:space="preserve"><value>Tilmeldingskilde</value></data>
+  <data name="Website signup" xml:space="preserve"><value>Tilmelding på hjemmesiden</value></data>
+  <data name="CSV import" xml:space="preserve"><value>CSV-import</value></data>
+  <data name="Added by an admin" xml:space="preserve"><value>Tilføjet af en administrator</value></data>
+  <data name="Team" xml:space="preserve"><value>Hold</value></data>
+  <data name="Not assigned" xml:space="preserve"><value>Ikke tildelt</value></data>
+  <data name="Status note" xml:space="preserve"><value>Statusnote</value></data>
+  <data name="Private edit link" xml:space="preserve"><value>Privat redigeringslink</value></data>
+  <data name="Send this replacement link to the player. It is shown only now." xml:space="preserve"><value>Send dette nye link til spilleren. Det vises kun nu.</value></data>
+  <data name="Replacement edit link" xml:space="preserve"><value>Nyt redigeringslink</value></data>
+  <data name="Copy link" xml:space="preserve"><value>Kopiér link</value></data>
+  <data name="Copied" xml:space="preserve"><value>Kopieret</value></data>
+  <data name="Create a replacement link? The previous link will stop working." xml:space="preserve"><value>Opret et nyt link? Det tidligere link stopper med at virke.</value></data>
+  <data name="Create replacement link" xml:space="preserve"><value>Opret nyt link</value></data>
+  <data name="This participant did not sign up through the website." xml:space="preserve"><value>Deltageren tilmeldte sig ikke gennem hjemmesiden.</value></data>
+  <data name="Private signup editing is disabled for this event." xml:space="preserve"><value>Privat redigering af tilmeldinger er slået fra for denne bingo.</value></data>
+  <data name="Private signup editing closed when the draft started." xml:space="preserve"><value>Privat redigering af tilmeldingen lukkede, da draften startede.</value></data>
+  <data name="Inactive signups cannot be edited by the player." xml:space="preserve"><value>Inaktive tilmeldinger kan ikke redigeres af spilleren.</value></data>
+  <data name="Existing links cannot be displayed for security. Create a replacement only if the player lost their link." xml:space="preserve"><value>Det eksisterende link kan af sikkerhedshensyn ikke vises igen. Opret kun et nyt, hvis spilleren har mistet sit link.</value></data>
 </root>

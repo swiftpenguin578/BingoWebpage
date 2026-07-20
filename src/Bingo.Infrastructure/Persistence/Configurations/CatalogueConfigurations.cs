@@ -28,3 +28,20 @@ public sealed class SourceDropConfiguration : IEntityTypeConfiguration<SourceDro
         builder.ToTable("source_drops"); builder.HasKey(x => x.Id); builder.Property(x => x.Id).HasColumnName("id"); builder.Property(x => x.BossActivityId).HasColumnName("boss_activity_id"); builder.Property(x => x.ItemId).HasColumnName("item_id"); builder.HasIndex(x => new { x.BossActivityId, x.ItemId }).IsUnique(); builder.Property(x => x.DisplayRate).HasColumnName("display_rate").HasMaxLength(200); builder.Property(x => x.NumericProbability).HasColumnName("numeric_probability").HasPrecision(18, 12); builder.Property(x => x.RateConditionNote).HasColumnName("rate_condition_note").HasMaxLength(2000); builder.Property(x => x.DefaultEhbEstimate).HasColumnName("default_ehb_estimate").HasPrecision(12, 4); builder.Property(x => x.DataSource).HasColumnName("data_source").HasMaxLength(300); builder.Property(x => x.DataUpdatedAt).HasColumnName("data_updated_at"); builder.Property(x => x.Active).HasColumnName("active");
     }
 }
+
+public sealed class SourceDropRateVariantConfiguration : IEntityTypeConfiguration<SourceDropRateVariant>
+{
+    public void Configure(EntityTypeBuilder<SourceDropRateVariant> builder)
+    {
+        builder.ToTable("source_drop_rate_variants");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).HasColumnName("id");
+        builder.Property(x => x.SourceDropId).HasColumnName("source_drop_id");
+        builder.Property(x => x.Position).HasColumnName("position");
+        builder.Property(x => x.Label).HasColumnName("label").HasMaxLength(120);
+        builder.Property(x => x.DisplayRate).HasColumnName("display_rate").HasMaxLength(300);
+        builder.Property(x => x.NumericProbability).HasColumnName("numeric_probability").HasPrecision(18, 12);
+        builder.Property(x => x.Condition).HasColumnName("condition").HasMaxLength(2000);
+        builder.HasIndex(x => new { x.SourceDropId, x.Position }).IsUnique();
+    }
+}

@@ -53,7 +53,13 @@ builder.Services.AddScoped<CaptainAccountProvisioner>();
 builder.Services.AddScoped<AccountCookieEvents>();
 builder.Services.AddScoped<DevelopmentAdminBootstrapper>();
 builder.Services.AddScoped<ClanCatalogueImporter>();
-builder.Services.AddHttpClient<LegacyTestSignupImporter>();
+builder.Services.AddHttpClient("OsrsWiki", client =>
+{
+    client.BaseAddress = new Uri("https://oldschool.runescape.wiki/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("OSRSCommunityBingo/1.0 (catalogue dry-run)");
+});
+builder.Services.AddScoped<OsrsWikiCatalogueDryRunService>();
 builder.Services.AddScoped<DevelopmentScenarioSeeder>();
 builder.Services.AddScoped<SharedShellService>();
 builder.Services.AddHostedService<EventLifecycleWorker>();
@@ -120,6 +126,17 @@ builder.Services
         tags: ["ready"]);
 
 var app = builder.Build();
+
+if (args.Contains("--apply-wiki-catalogue", StringComparer.Ordinal))
+{
+    await using var importScope = app.Services.CreateAsyncScope();
+    var importDb = importScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await importDb.Database.MigrateAsync();
+    var importer = importScope.ServiceProvider.GetRequiredService<OsrsWikiCatalogueDryRunService>();
+    var result = await importer.ApplyReviewedImportAsync();
+    Console.WriteLine($"Wiki catalogue import complete. Bosses updated: {result.BossesUpdated}; drops added: {result.DropsAdded}; drops updated: {result.DropsUpdated}; old drops removed: {result.DropsRemoved}; orphaned items removed: {result.OrphanedItemsRemoved}; review flags retained: {result.ReviewCount}.");
+    return;
+}
 
 if (args.Contains("--reset-test-data", StringComparer.Ordinal))
 {

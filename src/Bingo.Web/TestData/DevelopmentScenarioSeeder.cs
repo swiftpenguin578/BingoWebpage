@@ -44,10 +44,18 @@ public sealed class DevelopmentScenarioSeeder(
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         await ClearWorkflowDataAsync(cancellationToken);
 
-        var now = timeProvider.GetUtcNow();
+        var current = timeProvider.GetUtcNow();
+        var now = new DateTimeOffset(current.Year, current.Month, current.Day, current.Hour, current.Minute < 30 ? 0 : 30, 0, TimeSpan.Zero);
         var secondaryAdmin = await EnsureSecondaryAdminAsync(now, cancellationToken);
         var seeded = new List<SeededScenario>();
 
+        seeded.Add(SeedScenario(
+            "TEST 00 — Setup",
+            "test-00-private-setup",
+            ScenarioStage.PrivateSetup,
+            blueprint,
+            admin.Id,
+            now));
         seeded.Add(SeedScenario(
             "TEST 01 — Signup",
             "test-01-signups-open",
@@ -131,6 +139,7 @@ public sealed class DevelopmentScenarioSeeder(
             now);
         seeded.Add(completedScenario);
         await AddCompletedBoardAsync(completedScenario.EventId, admin.Id, now, cancellationToken);
+        seeded.Add(SeedLargeDraftScenario(blueprint, admin.Id, now));
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -186,13 +195,26 @@ public sealed class DevelopmentScenarioSeeder(
             "Seeded rules for manual workflow testing.", null, null, 2, 3,
             blueprint.Rows, blueprint.Columns);
         if (stage == ScenarioStage.SignupsOpen) bingoEvent.OpenSignups(now.AddDays(-1));
-        else bingoEvent.CloseSignups();
+        else if (stage != ScenarioStage.PrivateSetup) bingoEvent.CloseSignups();
         if (stage is ScenarioStage.Live or ScenarioStage.ReviewCases) bingoEvent.StartEvent(now);
         if (stage is ScenarioStage.FinalReview or ScenarioStage.Finalized or ScenarioStage.CompletedFinalReview)
         {
             bingoEvent.StartEvent(eventStarts);
             bingoEvent.EndEvent();
             if (stage == ScenarioStage.Finalized) bingoEvent.FinalizeResults(now.AddMinutes(-30));
+        }
+        if (stage == ScenarioStage.ReviewCases)
+        {
+            bingoEvent.SetEvidenceCodeEnabled(true);
+            var retiredCode = new EvidenceCode(
+                Guid.NewGuid(), bingoEvent.Id, "OLD-DROP", now.AddDays(-2), adminId, now.AddDays(-2),
+                "Previous seeded screenshot code.");
+            retiredCode.SetRetiresAt(now.AddHours(-1));
+            db.EvidenceCodes.AddRange(
+                retiredCode,
+                new EvidenceCode(
+                    Guid.NewGuid(), bingoEvent.Id, "LIVE-DROP", now.AddHours(-1), adminId, now.AddHours(-1),
+                    "Current seeded screenshot code."));
         }
         db.Events.Add(bingoEvent);
 
@@ -246,8 +268,151 @@ public sealed class DevelopmentScenarioSeeder(
         }
     }
 
+    private SeededScenario SeedLargeDraftScenario(
+        BoardBlueprint blueprint,
+        Guid adminId,
+        DateTimeOffset now)
+    {
+        const int participantCount = 60;
+        const int teamCount = 4;
+        const int targetTeamSize = 15;
+
+        var rosters = new (string Team, string Captain, string CoCaptain, string[] Picks)[]
+        {
+            (
+                "Touch kids, not grass",
+                "Rasmus Zebak",
+                "crunch704",
+                ["ZemaFios", "Detoned", "Frette", "Thuebob", "Spacecreator", "Raffineret", "I use x22", "Kongherodes", "itsMKN", "Gimgonduth", "Corgisiron", "NoobNicoline", "Zop1"]),
+            (
+                "Såeh cs?",
+                "zakk0",
+                "Mikkel-IT",
+                ["Thylegend", "Ezzi", "W olles", "Completeius", "Calm Chris", "IM Latry", "im iftic", "Zanshock", "stoltze", "Myrupz", "Maxzen", "Bubber", "Freakingpand"]),
+            (
+                "Morytania Monkeys",
+                "Karl Knast",
+                "Macdroppet",
+                ["N L C K O", "Siswet19", "Sunny Boy110", "oegget", "3lite men x", "200iq p2W", "Ricebarrage", "Mrtopfresh", "MindMySnipe", "GIM Wemox", "Røllemester", "Maxe2968", "Backshotbaby"]),
+            (
+                "The Agency",
+                "Agent Groth",
+                "Agent Slidt",
+                ["R33Con", "pappresseren", "Elite ca", "Jern Jakob", "MesterMudder", "Sanddrage", "MrDryhard", "User IM", "Skade", "Tanzania Tim", "Uganda ulrik", "Kenya Kaj", "BotF"])
+        };
+        var participantNames = rosters
+            .SelectMany(roster => new[] { roster.Captain, roster.CoCaptain }.Concat(roster.Picks))
+            .ToList();
+        var captainNames = rosters
+            .Select(roster => roster.Captain)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var eventStarts = now.AddDays(7);
+        var eventEnds = now.AddDays(12);
+        var bingoEvent = new BingoEvent(
+            Guid.NewGuid(),
+            "TEST 12 — Large Draft",
+            "test-12-large-draft",
+            "Large draft setup used to test scrambling and starting a full participant pool.",
+            "Europe/Copenhagen",
+            now.AddDays(-14),
+            now.AddDays(-1),
+            eventStarts,
+            eventEnds,
+            eventEnds.AddMinutes(30),
+            participantCount,
+            adminId,
+            now);
+        bingoEvent.ConfigureSignup(true, true, false, null);
+        bingoEvent.ConfigurePlanning(
+            "Seeded rules for large-draft testing.",
+            null,
+            null,
+            teamCount,
+            targetTeamSize,
+            blueprint.Rows,
+            blueprint.Columns);
+        bingoEvent.CloseSignups();
+        db.Events.Add(bingoEvent);
+
+        var participants = new List<EventParticipant>(participantCount);
+        for (var index = 0; index < participantCount; index++)
+        {
+            var number = index + 1;
+            var name = participantNames[index];
+            var ehb = 175 + index * 83;
+            var participant = new EventParticipant(
+                Guid.NewGuid(),
+                bingoEvent.Id,
+                name,
+                Normalize(name),
+                ehb,
+                SignupStatus.Confirmed,
+                number,
+                now.AddMinutes(-participantCount + index),
+                SignupSource.Website,
+                null);
+            participant.UpdatePublicDetails(
+                name,
+                Normalize(name),
+                ehb,
+                null,
+                $"large-draft-{number:00}",
+                null,
+                captainNames.Contains(name));
+            participants.Add(participant);
+        }
+        db.EventParticipants.AddRange(participants);
+        var participantsByName = participants.ToDictionary(
+            participant => participant.PrimaryAccountName,
+            StringComparer.OrdinalIgnoreCase);
+
+        var board = AddBoard(bingoEvent.Id, blueprint, publish: true, now);
+        var draft = new DraftSession(Guid.NewGuid(), bingoEvent.Id, targetTeamSize);
+        db.DraftSessions.Add(draft);
+
+        for (var index = 0; index < teamCount; index++)
+        {
+            var roster = rosters[index];
+            var team = new Team(
+                Guid.NewGuid(),
+                bingoEvent.Id,
+                roster.Team,
+                $"large-draft-team-{index + 1}",
+                TeamFormationType.Drafted,
+                null,
+                true);
+            db.Teams.Add(team);
+            db.TeamMemberships.Add(new TeamMembership(
+                Guid.NewGuid(),
+                team.Id,
+                participantsByName[roster.Captain].Id,
+                TeamMembershipRole.Captain,
+                now.AddMinutes(-10),
+                null,
+                "Seeded captain for large draft"));
+            db.TeamMemberships.Add(new TeamMembership(
+                Guid.NewGuid(),
+                team.Id,
+                participantsByName[roster.CoCaptain].Id,
+                TeamMembershipRole.CoCaptain,
+                now.AddMinutes(-10),
+                null,
+                "Seeded co-captain for large draft"));
+        }
+
+        return new SeededScenario(
+            bingoEvent.Id,
+            bingoEvent.Name,
+            bingoEvent.State,
+            board.State,
+            []);
+    }
+
     private List<EventParticipant> AddParticipants(Guid eventId, ScenarioStage stage, DateTimeOffset now)
     {
+        if (stage == ScenarioStage.PrivateSetup) return [];
+
         var prefix = ((int)stage).ToString("00", CultureInfo.InvariantCulture);
         var participants = new List<EventParticipant>();
         for (var index = 0; index < 9; index++)
@@ -338,13 +503,17 @@ public sealed class DevelopmentScenarioSeeder(
     {
         var alpha = new Team(Guid.NewGuid(), bingoEvent.Id, "Seeded Ravens", "seeded-ravens", TeamFormationType.Drafted, null, true);
         var bravo = new Team(Guid.NewGuid(), bingoEvent.Id, "Seeded Wolves", "seeded-wolves", TeamFormationType.Drafted, null, true);
-        alpha.SetDraftPosition(1);
-        bravo.SetDraftPosition(2);
+        if (state is DraftSeedState.Running or DraftSeedState.Finalized)
+        {
+            alpha.SetDraftPosition(1);
+            bravo.SetDraftPosition(2);
+        }
         db.Teams.AddRange(alpha, bravo);
 
         var session = new DraftSession(Guid.NewGuid(), bingoEvent.Id, 3);
         db.DraftSessions.Add(session);
         if (state is DraftSeedState.Running or DraftSeedState.Finalized) session.Start(now.AddHours(-2));
+        bingoEvent.SetDraftLocked(state is DraftSeedState.Running or DraftSeedState.Finalized);
 
         db.TeamMemberships.Add(new TeamMembership(
             Guid.NewGuid(), alpha.Id, participants[0].Id, TeamMembershipRole.Captain,
@@ -697,6 +866,7 @@ public sealed class DevelopmentScenarioSeeder(
     private static string Normalize(string value) => value.Trim().ToUpperInvariant();
     private static string Describe(ScenarioStage stage) => stage switch
     {
+        ScenarioStage.PrivateSetup => "the event is private and signups have not opened",
         ScenarioStage.SignupsOpen => "signups are open, the cap is full, and three people are waiting",
         ScenarioStage.PreBoard => "signups are closed and no board exists yet",
         ScenarioStage.BoardDraft => "the edge-case board exists and remains editable",
@@ -713,6 +883,7 @@ public sealed class DevelopmentScenarioSeeder(
 
     private enum ScenarioStage
     {
+        PrivateSetup = 0,
         SignupsOpen = 1,
         PreBoard = 2,
         BoardDraft = 3,

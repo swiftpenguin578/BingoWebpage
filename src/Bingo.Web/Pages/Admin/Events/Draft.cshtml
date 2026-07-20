@@ -2,103 +2,508 @@
 @model Bingo.Web.Pages.Admin.Events.DraftModel
 @using Bingo.Domain.Teams
 @using Bingo.Domain.Signups
-@{ ViewData["Title"] = "Teams and draft"; }
-<section class="table-page draft-page">
-<div class="page-heading"><div><p class="eyebrow">Private admin workspace</p><h1>@Model.EventName — teams and draft</h1><p>@(Model.Draft is null ? "Set up teams before starting the draft." : $"{Model.Draft.State} · target {Model.Draft.TargetTeamSize} players per drafted team")</p></div><a class="btn btn-outline-light" asp-page="Manage" asp-route-id="@RouteData.Values["id"]">Back to event</a></div>
-@if(Model.GeneratedCredentials.Count>0){<section class="panel generated-credentials"><h2>Captain accounts created</h2><p><strong>Copy these now.</strong> Passwords are shown only once and each captain must change theirs at first sign-in.</p><div class="table-wrap"><table><thead><tr><th>Team</th><th>Role</th><th>Player</th><th>Username</th><th>Temporary password</th></tr></thead><tbody>@foreach(var credential in Model.GeneratedCredentials){<tr><td>@credential.TeamName</td><td>@credential.Role</td><td>@credential.PlayerName</td><td><code>@credential.Username</code></td><td><code>@credential.Password</code></td></tr>}</tbody></table></div></section>}
-
-@if (Model.Draft is not null && Model.Draft.State is DraftState.Running or DraftState.Paused)
-{
-    <section class="panel collaboration-status" data-admin-draft-event="@RouteData.Values["id"]" data-can-control="@Model.CanControlDraft.ToString().ToLowerInvariant()">
-        @if (Model.CanControlDraft)
-        {
-            <div><strong>You control this draft.</strong><span>Other administrators can watch live. Your control renews while this page is open.</span></div>
-            <form method="post" asp-page-handler="ReleaseControl"><button class="btn btn-sm btn-outline-light">Release control</button></form>
-        }
-        else if (Model.DraftControllerAccountId is not null)
-        {
-            <div><strong>@(Model.DraftControllerName ?? "Another administrator") controls this draft.</strong><span>This page is read-only and updates when picks change.</span></div>
-            <form method="post" asp-page-handler="TakeControl" onsubmit="return confirm('Take control from the current administrator? They will immediately become read-only.');"><button class="btn btn-sm btn-warning">Take over</button></form>
-        }
-        else
-        {
-            <div><strong>No administrator currently controls this draft.</strong><span>Take control to make picks or change the draft state.</span></div>
-            <form method="post" asp-page-handler="TakeControl"><button class="btn btn-sm btn-primary">Take control</button></form>
-        }
-    </section>
+@{
+    ViewData["Title"] = "Teams and draft";
+    var isActiveDraft = Model.Draft?.State is DraftState.Running or DraftState.Paused;
+    var isPreDraft = Model.Draft?.State == DraftState.Setup;
+    var isFinalizedDraft = Model.Draft?.State == DraftState.Finalized;
+    ViewData["HideBreadcrumbs"] = isActiveDraft;
+    if (!isActiveDraft)
+    {
+        ViewData["BreadcrumbActionLabel"] = "Back to event";
+        ViewData["BreadcrumbActionUrl"] = Url.Page("Manage", new { id = RouteData.Values["id"] });
+    }
 }
-<div class="collaboration-update" data-draft-update hidden>Another administrator changed the draft. Updating…</div>
+<section class="table-page draft-page @(!isActiveDraft ? "event-manage-page" : null) @(Model.Draft is null ? "draft-page-setup" : null) @(isPreDraft ? "draft-page-predraft" : null) @(isFinalizedDraft ? "draft-page-finalized" : null) @(isActiveDraft ? "draft-page-live" : null)">
+@if (!isActiveDraft)
+{
+    <header class="compact-operational-heading draft-compact-page-heading">
+        <h1>Teams and draft</h1>
+    </header>
+}
+@if(Model.GeneratedCredentials.Count>0){<section class="panel generated-credentials"><h2>Captain accounts created</h2><p><strong>Copy these now.</strong> Passwords are shown only once and each captain must change theirs at first sign-in.</p><div class="table-wrap"><table><thead><tr><th>Team</th><th>Role</th><th>Player</th><th>Username</th><th>Temporary password</th></tr></thead><tbody>@foreach(var credential in Model.GeneratedCredentials){<tr><td>@credential.TeamName</td><td>@credential.Role</td><td>@credential.PlayerName</td><td><code>@credential.Username</code></td><td><code>@credential.Password</code></td></tr>}</tbody></table></div></section>}
 
 @if (Model.Draft is null)
 {
-<form method="post" asp-page-handler="Setup" class="panel form-stack"><h2>Draft setup</h2><label>Number of website-drafted teams</label><input asp-for="Setup.TeamCount" class="form-control" min="2" max="20" /><label>Target players per drafted team</label><input asp-for="Setup.TargetSize" class="form-control" min="1" max="100" /><p>@Model.ConfirmedCount confirmed players. The preview updates after setup and captain assignments.</p><button class="btn btn-primary">Create draft teams</button></form>
+<form method="post" asp-page-handler="Setup" class="panel form-stack draft-setup-card"><h2>Draft setup</h2><label>Number of website-drafted teams</label><input asp-for="Setup.TeamCount" class="form-control" min="2" max="20" /><label>Target players per drafted team</label><input asp-for="Setup.TargetSize" class="form-control" min="1" max="100" /><p>@Model.ConfirmedCount confirmed players. The preview updates after setup and captain assignments.</p><button class="btn btn-primary">Create draft teams</button></form>
+}
+else if (isActiveDraft)
+{
+<div class="draft-live-shell" data-admin-draft-event="@RouteData.Values["id"]" data-can-control="@Model.CanControlDraft.ToString().ToLowerInvariant()">
+    <section class="panel draft-live-toolbar">
+        <div class="draft-live-toolbar-status">
+            <a class="btn btn-sm btn-outline-light catalogue-compact-action neutral-outline-action" asp-page="Manage" asp-route-id="@RouteData.Values["id"]">← Back to event</a>
+            <div class="draft-live-toolbar-copy">
+            @if (Model.Draft!.State == DraftState.Paused)
+            {
+                <strong>Draft paused</strong>
+            }
+            else if (Model.CurrentTurn is not null)
+            {
+                <strong>Pick @Model.CurrentTurn.PickNumber · @Model.CurrentTurn.TeamName</strong>
+                <span>Round @Model.CurrentTurn.RoundNumber</span>
+            }
+            else if (!Model.DraftOrderReady)
+            {
+                <strong>Ready to draw the team order</strong>
+            }
+            @if (Model.CanControlDraft)
+            {
+                <span>You control the draft</span>
+            }
+            else if (Model.DraftControllerAccountId is not null)
+            {
+                <span>@(Model.DraftControllerName ?? "Another admin") is controlling</span>
+            }
+            else
+            {
+                <span>No admin is controlling</span>
+            }
+            </div>
+        </div>
+        <div class="draft-live-toolbar-actions">
+            @if (Model.CanControlDraft && !Model.DraftOrderReady)
+            {
+                <form method="post" asp-page-handler="Scramble" data-draft-scramble-form data-update-targets="#app-notice-region, .draft-live-shell">
+                    <span class="visually-hidden" data-draft-scramble-status aria-live="polite">Team order is ready to draw.</span>
+                    <button class="btn btn-sm btn-primary" data-draft-scramble-submit>Scramble teams</button>
+                </form>
+            }
+            @if (Model.CanControlDraft && Model.DraftOrderReady && Model.Draft.State == DraftState.Running)
+            {
+                <form method="post" asp-page-handler="Pause" data-update-targets="#app-notice-region, .draft-live-shell"><button class="btn btn-sm btn-outline-light">Pause</button></form>
+            }
+            @if (Model.CanControlDraft && Model.Draft.State == DraftState.Paused)
+            {
+                <form method="post" asp-page-handler="Resume" data-update-targets="#app-notice-region, .draft-live-shell"><button class="btn btn-sm btn-primary">Resume</button></form>
+            }
+            @if (Model.CanControlDraft && Model.LatestPick is not null)
+            {
+                <form method="post" asp-page-handler="Undo" data-update-targets="#app-notice-region, .draft-live-shell" onsubmit="return confirm('Undo the latest pick?');"><button class="btn btn-sm btn-outline-light">Undo #@Model.LatestPick.PickNumber</button></form>
+            }
+            @if (Model.CanControlDraft)
+            {
+                <form method="post" asp-page-handler="ReleaseControl"><button class="btn btn-sm btn-outline-light">Release control</button></form>
+                @if (Model.DraftOrderReady)
+                {
+                    <form method="post" asp-page-handler="Finalize" onsubmit="return confirm('Finalize and publish all team rosters?');"><button class="btn btn-sm btn-warning">Finish draft</button></form>
+                }
+            }
+            else if (Model.DraftControllerAccountId is not null)
+            {
+                <form method="post" asp-page-handler="TakeControl" onsubmit="return confirm('Take control from the current administrator? They will immediately become read-only.');"><button class="btn btn-sm btn-warning">Take over</button></form>
+            }
+            else
+            {
+                <form method="post" asp-page-handler="TakeControl"><button class="btn btn-sm btn-primary">Take control</button></form>
+            }
+        </div>
+    </section>
+
+    <div class="collaboration-update" data-draft-update hidden>Another administrator changed the draft. Updating…</div>
+
+    <div class="draft-live-workspace">
+        <section class="draft-live-teams" aria-labelledby="draft-live-teams-title">
+            <header class="draft-live-section-heading">
+                <div><p class="eyebrow">Draft order</p><h2 id="draft-live-teams-title">Teams and picks</h2></div>
+                <span>@Model.AssignedCount picked</span>
+            </header>
+            <div class="draft-live-team-list" data-draft-team-grid>
+                @foreach (var team in Model.Teams.Where(x => x.FormationType == TeamFormationType.Drafted))
+                {
+                    <article class="panel draft-live-team @(team.IsCurrent ? "current-team" : null)" data-team-id="@team.Id" data-draft-team="true">
+                        <header>
+                            <h3>@team.Name</h3>
+                        </header>
+                        @if (team.Members.Count == 0)
+                        {
+                            <p class="draft-live-empty">No picks yet</p>
+                        }
+                        else
+                        {
+                            <ol class="draft-live-picks">
+                                @foreach (var member in team.Members)
+                                {
+                                    <li class="@(member.Role is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain ? "draft-live-captain" : null)">
+                                        @if (member.PickNumber is not null)
+                                        {
+                                            <span class="draft-live-pick-number">#@member.PickNumber</span>
+                                        }
+                                        <strong>@member.Name</strong>
+                                    </li>
+                                }
+                            </ol>
+                        }
+                        <span class="draft-live-team-count">@team.Members.Count / @Model.Draft.TargetTeamSize</span>
+                    </article>
+                }
+            </div>
+        </section>
+
+        <aside class="draft-live-pool" aria-labelledby="draft-live-pool-title">
+            <header class="draft-live-section-heading">
+                <div><p class="eyebrow">Available</p><h2 id="draft-live-pool-title">Player pool</h2></div>
+                <span>@Model.AvailableCount players</span>
+            </header>
+            <div class="panel draft-live-player-panel">
+            <div class="draft-live-player-list">
+                @foreach (var player in Model.Participants.Where(x => x.TeamId is null && x.SignupStatus == SignupStatus.Confirmed))
+                {
+                    <div class="draft-live-player">
+                        <div><strong>@player.Name</strong><span>@player.Ehb.ToString("0.##") EHB</span></div>
+                        @if (Model.CurrentTurn is not null)
+                        {
+                            @if (Model.CanControlDraft)
+                            {
+                                <form method="post" asp-page-handler="Pick" data-update-targets="#app-notice-region, .draft-live-shell">
+                                    <input type="hidden" name="participantId" value="@player.Id" />
+                                    <button class="btn btn-sm draft-live-pick-button" aria-label="Pick @player.Name for @Model.CurrentTurn.TeamName" title="Pick @player.Name">+</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-sm draft-live-pick-button" disabled aria-label="Take control to pick @player.Name" title="Take control to make picks">+</button>
+                            }
+                        }
+                    </div>
+                }
+                @if (!Model.Participants.Any(x => x.TeamId is null && x.SignupStatus == SignupStatus.Confirmed))
+                {
+                    <p class="draft-live-empty">No players remain.</p>
+                }
+            </div>
+            </div>
+        </aside>
+    </div>
+</div>
 }
 else
 {
-<div class="action-grid">
-<section class="panel"><h2>Pool preview</h2><p><strong>@Model.AvailableCount</strong> available · <strong>@Model.AssignedCount</strong> assigned · <strong>@Model.Remainder</strong> remainder after filling drafted teams</p></section>
-@if(Model.Draft.State == DraftState.Setup){<form method="post" asp-page-handler="Configure" class="panel form-stack"><h2>Final draft size</h2><label>Website-drafted teams</label><input name="teamCount" type="number" min="2" max="20" value="@Model.Teams.Count(x=>x.FormationType==TeamFormationType.Drafted)" class="form-control"/><label>Target players per team</label><input name="targetSize" type="number" min="1" max="100" value="@Model.Draft.TargetTeamSize" class="form-control"/><button class="btn btn-outline-light">Update setup</button></form>}
-@if(Model.Draft.State == DraftState.Setup){<form method="post" asp-page-handler="Scramble" class="panel form-stack"><h2>Draft order</h2><p>Randomly scramble only website-drafted teams.</p><button class="btn btn-primary">Scramble teams</button></form>}
-@if(Model.Draft.State == DraftState.Setup){<form method="post" asp-page-handler="Start" class="panel form-stack" onsubmit="return confirm('Start and lock this draft setup?');"><h2>Start draft</h2><p>Team participation and automatic waiting-list promotion lock after the first pick.</p><button class="btn btn-warning">Start draft</button></form>}
+@if (!isFinalizedDraft)
+{
+<div class="action-grid @(Model.Draft.State == DraftState.Setup ? "draft-setup-actions" : null)">
+    <section class="panel draft-pool-summary">
+        <h2>Player pool</h2>
+        <div class="draft-pool-counts">
+            <span><strong>@Model.AvailableCount</strong> available</span>
+            <span><strong>@Model.AssignedCount</strong> assigned</span>
+            <span><strong>@Model.Remainder</strong> remaining</span>
+        </div>
+    </section>
+    @if (Model.Draft.State == DraftState.Setup)
+    {
+        <form method="post" asp-page-handler="Configure" class="panel draft-compact-control draft-size-control" data-draft-size-form data-current-team-count="@Model.Teams.Count(x => x.FormationType == TeamFormationType.Drafted)">
+            <div class="draft-compact-fields">
+                <div class="draft-size-heading">
+                    <span aria-hidden="true">&nbsp;</span>
+                    <h2>Draft size</h2>
+                </div>
+                <label>
+                    <span>Teams</span>
+                    <input name="teamCount" type="number" min="2" max="20" value="@Model.Teams.Count(x => x.FormationType == TeamFormationType.Drafted)" class="form-control" />
+                </label>
+                <label>
+                    <span>Players per team</span>
+                    <input name="targetSize" type="number" min="1" max="100" value="@Model.Draft.TargetTeamSize" class="form-control" />
+                </label>
+                <button class="btn btn-sm btn-outline-light">Update</button>
+            </div>
+        </form>
+        <form method="post" asp-page-handler="Start" class="panel draft-compact-control draft-start-control" onsubmit="return confirm('Open the draft workspace and lock this setup?');">
+            <div>
+                <h2>Start draft</h2>
+                <p>Open the live workspace, then scramble the teams before the first pick.</p>
+            </div>
+            <button class="btn btn-sm btn-warning">Start draft</button>
+        </form>
+    }
 @if(Model.Draft.State == DraftState.Running && Model.CanControlDraft){<form method="post" asp-page-handler="Pause" class="panel form-stack"><h2>Draft controls</h2><button class="btn btn-outline-light">Pause draft</button></form>}
 @if(Model.Draft.State == DraftState.Paused && Model.CanControlDraft){<form method="post" asp-page-handler="Resume" class="panel form-stack"><h2>Draft controls</h2><button class="btn btn-primary">Resume draft</button></form>}
 </div>
+}
 
 @if(Model.CurrentTurn is not null){<section class="panel current-turn"><p class="eyebrow">Pick @Model.CurrentTurn.PickNumber · round @Model.CurrentTurn.RoundNumber</p><h2>@Model.CurrentTurn.TeamName is choosing</h2></section>}
 
-<div class="page-heading subheading"><div><h2>Teams</h2><small>Captain and co-captain accounts are generated automatically when rosters are finalized.</small></div><button type="button" class="btn btn-outline-light" onclick="document.getElementById('add-team').showModal()">Add pre-formed team</button></div>
-<div class="team-grid">
+<section class="draft-teams-section">
+<div class="page-heading subheading">
+    <div><h2>Teams</h2><small>Captain and co-captain accounts are generated automatically when rosters are finalized.</small></div>
+    @if (Model.Draft.State is DraftState.Setup or DraftState.Finalized)
+    {
+        <div class="team-heading-actions">
+            @if (Model.Draft.State == DraftState.Setup)
+            {
+                <form method="post" asp-page-handler="AddDraftTeam"><button class="btn btn-outline-light">Add draft team</button></form>
+            }
+            <button type="button" class="btn btn-sm btn-outline-primary catalogue-add-action catalogue-compact-action" onclick="document.getElementById('add-team').showModal()">＋ Add external team</button>
+        </div>
+    }
+</div>
+<div class="team-grid" data-draft-team-grid>
 @foreach(var team in Model.Teams)
 {
-    <article class="panel team-card @(team.IsCurrent ? "current-team" : "")">
-        <div class="page-heading"><div><h3>@team.Name</h3><small>@team.FormationType @if(!string.IsNullOrWhiteSpace(team.Affiliation)){<text> · @team.Affiliation</text>}</small></div>@if(team.DraftPosition is not null){<strong>#@team.DraftPosition</strong>}</div>
-        <p>@if(team.FormationType == TeamFormationType.Drafted){<text>@team.TotalEhb.ToString("0.##") EHB · </text>}@team.Members.Count member(s)</p>
-        <ul>@foreach(var member in team.Members){<li><span>@member.Name <small>@member.Role @if(team.FormationType == TeamFormationType.Drafted){<text> · @member.Ehb EHB</text>}</small></span>@if(team.FormationType==TeamFormationType.Preformed){<form method="post" asp-page-handler="RemoveMember" class="inline-form" onsubmit="return confirm('Remove this member from the team?');"><input type="hidden" name="membershipId" value="@member.MembershipId"/><input name="reason" required placeholder="Reason"/><button class="btn btn-sm btn-danger">Remove</button></form>}</li>}</ul>
-        <div class="dialog-actions"><button type="button" class="btn btn-sm btn-outline-light" onclick="document.getElementById('team-@team.Id').showModal()">Edit / roster</button></div>
-    </article>
-    <dialog id="team-@team.Id" class="tile-dialog">
-        <button type="button" class="dialog-close" onclick="this.closest('dialog').close()">×</button>
-        <h2>@team.Name</h2>
-        <form method="post" asp-page-handler="UpdateTeam" class="form-stack"><input type="hidden" name="teamId" value="@team.Id"/><label>Name</label><input name="name" value="@team.Name" class="form-control" required/><label>Affiliation / clan</label><input name="affiliation" value="@team.Affiliation" class="form-control"/><label>Image URL</label><input name="imageUrl" value="@team.ImageUrl" class="form-control"/><button class="btn btn-primary">Save team</button></form>
-        <hr/><h3>Roster roles</h3>
-        @foreach(var member in team.Members)
+    <article class="panel team-card @(isFinalizedDraft ? "finalized-team-card" : null) @(team.IsCurrent ? "current-team" : "")" data-team-id="@team.Id" data-team-name="@team.Name" data-member-count="@team.Members.Count" data-draft-team="@(team.FormationType == TeamFormationType.Drafted ? "true" : "false")">
+        @if (isFinalizedDraft)
         {
-            <form method="post" asp-page-handler="ChangeRole" class="inline-form"><input type="hidden" name="membershipId" value="@member.MembershipId"/><span>@member.Name</span><select name="role" class="form-select">@foreach(var roleOption in Enum.GetValues<TeamMembershipRole>()){<option value="@roleOption" selected="@(roleOption==member.Role)">@roleOption</option>}</select><button class="btn btn-sm btn-outline-light">Save role</button></form>
-            @if(team.FormationType==TeamFormationType.Preformed){<form method="post" asp-page-handler="MoveMember" class="inline-form"><input type="hidden" name="membershipId" value="@member.MembershipId"/><select name="targetTeamId" class="form-select">@foreach(var target in Model.Teams.Where(x=>x.Id!=team.Id&&x.FormationType==TeamFormationType.Preformed)){<option value="@target.Id">Move to @target.Name</option>}</select><input name="reason" required placeholder="Reason"/><button class="btn btn-sm btn-outline-light">Move</button></form>}
+            <div class="finalized-team-heading">
+                <div>
+                    <h3>@team.Name</h3>
+                    @if (team.FormationType == TeamFormationType.Preformed)
+                    {
+                        <small>
+                            External team
+                            @if (!string.IsNullOrWhiteSpace(team.Affiliation))
+                            {
+                                <text> · @team.Affiliation</text>
+                            }
+                        </small>
+                    }
+                </div>
+                <div class="team-card-heading-actions">
+                    @if(team.DraftPosition is not null){<strong data-draft-rank>#@team.DraftPosition</strong>}
+                    @if(team.FormationType==TeamFormationType.Preformed){<form method="post" asp-page-handler="RemoveExternalTeam" onsubmit="return confirm('Remove the external team @team.Name?');"><input type="hidden" name="teamId" value="@team.Id"/><button class="team-remove-button" aria-label="Remove @team.Name" title="Remove external team">×</button></form>}
+                </div>
+            </div>
+            <ol class="finalized-roster-list">
+                @foreach (var member in team.Members)
+                {
+                    <li class="@(member.Role is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain ? "finalized-roster-captain" : null)">
+                        <span class="finalized-roster-pick">@(member.PickNumber is null ? "" : $"#{member.PickNumber}")</span>
+                        <strong>@member.Name</strong>
+                        @if (member.Role is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain)
+                        {
+                            <small>@(member.Role == TeamMembershipRole.CoCaptain ? "Co-captain" : "Captain")</small>
+                        }
+                    </li>
+                }
+            </ol>
+            <footer class="finalized-team-footer">
+                <button type="button" class="btn btn-sm btn-outline-light" onclick="document.getElementById('team-@team.Id').showModal()">Edit roster</button>
+                <span>@team.Members.Count / @Model.Draft.TargetTeamSize</span>
+            </footer>
         }
-        @if(team.FormationType == TeamFormationType.Preformed)
+        else
         {
-            <hr/>
-            <form method="post" asp-page-handler="AddExternalMember" class="form-stack"><input type="hidden" name="teamId" value="@team.Id"/><h3>Add externally drafted player</h3><p>This player did not use the website signup and will only belong to this outside-clan roster.</p><label>In-game name</label><input name="name" class="form-control" required/><label>Role</label><select name="role" class="form-select" asp-items="Html.GetEnumSelectList<TeamMembershipRole>()"></select><label>Reason</label><input name="reason" class="form-control" required value="Invited external roster"/><button class="btn btn-outline-light">Create and add player</button></form>
-            @if(Model.Draft.State == DraftState.Setup)
+        <div class="page-heading"><div><h3>@team.Name</h3><small>@team.FormationType @if(!string.IsNullOrWhiteSpace(team.Affiliation)){<text> · @team.Affiliation</text>}</small></div><div class="team-card-heading-actions">@if(team.DraftPosition is not null){<strong data-draft-rank>#@team.DraftPosition</strong>}@if(Model.Draft.State==DraftState.Setup&&team.FormationType==TeamFormationType.Drafted){<form method="post" asp-page-handler="RemoveDraftTeam" onsubmit="return confirm('Remove @team.Name from the website draft?');"><input type="hidden" name="teamId" value="@team.Id"/><button class="team-remove-button" aria-label="Remove @team.Name" title="Remove draft team">×</button></form>}else if(Model.Draft.State is DraftState.Setup or DraftState.Finalized && team.FormationType==TeamFormationType.Preformed){<form method="post" asp-page-handler="RemoveExternalTeam" onsubmit="return confirm('Remove the external team @team.Name?');"><input type="hidden" name="teamId" value="@team.Id"/><button class="team-remove-button" aria-label="Remove @team.Name" title="Remove external team">×</button></form>}</div></div>
+        <p>@if(team.FormationType == TeamFormationType.Drafted){<text>@team.TotalEhb.ToString("0.##") EHB · </text>}@team.Members.Count member(s)</p>
+        <ul>@foreach(var member in team.Members){var memberRoleLabel=member.Role==TeamMembershipRole.CoCaptain?"Co-captain":member.Role.ToString();<li><span>@member.Name <small><span id="roster-role-@member.MembershipId">@memberRoleLabel</span>@if(team.FormationType == TeamFormationType.Drafted){<text> · @member.Ehb EHB</text>}</small></span></li>}</ul>
+        <div class="dialog-actions"><button type="button" class="btn btn-sm btn-outline-light" onclick="document.getElementById('team-@team.Id').showModal()">Edit / roster</button></div>
+        }
+    </article>
+    <dialog id="team-@team.Id" class="tile-dialog team-roster-dialog" data-preserve-post-dialog>
+        <header class="team-roster-dialog-header">
+            <div><p class="eyebrow">Team roster</p><h2>@team.Name</h2></div>
+            <button type="button" class="dialog-close" aria-label="Close" onclick="this.closest('dialog').close()">×</button>
+        </header>
+
+        <details class="team-roster-section">
+            <summary><span><strong>Team details</strong><small>Name, clan and image</small></span></summary>
+            <form method="post" asp-page-handler="UpdateTeam" class="form-stack team-details-form">
+                <input type="hidden" name="teamId" value="@team.Id" />
+                <label>Name<input name="name" value="@team.Name" class="form-control" required /></label>
+                <label>Affiliation / clan<input name="affiliation" value="@team.Affiliation" class="form-control" /></label>
+                <label>Image URL<input name="imageUrl" value="@team.ImageUrl" class="form-control" /></label>
+                <div class="dialog-actions"><button class="btn btn-primary">Save team</button></div>
+            </form>
+        </details>
+
+        <section class="team-roster-section team-roster-roles">
+            <header><h3>Roster roles</h3><small>Choose who participates and who manages submissions.</small></header>
+            @if (team.Members.Count == 0)
             {
-                <hr/>
-                <details>
-                    <summary>Exceptional: add a website signup to this pre-formed team</summary>
-                    <p>Normally website signups must join website-drafted teams. Use this only to correct an unusual roster situation.</p>
-                    <form method="post" asp-page-handler="AddMember" class="form-stack"><input type="hidden" name="teamId" value="@team.Id"/><label>Available website signup</label><select name="participantId" class="form-select"><option value="">Choose participant</option>@foreach(var player in Model.Participants.Where(x=>x.TeamId is null)){<option value="@player.Id">@player.Name (@player.Ehb EHB)</option>}</select><label>Role</label><select name="role" class="form-select" asp-items="Html.GetEnumSelectList<TeamMembershipRole>()"></select><label>Reason</label><input name="reason" class="form-control" required value="Exceptional internal roster assignment"/><button class="btn btn-outline-light">Add website signup</button></form>
+                <p class="team-roster-empty">No players have been added yet.</p>
+            }
+            @foreach (var member in team.Members)
+            {
+                <div class="team-role-form">
+                    <strong>@member.Name</strong>
+                    <form method="post" asp-page-handler="ChangeRole" class="team-role-change-form" data-update-targets="#app-notice-region" data-role-display="#roster-role-@member.MembershipId">
+                        <input type="hidden" name="membershipId" value="@member.MembershipId" />
+                        <select name="role" class="form-select" aria-label="Role for @member.Name" data-auto-submit>
+                            @foreach (var roleOption in Enum.GetValues<TeamMembershipRole>())
+                            {
+                                var roleLabel = roleOption == TeamMembershipRole.CoCaptain ? "Co-captain" : roleOption.ToString();
+                                <option value="@roleOption" selected="@(roleOption == member.Role)">@roleLabel</option>
+                            }
+                        </select>
+                        <noscript><button class="btn btn-sm btn-outline-light">Save role</button></noscript>
+                    </form>
+                    @if (isPreDraft || (team.FormationType == TeamFormationType.Preformed && member.External))
+                    {
+                        <form method="post" asp-page-handler="RemoveMember" class="team-role-remove-form" onsubmit="return confirm('Remove @member.Name from this roster?');">
+                            <input type="hidden" name="membershipId" value="@member.MembershipId" />
+                            <input type="hidden" name="reason" value="Removed from roster" />
+                            <button class="roster-remove-button" aria-label="Remove @member.Name from roster" title="Remove from roster">×</button>
+                        </form>
+                    }
+                </div>
+                @if (team.FormationType == TeamFormationType.Preformed && Model.Teams.Any(x => x.Id != team.Id && x.FormationType == TeamFormationType.Preformed))
+                {
+                    <details class="team-member-move">
+                        <summary>Move @member.Name to another pre-formed team</summary>
+                        <form method="post" asp-page-handler="MoveMember" class="team-member-move-form">
+                            <input type="hidden" name="membershipId" value="@member.MembershipId" />
+                            <select name="targetTeamId" class="form-select">
+                                @foreach (var target in Model.Teams.Where(x => x.Id != team.Id && x.FormationType == TeamFormationType.Preformed))
+                                {
+                                    <option value="@target.Id">@target.Name</option>
+                                }
+                            </select>
+                            <input name="reason" class="form-control" required placeholder="Reason" />
+                            <button class="btn btn-sm btn-outline-light">Move player</button>
+                        </form>
+                    </details>
+                }
+            }
+        </section>
+
+        @if (team.FormationType == TeamFormationType.Preformed)
+        {
+            <details class="team-roster-section">
+                <summary><span><strong>Add external player</strong><small>Add someone drafted outside the website</small></span></summary>
+                <form method="post" asp-page-handler="AddExternalMember" class="form-stack team-add-player-form">
+                    <input type="hidden" name="teamId" value="@team.Id" />
+                    <label>In-game name<input name="name" class="form-control" required /></label>
+                    <label>Role<select name="role" class="form-select">@foreach(var roleOption in Enum.GetValues<TeamMembershipRole>()){var roleLabel=roleOption==TeamMembershipRole.CoCaptain?"Co-captain":roleOption.ToString();<option value="@roleOption">@roleLabel</option>}</select></label>
+                    <label>Reason<input name="reason" class="form-control" required value="Invited external roster" /></label>
+                    <div class="dialog-actions"><button class="btn btn-primary">Add player</button></div>
+                </form>
+            </details>
+            @if (Model.Draft.State == DraftState.Setup)
+            {
+                <details class="team-roster-section team-roster-advanced">
+                    <summary><span><strong>Advanced correction</strong><small>Use a website signup in this pre-formed team</small></span></summary>
+                    <p>Website signups normally join website-drafted teams. Use this only to correct an unusual roster.</p>
+                    <form method="post" asp-page-handler="AddMember" class="form-stack team-add-player-form">
+                        <input type="hidden" name="teamId" value="@team.Id" />
+                        <label>Available participant<select name="participantId" class="form-select"><option value="">Choose participant</option>@foreach (var player in Model.Participants.Where(x => x.TeamId is null)){<option value="@player.Id">@player.Name (@player.Ehb EHB)</option>}</select></label>
+                        <label>Role<select name="role" class="form-select">@foreach(var roleOption in Enum.GetValues<TeamMembershipRole>()){var roleLabel=roleOption==TeamMembershipRole.CoCaptain?"Co-captain":roleOption.ToString();<option value="@roleOption">@roleLabel</option>}</select></label>
+                        <label>Reason<input name="reason" class="form-control" required value="Exceptional internal roster assignment" /></label>
+                        <div class="dialog-actions"><button class="btn btn-outline-light">Add website signup</button></div>
+                    </form>
                 </details>
             }
         }
-        else if(Model.Draft.State == DraftState.Setup)
+        else if (Model.Draft.State == DraftState.Setup)
         {
-            <hr/>
-            <form method="post" asp-page-handler="AddMember" class="form-stack"><input type="hidden" name="teamId" value="@team.Id"/><label>Add existing available participant</label><select name="participantId" class="form-select"><option value="">Choose participant</option>@foreach(var player in Model.Participants.Where(x=>x.TeamId is null)){<option value="@player.Id">@player.Name (@player.Ehb EHB)</option>}</select><label>Role</label><select name="role" class="form-select" asp-items="Html.GetEnumSelectList<TeamMembershipRole>()"></select><label>Reason</label><input name="reason" class="form-control" required value="Manual roster assignment"/><button class="btn btn-outline-light">Add to roster</button></form>
+            <details class="team-roster-section">
+                <summary><span><strong>Add participant</strong><small>Choose someone from the available signup pool</small></span></summary>
+                <form method="post" asp-page-handler="AddMember" class="form-stack team-add-player-form">
+                    <input type="hidden" name="teamId" value="@team.Id" />
+                    <label>Available participant<select name="participantId" class="form-select"><option value="">Choose participant</option>@foreach (var player in Model.Participants.Where(x => x.TeamId is null)){<option value="@player.Id">@player.Name (@player.Ehb EHB)</option>}</select></label>
+                    <label>Role<select name="role" class="form-select">@foreach(var roleOption in Enum.GetValues<TeamMembershipRole>()){var roleLabel=roleOption==TeamMembershipRole.CoCaptain?"Co-captain":roleOption.ToString();<option value="@roleOption">@roleLabel</option>}</select></label>
+                    <label>Reason<input name="reason" class="form-control" required value="Manual roster assignment" /></label>
+                    <div class="dialog-actions"><button class="btn btn-primary">Add to roster</button></div>
+                </form>
+            </details>
         }
     </dialog>
 }
 </div>
+</section>
 
-<div class="page-heading subheading"><h2>Participant pool</h2><form method="get"><input type="hidden" name="id" value="@RouteData.Values["id"]"/><select name="sort" class="form-select" onchange="this.form.submit()"><option value="ehb" selected="@(Model.Sort=="ehb")">EHB</option><option value="name" selected="@(Model.Sort=="name")">Name</option><option value="signup" selected="@(Model.Sort=="signup")">Signup time</option><option value="status" selected="@(Model.Sort=="status")">Draft status</option></select></form></div>
-<div class="table-wrap panel"><table><thead><tr><th>Player</th><th>EHB</th><th>Signup</th><th>Status</th><th>Action</th></tr></thead><tbody>@foreach(var p in Model.Participants){<tr class="@(p.TeamId is null ? "" : "drafted-player")"><td>@p.Name @if(p.CaptainVolunteer){<small>captain volunteer</small>}</td><td>@p.Ehb</td><td>@p.SignedUpAt.ToLocalTime().ToString("g")</td><td>@(p.TeamName ?? "Available") @if(p.SignupStatus != SignupStatus.Confirmed){<small>signup status: @p.SignupStatus</small>}</td><td>@if(Model.CanControlDraft && Model.CurrentTurn is not null && p.TeamId is null && p.SignupStatus == SignupStatus.Confirmed){<form method="post" asp-page-handler="Pick" onsubmit="return confirm('Record @p.Name for @Model.CurrentTurn.TeamName?');"><input type="hidden" name="participantId" value="@p.Id"/><button class="btn btn-sm btn-primary">Pick for @Model.CurrentTurn.TeamName</button></form>}</td></tr>}</tbody></table></div>
+<section class="draft-participant-section subheading" data-participant-group data-no-matches="No matching participants.">
+    <div class="draft-participant-heading">
+        <div>
+            <h2>Participant pool</h2>
+            <p>@(isFinalizedDraft ? "Search the event participants or sort a column." : "Search the pool or sort a column before starting the draft.")</p>
+        </div>
+        <div class="participant-group-tools">
+            <input type="search" placeholder="Search participants" aria-label="Search participants" data-participant-search />
+            <span class="participant-count">@Model.Participants.Count</span>
+        </div>
+    </div>
+    <div class="participant-table-wrap panel draft-participant-table-wrap">
+        <table class="participant-table">
+            <thead>
+                <tr>
+                    <th><button type="button" class="participant-sort" data-participant-sort data-sort-type="text" data-sort-index="0">Player</button></th>
+                    <th><button type="button" class="participant-sort" data-participant-sort data-sort-type="number" data-sort-index="1">EHB</button></th>
+                    <th><button type="button" class="participant-sort" data-participant-sort data-sort-type="text" data-sort-index="2">Payment</button></th>
+                    <th><button type="button" class="participant-sort" data-participant-sort data-sort-type="date" data-sort-index="3">Signed up</button></th>
+                    <th><button type="button" class="participant-sort" data-participant-sort data-sort-type="text" data-sort-index="4">Draft status</button></th>
+                    @if (isPreDraft)
+                    {
+                        <th><span class="visually-hidden">Actions</span></th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var participant in Model.Participants)
+                {
+                    var participantRole = participant.TeamId is null
+                        ? null
+                        : Model.Teams.SelectMany(team => team.Members).FirstOrDefault(member => member.Name == participant.Name)?.Role;
+                    var payment = Model.ParticipantPayments.GetValueOrDefault(participant.Id, PaymentStatus.Unknown);
+                    var paymentLabel = payment == PaymentStatus.NotRequired ? "Not required" : payment.ToString();
+                    <tr class="@(participant.TeamId is null ? "" : "drafted-player")" data-participant-row>
+                        <td data-label="Player" data-sort-value="@participant.Name">
+                            <strong>@participant.Name</strong>
+                            @if (participantRole == TeamMembershipRole.Captain)
+                            {
+                                <small>Captain</small>
+                            }
+                            else if (participantRole == TeamMembershipRole.CoCaptain)
+                            {
+                                <small>Co-captain</small>
+                            }
+                            else if (participant.CaptainVolunteer)
+                            {
+                                <small>Captain volunteer</small>
+                            }
+                        </td>
+                        <td data-label="EHB" data-sort-value="@participant.Ehb.ToString(System.Globalization.CultureInfo.InvariantCulture)">@participant.Ehb.ToString("0.##")</td>
+                        <td data-label="Payment" data-sort-value="@paymentLabel">@paymentLabel</td>
+                        <td data-label="Signed up" data-sort-value="@participant.SignedUpAt.ToUnixTimeSeconds()">@participant.SignedUpAt.ToLocalTime().ToString("g")</td>
+                        <td data-label="Draft status" data-sort-value="@(participant.TeamName ?? "Available")">
+                            @(participant.TeamName ?? "Available")
+                            @if (participant.SignupStatus != SignupStatus.Confirmed)
+                            {
+                                <small>Signup status: @participant.SignupStatus</small>
+                            }
+                        </td>
+                        @if (isPreDraft)
+                        {
+                            <td data-label="Actions" class="participant-row-actions">
+                            @if (participant.TeamId is null)
+                            {
+                                <form method="post" asp-page-handler="RemoveParticipant" onsubmit="return confirm('Remove this participant from the event? The first eligible player on the waiting list will be promoted if a place becomes available.');">
+                                    <input type="hidden" name="participantId" value="@participant.Id" />
+                                    <button class="roster-remove-button" aria-label="Remove @participant.Name from event" title="Remove participant">×</button>
+                                </form>
+                            }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
 
 @if(Model.CanControlDraft && Model.LatestPick is not null && Model.Draft.State is DraftState.Running or DraftState.Paused){<form method="post" asp-page-handler="Undo" class="panel inline-form" onsubmit="return confirm('Undo the latest pick?');"><span>Latest: #@Model.LatestPick.PickNumber @Model.LatestPick.PlayerName → @Model.LatestPick.TeamName</span><button class="btn btn-danger">Undo latest pick</button></form>}
 @if(Model.CanControlDraft && Model.Draft.State is DraftState.Running or DraftState.Paused){<form method="post" asp-page-handler="Finalize" class="panel form-stack" onsubmit="return confirm('Finalize and publish all team rosters?');"><h2>Finalize rosters</h2><p>This publishes all teams together. Historical draft picks remain locked.</p><button class="btn btn-warning">Finalize and publish</button></form>}
 
-<dialog id="add-team" class="tile-dialog"><button type="button" class="dialog-close" onclick="this.closest('dialog').close()">×</button><h2>Add pre-formed team</h2><form method="post" asp-page-handler="AddTeam" class="form-stack"><label>Team name</label><input name="name" class="form-control" required/><label>Affiliation / clan</label><input name="affiliation" class="form-control"/><label>Image URL</label><input name="imageUrl" class="form-control"/><button class="btn btn-primary">Add outside team</button></form></dialog>
+<dialog id="add-team" class="tile-dialog team-roster-dialog external-team-dialog">
+    <header class="team-roster-dialog-header">
+        <div><p class="eyebrow">Roster formed elsewhere</p><h2>Add external team</h2></div>
+        <button type="button" class="dialog-close" aria-label="Close" onclick="this.closest('dialog').close()">×</button>
+    </header>
+    <p class="external-team-dialog-intro">This team will compete in the event but will not take part in the website draft. You can add its roster after creating it.</p>
+    <section class="team-roster-section team-roster-form-section">
+        <header><h3>Team details</h3><small>Only the team name is required.</small></header>
+        <form method="post" asp-page-handler="AddTeam" class="form-stack">
+            <label>Team name<input name="name" class="form-control" required /></label>
+            <label>Affiliation / clan<input name="affiliation" class="form-control" /></label>
+            <label>Image URL<input name="imageUrl" class="form-control" /></label>
+            <div class="dialog-actions"><button class="btn btn-primary">Add external team</button></div>
+        </form>
+    </section>
+</dialog>
 }
 </section>
 
 @section Scripts {
 <script src="~/js/admin-collaboration.js" asp-append-version="true"></script>
+<script src="~/js/draft-scramble.js" asp-append-version="true"></script>
+<script src="~/js/event-manage.js" asp-append-version="true"></script>
 }

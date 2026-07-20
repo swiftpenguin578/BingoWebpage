@@ -291,6 +291,8 @@ ADMIN_CREATED
 
 Name normalization is used only to detect likely duplicate signups inside the same event. It does not create a reusable identity or link name changes across bingos.
 
+`private_edit_token_hash` stores only the secure hash of the participant's private edit token. The original link cannot be reconstructed. Issuing a replacement link overwrites the hash, invalidates the previous link, and exposes the new raw token only in the admin response that created it.
+
 There may be only one active signup for the same normalized primary account in one event unless an admin explicitly approves an exception.
 
 ### 6.4 SignupAnswer
@@ -305,6 +307,8 @@ Fields:
 - `value`
 
 The label snapshot preserves meaning if the form question is later edited.
+
+An answer row is not guaranteed to exist for every active question and participant. Questions may be added after some players have signed up, optional questions may be left blank, and external roster members may not have a website signup at all. Team, roster, draft, and admin views must load answers with left-join/optional semantics and render missing values without throwing an exception.
 
 ### 6.6 Waiting-list calculation
 
@@ -553,6 +557,21 @@ Fields:
 - `active`
 
 `numeric_probability` is optional because not every OSRS reward rate can be expressed as one unconditional probability.
+
+### 9.4 SourceDropRateVariant
+
+Stores conditional or alternative rates without flattening them into one misleading value. A normal fixed-rate drop has one default variant; delve, raid-scale, reward-roll, and similar drops may have several.
+
+Fields:
+
+- `source_drop_id`
+- `position`
+- `label`
+- `display_rate`
+- `numeric_probability`
+- `condition`
+
+The parent `SourceDrop.numeric_probability` remains empty when no single rate accurately describes every variant. Board EHB calculations must therefore require an explicit applicable variant or an admin override for such drops.
 
 ## 10. Board and tile domain
 

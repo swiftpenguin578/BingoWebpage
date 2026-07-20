@@ -192,6 +192,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
 
     public async Task<IActionResult> OnPostMoveAsync(Guid id, Guid sourceId, int targetPosition, CancellationToken ct)
     {
+        var isInlineRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
         if (board.State != BoardState.Draft || targetPosition < 0 || targetPosition >= board.Rows * board.Columns) return BadRequest();
@@ -199,13 +200,13 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         var source = await db.BoardTiles.SingleOrDefaultAsync(x => x.BoardId == board.Id && x.Id == sourceId, ct); if (source is null) return NotFound();
         var targetRow = targetPosition / board.Columns; var targetColumn = targetPosition % board.Columns;
         var target = await db.BoardTiles.SingleOrDefaultAsync(x => x.BoardId == board.Id && x.RowIndex == targetRow && x.ColumnIndex == targetColumn, ct);
-        if (target?.Id == source.Id) return RedirectToPage(new { id });
+        if (target?.Id == source.Id) return isInlineRequest ? new JsonResult(new { success = true, boardVersion = board.Version }) : RedirectToPage(new { id });
         var oldRow = source.RowIndex; var oldColumn = source.ColumnIndex;
         source.Move(-1, -1); await db.SaveChangesAsync(ct);
         if (target is not null) { target.Move(oldRow, oldColumn); await db.SaveChangesAsync(ct); }
         source.Move(targetRow, targetColumn); await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
         await WriteAudit(target is null ? "board.tile_moved" : "board.tiles_swapped", board.Id, source.NameSnapshot, ct);
-        return RedirectToPage(new { id });
+        return isInlineRequest ? new JsonResult(new { success = true, boardVersion = board.Version }) : RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnPostResizeAsync(Guid id, CancellationToken ct)
@@ -329,7 +330,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     }
     private async Task<bool> TryClaimBoardAsync(Board board, CancellationToken ct)
     {
-        try { board.RequireEditing(AdminId, time.GetUtcNow()); }
+        try { board.RenewEditing(AdminId, time.GetUtcNow(), BoardEditingLease.Duration); }
         catch (InvalidOperationException exception) { TempData["StatusMessage"] = exception.Message; db.ChangeTracker.Clear(); return false; }
         db.Entry(board).Property(x => x.Version).OriginalValue = BoardVersion;
         board.MarkChanged();

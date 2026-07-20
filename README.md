@@ -81,17 +81,29 @@ Stop the running web application, keep PostgreSQL running, and execute:
 dotnet run --project src/Bingo.Web -- --reset-test-data
 ```
 
-The command creates events named `TEST 01` through `TEST 11` covering open signups, waiting lists, pre-board setup, board editing, draft setup, an in-progress draft, finalized teams, a live event, final review, a populated submission-review queue, finalized official results, and a fully completed board. Board scenarios use a canonical edge-case board generated from the retained OSRS catalogue.
+The command creates events named `TEST 00` through `TEST 12` covering private setup, open signups, waiting lists, pre-board setup, board editing, draft setup, an in-progress draft, finalized teams, a live event, final review, a populated submission-review queue, finalized official results, a fully completed board, and a large pre-draft setup. Board scenarios use a canonical edge-case board generated from the retained OSRS catalogue.
 
 `TEST 09 — Evidence` is the newest live event and is therefore selected automatically by the admin review queue. It contains real local evidence images and fixtures for pending, changes-requested, rejected, withdrawn, approved, privacy-hidden, duplicate-checksum, replacement-history, weighted, capped, and reversal-rebalancing cases.
 
 Use `TEST 08 — Review` for the final-review checklist, blocker overrides, and finalization. Use `TEST 10 — Finished` for official snapshot, archive, unfinalization, historical-version, and locked-submission testing. Use `TEST 11 — Complete` for completion-time corrections and completed-board finalization.
+
+Use `TEST 12 — Large Draft` to test scrambling and starting a draft with 60 confirmed players, four drafted teams, and a target of 15 players per team.
 
 The command prints every seeded captain username. All seeded captain accounts use the local-only password `SeedCaptain!1234`. Your existing administrator username and password are unchanged. It also creates or refreshes the development-only administrator `SeedAdminTwo` with password `SeedAdmin!1234`, which is used to test simultaneous board editing and draft control from a second browser session.
 
 For public-board testing, open the site home page after seeding and select `TEST 09 — Evidence`. Its public overview contains ranked teams, approved progress, and a completed first row for `Seeded Ravens`. Open that team, then select completed or in-progress tiles to verify public evidence and the hidden-evidence placeholder. Approval, reversal, and evidence-visibility changes invalidate open public pages through SignalR; a 30-second refresh remains as a fallback.
 
 This operation is intentionally unavailable outside the Development environment.
+
+### Apply the reviewed OSRS Wiki catalogue
+
+After reviewing **Admin → OSRS catalogue → Wiki import preview**, stop the running web application and apply the approved rebuild:
+
+```bash
+dotnet run --project src/Bingo.Web -- --apply-wiki-catalogue
+```
+
+The import preserves boss/activity records and clan EHB rates, replaces their imported drop connections with the reviewed special/unique rewards, stores Wiki source and image URLs, and keeps conditional rates as separate variants. It removes old imported drops and catalogue items only when they are no longer connected to any boss. Run the test-data reset afterward so seeded boards are rebuilt from the new catalogue.
 
 Delete the local database volume and start clean:
 

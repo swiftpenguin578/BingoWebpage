@@ -82,4 +82,10 @@ public sealed class EventParticipant
     public void SetPaymentStatus(PaymentStatus status) => PaymentStatus = status;
 
     public void SetAdminNotes(string? notes) => AdminNotes = notes;
+
+    public void ReplacePrivateEditToken(string tokenHash)
+    {
+        if (string.IsNullOrWhiteSpace(tokenHash)) throw new ArgumentException("A private edit token hash is required.", nameof(tokenHash));
+        PrivateEditTokenHash = tokenHash;
+    }
 }

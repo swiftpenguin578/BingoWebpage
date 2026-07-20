@@ -30,6 +30,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<BossActivity> BossActivities => Set<BossActivity>();
     public DbSet<CatalogueItem> CatalogueItems => Set<CatalogueItem>();
     public DbSet<SourceDrop> SourceDrops => Set<SourceDrop>();
+    public DbSet<SourceDropRateVariant> SourceDropRateVariants => Set<SourceDropRateVariant>();
     public DbSet<Board> Boards => Set<Board>();
     public DbSet<TileTemplate> TileTemplates => Set<TileTemplate>();
     public DbSet<TileTemplateRequirement> TileTemplateRequirements => Set<TileTemplateRequirement>();

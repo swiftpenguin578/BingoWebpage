@@ -1,6 +1,155 @@
 @page "{id:guid}/Participants/{participantId:guid}"
 @model Bingo.Web.Pages.Admin.Events.ParticipantModel
 @using Bingo.Domain.Signups
-@{ ViewData["Title"]="Participant"; }
-<section class="form-page"><p class="eyebrow">Participant administration</p><h1>@Model.Name</h1><div class="panel details-list"><p><strong>Player comments</strong><span>@(Model.Comments??"—")</span></p><p><strong>Status</strong><span>@Model.Status</span></p></div>
-<form method="post" class="panel form-stack"><label asp-for="Payment"></label><select asp-for="Payment" asp-items="Html.GetEnumSelectList<PaymentStatus>()" class="form-select"></select><label asp-for="AdminNotes"></label><textarea asp-for="AdminNotes" class="form-control" rows="5"></textarea><button class="btn btn-primary">Save admin fields</button></form><p><a asp-page="Manage" asp-route-id="@RouteData.Values["id"]">Back to event</a></p></section>
+@{
+    ViewData["Title"] = Model.Name;
+    ViewData["CompactNavigation"] = true;
+    var partialTargets = "#app-notice-region, .participant-admin-workspace";
+}
+
+<section class="table-page participant-admin-page">
+    <header class="participant-admin-heading">
+        <div>
+            <p class="eyebrow">@T["Participant"]</p>
+            <div class="participant-admin-title-row">
+                <h1>@Model.Name</h1>
+                <span class="participant-status-badge status-@Model.Status.ToString().ToLowerInvariant()">@T[Model.StatusLabel]</span>
+            </div>
+            <p>@T["Review and correct this player's signup details."]</p>
+        </div>
+        <a class="btn btn-outline-light" asp-page="Manage" asp-route-id="@Model.EventId">← @T["Back to event"]</a>
+    </header>
+
+    <div class="participant-admin-workspace">
+        <form method="post" class="panel participant-edit-card" data-update-targets="@partialTargets">
+            <header>
+                <div>
+                    <h2>@T["Participant details"]</h2>
+                    <p>@T["Update information supplied during signup."]</p>
+                </div>
+                <button class="btn btn-primary" type="submit">@T["Save changes"]</button>
+            </header>
+
+            <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+            <div class="participant-field-grid">
+                <label asp-for="Input.PrimaryAccountName"><span>@T["Primary OSRS account"]</span><input asp-for="Input.PrimaryAccountName" class="form-control" /><span asp-validation-for="Input.PrimaryAccountName" class="field-error"></span></label>
+                <label asp-for="Input.Ehb"><span>@T["EHB (Wise Old Man)"]</span><input asp-for="Input.Ehb" class="form-control participant-short-field" /><span asp-validation-for="Input.Ehb" class="field-error"></span></label>
+                <label asp-for="Input.SecondAccountName"><span>@T["Second OSRS account"]</span><input asp-for="Input.SecondAccountName" class="form-control" placeholder="@T["Not provided"]" /></label>
+                <label asp-for="Input.DiscordIdentity"><span>@T["Discord name"]</span><input asp-for="Input.DiscordIdentity" class="form-control" placeholder="@T["Not provided"]" /></label>
+                <label asp-for="Input.Payment"><span>@T["Payment"]</span><select asp-for="Input.Payment" class="form-select">
+                    <option value="Unknown">@T["Unknown"]</option>
+                    <option value="Unpaid">@T["Unpaid"]</option>
+                    <option value="Paid">@T["Paid"]</option>
+                    <option value="Waived">@T["Waived"]</option>
+                    <option value="NotRequired">@T["Not required"]</option>
+                </select></label>
+                <label class="participant-captain-field"><span>@T["Captain volunteer"]</span><span class="check-card"><input asp-for="Input.CaptainVolunteer" /><span>@T["Available as a captain"]</span></span></label>
+            </div>
+
+            <label asp-for="Input.Comments" class="participant-wide-field"><span>@T["Comments and availability"]</span><textarea asp-for="Input.Comments" class="form-control" rows="3" placeholder="@T["Not provided"]"></textarea></label>
+
+            @if (Model.Questions.Any(question => question.Active))
+            {
+                <section class="participant-custom-answers">
+                    <header><h3>@T["Signup questions"]</h3><p>@T["Questions added after this player signed up may be unanswered."]</p></header>
+                    <div class="participant-field-grid">
+                        @foreach (var question in Model.Questions.Where(question => question.Active))
+                        {
+                            var value = Model.Input.CustomAnswers.GetValueOrDefault(question.Id);
+                            var fieldName = $"Input.CustomAnswers[{question.Id}]";
+                            <label class="@(question.Type == SignupQuestionType.LongText ? "participant-wide-field" : null)" for="question-@question.Id">
+                                <span>@question.Label @if (question.Required) { <small>@T["Required for new signups"]</small> }</span>
+                                @if (question.Type == SignupQuestionType.LongText)
+                                {
+                                    <textarea id="question-@question.Id" name="@fieldName" class="form-control" rows="3" placeholder="@T["Not answered"]">@value</textarea>
+                                }
+                                else if (question.Type == SignupQuestionType.YesNo)
+                                {
+                                    <select id="question-@question.Id" name="@fieldName" class="form-select"><option value="">@T["Not answered"]</option><option value="Yes" selected="@(value == "Yes")">@T["Yes"]</option><option value="No" selected="@(value == "No")">@T["No"]</option></select>
+                                }
+                                else if (question.Type == SignupQuestionType.SingleChoice)
+                                {
+                                    <select id="question-@question.Id" name="@fieldName" class="form-select"><option value="">@T["Not answered"]</option>@foreach (var option in question.Options) { <option value="@option" selected="@(value == option)">@option</option> }</select>
+                                }
+                                else
+                                {
+                                    <input id="question-@question.Id" name="@fieldName" value="@value" class="form-control" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" placeholder="@T["Not answered"]" />
+                                }
+                            </label>
+                        }
+                    </div>
+                </section>
+            }
+
+            @if (Model.Questions.Any(question => !question.Active))
+            {
+                <details class="participant-previous-answers">
+                    <summary>@T["Previous signup questions"]</summary>
+                    <dl>@foreach (var question in Model.Questions.Where(question => !question.Active)) { <div><dt>@question.Label</dt><dd>@(string.IsNullOrWhiteSpace(question.Value) ? T["Not answered"] : question.Value)</dd></div> }</dl>
+                </details>
+            }
+
+            <label asp-for="Input.AdminNotes" class="participant-wide-field"><span>@T["Private admin notes"]</span><textarea asp-for="Input.AdminNotes" class="form-control" rows="3" placeholder="@T["Only administrators can see these notes."]"></textarea></label>
+
+            <footer><button class="btn btn-primary" type="submit">@T["Save changes"]</button></footer>
+        </form>
+
+        <aside class="participant-admin-sidebar">
+            <section class="panel participant-summary-card">
+                <header><h2>@T["Signup information"]</h2></header>
+                <dl>
+                    <div><dt>@T["Event"]</dt><dd>@Model.EventName</dd></div>
+                    <div><dt>@T["Status"]</dt><dd>@T[Model.StatusLabel]</dd></div>
+                    <div><dt>@T["Signed up"]</dt><dd>@Model.SignedUpAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</dd></div>
+                    <div><dt>@T["Signup order"]</dt><dd>#@Model.SignupSequence</dd></div>
+                    <div><dt>@T["Signup source"]</dt><dd>@T[Model.SourceLabel]</dd></div>
+                    <div><dt>@T["Team"]</dt><dd>@(Model.TeamName ?? T["Not assigned"])</dd></div>
+                    @if (!string.IsNullOrWhiteSpace(Model.StatusReason)) { <div><dt>@T["Status note"]</dt><dd>@Model.StatusReason</dd></div> }
+                </dl>
+            </section>
+
+            <section class="panel participant-edit-link-card">
+                <h2>@T["Private edit link"]</h2>
+                @if (!string.IsNullOrWhiteSpace(Model.ReplacementEditLink))
+                {
+                    <p>@T["Send this replacement link to the player. It is shown only now."]</p>
+                    <div class="participant-copy-link">
+                        <input id="participant-edit-link" value="@Model.ReplacementEditLink" readonly aria-label="@T["Replacement edit link"]" />
+                        <button type="button" class="btn btn-primary" data-copy-edit-link data-copy-label="@T["Copy link"]" data-copied-label="@T["Copied"]">@T["Copy link"]</button>
+                    </div>
+                }
+                else
+                {
+                    <p>@T[Model.EditLinkMessage]</p>
+                    @if (Model.CanReplaceEditLink)
+                    {
+                        <form method="post" asp-page-handler="CreateEditLink" data-update-targets="@partialTargets" onsubmit="return confirm('@T["Create a replacement link? The previous link will stop working."]');">
+                            <button class="btn btn-outline-light" type="submit">@T["Create replacement link"]</button>
+                        </form>
+                    }
+                }
+            </section>
+        </aside>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener("click", async event => {
+            const button = event.target.closest("[data-copy-edit-link]");
+            if (!button) return;
+            const input = document.getElementById("participant-edit-link");
+            if (!input) return;
+            try {
+                await navigator.clipboard.writeText(input.value);
+            } catch {
+                input.select();
+                document.execCommand("copy");
+                input.setSelectionRange(0, 0);
+            }
+            button.textContent = button.dataset.copiedLabel;
+            window.setTimeout(() => button.textContent = button.dataset.copyLabel, 1800);
+        });
+    </script>
+}

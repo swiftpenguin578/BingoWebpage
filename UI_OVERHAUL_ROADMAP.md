@@ -59,6 +59,7 @@ The existing interface is visually spacious but often inefficient. Pass 1 will e
 - Keep primary actions aligned predictably; place rare/destructive actions in a secondary menu or clearly separated area.
 - Reduce table row height while preserving readable click/touch targets.
 - Avoid large decorative headings consuming most of the initial viewport on operational pages.
+- Default admin workflow and operational subpages to a compact heading row with a small yellow page label. Put explicit return links at the far right of the breadcrumb row instead of letting them consume page-heading space. Keep the large title-and-description treatment only on landing pages, overviews, or pages where it materially helps orientation.
 - Prevent footers, sticky panels, dialogs, and toolbars from overlapping content at short viewport heights.
 
 ## 3.2 In-page interaction baseline
@@ -82,6 +83,14 @@ The overhaul will not turn the application into a separate single-page frontend.
 - Recovery fallback when an in-page update fails.
 
 Every enhanced action must prevent double submission, show progress, show success/failure, update only after the server accepts the action, and preserve the standard server-side authorization and validation path.
+
+### Compact action rules
+
+- Save simple, independent settings automatically when a dropdown, toggle, or small numeric value changes. Use a short debounce when several nearby values belong to one setting.
+- Remove redundant **Save** and **Update** buttons once reliable in-place saving and clear success/error feedback are available.
+- Use a compact × removal control when the item being removed is unmistakable from context. Provide an accessible label, tooltip, and confirmation before destructive removal.
+- Keep explicit action buttons for multi-field forms, creation flows, major lifecycle transitions, and destructive actions whose meaning would not be clear from an × icon.
+- Preserve a standard Razor form fallback for automatically saved controls, and never display a successful local change until the server has accepted it.
 
 ## 3.3 Feedback and notification baseline
 
@@ -122,6 +131,51 @@ Pass 1 will reserve a compact top-right action-inbox control for authenticated u
 - An item remains outstanding until its underlying workflow state changes. Version one does not add a separate read/unread state or “mark all read” behavior.
 - Keep the active event/team visible in the menu so notifications cannot be mistaken for another event.
 - Empty state clearly says that nothing currently needs attention.
+
+## 3.5 Page approval checklist
+
+Apply this checklist to every page before it is approved. During the final regression, apply it again to pages approved earlier in the overhaul.
+
+**State and data consistency**
+
+- After an accepted change, every visible copy of the affected value, count, status, badge, card, table row, dropdown option, and summary updates together.
+- A change made inside a dialog is reflected on the page behind it without requiring a manual refresh.
+- Controls appear, disappear, lock, and unlock at the correct lifecycle state; the server enforces the same rules as the interface.
+- Empty, partially configured, completed, and corrected data render safely, including records created before later fields or questions existed.
+- Dates and times use the event timezone, 24-hour display, and the expected rounding rules without browser-specific shifts.
+
+**Interaction continuity**
+
+- Routine changes do not reload the full page when an in-place update is practical.
+- Scroll position, open dialogs, expanded sections, selected tabs, search/filter/sort state, and useful keyboard focus survive an update where appropriate.
+- A dialog remains open after adding, removing, or editing one of its items unless completing the action intentionally ends that workflow.
+- Browser Back returns to the previous meaningful page rather than replaying each POST or local edit.
+- Loading state prevents duplicate submissions without leaving a control permanently disabled after failure.
+
+**Actions and feedback**
+
+- Every mutation provides accurate success or failure feedback that remains visible while scrolled, can be dismissed, and uses the correct semantic type.
+- Field validation appears beside the relevant field, preserves entered values, and keeps the user in the same context.
+- Simple independent values save on change; redundant Save/Update buttons are removed. Multi-field and major lifecycle actions retain an explicit button.
+- A compact red × is used only when the item being removed is unmistakable. It has an accessible name, tooltip, confirmation, and the correct server-side safeguards.
+- Confirmation text states meaningful side effects, such as promoting a waiting-list player or removing a team.
+
+**Language and presentation**
+
+- Enum and implementation names never leak into visible text; labels such as “Co-captain” are formatted consistently everywhere.
+- Wording is short, casual, and clear to community members, while OSRS/community terminology remains familiar.
+- Buttons, inputs, cards, headings, spacing, alignment, and action placement match the shared patterns used on adjacent pages.
+- Review every button during final regression: equivalent actions use the same height, padding, typography, border treatment and alignment; primary, secondary, destructive and compact actions follow one consistent hierarchy across the site.
+- Desktop and mobile layouts do not clip, overlap, jump unexpectedly, or create avoidable horizontal scrolling.
+- Long realistic names, zero results, full lists, and large test datasets remain readable.
+
+**Accessibility and fallback**
+
+- Keyboard navigation follows the visual order; Space/Enter operate only the focused control and do not accidentally toggle a parent section.
+- Focus is visible but not oversized, and opening/closing a dialog returns focus sensibly without leaving a stray page outline.
+- Icons and colour are never the only explanation of status or action.
+- The standard Razor form fallback remains usable when enhanced JavaScript is unavailable or fails.
+- Permission failures, stale/concurrent changes, network failures, and unexpected errors produce a useful page or message rather than a blank screen.
 
 ## 4. Overhaul sequence
 
@@ -222,14 +276,11 @@ Pass 1 will reserve a compact top-right action-inbox control for authenticated u
 
 - User can manage signup capacity, waiting lists, participants, and questions without confusing website participants with external team members.
 
-### Pass 5 — OSRS catalogue and reusable tile data
+### Pass 5 — OSRS catalogue
 
 **Pages**
 
 - `Pages/Admin/Catalogue/Index.cshtml`
-- `Pages/Admin/Catalogue/Import.cshtml`
-- `Pages/Admin/Tiles/Index.cshtml`
-- `Pages/Admin/Tiles/Requirements.cshtml`
 
 **Goals**
 
@@ -237,13 +288,20 @@ Pass 1 will reserve a compact top-right action-inbox control for authenticated u
 - Make source search and drop management compact and fast.
 - Keep “Add drop” within its boss/activity context and use a focused dialog.
 - Display efficient completions per hour, drop rate, probability, and calculated EHB clearly.
-- Decide whether legacy tile-template pages remain useful or should be folded into the board editor.
-- Keep initial imports visibly separate from everyday catalogue maintenance.
+- Remove the legacy standalone tile-template workflow. The catalogue remains the reusable OSRS data source, while event tiles are created directly in the board editor.
+- Remove the obsolete catalogue CSV importer. Keep the reviewed Wiki maintenance workflow unlinked from the everyday catalogue until it is placed under advanced administration tools.
 - Make deactivate/reactivate actions distinct from ordinary editing.
+- Reserve a consistent image area for every boss or activity while the catalogue UI is reviewed.
+- Reserve a compact image area for every drop and allow its shared catalogue item name to be corrected without cluttering the card.
+- After this page is approved, import the matching OSRS Wiki images for the existing catalogue and replace the temporary image placeholders.
+- Catalogue images may be supplied by URL or uploaded from a device. Store only the resulting image URL/storage key in PostgreSQL; local development uses local object storage and production uses Cloudflare R2 rather than storing image bytes in the database.
+- Rebuild the seeded catalogue from a reviewed OSRS Wiki dry-run: preserve boss names and clan EHB rates, replace seeded drop rows with selected special/unique rewards, retain Wiki images and attribution, and require manual review for conditional or variable rates.
+- Before applying the reviewed Wiki import, add structured per-drop rate variants (label/context, displayed rate, numeric probability and condition) so delve, raid-scale and other conditional rates are not flattened into one misleading value.
+- After the Wiki catalogue pull is complete, add a duplicate-name correction flow. If an item is renamed to an existing shared item, show a confirmation popup that can move the boss-specific drop connection and rate data to the existing item, then remove the misspelled item only when it is no longer used.
 
 **Approval gate**
 
-- User can find a boss, add or edit a drop, understand its EHB calculation, and identify whether tile templates remain part of the final workflow.
+- User can find a boss, add or edit a drop, and understand its EHB calculation. Reusable tile records remain an internal board-editor detail rather than a separate admin workflow.
 
 ### Pass 6 — Board editor
 
@@ -251,6 +309,8 @@ Pass 1 will reserve a compact top-right action-inbox control for authenticated u
 
 - `Pages/Admin/Events/Board.cshtml`
 - `Pages/Admin/Events/_BoardRequirementEditor.cshtml`
+
+Tile reuse should be provided through practical board actions such as duplicating a tile or copying one from a previous bingo, rather than a separate template catalogue.
 
 **Goals**
 
@@ -265,6 +325,10 @@ Pass 1 will reserve a compact top-right action-inbox control for authenticated u
 - Make drag-on-tile swapping feel immediate without a disruptive full-page refresh.
 - Preserve an accessible non-drag alternative for keyboard and touch users.
 - Keep row/column hover highlighting, EHB values, total EHB, EHB per expected player, and balancing warnings readable.
+- Review the tile EHB calculations themselves, not only how the values are displayed.
+- Verify EHB behavior for quantities, multiple bosses, combined drop selections, duplicate restrictions, weighted drops, manual objectives, and requirement groups such as Voidwaker pieces and Barrows plus Moons.
+- Make it clear which catalogue boss rates and drop probabilities produced a tile's EHB, when an admin has overridden a value, and why a tile cannot be calculated automatically.
+- Confirm that tile, row, column, total-board, and per-player EHB remain consistent after editing or rearranging tiles.
 - Make board resizing explain and block tile loss clearly.
 - Keep editing leases visible without overwhelming admins who only want to inspect the board together.
 
@@ -285,6 +349,7 @@ Pass 1 will reserve a compact top-right action-inbox control for authenticated u
 - Keep all participants visible during drafting, with clear drafted/available status and EHB ordering.
 - Make confirmed participants and waiting-list members visually distinct.
 - Keep external clan rosters separate from the website signup pool.
+- Revisit the external-team import workflow, including the source format, field mapping, validation, duplicate handling, roster roles, and a clear preview before anything is added to the event.
 - Place the rare “use an internal participant in a pre-formed team” action behind an advanced path.
 - Make scramble, snake order, current pick, undo, pause, takeover, and finalization status obvious.
 - Show who controls the draft and make observers clearly read-only.

@@ -77,7 +77,7 @@ public sealed class BingoEvent
     public DateTimeOffset CreatedAt { get; private set; }
 
     public bool AcceptsSignups(DateTimeOffset now) =>
-        State == EventState.SignupOpen && now >= SignupOpensAt && now < SignupClosesAt;
+        State == EventState.SignupOpen && now < SignupClosesAt;
 
     public bool AcceptsNewSubmissions(DateTimeOffset now)
     {
@@ -117,18 +117,53 @@ public sealed class BingoEvent
 
     public void OpenSignups(DateTimeOffset? manuallyOpenedAt = null)
     {
-        State = EventState.SignupOpen;
-        if (manuallyOpenedAt is not null && manuallyOpenedAt < SignupOpensAt)
+        if (State is not (EventState.Draft or EventState.SignupClosed))
         {
-            SignupOpensAt = manuallyOpenedAt.Value.ToUniversalTime();
+            throw new InvalidOperationException("Signups can only be opened while the event is being prepared.");
         }
+
+        if (manuallyOpenedAt is not null)
+        {
+            var openedAt = manuallyOpenedAt.Value.ToUniversalTime();
+            SignupOpensAt = new DateTimeOffset(openedAt.Year, openedAt.Month, openedAt.Day, openedAt.Hour, openedAt.Minute, 0, TimeSpan.Zero);
+            SignupClosesAt = RoundUpToHalfHour(SignupOpensAt.AddMonths(3));
+        }
+
+        State = EventState.SignupOpen;
     }
 
-    public void CloseSignups() => State = EventState.SignupClosed;
+    public void CloseSignups()
+    {
+        if (State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
+        {
+            throw new InvalidOperationException("Signups cannot be changed after the event has started.");
+        }
+
+        State = EventState.SignupClosed;
+    }
+
+    public bool OpenSignupsIfScheduled(DateTimeOffset now)
+    {
+        now = now.ToUniversalTime();
+        if (State != EventState.Draft || now < SignupOpensAt || now >= SignupClosesAt) return false;
+        OpenSignups();
+        return true;
+    }
+
+    public bool CloseSignupsIfScheduled(DateTimeOffset now)
+    {
+        if (State != EventState.SignupOpen || now.ToUniversalTime() < SignupClosesAt) return false;
+        CloseSignups();
+        return true;
+    }
 
     public void StartEvent(DateTimeOffset now)
     {
-        if (State is EventState.Finalized or EventState.Archived) throw new InvalidOperationException("A finalized event cannot be started.");
+        if (State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
+        {
+            throw new InvalidOperationException("Only an event that has not started can be started.");
+        }
+
         if (now < EventStartsAt) EventStartsAt = now.ToUniversalTime();
         State = EventState.Live;
     }
@@ -150,11 +185,43 @@ public sealed class BingoEvent
         ParticipantCap = newCap;
     }
 
-    public void ExtendSignupClosing(DateTimeOffset newClosing)
+    public void ChangeSignupClosing(DateTimeOffset newClosing, DateTimeOffset now)
+        => ChangeSignupWindow(SignupOpensAt, newClosing, now);
+
+    public void ChangeSignupWindow(DateTimeOffset newOpening, DateTimeOffset newClosing, DateTimeOffset now)
     {
-        if (newClosing < SignupClosesAt) throw new InvalidOperationException("The signup closing time cannot be shortened.");
+        if (State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
+        {
+            throw new InvalidOperationException("The signup window cannot change after the event has started.");
+        }
+
+        if (newClosing <= now) throw new InvalidOperationException("The signup closing time must be in the future.");
+        if (newOpening < now && (State != EventState.SignupOpen || newOpening.ToUniversalTime() != SignupOpensAt))
+        {
+            throw new InvalidOperationException("The signup opening time cannot be changed to a time in the past.");
+        }
+        if (newOpening >= newClosing) throw new InvalidOperationException("Signups must open before they close.");
+        var previousState = State;
+        SignupOpensAt = newOpening.ToUniversalTime();
         SignupClosesAt = newClosing.ToUniversalTime();
+
+        if (newOpening > now)
+        {
+            State = EventState.Draft;
+        }
+        else if (previousState != EventState.SignupClosed)
+        {
+            State = EventState.SignupOpen;
+        }
     }
 
     public void SetDraftLocked(bool locked) => DraftLocked = locked;
+
+    private static DateTimeOffset RoundUpToHalfHour(DateTimeOffset value)
+    {
+        value = value.ToUniversalTime();
+        var startOfMinute = new DateTimeOffset(value.Year, value.Month, value.Day, value.Hour, value.Minute, 0, TimeSpan.Zero);
+        if (value.Minute % 30 == 0 && value.Second == 0 && value.Millisecond == 0) return startOfMinute;
+        return startOfMinute.AddMinutes(30 - value.Minute % 30);
+    }
 }

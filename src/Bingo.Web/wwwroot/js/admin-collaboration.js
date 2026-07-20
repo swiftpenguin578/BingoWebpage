@@ -12,11 +12,18 @@
 
     let reloadTimer;
     let boardExpiryTimer;
+    let localDraftChangeUntil = 0;
+    let preserveBoardEditingOnPageHide = false;
+    const reloadWithoutReleasingBoard = () => {
+        preserveBoardEditingOnPageHide = true;
+        window.location.reload();
+    };
     const scheduleDraftReload = () => {
+        if (Date.now() < localDraftChangeUntil) return;
         const notice = document.querySelector('[data-draft-update]');
         if (notice) notice.hidden = false;
         window.clearTimeout(reloadTimer);
-        reloadTimer = window.setTimeout(() => window.location.reload(), 700);
+        reloadTimer = window.setTimeout(reloadWithoutReleasingBoard, 700);
     };
 
     if (boardRoot) {
@@ -31,13 +38,24 @@
         const scheduleBoardExpiryReload = expiresAt => {
             window.clearTimeout(boardExpiryTimer);
             const expiry = Date.parse(expiresAt || '');
-            if (Number.isFinite(expiry)) boardExpiryTimer = window.setTimeout(() => window.location.reload(), Math.max(1000, expiry - Date.now() + 1000));
+            if (Number.isFinite(expiry)) boardExpiryTimer = window.setTimeout(reloadWithoutReleasingBoard, Math.max(1000, expiry - Date.now() + 1000));
         };
         scheduleBoardExpiryReload(boardRoot.dataset.editorExpiresAt);
         boardRoot.scheduleExpiryReload = scheduleBoardExpiryReload;
     }
 
     if (draftRoot) connection.on('draftChanged', scheduleDraftReload);
+
+    if (draftRoot) {
+        document.addEventListener('submit', event => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement)
+                || !form.closest('[data-admin-draft-event]')
+                || !form.dataset.updateTargets) return;
+            localDraftChangeUntil = Date.now() + 2500;
+            window.clearTimeout(reloadTimer);
+        });
+    }
 
     const subscribe = async () => {
         if (boardRoot) {
@@ -60,7 +78,6 @@
     }
     if (boardRoot?.dataset.canEdit === 'true') {
         let lastBoardRenewal = Date.now();
-        let boardFormIsNavigating = false;
         const renewForActivity = () => {
             if (Date.now() - lastBoardRenewal < 60000 || connection.state !== signalR.HubConnectionState.Connected) return;
             lastBoardRenewal = Date.now();
@@ -69,9 +86,9 @@
                 .catch(() => {});
         };
         ['pointerdown', 'keydown', 'input', 'dragstart'].forEach(eventName => document.addEventListener(eventName, renewForActivity, { passive: true }));
-        document.querySelectorAll('form').forEach(form => form.addEventListener('submit', () => { boardFormIsNavigating = true; }));
+        document.querySelectorAll('form:not([data-release-board-editing])').forEach(form => form.addEventListener('submit', () => { preserveBoardEditingOnPageHide = true; }));
         window.addEventListener('pagehide', () => {
-            if (boardFormIsNavigating) return;
+            if (preserveBoardEditingOnPageHide) return;
             const releaseForm = document.querySelector('[data-release-board-editing]');
             if (!releaseForm) return;
             fetch(releaseForm.action, { method: 'POST', body: new FormData(releaseForm), credentials: 'same-origin', keepalive: true }).catch(() => {});
