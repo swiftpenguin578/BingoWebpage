@@ -48,6 +48,24 @@ public sealed class BoardEditingUiTests
         Assert.DoesNotContain("document.querySelectorAll('.create-tile-button').forEach", boardMarkup);
     }
 
+    [Fact]
+    public void TileEditorExplainsObjectivesAndUsesCompactBoardActions()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var boardMarkup = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Board.cshtml"));
+        var requirementMarkup = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "_BoardRequirementEditor.cshtml"));
+
+        Assert.Contains("Multiple bosses in one objective", boardMarkup);
+        Assert.Contains("Multiple objectives", boardMarkup);
+        Assert.Contains("Add another objective", boardMarkup);
+        Assert.Contains("Where can this be completed?", requirementMarkup);
+        Assert.Contains("Counting options", requirementMarkup);
+        Assert.Contains("catalogue-compact-action catalogue-add-action\">Edit board", boardMarkup);
+        Assert.Contains("catalogue-compact-action neutral-outline-action\">Finish editing", boardMarkup);
+        Assert.Contains("catalogue-compact-action warning-outline-action\">Take over editing", boardMarkup);
+        Assert.Contains("catalogue-compact-action btn-outline-danger\">Remove tile", boardMarkup);
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
