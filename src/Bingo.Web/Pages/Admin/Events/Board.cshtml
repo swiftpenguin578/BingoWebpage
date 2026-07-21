@@ -120,6 +120,7 @@
 @section Scripts {
 <script src="~/js/admin-collaboration.js" asp-append-version="true"></script>
 <script>
+(() => {
 const moveForm = document.getElementById('move-form'); let dragged = null; let movingTile = false;
 const boardEditor = document.querySelector('.board-editor');
 const boardColumns = Number(boardEditor?.dataset.boardColumns || 1);
@@ -254,5 +255,6 @@ function initializeRequirements() {
 initializeRequirements();
 document.querySelectorAll('form[data-auto-submit] input').forEach(input => input.addEventListener('change', () => input.form.requestSubmit()));
 document.getElementById('create-tile-form')?.addEventListener('submit', () => { document.querySelectorAll('#requirements .requirement-editor').forEach((editor, index) => editor.querySelectorAll('[name]').forEach(field => field.name = field.name.replace(/Requirements\[-?\d+\]/, `Requirements[${index}]`))); });
+})();
 </script>
 }
