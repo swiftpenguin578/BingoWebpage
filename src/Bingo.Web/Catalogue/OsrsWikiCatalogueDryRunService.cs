@@ -197,16 +197,27 @@ public sealed class OsrsWikiCatalogueDryRunService(
                 sharedItem.Update(candidate.Name, normalizedItemName, sharedItem.ExternalIdentifier, sharedItem.Notes, candidate.ImageUrl);
                 retainedIds.Add(sourceDrop.Id);
 
+                var preserveReviewedPersonalRate = candidate.NeedsReview && sourceDrop.NumericProbability is > 0 && sourceDrop.RateConditionNote?.Contains("Personal per-completion rate", StringComparison.OrdinalIgnoreCase) == true;
                 var hasOneReliableRate = candidate.Rates.Count == 1 && !candidate.NeedsReview && candidate.Rates[0].Probability is > 0;
                 var probability = hasOneReliableRate ? candidate.Rates[0].Probability : null;
-                var displayRate = candidate.Rates.Count == 1
+                var rolls = hasOneReliableRate ? candidate.Rates[0].RollsPerCompletion : 1;
+                var displayRate = preserveReviewedPersonalRate ? sourceDrop.DisplayRate : candidate.Rates.Count == 1
                     ? candidate.Rates[0].DisplayRate
                     : $"{candidate.Rates[0].DisplayRate} (+{candidate.Rates.Count - 1} variants)";
-                var condition = JoinNotes(candidate.Condition, candidate.ReviewReason);
-                decimal? ehb = boss.EfficientCompletionsPerHour is > 0 && probability is > 0
-                    ? 1 / (boss.EfficientCompletionsPerHour.Value * probability.Value)
+                if (preserveReviewedPersonalRate) probability = sourceDrop.NumericProbability;
+                var condition = preserveReviewedPersonalRate ? sourceDrop.RateConditionNote : JoinNotes(candidate.Condition, candidate.ReviewReason);
+                var effectiveProbability = probability;
+                decimal? ehb = boss.EfficientCompletionsPerHour is > 0 && effectiveProbability is > 0
+                    ? 1 / (boss.EfficientCompletionsPerHour.Value * effectiveProbability.Value * rolls)
                     : null;
                 sourceDrop.Update(displayRate, probability, condition, ehb, candidate.DataSource, now);
+                sourceDrop.SetRateMechanics(
+                    Bingo.Domain.Catalogue.DropProbabilityScope.Participant,
+                    false,
+                    null,
+                    1,
+                    rolls,
+                    preserveReviewedPersonalRate ? sourceDrop.RollGroup : "default");
                 sourceDrop.SetActive(true);
 
                 var oldVariants = variants.Where(x => x.SourceDropId == sourceDrop.Id).ToList();
@@ -596,15 +607,19 @@ public sealed class OsrsWikiCatalogueDryRunService(
             fields.TryGetValue("raritynotes", out var condition);
             if (fields.TryGetValue("rolls", out var rewardRolls) && !string.IsNullOrWhiteSpace(rewardRolls))
             {
+                var cleanedRolls = CleanWikiText(rewardRolls);
+                var parsedRolls = int.TryParse(cleanedRolls, out var count) && count > 0 ? count : 1;
                 rates = rates
                     .Select(rate => rate with
                     {
                         Label = "Per reward roll",
-                        DisplayRate = $"{rate.DisplayRate} × {CleanWikiText(rewardRolls)} rolls",
-                        Probability = null
+                        DisplayRate = $"{cleanedRolls} × {rate.DisplayRate}",
+                        RollsPerCompletion = parsedRolls
                     })
                     .ToList();
-                var rollNote = $"The Wiki supplies {CleanWikiText(rewardRolls)} reward rolls; confirm the combined per-chest probability.";
+                var rollNote = parsedRolls > 1
+                    ? $"The Wiki supplies {parsedRolls} reward rolls; the stored probability is per roll."
+                    : $"The Wiki supplies an unrecognized reward-roll value ({cleanedRolls}); review it manually.";
                 condition = string.IsNullOrWhiteSpace(condition) ? rollNote : $"{CleanWikiText(condition)} {rollNote}";
             }
             results.Add(new ParsedWikiDrop(
@@ -858,7 +873,7 @@ public sealed record WikiDropPreview(
     string DataSource);
 
 public sealed record ParsedWikiDrop(string Name, IReadOnlyList<WikiRateVariant> Rates, string? Condition);
-public sealed record WikiRateVariant(string Label, string DisplayRate, decimal? Probability);
+public sealed record WikiRateVariant(string Label, string DisplayRate, decimal? Probability, int RollsPerCompletion = 1);
 public enum WikiBossPreviewStatus { Ready, NeedsReview, Unmatched }
 public enum WikiDropAction { Add, Replace, Unchanged }
 public sealed record WikiCatalogueImportResult(

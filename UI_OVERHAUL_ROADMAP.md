@@ -20,6 +20,7 @@ The work is split into small passes so each page can be reviewed, tested, and ap
 - Prefer a compact desktop density: buttons, inputs, cards, tables, and whitespace should use only the space required by their content and importance.
 - Align related labels, values, controls, and actions to a consistent grid instead of allowing individually sized boxes to dictate the page layout.
 - Design each page from narrow/mobile widths upward; horizontal scrolling is reserved for content such as full bingo boards where it is genuinely useful.
+- Treat intermediate/tablet widths as a distinct responsive state, not merely a transition between desktop and phone. Multi-column layouts must collapse before their controls, cards, tables, or sidebars become compressed, clipped, overlapping, or horizontally scrollable.
 - Routine actions should update the affected component in place instead of reloading the full page.
 - Keep ordinary Razor forms and routes as progressive-enhancement fallbacks so the application remains reliable when JavaScript fails or accessibility tools use standard navigation.
 - Use short, community-friendly language instead of implementation terms. Rewrite developer-facing names such as internal states, data-model terms, and technical actions whenever they appear in the interface.
@@ -29,7 +30,7 @@ The work is split into small passes so each page can be reviewed, tested, and ap
 - Danish translations should preserve familiar English OSRS and community terms when a literal translation would sound unnatural. Ambiguous terms will be called out during the relevant page review so the community wording can be confirmed.
 - Show the active event and, where relevant, active team prominently.
 - Every mutation must provide success or failure feedback.
-- Every pass must cover desktop, narrow/mobile, keyboard, empty, loading, error, and permission states where applicable.
+- Every pass must cover desktop, intermediate/tablet, narrow/mobile, keyboard, empty, loading, error, and permission states where applicable.
 - A pass is complete only after focused regression tests and user approval.
 
 ## 3. Standard page-pass workflow
@@ -42,7 +43,7 @@ Each pass follows the same sequence:
 4. Agree on a compact layout or wireframe.
 5. Identify which interactions navigate intentionally and which should update in place.
 6. Implement shared components first, then the page-specific layout.
-7. Verify desktop and mobile behavior.
+7. Verify desktop, intermediate/tablet, and mobile behavior, including widths immediately before and after layout breakpoints.
 8. Verify keyboard focus, plain-language labels, concise confirmations and feedback, and the no-JavaScript fallback.
 9. Run focused automated and manual regression tests.
 10. Obtain explicit approval before starting the next pass.
@@ -166,7 +167,8 @@ Apply this checklist to every page before it is approved. During the final regre
 - Wording is short, casual, and clear to community members, while OSRS/community terminology remains familiar.
 - Buttons, inputs, cards, headings, spacing, alignment, and action placement match the shared patterns used on adjacent pages.
 - Review every button during final regression: equivalent actions use the same height, padding, typography, border treatment and alignment; primary, secondary, destructive and compact actions follow one consistent hierarchy across the site.
-- Desktop and mobile layouts do not clip, overlap, jump unexpectedly, or create avoidable horizontal scrolling.
+- Desktop, intermediate/tablet, and mobile layouts do not clip, overlap, jump unexpectedly, or create avoidable horizontal scrolling.
+- Resize continuously between representative widths instead of checking only fixed desktop and phone sizes; no narrow range may retain a desktop grid after its children no longer fit.
 - Long realistic names, zero results, full lists, and large test datasets remain readable.
 
 **Accessibility and fallback**
@@ -335,6 +337,8 @@ Tile reuse should be provided through practical board actions such as duplicatin
 **Approval gate**
 
 - User can build and rebalance the canonical edge-case board without referring to documentation.
+
+**Status:** Approved by the user on 2026-07-22 after iterative desktop, narrow-width, dialog-state, weighting, editing-lease, catalogue-rate, and historical-board checks. Cross-application keyboard, accessibility, and final responsive regression remain part of the milestone-wide closing pass.
 
 ### Pass 7 — Teams and snake draft
 
@@ -519,7 +523,7 @@ After all thirteen passes are approved:
 1. Reset and regenerate canonical test scenarios.
 2. Repeat every Milestone 1–8 manual test against the new interface.
 3. Run the complete automated suite.
-4. Test current Safari/Chromium desktop widths and representative mobile widths.
+4. Test current Safari/Chromium desktop, intermediate/tablet, and representative mobile widths, including the transition around shared breakpoints.
 5. Recheck two-admin board and draft collaboration.
 6. Recheck captain paste/drag/upload on desktop and mobile.
 7. Recheck public live updates, evidence privacy, and finalized history.

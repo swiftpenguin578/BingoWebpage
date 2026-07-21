@@ -376,10 +376,9 @@ OSRS terminology must be presented carefully. A "unique drop" means an item from
 ### 10.4 Contribution values
 
 - An eligible drop contributes `1` by default.
-- A tile requirement has an optional **Allow higher weightings** setting.
-- When higher weightings are disabled, every submitted drop contributes exactly `1`.
-- When higher weightings are enabled, the captain can change the credited weight during submission. For example, a megarare may be entered with weight `2` toward a target of `6`, or a pet may be entered with the full remaining target.
-- Admins verify and may correct the submitted weight during review.
+- Each eligible drop has an optional board-defined **Higher contribution weight** setting.
+- Every drop defaults to `1`. The board designer may assign a different fixed weight to individual eligible drops; for example, Theatre of Blood purples may count as `1` while Scythe of Vitur counts as `2` toward a target of `6`.
+- Captains and other submitters cannot override the configured weight.
 - Progress is capped at the requirement target and never carries to another tile.
 - One obtained drop can contribute to only one tile.
 
@@ -424,7 +423,9 @@ EHB and efficient-rate data may be imported from useful external sources such as
 
 For version one, relevant external data will be collected in a one-time import during initial setup. All imported values remain editable by admins. Automatic or repeat synchronization may be considered later.
 
-For a simple single-drop requirement, expected EHB is calculated from the source-specific drop rate and the boss/activity's efficient completion rate. For example, at 100 kills per hour and a `1/1,000` drop rate, the expected time for one qualifying drop is 10 EHB. More complex requirements, conditional rates, weighted drops, and duplicate restrictions may require a calculated estimate that admins can override.
+For a simple single-drop requirement, expected EHB is calculated from a reviewed source-specific probability and efficient-completion-rate pair. For example, at 100 kills per hour and a `1/1,000` drop rate, the expected time for one qualifying drop is 10 EHB. Group content may pair an in-name probability with the relevant team completion rate, or a full-contribution probability with a rate normalized per invested player-hour; team size is applied exactly once. Catalogue rates may use numerators other than one and explicitly record per-completion rolls. Team, raid-scale, purple-table, points, and contribution assumptions are resolved before entry and retained as explanatory notes rather than calculator exceptions.
+
+Complex requirements are estimated from possible completion outcomes rather than by blindly averaging bosses or adding rates. Weighted drops advance by their configured contribution, duplicate-restricted requirements track shared item identities, and alternative sources are chosen according to the lowest expected remaining person-hours. Multiple objectives are estimated separately and added. Missing or ambiguous rate mechanics require an administrator EHB override; they are never guessed.
 
 Published boards store a snapshot of the rates, EHB values, and calculations used at publication time. Updating the central catalogue must not rewrite historical boards.
 
@@ -448,7 +449,7 @@ It records:
 - Boss/activity
 - Drop
 - Credited player
-- Credited weight, defaulting to `1` and editable above `1` only when the tile allows higher weightings
+- Credited weight copied from the board-requirement snapshot, defaulting to `1` and not editable by the submitter
 - Total approved contribution, capped by the remaining requirement progress and confirmed by an admin
 - Submitted time, generated automatically by the server and immutable
 - Screenshot
@@ -847,6 +848,10 @@ Detailed visual design and wireframes will be produced after this requirements d
 - Public boards and team switching should feel immediate at expected event scale.
 - Approval should update official progress without requiring a manual spreadsheet refresh.
 - Large screenshots should be resized or optimized for viewing while preserving original evidence when needed.
+- Expected event scale includes 100 simultaneous connected viewers, not only 100 registered participants.
+- Live updates should avoid synchronized full-page reloads across all connected viewers.
+- External integrations such as Wise Old Man must be cached or synchronized in the background rather than called once per viewer request.
+- The release candidate must pass a production-sized load rehearsal covering public viewing, SignalR updates, evidence uploads, evidence viewing, and admin review.
 
 ### 22.4 Accessibility and compatibility
 

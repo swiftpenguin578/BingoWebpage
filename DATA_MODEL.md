@@ -550,13 +550,19 @@ Fields:
 - `item_id`
 - `display_rate`
 - `numeric_probability`
+- `probability_scope` (legacy; new and edited values are always `Participant`)
+- `conditional_on_parent` (legacy)
+- `parent_probability` (legacy)
+- `assumed_participants` (legacy)
+- `rolls_per_completion`
+- `roll_group`
 - `rate_condition_note`
 - `default_ehb_estimate`
 - `data_source`
 - `data_updated_at`
 - `active`
 
-`numeric_probability` is optional because not every OSRS reward rate can be expressed as one unconditional probability.
+`numeric_probability` stores the final effective chance paired with the boss/activity's efficient-completion rate. For ordinary solo content this is the item's full drop chance. Group content may use either a personal in-name probability with the corresponding team completion rate, or a full-contribution probability with a completion rate already normalized per invested player-hour. The pair must represent the same strategy, scale, difficulty, team size, and contribution assumptions so group size is applied exactly once. It accepts any valid fraction numerator, not only `1/x`. Raid-specific purple-table, points, scale, and difficulty assumptions are resolved before entry and recorded in `rate_condition_note`; the EHB calculator never applies raid-specific conversions. The older scope/parent columns remain only for migration compatibility and are ignored by calculation. Repeated rolls remain explicit. `roll_group` identifies mutually exclusive results from the same roll; different groups are independent. The probability remains empty when no reviewed effective probability is available.
 
 ### 9.4 SourceDropRateVariant
 
@@ -652,6 +658,7 @@ Fields:
 - `target_contribution`
 - `duplicates_allowed`
 - `allow_higher_weightings`
+- `credited_weight`, defaults to `1`
 - `requirement_description`
 - `manual_completion_rule`
 - `manual_objective`
@@ -683,8 +690,9 @@ Fields:
 - `numeric_probability_snapshot`
 - `maximum_total_contribution`
 - `ehb_per_contribution_snapshot`
+- `credited_weight`, defaults to `1`
 
-Every eligible drop has a default credited weight of `1`. When the requirement enables `allow_higher_weightings`, a captain may enter a higher credited weight for an individual submission and an admin verifies it during review.
+Every eligible drop has a default credited weight of `1`. The board designer may set a higher `credited_weight` on specific drops. Submitters cannot override the selected drop's snapshot value.
 
 When duplicates are not allowed, each eligible item normally has a maximum contribution of `1`. An explicit maximum can override this behavior.
 
@@ -752,7 +760,7 @@ Stores manual or generated verification-code history for one event:
 
 Intervals may be scheduled in advance. Adding a code recalculates adjacent retirement boundaries, while each existing submission keeps its original `expected_evidence_code` snapshot.
 
-`credited_weight` defaults to `1`. It cannot be edited above `1` unless the tile requirement enables higher weightings. A captain may, for example, enter `2` for a megarare. The admin can correct the weight before approval.
+`credited_weight` is copied from the selected immutable requirement-drop snapshot when a submission is created or retargeted. It defaults to `1`; submitters and reviewers do not choose a different per-submission value.
 
 ### 11.2 EvidenceAsset
 
@@ -998,7 +1006,7 @@ p = 1/1000
 expected EHB = 1000 / 100 = 10 hours
 ```
 
-For a target of `q` interchangeable drops under a simple model:
+For a target of `q` interchangeable drops under a simple one-outcome model:
 
 ```text
 tile EHB estimate = q × expected hours per qualifying drop
@@ -1006,7 +1014,11 @@ tile EHB estimate = q × expected hours per qualifying drop
 
 ### 14.2 Complex estimate
 
-Requirements involving multiple rates, distinct components, weighted drops, conditional raid rewards, or several independent groups may use a calculated estimate or an admin override.
+Every catalogue probability supplied to the calculator is already a final effective probability per roll. The catalogue probability and efficient completion rate must be a reviewed pair using the same strategy, scale, difficulty, team, and contribution assumptions. A personal in-name probability is paired with team completions per hour; a full-contribution probability is paired with completions normalized per invested player-hour. Team size must never be applied to both values. The calculator contains no boss- or raid-specific conversion rules.
+
+For more complex requirements the calculator models one completion at a time. Drops in the same roll group are mutually exclusive, separate roll groups are independent, and `rolls_per_completion` repeats that roll. It calculates the expected remaining person-hours for each possible progress state, including credited weights and already-collected identities, and chooses the most efficient available boss/activity from that state. Separate objectives are calculated independently and then added.
+
+If a required probability, efficient-completion rate, team/parent assumption, or applicable variant is missing or inconsistent, automatic EHB returns no estimate and the administrator must provide a manual override. The system does not guess.
 
 Every board tile stores the EHB estimate used when the board was published.
 
@@ -1246,7 +1258,7 @@ Duplicates allowed: yes
 Allow higher weightings: yes
 ```
 
-Every submission defaults to weight `1`. When submitting a megarare, the captain manually changes its credited weight to `2`; the admin verifies that weight during review.
+The board designer configures the requirement's credited weight as `2`. Every eligible approved submission against that requirement receives that weight automatically, capped by remaining progress.
 
 ### 21.4 Barrows and Moons
 

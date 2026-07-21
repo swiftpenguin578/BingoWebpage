@@ -96,6 +96,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         foreach (var requirement in TileDraft.Requirements)
         {
             if (requirement.Target < 1) ModelState.AddModelError(string.Empty, "Every requirement needs a quantity of at least 1.");
+            if (requirement.DropWeights.Any(x => x.Value < 1)) ModelState.AddModelError(string.Empty, "Every drop weight must be at least 1.");
             if (!requirement.IsManual && requirement.BossIds.Count == 0) ModelState.AddModelError(string.Empty, "Choose at least one boss for each collect-drops requirement.");
             if (!requirement.IsManual && requirement.DropIds.Count == 0) ModelState.AddModelError(string.Empty, "Choose at least one eligible drop for each collect-drops requirement.");
             if (requirement.IsManual && string.IsNullOrWhiteSpace(requirement.Description)) ModelState.AddModelError(string.Empty, "Describe the challenge requirements.");
@@ -110,16 +111,16 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         var requirementDescriptions = TileDraft.Requirements.Select(RequirementDescription).ToList();
         var description = string.IsNullOrWhiteSpace(TileDraft.Description) ? string.Join("; ", requirementDescriptions) : TileDraft.Description.Trim();
         var objectiveType = TileDraft.Requirements.All(x => x.IsManual) ? ObjectiveType.Manual : ObjectiveType.DropRequirements;
-        var template = new TileTemplate(Guid.NewGuid(), name, description, objectiveType, TileDraft.EvidenceInstructions?.Trim() ?? string.Empty, TileDraft.ManualEhb);
+        var template = new TileTemplate(Guid.NewGuid(), name, description, objectiveType, TileDraft.EvidenceInstructions?.Trim() ?? string.Empty, TileDraft.ManualEhb, Clean(TileDraft.ImageUrl));
         db.TileTemplates.Add(template);
         var requirements = new List<TileTemplateRequirement>();
         for (var index = 0; index < TileDraft.Requirements.Count; index++)
         {
             var input = TileDraft.Requirements[index];
-            var requirement = new TileTemplateRequirement(Guid.NewGuid(), template.Id, index + 1, input.Target, input.DuplicatesAllowed, input.AllowHigherWeightings, requirementDescriptions[index], input.IsManual);
+            var requirement = new TileTemplateRequirement(Guid.NewGuid(), template.Id, index + 1, input.Target, input.DuplicatesAllowed, input.HasHigherWeights, requirementDescriptions[index], input.IsManual);
             requirements.Add(requirement); db.TileTemplateRequirements.Add(requirement);
             foreach (var bossId in input.BossIds.Distinct()) db.TemplateRequirementBosses.Add(new TemplateRequirementBoss(Guid.NewGuid(), requirement.Id, bossId));
-            foreach (var dropId in input.DropIds.Distinct()) db.TemplateRequirementDrops.Add(new TemplateRequirementDrop(Guid.NewGuid(), requirement.Id, dropId, input.DuplicatesAllowed ? null : 1));
+            foreach (var dropId in input.DropIds.Distinct()) db.TemplateRequirementDrops.Add(new TemplateRequirementDrop(Guid.NewGuid(), requirement.Id, dropId, input.DuplicatesAllowed ? null : 1, input.WeightFor(dropId)));
         }
         await db.SaveChangesAsync(ct);
         await PlaceTemplateAsync(board, template, requirements, TileDraft.Position, ct);
@@ -137,6 +138,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         foreach (var requirement in TileDraft.Requirements)
         {
             if (requirement.Target < 1) ModelState.AddModelError(string.Empty, "Every requirement needs a quantity of at least 1.");
+            if (requirement.DropWeights.Any(x => x.Value < 1)) ModelState.AddModelError(string.Empty, "Every drop weight must be at least 1.");
             if (!requirement.IsManual && requirement.BossIds.Count == 0) ModelState.AddModelError(string.Empty, "Choose at least one boss for each collect-drops requirement.");
             if (!requirement.IsManual && requirement.DropIds.Count == 0) ModelState.AddModelError(string.Empty, "Choose at least one eligible drop for each collect-drops requirement.");
             if (requirement.IsManual && string.IsNullOrWhiteSpace(requirement.Description)) ModelState.AddModelError(string.Empty, "Describe the challenge requirements.");
@@ -152,7 +154,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         var description = string.IsNullOrWhiteSpace(TileDraft.Description) ? string.Join("; ", requirementDescriptions) : TileDraft.Description.Trim();
         var objectiveType = TileDraft.Requirements.All(x => x.IsManual) ? ObjectiveType.Manual : ObjectiveType.DropRequirements;
         var template = await db.TileTemplates.SingleAsync(x => x.Id == tile.TileTemplateId, ct);
-        template.Update(name, description, objectiveType, TileDraft.EvidenceInstructions?.Trim() ?? string.Empty, TileDraft.ManualEhb);
+        template.Update(name, description, objectiveType, TileDraft.EvidenceInstructions?.Trim() ?? string.Empty, TileDraft.ManualEhb, Clean(TileDraft.ImageUrl));
 
         var oldTemplateRequirements = await db.TileTemplateRequirements.Where(x => x.TileTemplateId == template.Id).ToListAsync(ct);
         var oldTemplateRequirementIds = oldTemplateRequirements.Select(x => x.Id).ToList();
@@ -171,21 +173,21 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         for (var index = 0; index < TileDraft.Requirements.Count; index++)
         {
             var input = TileDraft.Requirements[index];
-            var requirement = new TileTemplateRequirement(Guid.NewGuid(), template.Id, index + 1, input.Target, input.DuplicatesAllowed, input.AllowHigherWeightings, requirementDescriptions[index], input.IsManual);
+            var requirement = new TileTemplateRequirement(Guid.NewGuid(), template.Id, index + 1, input.Target, input.DuplicatesAllowed, input.HasHigherWeights, requirementDescriptions[index], input.IsManual);
             db.TileTemplateRequirements.Add(requirement);
             foreach (var bossId in input.BossIds.Distinct()) db.TemplateRequirementBosses.Add(new TemplateRequirementBoss(Guid.NewGuid(), requirement.Id, bossId));
-            foreach (var dropId in input.DropIds.Distinct()) db.TemplateRequirementDrops.Add(new TemplateRequirementDrop(Guid.NewGuid(), requirement.Id, dropId, input.DuplicatesAllowed ? null : 1));
+            foreach (var dropId in input.DropIds.Distinct()) db.TemplateRequirementDrops.Add(new TemplateRequirementDrop(Guid.NewGuid(), requirement.Id, dropId, input.DuplicatesAllowed ? null : 1, input.WeightFor(dropId)));
 
-            var snapshot = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, index + 1, input.Target, input.DuplicatesAllowed, input.AllowHigherWeightings, requirementDescriptions[index], input.IsManual);
+            var snapshot = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, index + 1, input.Target, input.DuplicatesAllowed, input.HasHigherWeights, requirementDescriptions[index], input.IsManual);
             db.BoardRequirementSnapshots.Add(snapshot);
             foreach (var boss in selectedBosses.Where(x => input.BossIds.Contains(x.Id))) db.BoardRequirementBossSnapshots.Add(new BoardRequirementBossSnapshot(Guid.NewGuid(), snapshot.Id, boss.Id, boss.Name, boss.EfficientCompletionsPerHour));
             var selectedDrops = await (from drop in db.SourceDrops where input.DropIds.Contains(drop.Id) join boss in db.BossActivities on drop.BossActivityId equals boss.Id join item in db.CatalogueItems on drop.ItemId equals item.Id select new { drop, boss, item }).ToListAsync(ct);
-            foreach (var value in selectedDrops) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), snapshot.Id, value.drop.Id, value.boss.Name, value.item.Name, value.drop.DisplayRate, value.drop.NumericProbability, input.DuplicatesAllowed ? null : 1, value.drop.DefaultEhbEstimate));
-            estimates.Add(input.IsManual ? null : EhbCalculator.CalculateDropRequirement(input.Target, selectedDrops.Select(x => new EligibleDropRate(x.boss.EfficientCompletionsPerHour, x.drop.NumericProbability, x.drop.ItemId)), input.DuplicatesAllowed));
+            foreach (var value in selectedDrops) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), snapshot.Id, value.drop.Id, value.boss.Name, value.item.Name, value.drop.DisplayRate, value.drop.NumericProbability, input.DuplicatesAllowed ? null : 1, value.drop.DefaultEhbEstimate, input.WeightFor(value.drop.Id)));
+            estimates.Add(input.IsManual ? null : EhbCalculator.CalculateDropRequirement(input.Target, selectedDrops.Select(x => new EligibleDropRate(x.boss.EfficientCompletionsPerHour, x.drop.NumericProbability, x.drop.ItemId, x.boss.Id, input.WeightFor(x.drop.Id), x.drop.RollsPerCompletion, x.drop.RollGroup)), input.DuplicatesAllowed));
         }
         var ehb = EhbCalculator.SumRequirements(estimates, TileDraft.ManualEhb);
         board.SetTotalEhb(Math.Max(0, board.TotalEhbEstimate - tile.EstimatedEhbSnapshot + ehb));
-        tile.UpdateContent(name, description, TileDraft.EvidenceInstructions?.Trim() ?? string.Empty, ehb);
+        tile.UpdateContent(name, description, TileDraft.EvidenceInstructions?.Trim() ?? string.Empty, ehb, template.ImageUrl);
         await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct); await WriteAudit("board.tile_edited", board.Id, name, ct);
         return RedirectToPage(new { id });
     }
@@ -259,15 +261,16 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         foreach (var requirement in requirements)
         {
             if (requirement.ManualObjective) { estimates.Add(null); continue; }
-            var rates = await (from link in db.TemplateRequirementDrops where link.RequirementId == requirement.Id join drop in db.SourceDrops on link.SourceDropId equals drop.Id join boss in db.BossActivities on drop.BossActivityId equals boss.Id select new EligibleDropRate(boss.EfficientCompletionsPerHour, drop.NumericProbability, drop.ItemId)).ToListAsync(ct);
+            var rateRows = await (from link in db.TemplateRequirementDrops where link.RequirementId == requirement.Id join drop in db.SourceDrops on link.SourceDropId equals drop.Id join boss in db.BossActivities on drop.BossActivityId equals boss.Id select new { link, drop, boss }).ToListAsync(ct);
+            var rates = rateRows.Select(x => new EligibleDropRate(x.boss.EfficientCompletionsPerHour, x.drop.NumericProbability, x.drop.ItemId, x.boss.Id, x.link.CreditedWeight, x.drop.RollsPerCompletion, x.drop.RollGroup));
             estimates.Add(EhbCalculator.CalculateDropRequirement(requirement.TargetContribution, rates, requirement.DuplicatesAllowed));
         }
-        var ehb = EhbCalculator.SumRequirements(estimates, template.ManualEhbOverride); var boardTile = new BoardTile(Guid.NewGuid(), board.Id, template.Id, position / board.Columns, position % board.Columns, template.Name, template.Description, template.EvidenceInstructions, ehb); db.BoardTiles.Add(boardTile);
+        var ehb = EhbCalculator.SumRequirements(estimates, template.ManualEhbOverride); var boardTile = new BoardTile(Guid.NewGuid(), board.Id, template.Id, position / board.Columns, position % board.Columns, template.Name, template.Description, template.EvidenceInstructions, ehb, template.ImageUrl); db.BoardTiles.Add(boardTile);
         foreach (var requirement in requirements)
         {
             var snapshot = new BoardRequirementSnapshot(Guid.NewGuid(), boardTile.Id, requirement.Position, requirement.TargetContribution, requirement.DuplicatesAllowed, requirement.AllowHigherWeightings, requirement.Description, requirement.ManualObjective); db.BoardRequirementSnapshots.Add(snapshot);
             var bosses = await (from link in db.TemplateRequirementBosses where link.RequirementId == requirement.Id join boss in db.BossActivities on link.BossActivityId equals boss.Id select boss).ToListAsync(ct); foreach (var boss in bosses) db.BoardRequirementBossSnapshots.Add(new BoardRequirementBossSnapshot(Guid.NewGuid(), snapshot.Id, boss.Id, boss.Name, boss.EfficientCompletionsPerHour));
-            var drops = await (from link in db.TemplateRequirementDrops where link.RequirementId == requirement.Id join drop in db.SourceDrops on link.SourceDropId equals drop.Id join boss in db.BossActivities on drop.BossActivityId equals boss.Id join item in db.CatalogueItems on drop.ItemId equals item.Id select new { link, drop, boss, item }).ToListAsync(ct); foreach (var value in drops) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), snapshot.Id, value.drop.Id, value.boss.Name, value.item.Name, value.drop.DisplayRate, value.drop.NumericProbability, value.link.MaximumContribution, value.drop.DefaultEhbEstimate));
+            var drops = await (from link in db.TemplateRequirementDrops where link.RequirementId == requirement.Id join drop in db.SourceDrops on link.SourceDropId equals drop.Id join boss in db.BossActivities on drop.BossActivityId equals boss.Id join item in db.CatalogueItems on drop.ItemId equals item.Id select new { link, drop, boss, item }).ToListAsync(ct); foreach (var value in drops) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), snapshot.Id, value.drop.Id, value.boss.Name, value.item.Name, value.drop.DisplayRate, value.drop.NumericProbability, value.link.MaximumContribution, value.drop.DefaultEhbEstimate, value.link.CreditedWeight));
         }
         board.SetTotalEhb(board.TotalEhbEstimate + ehb);
     }
@@ -301,7 +304,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         var boardTilesForEditors = await db.BoardTiles.AsNoTracking().Where(x => x.BoardId == board.Id).ToListAsync(ct);
         var editorTemplateIds = boardTilesForEditors.Select(x => x.TileTemplateId).Distinct().ToList();
         var manualEhbByTemplate = await db.TileTemplates.AsNoTracking().Where(x => editorTemplateIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.ManualEhbOverride, ct);
-        TileEditors = boardTilesForEditors.Select(tile => new TileEditorView(tile.Id, tile.NameSnapshot, tile.DescriptionSnapshot, tile.EvidenceInstructionsSnapshot, manualEhbByTemplate.GetValueOrDefault(tile.TileTemplateId), editorRequirements.Where(r => r.BoardTileId == tile.Id).Select(r => new RequirementEditorView(r.ManualObjective ? "challenge" : "drops", r.Description, r.TargetContribution, r.DuplicatesAllowed, r.AllowHigherWeightings, editorBosses.Where(b => b.RequirementId == r.Id).Select(b => b.BossActivityId).ToList(), editorDrops.Where(d => d.RequirementId == r.Id).Select(d => d.SourceDropId).ToList())).ToList())).ToList();
+        TileEditors = boardTilesForEditors.Select(tile => new TileEditorView(tile.Id, tile.NameSnapshot, tile.DescriptionSnapshot, tile.EvidenceInstructionsSnapshot, tile.ImageUrlSnapshot, manualEhbByTemplate.GetValueOrDefault(tile.TileTemplateId), editorRequirements.Where(r => r.BoardTileId == tile.Id).Select(r => new RequirementEditorView(r.ManualObjective ? "challenge" : "drops", r.Description, r.TargetContribution, r.DuplicatesAllowed, editorBosses.Where(b => b.RequirementId == r.Id).Select(b => b.BossActivityId).ToList(), editorDrops.Where(d => d.RequirementId == r.Id).Select(d => d.SourceDropId).ToList(), editorDrops.Where(d => d.RequirementId == r.Id).ToDictionary(d => d.SourceDropId, d => d.CreditedWeight), editorDrops.Where(d => d.RequirementId == r.Id).OrderBy(d => d.BossName).ThenBy(d => d.ItemName).Select(d => new RequirementDropView(d.SourceDropId, d.BossName, d.ItemName, d.DisplayRate, d.CreditedWeight)).ToList())).ToList())).ToList();
         var lines = new List<LineView>(); for (var row = 0; row < board.Rows; row++) lines.Add(new($"Row {row + 1}", "row", row, Tiles.Where(x => x.Position / board.Columns == row).Sum(x => x.Ehb))); for (var column = 0; column < board.Columns; column++) lines.Add(new($"Column {column + 1}", "column", column, Tiles.Where(x => x.Position % board.Columns == column).Sum(x => x.Ehb))); Lines = lines; BalanceSpread = lines.Count == 0 ? 0 : lines.Max(x => x.Ehb) - lines.Min(x => x.Ehb);
         var durationDays = Math.Max(0.5m, (decimal)(bingoEvent.EventEndsAt - bingoEvent.EventStartsAt).TotalHours / 24m); var teamSize = bingoEvent.ExpectedTeamSize; var total = Tiles.Sum(x => x.Ehb); var populatedLines = lines.Where(x => x.Ehb > 0).ToList();
         Statistics = new(total, teamSize, teamSize is > 0 ? total / teamSize.Value : null, teamSize is > 0 ? total / teamSize.Value / durationDays : null, Tiles.Count == 0 ? 0 : total / Tiles.Count, populatedLines.Count == 0 ? 0 : populatedLines.Min(x => x.Ehb), populatedLines.Count == 0 ? 0 : populatedLines.Max(x => x.Ehb), Tiles.Count(x => x.Ehb <= 0), durationDays);
@@ -343,17 +346,19 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         }
     }
     private static string DefaultTileName(IEnumerable<string> names) { var list = names.Distinct(StringComparer.OrdinalIgnoreCase).ToList(); return list.Count switch { 0 => "New tile", 1 => list[0], _ => string.Join(" + ", list) }; }
+    private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static string RequirementDescription(RequirementInput input) => input.IsManual ? input.Description!.Trim() : $"Collect {input.Target} eligible drop{(input.Target == 1 ? string.Empty : "s")}";
 
-    public sealed class TileDraftInput { public Guid? TileId { get; set; } public int Position { get; set; } public string? Name { get; set; } public string? Description { get; set; } [Range(0, 100000)] public decimal? ManualEhb { get; set; } public string? EvidenceInstructions { get; set; } public List<RequirementInput> Requirements { get; set; } = [new()]; }
-    public sealed class RequirementInput { public string Kind { get; set; } = "drops"; public string? Description { get; set; } [Range(1, 10000)] public int Target { get; set; } = 1; public bool DuplicatesAllowed { get; set; } = true; public bool AllowHigherWeightings { get; set; } public List<Guid> BossIds { get; set; } = []; public List<Guid> DropIds { get; set; } = []; public bool IsManual => string.Equals(Kind, "challenge", StringComparison.OrdinalIgnoreCase); }
+    public sealed class TileDraftInput { public Guid? TileId { get; set; } public int Position { get; set; } public string? Name { get; set; } public string? Description { get; set; } [Url, StringLength(2000), Display(Name = "Custom tile image URL")] public string? ImageUrl { get; set; } [Range(0, 100000)] public decimal? ManualEhb { get; set; } public string? EvidenceInstructions { get; set; } public List<RequirementInput> Requirements { get; set; } = [new()]; }
+    public sealed class RequirementInput { public string Kind { get; set; } = "drops"; public string? Description { get; set; } [Range(1, 10000)] public int Target { get; set; } = 1; public bool DuplicatesAllowed { get; set; } = true; public Dictionary<Guid, int> DropWeights { get; set; } = []; public List<Guid> BossIds { get; set; } = []; public List<Guid> DropIds { get; set; } = []; public bool IsManual => string.Equals(Kind, "challenge", StringComparison.OrdinalIgnoreCase); public int WeightFor(Guid dropId) => Math.Max(1, DropWeights.GetValueOrDefault(dropId, 1)); public bool HasHigherWeights => DropIds.Any(x => WeightFor(x) > 1); }
     public sealed record BoardDetails(int Rows, int Columns, BoardState State, decimal TotalEhb, long Version);
     public sealed record BoardStatistics(decimal TotalEhb, int? TeamSize, decimal? EhbPerPlayer, decimal? EhbPerPlayerPerDay, decimal AverageTileEhb, decimal LowestLineEhb, decimal HighestLineEhb, int MissingEhbTiles, decimal DurationDays);
     public sealed record TileView(Guid Id, int Position, string Name, string Description, string EvidenceInstructions, decimal Ehb);
     public sealed record LineView(string Key, string Kind, int Index, decimal Ehb);
     public sealed record BossView(Guid Id, string Name, string Category, decimal? EfficientRate);
     public sealed record DropView(Guid Id, Guid BossId, string BossName, string ItemName, string Rate);
-    public sealed record TileEditorView(Guid Id, string Name, string Description, string EvidenceInstructions, decimal? ManualEhb, IReadOnlyList<RequirementEditorView> Requirements);
-    public sealed record RequirementEditorView(string Kind, string Description, int Target, bool DuplicatesAllowed, bool AllowHigherWeightings, IReadOnlyList<Guid> BossIds, IReadOnlyList<Guid> DropIds);
+    public sealed record TileEditorView(Guid Id, string Name, string Description, string EvidenceInstructions, string? ImageUrl, decimal? ManualEhb, IReadOnlyList<RequirementEditorView> Requirements);
+    public sealed record RequirementEditorView(string Kind, string Description, int Target, bool DuplicatesAllowed, IReadOnlyList<Guid> BossIds, IReadOnlyList<Guid> DropIds, IReadOnlyDictionary<Guid, int> DropWeights, IReadOnlyList<RequirementDropView> Drops);
+    public sealed record RequirementDropView(Guid Id, string BossName, string ItemName, string DisplayRate, int CreditedWeight);
     public sealed record TeamWorkloadView(string TeamName, TeamFormationType FormationType, int ActualRosterSize, int? SizeUsed, decimal? EhbPerPlayer);
 }

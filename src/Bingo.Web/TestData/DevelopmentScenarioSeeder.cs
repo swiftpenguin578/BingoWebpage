@@ -40,6 +40,7 @@ public sealed class DevelopmentScenarioSeeder(
             ?? throw new InvalidOperationException("Create a local administrator before resetting test data.");
 
         var blueprint = await BuildCanonicalBlueprintAsync(cancellationToken);
+        var dklBlueprint = await BuildDklBlueprintAsync(cancellationToken);
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         await ClearWorkflowDataAsync(cancellationToken);
@@ -140,6 +141,13 @@ public sealed class DevelopmentScenarioSeeder(
         seeded.Add(completedScenario);
         await AddCompletedBoardAsync(completedScenario.EventId, admin.Id, now, cancellationToken);
         seeded.Add(SeedLargeDraftScenario(blueprint, admin.Id, now));
+        seeded.Add(SeedScenario(
+            "TEST 13 — DKL Board",
+            "test-13-dkl-board",
+            ScenarioStage.BoardDraft,
+            dklBlueprint,
+            admin.Id,
+            now));
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -442,7 +450,7 @@ public sealed class DevelopmentScenarioSeeder(
 
     private Board AddBoard(Guid eventId, BoardBlueprint blueprint, bool publish, DateTimeOffset now)
     {
-        var board = new Board(Guid.NewGuid(), eventId, "Edge-case test board", blueprint.Rows, blueprint.Columns);
+        var board = new Board(Guid.NewGuid(), eventId, blueprint.Name, blueprint.Rows, blueprint.Columns);
         db.Boards.Add(board);
         decimal total = 0;
         foreach (var tileData in blueprint.Tiles)
@@ -482,10 +490,10 @@ public sealed class DevelopmentScenarioSeeder(
                 foreach (var drop in requirementData.Drops)
                 {
                     db.TemplateRequirementDrops.Add(new TemplateRequirementDrop(
-                        Guid.NewGuid(), templateRequirement.Id, drop.Id, drop.Maximum));
+                        Guid.NewGuid(), templateRequirement.Id, drop.Id, drop.Maximum, drop.Weight));
                     db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(
                         Guid.NewGuid(), snapshot.Id, drop.Id, drop.Boss, drop.Item,
-                        drop.DisplayRate, drop.Probability, drop.Maximum, drop.Ehb));
+                        drop.DisplayRate, drop.Probability, drop.Maximum, drop.Ehb, drop.Weight));
                 }
             }
         }
@@ -797,6 +805,172 @@ public sealed class DevelopmentScenarioSeeder(
                 new(["General Graardor", "Kree'arra", "K'ril Tsutsaroth", "Commander Zilyana"], 10, false, false, null, "Collect 10 different eligible God Wars drops")
             ])
         };
+        return await BuildBlueprintAsync("Canonical edge-case board", 3, 4, specifications, cancellationToken);
+    }
+
+    private async Task<BoardBlueprint> BuildDklBlueprintAsync(CancellationToken cancellationToken)
+    {
+        var specifications = new[]
+        {
+            new SeedTile("Nex", null,
+            [
+                new(["Nex"], 3, true, false, null, "Collect 3 Nex uniques; the pet does not count",
+                    IncludedItems: ["Ancient hilt", "Nihil horn", "Torva full helm (damaged)", "Torva platebody (damaged)", "Torva platelegs (damaged)", "Zaryte vambraces"])
+            ]),
+            new SeedTile("Royal Titans", null,
+            [
+                new(["The Royal Titans"], 3, true, false, null, "Collect 3 fire staff crowns", IncludedItems: ["Fire element staff crown"]),
+                new(["The Royal Titans"], 3, true, false, null, "Collect 3 ice staff crowns", IncludedItems: ["Ice element staff crown"])
+            ]),
+            new SeedTile("God Wars", null,
+            [
+                new(["General Graardor", "Kree'Arra", "K'ril Tsutsaroth", "Commander Zilyana"], 10, false, false, null,
+                    "Collect 10 different God Wars uniques. Review this eligible list against the original board; pets are currently included as joker drops.",
+                    IncludedItems:
+                    [
+                        "Bandos boots", "Bandos chestplate", "Bandos hilt", "Bandos tassets", "Pet general graardor",
+                        "Armadyl chainskirt", "Armadyl chestplate", "Armadyl helmet", "Armadyl hilt", "Pet kree'arra",
+                        "Staff of the dead", "Steam battlestaff", "Zamorak hilt", "Zamorakian spear", "Pet k'ril tsutsaroth",
+                        "Armadyl crossbow", "Saradomin hilt", "Saradomin sword", "Saradomin's light", "Pet zilyana"
+                    ])
+            ]),
+            new SeedTile("Wilderness Boss", null,
+            [
+                new(["Artio", "Callisto"], 1, true, false, null, "Collect a Voidwaker hilt", IncludedItems: ["Voidwaker hilt"]),
+                new(["Calvar'ion", "Vet'ion"], 1, true, false, null, "Collect a Voidwaker blade", IncludedItems: ["Voidwaker blade"]),
+                new(["Spindel", "Venenatis"], 1, true, false, null, "Collect a Voidwaker gem", IncludedItems: ["Voidwaker gem"])
+            ]),
+            new SeedTile("Duke / Whisperer", null,
+            [
+                new(["Duke Sucellus", "The Whisperer"], 2, true, false, null,
+                    "Collect 2 Soulreaper axe pieces; both may come from the same selected boss",
+                    IncludedItems: ["Eye of the duke", "Siren's staff"])
+            ]),
+            new SeedTile("Araxxor", 25m,
+            [
+                new(["Araxxor"], 1, true, false, null,
+                    "Collect Nid using the destroy option, or the jar. The retained catalogue currently has the destroy-rate Nid entry only.",
+                    IncludedItems: ["Nid (Destroy)"])
+            ]),
+            new SeedTile("Phosani's Nightmare", null,
+            [
+                new(["Phosani's Nightmare"], 3, true, false, null, "Collect 3 eligible uniques; the pet does not count",
+                    IncludedItems:
+                    [
+                        "Eldritch orb", "Harmonised orb", "Volatile orb", "Inquisitor's great helm", "Inquisitor's hauberk",
+                        "Inquisitor's plateskirt", "Inquisitor's mace", "Nightmare staff"
+                    ])
+            ]),
+            new SeedTile("Yama", null,
+            [
+                new(["Yama"], 4, true, false, null, "Collect 4 Oathplate armour pieces or Soulflame horns",
+                    IncludedItems: ["Oathplate chest", "Oathplate helm", "Oathplate legs", "Soulflame horn"])
+            ]),
+            new SeedTile("The Hueycoatl", null,
+            [
+                new(["The Hueycoatl"], 2, true, false, null, "Collect 2 Dragon hunter wands", IncludedItems: ["Dragon hunter wand"])
+            ]),
+            new SeedTile("Vorkath", null,
+            [
+                new(["Vorkath"], 1, true, false, null, "Collect a Dragonbone necklace, either visage, or Vorki",
+                    IncludedItems: ["Dragonbone necklace", "Draconic visage", "Skeletal visage", "Vorki"])
+            ]),
+            new SeedTile("Sarachnis", null,
+            [
+                new(["Sarachnis"], 3, true, false, null, "Collect 3 Sarachnis cudgels", IncludedItems: ["Sarachnis cudgel"])
+            ]),
+            new SeedTile("Grotesque Guardians", null,
+            [
+                new(["Grotesque Guardians"], 2, true, false, null, "Collect 2 Granite hammers", IncludedItems: ["Granite hammer"])
+            ]),
+            new SeedTile("Theatre of Blood", null,
+            [
+                new(["Theatre of Blood"], 6, true, true, null, "Collect 6 purples; Scythe of vitur counts for 2",
+                    IncludedItems:
+                    [
+                        "Avernic defender hilt", "Ghrazi rapier", "Justiciar chestguard", "Justiciar faceguard", "Justiciar legguards",
+                        "Sanguinesti staff (uncharged)", "Scythe of vitur (uncharged)"
+                    ],
+                    WeightTwoItems: ["Scythe of vitur (uncharged)"])
+            ]),
+            new SeedTile("Skilling Slayer", 21,
+            [
+                new([], 3, true, false, null, "Collect 3 superior-slayer uniques", Manual: true)
+            ]),
+            new SeedTile("Corp", null,
+            [
+                new(["Corporeal Beast"], 3, true, false, null, "Collect 3 Spirit shields", IncludedItems: ["Spirit shield"])
+            ]),
+            new SeedTile("Maggot King", null,
+            [
+                new(["Maggot King"], 5, true, false, null, "Collect 5 eligible Maggot King drops; review whether the pet should count")
+            ]),
+            new SeedTile("Alchemical Hydra", null,
+            [
+                new(["Alchemical Hydra"], 1, true, false, null, "Collect Hydra's claw, Ikkle hydra, or Jar of chemicals",
+                    IncludedItems: ["Hydra's claw", "Ikkle hydra", "Jar of chemicals"])
+            ]),
+            new SeedTile("Zulrah", null,
+            [
+                new(["Zulrah"], 5, true, false, null, "Collect 5 eligible uniques; the pet and mutagens do not count",
+                    IncludedItems: ["Magic fang", "Serpentine visage", "Tanzanite fang", "Uncut onyx"])
+            ]),
+            new SeedTile("Tombs of Amascut", null,
+            [
+                new(["Tombs of Amascut (Expert Mode)"], 6, true, true, null,
+                    "Complete level-300 Expert ToA and collect 6 purples; Tumeken's shadow counts for 2",
+                    IncludedItems:
+                    [
+                        "Elidinis' ward", "Lightbearer", "Masori body", "Masori chaps", "Masori mask", "Osmumten's fang",
+                        "Tumeken's shadow (uncharged)"
+                    ],
+                    WeightTwoItems: ["Tumeken's shadow (uncharged)"])
+            ]),
+            new SeedTile("Doom", null,
+            [
+                new(["Doom of Mokhaiotl"], 2, true, false, null,
+                    "Collect 2 uniques during full delve 1–16 runs. The EHB override uses the Wiki's aggregate 1–16 unique output.",
+                    IncludedItems: ["Avernic treads", "Eye of ayak (uncharged)", "Mokhaiotl cloth"])
+            ]),
+            new SeedTile("Fortis Colosseum", null,
+            [
+                new(["Sol Heredit"], 6, true, false, null, "Defeat Sol Heredit and collect 6 Sunfire armour pieces",
+                    IncludedItems: ["Sunfire fanatic chausses", "Sunfire fanatic cuirass", "Sunfire fanatic helm"])
+            ]),
+            new SeedTile("Leviathan / Vardorvis", null,
+            [
+                new(["The Leviathan", "Vardorvis"], 3, true, false, null, "Collect 3 Chromium ingots", IncludedItems: ["Chromium ingot"])
+            ]),
+            new SeedTile("Barrows / Moons", null,
+            [
+                new(["Barrows Chests"], 5, true, false, null, "Collect 5 Barrows equipment pieces"),
+                new(["Lunar Chests"], 5, true, false, null, "Collect 5 Moons equipment pieces")
+            ]),
+            new SeedTile("Cerberus", null,
+            [
+                new(["Cerberus"], 2, true, false, null, "Collect 2 Primordial crystals", IncludedItems: ["Primordial crystal"])
+            ]),
+            new SeedTile("Chambers of Xeric", null,
+            [
+                new(["Chambers of Xeric"], 6, true, true, null, "Collect 6 purples; megarares count for 2",
+                    IncludedItems:
+                    [
+                        "Ancestral hat", "Ancestral robe bottom", "Ancestral robe top", "Arcane prayer scroll", "Dexterous prayer scroll",
+                        "Dinh's bulwark", "Dragon claws", "Dragon hunter crossbow", "Elder maul", "Kodai insignia", "Twisted bow", "Twisted buckler"
+                    ],
+                    WeightTwoItems: ["Elder maul", "Kodai insignia", "Twisted bow"])
+            ])
+        };
+        return await BuildBlueprintAsync("DKL comparison board", 5, 5, specifications, cancellationToken);
+    }
+
+    private async Task<BoardBlueprint> BuildBlueprintAsync(
+        string name,
+        int rows,
+        int columns,
+        IReadOnlyList<SeedTile> specifications,
+        CancellationToken cancellationToken)
+    {
         var bossNames = specifications.SelectMany(specification => specification.Requirements).SelectMany(requirement => requirement.Bosses).Distinct().ToList();
         var bosses = await db.BossActivities.AsNoTracking().Where(boss => bossNames.Contains(boss.Name)).ToListAsync(cancellationToken);
         var bossIds = bosses.Select(boss => boss.Id).ToList();
@@ -806,7 +980,7 @@ public sealed class DevelopmentScenarioSeeder(
                               where bossIds.Contains(boss.Id) && drop.Active && item.Active
                               select new { drop, item, boss }).ToListAsync(cancellationToken);
         var tiles = new List<TileBlueprint>();
-        for (var index = 0; index < specifications.Length; index++)
+        for (var index = 0; index < specifications.Count; index++)
         {
             var specification = specifications[index];
             var requirements = new List<RequirementBlueprint>();
@@ -817,10 +991,18 @@ public sealed class DevelopmentScenarioSeeder(
                 var selectedBosses = bosses.Where(boss => requirement.Bosses.Contains(boss.Name)).ToList();
                 var selectedDrops = dropRows.Where(row =>
                     requirement.Bosses.Contains(row.boss.Name) &&
-                    (requirement.ItemNameContains is null || row.item.Name.Contains(requirement.ItemNameContains, StringComparison.OrdinalIgnoreCase))).ToList();
+                    (requirement.IncludedItems is not null
+                        ? requirement.IncludedItems.Contains(row.item.Name, StringComparer.OrdinalIgnoreCase)
+                        : requirement.ItemNameContains is null || row.item.Name.Contains(requirement.ItemNameContains, StringComparison.OrdinalIgnoreCase))).ToList();
                 if (!requirement.Manual && selectedDrops.Count == 0)
                 {
                     throw new InvalidOperationException($"The retained catalogue has no eligible drops for seeded tile '{specification.Name}'.");
+                }
+                var selectedItemNames = selectedDrops.Select(row => row.item.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var missingItems = requirement.IncludedItems?.Where(item => !selectedItemNames.Contains(item)).ToList() ?? [];
+                if (missingItems.Count > 0)
+                {
+                    throw new InvalidOperationException($"The retained catalogue is missing seeded drops for '{specification.Name}': {string.Join(", ", missingItems)}.");
                 }
                 requirements.Add(new RequirementBlueprint(
                     requirementIndex + 1, requirement.Target, requirement.Duplicates, requirement.HigherWeights,
@@ -828,23 +1010,27 @@ public sealed class DevelopmentScenarioSeeder(
                     selectedBosses.Select(boss => new BossBlueprint(boss.Id, boss.Name, boss.EfficientCompletionsPerHour)).ToList(),
                     selectedDrops.Select(row => new DropBlueprint(
                         row.drop.Id, row.boss.Name, row.item.Name, row.drop.DisplayRate,
-                        row.drop.NumericProbability, requirement.Duplicates ? null : 1, row.drop.DefaultEhbEstimate)).ToList()));
+                        row.drop.NumericProbability, requirement.Duplicates ? null : 1, row.drop.DefaultEhbEstimate,
+                        requirement.WeightTwoItems?.Contains(row.item.Name, StringComparer.OrdinalIgnoreCase) == true ? 2 : 1)).ToList()));
                 estimates.Add(requirement.Manual
                     ? null
                     : EhbCalculator.CalculateDropRequirement(
                         requirement.Target,
                         selectedDrops.Select(row => new EligibleDropRate(
-                            row.boss.EfficientCompletionsPerHour, row.drop.NumericProbability, row.drop.ItemId)),
+                            row.boss.EfficientCompletionsPerHour, row.drop.NumericProbability, row.drop.ItemId,
+                            row.boss.Id,
+                            requirement.WeightTwoItems?.Contains(row.item.Name, StringComparer.OrdinalIgnoreCase) == true ? 2 : 1,
+                            row.drop.RollsPerCompletion, row.drop.RollGroup)),
                         requirement.Duplicates));
             }
             var description = string.Join("; ", specification.Requirements.Select(requirement => requirement.Description));
             var ehb = EhbCalculator.SumRequirements(estimates, specification.ManualEhb);
             tiles.Add(new TileBlueprint(
-                index / 4, index % 4, specification.Name, description,
+                index / columns, index % columns, specification.Name, description,
                 "Submit one screenshot showing the player name and game message.",
                 Math.Max(1, ehb), requirements));
         }
-        return new BoardBlueprint("Canonical edge-case board", 3, 4, tiles);
+        return new BoardBlueprint(name, rows, columns, tiles);
     }
 
     private Task<int> ClearWorkflowDataAsync(CancellationToken cancellationToken) =>
@@ -899,12 +1085,21 @@ public sealed class DevelopmentScenarioSeeder(
 
     private enum DraftSeedState { Setup, Running, Finalized }
     private sealed record SeedTile(string Name, decimal? ManualEhb, SeedRequirement[] Requirements);
-    private sealed record SeedRequirement(string[] Bosses, int Target, bool Duplicates, bool HigherWeights, string? ItemNameContains, string Description, bool Manual = false);
+    private sealed record SeedRequirement(
+        string[] Bosses,
+        int Target,
+        bool Duplicates,
+        bool HigherWeights,
+        string? ItemNameContains,
+        string Description,
+        bool Manual = false,
+        string[]? IncludedItems = null,
+        string[]? WeightTwoItems = null);
     private sealed record BoardBlueprint(string Name, int Rows, int Columns, IReadOnlyList<TileBlueprint> Tiles);
     private sealed record TileBlueprint(int Row, int Column, string Name, string Description, string EvidenceInstructions, decimal Ehb, IReadOnlyList<RequirementBlueprint> Requirements);
     private sealed record RequirementBlueprint(int Position, int Target, bool Duplicates, bool HigherWeights, string Description, bool Manual, IReadOnlyList<BossBlueprint> Bosses, IReadOnlyList<DropBlueprint> Drops);
     private sealed record BossBlueprint(Guid Id, string Name, decimal? Rate);
-    private sealed record DropBlueprint(Guid Id, string Boss, string Item, string DisplayRate, decimal? Probability, int? Maximum, decimal? Ehb);
+    private sealed record DropBlueprint(Guid Id, string Boss, string Item, string DisplayRate, decimal? Probability, int? Maximum, decimal? Ehb, int Weight = 1);
 }
 
 public sealed record SeedResult(

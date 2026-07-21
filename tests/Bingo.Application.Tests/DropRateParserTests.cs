@@ -26,6 +26,17 @@ public sealed class DropRateParserTests
         Assert.Null(DropRateParser.TryParseProbability("Varies by invocation"));
     }
 
+    [Fact]
+    public void PreservesNumeratorAndSuffixRollsAsStructuredData()
+    {
+        var parsed = DropRateParser.TryParse("7/2448 × 2 rolls");
+
+        Assert.NotNull(parsed);
+        Assert.Equal(7m / 2448m, parsed.ProbabilityPerRoll);
+        Assert.Equal(2, parsed.RollsPerCompletion);
+        Assert.True(parsed.ExplicitMultipleRolls);
+    }
+
     [Theory]
     [InlineData("0/69")]
     [InlineData("70/69")]

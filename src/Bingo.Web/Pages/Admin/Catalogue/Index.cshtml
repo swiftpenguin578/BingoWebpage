@@ -1,6 +1,7 @@
 @page
 @model Bingo.Web.Pages.Admin.Catalogue.IndexModel
 @using System.Globalization
+@using Bingo.Domain.Catalogue
 @{
     ViewData["Title"] = "OSRS catalogue";
     var categories = new[] { "Boss", "Skilling boss", "Minigame" };
@@ -14,6 +15,11 @@
             <p class="form-intro">Manage bosses, activities, their drops and the values used to calculate EHB.</p>
         </div>
     </div>
+
+    <aside class="information-callout" role="note">
+        <strong>Team content</strong>
+        <span>When adding a drop for team content, enter the chance of receiving it in your own name at the team size used for the EHB rate. For example, in a five-player Nex team, your personal chance of receiving a Nihil horn is 1/1,290 per kill.</span>
+    </aside>
 
     <div class="catalogue-heading">
         <div>
@@ -51,6 +57,8 @@
         var missingDropValues = bossDrops.Count(x => x.Active && (x.Probability is null or <= 0));
         <details class="panel catalogue-record @(!boss.Active ? "is-inactive" : null)"
                  data-boss-record
+                 data-no-post-restore
+                 data-boss-id="@boss.Id"
                  data-category="@boss.Category.ToLowerInvariant()"
                  data-active="@boss.Active.ToString().ToLowerInvariant()"
                  data-search="@searchText">
@@ -179,11 +187,11 @@
                                     <label>Item name</label>
                                     <input name="itemName" value="@drop.ItemName" data-original-item-name="@drop.ItemName" class="form-control" maxlength="200" required />
                                 </div>
-                                <div><label>Displayed drop rate</label><input name="displayRate" value="@drop.DisplayRate" class="form-control" required /></div>
+                                <div><label>Displayed drop rate</label><input name="displayRate" value="@drop.DisplayRate" class="form-control catalogue-display-rate-input" required /></div>
                                 <div>
-                                    <label>Probability per completion</label>
+                                    <label>Personal probability</label>
                                     <input name="numericProbability" value="@(drop.Probability?.ToString("0.############", CultureInfo.InvariantCulture))" class="form-control catalogue-probability-input" type="number" min="0" max="1" step="any" />
-                                    <small>For example, 1/100 is 0.01.</small>
+                                    <small>Per reward roll. For example, 1/100 is 0.01.</small>
                                 </div>
                                 <div class="catalogue-ehb-result">
                                     <label>Calculated EHB</label>
@@ -194,6 +202,8 @@
                                     <div class="catalogue-additional-grid">
                                         <div><label>Data source</label><input name="dataSource" value="@drop.DataSource" class="form-control" /></div>
                                         <div><label>Image URL</label><input name="imageUrl" value="@drop.ImageUrl" class="form-control" type="url" placeholder="Direct image or OSRS Wiki media link" /></div>
+                                        <div><label>Rolls per completion</label><input name="rollsPerCompletion" value="@drop.RollsPerCompletion" class="form-control" type="number" min="1" max="100" /></div>
+                                        <div><label>Roll group</label><input name="rollGroup" value="@drop.RollGroup" class="form-control" maxlength="120" /></div>
                                     </div>
                                     @if (drop.RateVariants.Count > 1)
                                     {
@@ -269,20 +279,22 @@
             <input type="hidden" asp-for="BossDrop.BossActivityId" id="drop-boss-id" />
             <div><label asp-for="BossDrop.ItemName"></label><input asp-for="BossDrop.ItemName" class="form-control" placeholder="For example: Tanzanite fang" /></div>
             <div class="catalogue-dialog-grid">
-                <div><label asp-for="BossDrop.DisplayRate"></label><input asp-for="BossDrop.DisplayRate" class="form-control" placeholder="For example: 2 × 1/1,024" /></div>
+                <div><label asp-for="BossDrop.DisplayRate"></label><input asp-for="BossDrop.DisplayRate" class="form-control catalogue-display-rate-input" placeholder="For example: 2 × 1/1,024" /></div>
                 <div>
-                    <label asp-for="BossDrop.NumericProbability">Probability per completion</label>
+                    <label asp-for="BossDrop.NumericProbability">Personal probability per reward roll</label>
                     <input asp-for="BossDrop.NumericProbability" class="form-control" type="number" min="0" max="1" step="any" placeholder="0.0009765625" />
                     <small>Optional when the displayed rate can be read automatically.</small>
                 </div>
             </div>
             <div><label asp-for="BossDrop.Condition"></label><input asp-for="BossDrop.Condition" class="form-control" placeholder="Optional restrictions or notes" /></div>
-            <aside class="catalogue-formula-note">Expected EHB is calculated as <strong>1 ÷ (efficient completions per hour × probability)</strong>.</aside>
+            <aside class="catalogue-formula-note">Always enter the chance that one participant receives the item. For group content, use the chance that it appears in that participant's name.</aside>
             <details class="catalogue-additional-details">
                 <summary>Additional details</summary>
                 <div class="catalogue-additional-grid">
                     <div><label asp-for="BossDrop.DataSource"></label><input asp-for="BossDrop.DataSource" class="form-control" /></div>
                     <div><label asp-for="BossDrop.ImageUrl"></label><input asp-for="BossDrop.ImageUrl" class="form-control" type="url" /></div>
+                    <div><label asp-for="BossDrop.RollsPerCompletion">Rolls per completion</label><input asp-for="BossDrop.RollsPerCompletion" class="form-control" type="number" min="1" max="100" /></div>
+                    <div><label asp-for="BossDrop.RollGroup">Roll group</label><input asp-for="BossDrop.RollGroup" class="form-control" maxlength="120" /></div>
                 </div>
             </details>
             <div class="dialog-actions"><button type="button" class="btn btn-outline-light dialog-cancel">Cancel</button><button class="btn btn-primary">Add drop</button></div>
@@ -302,11 +314,17 @@
     const empty = document.getElementById('no-boss-results');
     let activeFilter = 'all';
 
-    try {
-        const saved = JSON.parse(sessionStorage.getItem(storageKey) || '{}');
-        search.value = saved.search || '';
-        activeFilter = saved.filter || 'all';
-    } catch { }
+    let savedState = {};
+    try { savedState = JSON.parse(sessionStorage.getItem(storageKey) || '{}'); } catch { }
+    search.value = savedState.search || '';
+    activeFilter = savedState.filter || 'all';
+    records.forEach(record => { record.open = record.dataset.bossId === savedState.restoreOpenBossId; });
+
+    const saveCatalogueState = restoreOpenBossId => sessionStorage.setItem(storageKey, JSON.stringify({
+        search: search.value,
+        filter: activeFilter,
+        ...(restoreOpenBossId ? { restoreOpenBossId } : {})
+    }));
 
     function applyFilters() {
         const term = search.value.trim().toLowerCase();
@@ -318,7 +336,7 @@
                 || record.dataset.category === activeFilter;
             const matches = matchesSearch && matchesFilter;
             record.hidden = !matches;
-            if (matches) { visible++; if (term) record.open = true; }
+            if (matches) visible++;
         });
         filters.forEach(button => {
             const selected = button.dataset.catalogueFilter === activeFilter;
@@ -327,11 +345,15 @@
         });
         count.textContent = `${visible} shown`;
         empty.hidden = visible !== 0;
-        sessionStorage.setItem(storageKey, JSON.stringify({ search: search.value, filter: activeFilter }));
+        saveCatalogueState();
     }
 
     search.addEventListener('input', applyFilters);
     filters.forEach(button => button.addEventListener('click', () => { activeFilter = button.dataset.catalogueFilter; applyFilters(); }));
+    document.querySelectorAll('[data-boss-record] form').forEach(form => form.addEventListener('submit', () => {
+        const record = form.closest('[data-boss-record]');
+        saveCatalogueState(record?.dataset.bossId);
+    }));
     applyFilters();
 
     const bossDialog = document.getElementById('add-boss-dialog');
@@ -350,6 +372,22 @@
         editor.hidden = !editor.hidden;
         button.setAttribute('aria-expanded', (!editor.hidden).toString());
         if (!editor.hidden) editor.querySelector('input').focus();
+    }));
+
+    const parseDisplayedRate = value => {
+        const match = value.trim().match(/^(?:(\d+)\s*[x×*]\s*)?(\d+(?:[.,]\d+)?)\s*\/\s*([\d., ]+?)(?:\s*[x×*]\s*(\d+)\s*(?:rolls?)?)?$/i);
+        if (!match) return null;
+        const number = text => { const cleaned = text.replaceAll(' ', ''); const normalized = /^\d{1,3}(?:[,.]\d{3})+$/.test(cleaned) ? cleaned.replaceAll(',', '').replaceAll('.', '') : cleaned.replace(',', '.'); return Number(normalized); };
+        if (match[1] && match[4]) return null;
+        const numerator = number(match[2]); const denominator = number(match[3]); const rolls = Number(match[1] || match[4] || 1);
+        if (!(numerator > 0) || !(denominator > 0) || numerator / denominator > 1 || !(rolls >= 1)) return null;
+        return { probability: numerator / denominator, rolls };
+    };
+    document.querySelectorAll('.catalogue-display-rate-input').forEach(input => input.addEventListener('input', () => {
+        const parsed = parseDisplayedRate(input.value); if (!parsed) return;
+        const form = input.form; const probability = form.querySelector('.catalogue-probability-input, [name="BossDrop.NumericProbability"]'); const rolls = form.querySelector('[name="rollsPerCompletion"], [name="BossDrop.RollsPerCompletion"]');
+        if (probability) probability.value = String(parsed.probability);
+        if (rolls) rolls.value = String(parsed.rolls);
     }));
 
     const itemNameInputs = [...document.querySelectorAll('input[data-original-item-name]')];

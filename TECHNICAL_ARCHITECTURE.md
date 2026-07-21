@@ -149,6 +149,8 @@ SignalR publishes small invalidation/update messages after:
 
 Clients then update the affected view or request fresh data. SignalR messages do not contain authoritative secret data and do not replace database transactions.
 
+At production scale, clients should refresh only the affected progress data. The existing full-page safety reload may remain as a recovery mechanism, but progress notifications must not cause every connected client to reload simultaneously. Use targeted fetches and/or randomized jitter, and verify the behavior with 100 connected clients before deployment.
+
 The site must remain usable if the realtime connection is temporarily unavailable. A normal refresh retrieves the authoritative state.
 
 ## 6. Persistence

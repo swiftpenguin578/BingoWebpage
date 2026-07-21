@@ -60,6 +60,7 @@ builder.Services.AddHttpClient("OsrsWiki", client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd("OSRSCommunityBingo/1.0 (catalogue dry-run)");
 });
 builder.Services.AddScoped<OsrsWikiCatalogueDryRunService>();
+builder.Services.AddScoped<CatalogueSnapshotService>();
 builder.Services.AddScoped<DevelopmentScenarioSeeder>();
 builder.Services.AddScoped<SharedShellService>();
 builder.Services.AddHostedService<EventLifecycleWorker>();
@@ -126,6 +127,30 @@ builder.Services
         tags: ["ready"]);
 
 var app = builder.Build();
+
+var catalogueSnapshotPath = Path.Combine(app.Environment.ContentRootPath, CatalogueSnapshotService.DefaultRelativePath);
+
+if (args.Contains("--export-catalogue-snapshot", StringComparer.Ordinal))
+{
+    await using var snapshotScope = app.Services.CreateAsyncScope();
+    var snapshotDb = snapshotScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await snapshotDb.Database.MigrateAsync();
+    var snapshots = snapshotScope.ServiceProvider.GetRequiredService<CatalogueSnapshotService>();
+    var result = await snapshots.ExportAsync(catalogueSnapshotPath);
+    Console.WriteLine($"Catalogue snapshot exported to {catalogueSnapshotPath}: {result.Bosses} bosses, {result.Items} items, {result.Drops} drops, {result.Variants} variants.");
+    return;
+}
+
+if (args.Contains("--apply-catalogue-snapshot", StringComparer.Ordinal))
+{
+    await using var snapshotScope = app.Services.CreateAsyncScope();
+    var snapshotDb = snapshotScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await snapshotDb.Database.MigrateAsync();
+    var snapshots = snapshotScope.ServiceProvider.GetRequiredService<CatalogueSnapshotService>();
+    var result = await snapshots.ApplyAsync(catalogueSnapshotPath);
+    Console.WriteLine($"Catalogue snapshot applied from {catalogueSnapshotPath}: {result.Bosses} bosses, {result.Items} items, {result.Drops} drops, {result.Variants} variants.");
+    return;
+}
 
 if (args.Contains("--apply-wiki-catalogue", StringComparer.Ordinal))
 {

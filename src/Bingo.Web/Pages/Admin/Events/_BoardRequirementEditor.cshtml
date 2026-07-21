@@ -1,16 +1,16 @@
 @model Bingo.Web.Pages.Admin.Events.BoardRequirementEditorViewModel
 @{ var prefix = Model.Index < 0 ? "Requirements[-1]" : $"Requirements[{Model.Index}]"; var id = $"requirement-{Model.Index}"; }
 <fieldset class="requirement-editor" id="@id" data-index="@Model.Index">
-    <div class="objective-heading"><div><legend>Objective <span class="objective-number">@(Model.Index < 0 ? string.Empty : Model.Index + 1)</span></legend><small>Every objective on the tile must be completed.</small></div>@if (Model.Index != 0) { <button type="button" class="btn btn-sm catalogue-compact-action btn-outline-danger remove-requirement" aria-label="Remove objective">Remove objective</button> }</div>
+    <div class="objective-heading"><legend>Objective <span class="objective-number">@(Model.Index < 0 ? string.Empty : Model.Index + 1)</span></legend>@if (Model.Index != 0) { <button type="button" class="objective-remove remove-requirement" aria-label="Remove objective" title="Remove objective">×</button> }</div>
     <div class="objective-core-grid">
-        <label for="@id-kind">Objective type<select id="@id-kind" name="@($"TileDraft.{prefix}.Kind")" class="form-select requirement-kind"><option value="drops">Collect drops</option><option value="challenge">Complete an activity or challenge</option></select></label>
-        <label for="@id-target">Required quantity<input id="@id-target" name="@($"TileDraft.{prefix}.Target")" class="form-control" type="number" min="1" value="1" required /></label>
+        <label for="@id-kind"><span class="objective-field-label">Objective type</span><select id="@id-kind" name="@($"TileDraft.{prefix}.Kind")" class="form-select requirement-kind"><option value="drops">Collect drops</option><option value="challenge">Complete an activity or challenge</option></select></label>
+        <div class="objective-source-field"><strong>Bosses or activities</strong><details class="checkbox-dropdown boss-picker"><summary>Choose bosses or activities</summary><div class="checkbox-dropdown-menu">@foreach (var boss in Model.Bosses) { <label><input type="checkbox" name="@($"TileDraft.{prefix}.BossIds")" value="@boss.Id" class="boss-checkbox" data-boss-id="@boss.Id" data-boss-name="@boss.Name" /> <span>@boss.Name</span></label> }</div></details></div>
+        <label for="@id-target"><span class="objective-field-label">Quantity</span><input id="@id-target" name="@($"TileDraft.{prefix}.Target")" class="form-control" type="number" min="1" value="1" required /></label>
     </div>
     <div class="challenge-only-fields" hidden><label for="@id-description">What must be completed?<input id="@id-description" name="@($"TileDraft.{prefix}.Description")" class="form-control challenge-description" placeholder="For example: Complete Theatre of Blood in a four-player team under 25 minutes" /></label></div>
-    <label class="objective-source-label">Where can this be completed?<small>Select one or more bosses or activities. They all count toward this objective.</small></label><details class="checkbox-dropdown boss-picker"><summary>Choose bosses or activities</summary><div class="checkbox-dropdown-menu">@foreach (var boss in Model.Bosses) { <label><input type="checkbox" name="@($"TileDraft.{prefix}.BossIds")" value="@boss.Id" class="boss-checkbox" data-boss-id="@boss.Id" data-boss-name="@boss.Name" /> <span>@boss.Name</span></label> }</div></details>
     <div class="drop-only-fields">
-        <div class="eligible-drop-heading"><div><strong>Which drops count?</strong><small>Eligible drops are grouped by the bosses selected above.</small></div><div><button type="button" class="btn btn-sm catalogue-compact-action neutral-outline-action select-all-drops">Select all</button><button type="button" class="btn btn-sm catalogue-compact-action neutral-outline-action deselect-all-drops">Deselect all</button></div></div>
-        <p class="drop-picker-empty">Choose a boss to see its drops.</p>
+        <div class="eligible-drop-heading"><strong>Eligible drops</strong><div class="eligible-drop-actions" hidden><button type="button" class="btn btn-sm catalogue-compact-action neutral-outline-action select-all-drops">Select all</button><button type="button" class="btn btn-sm catalogue-compact-action neutral-outline-action deselect-all-drops" aria-label="Deselect all drops">Clear</button></div></div>
+        <p class="drop-picker-empty">Choose a boss or activity first.</p>
         <div class="eligible-drop-list">
             @foreach (var boss in Model.Bosses)
             {
@@ -19,12 +19,14 @@
                     <h4>@boss.Name</h4>
                     @foreach (var drop in bossDrops)
                     {
-                        <label class="eligible-drop-option"><input type="checkbox" name="@($"TileDraft.{prefix}.DropIds")" value="@drop.Id" /> <span>@drop.ItemName <small>@drop.Rate</small></span></label>
+                        var dropIdsName = $"TileDraft.{prefix}.DropIds";
+                        var dropWeightName = $"TileDraft.{prefix}.DropWeights[{drop.Id}]";
+                        <div class="eligible-drop-option"><label><input type="checkbox" name="@dropIdsName" value="@drop.Id" class="eligible-drop-checkbox" /> <span>@drop.ItemName <small>@drop.Rate</small></span></label><label class="drop-weight-field" hidden><span class="visually-hidden">@drop.ItemName contribution weight</span><input type="number" name="@dropWeightName" value="1" min="1" max="10000" class="form-control" aria-label="@drop.ItemName contribution weight" /></label></div>
                     }
                 </section>
             }
         </div>
-        <small>Missing a drop? <a href="/Admin/Catalogue" target="_blank">Add it to the OSRS catalogue</a>, then reopen this tile.</small>
-        <details class="objective-counting-options"><summary>Counting options</summary><div><label class="check-row"><input type="checkbox" name="@($"TileDraft.{prefix}.DuplicatesAllowed")" value="true" checked /> Allow repeated copies of the same eligible drop</label><label class="check-row"><input type="checkbox" name="@($"TileDraft.{prefix}.AllowHigherWeightings")" value="true" /> Allow captains to give one submission a higher weight</label></div></details>
+        <small class="missing-drop-help">Missing a drop? <a href="/Admin/Catalogue" target="_blank">Add it to the OSRS catalogue</a>, then reopen this tile.</small>
+        <details class="objective-counting-options"><summary>Counting options</summary><div><label class="check-row"><input type="checkbox" name="@($"TileDraft.{prefix}.DuplicatesAllowed")" value="true" checked /> Allow repeated copies of the same eligible drop</label><label class="check-row"><input type="checkbox" class="individual-drop-weights-toggle" /> Configure individual drop weights</label></div></details>
     </div>
 </fieldset>

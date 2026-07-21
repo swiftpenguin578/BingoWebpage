@@ -4,6 +4,7 @@ using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
 using Bingo.Domain.Teams;
 using Bingo.Web.Pages.Admin.Events;
+using Bingo.Web.Catalogue;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 
@@ -45,6 +46,30 @@ public sealed class PostgreSqlConnectivityTests : IAsyncLifetime
             .SingleAsync();
 
         Assert.Equal("ready", value);
+    }
+
+    [Fact]
+    public async Task VersionedCatalogueSnapshotRestoresIntoFreshMigratedDatabase()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(_database.GetConnectionString())
+            .Options;
+        await using var context = new ApplicationDbContext(options);
+        await context.Database.MigrateAsync();
+
+        var path = Path.Combine(AppContext.BaseDirectory, "data", "osrs-catalogue.json");
+        var service = new CatalogueSnapshotService(context, TimeProvider.System);
+        var result = await service.ApplyAsync(path);
+
+        Assert.Equal(68, result.Bosses);
+        Assert.Equal(311, result.Items);
+        Assert.Equal(441, result.Drops);
+        Assert.Equal(479, result.Variants);
+        Assert.Equal(result.Bosses, await context.BossActivities.CountAsync());
+        Assert.Equal(result.Items, await context.CatalogueItems.CountAsync());
+        Assert.Equal(result.Drops, await context.SourceDrops.CountAsync());
+        Assert.Equal(result.Variants, await context.SourceDropRateVariants.CountAsync());
+        Assert.Equal(22, await context.SourceDrops.CountAsync(x => x.Active && EF.Functions.ILike(x.DisplayRate, "%+1 variant%")));
     }
 
     [Fact]

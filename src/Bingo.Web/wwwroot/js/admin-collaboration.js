@@ -14,17 +14,13 @@
     let boardExpiryTimer;
     let localBoardChangeUntil = 0;
     let localDraftChangeUntil = 0;
-    let preserveBoardEditingOnPageHide = false;
-    const reloadWithoutReleasingBoard = () => {
-        preserveBoardEditingOnPageHide = true;
-        window.location.reload();
-    };
+    const reloadBoard = () => window.location.reload();
     const scheduleDraftReload = () => {
         if (Date.now() < localDraftChangeUntil) return;
         const notice = document.querySelector('[data-draft-update]');
         if (notice) notice.hidden = false;
         window.clearTimeout(reloadTimer);
-        reloadTimer = window.setTimeout(reloadWithoutReleasingBoard, 700);
+        reloadTimer = window.setTimeout(reloadBoard, 700);
     };
     const scheduleBoardReload = () => {
         if (Date.now() < localBoardChangeUntil) return;
@@ -43,7 +39,7 @@
         const scheduleBoardExpiryReload = expiresAt => {
             window.clearTimeout(boardExpiryTimer);
             const expiry = Date.parse(expiresAt || '');
-            if (Number.isFinite(expiry)) boardExpiryTimer = window.setTimeout(reloadWithoutReleasingBoard, Math.max(1000, expiry - Date.now() + 1000));
+            if (Number.isFinite(expiry)) boardExpiryTimer = window.setTimeout(reloadBoard, Math.max(1000, expiry - Date.now() + 1000));
         };
         scheduleBoardExpiryReload(boardRoot.dataset.editorExpiresAt);
         boardRoot.scheduleExpiryReload = scheduleBoardExpiryReload;
@@ -104,12 +100,5 @@
                 .catch(() => {});
         };
         ['pointerdown', 'keydown', 'input', 'dragstart'].forEach(eventName => document.addEventListener(eventName, renewForActivity, { passive: true }));
-        document.querySelectorAll('form:not([data-release-board-editing])').forEach(form => form.addEventListener('submit', () => { preserveBoardEditingOnPageHide = true; }));
-        window.addEventListener('pagehide', () => {
-            if (preserveBoardEditingOnPageHide) return;
-            const releaseForm = document.querySelector('[data-release-board-editing]');
-            if (!releaseForm) return;
-            fetch(releaseForm.action, { method: 'POST', body: new FormData(releaseForm), credentials: 'same-origin', keepalive: true }).catch(() => {});
-        });
     }
 })();

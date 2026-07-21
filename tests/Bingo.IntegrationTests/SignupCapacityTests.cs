@@ -27,6 +27,32 @@ public sealed class SignupCapacityTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task RemovingConfirmedParticipantPromotesFirstWaitingParticipantBeforeDraftLock()
+    {
+        var eventId = await CreateOpenEventAsync(1);
+        await using var db = new ApplicationDbContext(_options);
+        var service = CreateService(db);
+
+        await service.SignUpAsync(Request(eventId, "Confirmed"));
+        await service.SignUpAsync(Request(eventId, "Waiting First"));
+        await service.SignUpAsync(Request(eventId, "Waiting Second"));
+
+        var confirmed = await db.EventParticipants.SingleAsync(p => p.PrimaryAccountName == "Confirmed");
+        confirmed.Remove(DateTimeOffset.UtcNow, "Cannot participate");
+        await db.SaveChangesAsync();
+
+        var promoted = await service.PromoteAvailablePlacesAsync(eventId);
+
+        Assert.Equal(1, promoted);
+        Assert.Equal(
+            SignupStatus.Confirmed,
+            await db.EventParticipants.Where(p => p.PrimaryAccountName == "Waiting First").Select(p => p.SignupStatus).SingleAsync());
+        Assert.Equal(
+            SignupStatus.WaitingList,
+            await db.EventParticipants.Where(p => p.PrimaryAccountName == "Waiting Second").Select(p => p.SignupStatus).SingleAsync());
+    }
+
+    [Fact]
     public async Task SimultaneousSignupForLastPlaceCannotOverfillCap()
     {
         var eventId = await CreateOpenEventAsync(1);

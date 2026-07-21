@@ -151,7 +151,7 @@ var postNavigationStateKey = "bingo:post-navigation-state";
 
 function capturePostNavigationState() {
   const details = [...document.querySelectorAll("details")]
-    .filter(detail => !detail.closest(".nav-popover"))
+    .filter(detail => !detail.closest(".nav-popover") && !detail.matches("[data-no-post-restore]"))
     .map((detail, index) => ({ key: postNavigationDetailsKey(detail, index), open: detail.open }));
   const openDialogs = [...document.querySelectorAll("dialog[data-preserve-post-dialog][open][id]")]
     .map(dialog => dialog.id);
@@ -198,7 +198,7 @@ function restorePostNavigationState() {
 function applyPostNavigationState(state) {
   const detailsByKey = new Map((state.details || []).map(item => [item.key, item.open]));
   [...document.querySelectorAll("details")]
-    .filter(detail => !detail.closest(".nav-popover"))
+    .filter(detail => !detail.closest(".nav-popover") && !detail.matches("[data-no-post-restore]"))
     .forEach((detail, index) => {
       const open = detailsByKey.get(postNavigationDetailsKey(detail, index));
       if (open !== undefined) detail.open = open;

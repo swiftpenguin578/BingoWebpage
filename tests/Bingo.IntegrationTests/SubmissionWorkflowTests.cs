@@ -118,7 +118,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         await using var replacement = new MemoryStream([4, 5, 6]);
 
         await service.CorrectAsync(new CorrectSubmissionCommand(
-            submission.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, null,
+            submission.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId,
             setup.ParticipantId, 1, "clearer screenshot", "replacement.png", replacement));
 
         var assets = await db.EvidenceAssets.Where(x => x.SubmissionId == submission.SubmissionId).OrderBy(x => x.UploadedAt).ToListAsync();
@@ -128,14 +128,14 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task HigherWeightMustBeEnabledOnTheRequirement()
+    public async Task PostedWeightCannotOverrideBoardDefinedRequirementWeight()
     {
         var setup = await SeedAsync(target: 3, allowHigherWeights: false);
         await using var db = new ApplicationDbContext(options);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db).CreateAsync(Command(setup) with { ClaimedWeight = 2 }));
+        var result = await Service(db).CreateAsync(Command(setup) with { ClaimedWeight = 99 });
 
-        Assert.Contains("does not allow", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, await db.Submissions.Where(x => x.Id == result.SubmissionId).Select(x => x.ClaimedWeight).SingleAsync());
     }
 
     [Fact]
@@ -257,7 +257,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         setup.CaptainId, setup.EventId, setup.TeamId, setup.TileId, setup.RequirementId, setup.DropId,
         setup.ParticipantId, 1, "captain note", "proof.png", new MemoryStream([1, 2, 3]));
 
-    private async Task<Setup> SeedAsync(int target, bool allowHigherWeights, string? evidenceCode = null, bool manualObjective = true, bool duplicatesAllowed = true)
+    private async Task<Setup> SeedAsync(int target, bool allowHigherWeights, string? evidenceCode = null, bool manualObjective = false, bool duplicatesAllowed = true)
     {
         await using var db = new ApplicationDbContext(options);
         var eventId = Guid.NewGuid();
@@ -282,8 +282,8 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         db.AddRange(ev, team, participant, captain, admin, board,
             new TeamMembership(Guid.NewGuid(), teamId, participantId, TeamMembershipRole.Participant, now.AddDays(-4), null, null),
             new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Manual tile", "Complete it", "Show the message", 1),
-            new BoardRequirementSnapshot(requirementId, tileId, 0, target, duplicatesAllowed, allowHigherWeights, "Complete runs", manualObjective));
-        if (dropId is Guid eligibleDropId) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(eligibleDropId, requirementId, Guid.NewGuid(), "Test boss", "Test drop", "1/10", 0.1m, duplicatesAllowed ? null : 1, 1));
+            new BoardRequirementSnapshot(requirementId, tileId, 0, target, duplicatesAllowed, allowHigherWeights, "Complete runs", manualObjective, allowHigherWeights ? 2 : 1));
+        if (dropId is Guid eligibleDropId) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(eligibleDropId, requirementId, Guid.NewGuid(), "Test boss", "Test drop", "1/10", 0.1m, duplicatesAllowed ? null : 1, 1, allowHigherWeights ? 2 : 1));
         if (!string.IsNullOrEmpty(evidenceCode)) db.EvidenceCodes.Add(new EvidenceCode(Guid.NewGuid(), eventId, evidenceCode, now.AddMinutes(-10), adminId, now.AddMinutes(-10), null));
         await db.SaveChangesAsync();
         return new Setup(eventId, teamId, participantId, captainId, adminId, tileId, requirementId, dropId);

@@ -283,7 +283,7 @@ Allow admins to maintain source-specific OSRS data and build every known tile wi
 - Eligible-drop selection.
 - Target contribution.
 - Duplicates allowed.
-- Allow higher weightings.
+- Optional fixed contribution weight, configured by the board designer and defaulting to `1`.
 - Multiple requirements per tile.
 - Manual objective with target quantity and evidence instructions.
 - EHB calculation preview and admin override.
@@ -309,7 +309,7 @@ Allow admins to maintain source-specific OSRS data and build every known tile wi
 
 - Five Zulrah unique-table drops with duplicates allowed.
 - Full Voidwaker with duplicates disallowed.
-- Theatre of Blood purples allowing manually entered higher weighting.
+- Theatre of Blood purples with Scythe of Vitur using a board-defined higher contribution weight while ordinary purples remain at `1`.
 - Five Barrows and five Moons drops as two requirements.
 - Timed four-player Theatre of Blood manual objective.
 - Three Inferno completions as a repeated manual objective.
@@ -399,8 +399,8 @@ Replace Discord drop-channel submissions and manual spreadsheet updates.
 - Fixed event/team derived from account.
 - Credited participant selection from own roster.
 - Eligible boss/drop selection.
-- Credited weight default `1`.
-- Higher weight editable only when tile permits it.
+- Credited weight comes from the selected board-requirement snapshot and defaults to `1`.
+- Submitters cannot override the selected drop's board-defined contribution weight.
 - Immutable server-generated submission time; no captain-entered obtained time.
 - One image upload.
 - Optional note.
@@ -442,7 +442,7 @@ Replace Discord drop-channel submissions and manual spreadsheet updates.
 - Captain request tampering cannot change team.
 - Credited player must belong to team.
 - One drop contributes to one tile.
-- Weight above one rejected when tile disallows it.
+- Posted weight tampering cannot override the selected drop's board-defined weight.
 - Contribution capped at remaining requirement target.
 - Reversal removes its contribution and reallocates freed capacity to later eligible approved evidence.
 - Replacement evidence preserves the original.
@@ -675,6 +675,34 @@ Prove the polished application end to end and prepare every deployment asset bef
 - Hidden evidence example.
 - Incorrect approval and reversal example.
 
+### Production-scale capacity rehearsal
+
+The target is not merely 100 registered players. The application must be rehearsed with 100 simultaneous viewers and realistic bursts on production-sized resources before the first live event.
+
+- Run the release build with the same CPU and memory limits as the intended low-cost VPS.
+- Seed at least 100 participants, six to eight teams, a full 5x5 or 6x6 board, realistic approved evidence, and image-heavy tile history.
+- Test 100 users opening public boards over a short period, then remaining connected through SignalR for at least 30 minutes.
+- Trigger repeated approvals and reversals while those viewers are connected and measure the resulting refresh burst.
+- Test at least 10 simultaneous evidence uploads near the configured maximum size and 20 simultaneous evidence-image views.
+- Test admin review, public board switching, and captain submission while the public-view load is active.
+- Run Wise Old Man synchronization as a cached background/manual operation, never as one external API request per page view.
+- Record request latency, error rate, CPU, memory, database connections and query time, network throughput, SignalR disconnects, and evidence-storage latency.
+
+Initial release targets:
+
+- Fewer than 1% failed application requests during the rehearsal.
+- Normal cached/read pages have a p95 response time below 1.5 seconds.
+- Live progress becomes visible within four seconds under load.
+- Sustained CPU remains below 80%, memory remains stable without swapping or out-of-memory restarts, and the PostgreSQL connection pool is not exhausted.
+- The test is repeated on a temporary instance of the intended VPS size. The instance may be deleted immediately afterward and is not the final deployment.
+
+Known load-sensitive areas to resolve or validate:
+
+- Public progress currently has a 30-second safety reload, producing about 3.3 page requests per second with 100 connected viewers even when nothing changes.
+- A SignalR progress notification currently causes connected viewers to reload within the same short window. Add jitter or replace full-page reloads with targeted data refreshes before the production-scale rehearsal.
+- Evidence images should be served by object storage/CDN with viewing-sized derivatives so the application process does not proxy many full-resolution files concurrently.
+- Expensive public-board queries must be measured and indexed or cached where the rehearsal identifies a bottleneck.
+
 ### Rehearsal sequence
 
 1. Create event.
@@ -702,6 +730,7 @@ Prove the polished application end to end and prepare every deployment asset bef
 23. Create a local release-candidate backup.
 24. Restore into a clean local environment.
 25. Verify historical results and evidence after restoration.
+26. Run the production-scale capacity rehearsal and save its measurements with the release candidate.
 
 ### Pre-deployment release gate
 
@@ -712,6 +741,7 @@ Prove the polished application end to end and prepare every deployment asset bef
 - Admins have rehearsed review, reversal, and finalization.
 - Captains have trialed mobile screenshot submission.
 - Evidence upload limits are tested with realistic screenshots.
+- The production-scale capacity targets pass on the intended VPS size, or the VPS size is increased before the event.
 - Public privacy behavior is verified.
 - A manual emergency fallback procedure exists.
 
@@ -845,6 +875,77 @@ Detailed decisions may be deferred until the signup and evidence milestones, whe
 | Free disk exhausted | Screenshots off-server, disk monitoring, log retention |
 | VPS deleted without recoverable backup | Mandatory verified hibernation checklist |
 | Scope expansion delays release | Version-one boundary and deferred-feature list |
+
+### Post-version-one feature backlog
+
+These features are intentionally separate from the approved version-one scope. They affect identity, evidence validation, and live-event operations enough to require their own design and regression pass.
+
+#### Discord sign-in and submission permissions
+
+- Add Discord sign-in for participants after the version-one workflows are stable.
+- Treat Discord as the website login identity. OSRS character names remain event signup data because names and eligible accounts can change between events.
+- Discord-server membership is not required. This allows participants from external clans to sign in without joining the community server.
+- Access is granted by linking the authenticated Discord identity to an event signup, not by checking Discord guild membership.
+- An authenticated participant may submit evidence only for themselves and only for their current event team.
+- Captains and co-captains may submit evidence for any participant on their own team.
+- Admins retain event-wide submission and correction access.
+- Keep temporary captain accounts available until the Discord migration is complete and as an emergency fallback.
+
+#### Multiple OSRS accounts and active-account swaps
+
+- Allow one event signup to contain more than two OSRS character names.
+- Exactly one character is eligible to receive bingo drops for that participant at a time.
+- Record every swap as an append-only history entry containing the participant, previous account, new account, effective UTC time, recorded time, and actor.
+- Participants make their own account swaps and the new active account takes effect immediately. Admin corrections or backdated swaps require an audit reason.
+- Evidence records the drop-received time shown by the in-game UTC overlay separately from the immutable website submission time.
+- Store and compare all times in UTC. Display both UTC and the event timezone during review so admins do not need to convert times manually.
+- Validate that the receiving character was active when the drop was received and that the evidence was submitted no more than 60 minutes later.
+- Do not use OCR. The submitter enters the displayed UTC time and the reviewer compares it with the screenshot.
+- Define the exact boundary rule for a drop received at the same minute as a swap and the admin-override behavior for missing or incorrect timestamps before implementation.
+
+#### Team-only board focus
+
+- Let captains and co-captains mark individual tiles and complete rows as current team priorities.
+- Focus markers are visible only to members of that team and admins, never to opponents or the public.
+- Start with a simple focused/not-focused state. Optional colors, notes, columns, and expiry times can be considered after the basic workflow is tested.
+
+#### Public board preview and tile artwork
+
+- Add a **Preview board** action to the private board editor that renders the actual public-board visual treatment before publication.
+- The preview must omit administrator-only information such as EHB estimates and editing controls, and use the same responsive tile layout, artwork, text treatment, and completion states as the public website.
+- Allow a board designer to override a tile's automatic artwork with a custom tile image. The current editor stores an optional managed image URL; replace or supplement this with the shared decorative-asset upload workflow when that storage path is implemented.
+- When no custom tile image is supplied, derive artwork from the selected boss/activity images.
+- Support a deterministic composition of up to four selected boss/activity images. Define ordering, cropping, missing-image fallbacks, accessibility text, mobile behavior, and snapshot semantics before implementation.
+- Custom artwork always takes precedence over automatic boss composition.
+- Preview and published rendering must use immutable event-board snapshots rather than changing when the global catalogue is edited later.
+
+#### Wise Old Man integration
+
+- Link an event to its Wise Old Man competition.
+- Synchronize player gained EHB and display player and team EHB leaderboards.
+- Store the source competition, last successful synchronization time, and synchronization errors.
+- Use one background synchronization shared by every viewer; public and team pages must only read the locally cached result.
+- During a live event, synchronize at most once every two hours by default. Keep the interval configurable, but never let ordinary page traffic trigger Wise Old Man requests.
+- A manual refresh must obey the same global cooldown. If data was refreshed recently, show the cached result and its timestamp instead of calling Wise Old Man again.
+- Respect `Retry-After` and apply increasing backoff after rate limits or failures. Do not immediately retry a `429 Too Many Requests` response.
+- Load tests must use a fake or recorded Wise Old Man response. Test the real integration separately with a single synchronization plus explicit rate-limit and stale-cache scenarios.
+- Wise Old Man standings combine gained EHB from every character that participant registered for the event, regardless of which character was active for bingo-drop eligibility at that moment.
+- Rank the participant by the combined total, not each character separately. Show the per-character breakdown beneath the participant total so multiple-account players are not misleadingly split across leaderboard positions.
+- Team EHB is the sum of those participant-level totals, with each registered character counted once through its owning participant.
+
+#### Manual signup opening deadline
+
+- When an admin manually opens signups, set the opening time to now, rounded consistently with the existing scheduler.
+- Set the automatic closing time to the earlier of three months after opening and the event start time.
+- Admins may then edit the future closing time or close signups manually.
+- Starting the draft continues to close and lock signups automatically.
+- Reject manual opening when the event has already started or no valid future signup window remains.
+
+#### Waiting-list promotion regression
+
+- The existing workflow promotes the earliest waiting-listed participant when a confirmed participant is removed or withdrawn before draft lock.
+- Keep this behavior covered by a direct integration regression test.
+- Automatic promotion remains disabled after draft lock.
 
 ## 19. Suggested implementation order inside each milestone
 

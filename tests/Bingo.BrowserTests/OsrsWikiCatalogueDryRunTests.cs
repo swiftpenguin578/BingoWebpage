@@ -76,15 +76,16 @@ public sealed class OsrsWikiCatalogueDryRunTests
     }
 
     [Fact]
-    public void KeepsBarrowsRewardRollsVisibleForReview()
+    public void KeepsBarrowsRewardRollsAsStructuredPerRollData()
     {
         const string wiki = "{{DropsLineReward|name=Ahrim's hood|quantity=1|rarity=1/2448|rolls=7}}";
 
         var drop = Assert.Single(OsrsWikiCatalogueDryRunService.ParseDropLines(wiki));
 
-        Assert.Equal("1/2448 × 7 rolls", drop.Rates.Single().DisplayRate);
-        Assert.Null(drop.Rates.Single().Probability);
-        Assert.Contains("combined per-chest probability", drop.Condition);
+        Assert.Equal("7 × 1/2448", drop.Rates.Single().DisplayRate);
+        Assert.Equal(1m / 2448m, drop.Rates.Single().Probability);
+        Assert.Equal(7, drop.Rates.Single().RollsPerCompletion);
+        Assert.Contains("stored probability is per roll", drop.Condition);
     }
 
     [Theory]

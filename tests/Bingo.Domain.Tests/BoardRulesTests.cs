@@ -6,6 +6,16 @@ namespace Bingo.Domain.Tests;
 public sealed class BoardRulesTests
 {
     [Fact]
+    public void RequirementWeightDefaultsToOneAndRequiresExplicitEnablement()
+    {
+        var disabled = new BoardRequirementSnapshot(Guid.NewGuid(), Guid.NewGuid(), 1, 5, true, false, "Drops", false, 4);
+        var enabled = new BoardRequirementSnapshot(Guid.NewGuid(), Guid.NewGuid(), 1, 5, true, true, "Drops", false, 4);
+
+        Assert.Equal(1, disabled.CreditedWeight);
+        Assert.Equal(4, enabled.CreditedWeight);
+    }
+
+    [Fact]
     public void ShrinkingIsBlockedWhenPlacedTilesDoNotFit()
     {
         var board = new Board(Guid.NewGuid(), Guid.NewGuid(), "Board", 5, 5);
