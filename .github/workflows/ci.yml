@@ -13,6 +13,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: bingo
+          POSTGRES_USER: bingo
+          POSTGRES_PASSWORD: bingo_dev_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bingo -d bingo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -30,6 +45,9 @@ jobs:
 
       - name: Build
         run: dotnet build Bingo.slnx --configuration Release --no-restore
+
+      - name: Prepare browser-test database
+        run: dotnet run --project src/Bingo.Web --configuration Release --no-build -- --apply-catalogue-snapshot
 
       - name: Test
         run: dotnet test Bingo.slnx --configuration Release --no-build --logger trx --collect "XPlat Code Coverage"
