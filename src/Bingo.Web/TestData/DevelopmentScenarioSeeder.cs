@@ -1,15 +1,15 @@
-using Bingo.Domain.Access;
+using System.Globalization;
 using Bingo.Application.Boards;
 using Bingo.Application.Evidence;
+using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
-using Bingo.Domain.Evidence;
 using Bingo.Domain.Events;
+using Bingo.Domain.Evidence;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Globalization;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 

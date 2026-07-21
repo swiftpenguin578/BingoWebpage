@@ -1,14 +1,14 @@
-using Bingo.Application.Evidence;
 using Bingo.Application.Boards;
+using Bingo.Application.Evidence;
 using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
-using Bingo.Infrastructure.Evidence;
-using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Auditing;
+using Bingo.Infrastructure.Boards;
+using Bingo.Infrastructure.Evidence;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.Identity;

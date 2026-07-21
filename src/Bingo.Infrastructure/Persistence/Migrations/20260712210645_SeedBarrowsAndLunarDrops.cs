@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -10,7 +10,7 @@ public partial class SeedBarrowsAndLunarDrops : Migration
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-            migrationBuilder.Sql("""
+        migrationBuilder.Sql("""
                 WITH item_data(name, normalized_name) AS (
                     VALUES
                         ('Ahrim''s hood', 'AHRIM''S HOOD'),
@@ -114,7 +114,7 @@ public partial class SeedBarrowsAndLunarDrops : Migration
     /// <inheritdoc />
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-            migrationBuilder.Sql("""
+        migrationBuilder.Sql("""
                 DELETE FROM source_drops
                 WHERE boss_activity_id IN (
                     SELECT id FROM boss_activities WHERE name IN ('Barrows Chests', 'Lunar Chests'))

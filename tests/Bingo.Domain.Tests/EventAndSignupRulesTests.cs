@@ -1,5 +1,5 @@
-using Bingo.Domain.Events;
 using Bingo.Domain.Access;
+using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 
 namespace Bingo.Domain.Tests;

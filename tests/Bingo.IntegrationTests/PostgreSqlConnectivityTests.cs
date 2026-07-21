@@ -1,10 +1,10 @@
-using Bingo.Infrastructure.Persistence;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
 using Bingo.Domain.Teams;
-using Bingo.Web.Pages.Admin.Events;
+using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Catalogue;
+using Bingo.Web.Pages.Admin.Events;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 

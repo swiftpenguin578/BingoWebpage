@@ -1,8 +1,8 @@
 using Bingo.Application.Access;
-using Bingo.Web.UI;
 using Bingo.Web.Catalogue;
-using Microsoft.AspNetCore.Mvc;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Bingo.Web.Pages.Admin.Catalogue;

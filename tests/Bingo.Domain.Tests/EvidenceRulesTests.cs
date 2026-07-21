@@ -1,5 +1,5 @@
-using Bingo.Domain.Evidence;
 using Bingo.Domain.Events;
+using Bingo.Domain.Evidence;
 
 namespace Bingo.Domain.Tests;
 

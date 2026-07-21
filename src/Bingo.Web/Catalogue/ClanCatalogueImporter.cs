@@ -12,13 +12,31 @@ public sealed class ClanCatalogueImporter(ApplicationDbContext db, TimeProvider 
     private const string DataSource = "Clan point-math catalogue";
     private static readonly Dictionary<string, string> CanonicalNames = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["Kalphite queen"] = "Kalphite Queen", ["Grotesque guardians"] = "Grotesque Guardians", ["Abyssal sire"] = "Abyssal Sire",
-        ["Thermy smoke devil"] = "Thermonuclear Smoke Devil", ["Hydra"] = "Alchemical Hydra", ["Chaos elemental"] = "Chaos Elemental",
-        ["King black dragon"] = "King Black Dragon", ["Vetion"] = "Vet'ion", ["Bandos"] = "General Graardor",
-        ["Armadyl"] = "Kree'Arra", ["Saradomin"] = "Commander Zilyana", ["Zamorak"] = "K'ril Tsutsaroth", ["Gauntlet"] = "The Gauntlet", ["COX"] = "Chambers of Xeric",
-        ["CM"] = "Chambers of Xeric (CM)", ["TOB"] = "Theatre of Blood", ["HM"] = "Theatre of Blood (HM)", ["TOA"] = "Tombs of Amascut",
-        ["duke"] = "Duke Sucellus", ["Leviathan"] = "The Leviathan", ["Whisperer"] = "The Whisperer", ["Royal Titans"] = "The Royal Titans",
-        ["Colosseum"] = "Sol Heredit", ["Delve"] = "Doom of Mokhaiotl", ["Maggot king"] = "Maggot King"
+        ["Kalphite queen"] = "Kalphite Queen",
+        ["Grotesque guardians"] = "Grotesque Guardians",
+        ["Abyssal sire"] = "Abyssal Sire",
+        ["Thermy smoke devil"] = "Thermonuclear Smoke Devil",
+        ["Hydra"] = "Alchemical Hydra",
+        ["Chaos elemental"] = "Chaos Elemental",
+        ["King black dragon"] = "King Black Dragon",
+        ["Vetion"] = "Vet'ion",
+        ["Bandos"] = "General Graardor",
+        ["Armadyl"] = "Kree'Arra",
+        ["Saradomin"] = "Commander Zilyana",
+        ["Zamorak"] = "K'ril Tsutsaroth",
+        ["Gauntlet"] = "The Gauntlet",
+        ["COX"] = "Chambers of Xeric",
+        ["CM"] = "Chambers of Xeric (CM)",
+        ["TOB"] = "Theatre of Blood",
+        ["HM"] = "Theatre of Blood (HM)",
+        ["TOA"] = "Tombs of Amascut",
+        ["duke"] = "Duke Sucellus",
+        ["Leviathan"] = "The Leviathan",
+        ["Whisperer"] = "The Whisperer",
+        ["Royal Titans"] = "The Royal Titans",
+        ["Colosseum"] = "Sol Heredit",
+        ["Delve"] = "Doom of Mokhaiotl",
+        ["Maggot king"] = "Maggot King"
     };
 
     public async Task<ImportResult> ImportAsync(string path, CancellationToken ct = default)
@@ -49,7 +67,8 @@ public sealed class ClanCatalogueImporter(ApplicationDbContext db, TimeProvider 
             {
                 if (sourceRow.Denominator is not > 0) { skipped.Add($"{section.Name}: {sourceRow.Name}"); continue; }
                 var normalizedName = sourceRow.Name.ToUpperInvariant(); var item = await db.CatalogueItems.SingleOrDefaultAsync(x => x.NormalizedName == normalizedName, ct) ?? db.CatalogueItems.Local.SingleOrDefault(x => x.NormalizedName == normalizedName);
-                if (item is null) { item = new CatalogueItem(Guid.NewGuid(), sourceRow.Name, normalizedName); db.CatalogueItems.Add(item); } item.SetActive(true);
+                if (item is null) { item = new CatalogueItem(Guid.NewGuid(), sourceRow.Name, normalizedName); db.CatalogueItems.Add(item); }
+                item.SetActive(true);
                 var existing = await db.SourceDrops.SingleOrDefaultAsync(x => x.BossActivityId == boss.Id && x.ItemId == item.Id, ct) ?? db.SourceDrops.Local.SingleOrDefault(x => x.BossActivityId == boss.Id && x.ItemId == item.Id);
                 var probability = 1m / sourceRow.Denominator.Value; decimal? dropEhb = boss.EfficientCompletionsPerHour is > 0 ? 1m / (boss.EfficientCompletionsPerHour.Value * probability) : null; var displayRate = $"1/{sourceRow.Denominator.Value.ToString("0.####", CultureInfo.InvariantCulture)}";
                 if (existing is null) { existing = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, displayRate, probability, dropEhb, time.GetUtcNow()); db.SourceDrops.Add(existing); importedDrops++; }

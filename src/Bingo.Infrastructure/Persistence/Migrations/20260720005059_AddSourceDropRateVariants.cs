@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -30,11 +30,11 @@ public partial class AddSourceDropRateVariants : Migration
                     table.PrimaryKey("PK_source_drop_rate_variants", x => x.id);
                 });
 
-            migrationBuilder.CreateIndex(
-                name: "IX_source_drop_rate_variants_source_drop_id_position",
-                table: "source_drop_rate_variants",
-                columns: SourceDropPositionColumns,
-                unique: true);
+        migrationBuilder.CreateIndex(
+            name: "IX_source_drop_rate_variants_source_drop_id_position",
+            table: "source_drop_rate_variants",
+            columns: SourceDropPositionColumns,
+            unique: true);
     }
 
     /// <inheritdoc />

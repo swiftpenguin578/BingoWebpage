@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Security.Claims;
-using Bingo.Web;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Web;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;

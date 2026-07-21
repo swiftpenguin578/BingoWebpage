@@ -10,7 +10,8 @@ public sealed class BoardTile
     public Guid TileTemplateId { get; private set; }
     public int RowIndex { get; private set; }
     public int ColumnIndex { get; private set; }
-    public string NameSnapshot { get; private set; } = string.Empty; public string DescriptionSnapshot { get; private set; } = string.Empty; public string EvidenceInstructionsSnapshot { get; private set; } = string.Empty; public decimal EstimatedEhbSnapshot { get; private set; } public string? ImageUrlSnapshot { get; private set; }
+    public string NameSnapshot { get; private set; } = string.Empty; public string DescriptionSnapshot { get; private set; } = string.Empty; public string EvidenceInstructionsSnapshot { get; private set; } = string.Empty; public decimal EstimatedEhbSnapshot { get; private set; }
+    public string? ImageUrlSnapshot { get; private set; }
     public void Move(int row, int column) { RowIndex = row; ColumnIndex = column; }
     public void UpdateContent(string name, string description, string evidenceInstructions, decimal estimatedEhb, string? imageUrl = null)
     {

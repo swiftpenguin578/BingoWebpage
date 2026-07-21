@@ -419,7 +419,11 @@ public sealed class OsrsWikiCatalogueDryRunService(
     {
         using var document = await GetWikiJsonAsync(new Dictionary<string, string>
         {
-            ["action"] = "parse", ["page"] = page, ["prop"] = "sections", ["format"] = "json", ["formatversion"] = "2"
+            ["action"] = "parse",
+            ["page"] = page,
+            ["prop"] = "sections",
+            ["format"] = "json",
+            ["formatversion"] = "2"
         }, ct);
         if (document.RootElement.TryGetProperty("error", out _)) return null;
         var result = new List<WikiSection>();
@@ -439,7 +443,12 @@ public sealed class OsrsWikiCatalogueDryRunService(
     {
         using var document = await GetWikiJsonAsync(new Dictionary<string, string>
         {
-            ["action"] = "parse", ["page"] = page, ["section"] = section, ["prop"] = "wikitext", ["format"] = "json", ["formatversion"] = "2"
+            ["action"] = "parse",
+            ["page"] = page,
+            ["section"] = section,
+            ["prop"] = "wikitext",
+            ["format"] = "json",
+            ["formatversion"] = "2"
         }, ct);
         return document.RootElement.GetProperty("parse").GetProperty("wikitext").GetString() ?? string.Empty;
     }
