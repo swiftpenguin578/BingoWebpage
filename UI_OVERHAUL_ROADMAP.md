@@ -363,6 +363,8 @@ Tile reuse should be provided through practical board actions such as duplicatin
 
 - Two admins can observe/control a draft and explain the state of every participant and team without ambiguity.
 
+**Status:** Approved by the user on 2026-07-22 after reviewing setup, active-control, finalized-roster, button-state, desktop, intermediate-width, and narrow-width scenarios. Cross-application keyboard, accessibility, and final responsive regression remain part of the milestone-wide closing pass.
+
 ### Pass 8 — Captain workspace and submission
 
 **Pages**

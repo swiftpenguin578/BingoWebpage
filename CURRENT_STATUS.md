@@ -86,11 +86,10 @@ The complete automated suite and release build were verified after the catalogue
 
 ### Milestone 9 — UI overhaul and regression
 
-- Preserve the approved board-editor behavior while completing later UI passes.
-- Verify which other UI roadmap passes beyond the board editor and committed admin overhaul have received explicit user approval; commit history alone does not prove approval gates.
+- Preserve the approved board-editor and teams/draft behavior while completing later UI passes.
+- Pass 7 — Teams and snake draft was explicitly approved on 2026-07-22 after the seeded setup, active-control, finalized-roster, button-state, and responsive checks.
 - Complete remaining captain, public, authentication/error/privacy, responsive, keyboard, accessibility, and full-regression passes required by `UI_OVERHAUL_ROADMAP.md`.
 - Perform the roadmap's manual browser checks with the seeded scenarios.
-- Decide separately how to baseline or correct the repository-wide `dotnet format --verify-no-changes` failures; do not combine a bulk formatting rewrite with the active UI change without explicit approval.
 - Reconcile the stale `README.md` statement that the repository contains only Milestones 1–7.
 
 ### Milestone 10 — Local rehearsal and production preparation
@@ -119,15 +118,15 @@ The uncommitted roadmap explicitly defers Discord sign-in, participant submissio
 
 ## Recommended next action
 
-Commit the approved board-editor, EHB, catalogue snapshot, consolidated migration, tests, and documentation as one coherent checkpoint. Then continue with the next explicitly selected UI pass without reopening approved board-editor decisions unless a regression is found:
+Begin Pass 8 — Captain workspace and submission without reopening the approved board-editor or teams/draft decisions unless a regression is found:
 
-1. Run the seeded manual browser checks.
-2. Run `dotnet format Bingo.slnx --no-restore --verify-no-changes` only when deliberately addressing the recorded repository-wide formatting debt.
-3. Record any remaining failures once, with their exact cause, and update this file when the workstream materially changes.
+1. Review the seeded captain workspace, new-submission, and existing-submission states on desktop and narrow widths.
+2. Verify screenshot paste, drag/drop, file selection, correction, withdrawal, replacement, and submission-history behavior.
+3. Preserve the existing evidence/privacy rules while applying the approved shared UI patterns.
 
 ## Uncertainties
 
-- Which Milestone 9 page passes beyond the board editor have explicit user approval where commit messages alone are insufficient evidence.
+- Which Milestone 9 page passes beyond the board editor and teams/draft have explicit user approval where commit messages alone are insufficient evidence.
 - Whether the complete integration/browser suite passed in a prior environment; only the current run is recorded here.
 - Whether manual desktop/mobile, keyboard, accessibility, backup/restore, and event-lifecycle rehearsals were previously completed outside the repository.
 - Whether any production infrastructure or external accounts exist; repository contents do not prove external state.
