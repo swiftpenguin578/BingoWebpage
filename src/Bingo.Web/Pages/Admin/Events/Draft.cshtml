@@ -66,36 +66,36 @@ else if (isActiveDraft)
             {
                 <form method="post" asp-page-handler="Scramble" data-draft-scramble-form data-update-targets="#app-notice-region, .draft-live-shell">
                     <span class="visually-hidden" data-draft-scramble-status aria-live="polite">Team order is ready to draw.</span>
-                    <button class="btn btn-sm btn-primary" data-draft-scramble-submit>Scramble teams</button>
+                    <button class="btn btn-sm btn-primary catalogue-compact-action" data-draft-scramble-submit>Scramble teams</button>
                 </form>
             }
             @if (Model.CanControlDraft && Model.DraftOrderReady && Model.Draft.State == DraftState.Running)
             {
-                <form method="post" asp-page-handler="Pause" data-update-targets="#app-notice-region, .draft-live-shell"><button class="btn btn-sm btn-outline-light">Pause</button></form>
+                <form method="post" asp-page-handler="Pause" data-update-targets="#app-notice-region, .draft-live-shell"><button class="btn btn-sm btn-outline-light catalogue-compact-action neutral-outline-action">Pause</button></form>
             }
             @if (Model.CanControlDraft && Model.Draft.State == DraftState.Paused)
             {
-                <form method="post" asp-page-handler="Resume" data-update-targets="#app-notice-region, .draft-live-shell"><button class="btn btn-sm btn-primary">Resume</button></form>
+                <form method="post" asp-page-handler="Resume" data-update-targets="#app-notice-region, .draft-live-shell"><button class="btn btn-sm btn-primary catalogue-compact-action">Resume</button></form>
             }
             @if (Model.CanControlDraft && Model.LatestPick is not null)
             {
-                <form method="post" asp-page-handler="Undo" data-update-targets="#app-notice-region, .draft-live-shell" onsubmit="return confirm('Undo the latest pick?');"><button class="btn btn-sm btn-outline-light">Undo #@Model.LatestPick.PickNumber</button></form>
+                <form method="post" asp-page-handler="Undo" data-update-targets="#app-notice-region, .draft-live-shell" onsubmit="return confirm('Undo the latest pick?');"><button class="btn btn-sm btn-outline-light catalogue-compact-action neutral-outline-action">Undo #@Model.LatestPick.PickNumber</button></form>
             }
             @if (Model.CanControlDraft)
             {
-                <form method="post" asp-page-handler="ReleaseControl"><button class="btn btn-sm btn-outline-light">Release control</button></form>
+                <form method="post" asp-page-handler="ReleaseControl"><button class="btn btn-sm btn-outline-light catalogue-compact-action neutral-outline-action">Release control</button></form>
                 @if (Model.DraftOrderReady)
                 {
-                    <form method="post" asp-page-handler="Finalize" onsubmit="return confirm('Finalize and publish all team rosters?');"><button class="btn btn-sm btn-warning">Finish draft</button></form>
+                    <form method="post" asp-page-handler="Finalize" onsubmit="return confirm('Finalize and publish all team rosters?');"><button class="btn btn-sm btn-warning catalogue-compact-action">Finish draft</button></form>
                 }
             }
             else if (Model.DraftControllerAccountId is not null)
             {
-                <form method="post" asp-page-handler="TakeControl" onsubmit="return confirm('Take control from the current administrator? They will immediately become read-only.');"><button class="btn btn-sm btn-warning">Take over</button></form>
+                <form method="post" asp-page-handler="TakeControl" onsubmit="return confirm('Take control from the current administrator? They will immediately become read-only.');"><button class="btn btn-sm btn-warning catalogue-compact-action">Take over</button></form>
             }
             else
             {
-                <form method="post" asp-page-handler="TakeControl"><button class="btn btn-sm btn-primary">Take control</button></form>
+                <form method="post" asp-page-handler="TakeControl"><button class="btn btn-sm btn-outline-primary catalogue-add-action catalogue-compact-action">Take control</button></form>
             }
         </div>
     </section>
@@ -206,7 +206,7 @@ else
                     <span>Players per team</span>
                     <input name="targetSize" type="number" min="1" max="100" value="@Model.Draft.TargetTeamSize" class="form-control" />
                 </label>
-                <button class="btn btn-sm btn-outline-light">Update</button>
+                <button class="btn btn-sm btn-outline-light catalogue-compact-action neutral-outline-action">Update</button>
             </div>
         </form>
         <form method="post" asp-page-handler="Start" class="panel draft-compact-control draft-start-control" onsubmit="return confirm('Open the draft workspace and lock this setup?');">
@@ -214,10 +214,10 @@ else
                 <h2>Start draft</h2>
                 <p>Open the live workspace, then scramble the teams before the first pick.</p>
             </div>
-            <button class="btn btn-sm btn-warning">Start draft</button>
+            <button class="btn btn-sm btn-warning catalogue-compact-action">Start draft</button>
         </form>
     }
-@if(Model.Draft.State == DraftState.Running && Model.CanControlDraft){<form method="post" asp-page-handler="Pause" class="panel form-stack"><h2>Draft controls</h2><button class="btn btn-outline-light">Pause draft</button></form>}
+@if(Model.Draft.State == DraftState.Running && Model.CanControlDraft){<form method="post" asp-page-handler="Pause" class="panel form-stack"><h2>Draft controls</h2><button class="btn btn-outline-light neutral-outline-action">Pause draft</button></form>}
 @if(Model.Draft.State == DraftState.Paused && Model.CanControlDraft){<form method="post" asp-page-handler="Resume" class="panel form-stack"><h2>Draft controls</h2><button class="btn btn-primary">Resume draft</button></form>}
 </div>
 }
@@ -232,7 +232,7 @@ else
         <div class="team-heading-actions">
             @if (Model.Draft.State == DraftState.Setup)
             {
-                <form method="post" asp-page-handler="AddDraftTeam"><button class="btn btn-outline-light">Add draft team</button></form>
+                <form method="post" asp-page-handler="AddDraftTeam"><button class="btn btn-sm btn-outline-primary catalogue-add-action catalogue-compact-action">＋ Add draft team</button></form>
             }
             <button type="button" class="btn btn-sm btn-outline-primary catalogue-add-action catalogue-compact-action" onclick="document.getElementById('add-team').showModal()">＋ Add external team</button>
         </div>
@@ -277,7 +277,7 @@ else
                 }
             </ol>
             <footer class="finalized-team-footer">
-                <button type="button" class="btn btn-sm btn-outline-light" onclick="document.getElementById('team-@team.Id').showModal()">Edit roster</button>
+                <button type="button" class="btn btn-sm btn-outline-light catalogue-compact-action neutral-outline-action" onclick="document.getElementById('team-@team.Id').showModal()">Edit roster</button>
                 <span>@team.Members.Count / @Model.Draft.TargetTeamSize</span>
             </footer>
         }
@@ -286,7 +286,7 @@ else
         <div class="page-heading"><div><h3>@team.Name</h3><small>@team.FormationType @if(!string.IsNullOrWhiteSpace(team.Affiliation)){<text> · @team.Affiliation</text>}</small></div><div class="team-card-heading-actions">@if(team.DraftPosition is not null){<strong data-draft-rank>#@team.DraftPosition</strong>}@if(Model.Draft.State==DraftState.Setup&&team.FormationType==TeamFormationType.Drafted){<form method="post" asp-page-handler="RemoveDraftTeam" onsubmit="return confirm('Remove @team.Name from the website draft?');"><input type="hidden" name="teamId" value="@team.Id"/><button class="team-remove-button" aria-label="Remove @team.Name" title="Remove draft team">×</button></form>}else if(Model.Draft.State is DraftState.Setup or DraftState.Finalized && team.FormationType==TeamFormationType.Preformed){<form method="post" asp-page-handler="RemoveExternalTeam" onsubmit="return confirm('Remove the external team @team.Name?');"><input type="hidden" name="teamId" value="@team.Id"/><button class="team-remove-button" aria-label="Remove @team.Name" title="Remove external team">×</button></form>}</div></div>
         <p>@if(team.FormationType == TeamFormationType.Drafted){<text>@team.TotalEhb.ToString("0.##") EHB · </text>}@team.Members.Count member(s)</p>
         <ul>@foreach(var member in team.Members){var memberRoleLabel=member.Role==TeamMembershipRole.CoCaptain?"Co-captain":member.Role.ToString();<li><span>@member.Name <small><span id="roster-role-@member.MembershipId">@memberRoleLabel</span>@if(team.FormationType == TeamFormationType.Drafted){<text> · @member.Ehb EHB</text>}</small></span></li>}</ul>
-        <div class="dialog-actions"><button type="button" class="btn btn-sm btn-outline-light" onclick="document.getElementById('team-@team.Id').showModal()">Edit / roster</button></div>
+        <div class="dialog-actions"><button type="button" class="btn btn-sm btn-outline-light catalogue-compact-action neutral-outline-action" onclick="document.getElementById('team-@team.Id').showModal()">Edit / roster</button></div>
         }
     </article>
     <dialog id="team-@team.Id" class="tile-dialog team-roster-dialog" data-preserve-post-dialog>
@@ -325,7 +325,7 @@ else
                                 <option value="@roleOption" selected="@(roleOption == member.Role)">@roleLabel</option>
                             }
                         </select>
-                        <noscript><button class="btn btn-sm btn-outline-light">Save role</button></noscript>
+                        <noscript><button class="btn btn-sm btn-outline-light catalogue-compact-action neutral-outline-action">Save role</button></noscript>
                     </form>
                     @if (isPreDraft || (team.FormationType == TeamFormationType.Preformed && member.External))
                     {
@@ -349,7 +349,7 @@ else
                                 }
                             </select>
                             <input name="reason" class="form-control" required placeholder="Reason" />
-                            <button class="btn btn-sm btn-outline-light">Move player</button>
+                            <button class="btn btn-sm btn-outline-light catalogue-compact-action neutral-outline-action">Move player</button>
                         </form>
                     </details>
                 }
@@ -378,7 +378,7 @@ else
                         <label>Available participant<select name="participantId" class="form-select"><option value="">Choose participant</option>@foreach (var player in Model.Participants.Where(x => x.TeamId is null)){<option value="@player.Id">@player.Name (@player.Ehb EHB)</option>}</select></label>
                         <label>Role<select name="role" class="form-select">@foreach(var roleOption in Enum.GetValues<TeamMembershipRole>()){var roleLabel=roleOption==TeamMembershipRole.CoCaptain?"Co-captain":roleOption.ToString();<option value="@roleOption">@roleLabel</option>}</select></label>
                         <label>Reason<input name="reason" class="form-control" required value="Exceptional internal roster assignment" /></label>
-                        <div class="dialog-actions"><button class="btn btn-outline-light">Add website signup</button></div>
+                        <div class="dialog-actions"><button class="btn btn-outline-light neutral-outline-action">Add website signup</button></div>
                     </form>
                 </details>
             }
