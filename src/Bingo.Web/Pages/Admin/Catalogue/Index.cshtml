@@ -2,6 +2,8 @@
 @model Bingo.Web.Pages.Admin.Catalogue.IndexModel
 @using System.Globalization
 @using Bingo.Domain.Catalogue
+@using Bingo.Web.Catalogue
+@inject OsrsWikiImageCache WikiImages
 @{
     ViewData["Title"] = "OSRS catalogue";
     var categories = new[] { "Boss", "Skilling boss", "Minigame" };
@@ -66,7 +68,7 @@
                 <span class="catalogue-image-placeholder @(!string.IsNullOrWhiteSpace(boss.ImageUrl) ? "has-image" : null)" aria-label="Boss image">
                     @if (!string.IsNullOrWhiteSpace(boss.ImageUrl))
                     {
-                        <img src="@boss.ImageUrl" alt="" loading="lazy" />
+                        <img src="@WikiImages.GetPublicUrl(boss.ImageUrl)" alt="" loading="lazy" />
                     }
                     else
                     {
@@ -93,7 +95,7 @@
                         <span class="catalogue-image-placeholder catalogue-image-placeholder-large @(!string.IsNullOrWhiteSpace(boss.ImageUrl) ? "has-image" : null)" aria-label="Boss image">
                             @if (!string.IsNullOrWhiteSpace(boss.ImageUrl))
                             {
-                                <img src="@boss.ImageUrl" alt="@boss.Name" loading="lazy" />
+                                <img src="@WikiImages.GetPublicUrl(boss.ImageUrl)" alt="@boss.Name" loading="lazy" />
                             }
                             else
                             {
@@ -163,7 +165,7 @@
                                     <span class="catalogue-drop-image @(!string.IsNullOrWhiteSpace(drop.ImageUrl) ? "has-image" : null)" aria-label="Item image">
                                         @if (!string.IsNullOrWhiteSpace(drop.ImageUrl))
                                         {
-                                            <img src="@drop.ImageUrl" alt="" loading="lazy" />
+                                            <img src="@WikiImages.GetPublicUrl(drop.ImageUrl)" alt="" loading="lazy" />
                                         }
                                         else
                                         {

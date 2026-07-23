@@ -12,7 +12,8 @@ public sealed record PublicEventBoard(
     Guid EventId, string EventName, string EventSlug, EventState EventState,
     int Rows, int Columns, decimal TotalBoardEhb,
     IReadOnlyList<PublicTeamBoard> Teams,
-    IReadOnlyList<PublicPlayerRanking> PlayerLeaderboard);
+    IReadOnlyList<PublicPlayerRanking> PlayerLeaderboard,
+    IReadOnlyList<PublicRecentDrop> RecentDrops);
 
 public sealed record PublicTeamBoard(
     Guid TeamId, string TeamName, string TeamSlug, string? Affiliation, string? ImageUrl,
@@ -21,11 +22,18 @@ public sealed record PublicTeamBoard(
 
 public sealed record PublicTileProgress(
     Guid TileId, int Row, int Column, string Name, string Description,
+    string? ImageUrl, IReadOnlyList<string> BossImageUrls,
     decimal EstimatedEhb, int Approved, int Target, bool Complete, DateTimeOffset? CompletedAt);
 
 public sealed record PublicPlayerRanking(
     int Rank, Guid PlayerId, string PlayerName, string TeamName,
     decimal EstimatedEhb, int ApprovedContribution, int ApprovedSubmissions);
+
+public sealed record PublicRecentDrop(
+    Guid SubmissionId, Guid TileId, string TileName,
+    string TeamName, string TeamSlug, string? PlayerName,
+    string? BossName, string? DropName, int Contribution,
+    DateTimeOffset ApprovedAt, Guid? EvidenceAssetId, bool Hidden);
 
 public sealed record PublicTileDetails(
     string EventName, string EventSlug, string TeamName, string TeamSlug,

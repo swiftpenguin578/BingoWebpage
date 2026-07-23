@@ -123,6 +123,18 @@ dotnet run --project src/Bingo.Web -- --apply-catalogue-snapshot
 
 Applying the snapshot safely updates the catalogue created by older migrations and adds missing records; it does not delete catalogue records that historical boards may reference. The Wiki import remains a discovery/update workflow; it is not the authoritative deployment seed. Commit and review snapshot changes alongside the catalogue edits that produced them.
 
+### Cache OSRS Wiki catalogue images
+
+Boss and item records retain their original OSRS Wiki image URLs, but the web UI serves those images through a same-origin persistent cache. Development uses the Git-ignored `src/Bingo.Web/data/catalogue-images` directory. In production, set `CatalogueImageCache__LocalPath` to a mounted persistent-volume path; do not rely on a container's temporary filesystem.
+
+Images populate on first use. A deployment can prewarm all reviewed catalogue and board artwork after applying the catalogue snapshot:
+
+```bash
+dotnet run --project src/Bingo.Web -- --sync-catalogue-images
+```
+
+The synchronization command never changes catalogue records. It accepts only HTTPS OSRS Wiki image URLs, validates returned image types, limits individual files to 8 MB, and reports failed downloads. It waits 500 ms between sources by default and backs off before retrying Wiki rate-limit or temporary-service responses. Override the pacing with `CatalogueImageCache__SyncDelayMilliseconds` when necessary, but do not reduce it below the enforced 250 ms minimum. Cached binaries are operational data and must not be committed to Git.
+
 Delete the local database volume and start clean:
 
 ```bash

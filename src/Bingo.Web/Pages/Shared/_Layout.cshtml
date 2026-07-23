@@ -3,6 +3,7 @@
 @inject SharedShellService SharedShell
 @{
     var shell = await SharedShell.GetAsync(User, ViewContext.RouteData.Values, Context.RequestAborted);
+    var overlayMode = ViewData["OverlayMode"] as bool? == true;
 }
 <!DOCTYPE html>
 <html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName">
@@ -17,7 +18,9 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Bingo.Web.styles.css" asp-append-version="true" />
 </head>
-<body>
+<body class="@ViewData["BodyClass"] @(overlayMode ? "overlay-document" : null)">
+    @if (!overlayMode)
+    {
     <a class="skip-link" href="#main-content">@T["Skip to main content"]</a>
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm border-bottom @((ViewData["CompactNavigation"] as bool? == true || shell.Breadcrumbs.Count > 0) ? string.Empty : "mb-3") app-nav">
@@ -25,7 +28,7 @@
                 <a class="navbar-brand" asp-area="" asp-page="/Index">OSRS Community Bingo</a>
                 @if (User.Identity?.IsAuthenticated == true)
                 {
-                    <div class="nav-popover header-notification" data-notification-inbox data-event-id="@shell.Notifications.EventId">
+                    <div class="nav-popover header-notification" data-notification-inbox data-event-ids="@string.Join(',', shell.Notifications.EventIds)">
                         <details>
                             <summary class="nav-icon-button" aria-label="@T["Notifications"]">
                                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
@@ -104,6 +107,7 @@
             </div>
         </nav>
     </header>
+    }
     @if (shell.Breadcrumbs.Count > 0 && ViewData["HideBreadcrumbs"] as bool? != true)
     {
         <nav class="breadcrumb-bar" aria-label="@T["Breadcrumb"]">
@@ -134,7 +138,7 @@
             </div>
         </nav>
     }
-    <div class="container">
+    <div class="@(overlayMode ? "overlay-page-frame" : "container")">
         <main id="main-content" role="main" class="pb-3" tabindex="-1">
             <div id="app-notice-region" aria-live="polite">
                 @if (TempData["StatusMessage"] is string statusMessage)
@@ -158,11 +162,14 @@
         </main>
     </div>
 
+    @if (!overlayMode)
+    {
     <footer class="border-top footer text-muted">
         <div class="container">
             &copy; 2026 OSRS Community Bingo · <a asp-area="" asp-page="/Privacy">@T["Privacy"]</a>
         </div>
     </footer>
+    }
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

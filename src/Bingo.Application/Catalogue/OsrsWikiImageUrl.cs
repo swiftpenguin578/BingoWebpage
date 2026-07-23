@@ -23,7 +23,8 @@ public static class OsrsWikiImageUrl
         {
             var path = Uri.UnescapeDataString(uri.AbsolutePath);
             fileName = FileNameAfter(path, "/w/File:")
-                ?? FileNameAfter(path, "/wiki/File:");
+                ?? FileNameAfter(path, "/wiki/File:")
+                ?? FileNameAfter(path, "/Special:Redirect/file/");
         }
 
         return fileName is null

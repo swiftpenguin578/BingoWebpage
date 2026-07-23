@@ -63,6 +63,7 @@ If blocked, useful work may include focused source inspection, independent unit 
 ## UI work
 
 - Follow the applicable pass and approval gate in `UI_OVERHAUL_ROADMAP.md`.
+- Treat the **View bingo** state at `/Events/test-15-dkl-live/Board` and `UI_OVERHAUL_ROADMAP.md` section 3.6 as the visual source of truth for the site-wide overhaul. Reuse its shared tokens, spacing scale, component geometry, density, states, controls, responsive transitions, and motion rules; do not create a separate admin or page-local theme.
 - Start by identifying the page's user and primary task; preserve approved business behavior.
 - Reuse shared components and compact layout patterns.
 - Review desktop, narrow/mobile, keyboard, focus, empty, error, permission, and no-JavaScript states where applicable.

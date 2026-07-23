@@ -462,7 +462,7 @@ Deliver the participant-facing centerpiece and automatic competitive calculation
 
 #### Public board
 
-- Mission Control-style overview of all teams.
+- Public bingo overview of all teams.
 - Compact board previews.
 - Team name, rank, tiles, lines, and finisher status.
 - Expand/zoom into one board.
@@ -637,7 +637,7 @@ Turn the functionally complete application into a clear and consistent experienc
 - Repeat every milestone manual test against the overhauled interface.
 - Add browser automation for stable critical paths discovered during manual testing.
 - Recheck multi-admin board and draft control.
-- Recheck mobile captain evidence upload and public Mission Control views.
+- Recheck mobile captain evidence upload and public bingo overview views.
 - Record and resolve UI edge cases before declaring a release candidate.
 - Complete the ordered page passes and approval gates in `UI_OVERHAUL_ROADMAP.md`.
 
@@ -905,9 +905,9 @@ These features are intentionally separate from the approved version-one scope. T
 
 #### Team-only board focus
 
-- Let captains and co-captains mark individual tiles and complete rows as current team priorities.
+- Let authorized team members mark individual tiles, complete rows, and complete columns as current team priorities.
 - Focus markers are visible only to members of that team and admins, never to opponents or the public.
-- Start with a simple focused/not-focused state. Optional colors, notes, columns, and expiry times can be considered after the basic workflow is tested.
+- Start with a simple focused/not-focused state. Optional colors, notes, and expiry times can be considered after the basic workflow is tested.
 
 #### Public board preview and tile artwork
 

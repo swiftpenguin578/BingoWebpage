@@ -78,6 +78,7 @@
   <data name="No tile submissions need review." xml:space="preserve"><value>Ingen tile-indsendelser skal gennemgås.</value></data>
   <data name="View all submissions" xml:space="preserve"><value>Se alle indsendelser</value></data>
   <data name="{0} · submitted {1}" xml:space="preserve"><value>{0} · indsendt {1}</value></data>
+  <data name="{0} · {1} · submitted {2}" xml:space="preserve"><value>{0} · {1} · indsendt {2}</value></data>
   <data name="Submissions to correct" xml:space="preserve"><value>Indsendelser der skal rettes</value></data>
   <data name="No submissions need changes." xml:space="preserve"><value>Ingen indsendelser skal ændres.</value></data>
   <data name="Open team board" xml:space="preserve"><value>Åbn holdets bingoplade</value></data>

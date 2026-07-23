@@ -421,6 +421,8 @@ Portability is preserved by:
 - Configuration through environment variables/secrets
 - Reproducible server bootstrap documentation
 
+Catalogue boss/item artwork retains its reviewed OSRS Wiki source URL in PostgreSQL while the application serves it through a same-origin cache. The cache is populated on demand or with `--sync-catalogue-images`, enforces an HTTPS Wiki-host allowlist plus media-type and size validation, and uses `CatalogueImageCache:LocalPath`. Development cache files are Git-ignored; production must point this path at a persistent volume so deployments and container replacement do not discard the cache. A cache miss can be rebuilt from the authoritative source URLs and therefore is not part of database backup state.
+
 Moving hosts requires deploying the container, restoring or connecting PostgreSQL, configuring R2 credentials, and updating DNS.
 
 ## 17. Pausing versus hibernating

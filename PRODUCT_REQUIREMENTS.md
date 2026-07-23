@@ -570,7 +570,7 @@ The leaderboard may display:
 - Tile-finishing drops
 - Team
 
-The primary player ranking is estimated EHB contribution, matching the community's existing practice. The product should label this clearly as an estimate; it measures approved drop value rather than actual time played.
+The primary player ranking is estimated EHB contribution, matching the community's existing practice. Team and player EHB use the same allocation: each approved contribution receives its proportional share of the tile's combined expected EHB snapshot. Completing a tile credits exactly its expected EHB and completing a board credits exactly the board's expected EHB. Do not sum standalone time-to-specific-drop values for alternative eligible drops, because the same kills roll those alternatives together. The product must label this clearly as an estimate; it measures credited expected objective effort rather than actual time played.
 
 ## 17. Drafting
 

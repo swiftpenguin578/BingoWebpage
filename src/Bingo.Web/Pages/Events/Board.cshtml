@@ -3,71 +3,195 @@
 @using Bingo.Domain.Events
 @{
     ViewData["Title"] = $"{Model.Board.EventName} board";
+    ViewData["HideBreadcrumbs"] = true;
+    ViewData["CompactNavigation"] = true;
+    ViewData["BodyClass"] = "public-event-shell";
     var totalTiles = Model.Board.Rows * Model.Board.Columns;
+    var isMission = Model.ActiveView == "mission";
+    var isDrops = Model.ActiveView == "drops";
+    var isLeaderboards = Model.ActiveView == "leaderboards";
 }
 
-<section class="mission-control" data-progress-event="@Model.Board.EventId">
-    <header class="mission-header">
-        <div>
-            <p class="eyebrow">Mission Control</p>
-            <h1>@Model.Board.EventName</h1>
-            <p>Every team on the same board. Select a board to zoom in.</p>
-        </div>
-        <div class="mission-actions">
-            <span class="event-state-badge">@Model.Board.EventState</span>
-            <a asp-page="/Events/Teams" asp-route-slug="@Model.Board.EventSlug">Teams &amp; draft</a>
-        </div>
-    </header>
+<section class="public-event-dashboard" data-progress-event="@Model.Board.EventId">
+    <div class="public-dashboard-masthead">
+        <header class="public-dashboard-hero">
+            <div class="public-event-mark" aria-hidden="true">▦</div>
+            <div class="public-dashboard-title">
+                <h1>@Model.Board.EventName</h1>
+                <p><span class="event-status-dot"></span>@Model.Board.EventState <span aria-hidden="true">·</span> Bingo <span aria-hidden="true">·</span> @Model.Board.Teams.Count teams</p>
+            </div>
+        </header>
+
+        <nav class="public-dashboard-tabs" aria-label="Bingo views">
+            <a class="@(isMission ? "active" : null)" aria-current="@(isMission ? "page" : null)"
+               asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug">
+                View bingo
+            </a>
+            <a class="@(isDrops ? "active" : null)" aria-current="@(isDrops ? "page" : null)"
+               asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="drops">
+                Recent drops
+            </a>
+            <a class="@(isLeaderboards ? "active" : null)" aria-current="@(isLeaderboards ? "page" : null)"
+               asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards">
+                Leaderboards
+            </a>
+        </nav>
+    </div>
 
     <div class="progress-update" data-progress-update hidden role="status">
         New approved progress is available. <button type="button" data-progress-refresh>Refresh now</button>
     </div>
 
-    <div class="mission-grid" aria-label="Team board overview">
-        @foreach (var team in Model.Board.Teams)
-        {
-            var lineCount = team.Progress.CompletedRows.Count + team.Progress.CompletedColumns.Count;
-            <a class="mission-team-card panel @(team.ProvisionalWinner ? "provisional-winner" : null)"
-               asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@team.TeamSlug">
-                <header>
-                    <span class="rank-medallion">#@team.Rank</span>
-                    <span>
-                        <strong>@team.TeamName</strong>
-                        @if (!string.IsNullOrWhiteSpace(team.Affiliation)) { <small>@team.Affiliation</small> }
-                    </span>
-                    @if (team.ProvisionalWinner) { <span class="winner-label">Provisional winner</span> }
-                </header>
-                <div class="mini-board" style="--public-board-columns:@Model.Board.Columns" aria-label="@team.TeamName board, @team.Progress.CompletedTiles of @totalTiles tiles completed">
-                    @foreach (var tile in team.Tiles)
+    @if (isMission)
+    {
+        <section class="public-dashboard-view mission-control-view" aria-label="Team bingo boards">
+            <div class="mission-grid" aria-label="Team board overview">
+                @foreach (var team in Model.Board.Teams)
+                {
+                    var lineCount = team.Progress.CompletedRows.Count + team.Progress.CompletedColumns.Count;
+                    var completion = totalTiles == 0 ? 0 : team.Progress.CompletedTiles * 100 / totalTiles;
+                    <a class="mission-team-card panel @(team.ProvisionalWinner ? "provisional-winner" : null)"
+                       asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@team.TeamSlug">
+                        <header>
+                            <span class="rank-medallion rank-@team.Rank">#@team.Rank</span>
+                            <span class="mission-team-identity">
+                                <strong>@team.TeamName</strong>
+                            </span>
+                        </header>
+                        <div class="mini-board"
+                             style="--public-board-columns:@Model.Board.Columns; --public-board-rows:@Model.Board.Rows"
+                             aria-label="@team.TeamName board, @team.Progress.CompletedTiles of @totalTiles tiles completed">
+                            @foreach (var tile in team.Tiles)
+                            {
+                                <span class="mini-tile @(tile.Complete ? "complete" : tile.Approved > 0 ? "in-progress" : null)" title="@tile.Name: @tile.Approved/@tile.Target">
+                                    <span class="visually-hidden">@tile.Name @tile.Approved of @tile.Target</span>
+                                </span>
+                            }
+                        </div>
+                        <div class="mission-completion" aria-label="@completion percent complete"><span style="width:@completion%"></span></div>
+                        <footer>
+                            <span><strong>@team.Progress.CompletedTiles/@totalTiles</strong> tiles</span>
+                            <span><strong>@lineCount</strong> @(lineCount == 1 ? "line" : "lines")</span>
+                            <span title="Estimated Drop EHB from approved contributions"><strong>@team.Progress.EhbTiebreak.ToString("N0")</strong> Drop EHB</span>
+                        </footer>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+    else if (isDrops)
+    {
+        <section class="public-dashboard-view recent-drops-view" aria-labelledby="drops-heading">
+            <header class="public-view-heading">
+                <div><p class="eyebrow">Approved moments</p><h2 id="drops-heading">Recent drops</h2></div>
+                <p>The newest approved contributions across every team.</p>
+            </header>
+            @if (Model.Board.RecentDrops.Count == 0)
+            {
+                <div class="public-feature-empty panel"><span aria-hidden="true">◇</span><h3>The feed is waiting for its first drop</h3><p>Approved public evidence will appear here as the event unfolds.</p></div>
+            }
+            else
+            {
+                <div class="recent-drop-grid">
+                    @foreach (var drop in Model.Board.RecentDrops)
                     {
-                        <span class="mini-tile @(tile.Complete ? "complete" : tile.Approved > 0 ? "in-progress" : null)" title="@tile.Name: @tile.Approved/@tile.Target"><span class="visually-hidden">@tile.Name @tile.Approved of @tile.Target</span></span>
+                        <article class="recent-drop-card panel @(drop.Hidden ? "private-drop" : null)">
+                            @if (drop.EvidenceAssetId is Guid assetId)
+                            {
+                                <button type="button" class="recent-drop-image evidence-image-button" data-evidence-image="/Evidence/@assetId" data-evidence-alt="Approved evidence from @drop.PlayerName">
+                                    <img src="/Evidence/@assetId" alt="Approved evidence from @drop.PlayerName" loading="lazy" />
+                                </button>
+                            }
+                            else
+                            {
+                                <div class="recent-drop-placeholder" aria-hidden="true">@(drop.Hidden ? "◌" : "◆")</div>
+                            }
+                            <div class="recent-drop-copy">
+                                <span class="recent-drop-team">@drop.TeamName</span>
+                                <h3>@(drop.Hidden ? "Private approved contribution" : drop.DropName ?? drop.TileName)</h3>
+                                <p>@if (!drop.Hidden && !string.IsNullOrWhiteSpace(drop.PlayerName)) { <strong>@drop.PlayerName</strong><text> · </text> }@drop.TileName</p>
+                                <footer><span>Counts for @drop.Contribution</span><time datetime="@drop.ApprovedAt.ToString("O")">@drop.ApprovedAt.ToString("d MMM, HH:mm")</time></footer>
+                            </div>
+                        </article>
                     }
                 </div>
-                <footer>
-                    <span><strong>@team.Progress.CompletedTiles/@totalTiles</strong> tiles</span>
-                    <span><strong>@lineCount</strong> lines</span>
-                    <span><strong>@team.Progress.EhbTiebreak.ToString("0.##")</strong> EHB</span>
-                </footer>
-            </a>
-        }
-    </div>
-
-    <section class="public-leaderboard panel">
-        <header><div><p class="eyebrow">Contribution leaderboard</p><h2>Players by approved EHB</h2></div><span>Hidden evidence is excluded</span></header>
-        @if (Model.Board.PlayerLeaderboard.Count == 0)
-        {
-            <p class="muted-copy">No approved player contributions yet.</p>
-        }
-        else
-        {
-            <div class="table-wrap"><table><thead><tr><th>Rank</th><th>Player</th><th>Team</th><th>Approved EHB</th><th>Submissions</th></tr></thead><tbody>
-            @foreach (var player in Model.Board.PlayerLeaderboard)
-            {
-                <tr><td>#@player.Rank</td><td><strong>@player.PlayerName</strong></td><td>@player.TeamName</td><td>@player.EstimatedEhb.ToString("0.##")</td><td>@player.ApprovedSubmissions</td></tr>
             }
-            </tbody></table></div>
-        }
-    </section>
+        </section>
+    }
+    else
+    {
+        <section class="public-dashboard-view leaderboards-view" aria-labelledby="leaderboards-heading">
+            <header class="public-view-heading">
+                <div><p class="eyebrow">Performance</p><h2 id="leaderboards-heading">Leaderboards</h2></div>
+                <p>Official bingo position stays visible while you explore player performance.</p>
+            </header>
+            <div class="public-leaderboard-layout">
+                <main class="performance-leaderboard panel">
+                    <nav class="performance-tabs" aria-label="EHB leaderboard">
+                        <a class="@(Model.ActiveRanking == "drops" ? "active" : null)" aria-current="@(Model.ActiveRanking == "drops" ? "page" : null)"
+                           asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards" asp-route-ranking="drops">Drop EHB</a>
+                        <a class="@(Model.ActiveRanking == "activity" ? "active" : null)" aria-current="@(Model.ActiveRanking == "activity" ? "page" : null)"
+                           asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards" asp-route-ranking="activity">Activity EHB</a>
+                    </nav>
+                    @if (Model.ActiveRanking == "activity")
+                    {
+                        <div class="activity-ehb-preview">
+                            <span class="feature-kicker">Wise Old Man integration</span>
+                            <h3>Activity EHB is coming later</h3>
+                            <p>This view will rank teams by total EHB gained, average gain, and MVP, with each team expanding into its individual players.</p>
+                            <div class="activity-preview-table" aria-hidden="true">
+                                <span>Rank</span><span>Team</span><span>Total gained</span><span>Average</span><span>MVP</span>
+                                <strong>—</strong><strong>Waiting for event snapshots</strong><strong>—</strong><strong>—</strong><strong>—</strong>
+                            </div>
+                        </div>
+                    }
+                    else if (Model.Board.PlayerLeaderboard.Count == 0)
+                    {
+                        <div class="public-feature-empty"><span aria-hidden="true">◇</span><h3>No public player contributions yet</h3><p>Drop EHB appears after evidence is approved and the credited player is public.</p></div>
+                    }
+                    else
+                    {
+                        <header class="leaderboard-table-heading"><div><span class="feature-kicker">Approved contributions</span><h3>Player drop EHB</h3></div><span>Private players excluded</span></header>
+                        <div class="public-ranking-list" role="table" aria-label="Player drop EHB leaderboard">
+                            <div class="public-ranking-row heading" role="row"><span role="columnheader">Rank</span><span role="columnheader">Player</span><span role="columnheader">Team</span><span role="columnheader">Drop EHB</span><span role="columnheader">Approvals</span></div>
+                            @foreach (var player in Model.Board.PlayerLeaderboard)
+                            {
+                                <div class="public-ranking-row" role="row"><span role="cell" class="ranking-number">#@player.Rank</span><strong role="cell">@player.PlayerName</strong><span role="cell">@player.TeamName</span><span role="cell" class="ranking-value">@player.EstimatedEhb.ToString("N0")</span><span role="cell">@player.ApprovedSubmissions</span></div>
+                            }
+                        </div>
+                    }
+                </main>
+                <aside class="bingo-standings panel" aria-labelledby="standings-heading">
+                    <header><span class="feature-kicker">Always live</span><h3 id="standings-heading">Bingo standings</h3></header>
+                    <ol>
+                        @foreach (var team in Model.Board.Teams.OrderBy(value => value.Rank))
+                        {
+                            var lines = team.Progress.CompletedRows.Count + team.Progress.CompletedColumns.Count;
+                            <li class="@(team.Rank == 1 ? "leader" : null)">
+                                <span class="standings-rank">@team.Rank</span>
+                                <span><strong>@team.TeamName</strong><small>@lines lines · @team.Progress.CompletedTiles/@totalTiles tiles</small></span>
+                                <strong>@team.Progress.EhbTiebreak.ToString("N0")</strong>
+                            </li>
+                        }
+                    </ol>
+                </aside>
+            </div>
+        </section>
+    }
 </section>
 
-@section Scripts { <partial name="_PublicProgressScripts" model="Model.Board.EventId" /> }
+@if (isMission)
+{
+    <dialog class="team-board-overlay" data-team-board-overlay aria-label="Team board">
+        <button type="button" class="team-board-overlay-close" data-team-board-overlay-close aria-label="Close team board">×</button>
+        <div class="team-board-overlay-content" data-team-board-overlay-content></div>
+    </dialog>
+}
+
+<dialog class="public-lightbox" data-public-lightbox><button type="button" aria-label="Close evidence">×</button><img alt="" /></dialog>
+
+@section Scripts {
+    <partial name="_PublicProgressScripts" model="Model.Board.EventId" />
+    @if (isMission) { <script src="~/js/team-board-overlay.js" asp-append-version="true"></script> }
+    @if (isDrops) { <script src="~/js/public-evidence.js" asp-append-version="true"></script> }
+}

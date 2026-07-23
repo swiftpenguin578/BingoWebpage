@@ -70,7 +70,7 @@
       "efficientCompletionsPerHour": 18.0000,
       "externalIdentifier": "barrows_chests",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Barrows_Chests.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Torag_the_Corrupted.png?33092",
       "active": true,
       "notes": null
     },
@@ -142,7 +142,7 @@
       "efficientCompletionsPerHour": 3.0000,
       "externalIdentifier": "chambers_of_xeric",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Chambers_of_Xeric.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Great_Olm.png?f1081",
       "active": true,
       "notes": null
     },
@@ -154,7 +154,7 @@
       "efficientCompletionsPerHour": 2.0000,
       "externalIdentifier": "chambers_of_xeric_challenge_mode",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Chambers_of_Xeric_%28CM%29.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Great_Olm.png?f1081",
       "active": true,
       "notes": null
     },
@@ -214,7 +214,7 @@
       "efficientCompletionsPerHour": 76.0000,
       "externalIdentifier": "crazy_archaeologist",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Crazy_Archaeologist.png",
+      "imageUrl": "https://oldschool.runescape.wiki/w/Special:Redirect/file/Crazy_archaeologist.png",
       "active": true,
       "notes": null
     },
@@ -322,7 +322,7 @@
       "efficientCompletionsPerHour": 27.0000,
       "externalIdentifier": "grotesque_guardians",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Grotesque_Guardians.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Dawn.png?8b8ea",
       "active": true,
       "notes": null
     },
@@ -394,7 +394,7 @@
       "efficientCompletionsPerHour": 24.0000,
       "externalIdentifier": "kreearra",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Kree%27Arra.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Kree%27arra.png?ba75c",
       "active": true,
       "notes": null
     },
@@ -406,7 +406,7 @@
       "efficientCompletionsPerHour": 14.0000,
       "externalIdentifier": "lunar_chests",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Lunar_Chests.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Blood_Moon.png?c3e72",
       "active": true,
       "notes": null
     },
@@ -466,7 +466,7 @@
       "efficientCompletionsPerHour": 22.0000,
       "externalIdentifier": "phantom_muspah",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Phantom_Muspah.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Phantom_Muspah_%28ranged%29.png?9cf6a",
       "active": true,
       "notes": null
     },
@@ -478,7 +478,7 @@
       "efficientCompletionsPerHour": 8.0000,
       "externalIdentifier": "phosanis_nightmare",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Phosani%27s_Nightmare.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/The_Nightmare.png?0128a",
       "active": true,
       "notes": null
     },
@@ -526,7 +526,7 @@
       "efficientCompletionsPerHour": 76.0000,
       "externalIdentifier": "shellbane_gryphon",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Shellbane_Gryphon.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Shellbane_gryphon.png?bc76e",
       "active": true,
       "notes": null
     },
@@ -634,7 +634,7 @@
       "efficientCompletionsPerHour": 44.0000,
       "externalIdentifier": "the_royal_titans",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/The_Royal_Titans.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Eldric_the_Ice_King.png?6bd48",
       "active": true,
       "notes": null
     },
@@ -658,7 +658,7 @@
       "efficientCompletionsPerHour": 3.0000,
       "externalIdentifier": "theatre_of_blood",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Theatre_of_Blood.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Verzik_Vitur_%28final_form%29.png?f9733",
       "active": true,
       "notes": null
     },
@@ -670,7 +670,7 @@
       "efficientCompletionsPerHour": 3.0000,
       "externalIdentifier": "theatre_of_blood_hard_mode",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Theatre_of_Blood_%28HM%29.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Verzik_Vitur_%28final_form%29.png?f9733",
       "active": true,
       "notes": null
     },
@@ -682,7 +682,7 @@
       "efficientCompletionsPerHour": 80.0000,
       "externalIdentifier": "thermonuclear_smoke_devil",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Thermonuclear_Smoke_Devil.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Thermonuclear_smoke_devil.png?de858",
       "active": true,
       "notes": null
     },
@@ -706,7 +706,7 @@
       "efficientCompletionsPerHour": 3.0000,
       "externalIdentifier": "tombs_of_amascut_expert",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Tombs_of_Amascut_%28Expert_Mode%29.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Tumeken%27s_Warden_%28level-544%29.png?7db9d",
       "active": true,
       "notes": null
     },
@@ -814,7 +814,7 @@
       "efficientCompletionsPerHour": 42.0000,
       "externalIdentifier": "zulrah",
       "dataSource": "DKL EHB reference workbook",
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Zulrah.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Zulrah_%28serpentine%29.png?29a54",
       "active": true,
       "notes": null
     }
@@ -1275,7 +1275,7 @@
       "name": "Cow slippers",
       "normalizedName": "COW SLIPPERS",
       "externalIdentifier": null,
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Cow_slippers_detail.png",
+      "imageUrl": "https://oldschool.runescape.wiki/images/Cow_slippers_%281%29.png?1d902",
       "active": true,
       "notes": null
     },
@@ -2013,7 +2013,7 @@
       "name": "Ikkle hydra",
       "normalizedName": "IKKLE HYDRA",
       "externalIdentifier": null,
-      "imageUrl": "https://oldschool.runescape.wiki/Special:Redirect/file/Ikkle_hydra.png",
+      "imageUrl": "https://oldschool.runescape.wiki/w/Special:Redirect/file/Ikkle_hydra_%28serpentine%29.png",
       "active": true,
       "notes": null
     },

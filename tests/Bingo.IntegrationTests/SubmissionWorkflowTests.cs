@@ -220,11 +220,52 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         Assert.Equal(1, Assert.Single(initialTeam.Tiles).Approved);
         Assert.False(initialTeam.Progress.BoardComplete);
         Assert.Single(initial.PlayerLeaderboard);
+        var recentDrop = Assert.Single(initial.RecentDrops);
+        Assert.Equal(approved.SubmissionId, recentDrop.SubmissionId);
+        Assert.False(recentDrop.Hidden);
+        Assert.Equal("Player One", recentDrop.PlayerName);
+        Assert.NotNull(recentDrop.EvidenceAssetId);
 
         await submissions.ReverseAsync(approved.SubmissionId, setup.AdminId, "Wrong evidence");
         var reversed = await publicBoards.GetEventBoardAsync($"event-{setup.EventId:N}");
-        Assert.Equal(0, Assert.Single(Assert.Single(reversed!.Teams).Tiles).Approved);
+        var reversedTeam = Assert.Single(reversed!.Teams);
+        Assert.Equal(0, Assert.Single(reversedTeam.Tiles).Approved);
+        var zeroContributor = Assert.Single(reversedTeam.Progress.Players);
+        Assert.Equal("Player One", zeroContributor.PlayerName);
+        Assert.Equal(0, zeroContributor.EstimatedEhb);
+        Assert.Equal(0, zeroContributor.ApprovedContribution);
+        Assert.Equal(0, zeroContributor.ApprovedSubmissions);
         Assert.Empty(reversed.PlayerLeaderboard);
+        Assert.Empty(reversed.RecentDrops);
+    }
+
+    [Fact]
+    public async Task PublicProgressAllocatesCombinedTileEhbAcrossTeamAndPlayerContributions()
+    {
+        var setup = await SeedAsync(target: 2, allowHigherWeights: false, tileEhb: 12, dropEhb: 100);
+        await using var db = new ApplicationDbContext(options);
+        var team = await db.Teams.SingleAsync(x => x.Id == setup.TeamId);
+        team.Finalize(now.AddMinutes(-30));
+        await db.SaveChangesAsync();
+        var submissions = Service(db);
+        var first = await submissions.CreateAsync(Command(setup));
+        await submissions.ApproveAsync(first.SubmissionId, setup.AdminId);
+        var publicBoards = new PublicBoardService(db);
+
+        var partial = await publicBoards.GetEventBoardAsync($"event-{setup.EventId:N}");
+
+        var partialTeam = Assert.Single(partial!.Teams);
+        Assert.Equal(6, partialTeam.Progress.EhbTiebreak);
+        Assert.Equal(6, Assert.Single(partial.PlayerLeaderboard).EstimatedEhb);
+
+        var second = await submissions.CreateAsync(Command(setup));
+        await submissions.ApproveAsync(second.SubmissionId, setup.AdminId);
+        var complete = await publicBoards.GetEventBoardAsync($"event-{setup.EventId:N}");
+
+        var completeTeam = Assert.Single(complete!.Teams);
+        Assert.True(completeTeam.Progress.BoardComplete);
+        Assert.Equal(12, completeTeam.Progress.EhbTiebreak);
+        Assert.Equal(12, Assert.Single(complete.PlayerLeaderboard).EstimatedEhb);
     }
 
     [Fact]
@@ -245,6 +286,11 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
 
         Assert.True(Assert.Single(board!.Teams).Progress.BoardComplete);
         Assert.Empty(board.PlayerLeaderboard);
+        var recentDrop = Assert.Single(board.RecentDrops);
+        Assert.True(recentDrop.Hidden);
+        Assert.Null(recentDrop.PlayerName);
+        Assert.Null(recentDrop.DropName);
+        Assert.Null(recentDrop.EvidenceAssetId);
         var evidence = Assert.Single(details!.Evidence);
         Assert.True(evidence.Hidden);
         Assert.Null(evidence.PlayerName);
@@ -257,7 +303,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         setup.CaptainId, setup.EventId, setup.TeamId, setup.TileId, setup.RequirementId, setup.DropId,
         setup.ParticipantId, 1, "captain note", "proof.png", new MemoryStream([1, 2, 3]));
 
-    private async Task<Setup> SeedAsync(int target, bool allowHigherWeights, string? evidenceCode = null, bool manualObjective = false, bool duplicatesAllowed = true)
+    private async Task<Setup> SeedAsync(int target, bool allowHigherWeights, string? evidenceCode = null, bool manualObjective = false, bool duplicatesAllowed = true, decimal tileEhb = 1, decimal dropEhb = 1)
     {
         await using var db = new ApplicationDbContext(options);
         var eventId = Guid.NewGuid();
@@ -281,9 +327,9 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         board.Publish(now.AddDays(-1));
         db.AddRange(ev, team, participant, captain, admin, board,
             new TeamMembership(Guid.NewGuid(), teamId, participantId, TeamMembershipRole.Participant, now.AddDays(-4), null, null),
-            new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Manual tile", "Complete it", "Show the message", 1),
+            new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Manual tile", "Complete it", "Show the message", tileEhb),
             new BoardRequirementSnapshot(requirementId, tileId, 0, target, duplicatesAllowed, allowHigherWeights, "Complete runs", manualObjective, allowHigherWeights ? 2 : 1));
-        if (dropId is Guid eligibleDropId) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(eligibleDropId, requirementId, Guid.NewGuid(), "Test boss", "Test drop", "1/10", 0.1m, duplicatesAllowed ? null : 1, 1, allowHigherWeights ? 2 : 1));
+        if (dropId is Guid eligibleDropId) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(eligibleDropId, requirementId, Guid.NewGuid(), "Test boss", "Test drop", "1/10", 0.1m, duplicatesAllowed ? null : 1, dropEhb, allowHigherWeights ? 2 : 1));
         if (!string.IsNullOrEmpty(evidenceCode)) db.EvidenceCodes.Add(new EvidenceCode(Guid.NewGuid(), eventId, evidenceCode, now.AddMinutes(-10), adminId, now.AddMinutes(-10), null));
         await db.SaveChangesAsync();
         return new Setup(eventId, teamId, participantId, captainId, adminId, tileId, requirementId, dropId);

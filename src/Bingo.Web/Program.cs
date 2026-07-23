@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Threading.RateLimiting;
 using Bingo.Application.Access;
 using Bingo.Application.Boards;
+using Bingo.Application.Catalogue;
 using Bingo.Application.Teams;
 using Bingo.Domain.Access;
 using Bingo.Infrastructure;
@@ -59,6 +60,12 @@ builder.Services.AddHttpClient("OsrsWiki", client =>
     client.Timeout = TimeSpan.FromSeconds(30);
     client.DefaultRequestHeaders.UserAgent.ParseAdd("OSRSCommunityBingo/1.0 (catalogue dry-run)");
 });
+builder.Services.AddHttpClient("OsrsWikiImages", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("OSRSCommunityBingo/1.0 (catalogue image cache)");
+});
+builder.Services.AddSingleton<OsrsWikiImageCache>();
 builder.Services.AddScoped<OsrsWikiCatalogueDryRunService>();
 builder.Services.AddScoped<CatalogueSnapshotService>();
 builder.Services.AddScoped<DevelopmentScenarioSeeder>();
@@ -163,6 +170,63 @@ if (args.Contains("--apply-wiki-catalogue", StringComparer.Ordinal))
     return;
 }
 
+if (args.Contains("--sync-catalogue-images", StringComparer.Ordinal))
+{
+    await using var imageScope = app.Services.CreateAsyncScope();
+    var imageDb = imageScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await imageDb.Database.MigrateAsync();
+    var cache = imageScope.ServiceProvider.GetRequiredService<OsrsWikiImageCache>();
+    var sources = (await imageDb.BossActivities.AsNoTracking().Where(value => value.ImageUrl != null).Select(value => value.ImageUrl!).ToListAsync())
+        .Concat(await imageDb.CatalogueItems.AsNoTracking().Where(value => value.ImageUrl != null).Select(value => value.ImageUrl!).ToListAsync())
+        .Concat(await imageDb.TileTemplates.AsNoTracking().Where(value => value.ImageUrl != null).Select(value => value.ImageUrl!).ToListAsync())
+        .Concat(await imageDb.BoardTiles.AsNoTracking().Where(value => value.ImageUrlSnapshot != null).Select(value => value.ImageUrlSnapshot!).ToListAsync())
+        .Select(OsrsWikiImageUrl.Normalize)
+        .Where(value => value is not null)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+    var cached = 0;
+    var failed = 0;
+    var syncDelayMilliseconds = Math.Max(250, app.Configuration.GetValue<int?>("CatalogueImageCache:SyncDelayMilliseconds") ?? 500);
+    Console.WriteLine($"Synchronizing {sources.Count} catalogue images with a {syncDelayMilliseconds} ms delay between sources.");
+    for (var sourceIndex = 0; sourceIndex < sources.Count; sourceIndex++)
+    {
+        var source = sources[sourceIndex]!;
+        if (cache.IsCached(source))
+        {
+            cached++;
+            continue;
+        }
+
+        var synchronized = false;
+        for (var attempt = 1; attempt <= 3 && !synchronized; attempt++)
+        {
+            try
+            {
+                await cache.GetAsync(source);
+                cached++;
+                synchronized = true;
+            }
+            catch (HttpRequestException exception) when (
+                attempt < 3 && exception.StatusCode is System.Net.HttpStatusCode.TooManyRequests or System.Net.HttpStatusCode.ServiceUnavailable)
+            {
+                var retryDelay = TimeSpan.FromSeconds(attempt * 10);
+                Console.Error.WriteLine($"Wiki temporarily unavailable for {source}; retrying in {retryDelay.TotalSeconds:0} seconds.");
+                await Task.Delay(retryDelay);
+            }
+            catch (Exception exception)
+            {
+                failed++;
+                Console.Error.WriteLine($"Could not cache {source}: {exception.Message}");
+                break;
+            }
+        }
+
+        if (sourceIndex < sources.Count - 1) await Task.Delay(syncDelayMilliseconds);
+    }
+    Console.WriteLine($"Catalogue image synchronization complete. Cached: {cached}; failed: {failed}.");
+    return;
+}
+
 if (args.Contains("--reset-test-data", StringComparer.Ordinal))
 {
     if (!app.Environment.IsDevelopment())
@@ -247,6 +311,26 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = registration => registration.Tags.Contains("ready")
+});
+app.MapGet(OsrsWikiImageCache.EndpointPath, async (string source, HttpContext context, OsrsWikiImageCache cache, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var cached = await cache.GetAsync(source, cancellationToken);
+        context.Response.Headers.CacheControl = "public,max-age=604800";
+        return Results.File(cached.Path, cached.MediaType, enableRangeProcessing: true);
+    }
+    catch (InvalidOperationException)
+    {
+        return Results.BadRequest();
+    }
+    catch (HttpRequestException)
+    {
+        var fallback = OsrsWikiImageUrl.Normalize(source);
+        return Uri.TryCreate(fallback, UriKind.Absolute, out var uri) && uri.Host == "oldschool.runescape.wiki"
+            ? Results.Redirect(fallback)
+            : Results.NotFound();
+    }
 });
 app.MapRazorPages()
    .WithStaticAssets();

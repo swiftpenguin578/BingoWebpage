@@ -32,31 +32,33 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
 
     private async Task<NotificationInbox> GetAdminNotifications(CancellationToken cancellationToken)
     {
-        var activeEvent = await db.Events.AsNoTracking()
+        var activeEvents = await db.Events.AsNoTracking()
             .Where(item => item.State == EventState.Live || item.State == EventState.AwaitingFinalReview)
             .OrderByDescending(item => item.EventStartsAt)
             .Select(item => new { item.Id, item.Name, item.Timezone })
-            .FirstOrDefaultAsync(cancellationToken);
-        if (activeEvent is null)
+            .ToListAsync(cancellationToken);
+        if (activeEvents.Count == 0)
         {
-            return new NotificationInbox(null, 0, text["Notifications"], text["No active event needs attention."], text["Open evidence review"], "/Admin/Review", []);
+            return new NotificationInbox([], 0, text["Notifications"], text["No active event needs attention."], text["Open evidence review"], "/Admin/Review", []);
         }
 
+        var activeEventIds = activeEvents.Select(item => item.Id).ToList();
+        var eventMap = activeEvents.ToDictionary(item => item.Id);
         var query = from submission in db.Submissions.AsNoTracking()
                     join team in db.Teams.AsNoTracking() on submission.TeamId equals team.Id
                     join tile in db.BoardTiles.AsNoTracking() on submission.BoardTileId equals tile.Id
                     join player in db.EventParticipants.AsNoTracking() on submission.CreditedParticipantId equals player.Id
-                    where submission.EventId == activeEvent.Id && submission.Status == SubmissionStatus.Pending
+                    where activeEventIds.Contains(submission.EventId) && submission.Status == SubmissionStatus.Pending
                     orderby submission.SubmittedAt descending
-                    select new { submission.Id, submission.SubmittedAt, Team = team.Name, Tile = tile.NameSnapshot, Player = player.PrimaryAccountName };
+                    select new { submission.Id, submission.EventId, submission.SubmittedAt, Team = team.Name, Tile = tile.NameSnapshot, Player = player.PrimaryAccountName };
         var count = await query.CountAsync(cancellationToken);
         var rows = await query.Take(6).ToListAsync(cancellationToken);
         var items = rows.Select(item => new ShellNotification(
             item.Id,
             $"{item.Team} · {item.Tile}",
-            text["{0} · submitted {1}", item.Player, FormatDate(item.SubmittedAt, activeEvent.Timezone)],
+            text["{0} · {1} · submitted {2}", eventMap[item.EventId].Name, item.Player, FormatDate(item.SubmittedAt, eventMap[item.EventId].Timezone)],
             $"/Admin/Review/Details/{item.Id}")).ToList();
-        return new NotificationInbox(activeEvent.Id, count, text["Tile submissions"], text["No tile submissions need review."], text["View all submissions"], "/Admin/Review", items);
+        return new NotificationInbox(activeEventIds, count, text["Tile submissions"], text["No tile submissions need review."], text["View all submissions"], "/Admin/Review", items);
     }
 
     private async Task<NotificationInbox> GetCaptainNotifications(ClaimsPrincipal user, CancellationToken cancellationToken)
@@ -79,7 +81,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             item.Tile,
             string.IsNullOrWhiteSpace(item.CurrentReviewerNote) ? text["Changes requested"] : item.CurrentReviewerNote,
             $"/Captain/Submissions/{item.Id}")).ToList();
-        return new NotificationInbox(eventId, count, text["Submissions to correct"], text["No submissions need changes."], text["Open team board"], "/Captain", items);
+        return new NotificationInbox([eventId.Value], count, text["Submissions to correct"], text["No submissions need changes."], text["Open team board"], "/Captain", items);
     }
 
     private async Task<IReadOnlyList<BreadcrumbItem>> BuildBreadcrumbs(string page, RouteValueDictionary values, CancellationToken cancellationToken)
@@ -237,7 +239,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
 public sealed record SharedShellData(IReadOnlyList<BreadcrumbItem> Breadcrumbs, NotificationInbox Notifications);
 public sealed record BreadcrumbItem(string Label, string? Url, string? Status = null, string? StatusClass = null);
 public sealed record ShellNotification(Guid Id, string Title, string Detail, string Url);
-public sealed record NotificationInbox(Guid? EventId, int Count, string Heading, string EmptyText, string OverviewLabel, string OverviewUrl, IReadOnlyList<ShellNotification> Items)
+public sealed record NotificationInbox(IReadOnlyList<Guid> EventIds, int Count, string Heading, string EmptyText, string OverviewLabel, string OverviewUrl, IReadOnlyList<ShellNotification> Items)
 {
-    public static NotificationInbox Empty { get; } = new(null, 0, string.Empty, string.Empty, string.Empty, string.Empty, []);
+    public static NotificationInbox Empty { get; } = new([], 0, string.Empty, string.Empty, string.Empty, string.Empty, []);
 }

@@ -18,7 +18,7 @@
         overview.textContent = data.overviewLabel || '';
         overview.href = data.overviewUrl || '#';
         overview.hidden = !data.overviewUrl;
-        inbox.dataset.eventId = data.eventId || '';
+        inbox.dataset.eventIds = (data.eventIds || []).join(',');
 
         list.replaceChildren();
         for (const item of data.items || []) {
@@ -43,11 +43,11 @@
 
     if (!window.signalR) return;
     const connection = new signalR.HubConnectionBuilder().withUrl('/hubs/progress').withAutomaticReconnect().build();
-    const watchCurrentEvent = async () => {
-        const eventId = inbox.dataset.eventId;
-        if (eventId) await connection.invoke('WatchEvent', eventId);
+    const watchCurrentEvents = async () => {
+        const eventIds = (inbox.dataset.eventIds || '').split(',').filter(Boolean);
+        await Promise.all(eventIds.map(eventId => connection.invoke('WatchEvent', eventId)));
     };
     connection.on('progressChanged', refresh);
-    connection.onreconnected(watchCurrentEvent);
-    connection.start().then(watchCurrentEvent).catch(() => {});
+    connection.onreconnected(watchCurrentEvents);
+    connection.start().then(watchCurrentEvents).catch(() => {});
 })();

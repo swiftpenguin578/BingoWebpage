@@ -21,6 +21,9 @@ public sealed class TeamBoardModel(IPublicBoardService boards) : PageModel
         Team = board.Teams[index];
         Previous = index > 0 ? board.Teams[index - 1] : null;
         Next = index + 1 < board.Teams.Count ? board.Teams[index + 1] : null;
+        ViewData["BodyClass"] = "public-event-shell";
+        ViewData["CompactNavigation"] = true;
+        ViewData["HideBreadcrumbs"] = true;
         return Page();
     }
 }

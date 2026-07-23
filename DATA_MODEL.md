@@ -1035,13 +1035,19 @@ The board editor warns when spread exceeds the event's chosen balancing target.
 
 ### 14.4 Player EHB contribution
 
-Each approved submission stores or derives an EHB contribution snapshot based on its drop and tile configuration.
+Each approved contribution receives a proportional share of its tile's immutable combined expected EHB snapshot:
 
 ```text
+tile_target = sum(target contribution of every requirement on the tile)
+ehb_per_contribution = tile EHB snapshot / tile_target
+submission_ehb_contribution = approved contribution × ehb_per_contribution
 player_ehb_contribution = sum(active approved submission EHB contributions credited to player)
+team_ehb_tiebreak = sum(active approved submission EHB contributions credited to team)
 ```
 
-This is an estimated approved-drop value, not a measurement of actual time played.
+Completing a tile therefore credits exactly that tile's expected EHB, and completing a board credits exactly the board's expected EHB. A drop with credited weight `2` advances two contribution units and receives two shares. This allocation uses the combined objective calculation because eligible drops are rolled together; it must not add the standalone time-to-specific-drop values, which would count the same underlying kills repeatedly. Voidwaker-style objectives remain appropriately expensive because their tile EHB calculation requires the specified components.
+
+This is an estimated share of expected objective effort, not a measurement of actual time played.
 
 ## 15. Derived progress views
 

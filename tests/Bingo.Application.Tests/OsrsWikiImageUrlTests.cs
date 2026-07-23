@@ -14,6 +14,9 @@ public sealed class OsrsWikiImageUrlTests
     [InlineData(
         "https://oldschool.runescape.wiki/w/File:Hydra%27s_claw_detail.png",
         "https://oldschool.runescape.wiki/w/Special:Redirect/file/Hydra%27s_claw_detail.png")]
+    [InlineData(
+        "https://oldschool.runescape.wiki/Special:Redirect/file/Nex.png",
+        "https://oldschool.runescape.wiki/w/Special:Redirect/file/Nex.png")]
     public void NormalizeConvertsWikiFilePagesToDirectFileRedirects(string input, string expected)
     {
         Assert.Equal(expected, OsrsWikiImageUrl.Normalize(input));

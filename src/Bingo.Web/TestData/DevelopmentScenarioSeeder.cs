@@ -40,6 +40,7 @@ public sealed class DevelopmentScenarioSeeder(
             ?? throw new InvalidOperationException("Create a local administrator before resetting test data.");
 
         var blueprint = await BuildCanonicalBlueprintAsync(cancellationToken);
+        var fiveByFiveBlueprint = ExpandBlueprint(blueprint, "Canonical 5x5 public-dashboard board", 5, 5);
         var dklBlueprint = await BuildDklBlueprintAsync(cancellationToken);
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -148,6 +149,18 @@ public sealed class DevelopmentScenarioSeeder(
             dklBlueprint,
             admin.Id,
             now));
+        var fiveByFiveReviewScenario = SeedScenario(
+            "TEST 14 — Evidence 5x5",
+            "test-14-submission-review-5x5",
+            ScenarioStage.ReviewCases,
+            fiveByFiveBlueprint,
+            admin.Id,
+            now);
+        seeded.Add(fiveByFiveReviewScenario);
+        await AddReviewCasesAsync(fiveByFiveReviewScenario.EventId, admin.Id, now, cancellationToken);
+        var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, now);
+        seeded.Add(dklLiveScenario);
+        AddDklLiveProgress(dklLiveScenario.EventId, admin.Id, now);
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -417,6 +430,122 @@ public sealed class DevelopmentScenarioSeeder(
             []);
     }
 
+    private SeededScenario SeedDklLiveScenario(
+        BoardBlueprint blueprint,
+        Guid adminId,
+        DateTimeOffset now)
+    {
+        const int teamCount = 6;
+        const int targetTeamSize = 10;
+        var participantNames = new[]
+        {
+            "Rasmus Zebak", "crunch704", "ZemaFios", "Detoned", "Frette", "Thuebob", "Spacecreator", "Raffineret", "I use x22", "Kongherodes", "itsMKN", "Gimgonduth", "Corgisiron", "NoobNicoline", "Zop1",
+            "zakk0", "Mikkel-IT", "Thylegend", "Ezzi", "W olles", "Completeius", "Calm Chris", "IM Latry", "im iftic", "Zanshock", "stoltze", "Myrupz", "Maxzen", "Bubber", "Freakingpand",
+            "Karl Knast", "Macdroppet", "N L C K O", "Siswet19", "Sunny Boy110", "oegget", "3lite men x", "200iq p2W", "Ricebarrage", "Mrtopfresh", "MindMySnipe", "GIM Wemox", "Røllemester", "Maxe2968", "Backshotbaby",
+            "Agent Groth", "Agent Slidt", "R33Con", "pappresseren", "Elite ca", "Jern Jakob", "MesterMudder", "Sanddrage", "MrDryhard", "User IM", "Skade", "Tanzania Tim", "Uganda ulrik", "Kenya Kaj", "BotF"
+        };
+        var teamSeeds = new[]
+        {
+            (Name: "Touch kids, not grass", Slug: "touch-kids-not-grass", Captain: "Rasmus Zebak", CoCaptain: "crunch704"),
+            (Name: "Såeh cs?", Slug: "saeh-cs", Captain: "zakk0", CoCaptain: "Mikkel-IT"),
+            (Name: "Morytania Monkeys", Slug: "morytania-monkeys", Captain: "Karl Knast", CoCaptain: "Macdroppet"),
+            (Name: "The Agency", Slug: "the-agency", Captain: "Agent Groth", CoCaptain: "Agent Slidt"),
+            (Name: "Xen0%_d_rops", Slug: "xen0-d-rops", Captain: "ZemaFios", CoCaptain: "Detoned"),
+            (Name: "Zalamalikum", Slug: "zalamalikum", Captain: "Frette", CoCaptain: "Thuebob")
+        };
+        var leaderNames = teamSeeds
+            .SelectMany(team => new[] { team.Captain, team.CoCaptain })
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var remainingNames = participantNames.Where(name => !leaderNames.Contains(name)).ToArray();
+
+        var eventStarts = now.AddHours(-1);
+        var eventEnds = now.AddDays(5);
+        var bingoEvent = new BingoEvent(
+            Guid.NewGuid(),
+            "TEST 15 — DKL Live",
+            "test-15-dkl-live",
+            "Live six-team DKL board scenario with complete drafted rosters.",
+            "Europe/Copenhagen",
+            now.AddDays(-14),
+            now.AddDays(-1),
+            eventStarts,
+            eventEnds,
+            eventEnds.AddMinutes(30),
+            participantNames.Length,
+            adminId,
+            now);
+        bingoEvent.ConfigureSignup(true, true, false, null);
+        bingoEvent.ConfigurePlanning(
+            "Seeded DKL rules for full live-board testing.",
+            null,
+            null,
+            teamCount,
+            targetTeamSize,
+            blueprint.Rows,
+            blueprint.Columns);
+        bingoEvent.CloseSignups();
+        bingoEvent.StartEvent(eventStarts);
+        bingoEvent.SetDraftLocked(true);
+        db.Events.Add(bingoEvent);
+
+        var participants = participantNames.Select((name, index) =>
+        {
+            var participant = new EventParticipant(
+                Guid.NewGuid(), bingoEvent.Id, name, Normalize(name), 175 + index * 83,
+                SignupStatus.Confirmed, index + 1, now.AddDays(-2).AddMinutes(index),
+                SignupSource.Website, null);
+            participant.UpdatePublicDetails(
+                name, Normalize(name), 175 + index * 83, null,
+                $"dkl-live-{index + 1:00}", null, leaderNames.Contains(name));
+            return participant;
+        }).ToList();
+        db.EventParticipants.AddRange(participants);
+        var participantsByName = participants.ToDictionary(
+            participant => participant.PrimaryAccountName,
+            StringComparer.OrdinalIgnoreCase);
+
+        var board = AddBoard(bingoEvent.Id, blueprint, publish: true, now);
+        var draft = new DraftSession(Guid.NewGuid(), bingoEvent.Id, targetTeamSize);
+        draft.Start(now.AddHours(-3));
+        db.DraftSessions.Add(draft);
+
+        var captainUsernames = new List<string>(teamCount);
+        var pickNumber = 1;
+        for (var teamIndex = 0; teamIndex < teamSeeds.Length; teamIndex++)
+        {
+            var seed = teamSeeds[teamIndex];
+            var team = new Team(
+                Guid.NewGuid(), bingoEvent.Id, seed.Name, seed.Slug,
+                TeamFormationType.Drafted, null, true);
+            team.SetDraftPosition(teamIndex + 1);
+            db.Teams.Add(team);
+
+            var captain = participantsByName[seed.Captain];
+            var coCaptain = participantsByName[seed.CoCaptain];
+            db.TeamMemberships.AddRange(
+                new TeamMembership(Guid.NewGuid(), team.Id, captain.Id, TeamMembershipRole.Captain, now.AddHours(-3), null, "Seeded DKL captain"),
+                new TeamMembership(Guid.NewGuid(), team.Id, coCaptain.Id, TeamMembershipRole.CoCaptain, now.AddHours(-3), null, "Seeded DKL co-captain"));
+
+            foreach (var name in remainingNames.Skip(teamIndex * 8).Take(8))
+            {
+                AddPick(draft, team, participantsByName[name], pickNumber, (pickNumber - 1) / teamCount + 1, now);
+                pickNumber++;
+            }
+
+            team.Finalize(now.AddHours(-2));
+            captainUsernames.Add(AddCaptainAccount(
+                bingoEvent, team, captain, CaptainDigits(bingoEvent, teamIndex + 1), now));
+        }
+        draft.Finalize(now.AddHours(-2));
+
+        return new SeededScenario(
+            bingoEvent.Id,
+            bingoEvent.Name,
+            bingoEvent.State,
+            board.State,
+            captainUsernames);
+    }
+
     private List<EventParticipant> AddParticipants(Guid eventId, ScenarioStage stage, DateTimeOffset now)
     {
         if (stage == ScenarioStage.PrivateSetup) return [];
@@ -446,6 +575,136 @@ public sealed class DevelopmentScenarioSeeder(
         }
         db.EventParticipants.AddRange(participants);
         return participants;
+    }
+
+    private void AddDklLiveProgress(
+        Guid eventId,
+        Guid adminId,
+        DateTimeOffset now)
+    {
+        var board = db.Boards.Local.Single(value => value.EventId == eventId);
+        var tiles = db.BoardTiles.Local
+            .Where(value => value.BoardId == board.Id)
+            .OrderBy(value => value.RowIndex)
+            .ThenBy(value => value.ColumnIndex)
+            .ToList();
+        var teams = db.Teams.Local
+            .Where(value => value.EventId == eventId)
+            .OrderBy(value => value.DraftPosition)
+            .ToList();
+        var progressSequence = 0;
+
+        void ApproveRequirement(
+            Team team,
+            IReadOnlyList<EventParticipant> creditedParticipants,
+            Account captainAccount,
+            BoardTile tile,
+            BoardRequirementSnapshot requirement,
+            int amount)
+        {
+            var remaining = amount;
+            var drops = db.BoardRequirementDropSnapshots.Local
+                .Where(value => value.RequirementId == requirement.Id)
+                .OrderBy(value => value.ItemName)
+                .ToList();
+            var usedByDrop = new Dictionary<Guid, int>();
+            var dropIndex = 0;
+
+            while (remaining > 0)
+            {
+                BoardRequirementDropSnapshot? drop = null;
+                var approvedAmount = 1;
+                if (!requirement.ManualObjective)
+                {
+                    for (var checkedDrops = 0; checkedDrops < drops.Count; checkedDrops++)
+                    {
+                        var candidate = drops[dropIndex % drops.Count];
+                        dropIndex++;
+                        var maximum = candidate.MaximumContribution ??
+                            (requirement.DuplicatesAllowed ? int.MaxValue : 1);
+                        var capacity = maximum - usedByDrop.GetValueOrDefault(candidate.Id);
+                        if (capacity <= 0) continue;
+                        drop = candidate;
+                        approvedAmount = Math.Min(remaining, Math.Min(candidate.CreditedWeight, capacity));
+                        usedByDrop[candidate.Id] = usedByDrop.GetValueOrDefault(candidate.Id) + approvedAmount;
+                        break;
+                    }
+
+                    if (drop is null)
+                    {
+                        throw new InvalidOperationException(
+                            $"Test 15 cannot seed {amount} representative contributions for '{requirement.Description}'.");
+                    }
+                }
+
+                var submittedAt = now.AddMinutes(-55).AddSeconds(progressSequence++);
+                var creditedParticipant = creditedParticipants[progressSequence % creditedParticipants.Count];
+                var submission = new Submission(
+                    Guid.NewGuid(), eventId, team.Id, tile.Id, requirement.Id, drop?.Id,
+                    creditedParticipant.Id, captainAccount.Id, drop?.CreditedWeight ?? 1, submittedAt,
+                    "Approved Test 15 live-board progress fixture.", null);
+                db.Submissions.Add(submission);
+                db.ReviewActions.Add(SeedAction(
+                    submission.Id, ReviewActionType.Submitted, captainAccount.Id,
+                    submittedAt, "Seeded Test 15 progress evidence"));
+                ApproveSeeded(submission, adminId, approvedAmount, now.AddMinutes(-3));
+                remaining -= approvedAmount;
+            }
+        }
+
+        for (var teamIndex = 0; teamIndex < teams.Count; teamIndex++)
+        {
+            var team = teams[teamIndex];
+            var captainMembership = db.TeamMemberships.Local.Single(value =>
+                value.TeamId == team.Id && value.Role == TeamMembershipRole.Captain);
+            var captainParticipant = db.EventParticipants.Local.Single(value =>
+                value.Id == captainMembership.EventParticipantId);
+            var captainAccount = db.Accounts.Local.Single(value =>
+                value.TeamId == team.Id && value.CaptainParticipantId == captainParticipant.Id);
+            var memberParticipantIds = db.TeamMemberships.Local
+                .Where(value => value.TeamId == team.Id && value.LeftAt is null)
+                .Select(value => value.EventParticipantId)
+                .ToHashSet();
+            var creditedParticipants = db.EventParticipants.Local
+                .Where(value => memberParticipantIds.Contains(value.Id))
+                .OrderBy(value => value.PrimaryAccountName)
+                .ToList();
+            var completedTileCount = team.Name == "Såeh cs?"
+                ? tiles.Count
+                : Math.Max(1, 5 - teamIndex);
+
+            foreach (var tile in tiles.Take(completedTileCount))
+            {
+                foreach (var requirement in db.BoardRequirementSnapshots.Local
+                             .Where(value => value.BoardTileId == tile.Id)
+                             .OrderBy(value => value.Position))
+                {
+                    ApproveRequirement(
+                        team, creditedParticipants, captainAccount, tile,
+                        requirement, requirement.TargetContribution);
+                }
+            }
+
+            if (completedTileCount == tiles.Count) continue;
+
+            var partialTile = tiles.Skip(completedTileCount).First(tile =>
+            {
+                var requirements = db.BoardRequirementSnapshots.Local
+                    .Where(value => value.BoardTileId == tile.Id)
+                    .ToList();
+                return requirements.Count > 1 || requirements[0].TargetContribution > 1;
+            });
+            var partialRequirement = db.BoardRequirementSnapshots.Local
+                .Where(value => value.BoardTileId == partialTile.Id)
+                .OrderBy(value => value.Position)
+                .First();
+            var partialAmount = partialRequirement.TargetContribution > 1
+                ? Math.Max(1, partialRequirement.TargetContribution / 2)
+                : 1;
+            ApproveRequirement(
+                team, creditedParticipants, captainAccount, partialTile,
+                partialRequirement, partialAmount);
+        }
     }
 
     private Board AddBoard(Guid eventId, BoardBlueprint blueprint, bool publish, DateTimeOffset now)
@@ -681,12 +940,12 @@ public sealed class DevelopmentScenarioSeeder(
         // Finish the remainder of row one so Milestone 7 has a visible completed-line fixture.
         foreach (var position in new[] { 1, 2 })
         {
-            var chestRequirement = Requirement("Barrows + Lunar chests", position);
+            var chestRequirement = Requirement("Barrows / Moons", position);
             var chestDrop = Drop(chestRequirement);
             for (var count = 0; count < 5; count++)
             {
                 var chest = await Create(
-                    "Barrows + Lunar chests", 1, "Approved public-board line fixture.",
+                    "Barrows / Moons", 1, "Approved public-board line fixture.",
                     (byte)(30 + position * 20 + count), selectedRequirement: chestRequirement, selectedDrop: chestDrop);
                 ApproveSeeded(chest.Submission, adminId, 1, now.AddMinutes(-20 + position * 5 + count));
             }
@@ -700,6 +959,80 @@ public sealed class DevelopmentScenarioSeeder(
                 (byte)(85 + count), selectedRequirement: speedRequirement);
             ApproveSeeded(speed.Submission, adminId, 1, now.AddMinutes(-4 + count));
         }
+
+        // Add enough ranked teams to exercise two full rows in the flagship public overview.
+        // Progress remains evidence-backed so the cards use the same calculation path as real events.
+        var extraParticipants = db.EventParticipants.Local
+            .Where(value => value.EventId == eventId)
+            .OrderBy(value => value.SignupSequence)
+            .Skip(6)
+            .Take(3)
+            .ToList();
+        var extraTeams = new[]
+        {
+            new Team(Guid.NewGuid(), eventId, "Azure Owls", "azure-owls", TeamFormationType.Drafted, null, true),
+            new Team(Guid.NewGuid(), eventId, "Ember Foxes", "ember-foxes", TeamFormationType.Drafted, null, true),
+            new Team(Guid.NewGuid(), eventId, "Iron Jackals", "iron-jackals", TeamFormationType.Drafted, null, true)
+        };
+        var bingoEvent = db.Events.Local.Single(value => value.Id == eventId);
+        for (var index = 0; index < extraTeams.Length; index++)
+        {
+            var extraTeam = extraTeams[index];
+            var extraPlayer = extraParticipants[index];
+            extraTeam.Finalize(now.AddHours(-1));
+            db.Teams.Add(extraTeam);
+            db.TeamMemberships.Add(new TeamMembership(
+                Guid.NewGuid(), extraTeam.Id, extraPlayer.Id, TeamMembershipRole.Captain,
+                now.AddHours(-1), null, "Public overview layout fixture"));
+            AddCaptainAccount(bingoEvent, extraTeam, extraPlayer, CaptainDigits(bingoEvent, index + 4), now);
+        }
+
+        var seedColor = 90;
+        async Task ApproveProgressAsync(Team progressTeam, EventParticipant progressPlayer, string tileName, int? amount = null)
+        {
+            var progressCaptain = db.Accounts.Local.Single(value =>
+                value.TeamId == progressTeam.Id && value.CaptainParticipantId == progressPlayer.Id);
+            var progressTile = tiles[tileName];
+            foreach (var progressRequirement in db.BoardRequirementSnapshots.Local
+                         .Where(value => value.BoardTileId == progressTile.Id)
+                         .OrderBy(value => value.Position))
+            {
+                var approvedAmount = amount ?? progressRequirement.TargetContribution;
+                var progressDrop = progressRequirement.ManualObjective
+                    ? null
+                    : db.BoardRequirementDropSnapshots.Local.First(value => value.RequirementId == progressRequirement.Id);
+                var submittedAt = now.AddMinutes(-45 + seedColor % 20);
+                var progressSubmission = new Submission(
+                    Guid.NewGuid(), eventId, progressTeam.Id, progressTile.Id, progressRequirement.Id, progressDrop?.Id,
+                    progressPlayer.Id, progressCaptain.Id, approvedAmount, submittedAt,
+                    "Approved public-overview ranking fixture.", null);
+                var progressStored = await StoreSeedImageAsync(
+                    eventId, progressSubmission.Id, $"ranking-{progressTeam.Slug}-{progressTile.RowIndex}-{progressTile.ColumnIndex}.png",
+                    (byte)seedColor, cancellationToken);
+                db.Submissions.Add(progressSubmission);
+                db.EvidenceAssets.Add(SeedAsset(
+                    progressSubmission.Id, progressCaptain.Id, progressStored,
+                    EvidenceAssetRole.OriginalEvidence, submittedAt));
+                db.ReviewActions.Add(SeedAction(
+                    progressSubmission.Id, ReviewActionType.Submitted, progressCaptain.Id,
+                    submittedAt, "Seeded public-overview ranking evidence"));
+                ApproveSeeded(progressSubmission, adminId, approvedAmount, now.AddMinutes(-2));
+                seedColor += 17;
+            }
+        }
+
+        await ApproveProgressAsync(extraTeams[0], extraParticipants[0], "Alchemical Hydra");
+        await ApproveProgressAsync(extraTeams[0], extraParticipants[0], "Zulrah unique table");
+        await ApproveProgressAsync(extraTeams[0], extraParticipants[0], "Araxxor pet or uniques");
+        await ApproveProgressAsync(extraTeams[1], extraParticipants[1], "Alchemical Hydra");
+        await ApproveProgressAsync(extraTeams[1], extraParticipants[1], "Zulrah unique table");
+        await ApproveProgressAsync(extraTeams[2], extraParticipants[2], "Alchemical Hydra");
+
+        var wolves = db.Teams.Local.Single(value => value.EventId == eventId && value.Name == "Seeded Wolves");
+        var wolvesMembership = db.TeamMemberships.Local.First(value =>
+            value.TeamId == wolves.Id && value.Role == TeamMembershipRole.Captain);
+        var wolvesPlayer = db.EventParticipants.Local.Single(value => value.Id == wolvesMembership.EventParticipantId);
+        await ApproveProgressAsync(wolves, wolvesPlayer, "Nex", 1);
     }
 
     private async Task AddCompletedBoardAsync(Guid eventId, Guid adminId, DateTimeOffset now, CancellationToken cancellationToken)
@@ -771,7 +1104,7 @@ public sealed class DevelopmentScenarioSeeder(
         var specifications = new[]
         {
             new SeedTile("Alchemical Hydra", null, [new(["Alchemical Hydra"], 1, true, false, null, "Collect 1 eligible Hydra drop")]),
-            new SeedTile("Barrows + Lunar chests", null,
+            new SeedTile("Barrows / Moons", null,
             [
                 new(["Barrows Chests"], 5, true, false, null, "Open 5 Barrows reward chests"),
                 new(["Lunar Chests"], 5, true, false, null, "Open 5 Lunar reward chests")
@@ -1048,6 +1381,31 @@ public sealed class DevelopmentScenarioSeeder(
             DELETE FROM accounts WHERE role = 'Captain';
             """,
             cancellationToken);
+
+    private static BoardBlueprint ExpandBlueprint(
+        BoardBlueprint source,
+        string name,
+        int rows,
+        int columns)
+    {
+        var tileCount = rows * columns;
+        var tiles = Enumerable.Range(0, tileCount)
+            .Select(index =>
+            {
+                var sourceTile = source.Tiles[index % source.Tiles.Count];
+                var repetition = index / source.Tiles.Count;
+                return sourceTile with
+                {
+                    Row = index / columns,
+                    Column = index % columns,
+                    Name = repetition == 0
+                        ? sourceTile.Name
+                        : $"{sourceTile.Name} — Layout {repetition + 1}"
+                };
+            })
+            .ToList();
+        return new BoardBlueprint(name, rows, columns, tiles);
+    }
 
     private static string Normalize(string value) => value.Trim().ToUpperInvariant();
     private static string Describe(ScenarioStage stage) => stage switch

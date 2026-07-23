@@ -124,12 +124,12 @@
                         }
                         @if (showLiveControls)
                         {
-                            <a class="btn btn-outline-light" asp-page="/Admin/Review/Index">@T["Review submissions"]</a>
+                            <a class="btn btn-outline-light" asp-page="/Admin/Review/Index" asp-route-eventId="@eventView.Id">@T["Review submissions"]</a>
                             <form method="post" asp-page-handler="EndEvent" data-update-targets="@partialUpdateTargets" onsubmit="return confirm('End the event and enter final review?');"><button class="btn btn-danger" type="submit">@T["End event"]</button></form>
                         }
                         @if (showFinalReviewControls)
                         {
-                            <a class="btn btn-outline-light" asp-page="/Admin/Review/Index">@T["Review submissions"]</a>
+                            <a class="btn btn-outline-light" asp-page="/Admin/Review/Index" asp-route-eventId="@eventView.Id">@T["Review submissions"]</a>
                             <a class="btn btn-primary" asp-page="Finalize" asp-route-id="@eventView.Id">@T["Final review and results"]</a>
                         }
                         @if (showResultsControl)

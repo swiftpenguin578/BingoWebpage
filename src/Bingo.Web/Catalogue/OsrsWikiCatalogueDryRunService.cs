@@ -821,9 +821,9 @@ public sealed class OsrsWikiCatalogueDryRunService(
     }
     private static string BuildWikiPageUrl(string page) => $"{WikiBaseUrl}/w/{Uri.EscapeDataString(page.Replace(' ', '_'))}";
     private static string BuildBossImageUrl(string bossName) =>
-        $"{WikiBaseUrl}/Special:Redirect/file/{Uri.EscapeDataString(bossName.Replace(' ', '_') + ".png")}";
+        $"{WikiBaseUrl}/w/Special:Redirect/file/{Uri.EscapeDataString(bossName.Replace(' ', '_') + ".png")}";
     private static string BuildItemImageUrl(string itemName, bool useInventoryImage) =>
-        $"{WikiBaseUrl}/Special:Redirect/file/{Uri.EscapeDataString(itemName.Replace(' ', '_') + (useInventoryImage ? ".png" : "_detail.png"))}";
+        $"{WikiBaseUrl}/w/Special:Redirect/file/{Uri.EscapeDataString(itemName.Replace(' ', '_') + (useInventoryImage ? ".png" : "_detail.png"))}";
 
     private static string? JoinNotes(string? first, string? second)
     {

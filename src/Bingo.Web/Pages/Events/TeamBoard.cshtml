@@ -1,46 +1,167 @@
 @page "/Events/{slug}/Board/{teamSlug}"
 @model Bingo.Web.Pages.Events.TeamBoardModel
+@using Bingo.Web.Catalogue
+@inject OsrsWikiImageCache WikiImages
 @{
     ViewData["Title"] = $"{Model.Team.TeamName} · {Model.Board.EventName}";
     var totalTiles = Model.Board.Rows * Model.Board.Columns;
-    var lineCount = Model.Team.Progress.CompletedRows.Count + Model.Team.Progress.CompletedColumns.Count;
+    var completedLines = Model.Team.Progress.CompletedRows.Count + Model.Team.Progress.CompletedColumns.Count;
+    var completionPercent = totalTiles == 0 ? 0 : Model.Team.Progress.CompletedTiles * 100 / totalTiles;
+    var publicContributors = Model.Team.Progress.Players
+        .OrderByDescending(player => player.EstimatedEhb)
+        .ThenByDescending(player => player.ApprovedContribution)
+        .ThenBy(player => player.PlayerName)
+        .ToList();
+    var dropMvp = publicContributors.FirstOrDefault();
+    var overlayMode = string.Equals(ViewContext.HttpContext.Request.Query["overlay"], "true", StringComparison.OrdinalIgnoreCase);
+    ViewData["OverlayMode"] = overlayMode;
+    if (overlayMode) { ViewData["BodyClass"] = "public-event-shell team-board-overlay-document"; }
 }
-<section class="team-board-page" data-progress-event="@Model.Board.EventId">
-    <nav class="board-breadcrumb" aria-label="Board navigation">
-        <a asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug">← All boards</a>
-        <span>@Model.Board.EventName</span>
-    </nav>
-    <header class="team-board-header">
-        <div>
-            <p class="eyebrow">Rank #@Model.Team.Rank</p>
-            <h1>@Model.Team.TeamName</h1>
-            @if (!string.IsNullOrWhiteSpace(Model.Team.Affiliation)) { <p>@Model.Team.Affiliation</p> }
+@if (!overlayMode)
+{
+    <script src="~/js/team-board-overlay-redirect.js" asp-append-version="true"
+            data-overview-url="@Url.Page("/Events/Board", new { slug = Model.Board.EventSlug })"></script>
+}
+<section class="public-team-board" data-progress-event="@Model.Board.EventId"
+         style="--public-board-columns:@Model.Board.Columns">
+    @if (!overlayMode)
+    {
+    <header class="public-team-masthead">
+        <a class="public-team-back" asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug"
+           asp-route-transitionTeam="@Model.Team.TeamId.ToString("N")">← View all teams</a>
+        <div class="public-team-heading">
+            <div class="rank-medallion rank-@Math.Min(Model.Team.Rank, 4)">#@Model.Team.Rank</div>
+            <div>
+                <p class="feature-kicker">@Model.Board.EventName</p>
+                <h1>@Model.Team.TeamName</h1>
+                <p>
+                    @if (!string.IsNullOrWhiteSpace(Model.Team.Affiliation)) { <span>@Model.Team.Affiliation · </span> }
+                    <span>@Model.Team.Progress.CompletedTiles of @totalTiles tiles complete</span>
+                </p>
+            </div>
+            @if (Model.Team.ProvisionalWinner) { <strong class="winner-label">Provisional winner</strong> }
         </div>
-        @if (Model.Team.ProvisionalWinner) { <strong class="winner-label large">Provisional winner</strong> }
     </header>
+    }
+
     <div class="progress-update" data-progress-update hidden role="status">New approved progress is available. <button type="button" data-progress-refresh>Refresh now</button></div>
-    <div class="team-progress-strip panel">
-        <span><strong>@Model.Team.Progress.CompletedTiles/@totalTiles</strong><small>Tiles</small></span>
-        <span><strong>@Model.Team.Progress.CompletedRows.Count</strong><small>Rows</small></span>
-        <span><strong>@Model.Team.Progress.CompletedColumns.Count</strong><small>Columns</small></span>
-        <span><strong>@Model.Team.Progress.EhbTiebreak.ToString("0.##")</strong><small>Approved EHB</small></span>
-        @if (Model.Team.Progress.BoardCompletedAt is DateTimeOffset finished) { <span><strong>@finished.ToString("d MMM, HH:mm")</strong><small>Board completed</small></span> }
+
+    <div class="public-team-workspace">
+        <aside class="public-team-sidebar panel" aria-label="Team statistics">
+            <section class="team-sidebar-section team-progress-section">
+                <header><span class="feature-kicker">Bingo progress</span><strong>@completionPercent%</strong></header>
+                <div class="team-progress-meter" aria-label="@completionPercent percent complete"><span style="width:@completionPercent%"></span></div>
+                <dl class="team-progress-stats">
+                    <div><dt>Tiles</dt><dd>@Model.Team.Progress.CompletedTiles/@totalTiles</dd></div>
+                    <div><dt>Lines</dt><dd>@completedLines</dd></div>
+                </dl>
+            </section>
+
+            <section class="team-sidebar-section team-ehb-section">
+                <header><span class="feature-kicker">Drop EHB</span></header>
+                <div class="team-metric-source">
+                    <span class="team-mvp-mark" aria-hidden="true">◆</span>
+                    <span><strong>Approved bingo progress</strong><small>Combined expected tile effort</small></span>
+                </div>
+                <div class="team-metric-values">
+                    <span><small>Team total</small><strong>@Model.Team.Progress.EhbTiebreak.ToString("N0")</strong></span>
+                    <span>
+                        <small>Team MVP</small>
+                        @if (dropMvp is not null)
+                        {
+                            <strong>@dropMvp.PlayerName</strong><b>@dropMvp.EstimatedEhb.ToString("N0") EHB</b>
+                        }
+                        else
+                        {
+                            <strong>—</strong>
+                        }
+                    </span>
+                </div>
+            </section>
+
+            <section class="team-sidebar-section team-activity-section">
+                <header><span class="feature-kicker">Activity EHB</span></header>
+                <div class="team-metric-source">
+                    <span class="team-activity-mark" aria-hidden="true">↗</span>
+                    <span><strong>Wise Old Man</strong><small>Awaiting event synchronization</small></span>
+                </div>
+                <div class="team-metric-values" aria-label="Activity EHB is not available yet">
+                    <span><small>Team total</small><strong>—</strong></span>
+                    <span><small>Activity MVP</small><strong>—</strong></span>
+                </div>
+            </section>
+
+            @if (publicContributors.Count > 1)
+            {
+                <section class="team-sidebar-section team-contributors-section">
+                    <header><span class="feature-kicker">Team contributions</span><small>Drop EHB</small></header>
+                    <ol>
+                        @for (var index = 0; index < publicContributors.Count; index++)
+                        {
+                            var player = publicContributors[index];
+                            <li><span class="contributor-rank">@(index + 1)</span><strong>@player.PlayerName</strong><b>@player.EstimatedEhb.ToString("N0")</b></li>
+                        }
+                    </ol>
+                </section>
+            }
+        </aside>
+
+        <div class="public-board-scroll" tabindex="0" aria-label="@Model.Team.TeamName bingo board">
+            <div class="public-full-board">
+            @foreach (var tile in Model.Team.Tiles)
+            {
+                var progressPercent = tile.Target == 0 ? 0 : Math.Min(100, tile.Approved * 100 / tile.Target);
+                var stateLabel = tile.Complete ? "Complete" : tile.Approved > 0 ? "In progress" : "Not started";
+                <a class="public-tile panel @(tile.Complete ? "complete" : tile.Approved > 0 ? "in-progress" : null)"
+                   aria-label="@tile.Name. @stateLabel, @tile.Approved of @tile.Target."
+                   asp-page="/Events/Tile" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Team.TeamSlug" asp-route-tileId="@tile.TileId">
+                    <span class="public-tile-art" aria-hidden="true">
+                        @if (!string.IsNullOrWhiteSpace(tile.ImageUrl))
+                        {
+                            <img class="custom-art" src="@WikiImages.GetPublicUrl(tile.ImageUrl)" alt="" loading="lazy" />
+                        }
+                        else if (tile.BossImageUrls.Count > 0)
+                        {
+                            <span class="boss-art-grid boss-art-count-@tile.BossImageUrls.Count">
+                                @foreach (var imageUrl in tile.BossImageUrls)
+                                {
+                                    <img src="@WikiImages.GetPublicUrl(imageUrl)" alt="" loading="lazy" />
+                                }
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="tile-art-placeholder">▦</span>
+                        }
+                    </span>
+                    <span class="public-tile-shade" aria-hidden="true"></span>
+                    <span class="public-tile-copy">
+                        <span class="tile-position">R@(tile.Row + 1) · C@(tile.Column + 1)</span>
+                        <strong>@tile.Name</strong>
+                        <span class="public-tile-progress-row">
+                            <span class="tile-progress" aria-hidden="true"><span style="width:@progressPercent%"></span></span>
+                            <span>@tile.Approved/@tile.Target</span>
+                        </span>
+                    </span>
+                </a>
+            }
+            </div>
+        </div>
     </div>
-    <div class="public-full-board" style="--public-board-columns:@Model.Board.Columns" aria-label="@Model.Team.TeamName bingo board">
-        @foreach (var tile in Model.Team.Tiles)
+
+    @if (!overlayMode)
+    {
+    <nav class="public-team-switcher" aria-label="Switch team">
+        @if (Model.Previous is not null)
         {
-            <a class="public-tile panel @(tile.Complete ? "complete" : tile.Approved > 0 ? "in-progress" : null)"
-               asp-page="/Events/Tile" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Team.TeamSlug" asp-route-tileId="@tile.TileId">
-                <span class="tile-position">R@(tile.Row + 1) · C@(tile.Column + 1)</span>
-                <strong>@tile.Name</strong>
-                <span class="tile-progress"><span style="width:@(tile.Target == 0 ? 0 : Math.Min(100, tile.Approved * 100 / tile.Target))%"></span></span>
-                <span>@tile.Approved / @tile.Target @(tile.Complete ? "complete" : "approved")</span>
-            </a>
+            <a asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Previous.TeamSlug"><small>Previous team</small><strong>← #@Model.Previous.Rank @Model.Previous.TeamName</strong></a>
         }
-    </div>
-    <nav class="team-switcher" aria-label="Switch team">
-        @if (Model.Previous is not null) { <a asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Previous.TeamSlug">← #@Model.Previous.Rank @Model.Previous.TeamName</a> } else { <span></span> }
-        @if (Model.Next is not null) { <a asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Next.TeamSlug">#@Model.Next.Rank @Model.Next.TeamName →</a> }
+        else { <span></span> }
+        @if (Model.Next is not null)
+        {
+            <a class="next" asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Next.TeamSlug"><small>Next team</small><strong>#@Model.Next.Rank @Model.Next.TeamName →</strong></a>
+        }
     </nav>
+    }
 </section>
 @section Scripts { <partial name="_PublicProgressScripts" model="Model.Board.EventId" /> }
