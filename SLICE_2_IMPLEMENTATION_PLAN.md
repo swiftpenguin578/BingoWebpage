@@ -1,6 +1,6 @@
 # Slice 2 — My Accounts and Event Character Assignment Plan
 
-**Status:** Slice 2 implementation in progress; Passes 2.1–2.4 are complete.
+**Status:** Complete and accepted on 2026-07-27.
 
 **Prepared:** 2026-07-26
 
@@ -282,6 +282,8 @@ Deliver:
 - Obtain a bounded independent review of Slice 2 changes.
 
 Do not stage, commit, or push unless separately authorized.
+
+**Final gate state:** Met on 2026-07-27. The cleanup audit retains the prior conclusion that the four superseded participant character/name/EHB columns have no active runtime authority; their remaining names are migration/history data or deliberately retained Slice 4 fixed-form request/view models. The independent review and restricted re-reviews cleared all findings. `DraftModel.OnPostAddExternalMemberAsync` now keeps its own transaction active through external participant creation, advisory-locked character resolution, assignment, membership, and the required audit write; failure disposes the uncommitted transaction. `ConcurrentExternalMembersAcrossEventsShareOneNewCharacterWithoutPartialPersistence` proves two events/teams share one new global character with complete participant, assignment, membership, and audit history. The durable Release/no-build Integration run passed `95/95` at `/private/tmp/slice2-pass25-external-member-final-trx-20260727/integration-external-member-final.trx`. The private fixed-signup edit route uses the shared localized success-message contract, and `PrivateSignupEditPostRedirectRendersSuccessFeedback` verifies the token POST, redirect, saved value, and rendered notice. The user approved S2-15 and S2-20. S2-19 is automated because Discord's external authorization requires JavaScript while the application's local native-form fallbacks already have focused coverage. Slice 2 is accepted.
 
 ## 6. Verification budget
 

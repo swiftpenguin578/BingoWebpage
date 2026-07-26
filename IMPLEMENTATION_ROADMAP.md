@@ -785,7 +785,7 @@ These are the ten functional delivery slices inside Milestone 8A. They are not a
 
 Each slice finalizes its exact manual cases in `MANUAL_TEST_CHECKLIST.md` before handoff. The checklist is durable repository documentation so the user may run it immediately or return to it later; it does not replace automated coverage.
 
-Slice 1 is implemented, independently cleared, verified, committed, and pushed on the Milestone 8A checkpoint branch. The approved Slice 2 boundary and its five bounded implementation passes are recorded in `SLICE_2_IMPLEMENTATION_PLAN.md`; implementation has not started.
+Slices 1 and 2 are implemented, independently cleared, verified, manually accepted where applicable, and ready on the Milestone 8A Slice 2 checkpoint branch. Slice 2's completed five-pass record remains in `SLICE_2_IMPLEMENTATION_PLAN.md`. Slice 3 planning is the next functional step; implementation must not begin until its bounded plan is approved.
 
 Only after all ten Milestone 8A functional slices are complete and functionally regressed does work proceed to the separate big-roadmap **Milestone 9 — UI overhaul and regression**. Milestone 9 performs the complete site-wide UI pass and full regression through the page passes in `UI_OVERHAUL_ROADMAP.md`. It must not begin merely because a similarly numbered UI page pass is available.
 
