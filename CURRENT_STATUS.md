@@ -1,7 +1,7 @@
 # Current Project Status
 
 **Verified:** 2026-07-26
-**Branch:** `codex/milestone-8a` (Milestone 8A checkpoint branch)
+**Branch:** `codex/milestone-8a-slice-2` (Slice 2 implementation branch)
 **Planning decision:** 2026-07-26
 
 ## Active handoff
@@ -10,7 +10,7 @@
 
 **Slice 2 planning:** Planning Pass 2 approved the five bounded implementation passes in `SLICE_2_IMPLEMENTATION_PLAN.md`. Slice 2 covers My Accounts, optional per-link saved EHB defaults, event character assignments and uniqueness, deterministic legacy-field migration, compatibility conversion, and independent website-username rename. It deliberately excludes participant claim links, final authenticated signup/dropdowns, Wise Old Man fetching, live swaps, evidence changes, and broader participant administration.
 
-**Next implementation action:** Create a Slice 2 implementation branch from the current Milestone 8A checkpoint and implement only Pass 2.1. Preserve all Pass 12/protected UI behavior and do not continue into Pass 2.2 in the same task.
+**Next implementation action:** Implement only `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.1 on the current Slice 2 branch. Preserve all Pass 12/protected UI behavior and do not continue into Pass 2.2 in the same task.
 
 ## Verification
 
@@ -18,8 +18,6 @@
 
 ## Remaining work
 
-- Review and commit the approved Slice 2 planning-document changes when authorized.
-- Create the Slice 2 implementation branch from the resulting clean Milestone 8A checkpoint.
 - Implement `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.1 only.
 
 ## Historical summary
