@@ -9,6 +9,7 @@ using Bingo.Domain.Evidence;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Signups;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
@@ -19,7 +20,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService signupService, IAuditWriter auditWriter, TimeProvider timeProvider) : PageModel
+public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService signupService, EventParticipantCharacterService characterService, IAuditWriter auditWriter, TimeProvider timeProvider) : PageModel
 {
     public EventDetails? EventView { get; private set; }
     public IReadOnlyList<ParticipantRow> Participants { get; private set; } = [];
@@ -89,11 +90,12 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         if (string.IsNullOrWhiteSpace(reason)) { TempData["StatusMessage"] = "A reason is required when removing a player."; return RedirectToPage(new { id }); }
         if (await dbContext.Events.AnyAsync(e => e.Id == id && e.DraftLocked, ct)) { TempData["StatusMessage"] = "Participants are locked after the draft has started. Undo or correct the draft instead of changing the signup pool."; return RedirectToPage(new { id }); }
         var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(p => p.Id == participantId && p.EventId == id, ct); if (participant is null) return NotFound();
+        var participantName = await PrimaryNameAsync(participantId, ct);
         if (await dbContext.TeamMemberships.AnyAsync(membership => membership.EventParticipantId == participantId && membership.LeftAt == null, ct)) { TempData["StatusMessage"] = "This player belongs to a team. Change or remove their roster membership from Teams and draft first."; return RedirectToPage(new { id }); }
-        var wasConfirmed = participant.SignupStatus == SignupStatus.Confirmed; participant.Remove(timeProvider.GetUtcNow(), reason); await dbContext.SaveChangesAsync(ct);
+        var wasConfirmed = participant.SignupStatus == SignupStatus.Confirmed; participant.Remove(timeProvider.GetUtcNow(), reason); await characterService.ReleaseAllAsync(participantId, User.GetAccountId(), ct); await dbContext.SaveChangesAsync(ct);
         var promoted = wasConfirmed ? await signupService.PromoteAvailablePlacesAsync(id, ct) : 0;
         await auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, "participant.removed", "participant", participant.Id.ToString(), $"Reason: {reason}; promoted {promoted}", ct);
-        SetStatus($"{participant.PrimaryAccountName} removed. {promoted} player(s) promoted from the waiting list.", UiMessageType.Success);
+        SetStatus($"{participantName} removed. {promoted} player(s) promoted from the waiting list.", UiMessageType.Success);
         return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostWithdrawAsync(Guid id, Guid participantId, string reason, CancellationToken ct)
@@ -101,13 +103,13 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         if (string.IsNullOrWhiteSpace(reason)) { TempData["StatusMessage"] = "A reason is required when withdrawing a player."; return RedirectToPage(new { id }); }
         if (await dbContext.Events.AnyAsync(e => e.Id == id && e.DraftLocked, ct)) { TempData["StatusMessage"] = "Participants are locked after the draft has started. Undo or correct the draft instead of changing the signup pool."; return RedirectToPage(new { id }); }
         var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(p => p.Id == participantId && p.EventId == id, ct); if (participant is null) return NotFound(); if (await dbContext.TeamMemberships.AnyAsync(membership => membership.EventParticipantId == participantId && membership.LeftAt == null, ct)) { TempData["StatusMessage"] = "This player belongs to a team. Change or remove their roster membership from Teams and draft first."; return RedirectToPage(new { id }); }
-        var wasConfirmed = participant.SignupStatus == SignupStatus.Confirmed; participant.Withdraw(timeProvider.GetUtcNow(), reason); await dbContext.SaveChangesAsync(ct); var promoted = wasConfirmed ? await signupService.PromoteAvailablePlacesAsync(id, ct) : 0; await auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, "participant.withdrawn", "participant", participant.Id.ToString(), $"Reason: {reason}; promoted {promoted}", ct); SetStatus($"{participant.PrimaryAccountName} withdrawn. {promoted} player(s) promoted from the waiting list.", UiMessageType.Success); return RedirectToPage(new { id });
+        var participantName = await PrimaryNameAsync(participantId, ct); var wasConfirmed = participant.SignupStatus == SignupStatus.Confirmed; participant.Withdraw(timeProvider.GetUtcNow(), reason); await characterService.ReleaseAllAsync(participantId, User.GetAccountId(), ct); await dbContext.SaveChangesAsync(ct); var promoted = wasConfirmed ? await signupService.PromoteAvailablePlacesAsync(id, ct) : 0; await auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, "participant.withdrawn", "participant", participant.Id.ToString(), $"Reason: {reason}; promoted {promoted}", ct); SetStatus($"{participantName} withdrawn. {promoted} player(s) promoted from the waiting list.", UiMessageType.Success); return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostPaymentAsync(Guid id, Guid participantId, PaymentStatus payment, CancellationToken ct)
     {
         if (HasBindingErrors("payment")) { TempData["StatusMessage"] = "Choose a valid payment status."; return RedirectToPage(new { id }); }
         var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(p => p.Id == participantId && p.EventId == id, ct); if (participant is null) return NotFound(); if (!Enum.IsDefined(payment)) { TempData["StatusMessage"] = "Choose a valid payment status."; return RedirectToPage(new { id }); }
-        participant.SetPaymentStatus(payment); await dbContext.SaveChangesAsync(ct); await auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, "participant.payment_updated", "participant", participant.Id.ToString(), $"Payment: {payment}", ct); TempData["StatusMessage"] = $"Payment updated for {participant.PrimaryAccountName}."; return RedirectToPage(new { id });
+        participant.SetPaymentStatus(payment); await dbContext.SaveChangesAsync(ct); await auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, "participant.payment_updated", "participant", participant.Id.ToString(), $"Payment: {payment}", ct); TempData["StatusMessage"] = $"Payment updated for {await PrimaryNameAsync(participantId, ct)}."; return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostStartEventAsync(Guid id, CancellationToken ct)
     {
@@ -139,6 +141,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     {
         var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id, ct); if (item is null) return false;
         var participants = await dbContext.EventParticipants.AsNoTracking().Where(p => p.EventId == id && p.Source != SignupSource.AdminCreated).OrderBy(p => p.SignedUpAt).ThenBy(p => p.SignupSequence).ToListAsync(ct);
+        var authorities = await dbContext.PrimaryCharacters().AsNoTracking().Where(x => x.EventId == id).ToDictionaryAsync(x => x.ParticipantId, ct);
         var waiting = participants.Where(p => p.SignupStatus == SignupStatus.WaitingList).Select((p, i) => (p.Id, Position: i + 1)).ToDictionary(x => x.Id, x => x.Position);
         var activeTeamIds = await dbContext.Teams.AsNoTracking().Where(team => team.EventId == id && team.Active).Select(team => team.Id).ToListAsync(ct);
         var membershipCounts = activeTeamIds.Count == 0
@@ -150,10 +153,12 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var boardSize = board is null ? null : $"{board.Rows} × {board.Columns}";
         var draftReady = await dbContext.DraftSessions.AsNoTracking().AnyAsync(session => session.EventId == id && session.State == DraftState.Finalized, ct);
         var canStartEvent = board?.State == BoardState.Published && draftReady;
-        Participants = participants.Select(p => new ParticipantRow(p.Id, p.SignupSequence, p.PrimaryAccountName, p.EhbSnapshot, p.SignupStatus, p.PaymentStatus, p.SignedUpAt, p.CaptainVolunteer, waiting.TryGetValue(p.Id, out var position) ? position : null)).ToList();
+        Participants = participants.Select(p => new ParticipantRow(p.Id, p.SignupSequence, authorities[p.Id].Name, authorities[p.Id].Ehb, p.SignupStatus, p.PaymentStatus, p.SignedUpAt, p.CaptainVolunteer, waiting.TryGetValue(p.Id, out var position) ? position : null)).ToList();
         EvidenceCodes = await dbContext.EvidenceCodes.AsNoTracking().Where(x => x.EventId == id).OrderByDescending(x => x.ActivatesAt).Select(x => new EvidenceCodeRow(x.Id, x.Code, x.ActivatesAt, x.RetiresAt, x.Note)).ToListAsync(ct); EventView = new EventDetails(item.Id, item.Name, item.Slug, item.State, item.SignupOpensAt, item.SignupClosesAt, item.EventStartsAt, item.EventEndsAt, item.SubmissionCutoffAt, item.ReopenedSubmissionCutoffAt, item.ParticipantCap, participants.Count(p => p.SignupStatus == SignupStatus.Confirmed), waiting.Count, item.DraftLocked, item.EvidenceCodeEnabled, activeTeamIds.Count, actualTeamSize, boardSize, item.ExpectedTeamCount, item.ExpectedTeamSize, item.ExpectedBoardRows is not null && item.ExpectedBoardColumns is not null ? $"{item.ExpectedBoardRows} × {item.ExpectedBoardColumns}" : null, canStartEvent); NewCap = item.ParticipantCap; NewSignupOpening = item.SignupOpensAt; NewSignupClosing = item.SignupClosesAt; EvidenceCodeActivatesAt = timeProvider.GetUtcNow(); ReopenUntil = timeProvider.GetUtcNow().AddHours(1); return true;
     }
     private Task AuditAsync(string action, BingoEvent item, string details, CancellationToken ct) => auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, action, "event", item.Id.ToString(), details, ct);
+    private Task<string> PrimaryNameAsync(Guid participantId, CancellationToken ct) =>
+        dbContext.PrimaryCharacters().Where(x => x.ParticipantId == participantId).Select(x => x.Name).SingleAsync(ct);
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     private bool HasBindingErrors(params string[] fields) => fields.Any(field => ModelState.TryGetValue(field, out var entry) && entry.Errors.Count > 0);
     public sealed record EventDetails(Guid Id, string Name, string Slug, EventState State, DateTimeOffset SignupOpensAt, DateTimeOffset SignupClosesAt, DateTimeOffset StartsAt, DateTimeOffset EndsAt, DateTimeOffset SubmissionCutoff, DateTimeOffset? ReopenedCutoff, int ParticipantCap, int Confirmed, int Waiting, bool DraftLocked, bool EvidenceCodeEnabled, int ActualTeamCount, string? ActualTeamSize, string? ActualBoardSize, int? ExpectedTeamCount, int? ExpectedTeamSize, string? ExpectedBoardSize, bool CanStartEvent);

@@ -60,8 +60,7 @@ public sealed class IndexModel(ApplicationDbContext db) : PageModel
         if (WebsiteDiscord == "unlinked") query = query.Where(x => x.DiscordUserId == null);
         if (WebsiteEventId is { } eventId)
         {
-            var names = db.EventParticipants.Where(x => x.EventId == eventId).Select(x => x.NormalizedPrimaryAccountName);
-            query = query.Where(x => db.AccountOsrsCharacters.Any(link => link.AccountId == x.Id && link.Active && db.OsrsCharacters.Any(character => character.Id == link.OsrsCharacterId && names.Contains(character.NormalizedName))));
+            query = query.Where(x => db.EventParticipants.Any(participant => participant.EventId == eventId && participant.AccountId == x.Id));
         }
 
         var rows = await query.OrderBy(x => x.PublicUsername).ThenBy(x => x.Id)
@@ -72,21 +71,16 @@ public sealed class IndexModel(ApplicationDbContext db) : PageModel
         WebsiteAccounts = rows.Take(PageSize).ToList();
 
         var ids = WebsiteAccounts.Select(x => x.Id).ToArray();
-        var accountCharacters = await (from link in db.AccountOsrsCharacters.AsNoTracking()
-                                       join character in db.OsrsCharacters.AsNoTracking() on link.OsrsCharacterId equals character.Id
-                                       where ids.Contains(link.AccountId) && link.Active
-                                       select new CharacterLink(link.AccountId, character.NormalizedName)).ToListAsync(ct);
-        var characterNames = accountCharacters.Select(x => x.NormalizedName).Distinct().ToArray();
         var participations = await (from participant in db.EventParticipants.AsNoTracking()
                                     join bingoEvent in db.Events.AsNoTracking() on participant.EventId equals bingoEvent.Id
-                                    where characterNames.Contains(participant.NormalizedPrimaryAccountName)
-                                    select new Participation(participant.Id, participant.NormalizedPrimaryAccountName, bingoEvent.Name)).ToListAsync(ct);
+                                    where participant.AccountId != null && ids.Contains(participant.AccountId.Value)
+                                    select new Participation(participant.Id, participant.AccountId ?? Guid.Empty, bingoEvent.Name)).ToListAsync(ct);
         var participantIds = participations.Select(x => x.Id).ToArray();
         var roles = await (from membership in db.TeamMemberships.AsNoTracking()
                            join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
                            where participantIds.Contains(membership.EventParticipantId) && membership.LeftAt == null
                            select new CurrentRole(membership.EventParticipantId, team.Name, membership.Role)).ToListAsync(ct);
-        var summaries = ids.ToDictionary(id => id, id => BuildSummary(id, accountCharacters, participations, roles));
+        var summaries = ids.ToDictionary(id => id, id => BuildSummary(id, participations, roles));
         WebsiteAccounts = WebsiteAccounts.Select(x => x with { EventRoleSummary = summaries[x.Id] }).ToList();
     }
 
@@ -113,10 +107,9 @@ public sealed class IndexModel(ApplicationDbContext db) : PageModel
         EmergencyCredentials = rows.Take(PageSize).ToList();
     }
 
-    private static string BuildSummary(Guid accountId, IEnumerable<CharacterLink> characters, IEnumerable<Participation> participants, IEnumerable<CurrentRole> roles)
+    private static string BuildSummary(Guid accountId, IEnumerable<Participation> participants, IEnumerable<CurrentRole> roles)
     {
-        var names = characters.Where(x => x.AccountId == accountId).Select(x => x.NormalizedName).ToHashSet();
-        var items = participants.Where(x => names.Contains(x.NormalizedPrimaryAccountName)).Select(x =>
+        var items = participants.Where(x => x.AccountId == accountId).Select(x =>
         {
             var membership = roles.FirstOrDefault(role => role.EventParticipantId == x.Id);
             return membership is null ? x.EventName : $"{x.EventName}: {membership.Role}";
@@ -128,7 +121,6 @@ public sealed class IndexModel(ApplicationDbContext db) : PageModel
     public sealed record WebsiteAccountRow(Guid Id, string Username, GlobalRole Role, bool Active, bool DiscordLinked, DateTimeOffset? LastLoginAt, string EventRoleSummary);
     public sealed record EmergencyCredentialRow(Guid Id, string Username, string EventName, string TeamName, bool SetupComplete, bool Enabled, bool CutoffDisabled, DateTimeOffset? LastLoginAt);
     public sealed record EventOption(Guid Id, string Name);
-    private sealed record CharacterLink(Guid AccountId, string NormalizedName);
-    private sealed record Participation(Guid Id, string NormalizedPrimaryAccountName, string EventName);
+    private sealed record Participation(Guid Id, Guid AccountId, string EventName);
     private sealed record CurrentRole(Guid EventParticipantId, string TeamName, Bingo.Domain.Teams.TeamMembershipRole Role);
 }

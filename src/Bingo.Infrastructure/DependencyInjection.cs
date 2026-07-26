@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddSingleton<ISecretHasher, SecretHasher>();
         services.AddSingleton<IPrivateEditTokenService, PrivateEditTokenService>();
         services.AddScoped<ISignupService, SignupService>();
+        services.AddScoped<EventParticipantCharacterService>();
         if (string.Equals(configuration["EvidenceStorage:Provider"], "R2", StringComparison.OrdinalIgnoreCase))
             services.AddSingleton<IEvidenceStorage, R2EvidenceStorage>();
         else

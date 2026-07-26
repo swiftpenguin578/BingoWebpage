@@ -362,30 +362,15 @@ public sealed class DevelopmentScenarioSeeder(
             var number = index + 1;
             var name = participantNames[index];
             var ehb = 175 + index * 83;
-            var participant = new EventParticipant(
-                Guid.NewGuid(),
-                bingoEvent.Id,
-                name,
-                Normalize(name),
-                ehb,
-                SignupStatus.Confirmed,
-                number,
-                now.AddMinutes(-participantCount + index),
-                SignupSource.Website,
-                null);
-            participant.UpdatePublicDetails(
-                name,
-                Normalize(name),
-                ehb,
-                null,
-                $"large-draft-{number:00}",
-                null,
-                captainNames.Contains(name));
+            var participant = CreateParticipant(
+                bingoEvent.Id, name, ehb, SignupStatus.Confirmed, number,
+                now.AddMinutes(-participantCount + index), SignupSource.Website,
+                null, $"large-draft-{number:00}", null, captainNames.Contains(name));
             participants.Add(participant);
         }
         db.EventParticipants.AddRange(participants);
         var participantsByName = participants.ToDictionary(
-            participant => participant.PrimaryAccountName,
+            participant => PrimaryName(participant),
             StringComparer.OrdinalIgnoreCase);
 
         var board = AddBoard(bingoEvent.Id, blueprint, publish: true, now);
@@ -490,18 +475,14 @@ public sealed class DevelopmentScenarioSeeder(
 
         var participants = participantNames.Select((name, index) =>
         {
-            var participant = new EventParticipant(
-                Guid.NewGuid(), bingoEvent.Id, name, Normalize(name), 175 + index * 83,
-                SignupStatus.Confirmed, index + 1, now.AddDays(-2).AddMinutes(index),
-                SignupSource.Website, null);
-            participant.UpdatePublicDetails(
-                name, Normalize(name), 175 + index * 83, null,
+            return CreateParticipant(
+                bingoEvent.Id, name, 175 + index * 83, SignupStatus.Confirmed, index + 1,
+                now.AddDays(-2).AddMinutes(index), SignupSource.Website, null,
                 $"dkl-live-{index + 1:00}", null, leaderNames.Contains(name));
-            return participant;
         }).ToList();
         db.EventParticipants.AddRange(participants);
         var participantsByName = participants.ToDictionary(
-            participant => participant.PrimaryAccountName,
+            participant => PrimaryName(participant),
             StringComparer.OrdinalIgnoreCase);
 
         var board = AddBoard(bingoEvent.Id, blueprint, publish: true, now);
@@ -561,12 +542,10 @@ public sealed class DevelopmentScenarioSeeder(
                 1 => $"{prefix} Captain Bravo",
                 _ => $"{prefix} Player {index + 1:00}"
             };
-            var participant = new EventParticipant(
-                Guid.NewGuid(), eventId, name, Normalize(name), 250 + index * 275,
+            var participant = CreateParticipant(
+                eventId, name, 250 + index * 275,
                 waiting ? SignupStatus.WaitingList : SignupStatus.Confirmed,
-                index + 1, now.AddMinutes(-90 + index), SignupSource.Website, null);
-            participant.UpdatePublicDetails(
-                name, Normalize(name), 250 + index * 275,
+                index + 1, now.AddMinutes(-90 + index), SignupSource.Website,
                 index % 3 == 0 ? $"{name} Alt" : null,
                 $"seed-user-{prefix}-{index + 1}",
                 index == 5 ? "Seeded participant with a scheduling comment." : null,
@@ -666,7 +645,7 @@ public sealed class DevelopmentScenarioSeeder(
                 .ToHashSet();
             var creditedParticipants = db.EventParticipants.Local
                 .Where(value => memberParticipantIds.Contains(value.Id))
-                .OrderBy(value => value.PrimaryAccountName)
+                .OrderBy(PrimaryName)
                 .ToList();
             var completedTileCount = team.Name == "Såeh cs?"
                 ? tiles.Count
@@ -801,12 +780,12 @@ public sealed class DevelopmentScenarioSeeder(
             alpha.Finalize(now.AddHours(-1));
             bravo.Finalize(now.AddHours(-1));
 
-            var externalCaptain = new EventParticipant(
-                Guid.NewGuid(), bingoEvent.Id, "External Clan Captain", "external clan captain", 1,
-                SignupStatus.Confirmed, 100, now.AddDays(-7), SignupSource.AdminCreated, null);
-            var externalMember = new EventParticipant(
-                Guid.NewGuid(), bingoEvent.Id, "External Clan Member", "external clan member", 1,
-                SignupStatus.Confirmed, 101, now.AddDays(-7), SignupSource.AdminCreated, null);
+            var externalCaptain = CreateParticipant(
+                bingoEvent.Id, "External Clan Captain", 1, SignupStatus.Confirmed, 100,
+                now.AddDays(-7), SignupSource.AdminCreated);
+            var externalMember = CreateParticipant(
+                bingoEvent.Id, "External Clan Member", 1, SignupStatus.Confirmed, 101,
+                now.AddDays(-7), SignupSource.AdminCreated);
             var external = new Team(
                 Guid.NewGuid(), bingoEvent.Id, "External Clan Team", "external-clan-team",
                 TeamFormationType.Preformed, "External test clan", false);
@@ -845,7 +824,7 @@ public sealed class DevelopmentScenarioSeeder(
         string digits,
         DateTimeOffset now)
     {
-        var baseName = new string(participant.PrimaryAccountName.Where(char.IsLetterOrDigit).ToArray());
+        var baseName = new string(PrimaryName(participant).Where(char.IsLetterOrDigit).ToArray());
         var username = $"{baseName}{digits}";
         var account = Account.CreateEmergency(Guid.NewGuid(), username, Normalize(username), now);
         account.SetPasswordHash(passwordHasher.HashPassword(account, CaptainPassword), mustChangePassword: false);
@@ -855,6 +834,57 @@ public sealed class DevelopmentScenarioSeeder(
         access.Enable();
         db.AccountEventAccesses.Add(access);
         return username;
+    }
+
+    private EventParticipant CreateParticipant(
+        Guid eventId,
+        string primaryName,
+        decimal ehb,
+        SignupStatus status,
+        long sequence,
+        DateTimeOffset signedUpAt,
+        SignupSource source,
+        string? secondName = null,
+        string? discord = null,
+        string? comments = null,
+        bool captainVolunteer = false)
+    {
+        var participant = new EventParticipant(
+            Guid.NewGuid(), eventId, status, sequence, signedUpAt, source, null);
+        participant.UpdateSignupDetails(discord, comments, captainVolunteer);
+        AddAssignment(participant, primaryName, EventCharacterRole.Playing, ehb, 0, signedUpAt);
+        if (!string.IsNullOrWhiteSpace(secondName) && Normalize(secondName) != Normalize(primaryName))
+            AddAssignment(participant, secondName, EventCharacterRole.Informational, null, 1, signedUpAt);
+        return participant;
+    }
+
+    private void AddAssignment(
+        EventParticipant participant,
+        string name,
+        EventCharacterRole role,
+        decimal? ehb,
+        int order,
+        DateTimeOffset now)
+    {
+        var normalized = Normalize(name);
+        var character = db.OsrsCharacters.Local.FirstOrDefault(x => x.NormalizedName == normalized);
+        if (character is null)
+        {
+            character = new OsrsCharacter(Guid.NewGuid(), name, normalized, now);
+            db.OsrsCharacters.Add(character);
+        }
+        db.EventParticipantCharacters.Add(new EventParticipantCharacter(
+            Guid.NewGuid(), participant.EventId, participant.Id, character.Id, order, now, null, null,
+            role, ehb, role == EventCharacterRole.Playing ? EhbSource.Manual : null, null));
+    }
+
+    private string PrimaryName(EventParticipant participant)
+    {
+        var assignment = db.EventParticipantCharacters.Local
+            .Where(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing)
+            .OrderBy(x => x.RegistrationOrder)
+            .First();
+        return db.OsrsCharacters.Local.Single(x => x.Id == assignment.OsrsCharacterId).DisplayName;
     }
 
     private Account SeededCaptainAccount(Guid teamId, Guid participantId)

@@ -35,7 +35,7 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time) : Pag
 
         var ids = teams.Select(x => x.Id).ToList();
         var memberships = await db.TeamMemberships.AsNoTracking().Where(x => ids.Contains(x.TeamId) && x.LeftAt == null).ToListAsync(ct);
-        var participants = await db.EventParticipants.AsNoTracking().Where(x => x.EventId == ev.Id).ToDictionaryAsync(x => x.Id, ct);
+        var participants = await db.PrimaryCharacters().AsNoTracking().Where(x => x.EventId == ev.Id).ToDictionaryAsync(x => x.ParticipantId, ct);
         EventName = ev.Name;
         Teams = teams.Select(t => new TeamView(
                 t.Name,
@@ -43,7 +43,7 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time) : Pag
                 t.ImageUrl,
                 t.FormationType,
                 memberships.Where(m => m.TeamId == t.Id)
-                    .Select(m => new MemberView(participants[m.EventParticipantId].PrimaryAccountName, participants[m.EventParticipantId].EhbSnapshot, m.Role))
+                    .Select(m => new MemberView(participants[m.EventParticipantId].Name, participants[m.EventParticipantId].Ehb, m.Role))
                     .OrderBy(x => x.Role).ThenByDescending(x => x.Ehb).ToList()))
             .Select(t => t with { TotalEhb = t.FormationType == TeamFormationType.Drafted ? t.Members.Sum(x => x.Ehb) : 0m })
             .ToList();
@@ -53,7 +53,7 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time) : Pag
         {
             var picks = await db.DraftPicks.AsNoTracking().Where(x => x.DraftSessionId == draft.Id && x.UndoneAt == null).OrderBy(x => x.PickNumber).ToListAsync(ct);
             var teamNames = teams.ToDictionary(x => x.Id, x => x.Name);
-            Picks = picks.Select(x => new PickView(x.PickNumber, x.RoundNumber, participants[x.EventParticipantId].PrimaryAccountName, teamNames[x.TeamId])).ToList();
+            Picks = picks.Select(x => new PickView(x.PickNumber, x.RoundNumber, participants[x.EventParticipantId].Name, teamNames[x.TeamId])).ToList();
         }
 
         return Page();

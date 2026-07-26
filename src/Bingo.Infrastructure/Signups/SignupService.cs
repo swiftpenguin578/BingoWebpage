@@ -4,11 +4,13 @@ using Bingo.Application.Signups;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Bingo.Infrastructure.Signups;
 
 public sealed class SignupService(
     ApplicationDbContext dbContext,
+    EventParticipantCharacterService characterService,
     IPrivateEditTokenService tokenService,
     ISecretHasher secretHasher,
     TimeProvider timeProvider) : ISignupService
@@ -43,10 +45,9 @@ public sealed class SignupService(
         }
 
         var normalizedName = NormalizeAccountName(request.PrimaryAccountName);
-        var duplicateExists = await dbContext.EventParticipants.AnyAsync(
+        var duplicateExists = await dbContext.PrimaryCharacters().AnyAsync(
             participant => participant.EventId == request.EventId &&
-                participant.NormalizedPrimaryAccountName == normalizedName &&
-                (participant.SignupStatus == SignupStatus.Confirmed || participant.SignupStatus == SignupStatus.WaitingList),
+                participant.NormalizedName == normalizedName,
             cancellationToken);
         if (duplicateExists)
         {
@@ -81,12 +82,22 @@ public sealed class SignupService(
             .MaxAsync(participant => (long?)participant.SignupSequence, cancellationToken) ?? 0) + 1;
         var token = bingoEvent.AllowPrivateSignupEditing && request.Source == SignupSource.Website ? tokenService.Create() : default;
         var participant = new EventParticipant(
-            Guid.NewGuid(), request.EventId, request.PrimaryAccountName.Trim(), normalizedName, request.Ehb,
-            status, nextSequence, now, request.Source, token.Hash);
-        participant.UpdatePublicDetails(
-            request.PrimaryAccountName.Trim(), normalizedName, request.Ehb, Clean(request.SecondAccountName),
+            Guid.NewGuid(), request.EventId, status, nextSequence, now, request.Source, token.Hash);
+        participant.UpdateSignupDetails(
             Clean(request.DiscordIdentity), Clean(request.Comments), request.CaptainVolunteer);
         dbContext.EventParticipants.Add(participant);
+        try
+        {
+            await characterService.ApplyFixedSignupAssignmentsAsync(
+                participant, request.PrimaryAccountName, request.Ehb, request.SecondAccountName,
+                request.Source == SignupSource.CsvImport ? EhbSource.Import : EhbSource.Manual,
+                null, cancellationToken);
+        }
+        catch (InvalidOperationException exception)
+        {
+            dbContext.ChangeTracker.Clear();
+            return new SignupResult(false, exception.Message, null, null, null, null);
+        }
 
         foreach (var question in questions)
         {
@@ -97,7 +108,16 @@ public sealed class SignupService(
             }
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            dbContext.ChangeTracker.Clear();
+            return new SignupResult(false, "That account is already signed up for this event.", null, null, null, null);
+        }
         await transaction.CommitAsync(cancellationToken);
         int? waitingPosition = status == SignupStatus.WaitingList
             ? await GetWaitingPositionAsync(participant.Id, request.EventId, cancellationToken)

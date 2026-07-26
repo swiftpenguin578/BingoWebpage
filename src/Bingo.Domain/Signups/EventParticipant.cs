@@ -7,14 +7,11 @@ public sealed class EventParticipant
     private EventParticipant() { }
 
     public EventParticipant(
-        Guid id, Guid eventId, string primaryAccountName, string normalizedName, decimal ehbSnapshot,
-        SignupStatus status, long signupSequence, DateTimeOffset signedUpAt, SignupSource source, string? privateEditTokenHash)
+        Guid id, Guid eventId, SignupStatus status, long signupSequence, DateTimeOffset signedUpAt,
+        SignupSource source, string? privateEditTokenHash)
     {
         Id = id;
         EventId = eventId;
-        PrimaryAccountName = primaryAccountName;
-        NormalizedPrimaryAccountName = normalizedName;
-        EhbSnapshot = ehbSnapshot;
         SignupStatus = status;
         SignupSequence = signupSequence;
         SignedUpAt = signedUpAt.ToUniversalTime();
@@ -28,11 +25,7 @@ public sealed class EventParticipant
     public Guid Id { get; private set; }
     public Guid EventId { get; private set; }
     public Guid? AccountId { get; private set; }
-    public string PrimaryAccountName { get; private set; } = string.Empty;
-    public string NormalizedPrimaryAccountName { get; private set; } = string.Empty;
-    public string? SecondAccountName { get; private set; }
     public string? DiscordIdentity { get; private set; }
-    public decimal EhbSnapshot { get; private set; }
     public string? Comments { get; private set; }
     public string? AdminNotes { get; private set; }
     public bool CaptainVolunteer { get; private set; }
@@ -58,12 +51,8 @@ public sealed class EventParticipant
         AccountId = account.Id;
     }
 
-    public void UpdatePublicDetails(string primaryName, string normalizedName, decimal ehb, string? secondName, string? discord, string? comments, bool captainVolunteer)
+    public void UpdateSignupDetails(string? discord, string? comments, bool captainVolunteer)
     {
-        PrimaryAccountName = primaryName;
-        NormalizedPrimaryAccountName = normalizedName;
-        EhbSnapshot = ehb;
-        SecondAccountName = secondName;
         DiscordIdentity = discord;
         Comments = comments;
         CaptainVolunteer = captainVolunteer;

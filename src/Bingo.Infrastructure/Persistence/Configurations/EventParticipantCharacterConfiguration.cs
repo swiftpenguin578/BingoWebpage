@@ -22,7 +22,7 @@ public sealed class EventParticipantCharacterConfiguration : IEntityTypeConfigur
                 "(ehb_source = 'WiseOldMan' AND ehb_fetched_at IS NOT NULL) OR (ehb_source IS DISTINCT FROM 'WiseOldMan' AND ehb_fetched_at IS NULL)");
             table.HasCheckConstraint(
                 "ck_event_participant_characters_release",
-                "(released_at IS NULL AND released_by_account_id IS NULL) OR (released_at IS NOT NULL AND released_by_account_id IS NOT NULL)");
+                "released_at IS NOT NULL OR released_by_account_id IS NULL");
         });
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasColumnName("id");

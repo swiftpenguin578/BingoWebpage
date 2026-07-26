@@ -14,11 +14,7 @@ public sealed class EventParticipantConfiguration : IEntityTypeConfiguration<Eve
         entity.Property(item => item.Id).HasColumnName("id");
         entity.Property(item => item.EventId).HasColumnName("event_id");
         entity.Property(item => item.AccountId).HasColumnName("account_id");
-        entity.Property(item => item.PrimaryAccountName).HasColumnName("primary_account_name").HasMaxLength(100);
-        entity.Property(item => item.NormalizedPrimaryAccountName).HasColumnName("normalized_primary_account_name").HasMaxLength(100);
-        entity.Property(item => item.SecondAccountName).HasColumnName("second_account_name").HasMaxLength(100);
         entity.Property(item => item.DiscordIdentity).HasColumnName("discord_identity").HasMaxLength(100);
-        entity.Property(item => item.EhbSnapshot).HasColumnName("ehb_snapshot").HasPrecision(12, 2);
         entity.Property(item => item.Comments).HasColumnName("comments").HasMaxLength(4_000);
         entity.Property(item => item.AdminNotes).HasColumnName("admin_notes").HasMaxLength(4_000);
         entity.Property(item => item.CaptainVolunteer).HasColumnName("captain_volunteer");
@@ -37,7 +33,6 @@ public sealed class EventParticipantConfiguration : IEntityTypeConfiguration<Eve
         entity.HasIndex(item => new { item.EventId, item.SignupSequence }).IsUnique();
         entity.HasAlternateKey(item => new { item.EventId, item.Id });
         entity.HasIndex(item => new { item.EventId, item.AccountId }).IsUnique().HasFilter("account_id IS NOT NULL");
-        entity.HasIndex(item => new { item.EventId, item.NormalizedPrimaryAccountName });
         entity.HasIndex(item => item.PrivateEditTokenHash).IsUnique();
         entity.HasOne<Bingo.Domain.Access.Account>().WithMany().HasForeignKey(item => item.AccountId).OnDelete(DeleteBehavior.Restrict);
     }

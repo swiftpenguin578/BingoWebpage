@@ -10,7 +10,11 @@ using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Events;
 
-public sealed class EditSignupModel(ApplicationDbContext dbContext, IPrivateEditTokenService tokenService, IStringLocalizer<SharedResource> text) : PageModel
+public sealed class EditSignupModel(
+    ApplicationDbContext dbContext,
+    EventParticipantCharacterService characterService,
+    IPrivateEditTokenService tokenService,
+    IStringLocalizer<SharedResource> text) : PageModel
 {
     [BindProperty] public EditInput Input { get; set; } = new();
     public IReadOnlyList<QuestionView> Questions { get; private set; } = [];
@@ -19,7 +23,8 @@ public sealed class EditSignupModel(ApplicationDbContext dbContext, IPrivateEdit
         var participant = await FindAsync(slug, token, ct); if (participant is null) return NotFound();
         await LoadQuestionsAsync(participant.EventId, ct);
         var answers = await dbContext.SignupAnswers.AsNoTracking().Where(a => a.EventParticipantId == participant.Id).ToDictionaryAsync(a => a.SignupQuestionId, a => a.Value, ct);
-        Input = new EditInput { PrimaryAccountName = participant.PrimaryAccountName, Ehb = participant.EhbSnapshot, SecondAccountName = participant.SecondAccountName, DiscordIdentity = participant.DiscordIdentity, Comments = participant.Comments, CaptainVolunteer = participant.CaptainVolunteer, CustomAnswers = answers }; return Page();
+        var authority = await LoadAuthorityAsync(participant.Id, ct);
+        Input = new EditInput { PrimaryAccountName = authority.Primary.Name, Ehb = authority.Primary.Ehb, SecondAccountName = authority.SecondName, DiscordIdentity = participant.DiscordIdentity, Comments = participant.Comments, CaptainVolunteer = participant.CaptainVolunteer, CustomAnswers = answers }; return Page();
     }
     public async Task<IActionResult> OnPostAsync(string slug, string token, CancellationToken ct)
     {
@@ -27,9 +32,20 @@ public sealed class EditSignupModel(ApplicationDbContext dbContext, IPrivateEdit
         foreach (var question in Questions.Where(q => q.Required)) if (!Input.CustomAnswers.TryGetValue(question.Id, out var answer) || string.IsNullOrWhiteSpace(answer)) ModelState.AddModelError(string.Empty, text["'{0}' is required.", question.Label]);
         if (!ModelState.IsValid) return Page();
         var normalized = SignupService.NormalizeAccountName(Input.PrimaryAccountName);
-        var duplicate = await dbContext.EventParticipants.AnyAsync(p => p.EventId == participant.EventId && p.Id != participant.Id && p.NormalizedPrimaryAccountName == normalized && (p.SignupStatus == SignupStatus.Confirmed || p.SignupStatus == SignupStatus.WaitingList), ct);
+        var duplicate = await dbContext.PrimaryCharacters().AnyAsync(p => p.EventId == participant.EventId && p.ParticipantId != participant.Id && p.NormalizedName == normalized, ct);
         if (duplicate) { ModelState.AddModelError("Input.PrimaryAccountName", text["That account is already signed up."]); return Page(); }
-        participant.UpdatePublicDetails(Input.PrimaryAccountName.Trim(), normalized, Input.Ehb, Clean(Input.SecondAccountName), Clean(Input.DiscordIdentity), Clean(Input.Comments), Input.CaptainVolunteer);
+        participant.UpdateSignupDetails(Clean(Input.DiscordIdentity), Clean(Input.Comments), Input.CaptainVolunteer);
+        try
+        {
+            await characterService.ApplyFixedSignupAssignmentsAsync(
+                participant, Input.PrimaryAccountName, Input.Ehb, Input.SecondAccountName,
+                EhbSource.Manual, null, ct);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ModelState.AddModelError("Input.PrimaryAccountName", text[exception.Message]);
+            return Page();
+        }
         var existing = await dbContext.SignupAnswers.Where(a => a.EventParticipantId == participant.Id).ToDictionaryAsync(a => a.SignupQuestionId, ct);
         foreach (var question in Questions) { if (!Input.CustomAnswers.TryGetValue(question.Id, out var value) || string.IsNullOrWhiteSpace(value)) continue; if (existing.TryGetValue(question.Id, out var stored)) stored.Update(value.Trim()); else dbContext.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, question.Id, question.Label, value.Trim())); }
         await dbContext.SaveChangesAsync(ct); TempData["StatusMessage"] = text["Your signup was updated."]; return RedirectToPage(new { slug, token });
@@ -39,6 +55,17 @@ public sealed class EditSignupModel(ApplicationDbContext dbContext, IPrivateEdit
         var hash = tokenService.Hash(token); return await (from p in dbContext.EventParticipants join e in dbContext.Events on p.EventId equals e.Id where e.Slug == slug && e.AllowPrivateSignupEditing && !e.DraftLocked && p.PrivateEditTokenHash == hash && (p.SignupStatus == SignupStatus.Confirmed || p.SignupStatus == SignupStatus.WaitingList) select p).SingleOrDefaultAsync(ct);
     }
     private async Task LoadQuestionsAsync(Guid eventId, CancellationToken ct) => Questions = await dbContext.SignupQuestions.AsNoTracking().Where(q => q.EventId == eventId && q.Active).OrderBy(q => q.Position).Select(q => new QuestionView(q.Id, q.Label, q.Type, q.Required, q.Options == null ? Array.Empty<string>() : q.Options.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))).ToListAsync(ct);
+    private async Task<(EventParticipantAuthority Primary, string? SecondName)> LoadAuthorityAsync(Guid participantId, CancellationToken ct)
+    {
+        var primary = await dbContext.PrimaryCharacters().AsNoTracking().SingleAsync(x => x.ParticipantId == participantId, ct);
+        var secondName = await (from assignment in dbContext.EventParticipantCharacters.AsNoTracking()
+                                join character in dbContext.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
+                                where assignment.EventParticipantId == participantId && assignment.ReleasedAt == null &&
+                                      assignment.EventRole == EventCharacterRole.Informational
+                                orderby assignment.RegistrationOrder
+                                select character.DisplayName).FirstOrDefaultAsync(ct);
+        return (primary, secondName);
+    }
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     public sealed class EditInput
     {

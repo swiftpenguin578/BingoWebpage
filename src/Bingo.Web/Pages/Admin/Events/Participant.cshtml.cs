@@ -18,6 +18,7 @@ namespace Bingo.Web.Pages.Admin.Events;
 [Authorize(Policy = AuthorizationPolicies.Admin)]
 public sealed class ParticipantModel(
     ApplicationDbContext dbContext,
+    EventParticipantCharacterService characterService,
     IAuditWriter auditWriter,
     IPrivateEditTokenService tokenService) : PageModel
 {
@@ -55,10 +56,9 @@ public sealed class ParticipantModel(
 
         if (!string.IsNullOrWhiteSpace(normalizedName))
         {
-            var duplicate = await dbContext.EventParticipants.AnyAsync(item =>
-                item.EventId == id && item.Id != participantId &&
-                item.NormalizedPrimaryAccountName == normalizedName &&
-                (item.SignupStatus == SignupStatus.Confirmed || item.SignupStatus == SignupStatus.WaitingList), ct);
+            var duplicate = await dbContext.PrimaryCharacters().AnyAsync(item =>
+                item.EventId == id && item.ParticipantId != participantId &&
+                item.NormalizedName == normalizedName, ct);
             if (duplicate) ModelState.AddModelError("Input.PrimaryAccountName", "That account is already signed up for this event.");
         }
 
@@ -68,9 +68,20 @@ public sealed class ParticipantModel(
             return Page();
         }
 
-        participant.UpdatePublicDetails(
-            (Input.PrimaryAccountName ?? string.Empty).Trim(), normalizedName, Input.Ehb,
-            Clean(Input.SecondAccountName), Clean(Input.DiscordIdentity), Clean(Input.Comments), Input.CaptainVolunteer);
+        participant.UpdateSignupDetails(
+            Clean(Input.DiscordIdentity), Clean(Input.Comments), Input.CaptainVolunteer);
+        try
+        {
+            await characterService.ApplyFixedSignupAssignmentsAsync(
+                participant, Input.PrimaryAccountName ?? string.Empty, Input.Ehb, Input.SecondAccountName,
+                EhbSource.AdminCorrection, User.GetAccountId(), ct);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ModelState.AddModelError("Input.PrimaryAccountName", exception.Message);
+            if (!await LoadAsync(id, participantId, false, ct)) return NotFound();
+            return Page();
+        }
         participant.SetPaymentStatus(Input.Payment);
         participant.SetAdminNotes(Clean(Input.AdminNotes));
 
@@ -96,7 +107,7 @@ public sealed class ParticipantModel(
         await dbContext.SaveChangesAsync(ct);
         await auditWriter.WriteAsync(
             User.GetAccountId(), User.Identity!.Name!, "participant.details_updated", "participant", participant.Id.ToString(),
-            $"Account: {participant.PrimaryAccountName}; EHB: {participant.EhbSnapshot}; payment: {participant.PaymentStatus}", ct);
+            $"Account: {(Input.PrimaryAccountName ?? string.Empty).Trim()}; EHB: {Input.Ehb}; payment: {participant.PaymentStatus}", ct);
         SetStatus("Participant details saved.", UiMessageType.Success);
         return RedirectToPage(new { id, participantId });
     }
@@ -133,7 +144,14 @@ public sealed class ParticipantModel(
 
         EventId = id;
         EventName = bingoEvent.Name;
-        Name = participant.PrimaryAccountName;
+        var authority = await dbContext.PrimaryCharacters().AsNoTracking().SingleAsync(x => x.ParticipantId == participantId, ct);
+        var secondName = await (from assignment in dbContext.EventParticipantCharacters.AsNoTracking()
+                                join character in dbContext.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
+                                where assignment.EventParticipantId == participantId && assignment.ReleasedAt == null &&
+                                      assignment.EventRole == EventCharacterRole.Informational
+                                orderby assignment.RegistrationOrder
+                                select character.DisplayName).FirstOrDefaultAsync(ct);
+        Name = authority.Name;
         Status = participant.SignupStatus;
         StatusLabel = participant.SignupStatus switch
         {
@@ -179,9 +197,9 @@ public sealed class ParticipantModel(
         {
             Input = new EditInput
             {
-                PrimaryAccountName = participant.PrimaryAccountName,
-                Ehb = participant.EhbSnapshot,
-                SecondAccountName = participant.SecondAccountName,
+                PrimaryAccountName = authority.Name,
+                Ehb = authority.Ehb,
+                SecondAccountName = secondName,
                 DiscordIdentity = participant.DiscordIdentity,
                 Comments = participant.Comments,
                 CaptainVolunteer = participant.CaptainVolunteer,

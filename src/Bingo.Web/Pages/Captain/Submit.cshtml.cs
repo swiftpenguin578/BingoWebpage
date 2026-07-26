@@ -47,7 +47,7 @@ public sealed class SubmitModel(ApplicationDbContext db, ISubmissionService subm
     private async Task<bool> Load(Guid tileId, CancellationToken ct)
     {
         var eventId = User.GetEventId()!.Value; var teamId = User.GetTeamId()!.Value; var tile = await (from t in db.BoardTiles.AsNoTracking() join b in db.Boards on t.BoardId equals b.Id where t.Id == tileId && b.EventId == eventId && b.State == BoardState.Published select t).SingleOrDefaultAsync(ct); if (tile is null) return false; Tile = new(tile.Id, tile.NameSnapshot, tile.DescriptionSnapshot, tile.EvidenceInstructionsSnapshot);
-        Players = await (from m in db.TeamMemberships.AsNoTracking() join p in db.EventParticipants on m.EventParticipantId equals p.Id where m.TeamId == teamId && m.LeftAt == null orderby p.PrimaryAccountName select new PlayerView(p.Id, p.PrimaryAccountName)).ToListAsync(ct);
+        Players = await (from m in db.TeamMemberships.AsNoTracking() join p in db.PrimaryCharacters() on m.EventParticipantId equals p.ParticipantId where m.TeamId == teamId && m.LeftAt == null orderby p.Name select new PlayerView(p.ParticipantId, p.Name)).ToListAsync(ct);
         DefaultParticipantId = await db.AccountEventAccesses.AsNoTracking()
             .Where(access => access.AccountId == User.GetAccountId()!.Value && access.EventId == eventId && access.TeamId == teamId)
             .Select(access => access.ParticipantId)

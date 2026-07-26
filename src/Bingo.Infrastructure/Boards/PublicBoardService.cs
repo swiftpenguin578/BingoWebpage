@@ -3,6 +3,7 @@ using Bingo.Application.Catalogue;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Evidence;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Signups;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Infrastructure.Boards;
@@ -37,13 +38,13 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
                 .ToList());
         var teamIds = teams.Select(value => value.Id).ToList();
         var rosterRows = await (from membership in db.TeamMemberships.AsNoTracking()
-                                join player in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals player.Id
+                                join player in db.PrimaryCharacters().AsNoTracking() on membership.EventParticipantId equals player.ParticipantId
                                 where teamIds.Contains(membership.TeamId) && membership.LeftAt == null
-                                select new { membership.TeamId, PlayerId = player.Id, PlayerName = player.PrimaryAccountName })
+                                select new { membership.TeamId, PlayerId = player.ParticipantId, PlayerName = player.Name })
             .ToListAsync(cancellationToken);
         var contributionRows = await (from contribution in db.SubmissionContributions.AsNoTracking()
                                       join submission in db.Submissions.AsNoTracking() on contribution.SubmissionId equals submission.Id
-                                      join player in db.EventParticipants.AsNoTracking() on contribution.CreditedParticipantId equals player.Id
+                                      join player in db.PrimaryCharacters().AsNoTracking() on contribution.CreditedParticipantId equals player.ParticipantId
                                       where teamIds.Contains(contribution.TeamId) && requirementIds.Contains(contribution.RequirementId) &&
                                             contribution.ReversedAt == null && submission.Status == SubmissionStatus.Approved
                                       select new { contribution, submission, player }).ToListAsync(cancellationToken);
@@ -73,7 +74,7 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
                     : tile.EstimatedEhbSnapshot * creditedAfter / tileTarget;
                 creditedByTile[tile.Id] = creditedAfter;
                 return new ProgressContribution(
-                    row.contribution.Id, row.contribution.RequirementId, row.player.Id, row.player.PrimaryAccountName,
+                    row.contribution.Id, row.contribution.RequirementId, row.player.ParticipantId, row.player.Name,
                     row.contribution.Amount, row.submission.SubmittedAt,
                     estimatedAfter - estimatedBefore, row.submission.PublicPlayerHidden);
             }).ToList();
@@ -131,7 +132,7 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
             value.Player.EstimatedEhb, value.Player.ApprovedContribution, value.Player.ApprovedSubmissions)).ToList();
 
         var recentRows = await (from submission in db.Submissions.AsNoTracking()
-                                join player in db.EventParticipants.AsNoTracking() on submission.CreditedParticipantId equals player.Id
+                                join player in db.PrimaryCharacters().AsNoTracking() on submission.CreditedParticipantId equals player.ParticipantId
                                 join team in db.Teams.AsNoTracking() on submission.TeamId equals team.Id
                                 join tile in db.BoardTiles.AsNoTracking() on submission.BoardTileId equals tile.Id
                                 where teamIds.Contains(submission.TeamId) && tileIds.Contains(submission.BoardTileId) &&
@@ -154,7 +155,7 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
             var drop = value.submission.DropSnapshotId is Guid dropId ? recentDropsById.GetValueOrDefault(dropId) : null;
             return new PublicRecentDrop(
                 value.submission.Id, value.tile.Id, value.tile.NameSnapshot,
-                value.team.Name, value.team.Slug, hidden ? null : value.player.PrimaryAccountName,
+                value.team.Name, value.team.Slug, hidden ? null : value.player.Name,
                 hidden ? null : drop?.BossName, hidden ? null : drop?.ItemName,
                 value.submission.ApprovedContribution, value.submission.ReviewedAt ?? value.submission.SubmittedAt,
                 hidden ? null : recentAssets.GetValueOrDefault(value.submission.Id)?.Id, hidden);
@@ -183,7 +184,7 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
             .GroupBy(value => value.RequirementId).Select(group => new { Id = group.Key, Total = group.Sum(value => value.Amount) })
             .ToDictionaryAsync(value => value.Id, value => value.Total, cancellationToken);
         var evidenceRows = await (from submission in db.Submissions.AsNoTracking()
-                                  join player in db.EventParticipants.AsNoTracking() on submission.CreditedParticipantId equals player.Id
+                                  join player in db.PrimaryCharacters().AsNoTracking() on submission.CreditedParticipantId equals player.ParticipantId
                                   where submission.TeamId == team.TeamId && submission.BoardTileId == tileId && submission.Status == SubmissionStatus.Approved
                                   orderby submission.SubmittedAt descending
                                   select new { submission, player }).ToListAsync(cancellationToken);
@@ -196,7 +197,7 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
             var hidden = value.submission.PublicEvidenceHidden || value.submission.PublicPlayerHidden;
             var drop = value.submission.DropSnapshotId is Guid dropId ? drops.GetValueOrDefault(dropId) : null;
             return new PublicApprovedEvidence(
-                value.submission.Id, hidden ? null : value.player.PrimaryAccountName,
+                value.submission.Id, hidden ? null : value.player.Name,
                 drop?.BossName, drop?.ItemName, value.submission.ApprovedContribution,
                 value.submission.SubmittedAt, hidden ? null : assets.GetValueOrDefault(value.submission.Id)?.Id, hidden);
         }).ToList();

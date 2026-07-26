@@ -66,15 +66,9 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
                                 where link.AccountId == id
                                 orderby link.Position
                                 select new CharacterView(character.DisplayName, link.Active, link.Preferred)).ToListAsync(ct);
-        var names = characters.Where(x => x.Active).Select(x => x.NormalizedName).ToArray();
-        // Character names are normalized by the same account factory used by onboarding.
-        var linkedCharacters = await (from link in db.AccountOsrsCharacters.AsNoTracking()
-                                      join character in db.OsrsCharacters.AsNoTracking() on link.OsrsCharacterId equals character.Id
-                                      where link.AccountId == id && link.Active
-                                      select character.NormalizedName).ToArrayAsync(ct);
         var participation = await (from participant in db.EventParticipants.AsNoTracking()
                                    join bingoEvent in db.Events.AsNoTracking() on participant.EventId equals bingoEvent.Id
-                                   where linkedCharacters.Contains(participant.NormalizedPrimaryAccountName)
+                                   where participant.AccountId == id
                                    select new { participant.Id, EventName = bingoEvent.Name, participant.SignupStatus }).ToListAsync(ct);
         var participantIds = participation.Select(x => x.Id).ToArray();
         var memberships = await (from membership in db.TeamMemberships.AsNoTracking()

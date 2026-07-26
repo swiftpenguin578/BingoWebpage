@@ -73,10 +73,10 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         var query = from submission in db.Submissions.AsNoTracking()
                     join team in db.Teams.AsNoTracking() on submission.TeamId equals team.Id
                     join tile in db.BoardTiles.AsNoTracking() on submission.BoardTileId equals tile.Id
-                    join player in db.EventParticipants.AsNoTracking() on submission.CreditedParticipantId equals player.Id
+                    join player in db.PrimaryCharacters().AsNoTracking() on submission.CreditedParticipantId equals player.ParticipantId
                     where activeEventIds.Contains(submission.EventId) && submission.Status == SubmissionStatus.Pending
                     orderby submission.SubmittedAt descending
-                    select new { submission.Id, submission.EventId, submission.SubmittedAt, Team = team.Name, Tile = tile.NameSnapshot, Player = player.PrimaryAccountName };
+                    select new { submission.Id, submission.EventId, submission.SubmittedAt, Team = team.Name, Tile = tile.NameSnapshot, Player = player.Name };
         var count = await query.CountAsync(cancellationToken);
         var rows = await query.Take(6).ToListAsync(cancellationToken);
         var items = rows.Select(item => new ShellNotification(
@@ -141,7 +141,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         }
         items.Add(new(eventView.Name, $"/Admin/Events/Manage/{eventId}", StatusLabel(eventView.State), eventView.State.ToString().ToLowerInvariant()));
         var current = page == "/Admin/Events/Participant" && TryGuid(values, "participantId", out var participantId)
-            ? await db.EventParticipants.AsNoTracking().Where(item => item.Id == participantId).Select(item => item.PrimaryAccountName).SingleOrDefaultAsync(cancellationToken) ?? text["Player"]
+            ? await db.PrimaryCharacters().AsNoTracking().Where(item => item.ParticipantId == participantId).Select(item => item.Name).SingleOrDefaultAsync(cancellationToken) ?? text["Player"]
             : PageLabel(page);
         items.Add(new(current, null));
         return items;

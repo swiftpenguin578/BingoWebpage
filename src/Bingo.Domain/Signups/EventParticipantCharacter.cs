@@ -50,7 +50,15 @@ public sealed class EventParticipantCharacter
     public Guid? ReleasedByAccountId { get; private set; }
     public int Version { get; private set; }
 
-    public void Release(Guid actorAccountId, DateTimeOffset now)
+    public void UpdatePlayingEhb(decimal ehbSnapshot, EhbSource source, DateTimeOffset? fetchedAt = null)
+    {
+        ValidateEhb(EventRole, ehbSnapshot, source, fetchedAt);
+        EhbSnapshot = ehbSnapshot;
+        EhbSource = source;
+        EhbFetchedAt = fetchedAt?.ToUniversalTime();
+    }
+
+    public void Release(Guid? actorAccountId, DateTimeOffset now)
     {
         if (ReleasedAt is not null) return;
         ReleasedAt = now.ToUniversalTime();

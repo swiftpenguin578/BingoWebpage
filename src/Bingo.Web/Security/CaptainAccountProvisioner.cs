@@ -23,7 +23,7 @@ public sealed class CaptainAccountProvisioner(
     {
         var teamIds = await db.Teams.AsNoTracking().Where(x => x.EventId == eventId && x.Active).Select(x => x.Id).ToListAsync(ct);
         var assignments = await (from membership in db.TeamMemberships.AsNoTracking()
-                                 join participant in db.EventParticipants on membership.EventParticipantId equals participant.Id
+                                 join participant in db.PrimaryCharacters() on membership.EventParticipantId equals participant.ParticipantId
                                  where teamIds.Contains(membership.TeamId) && membership.LeftAt == null &&
                                        (membership.Role == TeamMembershipRole.Captain || membership.Role == TeamMembershipRole.CoCaptain)
                                  select new { membership.TeamId, Participant = participant, membership.Role })
@@ -31,7 +31,7 @@ public sealed class CaptainAccountProvisioner(
         var generated = new List<GeneratedCaptainCredential>();
         foreach (var assignment in assignments)
         {
-            var credential = await ProvisionAsync(eventId, assignment.TeamId, assignment.Participant.Id, assignment.Participant.PrimaryAccountName, assignment.Role, actorId, actorName, ct);
+            var credential = await ProvisionAsync(eventId, assignment.TeamId, assignment.Participant.ParticipantId, assignment.Participant.Name, assignment.Role, actorId, actorName, ct);
             if (credential is not null) generated.Add(credential);
         }
         return generated;
@@ -46,11 +46,11 @@ public sealed class CaptainAccountProvisioner(
         CancellationToken ct)
     {
         var assignment = await (from membership in db.TeamMemberships.AsNoTracking()
-                                join participant in db.EventParticipants on membership.EventParticipantId equals participant.Id
+                                join participant in db.PrimaryCharacters() on membership.EventParticipantId equals participant.ParticipantId
                                 where membership.TeamId == teamId && membership.EventParticipantId == participantId && membership.LeftAt == null &&
                                       (membership.Role == TeamMembershipRole.Captain || membership.Role == TeamMembershipRole.CoCaptain)
                                 select new { Participant = participant, membership.Role }).SingleOrDefaultAsync(ct);
-        return assignment is null ? null : await ProvisionAsync(eventId, teamId, participantId, assignment.Participant.PrimaryAccountName, assignment.Role, actorId, actorName, ct);
+        return assignment is null ? null : await ProvisionAsync(eventId, teamId, participantId, assignment.Participant.Name, assignment.Role, actorId, actorName, ct);
     }
 
     public async Task DisableParticipantAsync(Guid participantId, Guid actorId, string actorName, string reason, CancellationToken ct)
