@@ -164,7 +164,7 @@ An administrator creates a private event, completes the configuration required t
 2. Organizer or another administrator completes signup configuration.
 3. The system reports readiness blockers and warnings.
 4. An administrator opens signups, or the scheduler opens them at the approved time.
-5. A participant authenticates at the approved point in the journey and submits or claims a signup.
+5. A participant authenticates at the approved point in the journey and submits a signup.
 6. The system links the authenticated website account to exactly the permitted event-participant record.
 7. Identity conflicts enter an explicit participant recovery or admin-resolution workflow.
 
@@ -517,7 +517,7 @@ Discord participant identity and the replacement of generated captain credential
 
 | Admin area | Current behavior to revisit | Likely target impact |
 | --- | --- | --- |
-| Signup configuration/readiness | Discord name is an optional text field; participant accounts are absent | Define whether authentication occurs before signup, during signup, or through later claiming; readiness must require the selected identity policy |
+| Signup configuration/readiness | Discord name is an optional text field; participant accounts are absent | Require authentication before normal signup while allowing explicit external/imported roster records without inferred ownership |
 | Participant management | Admin may generate a replacement private edit link | Normal edits move to authenticated ownership; decide whether token links remain only for migration/emergency fallback |
 | Identity recovery | No participant account-link conflict workflow | Add link status, duplicate/mistaken-link resolution, unlink/relink protections, and audit |
 | Captain/co-captain assignment | Finalized roles provision generated event accounts and passwords | Role assignment should normally grant team-scoped permissions to the participant's website account |
@@ -561,7 +561,7 @@ Approved relationships:
 - A first-time participant creates the website account through Discord and completes public-username/password onboarding before submitting the public signup form. A returning participant may authenticate with Discord or public username/password.
 - The created event-participant record is linked to that authenticated website account.
 - The OSRS-character selector shows characters already linked to the authenticated website account.
-- The participant may add another trusted or borrowed character, which creates an additional global website-account/character link without claiming exclusive ownership.
+- When a character is missing, the signup form links to **My accounts** so the participant can add the trusted or borrowed character before returning to signup. The final Slice 4 interaction must preserve the participant's work or make the return path explicit; it does not create a character inline through an account-name text field.
 - A character already assigned to another participant in the same event is unavailable. The server rejects a conflicting assignment even if two signups or edits race.
 - A new normal signup does not receive a private edit link.
 - The participant may edit their own signup only while the event is `SIGNUP_OPEN`.
@@ -586,14 +586,11 @@ External or pre-formed team members are not required to use the public signup wo
 **Approved target**
 
 - An admin creates or imports the external team and its event-participant roster records.
-- Only captains/co-captains, or other members who later need website actions, must claim a website account.
-- The admin creates a single-use, time-limited claim invitation scoped to one event-participant record.
-- A new invited person creates an account through Discord onboarding; a returning person may sign in through Discord or password. Claiming the record is not a public signup and does not affect capacity or waiting-list order.
-- External captains then receive the captain/co-captain role on their claimed identities and are the only external-team members who may submit evidence.
-- Several external captains may claim their own roster records and receive team-scoped roles; they do not share a normal login.
-- Other external members remain unlinked and rely on their captains for submissions.
-- An external member who later needs self-service access claims their existing roster record rather than creating a duplicate signup.
-- Additional password-based emergency captain credentials may be enabled when Discord linking is not practical, but remain explicit audited fallbacks rather than the normal way to add another captain.
+- External roster records contain the OSRS characters needed for visible rosters and Wise Old Man tracking, but they do not require individual website-account ownership.
+- One or more explicitly enabled emergency captain credentials provide team-scoped submission access. Each credential is individually auditable and is not linked to an OSRS character or participant record.
+- External members without website accounts rely on those captains for submissions.
+- External teams do not receive participant-only shared focus/highlight controls through roster names alone and may continue coordinating focus manually outside the application.
+- A later normal website-account relationship is created only through an explicit authenticated/admin workflow; Slice 2 does not add claim invitations or infer it from roster data.
 
 This proposal preserves external-team operation without requiring another clan's full roster to sign up publicly.
 
@@ -602,7 +599,6 @@ This proposal preserves external-team operation without requiring another clan's
 **Approved target**
 
 - Never auto-link records by Discord display name or OSRS character name.
-- Claim invitations are single-use, expire, and are scoped to exactly one event-participant record.
 - Admins can inspect linked/unlinked status without seeing OAuth credentials.
 - A normal account may unlink its current Discord association at any time after fresh password confirmation, including while participating in an event or holding a global/event role. The required password remains a valid login method, so unlinking never makes the account credentialless.
 - An unlinked account may later attach any Discord ID not already used by another website account after fresh password confirmation and OAuth. A linked account may use the same flow as a one-step **Change linked Discord** action.
@@ -612,8 +608,7 @@ This proposal preserves external-team operation without requiring another clan's
 - The destination account cannot already own a participant record in that event. Transfer revokes the previous account's event access immediately while preserving signup order/status, event-character assignments, team membership, evidence, and history.
 - Transfer is strongly confirmed and automatically records old/new identity references, actor, and time, but requires no typed reason.
 - This event-scoped transfer does not merge the two global website accounts or infer ownership from their OSRS-character links.
-- Existing imported or legacy signups may use the same claim mechanism.
-- The current private edit-token path is not issued for new authenticated signups. It remains temporarily only for unclaimed legacy/imported records, stops working when the record is claimed, and is removed after migration is complete.
+- The current private edit-token path is not issued for new authenticated signups. It remains temporarily for existing legacy/imported records until Slice 4 replaces the signup workflow, then is removed without adding a claim-link system.
 
 ### 11.6 OSRS character assignment consequences
 
@@ -646,10 +641,10 @@ Approved by the user on 2026-07-24:
 
 Approved by the user on 2026-07-24:
 
-1. External/pre-formed roster members do not need public signup or Discord access. Captains/co-captains claim their records and are the only normal submitters for the external team; additional emergency captain credentials may be enabled if needed.
+1. External/pre-formed roster members do not need public signup or individual website accounts. One or more explicitly enabled, team-scoped emergency captain credentials provide submission access without claiming roster records.
 2. Signup fields become read-only after signup closes, but a participant may withdraw through a separate confirmed action until the draft starts. Normal waiting-list promotion follows.
 3. A participant may register several OSRS characters, but exactly one is active and drop-eligible at a time. Changing it uses the account-swap workflow and append-only history.
-4. Private edit links remain temporarily only for unclaimed legacy/imported records, are not issued for new normal signups, stop working after claim, and are removed when migration is complete.
+4. Private edit links remain temporarily for existing legacy/imported records, are not issued for new normal signups, and are removed when Slice 4 completes the authenticated signup migration.
 
 ### 11.9 My accounts
 
@@ -659,8 +654,10 @@ Approved by the user on 2026-07-24:
 - Show one flexible ordered list rather than mandatory sections for Main, IM, HCIM, UIM, GIM, or UGIM.
 - Allow an optional personal label such as `Main`, `Alt`, `Borrowed`, or another user-entered description.
 - Allow one character to be marked preferred so signup selectors can offer it first.
+- Store an optional saved EHB default on each website-account/character link. This is personal default metadata rather than a global value on the shared character.
 - Game mode is not required participant-entered classification. It may be shown later as non-authoritative synchronized metadata if an integration provides it.
 - Removing a global link never deletes historical event assignments, evidence, eligibility, or activity.
+- Correcting a misspelled linked character atomically relinks the My accounts entry and every currently participant-editable signup that uses it. A conflict in any affected event rejects the whole correction. Closed, locked, live, and historical assignments remain unchanged.
 - In an event, visually separate registered characters, the one currently active/drop-eligible character, and globally linked characters that are available or already assigned elsewhere.
 
 ### 11.10 Account creation, public username, and password
@@ -668,16 +665,17 @@ Approved by the user on 2026-07-24:
 **Approved direction**
 
 - The website account is the durable identity. Public username/password is always available after onboarding; a current Discord association, when present, is an additional login method for that same account.
-- Initial account creation begins with Discord authentication and then requires the user to enter their exact OSRS account name as the public website username plus a password. The UI states that the name must be correct, while the application performs no OSRS syntax, availability, ownership, Wise Old Man membership, or existence lookup.
-- Username and OSRS character remain separate records. The same initial input creates the public username, creates or reuses that `OsrsCharacter`, links it to the Discord account in My accounts, and marks it preferred.
+- Initial account creation begins with Discord authentication and then requires a website username, password, and first OSRS character. The page may recommend using the primary OSRS character as the website username, but the two values are independent and need not match.
+- The UI states that the OSRS-character spelling must be correct, while the application performs no OSRS syntax, availability, ownership, Wise Old Man membership, or existence lookup. The character is created or reused, linked in My accounts, and marked preferred.
 - The public username is also the password-login username. Public usernames have surrounding whitespace trimmed, retain the user's internal spelling/spacing, and are compared case-insensitively for uniqueness.
 - A username collision produces an explicit validation error and asks the new user to choose another public username; it never takes over or merges the existing website account.
 - Public-username uniqueness does not assert OSRS ownership and does not reserve the underlying character. A second website account may still link that character globally or use it in another event, but cannot use the same public username.
 - Discord display names remain non-authoritative metadata and are not the normal public label.
-- A participant may later change their public username only to one of their currently linked OSRS characters and only when the normalized name is unused by another public profile.
+- A participant may later change their public username to any valid value whose normalized form is unused by another website account. The username remains independent of linked OSRS characters.
 - Changing the public username also changes the username used for password login. The confirmation UI must state that consequence.
-- A successful rename updates that participant's snapshot in currently open signups. Closed signups and historical events retain the username snapshot that applied when they closed.
+- A successful rename reissues the current session but does not invalidate unrelated sessions solely for a name change. Other sessions receive the new name after their next authentication refresh.
 - Changing the public username never changes an event's registered accounts, active account, team role, evidence, or current Discord association.
+- Event-facing participant displays use registered OSRS characters rather than the website username.
 
 ### 11.11 Hybrid login, password recovery, and Discord relinking
 
@@ -699,7 +697,7 @@ Approved by the user on 2026-07-24:
 1. Initial creation through Discord requires a unique public username and password before the account can submit signup.
    Protected onboarding state expires after 15 minutes and expiry creates no partial account.
 2. Discord and public-username/password login open the same account and event participation.
-3. A public-username rename makes the new name the password-login username without rewriting closed event snapshots.
+3. A public-username rename makes the new name the password-login username without changing event-facing OSRS-character assignments.
 4. Generic password failure does not reveal whether the public username exists, and repeated attempts are throttled.
 5. An Admin generates a single-use expiring reset link for a normal user without seeing or setting the password.
 6. An ordinary Admin cannot generate a reset link for another Admin or the Super Admin.
@@ -820,7 +818,7 @@ There is no built-in support-alt, secondary-account, comments, or availability q
 - An admin may add one or more secondary Account questions.
 - Every secondary Account question is optional; the admin cannot make it required.
 - A playing Account answer includes its own EHB field. The account may be left blank, but once supplied its EHB is required.
-- EHB is an event-specific snapshot stored with that account assignment, not a single participant value and not permanent global My accounts metadata.
+- My accounts stores an optional saved EHB default for each linked character. Saving a playing Account answer updates that default and captures a separate event-specific EHB snapshot; later My accounts edits never silently rewrite the submitted snapshot.
 - An informational Account answer has no EHB field and is excluded from swapping, evidence, and Wise Old Man.
 - A Yes/No question remains the correct choice when the organizer only needs to know whether an alt exists.
 
@@ -902,12 +900,13 @@ At a scheduled opening instant, the scheduler reruns the same readiness rules tr
 - A participant opens the event signup and authenticates to their website account through Discord or public username/password before entering the normal form.
 - If they do not yet have a website account, Discord creation and public-username/password onboarding complete first and create the approved preferred linked OSRS character.
 - If the website account already owns a participant record for this event, the route opens that signup's view/edit state instead of creating a duplicate.
-- The event public-username snapshot is captured from the authenticated profile.
+- Event-facing signup identity is supplied by the registered OSRS-character answers, not the website username.
 
 ### 14.2 Account selection and initial active account
 
 - The built-in primary Account answer is required and always has role `PLAYING`.
-- The participant selects a linked character or adds another trusted/borrowed character. Additional Account questions behave according to their `PLAYING` or `INFORMATIONAL` role.
+- The participant selects a linked character. If the character is missing, a **My accounts** link lets them add it before returning to signup. Additional Account questions behave according to their `PLAYING` or `INFORMATIONAL` role.
+- A playing EHB control is prefilled from the selected link's saved EHB. Saving the signup updates both that saved default and the event snapshot; an informational answer neither requires nor copies EHB.
 - The built-in primary playing account automatically becomes the participant's initial active/drop-eligible account. Signup does not contain a separate initial-active selector.
 - The participant may change the primary and other registered accounts while signup remains open. Closing signup freezes the final account set and roles.
 - At event start, the system creates the initial activation for the frozen primary account. Later active-account changes use the approved swap workflow.
@@ -916,7 +915,7 @@ At a scheduled opening instant, the scheduler reruns the same readiness rules tr
 
 - Confirmed and waiting-list signups both reserve every named Account answer within the event. Capacity status does not weaken the one-current-assignment-per-character rule.
 - A participant- or admin-initiated withdrawal before draft start releases those account reservations. Historical assignment rows remain available, but the released character may then be assigned to another participant in that event.
-- Creating or editing a signup is one transaction covering the participant record, answers, event-character assignments, EHB snapshots, status/capacity decision, first-response marker, and any new trust-based character links created inside that submission.
+- Creating or editing a signup is one transaction covering the participant record, answers, event-character assignments, saved-EHB updates for playing answers, event EHB snapshots, status/capacity decision, and first-response marker.
 - Every requested current event-character assignment must be acquired before the transaction commits.
 - If any character is already reserved by another confirmed or waiting-list participant, the whole create/edit attempt fails. No partial participant, answer, link, reservation, EHB, or status change commits.
 - The form identifies the conflicting Account answer as already in use for this event, preserves all other entered values in the returned form, and asks the participant to enter or select another account.
@@ -1017,7 +1016,7 @@ The workspace provides:
 
 - Before draft start, an admin may add an internal participant even while public signup is closed.
 - Admin entry bypasses the public opening window and signup code, but not required system fields, question validation, account uniqueness, or transaction rules.
-- Linking a Discord identity is optional at creation. A later claim or identity transfer supplies access without changing the participant's event history.
+- Linking a website account is optional for Admin-created external/imported records. A later Admin identity transfer may supply access without changing the participant's event history; Slice 2 adds no claim invitation.
 - An admin-created internal participant follows the same current capacity and waiting-list rules as a public website signup. `ADMIN_CREATED` is provenance, not a capacity bypass.
 - External/pre-formed team members remain in the separate external-roster workflow and do not consume the public/internal draft-pool capacity.
 
@@ -1484,7 +1483,7 @@ Approved evidence metadata, credited player, and screenshot are public so commun
 ### 25.2 Draft-information table
 
 - Before and during the website draft, captains/co-captains of drafted teams see the same confirmed signup table used publicly, enhanced with all participant-submitted answer columns needed for selection.
-- The expanded view includes public username, registered playing accounts/EHB, captain volunteer, availability/comments, other custom answers, and answers whose **Show on signup board** setting is off.
+- The expanded view includes the primary and other registered playing accounts/EHB, captain volunteer, availability/comments, other custom answers, and answers whose **Show on signup board** setting is off. Website username is not the participant's event-facing name.
 - It excludes waiting-list and withdrawn people from the draft pool and never exposes paid/unpaid status, private admin notes, identity-recovery/security metadata, or audit history.
 - Captains of external/pre-formed teams do not receive the internal draft-pool expansion.
 - The website draft controller/order/pick ledger remains admin-only; the expanded table does not expose private draft-control state.

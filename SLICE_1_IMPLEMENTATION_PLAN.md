@@ -25,7 +25,7 @@ Slice 1 establishes the durable website-account and authentication foundation:
 
 Slice 1 does **not** connect normal accounts to event participants or replace the signup workflow. Those changes depend on Slice 2 account/character migration and Slice 4 signup work.
 
-One narrow Slice 2 foundation must be brought forward: Discord onboarding must create the initial `OsrsCharacter` and preferred `AccountOsrsCharacter` link in the same transaction as the public username and password. Slice 1 therefore creates the minimal character/link entities and constraints needed for onboarding. Full My accounts management, additional/borrowed characters, personal labels/order editing, event assignments, swaps, and legacy participant claiming remain later slices.
+One narrow Slice 2 foundation must be brought forward: Discord onboarding must create the initial `OsrsCharacter` and preferred `AccountOsrsCharacter` link in the same transaction as the public username and password. Slice 1 therefore creates the minimal character/link entities and constraints needed for onboarding. Full My accounts management, additional/borrowed characters, personal labels/order/EHB editing, event assignments, and swaps remain later slices. Slice 2 deliberately adds no participant claim-link system.
 
 ## 2. Evidence classification
 

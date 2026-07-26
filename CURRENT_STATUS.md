@@ -2,21 +2,15 @@
 
 **Verified:** 2026-07-26
 **Branch:** `codex/milestone-8a` (Milestone 8A checkpoint branch)
-**Planning decision:** 2026-07-25
+**Planning decision:** 2026-07-26
 
 ## Active handoff
 
-**Final Slice 1 gate (2026-07-26):** manual retests passed for S1-16, S1-19, S1-20, and S1-35. Focused automated coverage now also closes S1-08 (Discord-onboarding username collision retains values, leaves the occupied account untouched, creates no duplicate, and permits a retry) and S1-22 (grant/revoke and ownership-transfer stale-session invalidation, transfer password/destination confirmation, and access-changed sign-in-again feedback). Both rows are recorded as `Automated` in `SLICE_1_MANUAL_TEST_RESULTS.md`.
+**Slice 1 checkpoint:** Slice 1 passed independent review, manual acceptance, formatting, Release build, and the complete automated suite. It is committed and pushed on `codex/milestone-8a`; the checkpoint working tree was clean before Slice 2 planning began.
 
-**Final verification (2026-07-26):** focused remediation tests passed 6/6 integration and 7/7 domain. `git diff --check` and `dotnet format Bingo.slnx --no-restore --verify-no-changes` passed; `dotnet build Bingo.slnx --configuration Release --no-restore` passed with 0 warnings and 0 errors. The complete suite wrote durable TRX artifacts to `/private/tmp/slice1-final-remediation-trx-20260726-final2`: Domain 44/44, Application 81/81, Browser 45/45, and Integration 72/72, with zero failed, skipped, or not-executed tests in every project.
+**Slice 2 planning:** Planning Pass 2 approved the five bounded implementation passes in `SLICE_2_IMPLEMENTATION_PLAN.md`. Slice 2 covers My Accounts, optional per-link saved EHB defaults, event character assignments and uniqueness, deterministic legacy-field migration, compatibility conversion, and independent website-username rename. It deliberately excludes participant claim links, final authenticated signup/dropdowns, Wise Old Man fetching, live swaps, evidence changes, and broader participant administration.
 
-**Final independent-review clearance (2026-07-26):** the original reviewer’s restricted re-review cleared all three final findings with no remaining material risk. Emergency credentials now require the active original-or-reopened window plus explicit re-enablement, including a strict emergency boundary at the cutoff instant; the operator-only OwnerRecovery reset-link command has exact active-owner targeting, a 60-minute single-use token, and secret-free system audit; and real PostgreSQL username/Discord uniqueness races are translated into endpoint-safe localized conflicts without partial persistence. S1-38 is accepted as fully passed by the user. Slice 1 is approved as safe to commit and push.
-
-Slice 1's final independent-review remediation is in the uncommitted working tree. It now includes Discord user-info ticket claims, protected onboarding state, account mutation concurrency, explicit emergency creation, retained-data scope checks, independent login throttles, reset-link serialization, and personal-notification routing. Preserve all existing Planning Pass 2 and Pass 12 work. Do not stage or commit without explicit authorization.
-
-The final implementation-owned gate removed the obsolete transient `Account` role/scope API and its active reads. Emergency event/team/lifecycle authority is now exclusively `AccountEventAccess`; unfinalization does not silently re-enable an emergency credential. Migration history remains intact.
-
-**Intentional compatibility:** Slice 1 retains only the minimal `OsrsCharacter`/preferred `AccountOsrsCharacter` onboarding foundation. Per the approved Slice 1 plan, its full My accounts management, labels, additional characters, event assignments, swaps, and legacy participant claiming are Slice 2 work. The legacy/imported private edit-token fallback remains until the approved participant-claim migration removes it.
+**Next implementation action:** Create a Slice 2 implementation branch from the current Milestone 8A checkpoint and implement only Pass 2.1. Preserve all Pass 12/protected UI behavior and do not continue into Pass 2.2 in the same task.
 
 ## Verification
 
@@ -24,9 +18,10 @@ The final implementation-owned gate removed the obsolete transient `Account` rol
 
 ## Remaining work
 
-- Push the approved Milestone 8A checkpoint branch.
-- Create the Slice 2 implementation branch from this clean checkpoint after Planning Pass 2 selects its bounded implementation passes.
+- Review and commit the approved Slice 2 planning-document changes when authorized.
+- Create the Slice 2 implementation branch from the resulting clean Milestone 8A checkpoint.
+- Implement `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.1 only.
 
 ## Historical summary
 
-2026-07-25 remediation addressed independent-review findings around protected Discord state, retained-owner gates, membership-verified emergency scope migration, reset concurrency, fixed authentication lifetimes/throttles, cutoff lifecycle/idempotency, audit/notifications, account dataset separation, Danish safe failures, and persisted access projection. Superseded minute-by-minute checkpoints were consolidated here; detailed contracts remain in `SLICE_1_IMPLEMENTATION_PLAN.md`, `FUNCTIONAL_WORKFLOWS.md`, and the source-of-truth requirements.
+2026-07-25 through 2026-07-26 Slice 1 remediation addressed protected Discord state, retained-owner gates, membership-verified emergency scope migration, reset concurrency, authentication lifetimes/throttles, cutoff lifecycle, audit/notifications, account datasets, Danish safe failures, and persisted access projection. The final independent review cleared all findings. Detailed Slice 1 evidence remains in `SLICE_1_IMPLEMENTATION_PLAN.md` and `SLICE_1_MANUAL_TEST_RESULTS.md`.

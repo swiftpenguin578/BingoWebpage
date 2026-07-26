@@ -152,7 +152,7 @@ Establish secure Discord-linked user/Admin/Super Admin identity, event-scoped ca
 
 ### Deliverables
 
-- Normal website-account records with global `USER`, `ADMIN`, or `SUPER_ADMIN` roles, optional current Discord association, required public-username/password credentials, in-place migration of existing permanent Admin records, plus disabled-by-default emergency captain records. Event-participant ownership/claim migration remains Slice 2.
+- Normal website-account records with global `USER`, `ADMIN`, or `SUPER_ADMIN` roles, optional current Discord association, required public-username/password credentials, in-place migration of existing permanent Admin records, plus disabled-by-default emergency captain records. Event-participant ownership and character-assignment migration remain Slice 2.
 - Discord-backed initial account creation, required password onboarding, hybrid Discord or public-username/password sign-in to one account, secure password hashing, and secure authentication cookies.
 - Login/logout, password change, admin-generated reset links, self-service Discord link/unlink/replace, and emergency password/reset workflows as applicable to each account type.
 - Separate Admin and Super Admin authorization policies.
@@ -253,7 +253,7 @@ Allow admins to create an event, configure signup, open only the signup page, an
 - Signup-opening blockers for missing public description, non-positive capacity, invalid schedule/closing, invalid lifecycle state, unavailable Discord login configuration, damaged built-in questions, invalid custom-question definitions, or an enabled signup-code requirement without a usable code.
 - Signup-opening warnings for a disabled waiting list, publicly visible free-text answers, and reopening a populated form. These require acknowledgement but no typed reason.
 - Authenticated participant editing only while signup is open.
-- Approved migration/recovery path for imported or legacy unclaimed records.
+- Approved deterministic migration for imported/legacy records without inferred ownership, plus later explicit Admin identity recovery where required.
 - Atomic signup create/edit transaction covering participant, answers, new trust links, event-character reservations, EHB snapshots, form marker/version, and capacity status.
 - Confirmed and waiting-list signups reserve Account answers equally; pre-draft withdrawal releases the reservations without deleting history.
 - Account-specific conflict recovery that rolls back the whole attempt, preserves the other entered form values, and leaves a previously saved signup unchanged.
@@ -315,7 +315,7 @@ Allow admins to create an event, configure signup, open only the signup page, an
 
 - Admin creates an event and opens signups.
 - Public sees the signup board and approved signup fields, but not the draft, teams, or bingo board.
-- Participant signs up and uses the Planning Pass 2 approved identity/edit path. Preserve current private-edit-link coverage only for unclaimed legacy/imported migration records until claim or migration completion.
+- Participant signs up and uses the Planning Pass 2 approved identity/edit path. Preserve current private-edit-link coverage only for existing legacy/imported migration records until Slice 4 completes the authenticated-signup transition.
 - Admin increases cap from 50 to 60 and seven waiting participants are promoted.
 
 ### Completion criteria
@@ -785,7 +785,7 @@ These are the ten functional delivery slices inside Milestone 8A. They are not a
 
 Each slice finalizes its exact manual cases in `MANUAL_TEST_CHECKLIST.md` before handoff. The checklist is durable repository documentation so the user may run it immediately or return to it later; it does not replace automated coverage.
 
-The Slice 1 gap, migration, affected-file, delivery, and verification plan is approved and implementation-ready in `SLICE_1_IMPLEMENTATION_PLAN.md`; implementation has not started and still requires explicit authorization. It brings forward only the minimal OSRS-character/preferred-link foundation required for atomic first-account onboarding; full My accounts and event-character functionality remain Slice 2.
+Slice 1 is implemented, independently cleared, verified, committed, and pushed on the Milestone 8A checkpoint branch. The approved Slice 2 boundary and its five bounded implementation passes are recorded in `SLICE_2_IMPLEMENTATION_PLAN.md`; implementation has not started.
 
 Only after all ten Milestone 8A functional slices are complete and functionally regressed does work proceed to the separate big-roadmap **Milestone 9 — UI overhaul and regression**. Milestone 9 performs the complete site-wide UI pass and full regression through the page passes in `UI_OVERHAUL_ROADMAP.md`. It must not begin merely because a similarly numbered UI page pass is available.
 
@@ -1117,7 +1117,7 @@ This register began as the post-version-one backlog. Items explicitly selected d
 - Admins retain event-wide submission and correction access.
 - Captain/co-captain is an event/team role on the website account rather than a separate normal login or current Discord ID.
 - Keep temporary captain accounts disabled by default and available only as an explicitly enabled emergency fallback.
-- Preserve external/pre-formed roster records without requiring every member to use public signup. Captains/co-captains claim their own records and are the only normal external-team submitters; additional emergency credentials may be enabled explicitly.
+- Preserve external/pre-formed roster records without requiring every member to use public signup or own a website account. One or more explicitly enabled team-scoped emergency captain credentials provide submission access without claiming roster records.
 
 #### Event cancellation, archive, and current-event policy — selected
 

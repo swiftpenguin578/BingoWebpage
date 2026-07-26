@@ -13,7 +13,7 @@ This document defines the logical data model, relationships, state transitions, 
 The model must support:
 
 - Two or three community events per year
-- Hybrid-authenticated normal website accounts plus unclaimed admin-created/imported/external roster records
+- Hybrid-authenticated normal website accounts plus admin-created/imported/external roster records without inferred website ownership
 - Capacity limits and an ordered waiting list
 - Admin-operated snake drafts
 - Event-scoped captain and co-captain roles, with disabled-by-default emergency credentials
@@ -347,8 +347,7 @@ Represents one person's participation, signup, or imported roster record for one
 Fields:
 
 - `event_id`
-- `account_id`, nullable for unclaimed imported/external roster records
-- `public_username_snapshot`
+- `account_id`, nullable for imported/external roster records without a verified website-account relationship
 - `captain_volunteer`
 - `payment_received`, boolean, defaults false
 - `signup_status`
@@ -364,7 +363,7 @@ Fields:
 
 `(event_id, account_id)` is unique when `account_id` is not null. One website account can therefore own at most one participant record in an event while participating in several different events.
 
-New normal signups have `account_id` at creation and do not receive a private edit token. The participant may edit signup fields only while the event is `SIGNUP_OPEN`. Unlinked imported or external participants remain valid roster records; their claim/recovery behavior is defined by the identity workflow.
+New normal signups have `account_id` at creation and do not receive a private edit token. The participant may edit signup fields only while the event is `SIGNUP_OPEN`. Imported or external participants without a verified website-account relationship remain valid roster records. Event-facing names come from registered OSRS-character assignments rather than the website username. Existing private edit tokens remain only as temporary compatibility until Slice 4; there is no participant claim-token model.
 
 Editing does not change `signed_up_at`, `signup_sequence`, or queue status. Cancelling/withdrawing changes status and releases current character assignments. Rejoining while signup is open reactivates the same participant identity but assigns a new `signed_up_at` and `signup_sequence` at the end of the queue. Admin restoration before draft start follows the same current-capacity calculation and never restores a former queue position.
 
@@ -395,8 +394,11 @@ Fields:
 - `personal_label`, nullable user-entered label such as Main, Alt, or Borrowed
 - `sort_order`
 - `preferred`
+- `saved_ehb`, nullable personal default used to prefill future playing-account answers
 
 `(account_id, osrs_character_id)` is unique. At most one link per account is `preferred`. Several accounts may link the same OSRS character. This relationship populates My accounts and signup selectors but grants no authority, proves no ownership, and does not reserve the character for an event. Personal labels organize the list without imposing a game-mode taxonomy.
+
+`saved_ehb` belongs to the link rather than the shared character so one borrower's update does not change another website account's default. Saving a playing Account answer updates this default and captures an independent event snapshot. Later edits to `saved_ehb` do not rewrite an existing event assignment. Informational assignments ignore it.
 
 ### 6.6 EventParticipantCharacter
 
@@ -420,7 +422,7 @@ Fields:
 
 One participant may register several characters. A partial unique constraint on `(event_id, osrs_character_id)` where `released_at IS NULL` prevents the same character from being currently assigned to several participants in one event. The participant and assignment `event_id` values must match through a relational constraint. Confirmed and waiting-list participants both hold current assignments. Withdrawal/removal before draft start releases the assignments without deleting their history, after which another participant may acquire that character. The same character may also be assigned to a different participant in another event.
 
-Normal signup selects from `AccountOsrsCharacter` and may create another trust-based link before assignment. Admin-created or imported unclaimed participants may receive an event assignment without a linked website account.
+Normal signup selects from `AccountOsrsCharacter`. A missing trusted/borrowed character is added through My accounts before returning to the signup form; it is not created inline by the Account answer. Admin-created, imported, or external participants may receive an event assignment without a linked website account.
 
 Event character role:
 
@@ -480,7 +482,7 @@ ADMIN_CREATED
 
 Name normalization may identify a shared global character association for admin awareness. It must not block a valid global link, create a reusable person identity, imply account ownership, or link name changes across bingos. It does block a second event assignment for the same normalized character through the event-level uniqueness rule.
 
-For an unclaimed legacy/imported record that still uses the migration fallback, `private_edit_token_hash` stores only the secure hash of its private edit token. The original link cannot be reconstructed. Issuing a replacement fallback link overwrites the hash, invalidates the previous link, and exposes the new raw token only in the admin response that created it. New normal signups never receive this token.
+For an existing legacy/imported record that still uses the temporary migration fallback, `private_edit_token_hash` stores only the secure hash of its private edit token. The original link cannot be reconstructed. Issuing a replacement fallback link overwrites the hash, invalidates the previous link, and exposes the new raw token only in the admin response that created it. New normal signups never receive this token, and Slice 4 removes the fallback.
 
 The same normalized OSRS character may be globally linked by several people but may be assigned to only one participant in an event. Character association alone never merges participant records or grants authority. In-event evidence and Wise Old Man activity resolve through that unique event assignment.
 
@@ -761,7 +763,7 @@ ADMIN
 SUPER_ADMIN
 ```
 
-Normal participants, captains, admins, and the Super Admin use one `WEBSITE_ACCOUNT` with a required public username/password of at least 10 characters and an optional current Discord association. Existing permanent Admin credentials migrate in place during Slice 1. Legacy participant free-text Discord identities remain unlinked; participant ownership/claim migration occurs separately in Slice 2 and never infers identity from display text. Discord guild membership is not required. First-time creation starts with Discord and onboarding chooses a public username/password, creates/reuses the matching character link, and marks it preferred; after onboarding the Discord association may be removed or replaced. Public-username uniqueness is separate from character linking: another account may link the same `profile_osrs_character_id` but must choose a different public username. OAuth tokens, raw passwords, and recovery tokens are not stored in audit snapshots.
+Normal participants, captains, admins, and the Super Admin use one `WEBSITE_ACCOUNT` with a required public username/password of at least 10 characters and an optional current Discord association. Existing permanent Admin credentials migrate in place during Slice 1. Legacy participant free-text Discord identities remain unlinked, and Slice 2 never infers participant ownership from display text, website username, or an OSRS-character link. Discord guild membership is not required. First-time creation starts with Discord and onboarding chooses an independent website username/password plus a first OSRS character, creates/reuses that character link, and marks it preferred; after onboarding the Discord association may be removed or replaced. Public-username uniqueness is separate from character linking: another account may link the same `profile_osrs_character_id` but must choose a different public username. Later website-username changes may use any valid unique value and do not alter event-facing OSRS-character assignments. OAuth tokens, raw passwords, and recovery tokens are not stored in audit snapshots.
 
 Exactly one active account has `global_role = SUPER_ADMIN`. A partial unique constraint enforces at most one, while controlled bootstrap/migration and the ownership-transfer transaction enforce existence. Public signup/onboarding never assigns a privileged global role. Emergency captain accounts always have no global role and cannot be promoted.
 
