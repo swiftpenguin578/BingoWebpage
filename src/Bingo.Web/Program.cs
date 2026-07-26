@@ -1,4 +1,7 @@
 using System.Globalization;
+using System.Net.Http.Headers;
+using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.RateLimiting;
 using Bingo.Application.Access;
 using Bingo.Application.Boards;
@@ -14,6 +17,8 @@ using Bingo.Web.Navigation;
 using Bingo.Web.Security;
 using Bingo.Web.TestData;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OAuth;
+using Microsoft.AspNetCore.Authentication.OAuth.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
@@ -41,18 +46,29 @@ builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Admin", AuthorizationPolicies.Admin);
     options.Conventions.AuthorizeFolder("/Captain", AuthorizationPolicies.CaptainCorrectionAccess);
-});
+}).AddDataAnnotationsLocalization(options =>
+    options.DataAnnotationLocalizerProvider = (_, factory) => factory.Create(typeof(Bingo.Web.SharedResource)));
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IProgressNotifier, SignalRProgressNotifier>();
 builder.Services.AddScoped<IAdminCollaborationNotifier, SignalRAdminCollaborationNotifier>();
 builder.Services.Configure<DevelopmentAdminBootstrapOptions>(
     builder.Configuration.GetSection(DevelopmentAdminBootstrapOptions.SectionName));
+var discordOptions = builder.Configuration.GetSection(DiscordAuthenticationOptions.SectionName).Get<DiscordAuthenticationOptions>() ?? new DiscordAuthenticationOptions();
+builder.Services.Configure<DiscordAuthenticationOptions>(builder.Configuration.GetSection(DiscordAuthenticationOptions.SectionName));
 builder.Services.AddScoped<IPasswordHasher<Account>, PasswordHasher<Account>>();
 builder.Services.AddScoped<AccountAuthenticationService>();
+builder.Services.AddScoped<AccountIdentityService>();
+builder.Services.AddSingleton<DiscordOnboardingStateService>();
+builder.Services.AddScoped<AccountAdministrationService>();
+builder.Services.AddScoped<EmergencyCredentialService>();
+builder.Services.AddScoped<EmergencyCredentialLifecycleService>();
+builder.Services.AddSingleton<DiscordLinkStateService>();
+builder.Services.AddSingleton<LoginThrottleService>();
 builder.Services.AddScoped<CaptainAccountProvisioner>();
 builder.Services.AddScoped<AccountCookieEvents>();
 builder.Services.AddScoped<DevelopmentAdminBootstrapper>();
+builder.Services.AddScoped<OperatorRecoveryService>();
 builder.Services.AddScoped<ClanCatalogueImporter>();
 builder.Services.AddHttpClient("OsrsWiki", client =>
 {
@@ -85,12 +101,37 @@ builder.Services
             ? CookieSecurePolicy.SameAsRequest
             : CookieSecurePolicy.Always;
         options.ExpireTimeSpan = TimeSpan.FromHours(12);
-        options.SlidingExpiration = true;
+        options.SlidingExpiration = false;
         options.EventsType = typeof(AccountCookieEvents);
     });
+if (discordOptions.IsConfigured)
+{
+    builder.Services.AddAuthentication().AddCookie("Discord.External", options => { options.ExpireTimeSpan = TimeSpan.FromMinutes(15); options.Cookie.Name = "Bingo.Discord.External"; })
+        .AddOAuth("Discord", options =>
+        {
+            options.ClientId = discordOptions.ClientId!; options.ClientSecret = discordOptions.ClientSecret!; options.CallbackPath = "/Account/DiscordCallback"; options.SignInScheme = "Discord.External";
+            options.AuthorizationEndpoint = "https://discord.com/api/oauth2/authorize"; options.TokenEndpoint = "https://discord.com/api/oauth2/token"; options.UserInformationEndpoint = "https://discord.com/api/users/@me"; options.Scope.Add("identify");
+            options.ClaimActions.Add(new JsonKeyClaimAction(System.Security.Claims.ClaimTypes.NameIdentifier, System.Security.Claims.ClaimValueTypes.String, "id"));
+            options.ClaimActions.Add(new JsonKeyClaimAction(System.Security.Claims.ClaimTypes.Name, System.Security.Claims.ClaimValueTypes.String, "global_name"));
+            options.Events.OnCreatingTicket = async context =>
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, context.Options.UserInformationEndpoint);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", context.AccessToken);
+                using var response = await context.Backchannel.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, context.HttpContext.RequestAborted);
+                if (!response.IsSuccessStatusCode)
+                    throw new HttpRequestException("Discord user information could not be retrieved.");
+                await using var stream = await response.Content.ReadAsStreamAsync(context.HttpContext.RequestAborted);
+                using var document = await JsonDocument.ParseAsync(stream, cancellationToken: context.HttpContext.RequestAborted);
+                context.RunClaimActions(document.RootElement);
+                if (context.Identity?.FindFirst(ClaimTypes.Name) is null && document.RootElement.TryGetProperty("username", out var username) && username.ValueKind == JsonValueKind.String)
+                    context.Identity?.AddClaim(new Claim(ClaimTypes.Name, username.GetString()!));
+            };
+        });
+}
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(AuthorizationPolicies.Admin, policy =>
-        policy.RequireAuthenticatedUser().RequireRole(AccountRole.Admin.ToString()))
+        policy.RequireAuthenticatedUser().RequireRole(GlobalRole.Admin.ToString(), GlobalRole.SuperAdmin.ToString()))
+    .AddPolicy(AuthorizationPolicies.SuperAdmin, policy => policy.RequireAuthenticatedUser().RequireRole(GlobalRole.SuperAdmin.ToString()))
     .AddPolicy(AuthorizationPolicies.Captain, policy =>
         policy.RequireAuthenticatedUser()
             .RequireRole(AccountRole.Captain.ToString())
@@ -115,17 +156,7 @@ builder.Services.AddAuthorizationBuilder()
             .AddRequirements(
                 new AccountAccessRequirement(AccountAccessMode.CorrectionOnly),
                 new TeamScopeRequirement()));
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddFixedWindowLimiter("login", limiter =>
-    {
-        limiter.PermitLimit = 5;
-        limiter.Window = TimeSpan.FromMinutes(1);
-        limiter.QueueLimit = 0;
-        limiter.AutoReplenishment = true;
-    });
-});
+builder.Services.AddRateLimiter(_ => { });
 builder.Services
     .AddHealthChecks()
     .AddDbContextCheck<ApplicationDbContext>(
@@ -148,6 +179,63 @@ if (args.Contains("--export-catalogue-snapshot", StringComparer.Ordinal))
     return;
 }
 
+if (args.Contains("--slice1-migration-preflight", StringComparer.Ordinal))
+{
+    var ownerIndex = Array.IndexOf(args, "--slice1-owner");
+    var owner = ownerIndex >= 0 && ownerIndex + 1 < args.Length ? args[ownerIndex + 1] : null;
+    await using var scope = app.Services.CreateAsyncScope();
+    var report = await scope.ServiceProvider.GetRequiredService<Slice1MigrationPreflight>().RunAsync(owner, CancellationToken.None);
+    Console.WriteLine(report); return;
+}
+
+if (args.Contains("--slice1-recover-owner", StringComparer.Ordinal))
+{
+    var usernameIndex = Array.IndexOf(args, "--username");
+    var confirmIndex = Array.IndexOf(args, "--confirm-username");
+    if (usernameIndex < 0 || usernameIndex + 1 >= args.Length || confirmIndex < 0 || confirmIndex + 1 >= args.Length)
+        throw new InvalidOperationException("Owner recovery requires --username <username> and --confirm-username <username>.");
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider.GetRequiredService<OperatorRecoveryService>().RecoverOwnerAsync(args[usernameIndex + 1], args[confirmIndex + 1], CancellationToken.None);
+    Console.WriteLine("Super Admin ownership recovery completed.");
+    return;
+}
+
+if (args.Contains("--slice1-create-owner-reset-link", StringComparer.Ordinal))
+{
+    var usernameIndex = Array.IndexOf(args, "--username");
+    var confirmIndex = Array.IndexOf(args, "--confirm-username");
+    var baseUrlIndex = Array.IndexOf(args, "--base-url");
+    if (usernameIndex < 0 || usernameIndex + 1 >= args.Length || confirmIndex < 0 || confirmIndex + 1 >= args.Length || baseUrlIndex < 0 || baseUrlIndex + 1 >= args.Length ||
+        !Uri.TryCreate(args[baseUrlIndex + 1], UriKind.Absolute, out var baseUrl) || baseUrl.Scheme is not ("http" or "https"))
+        throw new InvalidOperationException("Owner reset-link creation requires --username <owner>, --confirm-username <owner>, and --base-url <absolute-url>.");
+    await using var scope = app.Services.CreateAsyncScope();
+    var token = await scope.ServiceProvider.GetRequiredService<OperatorRecoveryService>().CreateOwnerRecoveryResetLinkAsync(args[usernameIndex + 1], args[confirmIndex + 1], CancellationToken.None);
+    Console.WriteLine(new Uri(baseUrl, $"/Account/ResetPassword/{token}").ToString());
+    return;
+}
+
+if (args.Contains("--slice1-promote-retained-owner", StringComparer.Ordinal))
+{
+    var usernameIndex = Array.IndexOf(args, "--username"); var confirmIndex = Array.IndexOf(args, "--confirm-username");
+    if (usernameIndex < 0 || usernameIndex + 1 >= args.Length || confirmIndex < 0 || confirmIndex + 1 >= args.Length) throw new InvalidOperationException("Retained owner promotion requires --username and --confirm-username.");
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider.GetRequiredService<OperatorRecoveryService>().PromoteRetainedOwnerAsync(args[usernameIndex + 1], args[confirmIndex + 1], CancellationToken.None);
+    Console.WriteLine("Preflight-selected retained Admin promoted to Super Admin."); return;
+}
+
+if (args.Contains("--slice1-bootstrap-owner", StringComparer.Ordinal))
+{
+    var usernameIndex = Array.IndexOf(args, "--username");
+    var confirmIndex = Array.IndexOf(args, "--confirm-username");
+    var password = app.Configuration["Slice1:BootstrapOwnerPassword"];
+    if (usernameIndex < 0 || usernameIndex + 1 >= args.Length || string.IsNullOrWhiteSpace(password) || confirmIndex < 0 || confirmIndex + 1 >= args.Length)
+        throw new InvalidOperationException("Owner bootstrap requires --username <username>, --confirm-username <username>, and the Slice1:BootstrapOwnerPassword secret.");
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider.GetRequiredService<OperatorRecoveryService>().BootstrapOwnerAsync(args[usernameIndex + 1], password, args[confirmIndex + 1], CancellationToken.None);
+    Console.WriteLine("Initial Super Admin bootstrap completed.");
+    return;
+}
+
 if (args.Contains("--apply-catalogue-snapshot", StringComparer.Ordinal))
 {
     await using var snapshotScope = app.Services.CreateAsyncScope();
@@ -157,6 +245,13 @@ if (args.Contains("--apply-catalogue-snapshot", StringComparer.Ordinal))
     var result = await snapshots.ApplyAsync(catalogueSnapshotPath);
     Console.WriteLine($"Catalogue snapshot applied from {catalogueSnapshotPath}: {result.Bosses} bosses, {result.Items} items, {result.Drops} drops, {result.Variants} variants.");
     return;
+}
+
+if (app.Environment.IsProduction())
+{
+    await using var ownerScope = app.Services.CreateAsyncScope();
+    var ownerCount = await ownerScope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Accounts.CountAsync(account => account.Active && account.GlobalRole == GlobalRole.SuperAdmin);
+    if (ownerCount != 1) throw new InvalidOperationException("Production startup requires exactly one active Super Admin. Use the controlled bootstrap, retained-owner promotion, or recovery command before starting normally.");
 }
 
 if (args.Contains("--apply-wiki-catalogue", StringComparer.Ordinal))

@@ -44,6 +44,7 @@ public sealed partial class EventLifecycleWorker(IServiceScopeFactory scopes, Ti
         }
 
         if (events.Count > 0) await db.SaveChangesAsync(ct);
+        await scope.ServiceProvider.GetRequiredService<EmergencyCredentialLifecycleService>().ApplyAsync(ct);
     }
     [LoggerMessage(Level = LogLevel.Error, Message = "Scheduled event lifecycle update failed.")]
     private static partial void LogFailure(ILogger logger, Exception exception);

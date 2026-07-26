@@ -1,0 +1,3 @@
+namespace Bingo.Domain.Access;
+
+public sealed class AccountOsrsCharacter { private AccountOsrsCharacter() { } public AccountOsrsCharacter(Guid id, Guid accountId, Guid osrsCharacterId, bool preferred, int position, DateTimeOffset now) { Id = id; AccountId = accountId; OsrsCharacterId = osrsCharacterId; Active = true; Preferred = preferred; Position = position; CreatedAt = UpdatedAt = now.ToUniversalTime(); } public Guid Id { get; private set; } public Guid AccountId { get; private set; } public Guid OsrsCharacterId { get; private set; } public bool Active { get; private set; } public bool Preferred { get; private set; } public int Position { get; private set; } public DateTimeOffset CreatedAt { get; private set; } public DateTimeOffset UpdatedAt { get; private set; } }

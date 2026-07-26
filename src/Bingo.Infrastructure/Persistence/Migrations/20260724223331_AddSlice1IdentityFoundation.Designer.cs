@@ -3,6 +3,7 @@ using System;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Bingo.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260724223331_AddSlice1IdentityFoundation")]
+    partial class AddSlice1IdentityFoundation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -202,10 +205,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("correction_only_from");
 
-                    b.Property<bool>("CutoffDisabled")
-                        .HasColumnType("boolean")
-                        .HasColumnName("cutoff_disabled");
-
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
@@ -344,43 +343,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.HasIndex("AccountId", "Purpose");
 
                     b.ToTable("password_credential_tokens", (string)null);
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Access.PersonalNotification", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Detail")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTimeOffset?>("ReadAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("RecipientAccountId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Route")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RecipientAccountId", "ReadAt", "CreatedAt");
-
-                    b.ToTable("personal_notifications", (string)null);
                 });
 
             modelBuilder.Entity("Bingo.Domain.Auditing.AuditEntry", b =>

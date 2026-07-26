@@ -38,6 +38,7 @@ public static class DependencyInjection
 
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IAuditWriter, AuditWriter>();
+        services.AddScoped<Slice1MigrationPreflight>();
         services.AddSingleton<ISecretHasher, SecretHasher>();
         services.AddSingleton<IPrivateEditTokenService, PrivateEditTokenService>();
         services.AddScoped<ISignupService, SignupService>();

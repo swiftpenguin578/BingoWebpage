@@ -81,13 +81,22 @@ public sealed class BingoEvent
 
     public bool AcceptsNewSubmissions(DateTimeOffset now)
     {
-        var cutoff = ReopenedSubmissionCutoffAt is not null && ReopenedSubmissionCutoffAt > SubmissionCutoffAt
-            ? ReopenedSubmissionCutoffAt.Value
-            : SubmissionCutoffAt;
+        var cutoff = ActiveSubmissionCutoff();
         return (State is EventState.Live or EventState.AwaitingFinalReview)
             && now >= EventStartsAt
             && now <= cutoff;
     }
+
+    /// <summary>Emergency credentials are disabled at the cutoff instant, even though ordinary evidence retains the inclusive cutoff rule.</summary>
+    public bool AcceptsEmergencySubmissions(DateTimeOffset now) =>
+        (State is EventState.Live or EventState.AwaitingFinalReview)
+        && now >= EventStartsAt
+        && now < ActiveSubmissionCutoff();
+
+    private DateTimeOffset ActiveSubmissionCutoff() =>
+        ReopenedSubmissionCutoffAt is not null && ReopenedSubmissionCutoffAt > SubmissionCutoffAt
+            ? ReopenedSubmissionCutoffAt.Value
+            : SubmissionCutoffAt;
 
     public void ConfigureSignup(bool waitingListEnabled, bool allowPrivateEditing, bool requireCode, string? codeHash)
     {
