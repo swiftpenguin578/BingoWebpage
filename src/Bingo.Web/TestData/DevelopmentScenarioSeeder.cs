@@ -1410,7 +1410,7 @@ public sealed class DevelopmentScenarioSeeder(
                 draft_picks, team_memberships, draft_sessions, teams,
                 board_requirement_drop_snapshots, board_requirement_boss_snapshots, board_requirement_snapshots,
                 board_tiles, template_requirement_drops, template_requirement_bosses, tile_template_requirements,
-                tile_templates, boards, signup_answers, signup_questions, event_participants,
+                tile_templates, boards, signup_answers, event_participant_characters, signup_questions, event_participants,
                 event_state_transitions, events, audit_entries, personal_notifications,
                 account_event_accesses, password_credential_tokens, account_discord_identity_transitions
             RESTART IDENTITY;

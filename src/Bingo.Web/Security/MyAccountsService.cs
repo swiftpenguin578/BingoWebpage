@@ -43,6 +43,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         ValidateEhb(savedEhb);
         await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
         var now = time.GetUtcNow();
+        await LockCharacterAsync(cleanName, ct);
         var character = await FindOrCreateCharacterAsync(cleanName, now, ct);
         var link = await db.AccountOsrsCharacters.SingleOrDefaultAsync(
             item => item.AccountId == accountId && item.OsrsCharacterId == character.Id, ct);
@@ -119,7 +120,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
     {
         var cleanName = RequireCharacterName(correctedName);
         await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
-        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({AccountIdentityService.NormalizeOsrsCharacterName(cleanName)}, 0))", ct);
+        await LockCharacterAsync(cleanName, ct);
         var link = await ActiveLinkAsync(accountId, linkId, ct);
         var now = time.GetUtcNow();
         var corrected = await FindOrCreateCharacterAsync(cleanName, now, ct);
@@ -190,6 +191,9 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         db.OsrsCharacters.Add(character);
         return character;
     }
+
+    private Task<int> LockCharacterAsync(string displayName, CancellationToken ct) =>
+        db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({AccountIdentityService.NormalizeOsrsCharacterName(displayName)}, 0))", ct);
 
     private async Task<bool> HasUpcomingOrLiveRegistrationAsync(Guid accountId, Guid characterId, CancellationToken ct) =>
         await (

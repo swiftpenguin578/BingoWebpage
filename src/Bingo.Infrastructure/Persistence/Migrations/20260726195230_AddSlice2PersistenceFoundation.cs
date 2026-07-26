@@ -118,7 +118,7 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     table.CheckConstraint("ck_event_participant_characters_ehb", "(event_role = 'Playing' AND ehb_snapshot IS NOT NULL AND ehb_snapshot >= 0 AND ehb_source IS NOT NULL) OR (event_role = 'Informational' AND ehb_snapshot IS NULL AND ehb_source IS NULL AND ehb_fetched_at IS NULL)");
                     table.CheckConstraint("ck_event_participant_characters_fetch", "(ehb_source = 'WiseOldMan' AND ehb_fetched_at IS NOT NULL) OR (ehb_source IS DISTINCT FROM 'WiseOldMan' AND ehb_fetched_at IS NULL)");
                     table.CheckConstraint("ck_event_participant_characters_registration_order", "registration_order >= 0");
-                    table.CheckConstraint("ck_event_participant_characters_release", "(released_at IS NULL AND released_by_account_id IS NULL) OR (released_at IS NOT NULL AND released_by_account_id IS NOT NULL)");
+                    table.CheckConstraint("ck_event_participant_characters_release", "released_at IS NOT NULL OR released_by_account_id IS NULL");
                     table.ForeignKey(
                         name: "FK_event_participant_characters_accounts_registered_by_account~",
                         column: x => x.registered_by_account_id,
@@ -215,7 +215,7 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                        p.ehb_snapshot,
                        CASE WHEN p.source = 'CsvImport' THEN 'Import' ELSE 'Manual' END,
                        NULL,
-                       NULL,
+                       CASE WHEN p.signup_status IN ('Withdrawn', 'Removed') THEN COALESCE(p.withdrawn_at, p.removed_at, p.signed_up_at) ELSE NULL END,
                        NULL,
                        1
                 FROM event_participants p
@@ -244,7 +244,7 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                        NULL,
                        NULL,
                        NULL,
-                       NULL,
+                       CASE WHEN p.signup_status IN ('Withdrawn', 'Removed') THEN COALESCE(p.withdrawn_at, p.removed_at, p.signed_up_at) ELSE NULL END,
                        NULL,
                        1
                 FROM event_participants p
@@ -253,6 +253,53 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                 WHERE p.second_account_name IS NOT NULL
                   AND btrim(p.second_account_name) <> ''
                   AND upper(btrim(p.second_account_name)) <> upper(btrim(p.primary_account_name));
+                """);
+
+            // Preserve every legacy row while making current reservations deterministic
+            // before the partial unique index is created. Playing assignments are the
+            // authoritative legacy primary; ambiguous multiple active Playing rows fail
+            // closed rather than silently selecting a competitive identity.
+            migrationBuilder.Sql("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1
+                        FROM event_participant_characters
+                        WHERE released_at IS NULL AND event_role = 'Playing'
+                        GROUP BY event_id, osrs_character_id
+                        HAVING count(*) > 1) THEN
+                        RAISE EXCEPTION 'Slice 2 migration cannot resolve multiple active Playing assignments for one event character.';
+                    END IF;
+                END $$;
+
+                UPDATE event_participant_characters informational
+                SET released_at = informational.registered_at,
+                    released_by_account_id = NULL
+                WHERE informational.released_at IS NULL
+                  AND informational.event_role = 'Informational'
+                  AND EXISTS (
+                      SELECT 1
+                      FROM event_participant_characters playing
+                      WHERE playing.event_id = informational.event_id
+                        AND playing.osrs_character_id = informational.osrs_character_id
+                        AND playing.released_at IS NULL
+                        AND playing.event_role = 'Playing');
+
+                WITH ranked AS (
+                    SELECT assignment.id,
+                           row_number() OVER (
+                               PARTITION BY assignment.event_id, assignment.osrs_character_id
+                               ORDER BY participant.signup_sequence, assignment.registration_order, participant.id, assignment.id) AS reservation_order
+                    FROM event_participant_characters assignment
+                    JOIN event_participants participant ON participant.id = assignment.event_participant_id
+                    WHERE assignment.released_at IS NULL
+                      AND assignment.event_role = 'Informational')
+                UPDATE event_participant_characters assignment
+                SET released_at = assignment.registered_at,
+                    released_by_account_id = NULL
+                FROM ranked
+                WHERE assignment.id = ranked.id
+                  AND ranked.reservation_order > 1;
                 """);
 
             migrationBuilder.CreateIndex(

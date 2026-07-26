@@ -2100,7 +2100,7 @@ namespace Bingo.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_event_participant_characters_registration_order", "registration_order >= 0");
 
-                            t.HasCheckConstraint("ck_event_participant_characters_release", "(released_at IS NULL AND released_by_account_id IS NULL) OR (released_at IS NOT NULL AND released_by_account_id IS NOT NULL)");
+                            t.HasCheckConstraint("ck_event_participant_characters_release", "released_at IS NOT NULL OR released_by_account_id IS NULL");
                         });
                 });
 

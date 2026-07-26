@@ -68,6 +68,7 @@ public sealed class ParticipantModel(
             return Page();
         }
 
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
         participant.UpdateSignupDetails(
             Clean(Input.DiscordIdentity), Clean(Input.Comments), Input.CaptainVolunteer);
         try
@@ -104,7 +105,18 @@ public sealed class ParticipantModel(
             else dbContext.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participantId, question.Id, question.Label, value));
         }
 
-        await dbContext.SaveChangesAsync(ct);
+        try
+        {
+            await dbContext.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+        }
+        catch (DbUpdateException exception) when (IsAssignmentReservationConflict(exception))
+        {
+            dbContext.ChangeTracker.Clear();
+            ModelState.AddModelError("Input.PrimaryAccountName", "That account is already signed up for this event.");
+            if (!await LoadAsync(id, participantId, false, ct)) return NotFound();
+            return Page();
+        }
         await auditWriter.WriteAsync(
             User.GetAccountId(), User.Identity!.Name!, "participant.details_updated", "participant", participant.Id.ToString(),
             $"Account: {(Input.PrimaryAccountName ?? string.Empty).Trim()}; EHB: {Input.Ehb}; payment: {participant.PaymentStatus}", ct);
@@ -144,7 +156,7 @@ public sealed class ParticipantModel(
 
         EventId = id;
         EventName = bingoEvent.Name;
-        var authority = await dbContext.PrimaryCharacters().AsNoTracking().SingleAsync(x => x.ParticipantId == participantId, ct);
+        var authority = await dbContext.AdminPrimaryCharacters().AsNoTracking().SingleAsync(x => x.ParticipantId == participantId, ct);
         var secondName = await (from assignment in dbContext.EventParticipantCharacters.AsNoTracking()
                                 join character in dbContext.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
                                 where assignment.EventParticipantId == participantId && assignment.ReleasedAt == null &&
@@ -236,6 +248,8 @@ public sealed class ParticipantModel(
     }
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static bool IsAssignmentReservationConflict(DbUpdateException exception) =>
+        exception.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_event_participant_characters_event_id_osrs_character_id" };
 
     public sealed class EditInput
     {

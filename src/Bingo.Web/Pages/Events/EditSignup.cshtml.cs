@@ -3,6 +3,7 @@ using Bingo.Application.Security;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Signups;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +35,7 @@ public sealed class EditSignupModel(
         var normalized = SignupService.NormalizeAccountName(Input.PrimaryAccountName);
         var duplicate = await dbContext.PrimaryCharacters().AnyAsync(p => p.EventId == participant.EventId && p.ParticipantId != participant.Id && p.NormalizedName == normalized, ct);
         if (duplicate) { ModelState.AddModelError("Input.PrimaryAccountName", text["That account is already signed up."]); return Page(); }
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
         participant.UpdateSignupDetails(Clean(Input.DiscordIdentity), Clean(Input.Comments), Input.CaptainVolunteer);
         try
         {
@@ -48,7 +50,20 @@ public sealed class EditSignupModel(
         }
         var existing = await dbContext.SignupAnswers.Where(a => a.EventParticipantId == participant.Id).ToDictionaryAsync(a => a.SignupQuestionId, ct);
         foreach (var question in Questions) { if (!Input.CustomAnswers.TryGetValue(question.Id, out var value) || string.IsNullOrWhiteSpace(value)) continue; if (existing.TryGetValue(question.Id, out var stored)) stored.Update(value.Trim()); else dbContext.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, question.Id, question.Label, value.Trim())); }
-        await dbContext.SaveChangesAsync(ct); TempData["StatusMessage"] = text["Your signup was updated."]; return RedirectToPage(new { slug, token });
+        try
+        {
+            await dbContext.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+        }
+        catch (DbUpdateException exception) when (IsAssignmentReservationConflict(exception))
+        {
+            dbContext.ChangeTracker.Clear();
+            ModelState.AddModelError("Input.PrimaryAccountName", text["That account is already signed up."]);
+            return Page();
+        }
+        TempData["StatusMessage"] = text["Your signup was updated."].Value;
+        TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
+        return RedirectToPage(new { slug, token });
     }
     private async Task<EventParticipant?> FindAsync(string slug, string token, CancellationToken ct)
     {
@@ -67,6 +82,8 @@ public sealed class EditSignupModel(
         return (primary, secondName);
     }
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static bool IsAssignmentReservationConflict(DbUpdateException exception) =>
+        exception.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_event_participant_characters_event_id_osrs_character_id" };
     public sealed class EditInput
     {
         [Required, StringLength(100), Display(Name = "In-game name")] public string PrimaryAccountName { get; set; } = string.Empty;

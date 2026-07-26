@@ -141,7 +141,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     {
         var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id, ct); if (item is null) return false;
         var participants = await dbContext.EventParticipants.AsNoTracking().Where(p => p.EventId == id && p.Source != SignupSource.AdminCreated).OrderBy(p => p.SignedUpAt).ThenBy(p => p.SignupSequence).ToListAsync(ct);
-        var authorities = await dbContext.PrimaryCharacters().AsNoTracking().Where(x => x.EventId == id).ToDictionaryAsync(x => x.ParticipantId, ct);
+        var authorities = await dbContext.AdminPrimaryCharacters().AsNoTracking().Where(x => x.EventId == id).ToDictionaryAsync(x => x.ParticipantId, ct);
         var waiting = participants.Where(p => p.SignupStatus == SignupStatus.WaitingList).Select((p, i) => (p.Id, Position: i + 1)).ToDictionary(x => x.Id, x => x.Position);
         var activeTeamIds = await dbContext.Teams.AsNoTracking().Where(team => team.EventId == id && team.Active).Select(team => team.Id).ToListAsync(ct);
         var membershipCounts = activeTeamIds.Count == 0
@@ -158,7 +158,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     }
     private Task AuditAsync(string action, BingoEvent item, string details, CancellationToken ct) => auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, action, "event", item.Id.ToString(), details, ct);
     private Task<string> PrimaryNameAsync(Guid participantId, CancellationToken ct) =>
-        dbContext.PrimaryCharacters().Where(x => x.ParticipantId == participantId).Select(x => x.Name).SingleAsync(ct);
+        dbContext.AdminPrimaryCharacters().Where(x => x.ParticipantId == participantId).Select(x => x.Name).SingleAsync(ct);
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     private bool HasBindingErrors(params string[] fields) => fields.Any(field => ModelState.TryGetValue(field, out var entry) && entry.Errors.Count > 0);
     public sealed record EventDetails(Guid Id, string Name, string Slug, EventState State, DateTimeOffset SignupOpensAt, DateTimeOffset SignupClosesAt, DateTimeOffset StartsAt, DateTimeOffset EndsAt, DateTimeOffset SubmissionCutoff, DateTimeOffset? ReopenedCutoff, int ParticipantCap, int Confirmed, int Waiting, bool DraftLocked, bool EvidenceCodeEnabled, int ActualTeamCount, string? ActualTeamSize, string? ActualBoardSize, int? ExpectedTeamCount, int? ExpectedTeamSize, string? ExpectedBoardSize, bool CanStartEvent);

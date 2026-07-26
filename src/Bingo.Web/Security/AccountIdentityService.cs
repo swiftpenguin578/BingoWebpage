@@ -60,6 +60,7 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
         if (string.IsNullOrWhiteSpace(characterName)) throw new InvalidOperationException("An OSRS character name is required.");
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         if (await db.Accounts.AnyAsync(x => x.NormalizedLoginName == normalized || x.DiscordUserId == discordUserId, ct)) throw new InvalidOperationException("That username or Discord account is already in use.");
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({normalizedCharacter}, 0))", ct);
         var now = time.GetUtcNow();
         var character = await db.OsrsCharacters.SingleOrDefaultAsync(x => x.NormalizedName == normalizedCharacter, ct) ?? new OsrsCharacter(Guid.NewGuid(), characterName, normalizedCharacter, now);
         if (db.Entry(character).State == EntityState.Detached) db.OsrsCharacters.Add(character);
@@ -145,7 +146,7 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
     public static void ValidatePassword(string password) { if (password.Length is < 10 or > 200) throw new InvalidOperationException("Passwords must be between 10 and 200 characters."); }
     public static string NormalizeOsrsCharacterName(string name) => name.Trim().ToUpperInvariant();
     public static string Hash(string raw) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
-    private static bool IsExpectedOnboardingCollision(DbUpdateException exception) => exception.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_accounts_normalized_login_name" or "IX_accounts_discord_user_id" or "IX_osrs_characters_normalized_name" };
+    private static bool IsExpectedOnboardingCollision(DbUpdateException exception) => exception.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_accounts_normalized_login_name" or "IX_accounts_discord_user_id" };
     private static bool IsExpectedUsernameCollision(DbUpdateException exception) => exception.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_accounts_normalized_login_name" };
     private static bool IsExpectedIdentityCollision(DbUpdateException exception) => exception.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_accounts_discord_user_id" };
 }

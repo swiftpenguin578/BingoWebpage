@@ -62,8 +62,14 @@ public sealed class EventParticipantCharacterService(ApplicationDbContext db, Ti
                 x => x.NormalizedName == target.NormalizedName, cancellationToken);
             if (character is null)
             {
-                character = new OsrsCharacter(Guid.NewGuid(), target.DisplayName, target.NormalizedName, now);
-                db.OsrsCharacters.Add(character);
+                await LockCharacterAsync(target.NormalizedName, cancellationToken);
+                character = await db.OsrsCharacters.SingleOrDefaultAsync(
+                    x => x.NormalizedName == target.NormalizedName, cancellationToken);
+                if (character is null)
+                {
+                    character = new OsrsCharacter(Guid.NewGuid(), target.DisplayName, target.NormalizedName, now);
+                    db.OsrsCharacters.Add(character);
+                }
             }
             var reserved = await db.EventParticipantCharacters.AnyAsync(
                 x => x.EventId == participant.EventId && x.OsrsCharacterId == character.Id &&
@@ -89,4 +95,8 @@ public sealed class EventParticipantCharacterService(ApplicationDbContext db, Ti
 
     private sealed record Desired(
         string DisplayName, string NormalizedName, EventCharacterRole Role, decimal? Ehb, EhbSource? Source);
+
+    private Task<int> LockCharacterAsync(string normalizedName, CancellationToken cancellationToken) =>
+        db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock(hashtextextended({normalizedName}, 0))", cancellationToken);
 }
