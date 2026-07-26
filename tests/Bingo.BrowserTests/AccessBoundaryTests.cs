@@ -134,6 +134,8 @@ public sealed class AccessBoundaryTests : IClassFixture<WebApplicationFactory<Pr
             Assert.Equal("Din konto er klar.", text["Your account is ready."]);
             Assert.Equal("Du er logget ud.", text["You have signed out."]);
             Assert.Equal("Din adgang er ændret. Log ind igen.", text["Your access changed. Please sign in again."]);
+            Assert.Equal("Hold en personlig, sorteret liste over OSRS-karakterer til fremtidige tilmeldinger.", text["Keep a personal ordered list of OSRS characters for future signups."]);
+            Assert.Equal("Tilføj en OSRS-karakter for at starte din liste.", text["Add an OSRS character to start your list."]);
             Assert.Equal("Brugernavn", text["Username"]);
             Assert.Equal("Adgangskode", text["Password"]);
             Assert.Equal("Nuværende adgangskode", text["Current password"]);

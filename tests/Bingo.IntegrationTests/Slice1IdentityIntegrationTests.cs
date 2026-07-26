@@ -194,10 +194,10 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             PageContext = new PageContext(new ActionContext(request, new RouteData(), new PageActionDescriptor()))
         };
         Assert.IsType<PageResult>(page.OnGet());
-        page.Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "slice1-onboarding", Password = "short", ConfirmPassword = "short" };
+        page.Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "slice1-onboarding", OsrsCharacterName = "Slice One", Password = "short", ConfirmPassword = "short" };
         Assert.IsType<PageResult>(await page.OnPostAsync(CancellationToken.None));
         Assert.True(onboarding.TryRead(request.Request, out _));
-        page.ModelState.Clear(); page.Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "slice1-onboarding-taken", Password = "long-onboarding-password", ConfirmPassword = "long-onboarding-password" };
+        page.ModelState.Clear(); page.Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "slice1-onboarding-taken", OsrsCharacterName = "Slice One", Password = "long-onboarding-password", ConfirmPassword = "long-onboarding-password" };
         Assert.IsType<PageResult>(await page.OnPostAsync(CancellationToken.None));
         Assert.Equal("slice1-onboarding-taken", page.Input.Username);
         Assert.Equal("long-onboarding-password", page.Input.Password);
@@ -214,7 +214,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         {
             PageContext = new PageContext(new ActionContext(request, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(request, new DictionaryTempDataProvider()),
-            Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "slice1-onboarding", Password = "long-onboarding-password", ConfirmPassword = "long-onboarding-password" }
+            Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "slice1-onboarding", OsrsCharacterName = "Slice One", Password = "long-onboarding-password", ConfirmPassword = "long-onboarding-password" }
         };
         Assert.IsType<RedirectToPageResult>(await retry.OnPostAsync(CancellationToken.None));
         Assert.Single(await db.Accounts.Where(account => account.DiscordUserId == "slice1-onboarding-discord").ToListAsync());
@@ -859,7 +859,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             {
                 PageContext = new PageContext(new ActionContext(request, new RouteData(), new PageActionDescriptor())),
                 TempData = new TempDataDictionary(request, new DictionaryTempDataProvider()),
-                Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "race-onboarding", Password = "long-race-password", ConfirmPassword = "long-race-password" }
+                Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "race-onboarding", OsrsCharacterName = "Race Character", Password = "long-race-password", ConfirmPassword = "long-race-password" }
             };
             var result = await page.OnPostAsync(CancellationToken.None);
             await db.DisposeAsync();
