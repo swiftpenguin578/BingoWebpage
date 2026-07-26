@@ -504,6 +504,11 @@
   <data name="Confirm your password." xml:space="preserve"><value>Bekræft din adgangskode.</value></data>
   <data name="The passwords do not match." xml:space="preserve"><value>Adgangskoderne matcher ikke.</value></data>
   <data name="Website username" xml:space="preserve"><value>Webbrugernavn</value></data>
+  <data name="Change website username" xml:space="preserve"><value>Skift webbrugernavn</value></data>
+  <data name="Your website username is separate from OSRS characters and Discord. It also becomes the username used for password login." xml:space="preserve"><value>Dit webbrugernavn er adskilt fra OSRS-karakterer og Discord. Det bliver også brugernavnet til adgangskodelogin.</value></data>
+  <data name="Your website username was changed." xml:space="preserve"><value>Dit webbrugernavn blev ændret.</value></data>
+  <data name="That website username is already in use." xml:space="preserve"><value>Dette webbrugernavn er allerede i brug.</value></data>
+  <data name="Your username change conflicted with another update. Please reload and try again." xml:space="preserve"><value>Din ændring af brugernavn er i konflikt med en anden opdatering. Genindlæs siden, og prøv igen.</value></data>
   <data name="First OSRS character" xml:space="preserve"><value>Første OSRS-karakter</value></data>
   <data name="Your website username is your public password-login identity. Most people use their primary OSRS character, but the two values do not need to match." xml:space="preserve"><value>Dit webbrugernavn er din offentlige identitet til login med adgangskode. De fleste bruger deres primære OSRS-karakter, men de to værdier behøver ikke at være ens.</value></data>
   <data name="Use the exact OSRS character spelling. We do not validate ownership, availability, or existence." xml:space="preserve"><value>Brug den præcise stavning af OSRS-karakteren. Vi validerer ikke ejerskab, tilgængelighed eller eksistens.</value></data>

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Infrastructure.Persistence;
@@ -11,6 +12,44 @@ namespace Bingo.Web.Security;
 /// <summary>Transactional Slice 1 identity mutations. Raw credential links never persist.</summary>
 public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHasher<Account> passwords, TimeProvider time)
 {
+    public async Task<UsernameRenameResult> RenameUsernameAsync(Guid accountId, string proposedUsername, string currentPassword, CancellationToken ct)
+    {
+        var username = proposedUsername.Trim();
+        if (string.IsNullOrWhiteSpace(username)) return UsernameRenameResult.InvalidUsername;
+
+        var normalized = AccountAuthenticationService.NormalizeUsername(username);
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var account = await db.Accounts.SingleOrDefaultAsync(candidate => candidate.Id == accountId, ct);
+        if (account is null || !account.Active || account.AccountType != AccountType.WebsiteAccount) return UsernameRenameResult.NotAvailable;
+        if (account.PasswordHash is null || passwords.VerifyHashedPassword(account, account.PasswordHash, currentPassword) == PasswordVerificationResult.Failed)
+            return UsernameRenameResult.WrongPassword;
+
+        var beforeUsername = account.PublicUsername;
+        var beforeNormalizedUsername = account.NormalizedPublicUsername;
+        account.RenameWebsiteUsername(username, normalized);
+        var now = time.GetUtcNow();
+        db.AuditEntries.Add(new AuditEntry(
+            Guid.NewGuid(), now, account.Id, account.LoginName, "account.username_changed", "account", account.Id.ToString(),
+            "Website username changed.",
+            beforeState: JsonSerializer.Serialize(new { username = beforeUsername, normalizedUsername = beforeNormalizedUsername }),
+            afterState: JsonSerializer.Serialize(new { username = account.PublicUsername, normalizedUsername = account.NormalizedPublicUsername })));
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return UsernameRenameResult.Success;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            await transaction.RollbackAsync(ct);
+            return UsernameRenameResult.ConcurrencyConflict;
+        }
+        catch (DbUpdateException exception) when (IsExpectedUsernameCollision(exception))
+        {
+            await transaction.RollbackAsync(ct);
+            return UsernameRenameResult.UsernameTaken;
+        }
+    }
     public async Task<Account> CompleteOnboardingAsync(string discordUserId, string? displayName, string username, string firstOsrsCharacter, string password, CancellationToken ct)
     {
         ValidatePassword(password);
@@ -107,5 +146,16 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
     public static string NormalizeOsrsCharacterName(string name) => name.Trim().ToUpperInvariant();
     public static string Hash(string raw) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
     private static bool IsExpectedOnboardingCollision(DbUpdateException exception) => exception.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_accounts_normalized_login_name" or "IX_accounts_discord_user_id" or "IX_osrs_characters_normalized_name" };
+    private static bool IsExpectedUsernameCollision(DbUpdateException exception) => exception.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_accounts_normalized_login_name" };
     private static bool IsExpectedIdentityCollision(DbUpdateException exception) => exception.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_accounts_discord_user_id" };
+}
+
+public enum UsernameRenameResult
+{
+    Success,
+    InvalidUsername,
+    WrongPassword,
+    UsernameTaken,
+    ConcurrencyConflict,
+    NotAvailable
 }

@@ -22,6 +22,8 @@ public static class SafeUserFailure
         "This event is not accepting submissions.",
         "You can only submit evidence for your own team.",
         "A public username is required.",
+        "That website username is already in use.",
+        "Your username change conflicted with another update. Please reload and try again.",
         "An OSRS character name is required.",
         "An OSRS character name must be 100 characters or fewer.",
         "That character is already in your My Accounts list.",

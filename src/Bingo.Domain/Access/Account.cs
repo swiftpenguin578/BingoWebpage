@@ -67,6 +67,18 @@ public sealed class Account
         ProfileOsrsCharacterId = profileCharacterId;
         OnboardingCompletedAt = now.ToUniversalTime();
     }
+    public void RenameWebsiteUsername(string publicUsername, string normalizedUsername)
+    {
+        RequireWebsite();
+        if (string.IsNullOrWhiteSpace(publicUsername) || string.IsNullOrWhiteSpace(normalizedUsername))
+            throw new InvalidOperationException("A public username is required.");
+
+        var trimmed = publicUsername.Trim();
+        LoginName = trimmed;
+        NormalizedLoginName = normalizedUsername;
+        PublicUsername = trimmed;
+        NormalizedPublicUsername = normalizedUsername;
+    }
     public void SetDiscordIdentity(string discordUserId, string? displayName)
     {
         RequireWebsite();

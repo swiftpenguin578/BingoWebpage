@@ -4,9 +4,19 @@
 <section class="form-page">
     <p class="eyebrow">@T["Account settings"]</p>
     <h1>@T["Security and Discord"]</h1>
-    <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+    <div asp-validation-summary="ModelOnly" class="validation-summary" tabindex="-1"></div>
     <div class="panel details-list"><p><strong>@T["Discord"]</strong><span>@(Model.DiscordLinked ? T["Linked"] : T["Not linked"])</span></p></div>
     <a class="btn btn-outline-light" asp-page="ChangePassword">@T["Change password"]</a>
+    @if (Model.IsWebsiteAccount)
+    {
+        <form method="post" asp-page-handler="RenameUsername" class="panel form-stack">
+            <h2>@T["Change website username"]</h2>
+            <p class="form-hint">@T["Your website username is separate from OSRS characters and Discord. It also becomes the username used for password login."]</p>
+            <label asp-for="Rename.Username">@T["Website username"]</label><input asp-for="Rename.Username" class="form-control" autocomplete="username" /><span asp-validation-for="Rename.Username" class="field-error"></span>
+            <label asp-for="Rename.CurrentPassword">@T["Current password"]</label><input asp-for="Rename.CurrentPassword" class="form-control" type="password" autocomplete="current-password" /><span asp-validation-for="Rename.CurrentPassword" class="field-error"></span>
+            <button class="btn action-accent-outline">@T["Change website username"]</button>
+        </form>
+    }
     <form method="post" asp-page-handler="BeginLink" class="panel form-stack" data-native-submit>
         <h2>@(Model.DiscordLinked ? T["Change linked Discord"] : T["Link Discord"])</h2>
         <label asp-for="CurrentPassword"></label><input asp-for="CurrentPassword" class="form-control" type="password" /><span asp-validation-for="CurrentPassword" class="field-error"></span>
