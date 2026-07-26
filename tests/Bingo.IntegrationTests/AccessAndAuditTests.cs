@@ -40,7 +40,8 @@ public sealed class AccessAndAuditTests : IAsyncLifetime
     {
         var now = DateTimeOffset.UtcNow;
         await using var dbContext = new ApplicationDbContext(_options);
-        var account = new Account(Guid.NewGuid(), "disabled", "DISABLED", AccountRole.Admin, now);
+        var account = Account.CreateWebsite(Guid.NewGuid(), "disabled", "DISABLED", now);
+        account.SetGlobalRole(GlobalRole.Admin);
         var hasher = new PasswordHasher<Account>();
         account.SetPasswordHash(hasher.HashPassword(account, "long-test-password"), false);
         account.Disable(now);
@@ -60,9 +61,11 @@ public sealed class AccessAndAuditTests : IAsyncLifetime
         await using var dbContext = new ApplicationDbContext(_options);
         var eventId = Guid.NewGuid();
         var teamId = Guid.NewGuid();
-        var account = new Account(Guid.NewGuid(), "captain", "CAPTAIN", AccountRole.Captain, now);
-        account.ScopeCaptain(eventId, teamId, null, null, now.AddDays(1));
+        var account = Account.CreateEmergency(Guid.NewGuid(), "captain", "CAPTAIN", now);
         dbContext.Accounts.Add(account);
+        var access = new AccountEventAccess(Guid.NewGuid(), account.Id, eventId, teamId, null, null, null, now.AddDays(1));
+        access.Enable();
+        dbContext.AccountEventAccesses.Add(access);
         await dbContext.SaveChangesAsync();
         var principal = new AccountAuthenticationService(
             dbContext,

@@ -175,18 +175,5 @@ public sealed class EventAndSignupRulesTests
         Assert.Equal(Now, snapshot.FinalizedAt);
     }
 
-    [Fact]
-    public void CaptainExpiryCanBeRescheduledFromFinalizationTime()
-    {
-        var account = new Account(Guid.NewGuid(), "Captain", "CAPTAIN", AccountRole.Captain, Now);
-        account.ScopeCaptain(Guid.NewGuid(), Guid.NewGuid(), Now, Now.AddDays(3), Now.AddDays(4));
-
-        account.ScheduleExpiry(Now.AddDays(3).AddHours(24));
-
-        Assert.Equal(Now.AddDays(4), account.ExpiresAt);
-        Assert.Equal(AccountAccessMode.CorrectionOnly, account.GetAccessMode(Now.AddDays(3).AddHours(1)));
-        Assert.Equal(AccountAccessMode.Disabled, account.GetAccessMode(Now.AddDays(4)));
-    }
-
     private static BingoEvent CreateEvent(int cap) => new(Guid.NewGuid(), "Test", "test", "Test", "Europe/Copenhagen", Now, Now.AddDays(1), Now.AddDays(2), Now.AddDays(3), Now.AddDays(4), cap, Guid.NewGuid(), Now);
 }

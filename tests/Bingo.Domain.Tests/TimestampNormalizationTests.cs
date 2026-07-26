@@ -17,13 +17,12 @@ public sealed class TimestampNormalizationTests
     }
 
     [Fact]
-    public void CaptainLifecycleTimesAreStoredAsUtc()
+    public void EmergencyAccessLifecycleTimesAreStoredAsUtc()
     {
         var local = new DateTimeOffset(2026, 7, 11, 18, 0, 0, TimeSpan.FromHours(2));
-        var account = new Account(Guid.NewGuid(), "captain", "CAPTAIN", AccountRole.Captain, local);
-        account.ScopeCaptain(Guid.NewGuid(), Guid.NewGuid(), local, local.AddHours(1), local.AddHours(2));
+        var access = new AccountEventAccess(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, local, local.AddHours(1), local.AddHours(2));
 
-        Assert.Equal(TimeSpan.Zero, account.ActiveFrom!.Value.Offset);
-        Assert.Equal(TimeSpan.Zero, account.ExpiresAt!.Value.Offset);
+        Assert.Equal(TimeSpan.Zero, access.ActiveFrom!.Value.Offset);
+        Assert.Equal(TimeSpan.Zero, access.ExpiresAt!.Value.Offset);
     }
 }
