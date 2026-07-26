@@ -1,6 +1,6 @@
 # Slice 2 — My Accounts and Event Character Assignment Plan
 
-**Status:** Slice 2 implementation in progress; Passes 2.1–2.3 are complete.
+**Status:** Slice 2 implementation in progress; Passes 2.1–2.4 are complete.
 
 **Prepared:** 2026-07-26
 

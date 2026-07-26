@@ -22,9 +22,13 @@
 
 **Shared enhanced-post history:** Successful same-page enhanced POST redirects now return a shared navigation response before `fetch` follows them. The shared client performs `location.replace` for the same logical page and `location.assign` for a genuine route change; validation HTML restores its state and applies replacement history after the replacement document loads. This keeps feedback, validation, focus, scroll, and query-string updates intact while one Back returns to the prior route. Ordinary no-JavaScript forms remain native PRG forms, whose browser-managed POST/redirect history cannot be controlled in the same way.
 
-**Pass 2.3 gate:** Met. The user approved the remaining desktop/intermediate/narrow, keyboard/focus, empty, unlink-warning, and correction-conflict visual/manual states. Safari skipping buttons under ordinary Tab is its browser accessibility preference, not a product focus-order defect; no tabindex or keyboard behavior was changed. Pass 2.4 username rename and later functionality were not started.
+**Pass 2.3 gate:** Met. The user approved the remaining desktop/intermediate/narrow, keyboard/focus, empty, unlink-warning, and correction-conflict visual/manual states. Safari skipping buttons under ordinary Tab is its browser accessibility preference, not a product focus-order defect; no tabindex or keyboard behavior was changed.
 
-**Next implementation action:** Implement only `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.4 (independent website username rename). Preserve My Accounts, event assignments, and protected signup/board/live-draft behavior, and do not continue into Pass 2.5 in the same task.
+**Slice 2 Pass 2.4:** Complete. Normal website accounts can change their independent website username on Account settings after confirming the current password. The transaction updates public/login and normalized username fields together, uses the existing account concurrency token and normalized-login unique index, maps expected uniqueness/concurrency outcomes to localized feedback, and records structured before/after `account.username_changed` audit state without the password. Emergency credentials cannot use the command. Successful changes reissue the current cookie with its authentication method and properties intact, preserving the 12-hour/Remember-me absolute expiry without changing authorization/password versions or invalidating unrelated sessions. The username form clearly distinguishes website identity from OSRS characters and Discord. No migration was needed. `DATA_MODEL.md` now corrects the obsolete active-link/participant-snapshot statement without altering migration history.
+
+**Pass 2.4 gate:** Met. The user approved all six requested manual checks after restarting the application from the correct Pass 2.4 worktree; the initially missing form was a stale Pass 2.3 process, not an implementation defect.
+
+**Next implementation action:** Implement only `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.5 (slice cleanup and final gate). Preserve the completed Pass 2.4 behavior and do not perform the complete suite before the Pass 2.5 final gate authorizes it.
 
 ## Verification
 
@@ -38,9 +42,11 @@
 
 2026-07-26 Slice 2 Pass 2.3 final remediation: added one focused browser-level enhanced-history regression covering route entry, two same-page My Accounts additions, returned feedback/content, and the shared replacement-navigation contract. Added Danish localization assertions for the approved introduction and empty state. The focused enhanced-history regression passed `1/1` against Testcontainers PostgreSQL; the affected Danish localization test passed `1/1`; `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers` passed with 0 warnings and 0 errors; formatting verification and `git diff --check` passed. No complete suite was run, as not authorized.
 
+2026-07-26 Slice 2 Pass 2.4 verification: focused `Slice2PersistenceIntegrationTests` passed `14/14` against Testcontainers PostgreSQL. The coverage includes successful trimmed/case-only display changes, wrong-password/no-audit behavior, normalized collision and emergency reservation/rejection, a real PostgreSQL unique-index race with exactly one winner, audit before/after state, My Accounts/Discord/participant/assignment/EHB preservation, refreshed password/Discord principal names, continuity of existing sessions without authorization/password-version invalidation, a native Settings form/login journey, and unchanged Remember-me absolute cookie expiry after reissue. `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers` passed with 0 warnings and 0 errors. Formatting verification and `git diff --check` passed. No complete suite was run, as reserved for Pass 2.5.
+
 ## Remaining work
 
-- Implement `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.4 only.
+- Implement `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.5 only.
 
 ## Historical summary
 
