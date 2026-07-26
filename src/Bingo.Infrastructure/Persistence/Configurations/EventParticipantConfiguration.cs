@@ -13,6 +13,7 @@ public sealed class EventParticipantConfiguration : IEntityTypeConfiguration<Eve
         entity.HasKey(item => item.Id);
         entity.Property(item => item.Id).HasColumnName("id");
         entity.Property(item => item.EventId).HasColumnName("event_id");
+        entity.Property(item => item.AccountId).HasColumnName("account_id");
         entity.Property(item => item.PrimaryAccountName).HasColumnName("primary_account_name").HasMaxLength(100);
         entity.Property(item => item.NormalizedPrimaryAccountName).HasColumnName("normalized_primary_account_name").HasMaxLength(100);
         entity.Property(item => item.SecondAccountName).HasColumnName("second_account_name").HasMaxLength(100);
@@ -34,7 +35,10 @@ public sealed class EventParticipantConfiguration : IEntityTypeConfiguration<Eve
         entity.Property(item => item.FormVersion).HasColumnName("form_version");
         entity.Property(item => item.Source).HasColumnName("source").HasConversion<string>().HasMaxLength(30);
         entity.HasIndex(item => new { item.EventId, item.SignupSequence }).IsUnique();
+        entity.HasAlternateKey(item => new { item.EventId, item.Id });
+        entity.HasIndex(item => new { item.EventId, item.AccountId }).IsUnique().HasFilter("account_id IS NOT NULL");
         entity.HasIndex(item => new { item.EventId, item.NormalizedPrimaryAccountName });
         entity.HasIndex(item => item.PrivateEditTokenHash).IsUnique();
+        entity.HasOne<Bingo.Domain.Access.Account>().WithMany().HasForeignKey(item => item.AccountId).OnDelete(DeleteBehavior.Restrict);
     }
 }

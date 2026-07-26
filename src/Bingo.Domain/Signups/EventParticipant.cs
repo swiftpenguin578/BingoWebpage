@@ -1,3 +1,5 @@
+using Bingo.Domain.Access;
+
 namespace Bingo.Domain.Signups;
 
 public sealed class EventParticipant
@@ -25,6 +27,7 @@ public sealed class EventParticipant
 
     public Guid Id { get; private set; }
     public Guid EventId { get; private set; }
+    public Guid? AccountId { get; private set; }
     public string PrimaryAccountName { get; private set; } = string.Empty;
     public string NormalizedPrimaryAccountName { get; private set; } = string.Empty;
     public string? SecondAccountName { get; private set; }
@@ -45,6 +48,15 @@ public sealed class EventParticipant
     public string? PrivateEditTokenHash { get; private set; }
     public int FormVersion { get; private set; } = 1;
     public SignupSource Source { get; private set; }
+
+    public void AssignOwner(Account account)
+    {
+        if (account.AccountType != AccountType.WebsiteAccount)
+            throw new InvalidOperationException("Only a website account can own an event participant.");
+        if (AccountId is not null && AccountId != account.Id)
+            throw new InvalidOperationException("Participant ownership is already assigned.");
+        AccountId = account.Id;
+    }
 
     public void UpdatePublicDetails(string primaryName, string normalizedName, decimal ehb, string? secondName, string? discord, string? comments, bool captainVolunteer)
     {

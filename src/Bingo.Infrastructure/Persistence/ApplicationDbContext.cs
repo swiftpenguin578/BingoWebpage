@@ -30,6 +30,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         ChangeTracker.DetectChanges();
         foreach (var entry in ChangeTracker.Entries<Account>().Where(entry => entry.State == EntityState.Modified))
             entry.Entity.AdvanceVersion();
+        foreach (var entry in ChangeTracker.Entries<AccountOsrsCharacter>().Where(entry => entry.State == EntityState.Modified))
+            entry.Entity.AdvanceVersion();
+        foreach (var entry in ChangeTracker.Entries<EventParticipantCharacter>().Where(entry => entry.State == EntityState.Modified))
+            entry.Entity.AdvanceVersion();
     }
     public DbSet<SystemMetadata> SystemMetadata => Set<SystemMetadata>();
 
@@ -49,6 +53,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<FinalReviewResolution> FinalReviewResolutions => Set<FinalReviewResolution>();
     public DbSet<TeamCompletionCorrection> TeamCompletionCorrections => Set<TeamCompletionCorrection>();
     public DbSet<EventParticipant> EventParticipants => Set<EventParticipant>();
+    public DbSet<EventParticipantCharacter> EventParticipantCharacters => Set<EventParticipantCharacter>();
     public DbSet<SignupQuestion> SignupQuestions => Set<SignupQuestion>();
     public DbSet<SignupAnswer> SignupAnswers => Set<SignupAnswer>();
     public DbSet<BossActivity> BossActivities => Set<BossActivity>();
@@ -128,7 +133,34 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         modelBuilder.Entity<PasswordCredentialToken>(entity => { entity.ToTable("password_credential_tokens"); entity.HasKey(x => x.Id); entity.HasIndex(x => x.TokenHash).IsUnique(); entity.HasIndex(x => new { x.AccountId, x.Purpose }); entity.Property(x => x.Purpose).HasConversion<string>().HasMaxLength(30); entity.Property(x => x.TokenHash).HasMaxLength(200); });
         modelBuilder.Entity<AccountDiscordIdentityTransition>(entity => { entity.ToTable("account_discord_identity_transitions"); entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.AccountId, x.OccurredAt }); entity.Property(x => x.Action).HasMaxLength(30); });
         modelBuilder.Entity<OsrsCharacter>(entity => { entity.ToTable("osrs_characters"); entity.HasKey(x => x.Id); entity.Property(x => x.DisplayName).HasMaxLength(100); entity.Property(x => x.NormalizedName).HasMaxLength(100); entity.HasIndex(x => x.NormalizedName).IsUnique(); });
-        modelBuilder.Entity<AccountOsrsCharacter>(entity => { entity.ToTable("account_osrs_characters"); entity.HasKey(x => x.Id); entity.Property(x => x.Active).HasColumnName("active"); entity.Property(x => x.Preferred).HasColumnName("preferred"); entity.HasIndex(x => new { x.AccountId, x.OsrsCharacterId }).IsUnique(); entity.HasIndex(x => x.AccountId).IsUnique().HasFilter("active AND preferred"); });
+        modelBuilder.Entity<AccountOsrsCharacter>(entity =>
+        {
+            entity.ToTable("account_osrs_characters");
+            entity.HasKey(x => x.Id);
+            entity.Ignore(x => x.SortOrder);
+            entity.Property(x => x.Active).HasColumnName("active");
+            entity.Property(x => x.Preferred).HasColumnName("preferred");
+            entity.Property(x => x.LinkedAt).HasColumnName("linked_at");
+            entity.Property(x => x.LinkedByAccountId).HasColumnName("linked_by_account_id");
+            entity.Property(x => x.UnlinkedAt).HasColumnName("unlinked_at");
+            entity.Property(x => x.PersonalLabel).HasColumnName("personal_label").HasMaxLength(100);
+            entity.Property(x => x.Position).HasColumnName("sort_order");
+            entity.Property(x => x.SavedEhb).HasColumnName("saved_ehb").HasPrecision(12, 2);
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(x => x.Version).HasColumnName("version").IsConcurrencyToken();
+            entity.HasIndex(x => new { x.AccountId, x.OsrsCharacterId }).IsUnique();
+            entity.HasIndex(x => x.AccountId).IsUnique().HasFilter("active AND preferred");
+            entity.HasOne<Account>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Account>().WithMany().HasForeignKey(x => x.LinkedByAccountId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<OsrsCharacter>().WithMany().HasForeignKey(x => x.OsrsCharacterId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("ck_account_osrs_characters_active_history", "(active AND unlinked_at IS NULL) OR (NOT active AND unlinked_at IS NOT NULL)");
+                table.HasCheckConstraint("ck_account_osrs_characters_saved_ehb", "saved_ehb IS NULL OR saved_ehb >= 0");
+                table.HasCheckConstraint("ck_account_osrs_characters_sort_order", "sort_order >= 0");
+            });
+        });
 
         modelBuilder.Entity<AuditEntry>(entity =>
         {
