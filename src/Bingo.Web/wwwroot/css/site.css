@@ -3030,6 +3030,32 @@ th {
   border-bottom: 0;
 }
 
+.my-accounts-page { max-width: 56rem; }
+.my-accounts-list > .page-heading { align-items: start; margin-bottom: 0.8rem; }
+.my-accounts-list > .page-heading h2 { margin: 0; font-size: 1.2rem; }
+.my-accounts-list > .page-heading p { max-width: 34rem; margin: 0.25rem 0 0; color: var(--muted); font-size: 0.82rem; }
+.my-accounts-list-items { display: grid; gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
+.my-account-card { display: grid; gap: 0.7rem; padding: 0.85rem; background: color-mix(in srgb, var(--surface-raised) 45%, var(--surface)); border: 1px solid var(--border); border-radius: 0.55rem; }
+.my-account-card > header, .my-account-card > header > div, .my-account-actions, .my-account-order { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.my-account-card > header { justify-content: space-between; gap: 0.75rem; }
+.my-account-card form { margin: 0; }
+.my-account-position { color: var(--muted); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.account-state { padding: 0.15rem 0.4rem; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 58%, var(--border)); border-radius: 999px; font-size: 0.68rem; font-weight: 700; }
+.account-entry-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.55rem 0.7rem; align-items: end; }
+.account-entry-form > label, .account-entry-form > .field-error, .account-entry-form > .form-hint { grid-column: 1 / -1; }
+.account-entry-form > button { width: fit-content; }
+.account-entry-form.compact { grid-template-columns: minmax(0, 1fr) minmax(0, 9rem) auto; }
+.account-entry-form.compact > label { grid-column: auto; }
+.my-account-correction summary { width: fit-content; color: var(--accent); cursor: pointer; }
+.my-account-correction .account-entry-form { margin-top: 0.7rem; }
+.account-warning { border-color: color-mix(in srgb, var(--danger) 60%, var(--border)); }
+.empty-drop-list { display: grid; gap: 0.25rem; }
+@media (max-width: 650px) {
+  .account-entry-form, .account-entry-form.compact { grid-template-columns: 1fr; }
+  .account-entry-form.compact > label { grid-column: 1; }
+  .my-account-card > header { align-items: start; flex-direction: column; }
+}
+
 .admin-links a {
   color: inherit;
   text-decoration: none;

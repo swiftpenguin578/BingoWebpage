@@ -20,7 +20,16 @@ public static class SafeUserFailure
         "The current password is incorrect.",
         "This submission is no longer editable.",
         "This event is not accepting submissions.",
-        "You can only submit evidence for your own team."
+        "You can only submit evidence for your own team.",
+        "A public username is required.",
+        "An OSRS character name is required.",
+        "An OSRS character name must be 100 characters or fewer.",
+        "That character is already in your My Accounts list.",
+        "That character is no longer available in your My Accounts list.",
+        "That move is not available.",
+        "That corrected character already has a separate My Accounts link.",
+        "Saved EHB cannot be negative.",
+        "Your My Accounts changes conflicted with another update. Please reload and try again."
     ];
 
     public static string Message(IStringLocalizer<SharedResource> text, ILogger logger, Exception exception)

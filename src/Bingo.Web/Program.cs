@@ -59,6 +59,7 @@ builder.Services.Configure<DiscordAuthenticationOptions>(builder.Configuration.G
 builder.Services.AddScoped<IPasswordHasher<Account>, PasswordHasher<Account>>();
 builder.Services.AddScoped<AccountAuthenticationService>();
 builder.Services.AddScoped<AccountIdentityService>();
+builder.Services.AddScoped<MyAccountsService>();
 builder.Services.AddSingleton<DiscordOnboardingStateService>();
 builder.Services.AddScoped<AccountAdministrationService>();
 builder.Services.AddScoped<EmergencyCredentialService>();
@@ -395,6 +396,24 @@ app.Use(async (context, next) =>
     }
 
     await next();
+});
+app.Use(async (context, next) =>
+{
+    await next();
+
+    if (context.Response.HasStarted ||
+        !HttpMethods.IsPost(context.Request.Method) ||
+        !string.Equals(context.Request.Headers["X-Bingo-Enhanced-Post"], "true", StringComparison.OrdinalIgnoreCase) ||
+        context.Response.StatusCode is < StatusCodes.Status300MultipleChoices or >= StatusCodes.Status400BadRequest ||
+        !context.Response.Headers.TryGetValue("Location", out var location) ||
+        string.IsNullOrWhiteSpace(location))
+    {
+        return;
+    }
+
+    context.Response.Headers["X-Bingo-Post-Navigation"] = location.ToString();
+    context.Response.Headers.Remove("Location");
+    context.Response.StatusCode = StatusCodes.Status204NoContent;
 });
 app.UseAuthorization();
 

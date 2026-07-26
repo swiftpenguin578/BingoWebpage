@@ -58,6 +58,12 @@ public sealed class EventParticipantCharacter
         EhbFetchedAt = fetchedAt?.ToUniversalTime();
     }
 
+    public void ReplaceCharacter(Guid osrsCharacterId)
+    {
+        if (ReleasedAt is not null) throw new InvalidOperationException("Released event assignments cannot be corrected.");
+        OsrsCharacterId = osrsCharacterId;
+    }
+
     public void Release(Guid? actorAccountId, DateTimeOffset now)
     {
         if (ReleasedAt is not null) return;

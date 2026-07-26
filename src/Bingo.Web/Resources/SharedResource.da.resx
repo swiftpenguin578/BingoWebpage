@@ -503,4 +503,53 @@
   <data name="A password is required." xml:space="preserve"><value>En adgangskode er påkrævet.</value></data>
   <data name="Confirm your password." xml:space="preserve"><value>Bekræft din adgangskode.</value></data>
   <data name="The passwords do not match." xml:space="preserve"><value>Adgangskoderne matcher ikke.</value></data>
+  <data name="Website username" xml:space="preserve"><value>Webbrugernavn</value></data>
+  <data name="First OSRS character" xml:space="preserve"><value>Første OSRS-karakter</value></data>
+  <data name="Your website username is your public password-login identity. Most people use their primary OSRS character, but the two values do not need to match." xml:space="preserve"><value>Dit webbrugernavn er din offentlige identitet til login med adgangskode. De fleste bruger deres primære OSRS-karakter, men de to værdier behøver ikke at være ens.</value></data>
+  <data name="Use the exact OSRS character spelling. We do not validate ownership, availability, or existence." xml:space="preserve"><value>Brug den præcise stavning af OSRS-karakteren. Vi validerer ikke ejerskab, tilgængelighed eller eksistens.</value></data>
+  <data name="My accounts" xml:space="preserve"><value>Mine konti</value></data>
+  <data name="Your OSRS characters" xml:space="preserve"><value>Dine OSRS-karakterer</value></data>
+  <data name="Keep a personal ordered list of OSRS characters for future signups." xml:space="preserve"><value>Hold en personlig, sorteret liste over OSRS-karakterer til fremtidige tilmeldinger.</value></data>
+  <data name="Add OSRS character" xml:space="preserve"><value>Tilføj OSRS-karakter</value></data>
+  <data name="OSRS character" xml:space="preserve"><value>OSRS-karakter</value></data>
+  <data name="Personal label" xml:space="preserve"><value>Personlig etiket</value></data>
+  <data name="Saved EHB" xml:space="preserve"><value>Gemt EHB</value></data>
+  <data name="Add character" xml:space="preserve"><value>Tilføj karakter</value></data>
+  <data name="Event registration remains" xml:space="preserve"><value>Eventtilmelding bevares</value></data>
+  <data name="Unlinking {0} only hides it from future My Accounts selectors. Its upcoming or live event registration remains unchanged." xml:space="preserve"><value>Fjernelse af tilknytningen til {0} skjuler kun karakteren i fremtidige vælgere i Mine konti. Dens kommende eller live eventtilmelding ændres ikke.</value></data>
+  <data name="Unlink character" xml:space="preserve"><value>Fjern karaktertilknytning</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Annuller</value></data>
+  <data name="Linked characters" xml:space="preserve"><value>Tilknyttede karakterer</value></data>
+  <data name="Your list order is used for future selectors. Saved EHB never changes an existing event registration." xml:space="preserve"><value>Din listerækkefølge bruges i fremtidige vælgere. Gemt EHB ændrer aldrig en eksisterende eventtilmelding.</value></data>
+  <data name="No OSRS characters yet" xml:space="preserve"><value>Ingen OSRS-karakterer endnu</value></data>
+  <data name="Add an OSRS character to start your list." xml:space="preserve"><value>Tilføj en OSRS-karakter for at starte din liste.</value></data>
+  <data name="#{0}" xml:space="preserve"><value>#{0}</value></data>
+  <data name="Preferred" xml:space="preserve"><value>Foretrukken</value></data>
+  <data name="Change list order" xml:space="preserve"><value>Skift listerækkefølge</value></data>
+  <data name="Move {0} up" xml:space="preserve"><value>Flyt {0} op</value></data>
+  <data name="Move {0} down" xml:space="preserve"><value>Flyt {0} ned</value></data>
+  <data name="Save details" xml:space="preserve"><value>Gem detaljer</value></data>
+  <data name="Make preferred" xml:space="preserve"><value>Gør foretrukken</value></data>
+  <data name="Unlink" xml:space="preserve"><value>Fjern tilknytning</value></data>
+  <data name="This character is registered for an upcoming or live event. Unlinking will not change that registration." xml:space="preserve"><value>Denne karakter er tilmeldt et kommende eller live event. Fjernelse af tilknytningen ændrer ikke tilmeldingen.</value></data>
+  <data name="Correct spelling" xml:space="preserve"><value>Ret stavning</value></data>
+  <data name="Correct OSRS character spelling" xml:space="preserve"><value>Ret OSRS-karakterens stavning</value></data>
+  <data name="This updates your link and any currently editable registrations that use this character. Closed and live history stays unchanged." xml:space="preserve"><value>Dette opdaterer din tilknytning og alle tilmeldinger, der stadig kan redigeres, og som bruger denne karakter. Lukket og live historik forbliver uændret.</value></data>
+  <data name="Correct character" xml:space="preserve"><value>Ret karakter</value></data>
+  <data name="Character added to My Accounts." xml:space="preserve"><value>Karakter føjet til Mine konti.</value></data>
+  <data name="My Accounts details saved." xml:space="preserve"><value>Detaljer i Mine konti er gemt.</value></data>
+  <data name="Preferred character updated." xml:space="preserve"><value>Foretrukken karakter opdateret.</value></data>
+  <data name="Character unlinked from My Accounts." xml:space="preserve"><value>Karaktertilknytning fjernet fra Mine konti.</value></data>
+  <data name="OSRS character spelling corrected." xml:space="preserve"><value>Stavning af OSRS-karakter rettet.</value></data>
+  <data name="My Accounts order updated." xml:space="preserve"><value>Rækkefølgen i Mine konti er opdateret.</value></data>
+  <data name="Confirm that the event registration will remain before unlinking this character." xml:space="preserve"><value>Bekræft, at eventtilmeldingen bevares, før du fjerner tilknytningen til denne karakter.</value></data>
+  <data name="The corrected character is already registered in {0}." xml:space="preserve"><value>Den rettede karakter er allerede tilmeldt i {0}.</value></data>
+  <data name="An OSRS character name is required." xml:space="preserve"><value>Et OSRS-karakternavn er påkrævet.</value></data>
+  <data name="An OSRS character name must be 100 characters or fewer." xml:space="preserve"><value>Et OSRS-karakternavn må højst være på 100 tegn.</value></data>
+  <data name="That character is already in your My Accounts list." xml:space="preserve"><value>Denne karakter er allerede på din liste i Mine konti.</value></data>
+  <data name="That character is no longer available in your My Accounts list." xml:space="preserve"><value>Denne karakter er ikke længere tilgængelig på din liste i Mine konti.</value></data>
+  <data name="That move is not available." xml:space="preserve"><value>Den flytning er ikke mulig.</value></data>
+  <data name="That corrected character already has a separate My Accounts link." xml:space="preserve"><value>Den rettede karakter har allerede en separat tilknytning i Mine konti.</value></data>
+  <data name="Saved EHB cannot be negative." xml:space="preserve"><value>Gemt EHB kan ikke være negativ.</value></data>
+  <data name="Your My Accounts changes conflicted with another update. Please reload and try again." xml:space="preserve"><value>Dine ændringer i Mine konti var i konflikt med en anden opdatering. Genindlæs og prøv igen.</value></data>
 </root>

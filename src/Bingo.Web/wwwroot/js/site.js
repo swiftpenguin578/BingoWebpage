@@ -112,11 +112,14 @@ function initializePostNavigation() {
     buttons.forEach(button => button.disabled = true);
 
     try {
+      const headers = { "X-Requested-With": "XMLHttpRequest" };
+      if (!form.dataset.updateTargets) headers["X-Bingo-Enhanced-Post"] = "true";
+
       const response = await fetch(action, {
         method: "POST",
         body: formData,
         credentials: "same-origin",
-        headers: { "X-Requested-With": "XMLHttpRequest" }
+        headers
       });
 
       const disposition = response.headers.get("Content-Disposition") || "";
@@ -126,13 +129,19 @@ function initializePostNavigation() {
         return;
       }
 
+      const navigation = response.headers.get("X-Bingo-Post-Navigation");
+      if (navigation) {
+        navigatePostResponse(pageState, currentUrl, navigation);
+        return;
+      }
+
       const contentType = response.headers.get("Content-Type") || "";
       if (contentType.toLowerCase().includes("text/html")) {
         const html = await response.text();
         const destination = response.redirected ? response.url : currentUrl;
         const updatedSelectors = updatePostTargets(form, html, currentUrl, destination);
         if (updatedSelectors) {
-          window.history.replaceState(window.history.state, "", destination);
+          replaceSamePageHistory(currentUrl, destination);
           document.dispatchEvent(new CustomEvent("bingo:content-updated", {
             detail: { selectors: updatedSelectors }
           }));
@@ -140,8 +149,10 @@ function initializePostNavigation() {
           return;
         }
 
-        rememberPostNavigationState(pageState, currentUrl, destination);
-        window.history.replaceState(window.history.state, "", destination);
+        if (!rememberPostNavigationState(pageState, currentUrl, destination)) {
+          window.location.assign(destination);
+          return;
+        }
         document.open();
         document.write(html);
         document.close();
@@ -160,6 +171,15 @@ function initializePostNavigation() {
       buttons.forEach((button, index) => button.disabled = buttonStates[index]);
     }
   });
+}
+
+function navigatePostResponse(pageState, currentUrl, destination) {
+  if (rememberPostNavigationState(pageState, currentUrl, destination)) {
+    window.location.replace(destination);
+    return;
+  }
+
+  window.location.assign(destination);
 }
 
 function updatePostTargets(form, html, currentUrl, destination) {
@@ -188,6 +208,18 @@ function updatePostTargets(form, html, currentUrl, destination) {
 
 var postNavigationStateKey = "bingo:post-navigation-state";
 
+function isSamePostNavigationPage(currentUrl, destination) {
+  const current = new URL(currentUrl);
+  const next = new URL(destination, currentUrl);
+  return current.origin === next.origin && current.pathname === next.pathname;
+}
+
+function replaceSamePageHistory(currentUrl, destination) {
+  if (!isSamePostNavigationPage(currentUrl, destination)) return false;
+  window.history.replaceState(window.history.state, "", destination);
+  return true;
+}
+
 function capturePostNavigationState() {
   const details = [...document.querySelectorAll("details")]
     .filter(detail => !detail.closest(".nav-popover") && !detail.matches("[data-no-post-restore]"))
@@ -206,18 +238,19 @@ function capturePostNavigationState() {
 }
 
 function rememberPostNavigationState(state, currentUrl, destination) {
-  const current = new URL(currentUrl);
   const next = new URL(destination, currentUrl);
-  if (current.origin !== next.origin || current.pathname !== next.pathname) {
+  if (!isSamePostNavigationPage(currentUrl, destination)) {
     sessionStorage.removeItem(postNavigationStateKey);
-    return;
+    return false;
   }
 
   sessionStorage.setItem(postNavigationStateKey, JSON.stringify({
     ...state,
     path: next.pathname,
+    destination: `${next.pathname}${next.search}${next.hash}`,
     savedAt: Date.now()
   }));
+  return true;
 }
 
 function restorePostNavigationState() {
@@ -228,6 +261,7 @@ function restorePostNavigationState() {
   try {
     const state = JSON.parse(serialized);
     if (state.path !== window.location.pathname || Date.now() - state.savedAt > 30_000) return;
+    replaceSamePageHistory(window.location.href, state.destination || window.location.href);
     applyPostNavigationState(state);
   } catch {
     // A stale or malformed entry should never prevent the page from loading.

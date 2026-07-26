@@ -11,15 +11,18 @@ namespace Bingo.Web.Security;
 /// <summary>Transactional Slice 1 identity mutations. Raw credential links never persist.</summary>
 public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHasher<Account> passwords, TimeProvider time)
 {
-    public async Task<Account> CompleteOnboardingAsync(string discordUserId, string? displayName, string username, string password, CancellationToken ct)
+    public async Task<Account> CompleteOnboardingAsync(string discordUserId, string? displayName, string username, string firstOsrsCharacter, string password, CancellationToken ct)
     {
         ValidatePassword(password);
         var name = username.Trim(); var normalized = AccountAuthenticationService.NormalizeUsername(name);
+        var characterName = firstOsrsCharacter.Trim(); var normalizedCharacter = NormalizeOsrsCharacterName(characterName);
         if (string.IsNullOrWhiteSpace(discordUserId)) throw new InvalidOperationException("Discord authentication is required.");
+        if (string.IsNullOrWhiteSpace(name)) throw new InvalidOperationException("A public username is required.");
+        if (string.IsNullOrWhiteSpace(characterName)) throw new InvalidOperationException("An OSRS character name is required.");
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         if (await db.Accounts.AnyAsync(x => x.NormalizedLoginName == normalized || x.DiscordUserId == discordUserId, ct)) throw new InvalidOperationException("That username or Discord account is already in use.");
         var now = time.GetUtcNow();
-        var character = await db.OsrsCharacters.SingleOrDefaultAsync(x => x.NormalizedName == normalized, ct) ?? new OsrsCharacter(Guid.NewGuid(), name, normalized, now);
+        var character = await db.OsrsCharacters.SingleOrDefaultAsync(x => x.NormalizedName == normalizedCharacter, ct) ?? new OsrsCharacter(Guid.NewGuid(), characterName, normalizedCharacter, now);
         if (db.Entry(character).State == EntityState.Detached) db.OsrsCharacters.Add(character);
         var account = Account.CreateWebsite(Guid.NewGuid(), name, normalized, now);
         account.SetDiscordIdentity(discordUserId, displayName);
@@ -101,6 +104,7 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
     public async Task SetDiscordAsync(Account account, string discordUserId, string? displayName, string action, CancellationToken ct) { if (await db.Accounts.AnyAsync(x => x.Id != account.Id && x.DiscordUserId == discordUserId, ct)) throw new InvalidOperationException("That Discord account is already linked."); var before = account.DiscordUserId; var now = time.GetUtcNow(); account.SetDiscordIdentity(discordUserId, displayName); db.AccountDiscordIdentityTransitions.Add(new AccountDiscordIdentityTransition(Guid.NewGuid(), account.Id, action, before, discordUserId, now)); db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, account.Id, account.LoginName, $"account.discord_{action}", "account", account.Id.ToString(), $"Discord identity {action}.", beforeState: before is null ? "null" : "{\"discordLinked\":true}", afterState: "{\"discordLinked\":true}")); try { await db.SaveChangesAsync(ct); } catch (DbUpdateException exception) when (IsExpectedIdentityCollision(exception)) { throw new InvalidOperationException("That Discord account is already linked."); } }
     public async Task RemoveDiscordAsync(Account account, CancellationToken ct) { var before = account.DiscordUserId; if (before is null) return; var now = time.GetUtcNow(); account.RemoveDiscordIdentity(); db.AccountDiscordIdentityTransitions.Add(new AccountDiscordIdentityTransition(Guid.NewGuid(), account.Id, "unlinked", before, null, now)); db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, account.Id, account.LoginName, "account.discord_unlinked", "account", account.Id.ToString(), "Discord identity unlinked.", beforeState: "{\"discordLinked\":true}", afterState: "{\"discordLinked\":false}")); await db.SaveChangesAsync(ct); }
     public static void ValidatePassword(string password) { if (password.Length is < 10 or > 200) throw new InvalidOperationException("Passwords must be between 10 and 200 characters."); }
+    public static string NormalizeOsrsCharacterName(string name) => name.Trim().ToUpperInvariant();
     public static string Hash(string raw) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
     private static bool IsExpectedOnboardingCollision(DbUpdateException exception) => exception.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_accounts_normalized_login_name" or "IX_accounts_discord_user_id" or "IX_osrs_characters_normalized_name" };
     private static bool IsExpectedIdentityCollision(DbUpdateException exception) => exception.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_accounts_discord_user_id" };

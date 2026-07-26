@@ -93,6 +93,10 @@
                                             <strong>@User.Identity.Name</strong>
                                         </div>
                                         <a asp-page="/Account/Settings">@T["Account settings"]</a>
+                                        @if (User.FindFirst("bingo:account_type")?.Value == "WebsiteAccount")
+                                        {
+                                            <a asp-page="/Account/MyAccounts">@T["My accounts"]</a>
+                                        }
                                         <a asp-page="/Account/ChangePassword">@T["Change password"]</a>
                                         <form method="post" asp-page="/Account/Logout"><button type="submit">@T["Sign out"]</button></form>
                                     }

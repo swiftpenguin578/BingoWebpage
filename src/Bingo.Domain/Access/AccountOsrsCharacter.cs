@@ -74,6 +74,13 @@ public sealed class AccountOsrsCharacter
         Touch(now);
     }
 
+    public void CorrectCharacter(Guid osrsCharacterId, DateTimeOffset now)
+    {
+        if (!Active) throw new InvalidOperationException("An unlinked character cannot be corrected.");
+        OsrsCharacterId = osrsCharacterId;
+        Touch(now);
+    }
+
     public void UpdatePreferences(string? personalLabel, int sortOrder, bool preferred, decimal? savedEhb, DateTimeOffset now)
     {
         if (!Active) throw new InvalidOperationException("An unlinked character cannot be updated.");
