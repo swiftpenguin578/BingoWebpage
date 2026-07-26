@@ -4,12 +4,15 @@ using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Security;
+using Bingo.Infrastructure.Signups;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
@@ -442,6 +445,51 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PrivateSignupEditPostRedirectRendersSuccessFeedback()
+    {
+        const string slug = "private-edit-feedback";
+        var seed = await SeedEventAsync(slug);
+        const string token = "private-edit-feedback-token";
+        string eventSlug;
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var actor = Website("private-edit-feedback-actor", seed.Now);
+            var participant = new EventParticipant(
+                Guid.NewGuid(), seed.EventId, SignupStatus.Confirmed, 1, seed.Now, SignupSource.Website,
+                new PrivateEditTokenService().Hash(token));
+            var character = new OsrsCharacter(Guid.NewGuid(), "Private edit original", "PRIVATE EDIT ORIGINAL", seed.Now);
+            setup.AddRange(actor, participant, character);
+            setup.EventParticipantCharacters.Add(Playing(seed.EventId, participant.Id, character.Id, actor.Id, seed.Now));
+            await setup.SaveChangesAsync();
+            eventSlug = await setup.Events.Where(item => item.Id == seed.EventId).Select(item => item.Slug).SingleAsync();
+        }
+
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var path = $"/Events/{eventSlug}/Signup/Edit/{token}";
+        var editPage = await client.GetStringAsync(path);
+        var antiForgeryToken = AntiforgeryToken(editPage);
+
+        using var saved = await client.PostAsync(path, new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.PrimaryAccountName"] = "Private edit updated",
+            ["Input.Ehb"] = "123.5",
+            ["Input.SecondAccountName"] = "",
+            ["Input.DiscordIdentity"] = "Private edit Discord",
+            ["Input.Comments"] = "Saved through the private route",
+            ["__RequestVerificationToken"] = antiForgeryToken
+        }));
+
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, saved.StatusCode);
+        Assert.Equal(path, saved.Headers.Location?.OriginalString);
+
+        var redirectedPage = await client.GetStringAsync(path);
+        Assert.Contains("notice-success", redirectedPage, StringComparison.Ordinal);
+        Assert.Contains("Your signup was updated.", redirectedPage, StringComparison.Ordinal);
+        Assert.Contains("Private edit updated", redirectedPage, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task BrowserLevelEnhancedSamePageMutationsReplaceTheMyAccountsNavigation()
     {
         using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
@@ -500,6 +548,111 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         Assert.Contains("window.location.replace(destination);", sharedNavigation, StringComparison.Ordinal);
         Assert.Contains("window.location.assign(destination);", sharedNavigation, StringComparison.Ordinal);
         Assert.Contains("replaceSamePageHistory(window.location.href, state.destination || window.location.href);", sharedNavigation, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ConcurrentOnboardingSharesOnePreviouslyUnseenCharacter()
+    {
+        await using var first = new ApplicationDbContext(options);
+        await using var second = new ApplicationDbContext(options);
+        var passwords = new PasswordHasher<Account>();
+
+        await Task.WhenAll(
+            new AccountIdentityService(first, passwords, TimeProvider.System)
+                .CompleteOnboardingAsync("concurrent-discord-one", "One", "concurrent-user-one", "Concurrent Shared", "long-password-one", CancellationToken.None),
+            new AccountIdentityService(second, passwords, TimeProvider.System)
+                .CompleteOnboardingAsync("concurrent-discord-two", "Two", "concurrent-user-two", "Concurrent Shared", "long-password-two", CancellationToken.None));
+
+        await using var verification = new ApplicationDbContext(options);
+        var character = await verification.OsrsCharacters.SingleAsync(item => item.NormalizedName == "CONCURRENT SHARED");
+        Assert.Equal(2, await verification.Accounts.CountAsync(item => item.NormalizedLoginName == "CONCURRENT-USER-ONE" || item.NormalizedLoginName == "CONCURRENT-USER-TWO"));
+        Assert.Equal(2, await verification.AccountOsrsCharacters.CountAsync(item => item.OsrsCharacterId == character.Id));
+    }
+
+    [Fact]
+    public async Task AdminHistoryViewsKeepReleasedPlayingAuthorityForWithdrawnAndRemovedParticipants()
+    {
+        var seed = await SeedEventAsync("admin-history");
+        Guid withdrawnId;
+        Guid removedId;
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var withdrawn = new EventParticipant(Guid.NewGuid(), seed.EventId, SignupStatus.Confirmed, 1, seed.Now, SignupSource.Website, null);
+            var removed = new EventParticipant(Guid.NewGuid(), seed.EventId, SignupStatus.Confirmed, 2, seed.Now, SignupSource.Website, null);
+            var withdrawnCharacter = new OsrsCharacter(Guid.NewGuid(), "Withdrawn Main", "WITHDRAWN MAIN", seed.Now);
+            var removedCharacter = new OsrsCharacter(Guid.NewGuid(), "Removed Main", "REMOVED MAIN", seed.Now);
+            var withdrawnAssignment = new EventParticipantCharacter(Guid.NewGuid(), seed.EventId, withdrawn.Id, withdrawnCharacter.Id, 0, seed.Now, null, null, EventCharacterRole.Playing, 111m, EhbSource.Manual, null);
+            var removedAssignment = new EventParticipantCharacter(Guid.NewGuid(), seed.EventId, removed.Id, removedCharacter.Id, 0, seed.Now, null, null, EventCharacterRole.Playing, 222m, EhbSource.Manual, null);
+            withdrawn.Withdraw(seed.Now.AddMinutes(1), "test");
+            removed.Remove(seed.Now.AddMinutes(2), "test");
+            withdrawnAssignment.Release(null, seed.Now.AddMinutes(1));
+            removedAssignment.Release(null, seed.Now.AddMinutes(2));
+            withdrawnId = withdrawn.Id;
+            removedId = removed.Id;
+            setup.AddRange(withdrawn, removed, withdrawnCharacter, removedCharacter, withdrawnAssignment, removedAssignment);
+            await setup.SaveChangesAsync();
+        }
+
+        await using var db = new ApplicationDbContext(options);
+        var characters = new EventParticipantCharacterService(db, TimeProvider.System);
+        var manage = new Bingo.Web.Pages.Admin.Events.ManageModel(db, null!, characters, null!, TimeProvider.System);
+        Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await manage.OnGetAsync(seed.EventId, CancellationToken.None));
+        Assert.Contains(manage.Participants, row => row.Id == withdrawnId && row.Name == "Withdrawn Main" && row.Ehb == 111m);
+        Assert.Contains(manage.Participants, row => row.Id == removedId && row.Name == "Removed Main" && row.Ehb == 222m);
+
+        var participant = new Bingo.Web.Pages.Admin.Events.ParticipantModel(db, characters, null!, new PrivateEditTokenService())
+        {
+            TempData = new TempDataDictionary(new DefaultHttpContext(), new EmptyTempDataProvider())
+        };
+        Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await participant.OnGetAsync(seed.EventId, withdrawnId, CancellationToken.None));
+        Assert.Equal("Withdrawn Main", participant.Name);
+        Assert.Equal(111m, participant.Input.Ehb);
+        Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await participant.OnGetAsync(seed.EventId, removedId, CancellationToken.None));
+        Assert.Equal("Removed Main", participant.Name);
+        Assert.Equal(222m, participant.Input.Ehb);
+    }
+
+    [Fact]
+    public async Task ConcurrentFixedFormAssignmentChangesKeepOneWinnerAndNoPartialLoser()
+    {
+        var seed = await SeedEventAsync("fixed-form-race");
+        Guid firstId;
+        Guid secondId;
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var firstParticipant = new EventParticipant(Guid.NewGuid(), seed.EventId, SignupStatus.Confirmed, 1, seed.Now, SignupSource.Website, null);
+            var secondParticipant = new EventParticipant(Guid.NewGuid(), seed.EventId, SignupStatus.Confirmed, 2, seed.Now, SignupSource.Website, null);
+            var firstCharacter = new OsrsCharacter(Guid.NewGuid(), "Race First", "RACE FIRST", seed.Now);
+            var secondCharacter = new OsrsCharacter(Guid.NewGuid(), "Race Second", "RACE SECOND", seed.Now);
+            var targetCharacter = new OsrsCharacter(Guid.NewGuid(), "Race Target", "RACE TARGET", seed.Now);
+            setup.AddRange(
+                firstParticipant, secondParticipant, firstCharacter, secondCharacter, targetCharacter,
+                new EventParticipantCharacter(Guid.NewGuid(), seed.EventId, firstParticipant.Id, firstCharacter.Id, 0, seed.Now, null, null, EventCharacterRole.Playing, 10m, EhbSource.Manual, null),
+                new EventParticipantCharacter(Guid.NewGuid(), seed.EventId, secondParticipant.Id, secondCharacter.Id, 0, seed.Now, null, null, EventCharacterRole.Playing, 20m, EhbSource.Manual, null));
+            await setup.SaveChangesAsync();
+            firstId = firstParticipant.Id;
+            secondId = secondParticipant.Id;
+        }
+
+        await using var firstContext = new ApplicationDbContext(options);
+        await using var secondContext = new ApplicationDbContext(options);
+        var first = await firstContext.EventParticipants.SingleAsync(x => x.Id == firstId);
+        var second = await secondContext.EventParticipants.SingleAsync(x => x.Id == secondId);
+        await new EventParticipantCharacterService(firstContext, TimeProvider.System)
+            .ApplyFixedSignupAssignmentsAsync(first, "Race Target", 101m, null, EhbSource.Manual, null, CancellationToken.None);
+        await new EventParticipantCharacterService(secondContext, TimeProvider.System)
+            .ApplyFixedSignupAssignmentsAsync(second, "Race Target", 202m, null, EhbSource.AdminCorrection, null, CancellationToken.None);
+
+        var saves = await Task.WhenAll(CaptureAsync(firstContext.SaveChangesAsync()), CaptureAsync(secondContext.SaveChangesAsync()));
+        Assert.Single(saves, exception => exception is null);
+        Assert.Single(saves, exception => exception is DbUpdateException);
+
+        await using var verification = new ApplicationDbContext(options);
+        var target = await verification.OsrsCharacters.SingleAsync(x => x.NormalizedName == "RACE TARGET");
+        var current = await verification.EventParticipantCharacters.Where(x => x.EventId == seed.EventId && x.ReleasedAt == null).ToListAsync();
+        Assert.Single(current, assignment => assignment.OsrsCharacterId == target.Id);
+        var loserId = current.Single(x => x.OsrsCharacterId == target.Id).EventParticipantId == firstId ? secondId : firstId;
+        Assert.Single(current, assignment => assignment.EventParticipantId == loserId && assignment.OsrsCharacterId != target.Id);
     }
 
     private async Task<(Guid EventId, DateTimeOffset Now)> SeedEventAsync(string slug)
@@ -566,5 +719,11 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         request.Headers.Add("X-Bingo-Enhanced-Post", "true");
         request.Headers.Add("X-Requested-With", "XMLHttpRequest");
         return client.SendAsync(request);
+    }
+
+    private sealed class EmptyTempDataProvider : ITempDataProvider
+    {
+        public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();
+        public void SaveTempData(HttpContext context, IDictionary<string, object> values) { }
     }
 }

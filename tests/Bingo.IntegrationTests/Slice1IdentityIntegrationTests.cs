@@ -409,6 +409,77 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ConcurrentExternalMembersAcrossEventsShareOneNewCharacterWithoutPartialPersistence()
+    {
+        var now = time.GetUtcNow();
+        Guid adminId;
+        Guid firstEventId;
+        Guid secondEventId;
+        Guid firstTeamId;
+        Guid secondTeamId;
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var admin = Website("slice2-external-member-admin", GlobalRole.Admin);
+            var firstEvent = new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "External one", "slice2-external-one", "", "UTC", now, now.AddHours(1), now.AddDays(1), now.AddDays(2), now.AddDays(2), 10, admin.Id, now);
+            var secondEvent = new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "External two", "slice2-external-two", "", "UTC", now, now.AddHours(1), now.AddDays(1), now.AddDays(2), now.AddDays(2), 10, admin.Id, now);
+            var firstTeam = new Bingo.Domain.Teams.Team(Guid.NewGuid(), firstEvent.Id, "First external", "first-external", Bingo.Domain.Teams.TeamFormationType.Preformed, null, false);
+            var secondTeam = new Bingo.Domain.Teams.Team(Guid.NewGuid(), secondEvent.Id, "Second external", "second-external", Bingo.Domain.Teams.TeamFormationType.Preformed, null, false);
+            setup.AddRange(admin, firstEvent, secondEvent, firstTeam, secondTeam);
+            await setup.SaveChangesAsync();
+            adminId = admin.Id;
+            firstEventId = firstEvent.Id;
+            secondEventId = secondEvent.Id;
+            firstTeamId = firstTeam.Id;
+            secondTeamId = secondTeam.Id;
+        }
+
+        async Task<IActionResult> AddAsync(Guid eventId, Guid teamId, string reason)
+        {
+            await using var db = new ApplicationDbContext(options);
+            var context = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    [new Claim(ClaimTypes.NameIdentifier, adminId.ToString()), new Claim(ClaimTypes.Name, "slice2-external-member-admin")], "test"))
+            };
+            var page = new Bingo.Web.Pages.Admin.Events.DraftModel(
+                db, time, new AuditWriter(db, time), new NoopCollaborationNotifier(), new NoopSignupService(),
+                new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, time))
+            {
+                PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
+                TempData = new TempDataDictionary(context, new DictionaryTempDataProvider())
+            };
+            return await page.OnPostAddExternalMemberAsync(eventId, teamId, "Concurrent External", Bingo.Domain.Teams.TeamMembershipRole.Participant, reason, CancellationToken.None);
+        }
+
+        var results = await Task.WhenAll(
+            AddAsync(firstEventId, firstTeamId, "first external member"),
+            AddAsync(secondEventId, secondTeamId, "second external member"));
+        Assert.All(results, result => Assert.IsType<RedirectToPageResult>(result));
+
+        await using var verification = new ApplicationDbContext(options);
+        var character = await verification.OsrsCharacters.SingleAsync(item => item.NormalizedName == "CONCURRENT EXTERNAL");
+        var participants = await verification.EventParticipants
+            .Where(item => item.EventId == firstEventId || item.EventId == secondEventId)
+            .OrderBy(item => item.EventId)
+            .ToListAsync();
+        Assert.Equal(2, participants.Count);
+        Assert.All(participants, participant =>
+        {
+            Assert.Equal(Bingo.Domain.Signups.SignupSource.AdminCreated, participant.Source);
+            Assert.Equal(Bingo.Domain.Signups.SignupStatus.Confirmed, participant.SignupStatus);
+        });
+        var firstParticipantId = participants.Single(participant => participant.EventId == firstEventId).Id;
+        var secondParticipantId = participants.Single(participant => participant.EventId == secondEventId).Id;
+        Assert.Equal(2, await verification.EventParticipantCharacters.CountAsync(item =>
+            (item.EventId == firstEventId || item.EventId == secondEventId) && item.OsrsCharacterId == character.Id && item.ReleasedAt == null));
+        Assert.Equal(firstTeamId, await verification.TeamMemberships.Where(item => item.EventParticipantId == firstParticipantId && item.LeftAt == null).Select(item => item.TeamId).SingleAsync());
+        Assert.Equal(secondTeamId, await verification.TeamMemberships.Where(item => item.EventParticipantId == secondParticipantId && item.LeftAt == null).Select(item => item.TeamId).SingleAsync());
+        Assert.Equal(2, await verification.AuditEntries.CountAsync(item =>
+            item.Action == "team.member_added" && item.ActorAccountId == adminId &&
+            (item.TargetId == firstTeamId.ToString() || item.TargetId == secondTeamId.ToString())));
+    }
+
+    [Fact]
     public async Task OwnershipTransferAndOperatorRecoveryKeepExactlyOneOwner()
     {
         await using var db = new ApplicationDbContext(options);
@@ -859,7 +930,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             {
                 PageContext = new PageContext(new ActionContext(request, new RouteData(), new PageActionDescriptor())),
                 TempData = new TempDataDictionary(request, new DictionaryTempDataProvider()),
-                Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "race-onboarding", OsrsCharacterName = "Race Character", Password = "long-race-password", ConfirmPassword = "long-race-password" }
+                Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "race-onboarding", OsrsCharacterName = discordId.EndsWith("-a", StringComparison.Ordinal) ? "Race Character A" : "Race Character B", Password = "long-race-password", ConfirmPassword = "long-race-password" }
             };
             var result = await page.OnPostAsync(CancellationToken.None);
             await db.DisposeAsync();
