@@ -174,6 +174,10 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
         var tileEntity = await db.BoardTiles.AsNoTracking().SingleAsync(value => value.Id == tileId, cancellationToken);
         var requirements = await db.BoardRequirementSnapshots.AsNoTracking().Where(value => value.BoardTileId == tileId).OrderBy(value => value.Position).ToListAsync(cancellationToken);
         var requirementIds = requirements.Select(value => value.Id).ToList();
+        var eligibleDrops = await db.BoardRequirementDropSnapshots.AsNoTracking()
+            .Where(value => requirementIds.Contains(value.RequirementId))
+            .OrderBy(value => value.BossName).ThenBy(value => value.ItemName)
+            .ToListAsync(cancellationToken);
         var contributionTotals = await db.SubmissionContributions.AsNoTracking()
             .Where(value => value.TeamId == team.TeamId && requirementIds.Contains(value.RequirementId) && value.ReversedAt == null)
             .GroupBy(value => value.RequirementId).Select(group => new { Id = group.Key, Total = group.Sum(value => value.Amount) })
@@ -202,7 +206,11 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
             tile.Approved, tile.Target, tile.Complete, tile.CompletedAt,
             requirements.Select(value => new PublicRequirementProgress(
                 value.Id, value.Description, Math.Min(value.TargetContribution, contributionTotals.GetValueOrDefault(value.Id)),
-                value.TargetContribution, contributionTotals.GetValueOrDefault(value.Id) >= value.TargetContribution)).ToList(),
+                value.TargetContribution, contributionTotals.GetValueOrDefault(value.Id) >= value.TargetContribution,
+                eligibleDrops.Where(drop => drop.RequirementId == value.Id)
+                    .Select(drop => new PublicEligibleDrop(
+                        drop.BossName, drop.ItemName, drop.DisplayRate, drop.CreditedWeight))
+                    .ToList())).ToList(),
             evidence);
     }
 }

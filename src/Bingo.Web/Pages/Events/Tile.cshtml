@@ -3,25 +3,30 @@
 @{
     ViewData["Title"] = $"{Model.Tile.TileName} · {Model.Tile.TeamName}";
 }
+<script src="~/js/team-board-overlay-redirect.js"
+        asp-append-version="true"
+        data-overview-url="@Url.Page("/Events/Board", new { slug = Model.Tile.EventSlug })"
+        data-team-url="@Url.Page("/Events/TeamBoard", new { slug = Model.Tile.EventSlug, teamSlug = Model.Tile.TeamSlug })"
+        data-tile-url="@Url.Page("/Events/Tile", new { slug = Model.Tile.EventSlug, teamSlug = Model.Tile.TeamSlug, tileId = Model.Tile.TileId })"></script>
 <section class="public-tile-page" data-progress-event="@Model.EventId">
-    <nav class="board-breadcrumb" aria-label="Board navigation"><a asp-page="/Events/TeamBoard" asp-route-slug="@Model.Tile.EventSlug" asp-route-teamSlug="@Model.Tile.TeamSlug">← @Model.Tile.TeamName board</a><span>@Model.Tile.EventName</span></nav>
+    <nav class="board-breadcrumb" aria-label="@T["Board navigation"]"><a asp-page="/Events/TeamBoard" asp-route-slug="@Model.Tile.EventSlug" asp-route-teamSlug="@Model.Tile.TeamSlug">← @T["{0} board", Model.Tile.TeamName]</a><span>@Model.Tile.EventName</span></nav>
     <header class="tile-detail-header">
-        <div><p class="eyebrow">@(Model.Tile.Complete ? "Completed tile" : "Tile progress")</p><h1>@Model.Tile.TileName</h1><p>@Model.Tile.Description</p></div>
-        <div class="tile-total"><strong>@Model.Tile.Approved / @Model.Tile.Target</strong><span>approved</span></div>
+        <div><p class="eyebrow">@(Model.Tile.Complete ? T["Completed tile"] : T["Tile progress"])</p><h1>@Model.Tile.TileName</h1><p>@Model.Tile.Description</p></div>
+        <div class="tile-total"><strong>@Model.Tile.Approved / @Model.Tile.Target</strong><span>@T["approved"]</span></div>
     </header>
-    <div class="progress-update" data-progress-update hidden role="status">New approved progress is available. <button type="button" data-progress-refresh>Refresh now</button></div>
+    <div class="progress-update" data-progress-update hidden role="status">@T["New approved progress is available."] <button type="button" data-progress-refresh>@T["Refresh now"]</button></div>
     <div class="tile-detail-layout">
         <section class="panel requirement-progress-list">
-            <h2>Requirements</h2>
+            <h2>@T["Requirements"]</h2>
             @foreach (var requirement in Model.Tile.Requirements)
             {
-                <div class="requirement-progress @(requirement.Complete ? "complete" : null)"><span><strong>@requirement.Description</strong><small>@requirement.Approved of @requirement.Target approved</small></span><span aria-label="@(requirement.Complete ? "Complete" : "In progress")">@(requirement.Complete ? "✓" : $"{requirement.Approved}/{requirement.Target}")</span></div>
+                <div class="requirement-progress @(requirement.Complete ? "complete" : null)"><span><strong>@requirement.Description</strong><small>@T["{0} of {1} approved", requirement.Approved, requirement.Target]</small></span><span aria-label="@(requirement.Complete ? T["Complete"] : T["In progress"])">@(requirement.Complete ? "✓" : $"{requirement.Approved}/{requirement.Target}")</span></div>
             }
-            @if (!string.IsNullOrWhiteSpace(Model.Tile.EvidenceInstructions)) { <div class="evidence-instructions"><strong>Evidence instructions</strong><p>@Model.Tile.EvidenceInstructions</p></div> }
+            @if (!string.IsNullOrWhiteSpace(Model.Tile.EvidenceInstructions)) { <div class="evidence-instructions"><strong>@T["Evidence instructions"]</strong><p>@Model.Tile.EvidenceInstructions</p></div> }
         </section>
         <section class="approved-evidence">
-            <header><div><p class="eyebrow">Public proof</p><h2>Approved evidence</h2></div><span>@Model.Tile.Evidence.Count submission(s)</span></header>
-            @if (Model.Tile.Evidence.Count == 0) { <div class="panel empty-public-state"><p>No approved evidence for this tile yet.</p></div> }
+            <header><div><p class="eyebrow">@T["Public proof"]</p><h2>@T["Approved evidence"]</h2></div><span>@T["{0} submission(s)", Model.Tile.Evidence.Count]</span></header>
+            @if (Model.Tile.Evidence.Count == 0) { <div class="panel empty-public-state"><p>@T["No approved evidence for this tile yet."]</p></div> }
             else
             {
                 <div class="evidence-gallery">
@@ -29,13 +34,13 @@
                 {
                     if (evidence.Hidden)
                     {
-                        <article class="panel hidden-evidence"><span aria-hidden="true">◌</span><strong>Evidence hidden</strong><p>The screenshot and player name are private. Its approved contribution still counts.</p><small>@evidence.SubmittedAt.ToString("d MMM yyyy, HH:mm")</small></article>
+                        <article class="panel hidden-evidence"><span aria-hidden="true">◌</span><strong>@T["Evidence hidden"]</strong><p>@T["The screenshot and player name are private. Its approved contribution still counts."]</p><small>@evidence.SubmittedAt.ToString("d MMM yyyy, HH:mm")</small></article>
                     }
                     else
                     {
                         <article class="panel evidence-card">
-                            @if (evidence.EvidenceAssetId is Guid assetId) { <button type="button" class="evidence-image-button" data-evidence-image="/Evidence/@assetId" data-evidence-alt="Approved evidence from @evidence.PlayerName"><img src="/Evidence/@assetId" alt="Approved evidence from @evidence.PlayerName" loading="lazy" /></button> }
-                            <div><strong>@evidence.PlayerName</strong><span>@(evidence.DropName ?? "Manual completion") @if(evidence.Contribution > 1){<text>· weight @evidence.Contribution</text>}</span>@if(!string.IsNullOrWhiteSpace(evidence.BossName)){<small>@evidence.BossName</small>}<small>Submitted @evidence.SubmittedAt.ToString("d MMM yyyy, HH:mm")</small></div>
+                            @if (evidence.EvidenceAssetId is Guid assetId) { <button type="button" class="evidence-image-button" data-evidence-image="/Evidence/@assetId" data-evidence-alt="@T["Approved evidence from {0}", evidence.PlayerName ?? string.Empty]"><img src="/Evidence/@assetId" alt="@T["Approved evidence from {0}", evidence.PlayerName ?? string.Empty]" loading="lazy" /></button> }
+                            <div><strong>@evidence.PlayerName</strong><span>@(evidence.DropName ?? T["Manual completion"]) @if(evidence.Contribution > 1){<text>· @T["weight"] @evidence.Contribution</text>}</span>@if(!string.IsNullOrWhiteSpace(evidence.BossName)){<small>@evidence.BossName</small>}<small>@T["Submitted"] @evidence.SubmittedAt.ToString("d MMM yyyy, HH:mm")</small></div>
                         </article>
                     }
                 }
@@ -44,5 +49,5 @@
         </section>
     </div>
 </section>
-<dialog class="public-lightbox" data-evidence-dialog><button type="button" data-evidence-close aria-label="Close enlarged evidence">×</button><img data-evidence-dialog-image alt="" /></dialog>
+<dialog class="public-lightbox" data-evidence-dialog data-enlarged-evidence="@T["Enlarged approved evidence"]"><button type="button" data-evidence-close aria-label="@T["Close enlarged evidence"]">×</button><img data-evidence-dialog-image alt="" /></dialog>
 @section Scripts { <partial name="_PublicProgressScripts" model="Model.EventId" /><script src="~/js/public-evidence.js" asp-append-version="true"></script> }

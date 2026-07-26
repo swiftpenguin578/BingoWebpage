@@ -6,20 +6,21 @@ using Bingo.Web.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Captain;
 
 [RequestSizeLimit(11 * 1024 * 1024)]
-public sealed class SubmissionModel(ApplicationDbContext db, ISubmissionService service) : PageModel
+public sealed class SubmissionModel(ApplicationDbContext db, ISubmissionService service, IStringLocalizer<SharedResource> text, ILogger<SubmissionModel> logger) : PageModel
 {
     public DetailsView Details { get; private set; } = null!; public IReadOnlyList<PlayerView> Players { get; private set; } = []; public IReadOnlyList<RequirementView> Requirements { get; private set; } = []; public IReadOnlyList<DropView> Drops { get; private set; } = [];
     [BindProperty] public EditInput Input { get; set; } = new();
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct) { if (!await Load(id, ct)) return NotFound(); Input = new() { BoardTileId = Details.TileId, RequirementId = Details.RequirementId, DropSnapshotId = Details.DropId, CreditedParticipantId = Details.PlayerId, ClaimedWeight = Details.ClaimedWeight, Note = Details.CaptainNote, RequestPublicPrivacy = Details.PublicPrivacyRequested }; return Page(); }
     public async Task<IActionResult> OnPostCorrectAsync(Guid id, CancellationToken ct)
     {
-        if (!await Load(id, ct)) return NotFound(); if (!ModelState.IsValid) return Page(); try { Stream? stream = null; if (Input.Replacement is not null) stream = Input.Replacement.OpenReadStream(); try { await service.CorrectAsync(new(id, User.GetAccountId()!.Value, Input.BoardTileId, Input.RequirementId, Input.DropSnapshotId, Input.CreditedParticipantId, Input.ClaimedWeight, Input.Note, Input.Replacement?.FileName, stream, Input.RequestPublicPrivacy), ct); } finally { if (stream is not null) await stream.DisposeAsync(); } TempData["StatusMessage"] = "Submission updated and returned to review."; return RedirectToPage(new { id }); } catch (InvalidOperationException ex) { ModelState.AddModelError(string.Empty, ex.Message); return Page(); }
+        if (!await Load(id, ct)) return NotFound(); if (!ModelState.IsValid) return Page(); try { Stream? stream = null; if (Input.Replacement is not null) stream = Input.Replacement.OpenReadStream(); try { await service.CorrectAsync(new(id, User.GetAccountId()!.Value, Input.BoardTileId, Input.RequirementId, Input.DropSnapshotId, Input.CreditedParticipantId, Input.ClaimedWeight, Input.Note, Input.Replacement?.FileName, stream, Input.RequestPublicPrivacy), ct); } finally { if (stream is not null) await stream.DisposeAsync(); } TempData["StatusMessage"] = text["Submission updated and returned to review."]; return RedirectToPage(new { id }); } catch (InvalidOperationException ex) { ModelState.AddModelError(string.Empty, SafeUserFailure.Message(text, logger, ex)); return Page(); }
     }
-    public async Task<IActionResult> OnPostWithdrawAsync(Guid id, CancellationToken ct) { try { await service.WithdrawAsync(id, User.GetAccountId()!.Value, ct); TempData["StatusMessage"] = "Submission withdrawn."; } catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; } return RedirectToPage("Index"); }
+    public async Task<IActionResult> OnPostWithdrawAsync(Guid id, CancellationToken ct) { try { await service.WithdrawAsync(id, User.GetAccountId()!.Value, ct); TempData["StatusMessage"] = text["Submission withdrawn."]; } catch (InvalidOperationException ex) { TempData["StatusMessage"] = SafeUserFailure.Message(text, logger, ex); } return RedirectToPage("Index"); }
     private async Task<bool> Load(Guid id, CancellationToken ct)
     {
         var teamId = User.GetTeamId()!.Value; var s = await db.Submissions.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.TeamId == teamId, ct); if (s is null) return false; var tile = await db.BoardTiles.AsNoTracking().SingleAsync(x => x.Id == s.BoardTileId, ct); var req = await db.BoardRequirementSnapshots.AsNoTracking().SingleAsync(x => x.Id == s.RequirementId, ct); var player = await db.EventParticipants.AsNoTracking().SingleAsync(x => x.Id == s.CreditedParticipantId, ct); var asset = await db.EvidenceAssets.AsNoTracking().Where(x => x.SubmissionId == id && x.Active).OrderByDescending(x => x.UploadedAt).FirstOrDefaultAsync(ct); Details = new(s.Id, s.BoardTileId, s.RequirementId, s.DropSnapshotId, s.CreditedParticipantId, tile.NameSnapshot, req.Description, player.PrimaryAccountName, s.Status, s.ClaimedWeight, s.ApprovedContribution, s.SubmittedAt, s.CaptainNote, s.CurrentReviewerNote, s.ExpectedEvidenceCode, asset?.Id, s.Status is SubmissionStatus.Pending or SubmissionStatus.ChangesRequested);

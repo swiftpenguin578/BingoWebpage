@@ -2,9 +2,17 @@
 // for details on configuring this project to bundle and minify static web assets.
 
 // Write your JavaScript code.
+initializeInputModality();
+
 document.addEventListener("DOMContentLoaded", () => {
   restorePostNavigationState();
   initializePostNavigation();
+  initializeAutoHideScrollbars();
+  const feedback = document.querySelector("[data-feedback-target], .validation-summary-errors");
+  if (feedback) {
+    feedback.scrollIntoView({ block: "nearest" });
+    feedback.focus({ preventScroll: true });
+  }
 
   if (typeof window.flatpickr === "function") {
     document.querySelectorAll("[data-date-time-picker]").forEach((input) => {
@@ -39,6 +47,37 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const menu of menus) if (menu.open && !menu.contains(event.target)) menu.open = false;
   });
 });
+
+function initializeInputModality() {
+  const root = document.documentElement;
+  root.classList.add("pointer-navigation");
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Tab") return;
+    root.classList.add("keyboard-navigation");
+    root.classList.remove("pointer-navigation");
+  }, true);
+  document.addEventListener("pointerdown", () => {
+    root.classList.add("pointer-navigation");
+    root.classList.remove("keyboard-navigation");
+  }, true);
+}
+
+function initializeAutoHideScrollbars() {
+  const hideTimers = new WeakMap();
+
+  document.addEventListener("scroll", event => {
+    const region = event.target;
+    if (!(region instanceof HTMLElement) || !region.classList.contains("auto-hide-scrollbar")) return;
+
+    region.classList.add("scrollbar-active");
+    const previousTimer = hideTimers.get(region);
+    if (previousTimer) window.clearTimeout(previousTimer);
+    hideTimers.set(region, window.setTimeout(() => {
+      region.classList.remove("scrollbar-active");
+      hideTimers.delete(region);
+    }, 700));
+  }, true);
+}
 
 function initializePostNavigation() {
   document.addEventListener("submit", async event => {
