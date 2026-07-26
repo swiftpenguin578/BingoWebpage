@@ -1,9 +1,12 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -238,6 +241,134 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task WebsiteUsernameRenameIsIndependentOfCharactersAuditedAndPreservesAccountOwnedData()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var db = new ApplicationDbContext(options);
+        var owner = Website("Calm Chris", now);
+        var character = new OsrsCharacter(Guid.NewGuid(), "Different OSRS Name", "DIFFERENT OSRS NAME", now);
+        owner.SetPassword(new PasswordHasher<Account>().HashPassword(owner, "correct-current-password"), false, now, incrementVersion: false);
+        owner.SetDiscordIdentity("rename-discord", "Discord display");
+        owner.CompleteOnboarding(character.Id, now);
+        var bingoEvent = Event(now, "rename-preservation", true);
+        var participant = Participant(bingoEvent.Id, "Existing participant", 1, now);
+        participant.AssignOwner(owner);
+        var assignment = Playing(bingoEvent.Id, participant.Id, character.Id, owner.Id, now);
+        var link = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, "Main", 42m, now);
+        db.AddRange(owner, character, bingoEvent, participant, assignment, link);
+        await db.SaveChangesAsync();
+
+        var originalAuthorizationVersion = owner.AuthorizationVersion;
+        var originalPasswordVersion = owner.PasswordVersion;
+        var result = await new AccountIdentityService(db, new PasswordHasher<Account>(), TimeProvider.System)
+            .RenameUsernameAsync(owner.Id, "  calm CHRIS  ", "correct-current-password", CancellationToken.None);
+
+        Assert.Equal(UsernameRenameResult.Success, result);
+        var renamed = await db.Accounts.AsNoTracking().SingleAsync(x => x.Id == owner.Id);
+        Assert.Equal("calm CHRIS", renamed.LoginName);
+        Assert.Equal("calm CHRIS", renamed.PublicUsername);
+        Assert.Equal("CALM CHRIS", renamed.NormalizedLoginName);
+        Assert.Equal("CALM CHRIS", renamed.NormalizedPublicUsername);
+        Assert.Equal(originalAuthorizationVersion, renamed.AuthorizationVersion);
+        Assert.Equal(originalPasswordVersion, renamed.PasswordVersion);
+        Assert.Equal("rename-discord", renamed.DiscordUserId);
+        Assert.Equal(character.Id, renamed.ProfileOsrsCharacterId);
+        Assert.Equal(link.Id, await db.AccountOsrsCharacters.Where(x => x.AccountId == owner.Id).Select(x => x.Id).SingleAsync());
+        Assert.Equal(42m, await db.AccountOsrsCharacters.Where(x => x.Id == link.Id).Select(x => x.SavedEhb).SingleAsync());
+        Assert.Equal(owner.Id, await db.EventParticipants.Where(x => x.Id == participant.Id).Select(x => x.AccountId).SingleAsync());
+        Assert.Equal(character.Id, await db.EventParticipantCharacters.Where(x => x.Id == assignment.Id).Select(x => x.OsrsCharacterId).SingleAsync());
+        var audit = await db.AuditEntries.SingleAsync(x => x.Action == "account.username_changed");
+        Assert.Equal(owner.Id, audit.ActorAccountId);
+        Assert.Equal(owner.Id.ToString(), audit.TargetId);
+        Assert.Contains("Calm Chris", audit.BeforeState, StringComparison.Ordinal);
+        Assert.Contains("calm CHRIS", audit.AfterState, StringComparison.Ordinal);
+        Assert.DoesNotContain("correct-current-password", audit.BeforeState + audit.AfterState + audit.Details, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WebsiteUsernameRenameRejectsWrongPasswordAndNormalizedCollisionsWithoutMutationOrAudit()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var db = new ApplicationDbContext(options);
+        var owner = Website("rename-owner", now);
+        var occupied = Website("Taken Name", now);
+        owner.SetPassword(new PasswordHasher<Account>().HashPassword(owner, "correct-current-password"), false, now, incrementVersion: false);
+        db.AddRange(owner, occupied);
+        await db.SaveChangesAsync();
+        var identities = new AccountIdentityService(db, new PasswordHasher<Account>(), TimeProvider.System);
+
+        Assert.Equal(UsernameRenameResult.WrongPassword, await identities.RenameUsernameAsync(owner.Id, "new name", "wrong-password", CancellationToken.None));
+        Assert.Equal(UsernameRenameResult.UsernameTaken, await identities.RenameUsernameAsync(owner.Id, " taken name ", "correct-current-password", CancellationToken.None));
+        var unchanged = await db.Accounts.AsNoTracking().SingleAsync(x => x.Id == owner.Id);
+        Assert.Equal("rename-owner", unchanged.LoginName);
+        Assert.Empty(await db.AuditEntries.Where(x => x.Action == "account.username_changed").ToListAsync());
+    }
+
+    [Fact]
+    public async Task WebsiteUsernameDatabaseRaceAllowsExactlyOneWinnerAndEmergencyNamesRemainReserved()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            var first = Website("race-first", now);
+            var second = Website("race-second", now);
+            var emergency = Account.CreateEmergency(Guid.NewGuid(), "reserved-emergency", "RESERVED-EMERGENCY", now);
+            first.SetPassword(new PasswordHasher<Account>().HashPassword(first, "correct-current-password"), false, now, incrementVersion: false);
+            second.SetPassword(new PasswordHasher<Account>().HashPassword(second, "correct-current-password"), false, now, incrementVersion: false);
+            seed.AddRange(first, second, emergency);
+            await seed.SaveChangesAsync();
+            var identities = new AccountIdentityService(seed, new PasswordHasher<Account>(), TimeProvider.System);
+            Assert.Equal(UsernameRenameResult.UsernameTaken, await identities.RenameUsernameAsync(first.Id, "reserved-emergency", "correct-current-password", CancellationToken.None));
+            Assert.Equal(UsernameRenameResult.NotAvailable, await identities.RenameUsernameAsync(emergency.Id, "not-permitted", "correct-current-password", CancellationToken.None));
+        }
+
+        await using var firstContext = new ApplicationDbContext(options);
+        await using var secondContext = new ApplicationDbContext(options);
+        var firstAccount = await firstContext.Accounts.SingleAsync(x => x.LoginName == "race-first");
+        var secondAccount = await secondContext.Accounts.SingleAsync(x => x.LoginName == "race-second");
+        firstAccount.RenameWebsiteUsername("Contended", "CONTENDED");
+        secondAccount.RenameWebsiteUsername("Contended", "CONTENDED");
+        var saves = await Task.WhenAll(
+            CaptureAsync(firstContext.SaveChangesAsync()),
+            CaptureAsync(secondContext.SaveChangesAsync()));
+
+        Assert.Single(saves, result => result is null);
+        Assert.Single(saves, result => result is DbUpdateException);
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(1, await verify.Accounts.CountAsync(x => x.NormalizedLoginName == "CONTENDED"));
+    }
+
+    [Fact]
+    public async Task WebsiteUsernameRenameRefreshesTheNewPrincipalWithoutInvalidatingExistingSessions()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var db = new ApplicationDbContext(options);
+        var account = Website("session-before", now);
+        account.SetPassword(new PasswordHasher<Account>().HashPassword(account, "correct-current-password"), false, now, incrementVersion: false);
+        db.Add(account);
+        await db.SaveChangesAsync();
+        var authentication = new AccountAuthenticationService(db, new PasswordHasher<Account>(), TimeProvider.System);
+        var existingPasswordSession = authentication.CreatePrincipal(account, "password");
+        var existingDiscordSession = authentication.CreatePrincipal(account, "discord");
+        var authorizationVersion = account.AuthorizationVersion;
+        var passwordVersion = account.PasswordVersion;
+
+        Assert.Equal(UsernameRenameResult.Success, await new AccountIdentityService(db, new PasswordHasher<Account>(), TimeProvider.System)
+            .RenameUsernameAsync(account.Id, "session after", "correct-current-password", CancellationToken.None));
+        var refreshedPasswordSession = authentication.CreatePrincipal(account, "password");
+        var refreshedDiscordSession = authentication.CreatePrincipal(account, "discord");
+
+        Assert.Equal("session after", refreshedPasswordSession.Identity?.Name);
+        Assert.Equal("password", refreshedPasswordSession.FindFirst(Bingo.Application.Access.AccountClaims.AuthenticationMethod)?.Value);
+        Assert.Equal("session after", refreshedDiscordSession.Identity?.Name);
+        Assert.Equal("discord", refreshedDiscordSession.FindFirst(Bingo.Application.Access.AccountClaims.AuthenticationMethod)?.Value);
+        Assert.Equal(authorizationVersion.ToString(CultureInfo.InvariantCulture), refreshedPasswordSession.FindFirst(Bingo.Application.Access.AccountClaims.AuthorizationVersion)?.Value);
+        Assert.Equal(passwordVersion.ToString(CultureInfo.InvariantCulture), refreshedPasswordSession.FindFirst(Bingo.Application.Access.AccountClaims.PasswordVersion)?.Value);
+        Assert.NotNull((await ValidateSessionAsync(db, existingPasswordSession)).Principal);
+        Assert.NotNull((await ValidateSessionAsync(db, existingDiscordSession)).Principal);
+    }
+
+    [Fact]
     public async Task BrowserLevelOnboardingAndMyAccountsJourneyUsesOrdinaryForms()
     {
         using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
@@ -276,6 +407,38 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         Assert.Contains("Browser second character", updated, StringComparison.Ordinal);
         Assert.Contains("Alt", updated, StringComparison.Ordinal);
         Assert.Contains("44.5", updated, StringComparison.Ordinal);
+
+        var settings = await client.GetStringAsync("/Account/Settings");
+        Assert.Contains("Change website username", settings, StringComparison.Ordinal);
+        using var renamed = await client.PostAsync("/Account/Settings?handler=RenameUsername", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Rename.Username"] = "browser renamed username",
+            ["Rename.CurrentPassword"] = "long-browser-password",
+            ["__RequestVerificationToken"] = AntiforgeryToken(settings)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, renamed.StatusCode);
+        var renamedSettings = await client.GetStringAsync("/Account/Settings");
+        Assert.Contains("Your website username was changed.", renamedSettings, StringComparison.Ordinal);
+        using var passwordLogin = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var login = await passwordLogin.GetStringAsync("/Account/Login");
+        using var loggedIn = await passwordLogin.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = "browser renamed username",
+            ["Input.Password"] = "long-browser-password",
+            ["Input.RememberMe"] = "true",
+            ["__RequestVerificationToken"] = AntiforgeryToken(login)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, loggedIn.StatusCode);
+        var originalExpiry = CookieExpiry(loggedIn);
+        var passwordSettings = await passwordLogin.GetStringAsync("/Account/Settings");
+        using var renamedAgain = await passwordLogin.PostAsync("/Account/Settings?handler=RenameUsername", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Rename.Username"] = "browser expiry username",
+            ["Rename.CurrentPassword"] = "long-browser-password",
+            ["__RequestVerificationToken"] = AntiforgeryToken(passwordSettings)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, renamedAgain.StatusCode);
+        Assert.Equal(originalExpiry, CookieExpiry(renamedAgain));
     }
 
     [Fact]
@@ -361,6 +524,25 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
     private static EventParticipantCharacter Playing(Guid eventId, Guid participantId, Guid characterId, Guid actorId, DateTimeOffset now)
         => new(Guid.NewGuid(), eventId, participantId, characterId, 0, now, actorId, null, EventCharacterRole.Playing, 1m, EhbSource.Manual, null);
 
+    private static async Task<Exception?> CaptureAsync(Task save)
+    {
+        try { await save; return null; }
+        catch (Exception exception) { return exception; }
+    }
+
+    private static async Task<CookieValidatePrincipalContext> ValidateSessionAsync(ApplicationDbContext db, System.Security.Claims.ClaimsPrincipal principal)
+    {
+        var context = new DefaultHttpContext();
+        var ticket = new AuthenticationTicket(principal, new AuthenticationProperties(), CookieAuthenticationDefaults.AuthenticationScheme);
+        var validation = new CookieValidatePrincipalContext(
+            context,
+            new AuthenticationScheme(CookieAuthenticationDefaults.AuthenticationScheme, null, typeof(CookieAuthenticationHandler)),
+            new CookieAuthenticationOptions(),
+            ticket);
+        await new AccountCookieEvents(db, TimeProvider.System).ValidatePrincipal(validation);
+        return validation;
+    }
+
     private static BingoEvent Event(DateTimeOffset now, string name, bool signupOpen)
     {
         var bingoEvent = new BingoEvent(Guid.NewGuid(), name, $"{name}-{Guid.NewGuid():N}", "", "UTC", now.AddHours(-1), now.AddDays(1), now.AddDays(2), now.AddDays(3), now.AddDays(4), 20, Guid.NewGuid(), now);
@@ -369,6 +551,11 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
     }
 
     private static string AntiforgeryToken(string page) => Regex.Match(page, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
+
+    private static string CookieExpiry(HttpResponseMessage response) => Regex.Match(
+        response.Headers.GetValues("Set-Cookie").Single(value => value.StartsWith("Bingo.Auth=", StringComparison.Ordinal)),
+        "expires=([^;]+)",
+        RegexOptions.IgnoreCase).Groups[1].Value;
 
     private static Task<HttpResponseMessage> EnhancedPostAsync(HttpClient client, string path, Dictionary<string, string> values)
     {
