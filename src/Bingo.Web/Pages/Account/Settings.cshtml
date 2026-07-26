@@ -1,0 +1,24 @@
+@page
+@model Bingo.Web.Pages.Account.SettingsModel
+@{ ViewData["Title"] = T["Account settings"]; }
+<section class="form-page">
+    <p class="eyebrow">@T["Account settings"]</p>
+    <h1>@T["Security and Discord"]</h1>
+    <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+    <div class="panel details-list"><p><strong>@T["Discord"]</strong><span>@(Model.DiscordLinked ? T["Linked"] : T["Not linked"])</span></p></div>
+    <a class="btn btn-outline-light" asp-page="ChangePassword">@T["Change password"]</a>
+    <form method="post" asp-page-handler="BeginLink" class="panel form-stack" data-native-submit>
+        <h2>@(Model.DiscordLinked ? T["Change linked Discord"] : T["Link Discord"])</h2>
+        <label asp-for="CurrentPassword"></label><input asp-for="CurrentPassword" class="form-control" type="password" /><span asp-validation-for="CurrentPassword" class="field-error"></span>
+        <button class="btn btn-outline-light">@T["Continue with Discord"]</button>
+    </form>
+    @if (Model.DiscordLinked)
+    {
+        <form method="post" asp-page-handler="Unlink" class="panel form-stack">
+            <h2>@T["Unlink Discord"]</h2>
+            <label asp-for="CurrentPassword"></label><input asp-for="CurrentPassword" class="form-control" type="password" /><span asp-validation-for="CurrentPassword" class="field-error"></span>
+            <button class="btn btn-danger">@T["Unlink Discord"]</button>
+        </form>
+    }
+</section>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

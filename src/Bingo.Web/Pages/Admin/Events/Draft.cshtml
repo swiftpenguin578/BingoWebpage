@@ -21,7 +21,7 @@
         <h1>Teams and draft</h1>
     </header>
 }
-@if(Model.GeneratedCredentials.Count>0){<section class="panel generated-credentials"><h2>Captain accounts created</h2><p><strong>Copy these now.</strong> Passwords are shown only once and each captain must change theirs at first sign-in.</p><div class="table-wrap"><table><thead><tr><th>Team</th><th>Role</th><th>Player</th><th>Username</th><th>Temporary password</th></tr></thead><tbody>@foreach(var credential in Model.GeneratedCredentials){<tr><td>@credential.TeamName</td><td>@credential.Role</td><td>@credential.PlayerName</td><td><code>@credential.Username</code></td><td><code>@credential.Password</code></td></tr>}</tbody></table></div></section>}
+@if(Model.GeneratedCredentials.Count>0){<section class="panel generated-credentials"><h2>Emergency captain setup links created</h2><p><strong>Copy these now.</strong> Each link is single-use and expires in 60 minutes. Setup does not enable the credential.</p><div class="table-wrap"><table><thead><tr><th>Team</th><th>Role</th><th>Player</th><th>Username</th><th>Setup token</th></tr></thead><tbody>@foreach(var credential in Model.GeneratedCredentials){<tr><td>@credential.TeamName</td><td>@credential.Role</td><td>@credential.PlayerName</td><td><code>@credential.Username</code></td><td><code>@credential.SetupToken</code></td></tr>}</tbody></table></div></section>}
 
 @if (Model.Draft is null)
 {

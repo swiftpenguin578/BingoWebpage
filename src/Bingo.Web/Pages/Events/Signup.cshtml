@@ -2,27 +2,27 @@
 @model Bingo.Web.Pages.Events.SignupModel
 @using Bingo.Domain.Signups
 @{
-    ViewData["Title"] = Model.EventView?.Name ?? "Signup";
+    ViewData["Title"] = Model.EventView?.Name ?? T["Signup"];
 }
-<section class="form-page wide-form"><p class="eyebrow">Event signup</p><h1>@Model.EventView!.Name</h1><p class="form-intro">@Model.EventView.Description</p>
-<div class="panel event-summary"><p><strong>Signup closes</strong><span>@Model.EventView.SignupClosesAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></p><p><strong>Event</strong><span>@Model.EventView.EventStartsAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm") – @Model.EventView.EventEndsAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></p></div>
-@if (!Model.EventView.Accepting) { <div class="panel"><h2>Signups are not currently open</h2><p>The event information remains visible, but the form is unavailable.</p></div> }
+<section class="form-page wide-form"><p class="eyebrow">@T["Event signup"]</p><h1>@Model.EventView!.Name</h1><p class="form-intro">@Model.EventView.Description</p>
+<div class="panel event-summary"><p><strong>@T["Signup closes"]</strong><span>@Model.EventView.SignupClosesAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></p><p><strong>@T["Event"]</strong><span>@Model.EventView.EventStartsAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm") – @Model.EventView.EventEndsAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></p></div>
+@if (!Model.EventView.Accepting) { <div class="panel"><h2>@T["Signups are not currently open"]</h2><p>@T["The event information remains visible, but the form is unavailable."]</p></div> }
 else {
 <form method="post" class="panel form-stack"><div asp-validation-summary="ModelOnly" class="validation-summary"></div>
-<label asp-for="Input.PrimaryAccountName"></label><input asp-for="Input.PrimaryAccountName" class="form-control" /><span asp-validation-for="Input.PrimaryAccountName" class="field-error"></span>
-<label asp-for="Input.Ehb"></label><input asp-for="Input.Ehb" class="form-control" /><span asp-validation-for="Input.Ehb" class="field-error"></span>
-<label asp-for="Input.SecondAccountName"></label><input asp-for="Input.SecondAccountName" class="form-control" />
-<label asp-for="Input.DiscordIdentity"></label><input asp-for="Input.DiscordIdentity" class="form-control" />
-<label asp-for="Input.Comments"></label><textarea asp-for="Input.Comments" class="form-control" rows="4"></textarea>
-<label class="check-row"><input asp-for="Input.CaptainVolunteer" /> I am willing to be a captain</label>
+<label asp-for="Input.PrimaryAccountName">@T["In-game name"]</label><input asp-for="Input.PrimaryAccountName" class="form-control" /><span asp-validation-for="Input.PrimaryAccountName" class="field-error"></span>
+<label asp-for="Input.Ehb">@T["EHB (Wise Old Man)"]</label><input asp-for="Input.Ehb" class="form-control" /><span asp-validation-for="Input.Ehb" class="field-error"></span>
+<label asp-for="Input.SecondAccountName">@T["Second account (optional)"]</label><input asp-for="Input.SecondAccountName" class="form-control" />
+<label asp-for="Input.DiscordIdentity">@T["Discord name (optional)"]</label><input asp-for="Input.DiscordIdentity" class="form-control" />
+<label asp-for="Input.Comments">@T["Comments"]</label><textarea asp-for="Input.Comments" class="form-control" rows="4"></textarea>
+<label class="check-row"><input asp-for="Input.CaptainVolunteer" /> @T["I am willing to be a captain"]</label>
 @foreach (var question in Model.Questions) {
 <label for="question-@question.Id">@question.Label @if(question.Required){<span aria-hidden="true">*</span>}</label>
 @if(question.Type == SignupQuestionType.LongText){<textarea id="question-@question.Id" name="Input.CustomAnswers[@question.Id]" class="form-control" rows="3"></textarea>}
-else if(question.Type == SignupQuestionType.YesNo){<select id="question-@question.Id" name="Input.CustomAnswers[@question.Id]" class="form-select"><option value="">Choose…</option><option>Yes</option><option>No</option></select>}
-else if(question.Type == SignupQuestionType.SingleChoice){<select id="question-@question.Id" name="Input.CustomAnswers[@question.Id]" class="form-select"><option value="">Choose…</option>@foreach(var option in question.OptionList){<option>@option</option>}</select>}
+else if(question.Type == SignupQuestionType.YesNo){<select id="question-@question.Id" name="Input.CustomAnswers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option><option>@T["Yes"]</option><option>@T["No"]</option></select>}
+else if(question.Type == SignupQuestionType.SingleChoice){<select id="question-@question.Id" name="Input.CustomAnswers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option>@foreach(var option in question.OptionList){<option>@option</option>}</select>}
 else {<input id="question-@question.Id" name="Input.CustomAnswers[@question.Id]" class="form-control" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" />}
 }
 @if(Model.EventView.RequireCode){<label asp-for="Input.SignupCode"></label><input asp-for="Input.SignupCode" class="form-control" autocomplete="off" />}
-<button class="btn btn-primary" type="submit">Sign up</button></form> }
+<button class="btn btn-primary" type="submit">@T["Sign up"]</button></form> }
 </section>
 @section Scripts { <partial name="_ValidationScriptsPartial" /> }

@@ -6,10 +6,11 @@ using Bingo.Infrastructure.Signups;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Events;
 
-public sealed class EditSignupModel(ApplicationDbContext dbContext, IPrivateEditTokenService tokenService) : PageModel
+public sealed class EditSignupModel(ApplicationDbContext dbContext, IPrivateEditTokenService tokenService, IStringLocalizer<SharedResource> text) : PageModel
 {
     [BindProperty] public EditInput Input { get; set; } = new();
     public IReadOnlyList<QuestionView> Questions { get; private set; } = [];
@@ -23,15 +24,15 @@ public sealed class EditSignupModel(ApplicationDbContext dbContext, IPrivateEdit
     public async Task<IActionResult> OnPostAsync(string slug, string token, CancellationToken ct)
     {
         var participant = await FindAsync(slug, token, ct); if (participant is null) return NotFound(); await LoadQuestionsAsync(participant.EventId, ct);
-        foreach (var question in Questions.Where(q => q.Required)) if (!Input.CustomAnswers.TryGetValue(question.Id, out var answer) || string.IsNullOrWhiteSpace(answer)) ModelState.AddModelError(string.Empty, $"'{question.Label}' is required.");
+        foreach (var question in Questions.Where(q => q.Required)) if (!Input.CustomAnswers.TryGetValue(question.Id, out var answer) || string.IsNullOrWhiteSpace(answer)) ModelState.AddModelError(string.Empty, text["'{0}' is required.", question.Label]);
         if (!ModelState.IsValid) return Page();
         var normalized = SignupService.NormalizeAccountName(Input.PrimaryAccountName);
         var duplicate = await dbContext.EventParticipants.AnyAsync(p => p.EventId == participant.EventId && p.Id != participant.Id && p.NormalizedPrimaryAccountName == normalized && (p.SignupStatus == SignupStatus.Confirmed || p.SignupStatus == SignupStatus.WaitingList), ct);
-        if (duplicate) { ModelState.AddModelError("Input.PrimaryAccountName", "That account is already signed up."); return Page(); }
+        if (duplicate) { ModelState.AddModelError("Input.PrimaryAccountName", text["That account is already signed up."]); return Page(); }
         participant.UpdatePublicDetails(Input.PrimaryAccountName.Trim(), normalized, Input.Ehb, Clean(Input.SecondAccountName), Clean(Input.DiscordIdentity), Clean(Input.Comments), Input.CaptainVolunteer);
         var existing = await dbContext.SignupAnswers.Where(a => a.EventParticipantId == participant.Id).ToDictionaryAsync(a => a.SignupQuestionId, ct);
         foreach (var question in Questions) { if (!Input.CustomAnswers.TryGetValue(question.Id, out var value) || string.IsNullOrWhiteSpace(value)) continue; if (existing.TryGetValue(question.Id, out var stored)) stored.Update(value.Trim()); else dbContext.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, question.Id, question.Label, value.Trim())); }
-        await dbContext.SaveChangesAsync(ct); TempData["StatusMessage"] = "Your signup was updated."; return RedirectToPage(new { slug, token });
+        await dbContext.SaveChangesAsync(ct); TempData["StatusMessage"] = text["Your signup was updated."]; return RedirectToPage(new { slug, token });
     }
     private async Task<EventParticipant?> FindAsync(string slug, string token, CancellationToken ct)
     {

@@ -1,5 +1,4 @@
 using Bingo.Application.Evidence;
-using Bingo.Domain.Access;
 using Bingo.Domain.Evidence;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
@@ -17,7 +16,13 @@ public sealed class EvidenceModel(ApplicationDbContext db, IEvidenceStorage stor
         var allowed = submission.Status == SubmissionStatus.Approved && !submission.PublicEvidenceHidden && asset.Active;
         if (!allowed)
         {
-            var accountId = User.GetAccountId(); if (accountId is null) return NotFound(); var account = await db.Accounts.AsNoTracking().SingleAsync(x => x.Id == accountId, ct); allowed = account.Role == AccountRole.Admin || (account.Role == AccountRole.Captain && account.EventId == submission.EventId && account.TeamId == submission.TeamId);
+            var accountId = User.GetAccountId();
+            if (accountId is null) return NotFound();
+            var account = await db.Accounts.AsNoTracking().SingleAsync(x => x.Id == accountId, ct);
+            allowed = account.GlobalRole is Bingo.Domain.Access.GlobalRole.Admin or Bingo.Domain.Access.GlobalRole.SuperAdmin ||
+                await db.AccountEventAccesses.AsNoTracking().AnyAsync(
+                    access => access.AccountId == accountId && access.EventId == submission.EventId && access.TeamId == submission.TeamId,
+                    ct);
         }
         if (!allowed) return RedirectToPage("/Account/AccessDenied"); var stream = await storage.OpenReadAsync(asset.StorageKey, ct); return new FileStreamResult(stream, asset.MediaType) { EnableRangeProcessing = true };
     }

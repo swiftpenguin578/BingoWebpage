@@ -9,6 +9,10 @@
     <form method="get" class="panel filter-row">
         <div><label asp-for="Action"></label><input asp-for="Action" class="form-control" /></div>
         <div><label asp-for="Actor"></label><input asp-for="Actor" class="form-control" /></div>
+        <div><label asp-for="Entity"></label><input asp-for="Entity" class="form-control" /></div>
+        <div><label asp-for="EventId">Event ID</label><input asp-for="EventId" class="form-control" /></div>
+        <div><label asp-for="From"></label><input asp-for="From" class="form-control" /></div>
+        <div><label asp-for="To"></label><input asp-for="To" class="form-control" /></div>
         <button class="btn btn-primary" type="submit">Filter</button>
         <a class="btn btn-outline-light" asp-page="Index">Clear</a>
     </form>
@@ -23,10 +27,12 @@
                     <td>@entry.ActorUsername</td>
                     <td><code>@entry.Action</code></td>
                     <td>@entry.TargetType @entry.TargetId</td>
-                    <td>@entry.Details</td>
+                    <td>@entry.Details@if(entry.BeforeState is not null || entry.AfterState is not null){<details><summary>Structured change</summary><dl><dt>Before</dt><dd><code>@entry.BeforeState</code></dd><dt>After</dt><dd><code>@entry.AfterState</code></dd></dl></details>}</td>
                 </tr>
             }
             </tbody>
         </table>
     </div>
+    @if (Model.PageNumber > 1) { <a class="btn btn-outline-light" asp-route-action="@Model.Action" asp-route-actor="@Model.Actor" asp-route-entity="@Model.Entity" asp-route-eventId="@Model.EventId" asp-route-from="@Model.From" asp-route-to="@Model.To" asp-route-pageNumber="@(Model.PageNumber - 1)">Previous</a> }
+    @if (Model.HasNextPage) { <a class="btn btn-outline-light" asp-route-action="@Model.Action" asp-route-actor="@Model.Actor" asp-route-entity="@Model.Entity" asp-route-eventId="@Model.EventId" asp-route-from="@Model.From" asp-route-to="@Model.To" asp-route-pageNumber="@(Model.PageNumber + 1)">Next</a> }
 </section>

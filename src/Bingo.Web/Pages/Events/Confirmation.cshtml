@@ -1,7 +1,7 @@
 @page "/Events/{slug}/Signup/Confirmation"
 @model Bingo.Web.Pages.Events.ConfirmationModel
 @{
-    ViewData["Title"] = "Signup confirmed";
+    ViewData["Title"] = T["Signup confirmed"];
 }
-<section class="content-page"><p class="eyebrow">Signup received</p><h1>@Model.EventName</h1><div class="panel"><h2>@Model.Status</h2>@if(Model.WaitingPosition is not null){<p>You are currently number <strong>@Model.WaitingPosition</strong> on the waiting list.</p>}else{<p>Your place is confirmed.</p>}
-@if(Model.EditToken is not null){<p>Save this private link if you need to correct your signup:</p><p class="private-link"><a href="/Events/@RouteData.Values["slug"]/Signup/Edit/@Model.EditToken">Edit my signup</a></p><p class="form-hint">Anyone with this link can edit your signup. Do not share it publicly.</p>}</div></section>
+<section class="content-page"><p class="eyebrow">@T["Signup received"]</p><h1>@Model.EventName</h1><div class="panel"><h2>@T[Model.Status]</h2>@if(Model.WaitingPosition is not null){<p>@T["You are currently number {0} on the waiting list.", Model.WaitingPosition]</p>}else{<p>@T["Your place is confirmed."]</p>}
+@if(Model.EditToken is not null){<p>@T["Save this private link if you need to correct your signup:"]</p><p class="private-link"><a href="/Events/@RouteData.Values["slug"]/Signup/Edit/@Model.EditToken">@T["Edit my signup"]</a></p><p class="form-hint">@T["Anyone with this link can edit your signup. Do not share it publicly."]</p>}</div></section>

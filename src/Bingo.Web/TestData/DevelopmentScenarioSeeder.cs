@@ -34,9 +34,13 @@ public sealed class DevelopmentScenarioSeeder(
         }
 
         var admin = await db.Accounts.AsNoTracking()
-            .Where(account => account.Role == AccountRole.Admin && account.DisabledAt == null)
+            .Where(account => account.GlobalRole == GlobalRole.SuperAdmin && account.DisabledAt == null)
             .OrderBy(account => account.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken)
+            ?? await db.Accounts.AsNoTracking()
+                .Where(account => account.GlobalRole == GlobalRole.Admin && account.DisabledAt == null)
+                .OrderBy(account => account.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken)
             ?? throw new InvalidOperationException("Create a local administrator before resetting test data.");
 
         var blueprint = await BuildCanonicalBlueprintAsync(cancellationToken);
@@ -164,20 +168,21 @@ public sealed class DevelopmentScenarioSeeder(
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return new SeedResult(admin.Username, secondaryAdmin.Username, SecondaryAdminPassword, blueprint.Name, seeded, CaptainPassword);
+        return new SeedResult(admin.LoginName, secondaryAdmin.LoginName, SecondaryAdminPassword, blueprint.Name, seeded, CaptainPassword);
     }
 
     private async Task<Account> EnsureSecondaryAdminAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
         var normalized = SecondaryAdminUsername.ToUpperInvariant();
-        var account = await db.Accounts.SingleOrDefaultAsync(value => value.NormalizedUsername == normalized, cancellationToken);
+        var account = await db.Accounts.SingleOrDefaultAsync(value => value.NormalizedLoginName == normalized, cancellationToken);
         if (account is null)
         {
-            account = new Account(Guid.NewGuid(), SecondaryAdminUsername, normalized, AccountRole.Admin, now);
+            account = Account.CreateWebsite(Guid.NewGuid(), SecondaryAdminUsername, normalized, now);
+            account.SetGlobalRole(GlobalRole.Admin);
             db.Accounts.Add(account);
         }
         account.SetPasswordHash(passwordHasher.HashPassword(account, SecondaryAdminPassword), mustChangePassword: false);
-        account.Enable(null);
+        account.Enable();
         return account;
     }
 
@@ -282,11 +287,6 @@ public sealed class DevelopmentScenarioSeeder(
                 Math.Max(1, 25 - index * 4)));
         }
 
-        foreach (var account in db.Accounts.Local.Where(account =>
-                     account.EventId == bingoEvent.Id && account.Role == AccountRole.Captain))
-        {
-            account.ScheduleExpiry(now.AddHours(24));
-        }
     }
 
     private SeededScenario SeedLargeDraftScenario(
@@ -659,8 +659,7 @@ public sealed class DevelopmentScenarioSeeder(
                 value.TeamId == team.Id && value.Role == TeamMembershipRole.Captain);
             var captainParticipant = db.EventParticipants.Local.Single(value =>
                 value.Id == captainMembership.EventParticipantId);
-            var captainAccount = db.Accounts.Local.Single(value =>
-                value.TeamId == team.Id && value.CaptainParticipantId == captainParticipant.Id);
+            var captainAccount = SeededCaptainAccount(team.Id, captainParticipant.Id);
             var memberParticipantIds = db.TeamMemberships.Local
                 .Where(value => value.TeamId == team.Id && value.LeftAt is null)
                 .Select(value => value.EventParticipantId)
@@ -848,13 +847,20 @@ public sealed class DevelopmentScenarioSeeder(
     {
         var baseName = new string(participant.PrimaryAccountName.Where(char.IsLetterOrDigit).ToArray());
         var username = $"{baseName}{digits}";
-        var account = new Account(Guid.NewGuid(), username, Normalize(username), AccountRole.Captain, now);
+        var account = Account.CreateEmergency(Guid.NewGuid(), username, Normalize(username), now);
         account.SetPasswordHash(passwordHasher.HashPassword(account, CaptainPassword), mustChangePassword: false);
-        account.ScopeCaptain(
-            bingoEvent.Id, team.Id, bingoEvent.EventStartsAt,
-            bingoEvent.SubmissionCutoffAt, bingoEvent.EventEndsAt.AddHours(24), participant.Id);
+        account.Enable();
         db.Accounts.Add(account);
+        var access = new AccountEventAccess(Guid.NewGuid(), account.Id, bingoEvent.Id, team.Id, participant.Id, bingoEvent.EventStartsAt, null, null);
+        access.Enable();
+        db.AccountEventAccesses.Add(access);
         return username;
+    }
+
+    private Account SeededCaptainAccount(Guid teamId, Guid participantId)
+    {
+        var access = db.AccountEventAccesses.Local.Single(value => value.TeamId == teamId && value.ParticipantId == participantId);
+        return db.Accounts.Local.Single(value => value.Id == access.AccountId);
     }
 
     private static string CaptainDigits(BingoEvent bingoEvent, int accountNumber)
@@ -870,7 +876,7 @@ public sealed class DevelopmentScenarioSeeder(
         var team = db.Teams.Local.Single(value => value.EventId == eventId && value.Name == "Seeded Ravens");
         var membership = db.TeamMemberships.Local.First(value => value.TeamId == team.Id && value.Role == TeamMembershipRole.Captain);
         var player = db.EventParticipants.Local.Single(value => value.Id == membership.EventParticipantId);
-        var captain = db.Accounts.Local.Single(value => value.TeamId == team.Id && value.CaptainParticipantId == player.Id);
+        var captain = SeededCaptainAccount(team.Id, player.Id);
 
         BoardRequirementSnapshot Requirement(string tileName, int position = 1) =>
             db.BoardRequirementSnapshots.Local.Single(value => value.BoardTileId == tiles[tileName].Id && value.Position == position);
@@ -990,8 +996,7 @@ public sealed class DevelopmentScenarioSeeder(
         var seedColor = 90;
         async Task ApproveProgressAsync(Team progressTeam, EventParticipant progressPlayer, string tileName, int? amount = null)
         {
-            var progressCaptain = db.Accounts.Local.Single(value =>
-                value.TeamId == progressTeam.Id && value.CaptainParticipantId == progressPlayer.Id);
+            var progressCaptain = SeededCaptainAccount(progressTeam.Id, progressPlayer.Id);
             var progressTile = tiles[tileName];
             foreach (var progressRequirement in db.BoardRequirementSnapshots.Local
                          .Where(value => value.BoardTileId == progressTile.Id)
@@ -1041,7 +1046,7 @@ public sealed class DevelopmentScenarioSeeder(
         var team = db.Teams.Local.Single(value => value.EventId == eventId && value.Name == "Seeded Ravens");
         var membership = db.TeamMemberships.Local.First(value => value.TeamId == team.Id && value.Role == TeamMembershipRole.Captain);
         var player = db.EventParticipants.Local.Single(value => value.Id == membership.EventParticipantId);
-        var captain = db.Accounts.Local.Single(value => value.TeamId == team.Id && value.CaptainParticipantId == player.Id);
+        var captain = SeededCaptainAccount(team.Id, player.Id);
         var tiles = db.BoardTiles.Local.Where(value => value.BoardId == board.Id).OrderBy(value => value.RowIndex).ThenBy(value => value.ColumnIndex).ToList();
         var counter = 0;
 
@@ -1376,9 +1381,10 @@ public sealed class DevelopmentScenarioSeeder(
                 board_requirement_drop_snapshots, board_requirement_boss_snapshots, board_requirement_snapshots,
                 board_tiles, template_requirement_drops, template_requirement_bosses, tile_template_requirements,
                 tile_templates, boards, signup_answers, signup_questions, event_participants,
-                event_state_transitions, events, audit_entries
+                event_state_transitions, events, audit_entries, personal_notifications,
+                account_event_accesses, password_credential_tokens, account_discord_identity_transitions
             RESTART IDENTITY;
-            DELETE FROM accounts WHERE role = 'Captain';
+            DELETE FROM accounts WHERE account_type = 'EmergencyCaptain';
             """,
             cancellationToken);
 

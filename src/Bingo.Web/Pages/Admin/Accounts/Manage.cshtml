@@ -1,45 +1,10 @@
 @page "{id:guid}"
 @model Bingo.Web.Pages.Admin.Accounts.ManageModel
-@{
-    ViewData["Title"] = "Manage account";
-}
-
-<section class="form-page wide-form">
-    <p class="eyebrow">Account management</p>
-    <h1>@Model.AccountView!.Username</h1>
-    <div class="panel details-list">
-        <p><strong>Role</strong><span>@Model.AccountView.Role</span></p>
-        <p><strong>Event</strong><span>@(Model.AccountView.EventId?.ToString() ?? "Global")</span></p>
-        <p><strong>Team</strong><span>@(Model.AccountView.TeamId?.ToString() ?? "—")</span></p>
-        <p><strong>Current access</strong><span>@Model.AccountView.AccessMode</span></p>
-        <p><strong>Last login</strong><span>@(Model.AccountView.LastLoginAt?.ToLocalTime().ToString("g") ?? "Never")</span></p>
-    </div>
-
-    <form method="post" asp-page-handler="ResetPassword" class="panel form-stack">
-        <h2>Reset password</h2>
-        <label asp-for="NewPassword"></label><input asp-for="NewPassword" class="form-control" />
-        <span asp-validation-for="NewPassword" class="field-error"></span>
-        <button class="btn btn-warning" type="submit">Reset and require change</button>
-    </form>
-
-    @if (Model.AccountView.AccessMode == Bingo.Domain.Access.AccountAccessMode.Disabled)
-    {
-        <form method="post" asp-page-handler="Enable" class="panel form-stack">
-            <h2>Re-enable account</h2>
-            <label asp-for="NewExpiry"></label><input asp-for="NewExpiry" class="form-control" />
-            <p class="form-hint">Leave blank to keep it active until manually disabled.</p>
-            <button class="btn btn-success" type="submit">Re-enable</button>
-        </form>
-    }
-    else
-    {
-        <form method="post" asp-page-handler="Disable" class="panel form-stack">
-            <h2>Disable account</h2>
-            <label asp-for="Reason"></label><textarea asp-for="Reason" class="form-control" rows="3"></textarea>
-            <span asp-validation-for="Reason" class="field-error"></span>
-            <button class="btn btn-danger" type="submit">Disable now</button>
-        </form>
-    }
-</section>
-
-@section Scripts { <partial name="_ValidationScriptsPartial" /> }
+@using Bingo.Domain.Access
+@{ ViewData["Title"]="Manage account"; var item=Model.AccountView!; var owner=User.IsInRole(nameof(GlobalRole.SuperAdmin)); var canManageUser = owner || item.Role == GlobalRole.User; }
+<section class="form-page wide-form"><p class="eyebrow">Account management</p><h1>@item.Username</h1><div class="panel details-list"><p><strong>Type</strong><span>@item.AccountType</span></p><p><strong>Role</strong><span>@item.Role</span></p><p><strong>State</strong><span>@(item.Active ? "Active" : "Disabled")</span></p><p><strong>Discord</strong><span>@(item.DiscordLinked ? "Linked" : "Not linked")</span></p>@if(item.DiscordDisplayName is not null){<p><strong>Last-known Discord display name</strong><span>@item.DiscordDisplayName (non-authoritative)</span></p>}<p><strong>Last login</strong><span>@(item.LastLoginAt?.ToLocalTime().ToString("g") ?? "Never")</span></p></div><div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+@if(item.AccountType == AccountType.WebsiteAccount){<section class="panel"><h2>Linked OSRS characters</h2><ul>@foreach(var character in item.Characters){<li>@character.DisplayName @if(character.Preferred){<span>(preferred)</span>} @if(!character.Active){<span>(inactive)</span>}</li>}@if(!item.Characters.Any()){<li>None recorded.</li>}</ul></section><section class="panel"><h2>Event participation and team-role history</h2>@if(!item.EventRoles.Any()){<p>No event participation is currently linked through the account’s OSRS characters.</p>}@foreach(var role in item.EventRoles){<div><strong>@role.EventName</strong> — @role.ParticipationState<ul>@foreach(var teamRole in role.TeamRoles){<li>@teamRole.TeamName: @teamRole.Role (@teamRole.JoinedAt.ToLocalTime().ToString("g") — @(teamRole.LeftAt?.ToLocalTime().ToString("g") ?? "current"))</li>}@if(!role.TeamRoles.Any()){<li>No team role recorded.</li>}</ul></div>}</section><section class="panel"><h2>Disable history</h2><ul>@foreach(var history in item.DisableHistory){<li>@history.State by @history.ActorName at @history.OccurredAt.ToLocalTime().ToString("g")</li>}@if(!item.DisableHistory.Any()){<li>No disable history.</li>}</ul></section>}
+@if(TempData["CredentialLink"] is string link && TempData["CredentialLinkTargetId"]?.ToString() == item.Id.ToString() && TempData["CredentialLinkPurpose"] is string purpose && (purpose == "reset" || purpose == "emergency" && item.AccountType == AccountType.EmergencyCaptain)){<div class="panel"><strong>One-time credential link</strong><p><code>@link</code></p></div>}else{TempData.Remove("CredentialLink");TempData.Remove("CredentialLinkTargetId");TempData.Remove("CredentialLinkPurpose");}
+@if(item.AccountType==AccountType.WebsiteAccount && owner && item.Role==GlobalRole.User){<form method="post" asp-page-handler="GrantAdmin" class="panel form-stack"><h2>Grant Admin</h2><p>Grant Admin access to @item.Username?</p><button class="btn action-accent-outline">Grant Admin</button></form>}@if(item.AccountType==AccountType.WebsiteAccount && owner && item.Role==GlobalRole.Admin){<form method="post" asp-page-handler="RevokeAdmin" class="panel form-stack"><h2>Revoke Admin</h2><p>Return @item.Username to User?</p><button class="btn btn-outline-light">Revoke Admin</button></form>}
+@if(item.AccountType==AccountType.WebsiteAccount && canManageUser){<form method="post" asp-page-handler="GenerateResetLink" class="panel form-stack"><h2>Password reset link</h2><p>The link is shown once and expires after 60 minutes.</p><button class="btn btn-outline-light">Generate reset link</button></form>}@if(item.AccountType==AccountType.WebsiteAccount && item.Active && canManageUser){<form method="post" asp-page-handler="Disable" class="panel form-stack"><h2>Disable account</h2><label asp-for="Reason"></label><textarea asp-for="Reason" class="form-control"></textarea><button class="btn btn-danger">Disable</button></form>}else if(item.AccountType==AccountType.WebsiteAccount && canManageUser){<form method="post" asp-page-handler="Restore" class="panel form-stack"><h2>Restore account</h2><button class="btn action-accent-outline">Restore</button></form>}
+@if(item.AccountType==AccountType.EmergencyCaptain){<div class="panel details-list"><p><strong>Event scope</strong><span>@item.Scope?.EventName / @item.Scope?.TeamName</span></p><p><strong>Setup</strong><span>@(item.HasPassword ? "Complete" : "Awaiting setup")</span></p><p><strong>Cutoff</strong><span>@(item.Scope?.CutoffDisabled == true ? "Disabled at cutoff" : "Not cutoff-disabled")</span></p></div><form method="post" asp-page-handler="GenerateEmergencyLink" class="panel form-stack"><h2>Setup or reset link</h2><p>The link is shown once and expires after 60 minutes.</p><button class="btn btn-outline-light">Generate link</button></form>@if(item.Active && item.Scope?.Enabled == true){<form method="post" asp-page-handler="DisableEmergency" class="panel form-stack"><button class="btn btn-danger">Disable emergency credential</button></form>}else{<form method="post" asp-page-handler="EnableEmergency" class="panel form-stack"><button class="btn action-accent-outline">Enable emergency credential</button></form>}}</section>

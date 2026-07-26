@@ -60,9 +60,9 @@
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-page="/Index">@T["Public boards"]</a>
                         </li>
-                        @if (User.IsInRole("Admin"))
+                        @if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
                         {
-                            <li class="nav-item"><a class="nav-link" asp-page="/Admin/Index">@T["Admin"]</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-page="/Admin/Index">@T["Admin tools"]</a></li>
                         }
                         @if (User.IsInRole("Captain"))
                         {
@@ -92,6 +92,7 @@
                                             <span>@T["Signed in as"]</span>
                                             <strong>@User.Identity.Name</strong>
                                         </div>
+                                        <a asp-page="/Account/Settings">@T["Account settings"]</a>
                                         <a asp-page="/Account/ChangePassword">@T["Change password"]</a>
                                         <form method="post" asp-page="/Account/Logout"><button type="submit">@T["Sign out"]</button></form>
                                     }
@@ -151,7 +152,7 @@
                         UiMessageType.Error => T["Error"],
                         _ => T["Information"]
                     };
-                    <div class="app-notice notice-@messageType.ToString().ToLowerInvariant()" role="@(messageType == UiMessageType.Error ? "alert" : "status")">
+                    <div class="app-notice notice-@messageType.ToString().ToLowerInvariant()" role="@(messageType == UiMessageType.Error ? "alert" : "status")" tabindex="-1" data-feedback-target>
                         <strong>@messageLabel</strong>
                         <span>@statusMessage</span>
                         <button type="button" class="app-notice-dismiss" data-dismiss-notice aria-label="@T["Dismiss message"]">×</button>

@@ -1,0 +1,15 @@
+@page
+@model Bingo.Web.Pages.Admin.Accounts.TransferModel
+@{ ViewData["Title"] = "Transfer Super Admin ownership"; }
+<section class="form-page wide-form">
+    <p class="eyebrow">Super Admin</p>
+    <h1>Transfer ownership</h1>
+    <p class="form-intro">The destination must be another active website account. It becomes the sole Super Admin; your account becomes Admin.</p>
+    <form method="post" class="panel form-stack">
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+        <label asp-for="Input.CurrentPassword"></label><input asp-for="Input.CurrentPassword" class="form-control" autocomplete="current-password" />
+        <label asp-for="Input.DestinationUsername"></label><input asp-for="Input.DestinationUsername" class="form-control" autocomplete="username" />
+        <button class="btn btn-danger">Transfer ownership</button>
+        <a class="btn btn-outline-light" asp-page="Index">Cancel</a>
+    </form>
+</section>

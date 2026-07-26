@@ -196,6 +196,20 @@ Use a password manager for:
 - Cloudflare/R2 credentials
 - Hetzner credentials
 - Production environment secrets
+
+## Operator-only owner reset link
+
+Production owner recovery has no web action. After offline identity verification, generate a single-use 60-minute reset link only for the current active Super Admin:
+
+```bash
+dotnet run --project src/Bingo.Web -- \
+  --slice1-create-owner-reset-link \
+  --username <owner-username> \
+  --confirm-username <owner-username> \
+  --base-url https://bingo.example.com
+```
+
+`--username` must be the active Super Admin's exact public username, and `--confirm-username` must match it exactly, including case. The command prints the raw link once. Deliver it through the verified recovery channel and do not retain it in tickets, logs, or shell history. Repeating the command supersedes an unused earlier owner-recovery link.
 - Backup encryption secret
 
 Never store production credentials in:
@@ -260,4 +274,3 @@ Stop there initially. Optional database clients, package managers, API tools, an
 - [Visual Studio Code](https://code.visualstudio.com/)
 - [Docker Desktop for Mac](https://docs.docker.com/desktop/setup/install/mac-install/)
 - [GitHub SSH setup](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
-

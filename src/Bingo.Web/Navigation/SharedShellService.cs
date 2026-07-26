@@ -25,10 +25,36 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
 
     public async Task<NotificationInbox> GetNotificationsAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        if (user.IsInRole("Admin")) return await GetAdminNotifications(cancellationToken);
+        if (Guid.TryParse(user.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier), out var accountId))
+        {
+            var unread = db.PersonalNotifications.AsNoTracking().Where(item => item.RecipientAccountId == accountId && item.ReadAt == null);
+            var unreadCount = await unread.CountAsync(cancellationToken);
+            if (unreadCount > 0)
+            {
+                var personal = await unread.OrderByDescending(item => item.CreatedAt).Take(6).ToListAsync(cancellationToken);
+                return new NotificationInbox([], unreadCount, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personal.Select(item => new ShellNotification(item.Id, NotificationTitle(item.Title), NotificationDetail(item.Title), $"/notifications?read={item.Id}")).ToList());
+            }
+        }
+        if (user.IsInRole("Admin") || user.IsInRole("SuperAdmin")) return await GetAdminNotifications(cancellationToken);
         if (user.IsInRole("Captain")) return await GetCaptainNotifications(user, cancellationToken);
-        return NotificationInbox.Empty;
+        return new NotificationInbox([], 0, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", []);
     }
+
+    private string NotificationTitle(string type) => type switch
+    {
+        "account.admin_granted" => text["Admin access granted"],
+        "account.admin_revoked" => text["Admin access revoked"],
+        "account.restored" => text["Account restored"],
+        _ => text["Notifications"]
+    };
+
+    private string NotificationDetail(string type) => type switch
+    {
+        "account.admin_granted" => text["An administrator granted your account Admin access."],
+        "account.admin_revoked" => text["An administrator removed your Admin access."],
+        "account.restored" => text["An administrator restored your account."],
+        _ => string.Empty
+    };
 
     private async Task<NotificationInbox> GetAdminNotifications(CancellationToken cancellationToken)
     {
@@ -142,7 +168,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         if (page == "/Admin/Accounts/Create") { items.Add(new(text["Create account"], null)); return items; }
         if (TryGuid(values, "id", out var accountId))
         {
-            var username = await db.Accounts.AsNoTracking().Where(item => item.Id == accountId).Select(item => item.Username).SingleOrDefaultAsync(cancellationToken);
+            var username = await db.Accounts.AsNoTracking().Where(item => item.Id == accountId).Select(item => item.LoginName).SingleOrDefaultAsync(cancellationToken);
             items.Add(new(username ?? text["Account"], null));
         }
         return items;

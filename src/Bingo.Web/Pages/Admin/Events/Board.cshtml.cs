@@ -291,7 +291,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         {
             BoardEditorAccountId = board.EditorAccountId;
             BoardEditorLeaseExpiresAt = board.EditorLeaseExpiresAt;
-            BoardEditorName = await db.Accounts.AsNoTracking().Where(x => x.Id == board.EditorAccountId).Select(x => x.Username).SingleOrDefaultAsync(ct);
+            BoardEditorName = await db.Accounts.AsNoTracking().Where(x => x.Id == board.EditorAccountId).Select(x => x.LoginName).SingleOrDefaultAsync(ct);
             CanEditBoard = board.EditorAccountId == CurrentAccountId;
         }
         Rows = board.Rows; Columns = board.Columns; BoardVersion = board.Version; BoardView = new(board.Rows, board.Columns, board.State, board.TotalEhbEstimate, board.Version);

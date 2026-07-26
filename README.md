@@ -53,6 +53,20 @@ This setup page is available only in the Development environment, only from the 
 
 As an alternative for automated local setup, configure `DevelopmentAdminBootstrap` through user secrets or environment variables. Never put a real password in committed settings.
 
+### Operator-only owner password reset
+
+There is no web action for resetting the active Super Admin password. After offline verification, an operator may create one 60-minute, single-use recovery link for the current active owner:
+
+```bash
+dotnet run --project src/Bingo.Web -- \
+  --slice1-create-owner-reset-link \
+  --username <owner-username> \
+  --confirm-username <owner-username> \
+  --base-url https://bingo.example.com
+```
+
+`--username` must be the active Super Admin's exact public username, and `--confirm-username` must match it exactly, including case. The command prints the raw link once. Deliver it only through the verified offline channel; do not put it in logs, tickets, or shell history. A later command supersedes an unused earlier owner-recovery link.
+
 ### Create and test an event
 
 After signing in as an administrator:
