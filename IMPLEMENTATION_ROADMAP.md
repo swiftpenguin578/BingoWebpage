@@ -2,9 +2,11 @@
 
 ## Implementation Roadmap
 
-**Status:** Approved roadmap v1.0  
-**Last updated:** 2026-07-11  
-**Companion documents:** `PRODUCT_REQUIREMENTS.md`, `DATA_MODEL.md`, `TECHNICAL_ARCHITECTURE.md`, `UI_OVERHAUL_ROADMAP.md`
+**Status:** Planning Pass 2 selected scope and implementation sequence recorded; implementation not started
+
+**Last updated:** 2026-07-25
+
+**Companion documents:** `PRODUCT_REQUIREMENTS.md`, `FUNCTIONAL_WORKFLOWS.md`, `DATA_MODEL.md`, `TECHNICAL_ARCHITECTURE.md`, `UI_OVERHAUL_ROADMAP.md`
 
 ## 1. Purpose
 
@@ -50,13 +52,16 @@ The first production event must be preceded by a complete test-event rehearsal i
 | 7. Public boards, progress, and rankings | Visitors see live team boards and evidence | 6 |
 | 7A. Concurrent administration hardening | Multiple admins cannot overwrite board work or compete for draft control | 4, 5, 7 |
 | 8. Event operations and finalization | Admin closes, reviews, finalizes, and archives events | 7A |
-| 9. UI overhaul and regression | Every workflow is clear, consistent, responsive, and retested locally | 1–8 |
+| 8A. Functional expansion and workflow stabilization | Approved new functionality is designed, implemented, and regression-tested before UI finalization | 1–8 |
+| 9. UI overhaul and regression | Every stabilized workflow is clear, consistent, responsive, and retested locally | 1–8A |
 | 10. Local rehearsal and production preparation | A release candidate passes end to end and deployment/restore tooling is ready | 9 |
 | 11. Production deployment and validation | The approved release candidate is deployed last and passes production checks | 10 |
 
 Milestones 4 and 5 can partly proceed in parallel after the event/signup foundation is stable, but their integration must be verified before evidence submission begins.
 
 Milestone 7A is a follow-up hardening milestone for already completed workflows. It must be completed before Milestone 8 and before a real multi-admin draft or board-editing session.
+
+Milestone 9 began while the version-one functional scope was treated as frozen. Planning pass 2 pauses that sequence at the current Pass 12 checkpoint and inserts Milestone 8A. Approved UI work remains a visual and interaction baseline, but affected pages are not final until the selected functional changes are implemented and Milestone 9 resumes.
 
 ## 4. Milestone 0 — Project readiness
 
@@ -143,32 +148,46 @@ Create the deployable skeleton and establish engineering conventions before feat
 
 ### Objective
 
-Establish secure permanent admin access and event-scoped captain access before protected workflows are built.
+Establish secure Discord-linked user/Admin/Super Admin identity, event-scoped captain access, emergency fallback access, and audit foundations before protected workflows are built.
 
 ### Deliverables
 
-- Admin and captain account records.
-- Secure password hashing and authentication cookies.
-- Login, logout, password-change, and admin reset workflows.
-- Admin authorization policy.
-- Event/team-scoped captain authorization policy.
-- Captain activation, correction-only, expiry, disable, and re-enable behavior.
-- Admin account management.
+- Normal website-account records with global `USER`, `ADMIN`, or `SUPER_ADMIN` roles, optional current Discord association, required public-username/password credentials, in-place migration of existing permanent Admin records, plus disabled-by-default emergency captain records. Event-participant ownership/claim migration remains Slice 2.
+- Discord-backed initial account creation, required password onboarding, hybrid Discord or public-username/password sign-in to one account, secure password hashing, and secure authentication cookies.
+- Login/logout, password change, admin-generated reset links, self-service Discord link/unlink/replace, and emergency password/reset workflows as applicable to each account type.
+- Separate Admin and Super Admin authorization policies.
+- Controlled initial-owner setup/migration that assigns exactly one Super Admin and cannot be reached from public signup/onboarding.
+- Super Admin account management for granting/revoking Admin with strong confirmation, automatic history, and immediate session invalidation.
+- Atomic ownership transfer to another active normal website account, preserving exactly one Super Admin and demoting the former owner to Admin; a Discord link is not required.
+- Event/team-scoped emergency-captain authorization foundation. Normal website-account captain authorization becomes operational after Slice 2 adds participant ownership.
+- Emergency captain activation, automatic submission-cutoff disablement, and explicit re-enable behavior; website-account captain roles remain historical and lifecycle-authorized.
 - Audit-entry infrastructure.
-- Audit viewer with basic filtering.
+- Immutable audit viewer with 25-row pagination and event, actor, action, entity, and date filters.
 - Login rate limiting and failed-login logging.
 - Cross-site request forgery protection.
-- Development-only first-admin bootstrap process.
+- Operator-controlled lost-owner recovery process.
 
 ### Authorization tests
 
 - Anonymous visitor cannot access captain or admin routes.
 - Captain cannot access admin routes.
+- Ordinary Admin cannot grant/revoke Admin or transfer Super Admin ownership.
+- Public signup/onboarding cannot claim Admin or Super Admin.
+- Emergency captain credentials cannot receive a global privileged role.
+- A second Super Admin cannot be created and ownership transfer cannot leave the system ownerless.
+- Admin revocation invalidates an already-issued authenticated session.
 - Captain cannot access another team's protected data.
-- Expired captain account cannot mutate event data.
-- Correction-only captain can correct eligible submissions but cannot submit a newly obtained drop.
+- Closed/finalized event state prevents a historical website-account captain role from mutating event data.
+- Disabled emergency captain credentials cannot authenticate or mutate event data.
+- Closed submission windows reject captain submission mutations while preserving review access.
 - Disabled account cannot log in.
 - Admin actions create the expected audit actor and timestamp.
+- A participating Super Admin receives no other team's focus in the default page/API/realtime projection; explicit inspection grants read-only access for the selected team and disabling it removes access.
+- Discord and password login resolve the same account and cannot create duplicate participation.
+- Public username changes also change the password-login username while closed event snapshots remain unchanged.
+- Generic password failures and reset messaging do not disclose account existence; password attempts are throttled.
+- Reset tokens are hashed, expiring, single-use, supersede older tokens, and enforce Admin/Super Admin issuance boundaries.
+- A user may link, unlink, or directly replace Discord at any time after fresh password confirmation without changing any event participant or role; link/replace reject an already-used Discord ID.
 
 ### Security review
 
@@ -191,26 +210,58 @@ Allow admins to create an event, configure signup, open only the signup page, an
 
 #### Event setup
 
-- Guided event-creation workflow.
+- Guided, multi-session event-creation workflow.
+- Save a private draft with only event name and timezone required; allow other setup values and custom questions to be entered immediately without requiring them for the initial save.
 - Event details and timezone.
+- Unique generated URL identifier that admins may edit until first public exposure and that remains stable afterward.
+- Public description required only before signup opens.
+- Optional event banner available during creation and replaceable/removable later without affecting readiness.
+- Copenhagen-defaulted supported-timezone selector instead of a raw timezone identifier field; later timezone changes preserve UTC schedule instants and use confirmation/audit protections.
 - Signup opening and closing times.
+- Scheduled or manual signup opening; manual opening preserves a valid explicit close or supplies the earlier of three months later and event start.
 - Event start, end, and submission cutoff.
+- Scheduled event-start attempt that remains pre-live and creates an **Automatic start postponed** action when draft, board, Captain/access, or other start-readiness blockers remain; never backdate live eligibility or surprise-start later. Clearing blockers requires **Start event now**, with no reason after schedule and a required reason before it.
+- Optional informational draft time that never starts the draft automatically.
+- Submission cutoff defaults to 30 minutes after event end and cannot be earlier than event end.
 - Participant cap that can increase but not decrease.
-- Preliminary team and board estimates.
+- Optional board dimensions and board-editor EHB planning estimates; event setup has no authoritative draft team-count/team-size inputs.
 - Signup-code configuration.
 - Separate publication flags.
 - Event state transitions and audit history.
+- Explicitly discard an accidental or experimental event when it has no participants, teams, event-scoped accounts, or evidence; board/setup content does not block discard, while a minimal tombstone and the old URL identifier remain.
+- Separate readiness gates for saving a draft, opening signup, starting the event, and finalization.
 - Create the event and open signups without requiring a completed board.
 - Continue private board preparation independently throughout signup and pre-draft setup.
 
 #### Signup form
 
-- Required account-name and EHB questions.
-- Optional second account, comments, captain volunteer, and Discord identity.
-- Custom short text, long text, yes/no, and single-choice questions.
+- An authenticated website account before normal public signup; initial creation uses Discord without requiring Discord-server membership, while returning users may use either login method.
+- First-account onboarding that creates a case-insensitively unique public/password-login username, required password, and separate preferred linked-character record from the same OSRS-format input.
+- One website account may own at most one signup per event.
+- One built-in required playing-account question with its required event-specific EHB snapshot, backed by trust-based many-to-many website-account/character links and a unique character assignment within each event; character links do not grant authorization or prove ownership.
+- Additional custom Account questions configured as playing or informational. They are always optional; an answered playing account requires its own EHB.
+- Yes/No support-alt questions when no account name is required.
+- Always-present captain-volunteer question.
+- Comments and availability only through admin-added custom questions.
+- Custom short text, long text, number, yes/no, single-choice, and Account questions.
+- First-response structural lock: later questions are optional; answered question types, options, Account roles, stable keys, and answer shapes cannot be rewritten.
+- Closed-signup safe edits for label, help, order, and public visibility until draft start.
+- Disable-and-replace workflow that preserves historical answers and form versions.
+- Post-draft form freeze with a separate hide/restore privacy control that preserves answers and automatic history without requiring a written reason.
 - Form validation and event signup code.
-- Private signup-edit token.
-- Signup confirmation page.
+- Mode-specific signup readiness: **Open now** uses the current instant and ignores scheduled-opening configuration, while scheduled opening requires and revalidates its configured instant.
+- Signup-opening blockers for missing public description, non-positive capacity, invalid schedule/closing, invalid lifecycle state, unavailable Discord login configuration, damaged built-in questions, invalid custom-question definitions, or an enabled signup-code requirement without a usable code.
+- Signup-opening warnings for a disabled waiting list, publicly visible free-text answers, and reopening a populated form. These require acknowledgement but no typed reason.
+- Authenticated participant editing only while signup is open.
+- Approved migration/recovery path for imported or legacy unclaimed records.
+- Atomic signup create/edit transaction covering participant, answers, new trust links, event-character reservations, EHB snapshots, form marker/version, and capacity status.
+- Confirmed and waiting-list signups reserve Account answers equally; pre-draft withdrawal releases the reservations without deleting history.
+- Account-specific conflict recovery that rolls back the whole attempt, preserves the other entered form values, and leaves a previously saved signup unchanged.
+- Built-in primary playing account as the automatic initial active account at event start, with no separate signup selector.
+- Authenticated signup confirmation showing status, exact waiting-list position, playing accounts/EHB, informational accounts, submitted answers, and current edit/withdraw availability.
+- Public signup board with separate confirmed/waiting-list sections, exact waiting-list positions, event-snapshotted unique public usernames, an always-public primary playing account, and custom-question visibility defaulting on.
+- Role-aware expanded signup-table columns for drafted-team captains/co-captains before/during the draft, excluding payment, private notes, security/recovery data, and audit history.
+- Draft-finalization handoff that keeps the signup page intact and admin-authorized, but redirects non-admin signup-route requests to published team rosters.
 - Signup close/reopen behavior.
 
 #### Capacity and waiting list
@@ -219,10 +270,20 @@ Allow admins to create an event, configure signup, open only the signup page, an
 - Add later valid signups to waiting list.
 - Derive private waiting-list position.
 - Increase capacity and promote in signup order.
-- Promote after confirmed withdrawal/removal before draft lock.
+- Promote after confirmed withdrawal before draft lock.
 - Stop automatic promotion after draft lock.
-- Admin withdraw/remove with reason.
-- Admin-only payment status and comments.
+- Preserve signup order/status across ordinary edits.
+- Cancel while open and rejoin only at the end of the current queue.
+- Allow post-close participant withdrawal until draft start without participant self-restore.
+- Allow pre-draft admin restoration only when account reservations remain available, using current capacity or the end of the waiting list without displacing prior promotions.
+- Create idempotent durable in-site notifications for the linked participant and every enabled admin when a waiting-list participant is promoted; include the event/participant/trigger for admins and do not depend on Discord messaging.
+- Transfer event-participant ownership to a different website account after strong confirmation only for wrong/duplicate ownership, while preserving event state/history and rejecting a destination already participating in the event.
+- One `WITHDRAWN` inactive status for participant- or admin-initiated withdrawal, with no separate `REMOVED` target state and no required written reason.
+- Admin-only binary unpaid/paid value and private notes.
+- One pre-draft participant workspace covering active/waiting/withdrawn state, identity, accounts/EHB, answers/visibility, payment/notes, queue, team, search, and filters.
+- Post-close/pre-draft admin correction using ordinary validation/reservation rules without changing queue position.
+- Manual internal participant creation that bypasses public window/code but obeys required fields, capacity/waiting, and account uniqueness; external rosters remain outside the pool.
+- Linked-participant notifications for admin withdrawal, restoration, and event-account changes, excluding payment, notes, and ordinary answer edits.
 
 #### CSV fallback
 
@@ -243,13 +304,18 @@ Allow admins to create an event, configure signup, open only the signup page, an
 - No automatic promotion after draft lock.
 - Cap cannot decrease.
 - Signup edit does not change original queue order.
+- Cancel/rejoin receives a new queue position.
+- Post-close withdrawal cannot be self-restored.
+- Admin restoration respects account reservations and never displaces a promoted participant.
+- Participant and per-admin promotion notifications are each emitted once even when the command is retried.
+- Identity transfer preserves event history, revokes old access, and rejects duplicate destination participation.
 - Duplicate name detection is event-specific only.
 
 ### Browser acceptance
 
 - Admin creates an event and opens signups.
-- Public sees signup but not participant list, draft, teams, or board.
-- Participant signs up and uses private edit link.
+- Public sees the signup board and approved signup fields, but not the draft, teams, or bingo board.
+- Participant signs up and uses the Planning Pass 2 approved identity/edit path. Preserve current private-edit-link coverage only for unclaimed legacy/imported migration records until claim or migration completion.
 - Admin increases cap from 50 to 60 and seven waiting participants are promoted.
 
 ### Completion criteria
@@ -267,13 +333,12 @@ Allow admins to maintain source-specific OSRS data and build every known tile wi
 
 #### Catalogue
 
-- Boss/activity CRUD.
-- Item CRUD.
-- Source-specific drop CRUD.
+- Admin create/edit/deactivate/reactivate for bosses/activities, items, source drops, and rate variants.
+- Super-Admin-only permanent deletion of genuinely unused catalogue rows after confirmation and a complete dependency check; referenced data is deactivated instead.
 - Displayed and numeric drop rates.
 - Efficient completion rates and EHB values.
 - Images and active/inactive behavior.
-- One-time initial catalogue import tool.
+- Super-Admin-only bulk import preview/apply with exact changes, conflict reporting, confirmation, and preview version/hash revalidation.
 - Manual editing after import.
 - Data source and update timestamp.
 
@@ -285,13 +350,14 @@ Allow admins to maintain source-specific OSRS data and build every known tile wi
 - Duplicates allowed.
 - Optional fixed contribution weight, configured by the board designer and defaulting to `1`.
 - Multiple requirements per tile.
-- Manual objective with target quantity and evidence instructions.
-- EHB calculation preview and admin override.
+- Manual/custom objective with target quantity, objective-specific completion criteria, and explicit manual EHB.
+- Automatic EHB calculation preview for every catalogue/drop tile; a missing estimate is a validation defect that cannot be bypassed with a manual override.
 
 #### Board builder
 
 - Configurable rows and columns.
 - Add/remove tiles.
+- Event-board-owned tiles only; no duplicate, cross-event copy, import, or reusable-template workflow.
 - Drag one tile onto another to swap.
 - Keyboard/touch select-and-swap fallback.
 - Top-left compaction during shrinking.
@@ -301,7 +367,14 @@ Allow admins to maintain source-specific OSRS data and build every known tile wi
 - Row/column highlight on hover and focus.
 - Balance spread warning.
 - Structural validation.
-- Publish immutable event snapshots.
+- Require every board position to be filled before approval.
+- Explicit board approval/unapproval, with any private competitive-content edit invalidating approval while preserving history.
+- Board approval requires a completely filled grid but no per-tile evidence-instruction field.
+- Derive unapproved board catalogue data and every EHB estimate from current catalogue rows, automatically invalidating/recalculating after relevant catalogue changes.
+- Create the immutable competitive snapshot at **Approve board**, not publication.
+- Keep approved board values frozen until explicit unapproval or a competitive edit returns the board to Draft and resumes live catalogue derivation.
+- Add **Preview board** using the actual public responsive renderer: live data while Draft, the active frozen snapshot while approved, no administrator-only editing/EHB controls, and no approval/publication side effect.
+- Publish the active immutable approval snapshot without recalculating it.
 - Save and resume an incomplete private board across multiple admin sessions.
 - Permit continued private editing while event signups are open or closed, until board publication.
 
@@ -322,13 +395,23 @@ Allow admins to maintain source-specific OSRS data and build every known tile wi
 - Manual target quantity.
 - Board resize compaction and blocked shrink.
 - Row/column EHB after tile swap.
-- Published snapshot unaffected by later catalogue changes.
-- Concurrent catalogue edit does not corrupt a board draft.
+- Relevant catalogue changes update every derived value on an unapproved board and its preview.
+- Approved snapshot and preview remain unaffected by later catalogue changes.
+- Unapproval resumes live catalogue derivation; reapproval creates a new immutable version without deleting the superseded one.
+- Concurrent catalogue/board edits cannot create a mixed or partial approval snapshot.
+- Preview never approves, publishes, or mutates board state.
+- Admin catalogue mutation and Super-Admin-only delete/import authorization.
+- Referenced catalogue deletion is blocked while genuinely unused deletion succeeds.
+- Bulk import apply aborts if its preview is stale.
+- Catalogue/drop tile with missing automatic EHB blocks approval.
+- Manual/custom objective requires and uses its explicit manual EHB.
+- Editing an approved unpublished tile returns the board to Draft.
 
 ### Completion criteria
 
 - Every tile on the supplied example board can be represented.
 - Published boards are historically stable.
+- General rules and submission guidance are sourced from the permanent global Rules page and source-controlled public how-to pages rather than board tiles.
 
 ## 9. Milestone 5 — Teams and snake draft
 
@@ -338,38 +421,65 @@ Allow admins to combine website-drafted teams with manually managed pre-formed t
 
 ### Deliverables
 
-- Final team count and target size setup.
-- Participant remainder/size preview.
-- Team name and image management.
+- Derive team count from active drafted teams rather than a separate setup input.
+- Derive balanced final roster sizes from included confirmed participants, with a preview of the larger size and the number of teams that will have one fewer player.
+- Keep board-editor team-count/team-size estimates isolated to board-EHB planning.
+- Event-unique team name, optional affiliation, and managed team-image upload; no arbitrary team image URL.
 - Add pre-formed internal or external teams before or after the draft.
 - Optional team affiliation/clan label.
-- Manually add, remove, and move members on pre-formed rosters with an audit reason.
+- Manually add, remove, and move members on pre-formed rosters before event start with automatic structured history and no required typed reason.
 - Exclude pre-formed teams and their assigned players from draft order and the available draft pool.
 - Captain and co-captain assignment.
-- Automatically generated separate captain/co-captain accounts with name-based randomized usernames, one-time temporary passwords, and participant linkage.
+- Require every drafted team to have an actual Captain before draft start; co-captain alone is insufficient, and all captain/co-captain memberships occupy normal derived-size roster positions.
+- Website-account captain/co-captain event/team role assignment, plus explicitly enabled emergency credentials when needed.
 - Random initial team-order scramble.
+- Skip teams with larger preassigned captain/co-captain rosters until lower-count teams catch up.
 - Snake-draft turn calculation.
-- Complete participant pool sorted by EHB.
+- Compact per-team `current/final` capacity display, including smaller-team denominators.
+- Complete participant pool sorted by the EHB snapshot of each participant's built-in primary playing account; secondary-account EHB is not summed or substituted.
 - Available/drafted status without removing drafted players.
 - Alternative sorting by name, signup time, and status.
 - Record pick.
-- Undo latest pick.
+- Repeatedly undo the latest active pick, including back to zero picks.
 - Pause and resume.
 - Draft lock.
-- Finalize and automatically publish completed rosters/results.
+- Finalize and automatically publish completed rosters plus effective pick order.
+- After draft finalization succeeds, show a separate **Publish board?** popup/page with a **Publish board** action only when every board position is filled and the board is explicitly approved; dismissed/ineligible boards remain private with an admin action.
+- Reopen a finalized draft before event start with strong confirmation and a required written reason, without unlocking drafted-team structure or unpublishing an already published board.
 - Audit history.
 
 ### Domain tests
 
 - Snake order for two, three, and six teams over several rounds.
 - Pick ownership at round boundaries.
+- Derived distribution for divisible and remainder participant totals.
+- Preassigned captain/co-captain seats count toward derived roster size, and larger starting rosters are skipped until the others catch up.
+- Co-captain alone does not satisfy drafted-team captain readiness.
+- Impossible preassignment imbalance blocks draft start.
+- Board-editor planning estimates do not create teams or constrain the draft.
 - Participant cannot be picked twice.
-- Undo restores participant and turn correctly.
+- Repeated latest-pick undo restores each participant and turn correctly, including back to zero picks.
 - Team configuration cannot change silently after first pick.
+- The first recorded pick permanently locks drafted-team creation/removal/formation even after repeated undo returns to zero.
+- Team display metadata remains editable after draft finalization but locks at event start.
 - Waiting-list promotion stops when draft locks.
+- Participant self-withdrawal stops when draft locks; admin withdrawal remains available after draft and during live events.
+- Post-draft withdrawal ends current membership/future eligibility while preserving draft picks, historical membership, registered accounts, evidence, and contributions.
+- Post-draft withdrawal revokes website event/team mutation access immediately; during live play its separate competitive drop-eligibility boundary remains the first full UTC minute after confirmation.
+- No automatic post-draft promotion: admins contact waiting-list participants and explicitly select an available replacement from the ordered list.
+- Roster-replacement membership links the chosen waiting participant to the vacancy prospectively without rewriting the draft.
+- Replacement is optional; when no waiting participant is available, admins may create a validated unique-account internal replacement directly on the vacant team.
+- Live withdrawal and replacement use separate next-full-UTC-minute boundaries, preserve pre-withdrawal evidence, grant no retroactive eligibility, and retain any vacancy gap.
+- Event-start readiness requires one actual Captain or enabled emergency captain credential per team; co-captain alone is insufficient.
+- Admin captain/co-captain assignment, promotion, demotion, and revocation remain available after draft/live start, with immediate Discord-identity-based authority and urgent missing-captain warnings that do not stop a live event.
+- In-site vacancy notifications for all admins/remaining team captains, replacement notifications for the replacement/current team captains, and role-change notifications for the affected participant.
 - Pre-formed teams receive no snake-draft turns.
 - Pre-formed roster members cannot be selected in the website draft.
 - Adding a pre-formed team after finalization preserves draft order and pick history.
+- Finalization rejects any unassigned confirmed draft-pool participant and any roster distribution differing by more than one.
+- Public finalized results contain the effective active pick order but not undone attempts or internal controller/audit data.
+- Draft finalization never publishes the board itself; the eligible post-finalization **Publish board** action uses a separate transaction.
+- Reopening requires a reason, withdraws public roster/pick projections, preserves transition history and board publication, and permits repicking without structural team changes.
 
 ### Browser acceptance
 
@@ -393,22 +503,26 @@ Replace Discord drop-channel submissions and manual spreadsheet updates.
 
 ### Deliverables
 
-#### Captain workflow
+#### Participant and captain workflow
 
 - Board-first tile selection.
 - Fixed event/team derived from account.
-- Credited participant selection from own roster.
+- Ordinary participants are locked to themselves; captains/co-captains select a current teammate.
+- Credited playing account is derived from that participant's active account at server submission time; submitters receive no account selector.
 - Eligible boss/drop selection.
 - Credited weight comes from the selected board-requirement snapshot and defaults to `1`.
 - Submitters cannot override the selected drop's board-defined contribution weight.
-- Immutable server-generated submission time; no captain-entered obtained time.
+- No separately typed drop-received time; the screenshot's clan-event UTC overlay is the evidence of when the drop occurred.
+- Reviewer validation that the credited account was active at the screenshot time, supported by UTC swap history.
 - One image upload.
 - Optional note.
-- Optional captain request to hide the approved screenshot and credited player publicly.
 - Pending history.
 - Edit/withdraw pending submission.
-- Changes-requested correction and resubmission.
 - Approved/rejected history and reviewer feedback.
+- A **Resubmit** action on rejected evidence that prefills ordinary structured values, preserves the original credited participant/account as read-only, requires a new screenshot, creates a linked historical record, and remains subject to the upload cutoff.
+- Participant-owned pending/rejected history and pending edit/withdraw through cutoff; captains retain complete team history.
+- Participant navigation to roster before board publication and the existing team board afterward.
+- Participant/captain swaps only during `LIVE`; event end freezes swaps/focus while evidence grace continues through cutoff.
 
 #### Evidence storage
 
@@ -430,15 +544,22 @@ Replace Discord drop-channel submissions and manual spreadsheet updates.
 - Edit metadata with audit before/after.
 - Approve.
 - Reject with required note.
-- Request changes with required note.
-- Mark duplicate.
-- Hide public image and player together.
-- Restore public image and player when an automatic captain privacy request is unnecessary.
+- Treat duplicate or unusable evidence as rejection rather than separate review states.
+- Derive credited participant from any corrected credited playing account.
+- Require a reason for tile/requirement, drop, or credited-account corrections.
+- Keep server submission time, snapshot weight, calculated contribution, and evidence image reviewer-immutable.
+- Notify the linked credited participant and current linked team captains/co-captains after rejection.
+- Keep every approved submission's metadata, credited player, and screenshot public by default; do not implement a participant/captain privacy request.
+- Do not retain a hidden-but-still-approved evidence state; use reasoned approval reversal followed by corrected/redacted resubmission when an image must be removed.
 - Reverse approval with reason.
 
 ### Transaction tests
 
 - Two admins cannot approve one submission twice.
+- Concurrent approve/reject cannot produce conflicting decisions; the stale action returns the newer result.
+- Rejection requires a reason and emits each approved recipient notification once.
+- Concurrent/repeated resubmission cannot create two direct children; the corrected attempt retains the predecessor's credited account after a later swap and requires a new image.
+- Correcting the credited account derives its participant and revalidates account activity.
 - Captain request tampering cannot change team.
 - Credited player must belong to team.
 - One drop contributes to one tile.
@@ -450,7 +571,7 @@ Replace Discord drop-channel submissions and manual spreadsheet updates.
 ### Completion criteria
 
 - Approval and reversal produce correct auditable contribution records.
-- Evidence remains private or public according to status and privacy flags.
+- Evidence visibility follows status/team scope and every approved evidence record is public.
 
 ## 11. Milestone 7 — Public boards, progress, and rankings
 
@@ -574,8 +695,12 @@ Allow admins to safely run the event lifecycle and create official historical re
 - Operations dashboard.
 - Start event and publish board controls.
 - Scheduled event end and submission grace period.
+- Automatic scheduled end using the configured instant even after delayed processing.
+- Early admin end with strong confirmation, required reason, preserved scheduled end, and unchanged submission cutoff.
 - Manual submission reopening with cutoff and reason.
 - Distinction between obtained window and submission window.
+- Every review shows immutable submission time; only post-end submissions add minutes after event end and authoritative event end as **Latest clan event time** in UTC.
+- Manual visual comparison of the screenshot plugin timestamp with that event-end boundary; no second typed time, screenshot OCR, or fixed upload-hours rule.
 - Final-review checklist.
 - Click-through to filtered underlying records.
 - Automatic blocker resolution.
@@ -584,37 +709,126 @@ Allow admins to safely run the event lifecycle and create official historical re
 - Provisional placements.
 - Admin finalization confirmation.
 - Official placement snapshots.
-- Captain account expiry scheduling.
+- Preserve website-account captain/co-captain role history while lifecycle rules remove mutation authority.
+- Disable explicitly enabled emergency captain credentials automatically at submission cutoff; never generate them from captain assignment/finalization.
 - Unfinalization with reason.
-- Archive and historical event visibility.
+- Confirmed archive with no typed reason, read-only historical event visibility, and reasoned unfinalization.
+- Preserved pre-live event cancellation with confirmation/reason and suppression of every later scheduled transition.
+- One production current/public operational event, enforced by normal application transitions while the Development-only scenario seeder and automated fixtures retain explicit multi-state scenarios.
+- Archived participant read-only access to their own rejected/withdrawn evidence without a separate dashboard.
 
 ### Tests
 
 - Drop after event end remains invalid during grace period.
 - Evidence obtained in time can be submitted during grace period.
+- Scheduled end persisted late still uses the configured effective instant.
+- Early end requires a reason, preserves the scheduled end, and does not move the submission cutoff.
+- A populated pre-live cancellation preserves history and no scheduled worker later reactivates it.
+- Archiving preserves official results/URLs and removes the event from current operational queries.
+- Production rejects a second current/public operational event while Development seeding still creates the state matrix.
 - Reopening upload window does not extend obtained window.
 - Finalization blocked while unresolved conditions remain.
 - Manual override clears only blocker status and does not mutate submissions.
 - Finalization snapshot matches recalculated rankings.
 - Unfinalization preserves previous official snapshot.
-- Captain expiry calculated 24 hours after finalization.
+- Submission cutoff disables enabled emergency credentials without expiring website-account captain role history.
 - The real-clock scheduled-end transition is manually verified during Milestone 10's full rehearsal; Milestone 8 verifies its state rule automatically.
 
 ### Completion criteria
 
 - Admin can move an event from signup through archived history without direct database edits.
 
+## 12.1 Milestone 8A — Functional expansion and workflow stabilization
+
+### Objective
+
+Define and implement the explicitly approved functional expansion before spending more time finalizing UI that the new workflows may change.
+
+This milestone does not automatically promote the entire former post-version-one backlog. Planning pass 2 authorizes a scope review and the addition of functionality in principle; each selected feature still needs an explicit product decision, acceptance criteria, and impact review before implementation.
+
+### Entry checkpoint
+
+- Preserve the current Pass 12 implementation and all previously approved UI passes as a recoverable checkpoint.
+- Run focused tests and a release build for the touched checkpoint where needed to distinguish existing defects from later feature regressions.
+- Record known incomplete responsive, permission, error, keyboard, accessibility, and no-JavaScript states without polishing them solely to obtain a UI approval that may soon be invalidated.
+- Do not run the full Milestone 9 manual regression at entry. That regression belongs after the selected functional workflows stabilize.
+
+### Planning gate
+
+- Inventory the requested functionality and classify each item as selected now, explicitly deferred, or rejected.
+- For every selected item, identify affected roles, workflows, routes, authorization policies, audit events, domain rules, persistence, migrations, privacy, concurrency, realtime behavior, operations, and existing UI passes.
+- Resolve conflicts with `PRODUCT_REQUIREMENTS.md`, `DATA_MODEL.md`, and `TECHNICAL_ARCHITECTURE.md`; update those sources of truth before or with implementation.
+- Define acceptance criteria, representative edge cases, migration/backfill behavior, and focused test coverage.
+- Order the selected work as vertical slices. Cross-cutting identity and authorization foundations must precede dependent participant or submission workflows.
+- Produce a UI impact map that marks existing screens as unaffected, reusable with changes, or requiring a later redesign.
+
+### Selected scope and dependency order
+
+Planning Pass 2 has approved the target workflows for hybrid identity, trust-based character links, event-unique character assignment, My accounts, signup/account questions, participant administration, teams/draft, board publication, participant/captain live access, evidence resubmission/public visibility, lifecycle cancellation/archive, current-event selection, role/account administration, and historical access. `FUNCTIONAL_WORKFLOWS.md` contains their capability contracts and acceptance scenarios.
+
+The dependency/migration order below is approved as the implementation sequence. Public tile artwork/preview is governed by the approved managed-image/board rules. The explicit per-playing-account Wise Old Man EHB fetch is required in the Wise Old Man slice; broader competition synchronization/activity leaderboards remain outside that slice until their separate acceptance contract is approved.
+
+### Approved implementation sequence
+
+These are the ten functional delivery slices inside Milestone 8A. They are not a renumbering of the page passes in `UI_OVERHAUL_ROADMAP.md`:
+
+1. Website accounts, password/Discord authentication, Super Admin ownership, recovery, role mutation, and account disable/restore.
+2. My accounts, trust-based OSRS-character links, event assignments, uniqueness rules, and legacy identity migration.
+3. Event creation, scheduling/readiness, current-event selection, cancellation, archive, and lifecycle blockers.
+4. Signup questions, per-playing-account EHB, public signup board, capacity/waiting list, participant administration, and promotion notifications.
+5. Teams, captain/co-captain authority, external teams, roster rules, and draft.
+6. Catalogue permissions/import, live Draft-board derivation, approval snapshots, public-style preview, and publication.
+7. Participant/captain live navigation, active-account swaps, team focus, and role-aware visibility.
+8. Evidence creation, resubmission/review, public approved evidence, and removal of privacy-request behavior.
+9. Event end, live replacements, finalization/history, archive access, and operational notifications.
+10. Wise Old Man EHB fetching; add broader synchronization/activity projections only after their separate acceptance contract is approved.
+
+Each slice finalizes its exact manual cases in `MANUAL_TEST_CHECKLIST.md` before handoff. The checklist is durable repository documentation so the user may run it immediately or return to it later; it does not replace automated coverage.
+
+The Slice 1 gap, migration, affected-file, delivery, and verification plan is approved and implementation-ready in `SLICE_1_IMPLEMENTATION_PLAN.md`; implementation has not started and still requires explicit authorization. It brings forward only the minimal OSRS-character/preferred-link foundation required for atomic first-account onboarding; full My accounts and event-character functionality remain Slice 2.
+
+Only after all ten Milestone 8A functional slices are complete and functionally regressed does work proceed to the separate big-roadmap **Milestone 9 — UI overhaul and regression**. Milestone 9 performs the complete site-wide UI pass and full regression through the page passes in `UI_OVERHAUL_ROADMAP.md`. It must not begin merely because a similarly numbered UI page pass is available.
+
+### Selected public-guidance slice
+
+- Replace event-specific free-text public rules with one permanent global public Rules page.
+- Allow any enabled administrator to edit that Rules document at any time with validation, optimistic concurrency, and automatic history, but no typed reason, participant notification, or event-readiness dependency.
+- Add stable anonymous routes for source-controlled how-to pages, beginning with **How to submit drops**; do not build an in-application how-to editor.
+- Link event and submission surfaces to the relevant global pages while keeping general guidance out of board-tile data and approval rules.
+- Migrate any useful existing public-rules content into the global document without retaining an event-owned authoring model.
+- Cover anonymous access, administrator authorization, concurrent edit failure, and absence of event-lifecycle side effects.
+
+### Delivery and regression
+
+- Implement each selected feature through the appropriate Web, Application, Domain, and Infrastructure layers.
+- Preserve historical competitive records, authoritative evidence/progress calculations, server-side authorization, auditability, privacy, transactions, and concurrency protections.
+- Add domain, application, integration, and browser coverage in proportion to each slice's risk.
+- Run focused regression after each slice and broader automated regression when a slice changes a shared boundary.
+- Finalize and record the slice's exact manual checks in `MANUAL_TEST_CHECKLIST.md` before handoff.
+- Apply the established flagship visual system, shared controls, responsiveness, accessibility, feedback, and progressive-enhancement rules to every newly created page from its first implementation; defer only final cross-site polish to Milestone 9.
+- Localize every page reachable by anonymous visitors, normal Users, captains/co-captains, or emergency captains completely in English and Danish through the existing language switch. Admin/Super-Admin-only pages may remain English-only.
+- Update the UI pass descriptions and order when the final feature-impact map is known.
+
+### Completion criteria
+
+- Selected functionality and deferred scope are explicitly recorded.
+- Every selected slice satisfies its acceptance criteria and focused regression checks.
+- Required migrations, backfills, operational changes, and documentation are complete and verified at the appropriate level.
+- The UI impact map and revised Milestone 9 pass order are approved.
+- No unresolved product-rule or architecture decision blocks UI finalization.
+
 ## 13. Milestone 9 — UI overhaul and regression
 
 ### Objective
 
-Turn the functionally complete application into a clear and consistent experience before any production deployment work begins.
+After all ten Milestone 8A functional slices are complete, run a complete UI pass over the functionally stabilized application, then full regression, before any production deployment work begins. This separate Milestone 9 reuses the already approved flagship visual system and interaction decisions; it does not discard approved UI, but it must apply the late shared rules consistently to every page and state, including pages touched in earlier passes.
 
 ### Deliverables
 
 #### Workflow and navigation
 
 - Review every admin, captain, and public workflow from start to finish.
+- Revisit every page from Passes 1–13, including already reviewed pages, so late global rules are applied site-wide rather than only to screens changed by Milestone 8A.
 - Make the current event and team context visible on every relevant page.
 - Separate accounts, events, and workflow records so entries from different events are not visually bundled together.
 - Improve navigation, breadcrumbs, return paths, empty states, confirmation messages, and error messages.
@@ -626,7 +840,7 @@ Turn the functionally complete application into a clear and consistent experienc
 - Replace oversized controls and panels with the compact density and alignment system defined in `UI_OVERHAUL_ROADMAP.md`.
 - Progressively enhance frequent inline actions so only the affected component updates, while retaining standard Razor form fallbacks.
 - Introduce semantic success, error, warning, and information notifications instead of styling every response as success.
-- Add a top-right role-based action inbox: pending review for admins and changes-requested submissions for captains.
+- Add a top-right role-based action inbox for pending admin review, plus durable participant/captain notifications for rejected submissions.
 - Revisit dense event creation, board editing, draft, review, finalization, and account pages.
 - Reuse the combined date-time picker across date/time workflows.
 - Improve desktop and mobile layouts without changing approved business rules.
@@ -634,7 +848,7 @@ Turn the functionally complete application into a clear and consistent experienc
 
 #### Regression
 
-- Repeat every milestone manual test against the overhauled interface.
+- Repeat every Milestone 1–8A manual test against the overhauled interface.
 - Add browser automation for stable critical paths discovered during manual testing.
 - Recheck multi-admin board and draft control.
 - Recheck mobile captain evidence upload and public bingo overview views.
@@ -658,6 +872,7 @@ Prove the polished application end to end and prepare every deployment asset bef
 - Controlled database migration and rollback commands.
 - Cloudflare R2 integration tested locally with restricted credentials.
 - Configuration and secret inventory.
+- Clean-production data initialization: apply migrations to an empty database, initialize the reviewed `src/Bingo.Web/data/osrs-catalogue.json` snapshot, provision the intended Super Admin through controlled operator setup, and verify that no Development/test accounts or workflow records are present.
 - Health checks and background-service health reporting.
 - PostgreSQL backup, encryption, retention, and restore scripts.
 - Pre-migration and final-event backup procedures.
@@ -665,6 +880,8 @@ Prove the polished application end to end and prepare every deployment asset bef
 - Hetzner bootstrap, firewall, Caddy, DNS, maintenance, hibernation, deletion, and restoration runbooks.
 
 ### Rehearsal data
+
+All rehearsal data is fictional and disposable. It is never copied into the production database; only the reviewed OSRS catalogue snapshot is carried into the initial production environment.
 
 - Fictional event.
 - At least six teams.
@@ -715,17 +932,17 @@ Known load-sensitive areas to resolve or validate:
 8. Run and undo part of a snake draft, confirming the pre-formed team receives no turns.
 9. Finalize draft and then add/correct another pre-formed roster without changing pick history.
 10. Build, resize, balance, and publish board.
-11. Activate captain accounts.
+11. Assign website-account captain roles and explicitly exercise one disabled-by-default emergency credential.
 12. Submit normal, duplicate, weighted, and manual evidence.
-13. Request changes and replace evidence.
-14. Approve, reject, hide, and reverse evidence.
+13. Reject invalid evidence and submit a corrected attempt as a new submission.
+14. Approve, reject with notification, reverse, and resubmit corrected evidence.
 15. Verify live boards and rankings.
 16. Leave the application running across the scheduled event-end time and confirm it automatically enters grace/final review within one lifecycle polling interval.
 17. Reopen submissions without extending obtained window.
 18. Resolve and override finalization blockers.
 19. Correct a completion time.
 20. Finalize results.
-21. Verify captain expiry.
+21. Verify emergency credential cutoff disablement and historical website-account-role authorization.
 22. Archive event.
 23. Create a local release-candidate backup.
 24. Restore into a clean local environment.
@@ -742,7 +959,7 @@ Known load-sensitive areas to resolve or validate:
 - Captains have trialed mobile screenshot submission.
 - Evidence upload limits are tested with realistic screenshots.
 - The production-scale capacity targets pass on the intended VPS size, or the VPS size is increased before the event.
-- Public privacy behavior is verified.
+- Public approved-evidence visibility and reversal/resubmission behavior are verified.
 - A manual emergency fallback procedure exists.
 
 ### Completion criteria
@@ -760,6 +977,7 @@ Deploy the already approved release candidate as the final implementation step, 
 - Create and harden the Hetzner VPS.
 - Configure Docker, Caddy, HTTPS, DNS, PostgreSQL private exposure, and production secrets.
 - Create the R2 production bucket and restricted credentials.
+- Initialize a clean migrated production database, load the reviewed OSRS catalogue snapshot, and provision the intended Super Admin through the controlled operator path; do not import Development/test accounts, events, signups, participants, teams, boards, evidence, notifications, or audit history.
 - Deploy the exact rehearsed image and run controlled migrations.
 - Enable backups, monitoring, uptime checks, logs, resource alerts, storage alerts, and provider billing alerts.
 
@@ -821,6 +1039,7 @@ Cover only high-value workflows rather than every visual detail:
 
 ### 16.4 Manual exploratory tests
 
+- Use `MANUAL_TEST_CHECKLIST.md` as the durable per-slice manual test index and finalize its exact cases before each slice handoff.
 - Mobile photo upload
 - Slow or interrupted connection
 - Large screenshot behavior
@@ -851,7 +1070,7 @@ Before production:
 - Decide whether original evidence is retained indefinitely with archived events.
 - Publish a short privacy notice for signup data and screenshots.
 - State that player names, teams, approved drops, and approved evidence may become public.
-- State that comments, payment status, and waiting-list identities remain private.
+- State that the paid/unpaid value remains private; document that waiting-list public usernames appear on the signup board and define visibility for comments and other signup answers.
 - Define who can request removal or correction after an event.
 - Define admin responsibilities for sensitive chat visible in screenshots.
 
@@ -876,51 +1095,115 @@ Detailed decisions may be deferred until the signup and evidence milestones, whe
 | VPS deleted without recoverable backup | Mandatory verified hibernation checklist |
 | Scope expansion delays release | Version-one boundary and deferred-feature list |
 
-### Post-version-one feature backlog
+### Planning Pass 2 feature register
 
-These features are intentionally separate from the approved version-one scope. They affect identity, evidence validation, and live-event operations enough to require their own design and regression pass.
+This register began as the post-version-one backlog. Items explicitly selected during Planning Pass 2 move into Milestone 8A while unselected items remain deferred candidates. Every selected item still requires a complete workflow contract and regression pass.
 
-#### Discord sign-in and submission permissions
+#### Hybrid website account, Discord linkage, and submission permissions — identity foundation selected
 
-- Add Discord sign-in for participants after the version-one workflows are stable.
-- Treat Discord as the website login identity. OSRS character names remain event signup data because names and eligible accounts can change between events.
+- Start normal account creation through Discord, then require public-username/password onboarding.
+- Let Discord and public-username/password sign-in resolve the same durable website account. The public username is also the password-login username.
 - Discord-server membership is not required. This allows participants from external clans to sign in without joining the community server.
-- Access is granted by linking the authenticated Discord identity to an event signup, not by checking Discord guild membership.
+- One website account may own at most one event-participant record per event and may participate in several events.
+- Access is granted by linking the authenticated website account to an event participant, not by checking Discord guild membership, current Discord ID, or OSRS character name.
+- Keep email out of version-one recovery. Let admins issue secure reset links under the approved user/Admin/Super Admin boundaries.
+- Allow password-authenticated users to link, unlink, or directly replace Discord at any time while preserving the website account and all event history. Link/replace require an unused Discord ID; Super Admin unlink shows an operator-recovery warning.
+- The participant may edit signup data only while signup is open.
 - An authenticated participant may submit evidence only for themselves and only for their current event team.
 - Captains and co-captains may submit evidence for any participant on their own team.
+- Participants are locked to themselves when submitting; captains/co-captains may choose any current teammate, and the server snapshots that participant's current active account without an account selector.
+- Before/during the draft, drafted-team captains/co-captains see the confirmed signup table with participant-answer columns expanded; external-team captains do not. After finalization, the signup page remains available to admins while non-admin requests redirect to team rosters.
+- Captains/co-captains can set non-authoritative tile/row/column focus highlights.
 - Admins retain event-wide submission and correction access.
-- Keep temporary captain accounts available until the Discord migration is complete and as an emergency fallback.
+- Captain/co-captain is an event/team role on the website account rather than a separate normal login or current Discord ID.
+- Keep temporary captain accounts disabled by default and available only as an explicitly enabled emergency fallback.
+- Preserve external/pre-formed roster records without requiring every member to use public signup. Captains/co-captains claim their own records and are the only normal external-team submitters; additional emergency credentials may be enabled explicitly.
 
-#### Multiple OSRS accounts and active-account swaps
+#### Event cancellation, archive, and current-event policy — selected
 
-- Allow one event signup to contain more than two OSRS character names.
-- Exactly one character is eligible to receive bingo drops for that participant at a time.
+- Keep discard limited to empty experimental events.
+- Add a terminal preserved cancellation path for populated events that have not entered live play. Require strong confirmation and a reason, stop scheduled transitions/mutations, retain every record, and expose only a generic status when the event was already public.
+- Archive only finalized events with confirmation and no typed reason. Keep public URLs/results intact and move the event from current navigation to previous events.
+- Keep production to one current/public operational event from signup publication through finalization, while allowing unlimited private drafts and archived/cancelled history.
+- Enforce the production rule in normal application transitions rather than a database uniqueness constraint. Preserve the Development-only seeded lifecycle matrix and automated fixtures, and require explicit event IDs/slugs wherever multiple test scenarios exist.
+- Keep archived participant-owned rejected/withdrawn evidence readable but immutable; the public historical board remains the primary destination.
+
+#### Website-account disable and restore — selected
+
+- Let an enabled Admin disable a `USER`; reserve disabling/restoring an `ADMIN` for the Super Admin.
+- Prohibit self-disable and disabling the active Super Admin.
+- Require strong confirmation and a reason for disable, invalidate all sessions immediately, and preserve every participant, role, character, submission, evidence, contribution, and display snapshot.
+- Confirm and audit re-enable without requiring a reason; re-enable restores authentication only and never bypasses event lifecycle/membership authority.
+
+#### Public feedback/reporting — deferred
+
+- Do not add an in-application evidence-report, bug-report, or feedback form in version one.
+- Use the community Discord feedback channel. Valid evidence concerns use administrator reversal and corrected/redacted resubmission.
+
+#### Multiple OSRS accounts and active-account swaps — core rules selected
+
+- Allow one event participant to register more than two OSRS character names.
+- Allow the same OSRS character to be linked to several Discord identities globally; the link grants no website authority and does not assert exclusive ownership.
+- Assign an OSRS character to at most one participant within an event through a transactional uniqueness constraint. A later event may assign it to a different participant.
+- Mark each named Account answer as playing or informational according to its question. Informational accounts cannot be activated, credited with drops, or synchronized to Wise Old Man.
+- Allow exactly one drop-eligible character per participant at a time.
 - Record every swap as an append-only history entry containing the participant, previous account, new account, effective UTC time, recorded time, and actor.
-- Participants make their own account swaps and the new active account takes effect immediately. Admin corrections or backdated swaps require an audit reason.
-- Evidence records the drop-received time shown by the in-game UTC overlay separately from the immutable website submission time.
-- Store and compare all times in UTC. Display both UTC and the event timezone during review so admins do not need to convert times manually.
-- Validate that the receiving character was active when the drop was received and that the evidence was submitted no more than 60 minutes later.
-- Do not use OCR. The submitter enters the displayed UTC time and the reviewer compares it with the screenshot.
-- Define the exact boundary rule for a drop received at the same minute as a swap and the admin-override behavior for missing or incorrect timestamps before implementation.
+- Freeze the registered account set and playing/informational roles when signup closes. During the event, allow unlimited swaps only among the participant's registered playing accounts.
+- Permit normal swaps only while the event is live; activate the primary at event start and freeze normal swaps at event end.
+- Participants make their own account swaps; captains/co-captains may swap for unlinked members of their own external team. Admin corrections or backdated swaps require an audit reason.
+- Evidence stores immutable website submission time but does not duplicate the in-game screenshot timestamp in a typed field.
+- Display the official event end and account-swap history in UTC during review to match the plugin.
+- Require the reviewer to confirm that the credited character was active at the screenshot time.
+- Do not use OCR; the reviewer reads the timestamp directly from the screenshot.
+- Retain full swap history for validation and audit, but normally show only the latest relevant transition.
+- Use the plugin's whole-minute `DD/MM/YYYY HH:mm UTC` evidence format and display it beside immutable submission time. Do not encode a maximum upload-duration rule; admins apply changing community policies manually.
+- Make a normal swap evidence-effective at the next whole UTC minute, keep the old account active until then, and block a second request during the short pending transition.
 
 #### Team-only board focus
 
-- Let authorized team members mark individual tiles, complete rows, and complete columns as current team priorities.
-- Focus markers are visible only to members of that team and admins, never to opponents or the public.
-- Start with a simple focused/not-focused state. Optional colors, notes, and expiry times can be considered after the basic workflow is tested.
+- Let captains/co-captains mark individual tiles, complete rows, and complete columns as current team priorities.
+- Focus markers are visible by default only to current members of that team, never to opponents, the public, ordinary cross-team admins, or a participating Super Admin viewing another team.
+- Render authorized team focus on the existing team-board view without changing the finished public/opponent projection; a view-only focus toggle/summary is the fallback if the private layer is crowded.
+- Let the Super Admin explicitly enable a visibly identified, team/page-session-scoped **Inspect team focus** mode. Only then load that team's focus; do not retain a persistent show-all preference.
+- Super Admin inspection is read-only unless that account is also a captain/co-captain of the target team.
+- Use team-scoped realtime invalidation and optimistic concurrency so markers cannot leak or silently overwrite newer changes.
+- Start and remain with a simple focused/not-focused state: no colors, notes, timers, weights, progress effects, or public history.
+- Freeze focus at event end.
+
+#### Super Admin and global role management — core rules selected
+
+- Maintain exactly one active Super Admin on a normal website account.
+- Assign the initial owner through controlled setup/migration, never first public signup or onboarding.
+- Let only the Super Admin grant/revoke Admin for normal website accounts; emergency captain accounts are ineligible.
+- Require strong confirmation and automatic before/after history for role changes, with no typed reason.
+- Invalidate existing authenticated sessions immediately when Admin is revoked.
+- Transfer ownership atomically to another active normal website account: destination becomes Super Admin, source becomes Admin, and zero/two-owner states cannot commit.
+- Keep lost-owner recovery operator-controlled and outside public account flows.
+
+#### Captain submission lifecycle
+
+- Ordinary participants submit only for themselves; captains/co-captains choose a current teammate, and that participant's current active playing account is derived.
+- Captains/co-captains cannot delegate team-wide submission authority to ordinary participants.
+- Keep submissions and pending edits available after event end through the submission cutoff, including for unlinked external teammates.
+- Close those mutations at cutoff for all teams; an admin reopening restores the window, while an emergency credential still needs explicit re-enablement.
 
 #### Public board preview and tile artwork
 
 - Add a **Preview board** action to the private board editor that renders the actual public-board visual treatment before publication.
 - The preview must omit administrator-only information such as EHB estimates and editing controls, and use the same responsive tile layout, artwork, text treatment, and completion states as the public website.
-- Allow a board designer to override a tile's automatic artwork with a custom tile image. The current editor stores an optional managed image URL; replace or supplement this with the shared decorative-asset upload workflow when that storage path is implemented.
+- Allow a board designer to override a tile's automatic artwork with a custom tile image uploaded through the shared decorative-asset workflow. Replace the current URL-backed editor field; arbitrary image URLs are not supported outside the OSRS catalogue.
 - When no custom tile image is supplied, derive artwork from the selected boss/activity images.
 - Support a deterministic composition of up to four selected boss/activity images. Define ordering, cropping, missing-image fallbacks, accessibility text, mobile behavior, and snapshot semantics before implementation.
 - Custom artwork always takes precedence over automatic boss composition.
-- Preview and published rendering must use immutable event-board snapshots rather than changing when the global catalogue is edited later.
+- Draft preview uses current catalogue-derived values and therefore changes when the catalogue changes. Approved preview and published rendering use the active immutable approval snapshot.
 
 #### Wise Old Man integration
 
+- Add an explicit per-playing-account **Fetch from Wise Old Man** signup action that uses the entered character name and populates EHB while preserving manual fallback. Once delivered, this action is present for every eligible playing-account EHB field and is not an event-level option.
+- A failed, unavailable, or rate-limited fetch shows accurate feedback without clearing an existing value; WoM availability never blocks signup opening or manual EHB entry.
+- Review the current official API documentation and rate/usage rules immediately before implementation; do not rely on planning-time assumptions.
+- Cache and throttle signup lookups server-side, honor `Retry-After`, and never fetch on every keystroke, render, or ordinary public request.
+- Store the submitted EHB snapshot, source, and fetch time rather than treating later WoM changes as retroactive signup data.
 - Link an event to its Wise Old Man competition.
 - Synchronize player gained EHB and display player and team EHB leaderboards.
 - Store the source competition, last successful synchronization time, and synchronization errors.
@@ -929,21 +1212,24 @@ These features are intentionally separate from the approved version-one scope. T
 - A manual refresh must obey the same global cooldown. If data was refreshed recently, show the cached result and its timestamp instead of calling Wise Old Man again.
 - Respect `Retry-After` and apply increasing backoff after rate limits or failures. Do not immediately retry a `429 Too Many Requests` response.
 - Load tests must use a fake or recorded Wise Old Man response. Test the real integration separately with a single synchronization plus explicit rate-limit and stale-cache scenarios.
-- Wise Old Man standings combine gained EHB from every character that participant registered for the event, regardless of which character was active for bingo-drop eligibility at that moment.
+- Wise Old Man standings combine gained EHB from every `PLAYING` character that participant registered for the event, regardless of which playing character was active for bingo-drop eligibility at that moment.
 - Rank the participant by the combined total, not each character separately. Show the per-character breakdown beneath the participant total so multiple-account players are not misleadingly split across leaderboard positions.
+- Never send informational Account answers or Yes/No support-alt answers to Wise Old Man and do not display them in activity standings.
 - Team EHB is the sum of those participant-level totals, with each registered character counted once through its owning participant.
 
 #### Manual signup opening deadline
 
 - When an admin manually opens signups, set the opening time to now, rounded consistently with the existing scheduler.
-- Set the automatic closing time to the earlier of three months after opening and the event start time.
+- Preserve a valid explicit future closing time no later than event start.
+- When closing is absent, set it to the earlier of three months after opening and the event start time and show the supplied value before confirmation.
+- Do not silently replace an invalid explicit closing time; block opening and explain the correction.
 - Admins may then edit the future closing time or close signups manually.
 - Starting the draft continues to close and lock signups automatically.
 - Reject manual opening when the event has already started or no valid future signup window remains.
 
 #### Waiting-list promotion regression
 
-- The existing workflow promotes the earliest waiting-listed participant when a confirmed participant is removed or withdrawn before draft lock.
+- The existing workflow promotes the earliest waiting-listed participant when a confirmed participant is withdrawn before draft lock.
 - Keep this behavior covered by a direct integration regression test.
 - Automatic promotion remains disabled after draft lock.
 

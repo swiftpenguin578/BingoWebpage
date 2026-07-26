@@ -12,12 +12,13 @@ Use these documents by responsibility:
 
 1. `CURRENT_STATUS.md` — current implementation position, working-tree handoff, verification results, remaining work, and uncertainties.
 2. `PRODUCT_REQUIREMENTS.md` — product behavior, scope, roles, workflows, non-functional requirements, and version-one acceptance criteria.
-3. `DATA_MODEL.md` — entities, invariants, calculations, evidence/progress/ranking rules, concurrency, and finalization semantics.
-4. `TECHNICAL_ARCHITECTURE.md` — architecture, persistence, storage, security, realtime behavior, deployment, operations, and test strategy.
-5. `IMPLEMENTATION_ROADMAP.md` — milestone order, completion criteria, release gates, risks, and deferred work.
-6. `UI_OVERHAUL_ROADMAP.md` — active UI rules, pass sequence, page approval gates, accessibility, responsiveness, and progressive enhancement.
-7. `README.md` — commands and local operation. Its milestone-summary sentence is currently stale; see `CURRENT_STATUS.md`.
-8. `DEVELOPMENT_SETUP.md` — developer-machine setup.
+3. `FUNCTIONAL_WORKFLOWS.md` — Planning Pass 2 workflow journeys, capability register, traceability, proposals, approvals, and open decisions.
+4. `DATA_MODEL.md` — entities, invariants, calculations, evidence/progress/ranking rules, concurrency, and finalization semantics.
+5. `TECHNICAL_ARCHITECTURE.md` — architecture, persistence, storage, security, realtime behavior, deployment, operations, and test strategy.
+6. `IMPLEMENTATION_ROADMAP.md` — milestone order, completion criteria, release gates, risks, and deferred work.
+7. `UI_OVERHAUL_ROADMAP.md` — active UI rules, pass sequence, page approval gates, accessibility, responsiveness, and progressive enhancement.
+8. `README.md` — commands and local operation. Its milestone-summary sentence is currently stale; see `CURRENT_STATUS.md`.
+9. `DEVELOPMENT_SETUP.md` — developer-machine setup.
 
 Read focused sections instead of dumping whole large documents into context. Search headings and terms first, then inspect the relevant ranges.
 
@@ -56,14 +57,28 @@ Future agents must follow these rules:
 7. Separate facts into **verified**, **inferred**, and **unverified**. Do not promote commit-message implications or prior-chat claims to verified status.
 8. Do not rewrite working code merely because its history is unclear. Inspect its tests and behavior first.
 9. Keep commentary concise and outcome-oriented. Do not narrate repeated status with no new evidence.
-10. Update `CURRENT_STATUS.md` only when status materially changes; do not turn it into a minute-by-minute log.
+10. Update `CURRENT_STATUS.md` only when status materially changes. Keep its active handoff concise and consolidate superseded checkpoints into a short historical summary instead of accumulating a minute-by-minute log that every future task must reread.
+11. Within each bounded stage, batch independent read-only tool calls available through `functions.exec` into one call, normally with `Promise.allSettled`, and inspect every result. Use `Promise.all` only when any failure should abort that batch. Keep dependent or adaptive investigations, mutations that may conflict, approvals, and wait/resume operations sequential. Do not split otherwise batchable bounded inspections across separate outer tool calls.
+12. Treat elapsed time and context/token use as finite engineering budgets. Identify the critical path at the start, execute its next blocking step promptly, and parallelize independent bounded work only when the active instructions and available tooling permit it.
+13. Use rough time expectations only to detect an unproductive approach. At meaningful checkpoints, compare progress with the expectation; if work is taking materially longer, change strategy or defer only work that is explicitly outside the requested scope. Never drop an authorized requirement merely to fit an estimate.
+14. A progress update is informational, not a pause or approval gate while authorized work remains possible. Completing one bounded stage is not by itself a reason to end the turn: continue to the next authorized stage until the requested objective is complete, a genuine blocker is reached, or the execution environment forces a handoff. If a handoff is forced, record the exact last verified state and next action.
+15. Run the smallest verification set that proves the changed behavior and protects the affected risk surface. Expand verification when failures, dependencies, or blast radius justify it; final completion still requires the repository's applicable definition-of-done gates.
+16. Prefer the shortest **authorized** path through implementation, focused verification, leak checks, and handoff. Stage, commit, push, release, or deploy only when the user has authorized those actions.
+17. Never trade correctness, security, deterministic behavior, or data integrity for speed.
 
 If blocked, useful work may include focused source inspection, independent unit tests, documentation reconciliation, or a precise handoff. Do not claim completion while required verification remains blocked.
 
 ## UI work
 
 - Follow the applicable pass and approval gate in `UI_OVERHAUL_ROADMAP.md`.
+- Every new page and every materially changed page must follow the active shared UI system in `UI_OVERHAUL_ROADMAP.md` from its first implementation. A later whole-site UI pass is not permission to introduce interim legacy styling, page-local themes, inconsistent controls, or incomplete responsive/accessibility states.
 - Treat the **View bingo** state at `/Events/test-15-dkl-live/Board` and `UI_OVERHAUL_ROADMAP.md` section 3.6 as the visual source of truth for the site-wide overhaul. Reuse its shared tokens, spacing scale, component geometry, density, states, controls, responsive transitions, and motion rules; do not create a separate admin or page-local theme.
+- Use accent-outline controls as the normal primary action treatment. Use neutral outline for secondary actions, red outline for destructive actions, ghost/text for low-priority navigation, and green only when the action itself is explicitly a success action. Filled accent buttons are exceptional. A bare red `×` with a larger invisible circular hit target is approved only when the removable object is visually self-evident; preserve its accessible label and keyboard focus state.
+- Preserve the approved Pass 12 desktop interaction model: overall team cards open route-backed team overlays; tiles replace the left sidebar through nested real URLs; captain submission attaches a drawer to that sidebar; and submission success/failure stays in the drawer until the user acknowledges it. Realtime invalidations must not interrupt an active submission or result state.
+- Widths below `901px` deliberately use ordinary route navigation without overlay transitions. Treat the standalone team, tile, and submission routes as required responsive/no-JavaScript fallbacks, not obsolete duplicate pages.
+- Treat the public board ecosystem, board editor, and live draft as protected interaction baselines. Functional slices may add or change necessary data, controls, validation, and states, but must preserve each surface's established hierarchy, density, spatial context, and primary interaction model unless an approved requirement genuinely needs a focused redesign.
+- At the approved desktop reference viewport, ordinary board-editor and live-draft work should normally remain within the application viewport, with long boards, pools, lists, or panels scrolling inside their intended regions. This is not a prohibition on page scrolling: smaller viewports, zoom, translated content, and accessibility/responsive fallbacks may use normal document scrolling, and content must never be clipped merely to avoid it.
+- Before changing a protected surface, identify the exact functional delta and keep unrelated layout and interaction behavior intact. If the requirement cannot fit the established interaction model, call out the proposed change for focused review instead of silently replacing the composition.
 - Start by identifying the page's user and primary task; preserve approved business behavior.
 - Reuse shared components and compact layout patterns.
 - Review desktop, narrow/mobile, keyboard, focus, empty, error, permission, and no-JavaScript states where applicable.
