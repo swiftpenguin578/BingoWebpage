@@ -350,7 +350,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         ev.StartEvent(now.AddHours(-1));
         if (evidenceCode is not null) ev.SetEvidenceCodeEnabled(true);
         var team = new Team(teamId, eventId, "Team One", $"team-{teamId:N}", TeamFormationType.Drafted, null, true);
-        var participant = new EventParticipant(participantId, eventId, "Player One", "PLAYER ONE", 500, SignupStatus.Confirmed, 1, now.AddDays(-5), SignupSource.Website, null);
+        var participant = new EventParticipant(participantId, eventId, SignupStatus.Confirmed, 1, now.AddDays(-5), SignupSource.Website, null);
         var captain = Account.CreateEmergency(captainId, "captain", "CAPTAIN", now.AddDays(-10));
         var captainAccess = new AccountEventAccess(Guid.NewGuid(), captainId, eventId, teamId, participantId, now.AddDays(-1), now.AddHours(5), now.AddHours(30));
         captainAccess.Enable();
@@ -358,7 +358,9 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         admin.SetGlobalRole(GlobalRole.Admin);
         var board = new Board(boardId, eventId, "Board", 1, 1);
         board.Publish(now.AddDays(-1));
-        db.AddRange(ev, team, participant, captain, admin, board, captainAccess,
+        var character = new OsrsCharacter(Guid.NewGuid(), "Player One", "PLAYER ONE", now);
+        var assignment = new EventParticipantCharacter(Guid.NewGuid(), eventId, participantId, character.Id, 0, now, adminId, null, EventCharacterRole.Playing, 500, EhbSource.Manual, null);
+        db.AddRange(ev, team, participant, character, assignment, captain, admin, board, captainAccess,
             new TeamMembership(Guid.NewGuid(), teamId, participantId, TeamMembershipRole.Participant, now.AddDays(-4), null, null),
             new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Manual tile", "Complete it", "Show the message", tileEhb),
             new BoardRequirementSnapshot(requirementId, tileId, 0, target, duplicatesAllowed, allowHigherWeights, "Complete runs", manualObjective, allowHigherWeights ? 2 : 1));

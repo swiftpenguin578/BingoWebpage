@@ -30,8 +30,10 @@ public sealed class AccountOverviewTests : IAsyncLifetime
             var username = $"overview-user-{index:D2}";
             var web = Account.CreateWebsite(Guid.NewGuid(), username, AccountAuthenticationService.NormalizeUsername(username), now);
             var character = new OsrsCharacter(Guid.NewGuid(), username, AccountAuthenticationService.NormalizeUsername(username), now);
-            var participant = new EventParticipant(Guid.NewGuid(), ev.Id, username, AccountAuthenticationService.NormalizeUsername(username), 1, SignupStatus.Confirmed, index, now, SignupSource.Website, null);
+            var participant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, index, now, SignupSource.Website, null);
+            participant.AssignOwner(web);
             db.Accounts.Add(web); db.OsrsCharacters.Add(character); db.AccountOsrsCharacters.Add(new AccountOsrsCharacter(Guid.NewGuid(), web.Id, character.Id, true, 0, now)); db.EventParticipants.Add(participant);
+            db.EventParticipantCharacters.Add(new EventParticipantCharacter(Guid.NewGuid(), ev.Id, participant.Id, character.Id, 0, now, web.Id, null, EventCharacterRole.Playing, 1, EhbSource.Manual, null));
             db.TeamMemberships.Add(new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, index == 0 ? TeamMembershipRole.Captain : TeamMembershipRole.Participant, now, null, null));
             var emergency = Account.CreateEmergency(Guid.NewGuid(), $"overview-emergency-{index:D2}", $"OVERVIEW-EMERGENCY-{index:D2}", now);
             if (index % 2 == 0) emergency.SetPasswordHash("not-a-real-password-hash", false);

@@ -145,7 +145,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         => Account.CreateWebsite(Guid.NewGuid(), name, name.ToUpperInvariant(), now);
 
     private static EventParticipant Participant(Guid eventId, string name, long sequence, DateTimeOffset now)
-        => new(Guid.NewGuid(), eventId, name, name.ToUpperInvariant(), 1m, SignupStatus.Confirmed, sequence, now, SignupSource.AdminCreated, null);
+        => new(Guid.NewGuid(), eventId, SignupStatus.Confirmed, sequence, now, SignupSource.AdminCreated, null);
 
     private static EventParticipantCharacter Playing(Guid eventId, Guid participantId, Guid characterId, Guid actorId, DateTimeOffset now)
         => new(Guid.NewGuid(), eventId, participantId, characterId, 0, now, actorId, null, EventCharacterRole.Playing, 1m, EhbSource.Manual, null);

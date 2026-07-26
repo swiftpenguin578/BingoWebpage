@@ -20,8 +20,8 @@ public sealed class EventAndSignupRulesTests
     [Fact]
     public void EditingParticipantDoesNotChangeQueueSequenceOrSignupTime()
     {
-        var participant = new EventParticipant(Guid.NewGuid(), Guid.NewGuid(), "Old", "OLD", 100, SignupStatus.WaitingList, 42, Now, SignupSource.Website, "hash");
-        participant.UpdatePublicDetails("New", "NEW", 200, null, null, null, false);
+        var participant = new EventParticipant(Guid.NewGuid(), Guid.NewGuid(), SignupStatus.WaitingList, 42, Now, SignupSource.Website, "hash");
+        participant.UpdateSignupDetails(null, null, false);
         Assert.Equal(42, participant.SignupSequence);
         Assert.Equal(Now, participant.SignedUpAt);
     }
@@ -29,7 +29,7 @@ public sealed class EventAndSignupRulesTests
     [Fact]
     public void ReplacingParticipantEditTokenInvalidatesThePreviousHash()
     {
-        var participant = new EventParticipant(Guid.NewGuid(), Guid.NewGuid(), "Player", "PLAYER", 100, SignupStatus.Confirmed, 1, Now, SignupSource.Website, "old-hash");
+        var participant = new EventParticipant(Guid.NewGuid(), Guid.NewGuid(), SignupStatus.Confirmed, 1, Now, SignupSource.Website, "old-hash");
 
         participant.ReplacePrivateEditToken("new-hash");
 

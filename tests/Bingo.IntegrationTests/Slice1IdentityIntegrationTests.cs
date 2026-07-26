@@ -366,13 +366,15 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var admin = Website("slice1-move-admin", GlobalRole.Admin); var ev = Event(time.GetUtcNow(), time.GetUtcNow().AddDays(1));
         var source = new Bingo.Domain.Teams.Team(Guid.NewGuid(), ev.Id, "Source", "slice1-source", Bingo.Domain.Teams.TeamFormationType.Preformed, null, false);
         var target = new Bingo.Domain.Teams.Team(Guid.NewGuid(), ev.Id, "Target", "slice1-target", Bingo.Domain.Teams.TeamFormationType.Preformed, null, false);
-        var participant = new Bingo.Domain.Signups.EventParticipant(Guid.NewGuid(), ev.Id, "Move captain", "MOVE CAPTAIN", 1m, Bingo.Domain.Signups.SignupStatus.Confirmed, 1, time.GetUtcNow(), Bingo.Domain.Signups.SignupSource.AdminCreated, null);
+        var participant = new Bingo.Domain.Signups.EventParticipant(Guid.NewGuid(), ev.Id, Bingo.Domain.Signups.SignupStatus.Confirmed, 1, time.GetUtcNow(), Bingo.Domain.Signups.SignupSource.AdminCreated, null);
+        var character = new OsrsCharacter(Guid.NewGuid(), "Move captain", "MOVE CAPTAIN", time.GetUtcNow());
+        var assignment = new Bingo.Domain.Signups.EventParticipantCharacter(Guid.NewGuid(), ev.Id, participant.Id, character.Id, 0, time.GetUtcNow(), admin.Id, null, Bingo.Domain.Signups.EventCharacterRole.Playing, 1m, Bingo.Domain.Signups.EhbSource.AdminCorrection, null);
         var membership = new Bingo.Domain.Teams.TeamMembership(Guid.NewGuid(), source.Id, participant.Id, Bingo.Domain.Teams.TeamMembershipRole.Captain, time.GetUtcNow(), null, "seed");
         var credential = Account.CreateEmergency(Guid.NewGuid(), "slice1-move-credential", "SLICE1-MOVE-CREDENTIAL", time.GetUtcNow()); credential.SetPassword(passwords.HashPassword(credential, "long-test-password"), false, time.GetUtcNow()); credential.Enable();
         var access = new AccountEventAccess(Guid.NewGuid(), credential.Id, ev.Id, source.Id, participant.Id, null, null, null); access.Enable();
-        db.AddRange(admin, ev, source, target, participant, membership, credential, access); await db.SaveChangesAsync();
+        db.AddRange(admin, ev, source, target, participant, character, assignment, membership, credential, access); await db.SaveChangesAsync();
         var context = new DefaultHttpContext { User = new AccountAuthenticationService(db, passwords, time).CreatePrincipal(admin) };
-        var page = new Bingo.Web.Pages.Admin.Events.DraftModel(db, time, new AuditWriter(db, time), new NoopCollaborationNotifier(), new NoopSignupService()) { PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())), TempData = new TempDataDictionary(context, new DictionaryTempDataProvider()) };
+        var page = new Bingo.Web.Pages.Admin.Events.DraftModel(db, time, new AuditWriter(db, time), new NoopCollaborationNotifier(), new NoopSignupService(), new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, time)) { PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())), TempData = new TempDataDictionary(context, new DictionaryTempDataProvider()) };
 
         Assert.IsType<RedirectToPageResult>(await page.OnPostMoveMemberAsync(ev.Id, membership.Id, target.Id, "Move captain", CancellationToken.None));
         db.ChangeTracker.Clear();
@@ -387,17 +389,23 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var admin = Website("slice1-draft-no-credentials", GlobalRole.Admin); var ev = Event(time.GetUtcNow(), time.GetUtcNow().AddDays(1));
         var draft = new Bingo.Domain.Teams.DraftSession(Guid.NewGuid(), ev.Id, 1); draft.AcquireControl(admin.Id, time.GetUtcNow(), Bingo.Application.Teams.DraftControlLease.Duration); draft.Start(time.GetUtcNow());
         var team = new Bingo.Domain.Teams.Team(Guid.NewGuid(), ev.Id, "Draft team", "slice1-draft-team", Bingo.Domain.Teams.TeamFormationType.Drafted, null, true);
-        var participant = new Bingo.Domain.Signups.EventParticipant(Guid.NewGuid(), ev.Id, "Draft captain", "DRAFT CAPTAIN", 1m, Bingo.Domain.Signups.SignupStatus.Confirmed, 1, time.GetUtcNow(), Bingo.Domain.Signups.SignupSource.AdminCreated, null);
+        var participant = new Bingo.Domain.Signups.EventParticipant(Guid.NewGuid(), ev.Id, Bingo.Domain.Signups.SignupStatus.Confirmed, 1, time.GetUtcNow(), Bingo.Domain.Signups.SignupSource.AdminCreated, null);
+        var character = new OsrsCharacter(Guid.NewGuid(), "Draft captain", "DRAFT CAPTAIN", time.GetUtcNow());
+        var assignment = new Bingo.Domain.Signups.EventParticipantCharacter(Guid.NewGuid(), ev.Id, participant.Id, character.Id, 0, time.GetUtcNow(), admin.Id, null, Bingo.Domain.Signups.EventCharacterRole.Playing, 1m, Bingo.Domain.Signups.EhbSource.AdminCorrection, null);
         var membership = new Bingo.Domain.Teams.TeamMembership(Guid.NewGuid(), team.Id, participant.Id, Bingo.Domain.Teams.TeamMembershipRole.Participant, time.GetUtcNow(), null, "seed");
-        db.AddRange(admin, ev, draft, team, participant, membership); await db.SaveChangesAsync();
+        db.AddRange(admin, ev, draft, team, participant, character, assignment, membership); await db.SaveChangesAsync();
         var baseline = (await db.Accounts.CountAsync(), await db.AccountEventAccesses.CountAsync(), await db.PasswordCredentialTokens.CountAsync());
         var context = new DefaultHttpContext { User = new AccountAuthenticationService(db, passwords, time).CreatePrincipal(admin) };
-        var page = new Bingo.Web.Pages.Admin.Events.DraftModel(db, time, new AuditWriter(db, time), new NoopCollaborationNotifier(), new NoopSignupService()) { PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())), TempData = new TempDataDictionary(context, new DictionaryTempDataProvider()) };
+        var page = new Bingo.Web.Pages.Admin.Events.DraftModel(db, time, new AuditWriter(db, time), new NoopCollaborationNotifier(), new NoopSignupService(), new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, time)) { PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())), TempData = new TempDataDictionary(context, new DictionaryTempDataProvider()) };
 
         Assert.IsType<RedirectToPageResult>(await page.OnPostFinalizeAsync(ev.Id, CancellationToken.None));
         Assert.Equal(baseline, (await db.Accounts.CountAsync(), await db.AccountEventAccesses.CountAsync(), await db.PasswordCredentialTokens.CountAsync()));
         Assert.IsType<RedirectToPageResult>(await page.OnPostChangeRoleAsync(ev.Id, membership.Id, Bingo.Domain.Teams.TeamMembershipRole.Captain, CancellationToken.None));
         Assert.Equal(baseline, (await db.Accounts.CountAsync(), await db.AccountEventAccesses.CountAsync(), await db.PasswordCredentialTokens.CountAsync()));
+        Assert.IsType<PageResult>(await page.OnGetAsync(ev.Id, "ehb", CancellationToken.None));
+        var projectedMember = Assert.Single(Assert.Single(page.Teams).Members);
+        Assert.Equal("Draft captain", projectedMember.Name);
+        Assert.Equal(1m, projectedMember.Ehb);
     }
 
     [Fact]
@@ -645,7 +653,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var administration = new AccountAdministrationService(db, passwords, clock);
         await Assert.ThrowsAsync<InvalidOperationException>(() => administration.SetEmergencyEnabledAsync(admin.Id, emergency.Id, true, CancellationToken.None));
         var reopenContext = new DefaultHttpContext { User = new AccountAuthenticationService(db, passwords, clock).CreatePrincipal(admin) };
-        var reopen = new Bingo.Web.Pages.Admin.Events.ManageModel(db, new NoopSignupService(), new AuditWriter(db, clock), clock)
+        var reopen = new Bingo.Web.Pages.Admin.Events.ManageModel(db, new NoopSignupService(), new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, clock), new AuditWriter(db, clock), clock)
         {
             PageContext = new PageContext(new ActionContext(reopenContext, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(reopenContext, new DictionaryTempDataProvider()),

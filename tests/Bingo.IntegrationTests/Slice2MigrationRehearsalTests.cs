@@ -1,5 +1,6 @@
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Signups;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -94,8 +95,9 @@ public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
             var participant = await migrated.EventParticipants.SingleAsync();
             Assert.Equal(participantId, participant.Id);
             Assert.Null(participant.AccountId);
-            Assert.Equal("Existing Main", participant.PrimaryAccountName);
-            Assert.Equal(123.45m, participant.EhbSnapshot);
+            var authority = await migrated.PrimaryCharacters().SingleAsync();
+            Assert.Equal("Existing Main", authority.Name);
+            Assert.Equal(123.45m, authority.Ehb);
 
             var assignments = await migrated.EventParticipantCharacters
                 .OrderBy(x => x.RegistrationOrder)
