@@ -24,7 +24,7 @@
 
 **Pass 2.3 gate:** Met. The user approved the remaining desktop/intermediate/narrow, keyboard/focus, empty, unlink-warning, and correction-conflict visual/manual states. Safari skipping buttons under ordinary Tab is its browser accessibility preference, not a product focus-order defect; no tabindex or keyboard behavior was changed. Pass 2.4 username rename and later functionality were not started.
 
-**Next implementation action:** Await explicit approval before starting Pass 2.4. Do not alter protected signup, board, or live-draft interaction models.
+**Next implementation action:** Implement only `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.4 (independent website username rename). Preserve My Accounts, event assignments, and protected signup/board/live-draft behavior, and do not continue into Pass 2.5 in the same task.
 
 ## Verification
 
@@ -40,7 +40,7 @@
 
 ## Remaining work
 
-- Pass 2.3 is closed. Await explicit approval before starting Pass 2.4.
+- Implement `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.4 only.
 
 ## Historical summary
 
