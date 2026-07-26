@@ -1,7 +1,7 @@
 # Current Project Status
 
 **Verified:** 2026-07-26
-**Branch:** `codex/milestone-8a-slice-2` (Slice 2 implementation branch)
+**Branch context:** `codex/milestone-8a-slice-2`; this delegated implementation worktree is currently detached at its Slice 2 checkpoint
 **Planning decision:** 2026-07-26
 
 ## Active handoff
@@ -14,7 +14,11 @@
 
 **Pass 2.1 approval:** The user approved the completed Pass 2.1 gate without a separate pass-level independent review. The approved Slice 2 process keeps the independent review for the complete slice after Pass 2.5.
 
-**Next implementation action:** Implement only `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.2. Preserve all Pass 12/protected UI behavior and do not continue into Pass 2.3 in the same task.
+**Slice 2 Pass 2.2:** Existing workflows now use `EventParticipantCharacter` as their sole event-facing character and EHB authority. The unchanged fixed signup form maps its primary value to one current `Playing` assignment with the event EHB snapshot and its optional second value to one current `Informational` assignment without EHB. Private-link editing, Admin correction, CSV import, signup/roster views, live draft, evidence/public-board views, captain/review views, and account participation projections have transitioned. Account participation uses explicit `EventParticipant.AccountId` and never infers ownership from names or Discord identity. Migration `20260726201926_TransitionParticipantCharacterAuthority` releases retained inactive assignments, drops the four superseded participant columns, and preserves all earlier migration history. Private edit links and the Slice 1 account-character compatibility model remain for Slice 4.
+
+**Pass 2.2 gate:** Met. The protected public board, board editor, live draft, responsive routes, and no-JavaScript interaction models were not redesigned; only authority queries and server-side workflow persistence changed.
+
+**Next implementation action:** Stop at the Pass 2.2 checkpoint. Pass 2.3 (My Accounts) requires a separate user instruction.
 
 ## Verification
 
@@ -22,9 +26,11 @@
 
 2026-07-26 Slice 2 Pass 2.1 verification: focused new domain tests passed `2/2`; focused new PostgreSQL persistence/migration tests passed `5/5`; affected existing `AccountAccessTests` plus new domain tests passed `3/3`; affected existing `AccountOverviewTests` passed `2/2`. Clean and retained PostgreSQL migrations both succeeded. `dotnet ef migrations has-pending-model-changes` reported none. `dotnet format Bingo.slnx --no-restore --verify-no-changes` passed. Release builds for the affected Domain-test and Integration-test project graphs passed with 0 warnings and 0 errors. `git diff --check` passed.
 
+2026-07-26 Slice 2 Pass 2.2 verification: focused PostgreSQL regressions passed `33/33`, covering signup creation/capacity, CSV-source assignment mapping, private-edit authority replacement/history, Admin-correction EHB source, account participation, clean and representative retained migrations, assignment constraints, live-draft name/EHB projection, submission/evidence flows, and public-board projections. Domain tests passed `46/46`. `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers` passed with 0 warnings and 0 errors. `dotnet ef migrations has-pending-model-changes` reported none. Final formatting, diff, and bounded legacy-authority searches passed.
+
 ## Remaining work
 
-- Implement `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.2 only.
+- Await separate authorization for Slice 2 Pass 2.3.
 
 ## Historical summary
 
