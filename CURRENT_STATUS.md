@@ -1,7 +1,7 @@
 # Current Project Status
 
 **Verified:** 2026-07-26
-**Branch context:** `codex/milestone-8a-slice-2`; this delegated implementation worktree is currently detached at its Slice 2 checkpoint
+**Branch:** `codex/milestone-8a-slice-2` (Slice 2 implementation branch)
 **Planning decision:** 2026-07-26
 
 ## Active handoff
@@ -18,7 +18,7 @@
 
 **Pass 2.2 gate:** Met. The protected public board, board editor, live draft, responsive routes, and no-JavaScript interaction models were not redesigned; only authority queries and server-side workflow persistence changed.
 
-**Next implementation action:** Stop at the Pass 2.2 checkpoint. Pass 2.3 (My Accounts) requires a separate user instruction.
+**Next implementation action:** Implement only `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.3 (My Accounts). Preserve the existing signup UI and all Pass 12/protected interaction behavior, and do not continue into Pass 2.4 in the same task.
 
 ## Verification
 
@@ -30,7 +30,7 @@
 
 ## Remaining work
 
-- Await separate authorization for Slice 2 Pass 2.3.
+- Implement `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.3 only.
 
 ## Historical summary
 
