@@ -113,6 +113,7 @@ The current shared status box treats every message as success. Pass 1 will repla
 - A mutation must never look like a silent reload. After a full-page form post or redirect, return the user to the affected control or result instead of jumping to an unrelated page position.
 - When new success, error, or validation feedback is outside the viewport, move focus and scroll it into view. Do not move the page when the feedback is already visible, and respect reduced-motion preferences.
 - Progressive enhancement should preserve the user's useful scroll position and local context. The ordinary Razor fallback may navigate, but must still expose the result immediately through an adjacent message, validation summary, or deliberate fragment target.
+- Repeated enhanced mutations that keep the user on the same logical page replace the current browser-history entry. After any number of same-page changes, Back returns to the route visited before that page. Genuine route changes retain normal history. No-JavaScript forms remain functional even where the browser preserves native POST/redirect entries.
 
 ## 3.4 Role-based action inbox
 

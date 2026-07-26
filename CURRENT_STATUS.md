@@ -18,7 +18,13 @@
 
 **Pass 2.2 gate:** Met. The protected public board, board editor, live draft, responsive routes, and no-JavaScript interaction models were not redesigned; only authority queries and server-side workflow persistence changed.
 
-**Next implementation action:** Implement only `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.3 (My Accounts). Preserve the existing signup UI and all Pass 12/protected interaction behavior, and do not continue into Pass 2.4 in the same task.
+**Slice 2 Pass 2.3:** Complete. Discord onboarding now collects a separate website username and first exact-spelling OSRS character, then creates the preferred retained link transactionally. Authenticated website accounts have `/Account/MyAccounts` with account-scoped add/reactivate, unlink with registration warning, personal-label and saved-EHB editing, ordered move controls, preferred selection, and atomic spelling correction. Correction relinks only the website account's link and currently editable account-owned assignments; it preflights conflicts, preserves link metadata, leaves closed/live history unchanged, and rolls back on conflicts. Emergency credentials have no My Accounts navigation or access. The My Accounts introduction and empty state now use the approved OSRS-character wording in English and Danish, without the superseded trusted/betroet resource text.
+
+**Shared enhanced-post history:** Successful same-page enhanced POST redirects now return a shared navigation response before `fetch` follows them. The shared client performs `location.replace` for the same logical page and `location.assign` for a genuine route change; validation HTML restores its state and applies replacement history after the replacement document loads. This keeps feedback, validation, focus, scroll, and query-string updates intact while one Back returns to the prior route. Ordinary no-JavaScript forms remain native PRG forms, whose browser-managed POST/redirect history cannot be controlled in the same way.
+
+**Pass 2.3 gate:** Met. The user approved the remaining desktop/intermediate/narrow, keyboard/focus, empty, unlink-warning, and correction-conflict visual/manual states. Safari skipping buttons under ordinary Tab is its browser accessibility preference, not a product focus-order defect; no tabindex or keyboard behavior was changed. Pass 2.4 username rename and later functionality were not started.
+
+**Next implementation action:** Await explicit approval before starting Pass 2.4. Do not alter protected signup, board, or live-draft interaction models.
 
 ## Verification
 
@@ -28,9 +34,13 @@
 
 2026-07-26 Slice 2 Pass 2.2 verification: focused PostgreSQL regressions passed `33/33`, covering signup creation/capacity, CSV-source assignment mapping, private-edit authority replacement/history, Admin-correction EHB source, account participation, clean and representative retained migrations, assignment constraints, live-draft name/EHB projection, submission/evidence flows, and public-board projections. Domain tests passed `46/46`. `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers` passed with 0 warnings and 0 errors. `dotnet ef migrations has-pending-model-changes` reported none. Final formatting, diff, and bounded legacy-authority searches passed.
 
+2026-07-26 Slice 2 Pass 2.3 initial verification: focused `Slice2PersistenceIntegrationTests` passed `9/9` against Testcontainers PostgreSQL, covering add/reactivate/unlink history, ordering/preferred state, saved-EHB link isolation, account scoping, correction propagation, correction conflict rollback, and a native-form onboarding/My Accounts journey. Focused onboarding regressions passed `3/3`; affected domain tests passed `4/4`. No migration was added because Pass 2.1 already established the required persistence model.
+
+2026-07-26 Slice 2 Pass 2.3 final remediation: added one focused browser-level enhanced-history regression covering route entry, two same-page My Accounts additions, returned feedback/content, and the shared replacement-navigation contract. Added Danish localization assertions for the approved introduction and empty state. The focused enhanced-history regression passed `1/1` against Testcontainers PostgreSQL; the affected Danish localization test passed `1/1`; `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers` passed with 0 warnings and 0 errors; formatting verification and `git diff --check` passed. No complete suite was run, as not authorized.
+
 ## Remaining work
 
-- Implement `SLICE_2_IMPLEMENTATION_PLAN.md` Pass 2.3 only.
+- Pass 2.3 is closed. Await explicit approval before starting Pass 2.4.
 
 ## Historical summary
 
