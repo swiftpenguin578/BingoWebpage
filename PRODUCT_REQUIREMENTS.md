@@ -230,7 +230,7 @@ An event has the following states:
 
 The event does not finalize automatically. Admin confirmation is required.
 
-Only one current/public operational event may exist in production across Signup open, Signup closed, Live, Awaiting final review, or Finalized. Unlimited private drafts and archived/cancelled history are allowed. Normal transition commands enforce this and identify the blocking event. Development-only seeded scenarios and automated fixtures may deliberately contain several labelled lifecycle states; they use explicit IDs/slugs and never weaken production commands.
+Multiple Signup open or Signup closed events may exist in production when their half-open event windows `[start, end)` do not overlap; back-to-back windows are allowed. Signup is an unlisted exact-link journey, so opening it does not add the event to general public navigation or a current-event selector. Only Live, Awaiting final review, and Finalized remain singleton current states. Development fixtures use an internal persisted marker honored only by Development commands; no ordinary Admin input can enable it, and Production never honors it.
 
 A finalized event remains the current event until an admin archives it. Archiving requires strong confirmation but no written reason, preserves all public URLs and official snapshots, and moves the event to previous events as read-only history. Unfinalizing archived results uses the existing exceptional reasoned correction workflow and is blocked if another production current event exists.
 
@@ -245,7 +245,7 @@ Each event records:
 - Optional informational draft time
 - Scheduled start
 - Scheduled event end
-- Scheduled submission cutoff
+- Internal normal submission cutoff, derived from event end
 - Actual start, if manually controlled
 - Authoritative actual/effective event end
 - Actual submission closure
@@ -255,9 +255,9 @@ Admins can reopen submissions or undo finalization. These actions require a reas
 
 Schedule is optional when saving an initial private draft. Before signup opens, the event requires a future signup closing time plus valid event start and end times. Event end must follow event start, and signup closing cannot be later than event start.
 
-Signup may open automatically at a configured instant or manually. Manual opening records the opening time as now. It preserves a valid explicit future closing time; when closing is absent, the system supplies the earlier of three months after opening and event start and shows it before confirmation. An invalid explicit closing time blocks opening rather than being silently replaced.
+Signup may open automatically at a configured instant or manually. Manual opening records the opening time as now and preserves a valid explicit future closing time. When no valid close remains, it proposes the configured future draft time when that is no later than event start, otherwise event start, and shows the exact local time before confirmation. The proposed value is not persisted until readiness, acknowledgement, confirmation, overlap, and transition checks all succeed.
 
-Submission cutoff defaults to 30 minutes after event end, may be edited, and cannot be earlier than event end. Draft time is optional planning information and never starts the draft automatically; an admin explicitly starts it.
+Submission cutoff is internal lifecycle data: whenever a normal event end is assigned or changed, the system derives it as exactly 30 minutes later; without an event end it remains unset. It is not an independently configurable or ordinarily displayed event setting. A separately approved submission reopening retains its own cutoff. Draft time is optional planning information and never starts the draft automatically; an admin explicitly starts it.
 
 The configured event-start instant may trigger an automatic start attempt, but never bypasses readiness. If the draft is not finalized, the board is not published, a team lacks its required Captain/emergency access, or another start invariant fails, the event remains pre-live and displays **Automatic start postponed** with the exact blockers. The scheduled instant remains historical and live eligibility is never backdated. Clearing the blockers does not trigger a delayed automatic retry; an admin uses **Start event now** with strong confirmation. No written reason is required after the scheduled instant, while an early start before it requires one.
 
@@ -265,7 +265,7 @@ The event ends automatically at its configured event-end instant and enters `AWA
 
 ### 7.2 Post-cutoff behavior
 
-The submission cutoff may be configured later than the scheduled event end to provide a short evidence-upload grace period. Only drops obtained during the official event window are valid, even when their evidence is submitted during this grace period.
+The normal submission cutoff provides a fixed 30-minute evidence-upload grace period after the event end. Only drops obtained during the official event window are valid, even when their evidence is submitted during this grace period.
 
 The application validates immutable server submission time against the active upload cutoff. The screenshot itself is the evidence of when the drop was received: administrators visually compare its clan-event plugin UTC timestamp with the authoritative event end and relevant active-character history. The application does not request a second typed drop time, use OCR, or encode a fixed “upload within N hours” rule.
 
@@ -358,7 +358,7 @@ Application-owned images use managed upload rather than arbitrary URL entry. Eve
 
 ### 8.1 Board layout
 
-- Boards are rectangular, commonly 5x5 or 6x6.
+- Boards are rectangular, commonly 5x5 or 6x6. The global supported row and column range is 1–8.
 - Event creation may contain an expected board size, but final board dimensions are configured and editable in the board editor.
 - Board dimensions remain changeable before publication. When shrinking, the editor first compacts placed tiles toward the top-left while preserving their current relative order.
 - If the smaller board still has enough positions for every placed tile, the compacted layout is previewed before applying it.
@@ -665,7 +665,7 @@ Reversing an approval:
 - There is no hidden-but-still-approved evidence state. If an approved image should no longer be public, an admin reverses its approval with a reason; the team may submit a corrected or redacted screenshot through the normal resubmission workflow while the upload window permits it.
 - Version one has no public evidence-report, bug-report, or general-feedback form. Community reports and feedback use the Discord feedback channel; admins handle a valid evidence concern through reversal/resubmission.
 
-After draft finalization, the signed-in participant's primary event destination is their published roster until the board is published, then the existing team-board view. That view shows event/team, role, planned/current active account, event end, and submission cutoff. It adds the participant's own evidence actions and private team-focus projection without creating a separate participant board.
+After draft finalization, the signed-in participant's primary event destination is their published roster until the board is published, then the existing team-board view. That view shows event/team, role, planned/current active account, and event end; submission access is enforced without ordinarily displaying the internal cutoff. It adds the participant's own evidence actions and private team-focus projection without creating a separate participant board.
 
 Before event start, the built-in primary account is only the planned starting account. It becomes active at event start. Participant/captain swaps are available only during `LIVE`, remain unlimited under the approved next-whole-UTC-minute rule, and close at event end. Evidence creation and pending edit/withdraw remain open through the submission cutoff for in-window drops; cutoff then makes participant history read-only while admin review continues.
 
@@ -783,7 +783,7 @@ Each event has a configurable signup window:
 - Event timezone
 - Maximum number of confirmed participants
 
-Admins can extend or shorten the signup window and increase the participant cap. The participant cap cannot be lowered. Changes are recorded in the audit log. The public signup page clearly shows the closing time, capacity, confirmed signup count, and whether new submissions currently enter the waiting list.
+While private, Admins may set any positive participant cap. Once signup has first been public, the cap may only increase; increases remain available while signup is open or closed before draft lock and promote waiting participants in queue order. Waiting-list support is editable before draft lock, but cannot be disabled while participants are waiting. Changes are recorded in the audit log. The public signup page clearly shows the closing time, capacity, confirmed signup count, and whether new submissions currently enter the waiting list.
 
 The standard form contains:
 
@@ -931,6 +931,8 @@ The legacy Google Forms headings listed above can be handled by a one-time migra
 - Player contribution leaderboard
 - Event rules and evidence requirements
 - Previous events and results
+
+Public boards is an overview of the current public event and previous archived events. Selecting a current event does not automatically redirect visitors into its board; visitors choose the relevant public event surface from the overview.
 
 Archived events keep the same public board/team/tile/result routes. Signed-in former participants may also read their own rejected and withdrawn submission history, but every event mutation is removed. There is no separate archived-participant dashboard.
 

@@ -127,14 +127,44 @@ Automated acceptance cases remain listed here so their IDs match `SLICE_2_MANUAL
 
 ## Slice 3 — Event creation, scheduling, readiness, cancellation, archive, and current-event policy
 
-- [ ] Exact manual cases to be finalized before Slice 3 handoff.
+- [ ] **S3-01** — As an Admin, open `/Admin/Events/Create` at desktop and narrow widths. The familiar five-step flow remains usable with JavaScript, and name plus Copenhagen-defaulted supported timezone create a private draft with every optional section blank.
+- [ ] **S3-02** — Disable JavaScript and create the same minimal private draft. Every step's fields remain reachable in document order, the native submit redirects to its Admin event workspace, and no public signup/board/team state is exposed.
+- [ ] **S3-03** — Enter an optional full setup (description, valid half-hour schedule, capacity, signup setting/question, buy-in, and board rows/columns limited to 1–8). Verify entered values remain after creation; leave a different optional section blank and verify it does not block creation.
+- [ ] **S3-04** — Enter an invalid/ambiguous DST time, an invalid custom question, or an invalid board dimension outside 1–8. Verify field-specific feedback retains input and creates no event. A partial date/time manual case is not applicable to the combined calendar control.
+- [ ] **S3-05** — Verify a generated private event link is editable before first public exposure, rejects invalid/colliding links safely, and does not disclose another event's details.
+- [x] **S3-06** — Approved: Event identity saves redirect back to Manage with mutation feedback. Banner behavior remains covered by the recorded identity checks.
+- [x] **S3-07** — Passed: a first-public timezone change previews stored instants and requires confirmation; after actual start it requires a written reason.
+- [ ] **S3-08** — Use two browser sessions to submit conflicting identity changes. Verify the stale session receives safe conflict feedback, retains its attempted values for review, and does not overwrite the latest saved identity.
+- [x] **S3-09** — Passed for the functional interaction boundary: native creation/identity feedback, direct-route fallback, keyboard/focus, and validation behavior. Visual review and styling are deferred to the full UI overhaul.
+- [ ] **S3-10** — Confirm a normal User cannot use `/Admin/Events/Create` or an identity route, and the Admin audit trail records creation and identity updates without a signup code, upload payload, or other secret.
+
+Pass 3.2 is approved: no-JavaScript creation passed; unset schedules show “Not set”; and board dimensions accept 1–8 while rejecting values outside that range. Visual review is deferred to the full UI overhaul.
+
+Pass 3.3 is approved: private/open/closed schedule editing, proposed Open-now and Reopen closing behavior, capacity/waiting-list behavior, multiple non-overlapping signup windows, overlap rejection, exact back-to-back boundaries, and exact-link/unlisted signup behavior passed. Calendar appearance remains deferred to the full UI overhaul.
+
+- [x] **S3-11 — Passed.** Create and Schedule show localized values while posting canonical `yyyy-MM-ddTHH:mm`; a future five-minute opening schedules and opens automatically without a checkbox.
+- [x] **S3-12 — Passed.** Opening and closing edits preserve untouched values, and overlap feedback appears in notification history.
+- [x] **S3-13 — Passed.** Postponed-start readiness updates after blocker resolution; manual Start resolves the attempt, preserves its history/configured start, records the actual start separately, and immediately renders Live controls.
+- [x] **S3-14A — Passed.** Reset Development data and verify only TEST 13 and TEST 15 remain.
+- [x] **S3-14B — Passed.** Fixture-only data has no automatic public current event and one real current event is selected.
+- [x] **S3-15 — Passed.** “Event discarded.” appeared exactly once on Admin Events through enhanced and no-JavaScript journeys.
+- [x] **S3-16 — Passed.** Protected participant/team/access/submission/evidence history blocks discard without cleanup.
+- [x] **S3-17 — Passed.** Never-public cancellation preserves private history and exposes no public event or reason.
+- [x] **S3-18 — Passed.** Previously public cancellation remains generic publicly; explicitly account-owned confirmed and waiting-list cancellation notifications are accepted as Automated for Slice 3 because the retained pre-Slice-4 signup UI creates unowned participants. The private reason is excluded.
+- [x] **S3-19 — Passed.** Finalized archive preserves historical public routes and results.
+- [x] **S3-20 — Passed.** Archived unfinalization succeeds without a competing current event and preserves snapshots.
+- [x] **S3-21 — Automated.** Competing Live/review/finalized current events block archived unfinalization atomically.
+- [x] **S3-22 — Passed.** Repeated destructive actions and expired schedules produce no duplicate lifecycle effects.
+- [x] **S3-23 — Passed.** No-JavaScript and enhanced lifecycle forms agree.
+- [ ] **Slice 3 review remediation — terminal route retest.** As an Admin, open a populated Cancelled event and submit a stale direct POST to one configuration route (for example Identity or Board); verify readable read-only feedback, no mutation, and read-only Manage history. Also verify Finalized/Archived expose only Archive or reasoned Unfinalize on their lifecycle history route. This is the sole additional manual check before restricted re-review; it does not re-open prior passed manual cases.
 - [ ] Minimal draft, manual/scheduled opening, and readiness blockers.
 - [ ] Empty discard versus populated cancellation.
-- [ ] Production singleton behavior and Development multi-scenario exception.
+- [ ] Multiple non-overlapping signup windows (including back-to-back) work through exact links; overlaps and live/review/finalized singleton conflicts fail safely, while Development fixtures do not weaken Production commands.
 - [ ] Finalized archive and historical-route preservation.
 
 ## Slice 4 — Signup, EHB/account questions, public signup board, capacity, and participants
 
+- [ ] Verify cancellation notifications after authenticated signup ownership exists: eligible confirmed and waiting-list participants receive one generic notification, while withdrawn/removed/unowned participants and the private Admin reason are excluded.
 - [ ] Exact manual cases to be finalized before Slice 4 handoff.
 - [ ] Confirmed/waiting-list creation, collision rollback, edit, withdrawal, rejoin, and promotion.
 - [ ] Public/admin answer visibility and optional historical answers.

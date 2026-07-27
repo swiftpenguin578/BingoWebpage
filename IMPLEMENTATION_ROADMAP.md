@@ -218,7 +218,7 @@ Allow admins to create an event, configure signup, open only the signup page, an
 - Optional event banner available during creation and replaceable/removable later without affecting readiness.
 - Copenhagen-defaulted supported-timezone selector instead of a raw timezone identifier field; later timezone changes preserve UTC schedule instants and use confirmation/audit protections.
 - Signup opening and closing times.
-- Scheduled or manual signup opening; manual opening preserves a valid explicit close or supplies the earlier of three months later and event start.
+- Scheduled or manual signup opening; manual opening preserves a valid explicit close or proposes future draft time when no later than event start, otherwise event start.
 - Event start, end, and submission cutoff.
 - Scheduled event-start attempt that remains pre-live and creates an **Automatic start postponed** action when draft, board, Captain/access, or other start-readiness blockers remain; never backdate live eligibility or surprise-start later. Clearing blockers requires **Start event now**, with no reason after schedule and a required reason before it.
 - Optional informational draft time that never starts the draft automatically.
@@ -725,7 +725,7 @@ Allow admins to safely run the event lifecycle and create official historical re
 - Early end requires a reason, preserves the scheduled end, and does not move the submission cutoff.
 - A populated pre-live cancellation preserves history and no scheduled worker later reactivates it.
 - Archiving preserves official results/URLs and removes the event from current operational queries.
-- Production rejects a second current/public operational event while Development seeding still creates the state matrix.
+- Production permits non-overlapping signup-open/closed windows while retaining a singleton live/review/finalized current event; Development fixtures are internally marked and never exempt Production commands.
 - Reopening upload window does not extend obtained window.
 - Finalization blocked while unresolved conditions remain.
 - Manual override clears only blocker status and does not mutate submissions.
@@ -785,7 +785,7 @@ These are the ten functional delivery slices inside Milestone 8A. They are not a
 
 Each slice finalizes its exact manual cases in `MANUAL_TEST_CHECKLIST.md` before handoff. The checklist is durable repository documentation so the user may run it immediately or return to it later; it does not replace automated coverage.
 
-Slices 1 and 2 are implemented, independently cleared, verified, manually accepted where applicable, and ready on the Milestone 8A Slice 2 checkpoint branch. Slice 2's completed five-pass record remains in `SLICE_2_IMPLEMENTATION_PLAN.md`. Slice 3 planning is the next functional step; implementation must not begin until its bounded plan is approved.
+Slices 1 and 2 are implemented, independently cleared, verified, and manually accepted where applicable. Slice 2's completed five-pass record remains in `SLICE_2_IMPLEMENTATION_PLAN.md`. The bounded Slice 3 plan in `SLICE_3_IMPLEMENTATION_PLAN.md` was approved on 2026-07-27. Pass 3.1 is complete and Pass 3.2 is implemented pending its required manual/visual approval; work must remain inside its approved pass boundary.
 
 Only after all ten Milestone 8A functional slices are complete and functionally regressed does work proceed to the separate big-roadmap **Milestone 9 — UI overhaul and regression**. Milestone 9 performs the complete site-wide UI pass and full regression through the page passes in `UI_OVERHAUL_ROADMAP.md`. It must not begin merely because a similarly numbered UI page pass is available.
 
@@ -1221,8 +1221,8 @@ This register began as the post-version-one backlog. Items explicitly selected d
 
 - When an admin manually opens signups, set the opening time to now, rounded consistently with the existing scheduler.
 - Preserve a valid explicit future closing time no later than event start.
-- When closing is absent, set it to the earlier of three months after opening and the event start time and show the supplied value before confirmation.
-- Do not silently replace an invalid explicit closing time; block opening and explain the correction.
+- When no valid closing remains, propose future draft time when it is no later than event start, otherwise event start, and show the supplied value before confirmation.
+- Do not persist a proposal until readiness, acknowledgement, confirmation, and overlap checks succeed.
 - Admins may then edit the future closing time or close signups manually.
 - Starting the draft continues to close and lock signups automatically.
 - Reject manual opening when the event has already started or no valid future signup window remains.

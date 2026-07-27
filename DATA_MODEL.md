@@ -184,7 +184,7 @@ Duplicate event names are allowed. The slug is unique and may change until the e
 
 `first_public_at` records the first instant any event-owned public page is intentionally exposed and is never cleared. It is the authoritative slug-lock boundary.
 
-Description may be null while the event remains a private draft and is required before signup publication. `banner_asset_id` is optional in every state and references a managed decorative asset. Replacing or removing the banner does not change event history or competitive snapshots.
+Description may be null while the event remains a private draft and is required before signup publication. `banner_asset_id` is optional in every state and references a managed decorative asset. Replacing or removing the banner does not change event history or competitive snapshots. Discard creates an `EventBannerCleanup` record before removing event-owned banner metadata: it retains the discarded event ID, event-scoped managed storage key, queued/last-attempt times, attempt count, and safe operational failure detail. The record is unique per event/key and can only represent a key under that event's managed storage namespace; it is removed only after deletion succeeds or the object is already absent.
 
 Timezone defaults to `Europe/Copenhagen` and stores a supported canonical timezone ID. Changing timezone changes only how stored UTC instants are displayed; it never rewrites those instants. Changes after signup publication require explicit confirmation, and changes after event start also require an audit reason.
 
@@ -209,7 +209,7 @@ A valid explicit future closing time no later than event start is preserved. An 
 
 `ARCHIVED` is read-only public history derived only from `FINALIZED`. Archive does not supersede finalization snapshots or alter public URLs. Unfinalization may move an archived event back to final review with a reason only when the production current-event policy permits it.
 
-The production application permits only one current/public operational event whose state is `SIGNUP_OPEN`, `SIGNUP_CLOSED`, `LIVE`, `AWAITING_FINAL_REVIEW`, or `FINALIZED`. This is deliberately not a database uniqueness constraint: the Development-only scenario seeder and automated fixtures may create multiple labelled lifecycle states. Normal production transition commands always enforce the policy, while fixture paths use explicit event IDs/slugs and cannot be enabled through product configuration.
+Production permits multiple `SIGNUP_OPEN` and `SIGNUP_CLOSED` events only when their configured half-open event windows `[event_starts_at, event_ends_at)` do not overlap; an end exactly equal to another start is allowed. Only `LIVE`, `AWAITING_FINAL_REVIEW`, and `FINALIZED` are singleton current states. Drafts do not reserve a window, and cancelled, discarded, or archived events do not block a new one. `is_development_fixture` is an internal persisted marker set only by the Development scenario seeder; ordinary Admin input cannot set it and Production lifecycle commands never honor it.
 
 ### 5.2 Event publication controls
 
@@ -252,6 +252,10 @@ Fields:
 - `resolved_at`, nullable
 
 When the scheduled instant arrives, the event may enter `LIVE` only if draft finalization, board publication, Captain/emergency-access readiness, and every other event-start invariant pass in the same transaction. A blocked attempt leaves the event pre-live, retains the original scheduled instant, creates the **Automatic start postponed** admin action/notification, and never backdates later eligibility. It is not automatically retried after blockers clear. The later manual start resolves the attempt/action, uses its actual transition time, and requires no written reason when `now >= scheduled_for`; an early manual start requires one.
+
+### 5.3.2 ScheduledSignupOpeningAttempt
+
+`scheduled_signup_opening_enabled` distinguishes an intentional future opening from an informational `signup_opens_at` value. `scheduled_signup_warning_codes` stores the stable warning codes acknowledged for that purpose. One `ScheduledSignupOpeningAttempt` per `(event_id, scheduled_for)` records the actual attempt time, success, stable blocker/unacknowledged-warning codes, and optional resolution time. The unique boundary plus the lifecycle transaction makes worker retries and manual/scheduled races idempotent without making notification read state authoritative.
 
 ## 5A. Global public content
 

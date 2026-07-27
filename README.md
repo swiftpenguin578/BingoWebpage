@@ -95,19 +95,13 @@ Stop the running web application, keep PostgreSQL running, and execute:
 dotnet run --project src/Bingo.Web -- --reset-test-data
 ```
 
-The command creates events named `TEST 00` through `TEST 13` covering private setup, open signups, waiting lists, pre-board setup, board editing, draft setup, an in-progress draft, finalized teams, a live event, final review, a populated submission-review queue, finalized official results, a fully completed board, a large pre-draft setup, and an editable DKL comparison board. Board scenarios use the retained OSRS catalogue.
+The command resets generated workflow data and creates only `TEST 13 — DKL Board` and `TEST 15 — DKL Live`. It preserves the retained OSRS catalogue, bootstrap/Super Admin, and the secondary seeded Admin. Both events are internal Development fixtures rather than automatic public current events.
 
-`TEST 09 — Evidence` is the newest live event and is therefore selected automatically by the admin review queue. It contains real local evidence images and fixtures for pending, changes-requested, rejected, withdrawn, approved, privacy-hidden, duplicate-checksum, replacement-history, weighted, capped, and reversal-rebalancing cases.
-
-Use `TEST 08 — Review` for the final-review checklist, blocker overrides, and finalization. Use `TEST 10 — Finished` for official snapshot, archive, unfinalization, historical-version, and locked-submission testing. Use `TEST 11 — Complete` for completion-time corrections and completed-board finalization.
-
-Use `TEST 12 — Large Draft` to test scrambling and starting a draft with 60 confirmed players, four drafted teams, and a target of 15 players per team.
-
-Use `TEST 13 — DKL Board` to review and edit the 5×5 historical DKL comparison board. Its tiles follow the workbook order and seed the currently understood eligible drops, objective quantities, and weighted megarares. Descriptions call out intentionally uncertain selections such as God Wars, Araxxor, Maggot King, and Doom so they can be corrected directly in the board editor.
+Use `TEST 13 — DKL Board` to review and edit the 5×5 historical DKL comparison board. `TEST 15 — DKL Live` provides the retained full live DKL board, teams, accounts, evidence, and approved progress behavior.
 
 The command prints every seeded captain username. All seeded captain accounts use the local-only password `SeedCaptain!1234`. Your existing administrator username and password are unchanged. It also creates or refreshes the development-only administrator `SeedAdminTwo` with password `SeedAdmin!1234`, which is used to test simultaneous board editing and draft control from a second browser session.
 
-For public-board testing, open the site home page after seeding and select `TEST 09 — Evidence`. Its public overview contains ranked teams, approved progress, and a completed first row for `Seeded Ravens`. Open that team, then select completed or in-progress tiles to verify public evidence and the hidden-evidence placeholder. Approval, reversal, and evidence-visibility changes invalidate open public pages through SignalR; a 30-second refresh remains as a fallback.
+For public-board testing, open `TEST 15 — DKL Live` directly. Approval, reversal, and evidence-visibility changes invalidate open public pages through SignalR; a 30-second refresh remains as a fallback.
 
 This operation is intentionally unavailable outside the Development environment.
 

@@ -427,8 +427,7 @@ Event banners use managed decorative-image upload through the shared asset-stora
 - The current creation form requires signup opening, signup closing, event start, and event end.
 - Submission cutoff is automatically created as 30 minutes after event end.
 - The current admin management page can change the signup window.
-- Manually opening signup sets opening to now and overwrites closing with three months after opening.
-- The current manual-opening domain code does not cap that generated closing time at event start.
+- Manual opening records actual opening at now and retains a valid explicit future close. When none is valid, it previews future draft time when it is no later than event start, otherwise event start; no proposal is persisted before all checks pass.
 - Draft time is described in product requirements but is not part of the implemented event schedule.
 
 **Required current**
@@ -462,8 +461,8 @@ The verified implementation and roadmap target conflict. The approved target bel
 - Scheduled opening uses the configured opening instant.
 - Manual opening records the opening instant as now at the system's standard precision.
 - If a valid explicit future closing time no later than event start exists, manual opening preserves it.
-- If closing is absent, manual opening supplies the earlier of three months after opening and event start and shows that value before confirmation.
-- An invalid explicit closing time is not silently replaced; opening is blocked with a correction path.
+- If closing is absent or expired, manual opening supplies future draft time when it is no later than event start, otherwise event start, and shows that value before confirmation.
+- The proposed closing time is applied only inside the final successful lifecycle transaction.
 
 **Event and submission window**
 
@@ -494,8 +493,8 @@ The verified implementation and roadmap target conflict. The approved target bel
 2. Signup readiness blocks when event start, event end, or a valid closing time cannot be established.
 3. Scheduled signup opens at its configured instant.
 4. Manual opening preserves a valid explicit closing time.
-5. Manual opening with no closing time proposes the earlier of three months later and event start.
-6. Manual opening does not silently replace an invalid explicit closing time.
+5. Manual opening with no valid closing time proposes future draft time or event start.
+6. The proposal is never persisted on a failed attempt.
 7. Submission cutoff defaults to 30 minutes after event end and cannot be moved earlier than event end.
 8. Draft time is displayed when supplied but never starts the draft.
 9. Starting the draft closes and locks signup.
@@ -1663,9 +1662,9 @@ Approved evidence metadata, credited player, and screenshot are public so commun
 
 ### 28.3 SYS-CURRENT-EVENT-01 — Production singleton and seeded scenarios
 
-- Production may contain unlimited private drafts and unlimited archived/cancelled historical events, but only one current/public operational event in `SIGNUP_OPEN`, `SIGNUP_CLOSED`, `LIVE`, `AWAITING_FINAL_REVIEW`, or `FINALIZED`.
-- A normal lifecycle command that would create a second current/public operational event fails before mutation and identifies the blocking event plus the appropriate archive/cancel route.
-- This is an application transition policy rather than a database uniqueness constraint. The Development-only scenario seeder and automated fixtures may deliberately persist several labelled lifecycle states so manual and automated testing remain practical.
+- Production may contain unlimited private drafts and unlimited archived/cancelled historical events. Multiple signup-open/closed events are permitted only for non-overlapping half-open event windows; only `LIVE`, `AWAITING_FINAL_REVIEW`, and `FINALIZED` are singleton current states.
+- Signup opening/reopening fails before mutation for an overlapping operational window, while exact back-to-back windows are allowed. Signup remains discoverable only through its exact shared link.
+- This is an application transition policy rather than a database uniqueness constraint. Development scenarios use an internal fixture marker which Production commands never honor.
 - Development/test scenarios use explicit event IDs or slugs for navigation, review, scheduled behavior, and mutations. Code must not silently choose an arbitrary “current” scenario when several fixtures exist.
 - The production exemption is unreachable from ordinary deployment configuration or public/admin input; the existing seeder remains hard-blocked outside the Development environment.
 
