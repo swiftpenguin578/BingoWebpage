@@ -35,8 +35,8 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     public string? BoardEditorName { get; private set; }
     public DateTimeOffset? BoardEditorLeaseExpiresAt { get; private set; }
 
-    [BindProperty, Range(1, 20)] public int Rows { get; set; } = 5;
-    [BindProperty, Range(1, 20)] public int Columns { get; set; } = 5;
+    [BindProperty, Range(1, 8)] public int Rows { get; set; } = 5;
+    [BindProperty, Range(1, 8)] public int Columns { get; set; } = 5;
     [BindProperty] public long BoardVersion { get; set; }
     [BindProperty] public TileDraftInput TileDraft { get; set; } = new();
 
@@ -48,6 +48,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
 
     public async Task<IActionResult> OnPostCreateAsync(Guid id, CancellationToken ct)
     {
+        if (!ModelState.IsValid) return await Load(id, ct) ? Page() : NotFound();
         if (await db.Boards.AnyAsync(x => x.EventId == id, ct)) return RedirectToPage(new { id });
         var board = new Board(Guid.NewGuid(), id, "Main board", Rows, Columns);
         board.AcquireEditing(AdminId, time.GetUtcNow(), BoardEditingLease.Duration);
@@ -306,7 +307,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         var manualEhbByTemplate = await db.TileTemplates.AsNoTracking().Where(x => editorTemplateIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.ManualEhbOverride, ct);
         TileEditors = boardTilesForEditors.Select(tile => new TileEditorView(tile.Id, tile.NameSnapshot, tile.DescriptionSnapshot, tile.EvidenceInstructionsSnapshot, tile.ImageUrlSnapshot, manualEhbByTemplate.GetValueOrDefault(tile.TileTemplateId), editorRequirements.Where(r => r.BoardTileId == tile.Id).Select(r => new RequirementEditorView(r.ManualObjective ? "challenge" : "drops", r.Description, r.TargetContribution, r.DuplicatesAllowed, editorBosses.Where(b => b.RequirementId == r.Id).Select(b => b.BossActivityId).ToList(), editorDrops.Where(d => d.RequirementId == r.Id).Select(d => d.SourceDropId).ToList(), editorDrops.Where(d => d.RequirementId == r.Id).ToDictionary(d => d.SourceDropId, d => d.CreditedWeight), editorDrops.Where(d => d.RequirementId == r.Id).OrderBy(d => d.BossName).ThenBy(d => d.ItemName).Select(d => new RequirementDropView(d.SourceDropId, d.BossName, d.ItemName, d.DisplayRate, d.CreditedWeight)).ToList())).ToList())).ToList();
         var lines = new List<LineView>(); for (var row = 0; row < board.Rows; row++) lines.Add(new($"Row {row + 1}", "row", row, Tiles.Where(x => x.Position / board.Columns == row).Sum(x => x.Ehb))); for (var column = 0; column < board.Columns; column++) lines.Add(new($"Column {column + 1}", "column", column, Tiles.Where(x => x.Position % board.Columns == column).Sum(x => x.Ehb))); Lines = lines; BalanceSpread = lines.Count == 0 ? 0 : lines.Max(x => x.Ehb) - lines.Min(x => x.Ehb);
-        var durationDays = Math.Max(0.5m, (decimal)(bingoEvent.EventEndsAt - bingoEvent.EventStartsAt).TotalHours / 24m); var teamSize = bingoEvent.ExpectedTeamSize; var total = Tiles.Sum(x => x.Ehb); var populatedLines = lines.Where(x => x.Ehb > 0).ToList();
+        var durationDays = bingoEvent.EventEndsAt is { } eventEnd && bingoEvent.EventStartsAt is { } eventStart ? Math.Max(0.5m, (decimal)(eventEnd - eventStart).TotalHours / 24m) : 0.5m; var teamSize = bingoEvent.ExpectedTeamSize; var total = Tiles.Sum(x => x.Ehb); var populatedLines = lines.Where(x => x.Ehb > 0).ToList();
         Statistics = new(total, teamSize, teamSize is > 0 ? total / teamSize.Value : null, teamSize is > 0 ? total / teamSize.Value / durationDays : null, Tiles.Count == 0 ? 0 : total / Tiles.Count, populatedLines.Count == 0 ? 0 : populatedLines.Min(x => x.Ehb), populatedLines.Count == 0 ? 0 : populatedLines.Max(x => x.Ehb), Tiles.Count(x => x.Ehb <= 0), durationDays);
         var eventTeams = await db.Teams.AsNoTracking().Where(x => x.EventId == id && x.Active).OrderBy(x => x.DraftPosition).ThenBy(x => x.Name).ToListAsync(ct);
         if (eventTeams.Count > 0)

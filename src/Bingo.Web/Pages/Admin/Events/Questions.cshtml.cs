@@ -21,8 +21,11 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
 
     [BindProperty]
     public QuestionInput Input { get; set; } = new();
+    [BindProperty]
+    public SignupSettingsInput Settings { get; set; } = new();
 
     public bool CanEdit { get; private set; }
+    public bool CanEditSettings { get; private set; }
     public string EventName { get; private set; } = string.Empty;
 
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct) =>
@@ -104,17 +107,47 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
         return RedirectToPage(new { id });
     }
 
+    public async Task<IActionResult> OnPostSettingsAsync(Guid id, CancellationToken ct)
+    {
+        var bingoEvent = await dbContext.Events.SingleOrDefaultAsync(item => item.Id == id, ct);
+        if (bingoEvent is null) return NotFound();
+        if (bingoEvent.DraftLocked || bingoEvent.State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
+        {
+            SetStatus("Signup settings are locked because the draft has started or this event has moved on.", UiMessageType.Error);
+            return RedirectToPage(new { id });
+        }
+        if (!Settings.WaitingListEnabled && await dbContext.EventParticipants.AnyAsync(item => item.EventId == id && item.SignupStatus == SignupStatus.WaitingList, ct))
+        {
+            SetStatus("The waiting list cannot be disabled while participants are waiting.", UiMessageType.Error);
+            return RedirectToPage(new { id });
+        }
+        try
+        {
+            bingoEvent.ConfigureSignup(Settings.WaitingListEnabled, bingoEvent.AllowPrivateSignupEditing, bingoEvent.RequireSignupCode, bingoEvent.SignupCodeHash);
+            await dbContext.SaveChangesAsync(ct);
+            await auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, "event.waiting_list_changed", "event", id.ToString(), Settings.WaitingListEnabled ? "Waiting list enabled." : "Waiting list disabled.", ct);
+            SetStatus(Settings.WaitingListEnabled ? "Waiting list enabled." : "Waiting list disabled.", UiMessageType.Success);
+        }
+        catch (InvalidOperationException)
+        {
+            SetStatus("The signup settings could not be changed in this event state.", UiMessageType.Error);
+        }
+        return RedirectToPage(new { id });
+    }
+
     private async Task<bool> LoadAsync(Guid id, CancellationToken ct)
     {
         var bingoEvent = await dbContext.Events
             .AsNoTracking()
             .Where(item => item.Id == id)
-            .Select(item => new { item.Name, item.State, item.DraftLocked })
+            .Select(item => new { item.Name, item.State, item.DraftLocked, item.WaitingListEnabled })
             .SingleOrDefaultAsync(ct);
         if (bingoEvent is null) return false;
 
         EventName = bingoEvent.Name;
         CanEdit = CanEditSignupQuestions(bingoEvent.State, bingoEvent.DraftLocked);
+        CanEditSettings = !bingoEvent.DraftLocked && bingoEvent.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed);
+        Settings = new SignupSettingsInput { WaitingListEnabled = bingoEvent.WaitingListEnabled };
         Questions = await dbContext.SignupQuestions
             .AsNoTracking()
             .Where(question => question.EventId == id && question.Active)
@@ -180,5 +213,11 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
 
         [StringLength(4000), Display(Name = "Available answers")]
         public string? Options { get; set; }
+    }
+
+    public sealed class SignupSettingsInput
+    {
+        [Display(Name = "Enable waiting list")]
+        public bool WaitingListEnabled { get; set; }
     }
 }

@@ -59,6 +59,8 @@ public sealed class EvidenceRulesTests
         var starts = new DateTimeOffset(2026, 7, 13, 18, 0, 0, TimeSpan.Zero);
         var ends = starts.AddHours(5);
         var ev = CreateEvent(starts, ends, ends.AddMinutes(30));
+        ev.OpenSignups();
+        ev.CloseSignups();
         ev.StartEvent(starts);
         ev.EndEvent();
 
@@ -72,6 +74,8 @@ public sealed class EvidenceRulesTests
         var starts = DateTimeOffset.UtcNow.AddHours(-2);
         var ends = starts.AddHours(1);
         var ev = CreateEvent(starts, ends, ends.AddMinutes(30));
+        ev.OpenSignups();
+        ev.CloseSignups();
         ev.StartEvent(starts);
         ev.EndEvent();
 

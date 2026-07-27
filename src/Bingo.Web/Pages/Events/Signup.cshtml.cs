@@ -25,11 +25,12 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     }
     private async Task<bool> LoadAsync(string slug, CancellationToken ct)
     {
-        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Slug == slug, ct); if (item is null) return false;
-        EventView = new EventInfo(item.Id, item.Name, item.Description, item.SignupClosesAt, item.EventStartsAt, item.EventEndsAt, item.RequireSignupCode, item.AcceptsSignups(timeProvider.GetUtcNow()));
-        Questions = await dbContext.SignupQuestions.AsNoTracking().Where(q => q.EventId == item.Id && q.Active).OrderBy(q => q.Position).Select(q => new QuestionView(q.Id, q.Label, q.Type, q.Required, q.Options == null ? Array.Empty<string>() : q.Options.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))).ToListAsync(ct); return true;
+        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Slug == slug, ct); if (item is null || item.State == Bingo.Domain.Events.EventState.Discarded || item.State == Bingo.Domain.Events.EventState.Cancelled && item.FirstPublicAt is null) return false;
+        var cancelled = item.State == Bingo.Domain.Events.EventState.Cancelled;
+        EventView = new EventInfo(item.Id, item.Name, item.Description ?? string.Empty, item.SignupClosesAt, item.EventStartsAt, item.EventEndsAt, item.RequireSignupCode, !cancelled && item.AcceptsSignups(timeProvider.GetUtcNow()), cancelled);
+        Questions = cancelled ? [] : await dbContext.SignupQuestions.AsNoTracking().Where(q => q.EventId == item.Id && q.Active).OrderBy(q => q.Position).Select(q => new QuestionView(q.Id, q.Label, q.Type, q.Required, q.Options == null ? Array.Empty<string>() : q.Options.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))).ToListAsync(ct); return true;
     }
-    public sealed record EventInfo(Guid Id, string Name, string Description, DateTimeOffset SignupClosesAt, DateTimeOffset EventStartsAt, DateTimeOffset EventEndsAt, bool RequireCode, bool Accepting);
+    public sealed record EventInfo(Guid Id, string Name, string Description, DateTimeOffset? SignupClosesAt, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, bool RequireCode, bool Accepting, bool Cancelled);
     public sealed record QuestionView(Guid Id, string Label, SignupQuestionType Type, bool Required, string[] OptionList);
     public sealed class SignupInput
     {

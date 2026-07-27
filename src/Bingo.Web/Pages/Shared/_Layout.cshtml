@@ -158,7 +158,7 @@
                     };
                     <div class="app-notice notice-@messageType.ToString().ToLowerInvariant()" role="@(messageType == UiMessageType.Error ? "alert" : "status")" tabindex="-1" data-feedback-target>
                         <strong>@messageLabel</strong>
-                        <span>@statusMessage</span>
+                        <span>@T[statusMessage]</span>
                         <button type="button" class="app-notice-dismiss" data-dismiss-notice aria-label="@T["Dismiss message"]">×</button>
                     </div>
                 }

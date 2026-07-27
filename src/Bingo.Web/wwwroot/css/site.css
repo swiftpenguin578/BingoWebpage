@@ -2308,6 +2308,8 @@ table {
 .event-create-field small { color: var(--muted); font-size: 0.74rem; line-height: 1.4; }
 .event-create-field .form-control, .event-create-field .form-select { min-height: 2.45rem; padding: 0.45rem 0.6rem; }
 .event-create-field.full-field { grid-column: 1 / -1; }
+.event-banner-preview { display: grid; min-height: 6.5rem; overflow: hidden; place-items: center; background: color-mix(in srgb, var(--surface-raised) 55%, transparent); border: 1px solid var(--border); border-radius: 0.55rem; color: var(--muted); font-size: 0.78rem; }
+.event-banner-preview img { width: 100%; height: 8rem; object-fit: cover; }
 .event-create-field.compact-field { max-width: 22rem; }
 .event-datetime-picker { display: none; }
 .has-date-pickers .event-datetime-picker, .has-date-pickers .flatpickr-wrapper { display: block; }
@@ -2564,7 +2566,7 @@ table {
 .event-calendar-picker .event-calendar-time > .numInputWrapper,
 .event-calendar-picker .event-calendar-time > .flatpickr-time-separator,
 .event-calendar-picker .event-calendar-time > .flatpickr-am-pm { display: none; }
-.event-calendar-time-label { display: flex; width: 100%; gap: 0.8rem; align-items: center; color: var(--muted); font-size: 0.88rem; font-weight: 650; line-height: 1.2; }
+.event-calendar-time-label { display: flex; width: 100%; gap: 0.55rem; align-items: center; color: var(--muted); font-size: 0.88rem; font-weight: 650; line-height: 1.2; }
 .event-time-select { flex: 1 1 auto; min-width: 0; min-height: 2.8rem; padding: 0.45rem 2rem 0.45rem 0.65rem; color: var(--text); background: var(--page); border: 1px solid var(--border); border-radius: 0.45rem; font-size: 0.96rem; }
 
 /* Bootstrap's container is only about 45rem wide between the phone and full

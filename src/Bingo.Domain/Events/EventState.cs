@@ -8,5 +8,7 @@ public enum EventState
     Live = 4,
     AwaitingFinalReview = 5,
     Finalized = 6,
-    Archived = 7
+    Archived = 7,
+    Cancelled = 8,
+    Discarded = 9
 }

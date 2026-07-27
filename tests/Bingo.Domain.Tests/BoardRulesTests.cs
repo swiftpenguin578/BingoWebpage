@@ -6,6 +6,13 @@ namespace Bingo.Domain.Tests;
 public sealed class BoardRulesTests
 {
     [Fact]
+    public void BoardDimensionsAreLimitedToOneThroughEight()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new Board(Guid.NewGuid(), Guid.NewGuid(), "Board", 9, 5));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new Board(Guid.NewGuid(), Guid.NewGuid(), "Board", 5, 0));
+    }
+
+    [Fact]
     public void RequirementWeightDefaultsToOneAndRequiresExplicitEnablement()
     {
         var disabled = new BoardRequirementSnapshot(Guid.NewGuid(), Guid.NewGuid(), 1, 5, true, false, "Drops", false, 4);

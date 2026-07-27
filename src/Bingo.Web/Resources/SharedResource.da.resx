@@ -557,4 +557,7 @@
   <data name="That corrected character already has a separate My Accounts link." xml:space="preserve"><value>Den rettede karakter har allerede en separat tilknytning i Mine konti.</value></data>
   <data name="Saved EHB cannot be negative." xml:space="preserve"><value>Gemt EHB kan ikke være negativ.</value></data>
   <data name="Your My Accounts changes conflicted with another update. Please reload and try again." xml:space="preserve"><value>Dine ændringer i Mine konti var i konflikt med en anden opdatering. Genindlæs og prøv igen.</value></data>
+  <data name="Event discarded." xml:space="preserve"><value>Eventet blev kasseret.</value></data>
+  <data name="Event cancelled" xml:space="preserve"><value>Event aflyst</value></data>
+  <data name="Your event has been cancelled." xml:space="preserve"><value>Dit event er blevet aflyst.</value></data>
 </root>

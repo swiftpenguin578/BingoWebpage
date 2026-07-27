@@ -4,6 +4,68 @@
 // Write your JavaScript code.
 initializeInputModality();
 
+window.bingoDateTimePickerOptions = (overrides = {}) => ({
+  enableTime: true,
+  enableSeconds: false,
+  time_24hr: true,
+  minuteIncrement: 5,
+  disableMobile: true,
+  allowInput: false,
+  ...overrides
+});
+
+window.bingoDateTimeHours = () => Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, "0"));
+window.bingoDateTimeMinutes = () => Array.from({ length: 12 }, (_, index) => String(index * 5).padStart(2, "0"));
+
+window.initializeBingoDateTimePicker = (input, overrides = {}) => {
+  if (typeof window.flatpickr !== "function" || input._flatpickr) return input._flatpickr;
+  const { onChange: changed, onReady: ready, timeLabel = "Time", ...options } = overrides;
+  let hourSelect;
+  let minuteSelect;
+  const sync = (dates) => {
+    if (!hourSelect || !minuteSelect || !dates?.length) return;
+    const value = dates[0];
+    hourSelect.value = String(value.getHours()).padStart(2, "0");
+    minuteSelect.value = String(value.getMinutes()).padStart(2, "0");
+  };
+  return window.flatpickr(input, window.bingoDateTimePickerOptions({
+    ...options,
+    onReady: (dates, value, instance) => {
+      const timeContainer = instance.timeContainer;
+      if (timeContainer) {
+        instance.calendarContainer.classList.add("event-calendar-picker");
+        timeContainer.classList.add("event-calendar-time");
+        const label = document.createElement("span");
+        label.className = "event-calendar-time-label";
+        label.textContent = timeLabel;
+        hourSelect = document.createElement("select");
+        hourSelect.className = "event-time-select";
+        hourSelect.setAttribute("aria-label", timeLabel + " hour");
+        window.bingoDateTimeHours().forEach((hour) => hourSelect.add(new Option(hour, hour)));
+        minuteSelect = document.createElement("select");
+        minuteSelect.className = "event-time-select";
+        minuteSelect.setAttribute("aria-label", timeLabel + " minute");
+        window.bingoDateTimeMinutes().forEach((minute) => minuteSelect.add(new Option(minute, minute)));
+        const setTime = () => {
+          const selected = instance.selectedDates[0] ? new Date(instance.selectedDates[0]) : new Date();
+          selected.setHours(Number(hourSelect.value), Number(minuteSelect.value), 0, 0);
+          instance.setDate(selected, true);
+        };
+        hourSelect.addEventListener("change", setTime);
+        minuteSelect.addEventListener("change", setTime);
+        label.append(hourSelect, minuteSelect);
+        timeContainer.append(label);
+      }
+      sync(dates);
+      ready?.(dates, value, instance);
+    },
+    onChange: (dates, value, instance) => {
+      sync(dates);
+      changed?.(dates, value, instance);
+    }
+  }));
+};
+
 document.addEventListener("DOMContentLoaded", () => {
   restorePostNavigationState();
   initializePostNavigation();
@@ -16,19 +78,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (typeof window.flatpickr === "function") {
     document.querySelectorAll("[data-date-time-picker]").forEach((input) => {
-      window.flatpickr(input, {
-        enableTime: true,
-        enableSeconds: true,
-        time_24hr: true,
-        dateFormat: "Y-m-d H:i:S",
+      window.initializeBingoDateTimePicker(input, {
+        dateFormat: "Y-m-d\\TH:i",
         altInput: true,
-        altFormat: "d/m/Y H:i:S",
+        altFormat: "d/m/Y H:i",
         defaultDate: input.value || null,
         minDate: input.dataset.minDate || null,
         maxDate: input.dataset.maxDate || null,
-        minuteIncrement: 1,
-        disableMobile: true,
-        allowInput: false
+        timeLabel: input.dataset.timeLabel || "Time"
       });
     });
   }
@@ -112,8 +169,10 @@ function initializePostNavigation() {
     buttons.forEach(button => button.disabled = true);
 
     try {
-      const headers = { "X-Requested-With": "XMLHttpRequest" };
-      if (!form.dataset.updateTargets) headers["X-Bingo-Enhanced-Post"] = "true";
+      const headers = {
+        "X-Requested-With": "XMLHttpRequest",
+        "X-Bingo-Enhanced-Post": form.dataset.updateTargets ? "partial" : "true"
+      };
 
       const response = await fetch(action, {
         method: "POST",

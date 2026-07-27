@@ -23,6 +23,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -46,6 +47,7 @@ builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Admin", AuthorizationPolicies.Admin);
     options.Conventions.AuthorizeFolder("/Captain", AuthorizationPolicies.CaptainCorrectionAccess);
+    options.Conventions.ConfigureFilter(new ServiceFilterAttribute(typeof(EventMutationCapabilityPageFilter)));
 }).AddDataAnnotationsLocalization(options =>
     options.DataAnnotationLocalizerProvider = (_, factory) => factory.Create(typeof(Bingo.Web.SharedResource)));
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -87,6 +89,7 @@ builder.Services.AddScoped<OsrsWikiCatalogueDryRunService>();
 builder.Services.AddScoped<CatalogueSnapshotService>();
 builder.Services.AddScoped<DevelopmentScenarioSeeder>();
 builder.Services.AddScoped<SharedShellService>();
+builder.Services.AddScoped<EventMutationCapabilityPageFilter>();
 builder.Services.AddHostedService<EventLifecycleWorker>();
 builder.Services.AddScoped<IAuthorizationHandler, AccountAuthorizationHandler>();
 builder.Services
@@ -401,14 +404,27 @@ app.Use(async (context, next) =>
 {
     await next();
 
+    var enhancedPostMode = context.Request.Headers["X-Bingo-Enhanced-Post"].ToString();
+    var isFullNavigation = string.Equals(enhancedPostMode, "true", StringComparison.OrdinalIgnoreCase);
+    var isPartialUpdate = string.Equals(enhancedPostMode, "partial", StringComparison.OrdinalIgnoreCase);
     if (context.Response.HasStarted ||
         !HttpMethods.IsPost(context.Request.Method) ||
-        !string.Equals(context.Request.Headers["X-Bingo-Enhanced-Post"], "true", StringComparison.OrdinalIgnoreCase) ||
+        !(isFullNavigation || isPartialUpdate) ||
         context.Response.StatusCode is < StatusCodes.Status300MultipleChoices or >= StatusCodes.Status400BadRequest ||
         !context.Response.Headers.TryGetValue("Location", out var location) ||
         string.IsNullOrWhiteSpace(location))
     {
         return;
+    }
+
+    if (isPartialUpdate)
+    {
+        var requestUri = new Uri($"{context.Request.Scheme}://{context.Request.Host}{context.Request.PathBase}{context.Request.Path}{context.Request.QueryString}");
+        if (!Uri.TryCreate(requestUri, location.ToString(), out var destination) ||
+            string.Equals(requestUri.AbsolutePath, destination.AbsolutePath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
     }
 
     context.Response.Headers["X-Bingo-Post-Navigation"] = location.ToString();

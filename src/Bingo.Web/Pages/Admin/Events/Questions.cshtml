@@ -34,6 +34,18 @@
             </div>
         </section>
 
+        <section class="signup-question-section">
+            <div class="signup-question-section-heading"><div><p class="step-kicker">Signup settings</p><h2>Waiting list</h2></div><p>Keep the queue available when the participant cap is reached.</p></div>
+            @if (Model.CanEditSettings)
+            {
+                <form method="post" asp-page-handler="Settings" class="event-admin-inline-form">
+                    <label class="check-row"><input asp-for="Settings.WaitingListEnabled" /> <span>Enable waiting list</span></label>
+                    <button class="btn btn-outline-light" type="submit">Save signup settings</button>
+                </form>
+            }
+            else { <p>Signup settings are locked because the draft has started or the event has moved on.</p> }
+        </section>
+
         <section class="signup-question-section custom-signup-questions">
             <div class="signup-question-section-heading">
                 <div><p class="step-kicker">@T["Event specific"]</p><h2>@T["Custom questions"]</h2></div>

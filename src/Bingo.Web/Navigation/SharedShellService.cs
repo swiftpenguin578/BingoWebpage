@@ -32,7 +32,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             if (unreadCount > 0)
             {
                 var personal = await unread.OrderByDescending(item => item.CreatedAt).Take(6).ToListAsync(cancellationToken);
-                return new NotificationInbox([], unreadCount, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personal.Select(item => new ShellNotification(item.Id, NotificationTitle(item.Title), NotificationDetail(item.Title), $"/notifications?read={item.Id}")).ToList());
+                return new NotificationInbox([], unreadCount, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personal.Select(item => new ShellNotification(item.Id, NotificationTitle(item.Title), string.IsNullOrWhiteSpace(item.Detail) ? NotificationDetail(item.Title) : item.Detail, $"/notifications?read={item.Id}")).ToList());
             }
         }
         if (user.IsInRole("Admin") || user.IsInRole("SuperAdmin")) return await GetAdminNotifications(cancellationToken);
@@ -45,7 +45,8 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         "account.admin_granted" => text["Admin access granted"],
         "account.admin_revoked" => text["Admin access revoked"],
         "account.restored" => text["Account restored"],
-        _ => text["Notifications"]
+        "event.cancelled" => text["Event cancelled"],
+        _ => type
     };
 
     private string NotificationDetail(string type) => type switch
@@ -53,6 +54,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         "account.admin_granted" => text["An administrator granted your account Admin access."],
         "account.admin_revoked" => text["An administrator removed your Admin access."],
         "account.restored" => text["An administrator restored your account."],
+        "event.cancelled" => text["Your event has been cancelled."],
         _ => string.Empty
     };
 

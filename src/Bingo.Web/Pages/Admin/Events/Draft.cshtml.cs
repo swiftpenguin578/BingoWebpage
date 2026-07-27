@@ -127,7 +127,25 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     }
     public async Task<IActionResult> OnPostStartAsync(Guid id, CancellationToken ct)
     {
-        var draft = await db.DraftSessions.SingleAsync(x => x.EventId == id, ct); var teams = await OrderedDraftTeams(id, ct);
+        var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (bingoEvent is null) return NotFound();
+        if (bingoEvent.State != Bingo.Domain.Events.EventState.SignupClosed)
+        {
+            SetStatus(
+                bingoEvent.State is Bingo.Domain.Events.EventState.Draft or Bingo.Domain.Events.EventState.SignupOpen
+                    ? "Close signup before starting the draft."
+                    : "The draft can only start while the event is in Signup Closed.",
+                UiMessageType.Error);
+            return RedirectToPage(new { id });
+        }
+
+        var draft = await db.DraftSessions.SingleAsync(x => x.EventId == id, ct);
+        if (draft.State != DraftState.Setup)
+        {
+            SetStatus("The draft has already started or finished.", UiMessageType.Error);
+            return RedirectToPage(new { id });
+        }
+        var teams = await OrderedDraftTeams(id, ct);
         if (teams.Count < 2) { TempData["StatusMessage"] = "At least two drafted teams are required."; return RedirectToPage(new { id }); }
         var teamIds = teams.Select(x => x.Id).ToList(); var rosterSizes = await db.TeamMemberships.Where(x => teamIds.Contains(x.TeamId) && x.LeftAt == null).GroupBy(x => x.TeamId).ToDictionaryAsync(x => x.Key, x => x.Count(), ct); var requiredPlayers = teams.Sum(x => Math.Max(0, draft.TargetTeamSize - rosterSizes.GetValueOrDefault(x.Id))); var assignedIds = await db.TeamMemberships.Where(x => x.LeftAt == null).Select(x => x.EventParticipantId).ToListAsync(ct); var availablePlayers = await db.EventParticipants.CountAsync(x => x.EventId == id && x.Source != SignupSource.AdminCreated && x.SignupStatus == SignupStatus.Confirmed && !assignedIds.Contains(x.Id), ct);
         if (availablePlayers < requiredPlayers) { TempData["StatusMessage"] = $"The draft needs {requiredPlayers} available website signup(s), but only {availablePlayers} are available. Promote or add participants before starting."; return RedirectToPage(new { id }); }
@@ -135,7 +153,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         {
             var now = time.GetUtcNow();
             foreach (var team in teams) team.SetDraftPosition(null);
-            draft.AcquireControl(AdminId, now, DraftControlLease.Duration); draft.Start(now); var bingoEvent = await db.Events.SingleAsync(x => x.Id == id, ct); bingoEvent.SetDraftLocked(true); bingoEvent.CloseSignups(); await db.SaveChangesAsync(ct);
+            draft.AcquireControl(AdminId, now, DraftControlLease.Duration); draft.Start(now); bingoEvent.SetDraftLocked(true); await db.SaveChangesAsync(ct);
         }
         catch (Exception exception) when (IsDraftConflict(exception)) { return DraftConflict(id, exception); }
         await Audit("draft.control_acquired", "draft", draft.Id, $"Controller: {User.Identity!.Name}", ct); await Audit("draft.started", "draft", draft.Id, $"{teams.Count} teams; awaiting team-order draw; {availablePlayers} available for {requiredPlayers} places", ct); await NotifyDraft(id, ct); return RedirectToPage(new { id });

@@ -51,5 +51,5 @@ public sealed class Board
     }
     public void Publish(DateTimeOffset now) { EnsureDraft(); State = BoardState.Published; PublishedAt = now.ToUniversalTime(); }
     private void EnsureDraft() { if (State != BoardState.Draft) throw new InvalidOperationException("Published boards cannot be edited normally."); }
-    private static void ValidateDimensions(int rows, int columns) { ArgumentOutOfRangeException.ThrowIfLessThan(rows, 1); ArgumentOutOfRangeException.ThrowIfGreaterThan(rows, 20); ArgumentOutOfRangeException.ThrowIfLessThan(columns, 1); ArgumentOutOfRangeException.ThrowIfGreaterThan(columns, 20); }
+    private static void ValidateDimensions(int rows, int columns) { ArgumentOutOfRangeException.ThrowIfLessThan(rows, 1); ArgumentOutOfRangeException.ThrowIfGreaterThan(rows, 8); ArgumentOutOfRangeException.ThrowIfLessThan(columns, 1); ArgumentOutOfRangeException.ThrowIfGreaterThan(columns, 8); }
 }

@@ -11,8 +11,8 @@ public sealed class TimestampNormalizationTests
         var local = new DateTimeOffset(2026, 7, 11, 18, 0, 0, TimeSpan.FromHours(2));
         var item = new BingoEvent(Guid.NewGuid(), "Test", "utc-test", "Test", "Europe/Copenhagen", local, local.AddDays(1), local.AddDays(2), local.AddDays(3), local.AddDays(4), 10, Guid.NewGuid(), local);
 
-        Assert.Equal(TimeSpan.Zero, item.SignupOpensAt.Offset);
-        Assert.Equal(16, item.SignupOpensAt.Hour);
+        Assert.Equal(TimeSpan.Zero, item.SignupOpensAt!.Value.Offset);
+        Assert.Equal(16, item.SignupOpensAt!.Value.Hour);
         Assert.Equal(TimeSpan.Zero, item.CreatedAt.Offset);
     }
 

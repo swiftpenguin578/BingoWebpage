@@ -509,6 +509,8 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var admin = Website("slice1-emergency-admin", GlobalRole.Admin);
         var emergency = Account.CreateEmergency(Guid.NewGuid(), "slice1-emergency", "SLICE1-EMERGENCY", time.GetUtcNow());
         var emergencyEvent = Event(time.GetUtcNow(), time.GetUtcNow().AddHours(1));
+        emergencyEvent.OpenSignups();
+        emergencyEvent.CloseSignups();
         emergencyEvent.StartEvent(time.GetUtcNow());
         var eventId = emergencyEvent.Id;
         var teamId = Guid.NewGuid();
@@ -699,6 +701,8 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         emergency.SetPassword(passwords.HashPassword(emergency, "emergency-password"), false, now, incrementVersion: false);
         emergency.Enable();
         var ev = Event(now, now.AddMinutes(10));
+        ev.OpenSignups();
+        ev.CloseSignups();
         ev.StartEvent(now);
         var access = new AccountEventAccess(Guid.NewGuid(), emergency.Id, ev.Id, Guid.NewGuid(), null, ev.EventStartsAt, ev.SubmissionCutoffAt, null);
         access.Enable();
@@ -724,7 +728,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var administration = new AccountAdministrationService(db, passwords, clock);
         await Assert.ThrowsAsync<InvalidOperationException>(() => administration.SetEmergencyEnabledAsync(admin.Id, emergency.Id, true, CancellationToken.None));
         var reopenContext = new DefaultHttpContext { User = new AccountAuthenticationService(db, passwords, clock).CreatePrincipal(admin) };
-        var reopen = new Bingo.Web.Pages.Admin.Events.ManageModel(db, new NoopSignupService(), new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, clock), new AuditWriter(db, clock), clock)
+        var reopen = new Bingo.Web.Pages.Admin.Events.ManageModel(db, new NoopSignupService(), new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, clock), new AuditWriter(db, clock), null!, null!, null!, null!, clock)
         {
             PageContext = new PageContext(new ActionContext(reopenContext, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(reopenContext, new DictionaryTempDataProvider()),
@@ -757,11 +761,22 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         await new OperatorRecoveryService(db, clock, passwords).BootstrapOwnerAsync(ownerUsername, "long-test-password", ownerUsername, CancellationToken.None);
         var admin = await db.Accounts.SingleAsync(account => account.LoginName == ownerUsername);
         await new CatalogueSnapshotService(db, clock).ApplyAsync(Path.Combine(AppContext.BaseDirectory, "data", "osrs-catalogue.json"));
-        var result = await new DevelopmentScenarioSeeder(db, new DevelopmentEnvironment(), passwords, new SeedEvidenceStorage(), clock).ResetAndSeedAsync();
+        var retainedBoardCharacter = new OsrsCharacter(Guid.NewGuid(), "03 Captain Alpha", "03 CAPTAIN ALPHA", seededAt);
+        var retainedLiveCharacter = new OsrsCharacter(Guid.NewGuid(), "ZemaFios", "ZEMAFIOS", seededAt);
+        var retainedLink = new AccountOsrsCharacter(Guid.NewGuid(), admin.Id, retainedLiveCharacter.Id, true, 0, seededAt);
+        db.AddRange(retainedBoardCharacter, retainedLiveCharacter, retainedLink);
+        db.Events.Add(new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "TEST 00 — Obsolete", "test-00-obsolete", "UTC", admin.Id, seededAt));
+        await db.SaveChangesAsync();
+        var catalogueCount = await db.CatalogueItems.CountAsync();
+        var seeder = new DevelopmentScenarioSeeder(db, new DevelopmentEnvironment(), passwords, new SeedEvidenceStorage(), clock);
+        var result = await seeder.ResetAndSeedAsync();
+        var repeated = await seeder.ResetAndSeedAsync();
 
         Assert.Equal(ownerUsername, result.AdminUsername);
+        Assert.Equal(ownerUsername, repeated.AdminUsername);
         Assert.Equal(DevelopmentScenarioSeeder.SecondaryAdminUsername, result.SecondaryAdminUsername);
-        Assert.Equal(16, result.Scenarios.Count);
+        Assert.Equal(2, result.Scenarios.Count);
+        Assert.Equal(["TEST 13 — DKL Board", "TEST 15 — DKL Live"], result.Scenarios.Select(scenario => scenario.EventName).OrderBy(name => name).ToArray());
         db.ChangeTracker.Clear();
         var owner = await db.Accounts.SingleAsync(account => account.Id == admin.Id);
         Assert.Equal(GlobalRole.SuperAdmin, owner.GlobalRole);
@@ -770,10 +785,25 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var secondaryAdmin = await db.Accounts.SingleAsync(account => account.LoginName == DevelopmentScenarioSeeder.SecondaryAdminUsername);
         Assert.Equal(GlobalRole.Admin, secondaryAdmin.GlobalRole);
         Assert.True(secondaryAdmin.Active);
+        var seededEvents = await db.Events.OrderBy(item => item.Slug).ToListAsync();
+        Assert.Equal(["test-13-dkl-board", "test-15-dkl-live"], seededEvents.Select(item => item.Slug).ToArray());
+        Assert.All(seededEvents, item => Assert.True(item.IsDevelopmentFixture));
+        Assert.Equal(catalogueCount, await db.CatalogueItems.CountAsync());
+        Assert.Equal(2, await db.OsrsCharacters.CountAsync(character => character.Id == retainedBoardCharacter.Id || character.Id == retainedLiveCharacter.Id));
+        Assert.Equal(await db.OsrsCharacters.CountAsync(), await db.OsrsCharacters.Select(character => character.NormalizedName).Distinct().CountAsync());
+        var preservedLink = await db.AccountOsrsCharacters.SingleAsync(link => link.Id == retainedLink.Id);
+        Assert.Equal(admin.Id, preservedLink.AccountId);
+        Assert.Equal(retainedLiveCharacter.Id, preservedLink.OsrsCharacterId);
+        var assignments = await (from assignment in db.EventParticipantCharacters
+                                 join bingoEvent in db.Events on assignment.EventId equals bingoEvent.Id
+                                 where assignment.OsrsCharacterId == retainedBoardCharacter.Id || assignment.OsrsCharacterId == retainedLiveCharacter.Id
+                                 select new { bingoEvent.Slug, assignment.OsrsCharacterId }).ToListAsync();
+        Assert.Contains(assignments, assignment => assignment.Slug == "test-13-dkl-board" && assignment.OsrsCharacterId == retainedBoardCharacter.Id);
+        Assert.Contains(assignments, assignment => assignment.Slug == "test-15-dkl-live" && assignment.OsrsCharacterId == retainedLiveCharacter.Id);
 
         var access = await db.AccountEventAccesses.FirstAsync(item => item.Enabled);
         var ev = await db.Events.SingleAsync(item => item.Id == access.EventId);
-        var cutoff = ev.SubmissionCutoffAt;
+        var cutoff = Assert.IsType<DateTimeOffset>(ev.SubmissionCutoffAt);
         var lifecycle = new EmergencyCredentialLifecycleService(db, clock);
         clock.Set(cutoff.AddTicks(-1)); await lifecycle.ApplyAsync(CancellationToken.None);
         Assert.True((await db.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
@@ -1147,7 +1177,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
     }
 
     private static Bingo.Domain.Events.BingoEvent Event(DateTimeOffset now, DateTimeOffset cutoff) =>
-        new(Guid.NewGuid(), "Slice 1 cutoff event", $"slice1-cutoff-{Guid.NewGuid():N}", "", "UTC", now.AddDays(-2), now.AddDays(-1), now.AddHours(-1), now.AddDays(1), cutoff, 10, Guid.NewGuid(), now.AddDays(-3));
+        new(Guid.NewGuid(), "Slice 1 cutoff event", $"slice1-cutoff-{Guid.NewGuid():N}", "", "UTC", now.AddDays(-2), now.AddDays(-1), now.AddHours(-1), cutoff.AddMinutes(-30), cutoff, 10, Guid.NewGuid(), now.AddDays(-3));
 
     private sealed class MutableTimeProvider(DateTimeOffset now) : TimeProvider
     {

@@ -18,6 +18,7 @@ public sealed class EventStateTransitionConfiguration : IEntityTypeConfiguration
         entity.Property(item => item.PerformedByAccountId).HasColumnName("performed_by_account_id");
         entity.Property(item => item.PerformedAt).HasColumnName("performed_at");
         entity.Property(item => item.Reason).HasColumnName("reason").HasMaxLength(1_000);
+        entity.Property(item => item.Scheduled).HasColumnName("scheduled");
         entity.HasIndex(item => new { item.EventId, item.PerformedAt });
     }
 }

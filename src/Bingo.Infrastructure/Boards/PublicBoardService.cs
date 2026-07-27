@@ -1,6 +1,7 @@
 using Bingo.Application.Boards;
 using Bingo.Application.Catalogue;
 using Bingo.Domain.Boards;
+using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Signups;
@@ -14,6 +15,8 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
     {
         var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(value => value.Slug == eventSlug, cancellationToken);
         if (bingoEvent is null) return null;
+        if (bingoEvent.State == EventState.Discarded || bingoEvent.State == EventState.Cancelled && (bingoEvent.FirstPublicAt is null || !bingoEvent.BoardPublished)) return null;
+        if (bingoEvent.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed) return null;
         var board = await db.Boards.AsNoTracking().SingleOrDefaultAsync(value => value.EventId == bingoEvent.Id && value.State == BoardState.Published, cancellationToken);
         if (board is null) return null;
         var teams = await db.Teams.AsNoTracking().Where(value => value.EventId == bingoEvent.Id && value.Active && value.FinalizedAt != null).OrderBy(value => value.Name).ToListAsync(cancellationToken);

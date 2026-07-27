@@ -16,7 +16,6 @@
 
     root.classList.add("is-guided");
     showStep(currentStep, false);
-    initializeDatePickers();
     initializeSignupCode();
     initializeQuestions();
     initializeSummary();
@@ -58,68 +57,6 @@
       if (currentStep === panels.length - 1) updateSummary();
       if (focus) panels[currentStep]?.querySelector("h2")?.focus?.({ preventScroll: true });
       panels[currentStep]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-
-    function initializeDatePickers() {
-      if (typeof window.flatpickr !== "function") return;
-      let initialized = false;
-      root.querySelectorAll("[data-event-datetime-picker]").forEach((picker) => {
-        const dateInput = document.getElementById(picker.dataset.dateTarget);
-        const timeInput = document.getElementById(picker.dataset.timeTarget);
-        if (!dateInput || !timeInput) return;
-        let timeSelect;
-        const syncTimeSelect = (dates) => {
-          if (!timeSelect || !dates?.length) return;
-          const date = dates[0];
-          timeSelect.value = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-        };
-        window.flatpickr(picker, {
-          enableTime: true,
-          time_24hr: true,
-          dateFormat: "Y-m-d H:i",
-          altInput: true,
-          altFormat: "d/m/Y H:i",
-          minuteIncrement: 30,
-          disableMobile: true,
-          allowInput: false,
-          defaultDate: picker.value,
-          onReady: (dates, _value, instance) => {
-            const timeContainer = instance.timeContainer;
-            if (!timeContainer) return;
-            instance.calendarContainer.classList.add("event-calendar-picker");
-            timeContainer.classList.add("event-calendar-time");
-            const label = document.createElement("label");
-            label.className = "event-calendar-time-label";
-            const labelText = document.createElement("span");
-            labelText.textContent = root.dataset.timeWord;
-            timeSelect = document.createElement("select");
-            timeSelect.className = "event-time-select";
-            timeSelect.setAttribute("aria-label", root.dataset.timeWord);
-            for (let index = 0; index < 48; index++) {
-              const value = `${String(Math.floor(index / 2)).padStart(2, "0")}:${index % 2 === 0 ? "00" : "30"}`;
-              timeSelect.add(new Option(value, value));
-            }
-            timeSelect.addEventListener("change", () => {
-              const selectedDate = instance.selectedDates[0] ? new Date(instance.selectedDates[0]) : new Date();
-              const [hours, minutes] = timeSelect.value.split(":").map(Number);
-              selectedDate.setHours(hours, minutes, 0, 0);
-              instance.setDate(selectedDate, true);
-            });
-            label.append(labelText, timeSelect);
-            timeContainer.append(label);
-            syncTimeSelect(dates);
-          },
-          onChange: (dates, value) => {
-            const [date, time] = value.split(" ");
-            if (date) dateInput.value = date;
-            if (time) timeInput.value = time;
-            syncTimeSelect(dates);
-            updateSummary();
-          }
-        });
-        initialized = true;
-      });
-      if (initialized) root.classList.add("has-date-pickers");
     }
 
     function initializeSignupCode() {
@@ -194,27 +131,19 @@
     function updateSummary() {
       const text = (selector) => root.querySelector(selector)?.value?.trim() || "";
       const set = (key, value) => { const target = root.querySelector(`[data-summary-value="${key}"]`); if (target) target.textContent = value; };
-      const dateTime = (pickerSelector, dateSelector, timeSelector) => {
-        const picker = root.querySelector(pickerSelector);
-        if (root.classList.contains("has-date-pickers") && picker?._flatpickr?.selectedDates?.length)
-          return picker._flatpickr.altInput.value;
-        const date = text(dateSelector);
-        const time = text(timeSelector);
-        return [date, time].filter(Boolean).join(" ") || "—";
+      const dateTime = (selector) => {
+        const input = root.querySelector(selector);
+        if (input?._flatpickr?.selectedDates?.length) return input._flatpickr.altInput.value;
+        return input?.value?.trim() || "—";
       };
 
       set("name", text("[data-summary-source='name']") || root.dataset.unnamedText);
       set("description", text("[data-summary-source='description']") || root.dataset.noDescriptionText);
-      set("signup-window", `${dateTime("[data-date-target='Input_SignupOpensDate']", "#Input_SignupOpensDate", "#Input_SignupOpensTime")} – ${dateTime("[data-date-target='Input_SignupClosesDate']", "#Input_SignupClosesDate", "#Input_SignupClosesTime")}`);
+      set("signup-window", `${dateTime("#Input_SignupOpensLocal")} – ${dateTime("#Input_SignupClosesLocal")}`);
       const capacity = text("[data-summary-source='capacity']") || "—";
       const waiting = root.querySelector("#Input_WaitingListEnabled")?.checked ? ` · ${root.dataset.waitingListText}` : "";
       set("capacity", `${capacity} ${root.dataset.playersWord}${waiting}`);
-      set("event-window", `${dateTime("[data-date-target='Input_EventStartsDate']", "#Input_EventStartsDate", "#Input_EventStartsTime")} – ${dateTime("[data-date-target='Input_EventEndsDate']", "#Input_EventEndsDate", "#Input_EventEndsTime")}`);
-      const teams = text("[data-summary-source='teams']");
-      const teamSize = text("[data-summary-source='team-size']");
-      set("teams", teams && teamSize
-        ? `${teams} ${root.dataset.teamsWord} · ${teamSize} ${root.dataset.perTeamText}`
-        : root.dataset.notSetText);
+      set("event-window", `${dateTime("#Input_EventStartsLocal")} – ${dateTime("#Input_EventEndsLocal")}`);
       const rows = text("[data-summary-source='rows']") || "—";
       const columns = text("[data-summary-source='columns']") || "—";
       set("board", `${rows} × ${columns} ${root.dataset.boardWord}`);

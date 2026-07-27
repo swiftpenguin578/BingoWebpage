@@ -15,17 +15,17 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 {
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
-        AdvanceAccountVersions();
+        AdvanceVersions();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
-        AdvanceAccountVersions();
+        AdvanceVersions();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
-    private void AdvanceAccountVersions()
+    private void AdvanceVersions()
     {
         ChangeTracker.DetectChanges();
         foreach (var entry in ChangeTracker.Entries<Account>().Where(entry => entry.State == EntityState.Modified))
@@ -33,6 +33,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         foreach (var entry in ChangeTracker.Entries<AccountOsrsCharacter>().Where(entry => entry.State == EntityState.Modified))
             entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<EventParticipantCharacter>().Where(entry => entry.State == EntityState.Modified))
+            entry.Entity.AdvanceVersion();
+        foreach (var entry in ChangeTracker.Entries<BingoEvent>().Where(entry => entry.State == EntityState.Modified))
             entry.Entity.AdvanceVersion();
     }
     public DbSet<SystemMetadata> SystemMetadata => Set<SystemMetadata>();
@@ -48,6 +50,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<BingoEvent> Events => Set<BingoEvent>();
     public DbSet<EventStateTransition> EventStateTransitions => Set<EventStateTransition>();
+    public DbSet<EventBannerAsset> EventBannerAssets => Set<EventBannerAsset>();
+    public DbSet<EventBannerCleanup> EventBannerCleanups => Set<EventBannerCleanup>();
+    public DbSet<ScheduledEventStartAttempt> ScheduledEventStartAttempts => Set<ScheduledEventStartAttempt>();
+    public DbSet<ScheduledSignupOpeningAttempt> ScheduledSignupOpeningAttempts => Set<ScheduledSignupOpeningAttempt>();
     public DbSet<EventFinalizationSnapshot> EventFinalizations => Set<EventFinalizationSnapshot>();
     public DbSet<OfficialPlacementSnapshot> OfficialPlacements => Set<OfficialPlacementSnapshot>();
     public DbSet<FinalReviewResolution> FinalReviewResolutions => Set<FinalReviewResolution>();

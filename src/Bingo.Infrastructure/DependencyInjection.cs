@@ -50,6 +50,11 @@ public static class DependencyInjection
         services.AddScoped<ISubmissionService, SubmissionService>();
         services.AddScoped<IPublicBoardService, PublicBoardService>();
         services.AddScoped<IEventFinalizationService, EventFinalizationService>();
+        services.AddScoped<IEventReadinessEvaluator, EventReadinessEvaluator>();
+        services.AddScoped<IEventSignupLifecycleService, EventSignupLifecycleService>();
+        services.AddScoped<IEventLifecycleService, EventLifecycleService>();
+        services.AddScoped<IEventDestructiveLifecycleService, EventDestructiveLifecycleService>();
+        services.AddScoped<IEventBannerCleanupService, EventBannerCleanupService>();
         services.AddScoped<IProgressNotifier, NullProgressNotifier>();
         services.AddScoped<IAdminCollaborationNotifier, NullAdminCollaborationNotifier>();
 

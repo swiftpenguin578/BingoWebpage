@@ -30,7 +30,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
             ? Filter!.ToLowerInvariant()
             : "all";
 
-        var allEvents = await dbContext.Events.AsNoTracking()
+        var allEvents = await dbContext.Events.AsNoTracking().Where(item => item.State != EventState.Discarded)
             .Select(item => new EventRow(
                 item.Id,
                 item.Name,
@@ -42,7 +42,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
                 item.EventEndsAt,
                 item.FinalizedAt,
                 item.ArchivedAt,
-                item.ParticipantCap,
+                item.ParticipantCap ?? 0,
                 dbContext.EventParticipants.Count(participant => participant.EventId == item.Id && participant.SignupStatus == SignupStatus.Confirmed),
                 dbContext.EventParticipants.Count(participant => participant.EventId == item.Id && participant.SignupStatus == SignupStatus.WaitingList),
                 dbContext.Submissions.Count(submission => submission.EventId == item.Id && submission.Status == SubmissionStatus.Pending)))
@@ -74,31 +74,33 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
         EventState.AwaitingFinalReview => localizer["Final review"],
         EventState.Finalized => localizer["Finished"],
         EventState.Archived => localizer["Archived"],
+        EventState.Cancelled => localizer["Cancelled"],
         _ => localizer["Unknown"]
     };
 
-    public string FormatDate(DateTimeOffset value, string timezoneId)
+    public string FormatDate(DateTimeOffset? value, string timezoneId)
     {
+        if (value is null) return localizer["Not set"];
         try
         {
             var timezone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
-            return TimeZoneInfo.ConvertTime(value, timezone).ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
+            return TimeZoneInfo.ConvertTime(value.Value, timezone).ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
         }
         catch (TimeZoneNotFoundException)
         {
-            return value.ToUniversalTime().ToString("dd MMM yyyy, HH:mm 'UTC'", CultureInfo.CurrentCulture);
+            return value.Value.ToUniversalTime().ToString("dd MMM yyyy, HH:mm 'UTC'", CultureInfo.CurrentCulture);
         }
         catch (InvalidTimeZoneException)
         {
-            return value.ToUniversalTime().ToString("dd MMM yyyy, HH:mm 'UTC'", CultureInfo.CurrentCulture);
+            return value.Value.ToUniversalTime().ToString("dd MMM yyyy, HH:mm 'UTC'", CultureInfo.CurrentCulture);
         }
     }
 
     public string SignupSummary(EventRow item)
     {
         var now = timeProvider.GetUtcNow();
-        if (item.State == EventState.SignupOpen) return localizer["Open until {0}", FormatDate(item.SignupClosesAt, item.Timezone)];
-        if (item.State == EventState.Draft && now < item.SignupOpensAt) return localizer["Opens {0}", FormatDate(item.SignupOpensAt, item.Timezone)];
+        if (item.State == EventState.SignupOpen) return item.SignupClosesAt is null ? localizer["Open"] : localizer["Open until {0}", FormatDate(item.SignupClosesAt, item.Timezone)];
+        if (item.State == EventState.Draft && item.SignupOpensAt is { } opensAt && now < opensAt) return localizer["Opens {0}", FormatDate(opensAt, item.Timezone)];
         if (item.State == EventState.Draft) return localizer["Not open"];
         return localizer["Closed"];
     }
@@ -126,13 +128,13 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
         _ => 5
     };
 
-    private static long SortDate(EventRow item) => SortGroup(item.State) switch
+    private static long? SortDate(EventRow item) => SortGroup(item.State) switch
     {
-        1 => item.EventStartsAt.UtcTicks,
-        2 => -(item.EventEndsAt.UtcTicks),
-        3 => -((item.FinalizedAt ?? item.EventEndsAt).UtcTicks),
-        4 => -((item.ArchivedAt ?? item.FinalizedAt ?? item.EventEndsAt).UtcTicks),
-        _ => -(item.EventStartsAt.UtcTicks)
+        1 => item.EventStartsAt?.UtcTicks,
+        2 => item.EventEndsAt is { } eventEndsAt ? -eventEndsAt.UtcTicks : null,
+        3 => (item.FinalizedAt ?? item.EventEndsAt) is { } finalizedAt ? -finalizedAt.UtcTicks : null,
+        4 => (item.ArchivedAt ?? item.FinalizedAt ?? item.EventEndsAt) is { } archivedAt ? -archivedAt.UtcTicks : null,
+        _ => item.EventStartsAt is { } eventStartsAt ? -eventStartsAt.UtcTicks : null
     };
 
     public sealed record EventRow(
@@ -140,10 +142,10 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
         string Name,
         EventState State,
         string Timezone,
-        DateTimeOffset SignupOpensAt,
-        DateTimeOffset SignupClosesAt,
-        DateTimeOffset EventStartsAt,
-        DateTimeOffset EventEndsAt,
+        DateTimeOffset? SignupOpensAt,
+        DateTimeOffset? SignupClosesAt,
+        DateTimeOffset? EventStartsAt,
+        DateTimeOffset? EventEndsAt,
         DateTimeOffset? FinalizedAt,
         DateTimeOffset? ArchivedAt,
         int ParticipantCap,

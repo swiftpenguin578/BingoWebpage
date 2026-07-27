@@ -5,8 +5,9 @@
     ViewData["Title"] = Model.EventView?.Name ?? T["Signup"];
 }
 <section class="form-page wide-form"><p class="eyebrow">@T["Event signup"]</p><h1>@Model.EventView!.Name</h1><p class="form-intro">@Model.EventView.Description</p>
-<div class="panel event-summary"><p><strong>@T["Signup closes"]</strong><span>@Model.EventView.SignupClosesAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></p><p><strong>@T["Event"]</strong><span>@Model.EventView.EventStartsAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm") – @Model.EventView.EventEndsAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></p></div>
-@if (!Model.EventView.Accepting) { <div class="panel"><h2>@T["Signups are not currently open"]</h2><p>@T["The event information remains visible, but the form is unavailable."]</p></div> }
+<div class="panel event-summary"><p><strong>@T["Signup closes"]</strong><span>@(Model.EventView.SignupClosesAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? T["Not set"])</span></p><p><strong>@T["Event"]</strong><span>@(Model.EventView.EventStartsAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? T["Not set"]) – @(Model.EventView.EventEndsAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? T["Not set"])</span></p></div>
+@if (Model.EventView.Cancelled) { <div class="panel"><h2>@T["Event cancelled"]</h2><p>@T["This event will not take place."]</p></div> }
+else if (!Model.EventView.Accepting) { <div class="panel"><h2>@T["Signups are not currently open"]</h2><p>@T["The event information remains visible, but the form is unavailable."]</p></div> }
 else {
 <form method="post" class="panel form-stack"><div asp-validation-summary="ModelOnly" class="validation-summary"></div>
 <label asp-for="Input.PrimaryAccountName">@T["In-game name"]</label><input asp-for="Input.PrimaryAccountName" class="form-control" /><span asp-validation-for="Input.PrimaryAccountName" class="field-error"></span>

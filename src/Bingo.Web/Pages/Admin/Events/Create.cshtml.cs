@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using System.Data;
 using System.Globalization;
+using System.Text.Json;
 using Bingo.Application.Access;
-using Bingo.Application.Auditing;
+using Bingo.Application.Evidence;
 using Bingo.Application.Security;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
@@ -17,128 +19,189 @@ using Microsoft.EntityFrameworkCore;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class CreateModel(ApplicationDbContext dbContext, ISecretHasher secretHasher, IAuditWriter auditWriter, TimeProvider timeProvider) : PageModel
+public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, IEvidenceStorage storage, TimeProvider time) : PageModel
 {
-    private static readonly IReadOnlyList<string> HalfHourOptions = Enumerable.Range(0, 48).Select(index => $"{index / 2:00}:{index % 2 * 30:00}").ToList();
+    private static readonly IReadOnlyList<TimezoneOption> DefaultTimezones =
+    [
+        new("Europe/Copenhagen", "Copenhagen (Europe/Copenhagen)"), new("UTC", "UTC"), new("Europe/London", "London"),
+        new("America/New_York", "New York"), new("America/Chicago", "Chicago"), new("America/Los_Angeles", "Los Angeles"), new("Australia/Sydney", "Sydney")
+    ];
+
     [BindProperty] public CreateInput Input { get; set; } = new();
-    public IReadOnlyList<string> HalfHourTimes => HalfHourOptions;
-    public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
+    public IReadOnlyList<TimezoneOption> Timezones => OptionsFor(Input.Timezone);
+
+    public async Task<IActionResult> OnPostAsync(CancellationToken ct)
     {
-        if (!TryCreateSchedule(out var signupOpens, out var signupCloses, out var eventStarts, out var eventEnds)) return Page();
-        ValidateSchedule(signupOpens, signupCloses, eventStarts, eventEnds);
-        if (Input.RequireSignupCode && string.IsNullOrWhiteSpace(Input.SignupCode)) ModelState.AddModelError("Input.SignupCode", "Enter an event code or disable the code requirement.");
-        ValidateCustomQuestions();
+        if (!TryTimezone(Input.Timezone, out var timezone))
+        {
+            ModelState.AddModelError("Input.Timezone", "Choose a supported timezone.");
+            timezone = TimeZoneInfo.Utc;
+        }
+        var schedule = ParseSchedule(timezone, "Input");
+        ValidateQuestions();
+        ValidatePlanning();
+        var slug = NormalizeSlug(Input.Slug, Input.Name);
+        if (string.IsNullOrWhiteSpace(slug)) ModelState.AddModelError("Input.Slug", "Enter a valid event link.");
+        else if (!string.IsNullOrWhiteSpace(Input.Slug) && !string.Equals(Input.Slug.Trim(), slug, StringComparison.Ordinal)) ModelState.AddModelError("Input.Slug", "Use lowercase letters, numbers, and hyphens for the event link.");
+        if (!string.IsNullOrWhiteSpace(slug) && await db.Events.AnyAsync(item => item.Slug == slug, ct)) ModelState.AddModelError("Input.Slug", "That event link is already in use.");
+        if (Input.RequireSignupCode && string.IsNullOrWhiteSpace(Input.SignupCode)) ModelState.AddModelError("Input.SignupCode", "Enter an event code or turn this setting off.");
         if (!ModelState.IsValid) return Page();
+
         var actorId = User.GetAccountId()!.Value;
-        var slug = await CreateUniqueSlugAsync(Input.Name, cancellationToken);
-        var item = new BingoEvent(Guid.NewGuid(), Input.Name.Trim(), slug, Input.Description.Trim(), Input.Timezone.Trim(), signupOpens, signupCloses, eventStarts, eventEnds, eventEnds.AddMinutes(30), Input.ParticipantCap, actorId, timeProvider.GetUtcNow());
-        item.ConfigureSignup(Input.WaitingListEnabled, Input.AllowPrivateEditing, Input.RequireSignupCode, Input.RequireSignupCode ? secretHasher.Hash(Input.SignupCode!) : null);
-        item.ConfigurePlanning(null, null, null, Input.ExpectedTeamCount, Input.ExpectedTeamSize, Input.ExpectedBoardRows, Input.ExpectedBoardColumns);
-        dbContext.Events.Add(item);
-        var questionKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var now = time.GetUtcNow();
+        var item = new BingoEvent(Guid.NewGuid(), Input.Name.Trim(), slug!, Input.Timezone.Trim(), actorId, now);
+        item.UpdateIdentity(Input.Name, slug, Input.Description, Input.Timezone);
+        item.ConfigureInitialSchedule(schedule.SignupOpens, schedule.SignupCloses, schedule.DraftAt, schedule.Starts, schedule.Ends, Input.ParticipantCap);
+        if (schedule.SignupOpens is { } scheduledOpening && scheduledOpening > now)
+            item.ConfigureScheduledSignupOpening(true, []);
+        item.ConfigureSignup(Input.WaitingListEnabled, Input.AllowPrivateEditing, Input.RequireSignupCode, Input.RequireSignupCode ? hasher.Hash(Input.SignupCode!) : null);
+        item.ConfigurePlanning(null, Input.BuyInDescription, null, null, null, Input.ExpectedBoardRows, Input.ExpectedBoardColumns);
+
+        StoredEvidence? uploaded = null;
+        EventBannerAsset? banner = null;
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        try
+        {
+            db.Events.Add(item);
+            if (Input.Banner is { Length: > 0 })
+            {
+                banner = new EventBannerAsset(Guid.NewGuid(), item.Id, string.Empty, string.Empty, string.Empty, 0, 0, 0, string.Empty, actorId, now);
+                await using var content = Input.Banner.OpenReadStream();
+                uploaded = await storage.StoreAsync(item.Id, banner.Id, Input.Banner.FileName, content, ct);
+                banner = new EventBannerAsset(banner.Id, item.Id, uploaded.StorageKey, uploaded.OriginalFilename, uploaded.MediaType, uploaded.ByteSize, uploaded.Width, uploaded.Height, uploaded.Checksum, actorId, now);
+                db.EventBannerAssets.Add(banner);
+                item.SetBannerAsset(banner.Id);
+            }
+            AddQuestions(item);
+            var after = JsonSerializer.Serialize(AuditState(item));
+            db.AuditEntries.Add(new Bingo.Domain.Auditing.AuditEntry(Guid.NewGuid(), now, actorId, User.Identity!.Name!, "event.created", "event", item.Id.ToString(), "Created as a private draft.", item.Id, null, after));
+            await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsSlugCollision(ex))
+        {
+            await transaction.RollbackAsync(ct);
+            await DeleteUploadedAsync(uploaded, ct);
+            db.ChangeTracker.Clear();
+            ModelState.AddModelError("Input.Slug", "That event link is already in use.");
+            return Page();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            await transaction.RollbackAsync(ct);
+            await DeleteUploadedAsync(uploaded, ct);
+            db.ChangeTracker.Clear();
+            ModelState.AddModelError(string.Empty, "The event could not be created. Try again.");
+            return Page();
+        }
+
+        TempData["StatusMessage"] = $"{item.Name} was created as a private draft.";
+        TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
+        return RedirectToPage("Manage", new { id = item.Id });
+    }
+
+    private Schedule ParseSchedule(TimeZoneInfo timezone, string prefix)
+    {
+        var signupOpens = ParseOptional(Input.SignupOpensLocal, timezone, $"{prefix}.SignupOpensLocal", "Signup opening");
+        var signupCloses = ParseOptional(Input.SignupClosesLocal, timezone, $"{prefix}.SignupClosesLocal", "Signup closing");
+        var draftAt = ParseOptional(Input.DraftLocal, timezone, $"{prefix}.DraftLocal", "Draft time");
+        var starts = ParseOptional(Input.EventStartsLocal, timezone, $"{prefix}.EventStartsLocal", "Event start");
+        var ends = ParseOptional(Input.EventEndsLocal, timezone, $"{prefix}.EventEndsLocal", "Event end");
+        if (signupOpens is not null && signupCloses is not null && signupCloses <= signupOpens) ModelState.AddModelError($"{prefix}.SignupClosesLocal", "Signup closing must be after opening.");
+        if (starts is not null && ends is not null && ends <= starts) ModelState.AddModelError($"{prefix}.EventEndsLocal", "Event end must be after event start.");
+        return new(signupOpens, signupCloses, draftAt, starts, ends);
+    }
+
+    private DateTimeOffset? ParseOptional(string? localText, TimeZoneInfo timezone, string field, string label)
+    {
+        if (string.IsNullOrWhiteSpace(localText)) return null;
+        if (!DateTime.TryParseExact(localText, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var localValue) || localValue.Minute % 5 != 0)
+        {
+            ModelState.AddModelError(field, $"{label} must use a valid five-minute time.");
+            return null;
+        }
+        var parsedLocal = DateTime.SpecifyKind(localValue, DateTimeKind.Unspecified);
+        if (timezone.IsInvalidTime(parsedLocal)) { ModelState.AddModelError(field, $"{label} falls inside a daylight-saving time change."); return null; }
+        if (timezone.IsAmbiguousTime(parsedLocal)) { ModelState.AddModelError(field, $"{label} is ambiguous because of daylight-saving time. Choose another time."); return null; }
+        return new DateTimeOffset(parsedLocal, timezone.GetUtcOffset(parsedLocal));
+    }
+
+    private void ValidateQuestions()
+    {
+        for (var index = 0; index < Input.CustomQuestions.Count; index++)
+        {
+            var question = Input.CustomQuestions[index];
+            if (string.IsNullOrWhiteSpace(question.Label)) ModelState.AddModelError($"Input.CustomQuestions[{index}].Label", "Enter the question shown to players.");
+            if (question.Type == SignupQuestionType.SingleChoice && Split(question.Options).Length == 0) ModelState.AddModelError($"Input.CustomQuestions[{index}].Options", "Add at least one available answer.");
+        }
+    }
+
+    private void ValidatePlanning()
+    {
+        if (Input.ExpectedBoardRows is <= 0 or > 8) ModelState.AddModelError("Input.ExpectedBoardRows", "Board rows must be between 1 and 8.");
+        if (Input.ExpectedBoardColumns is <= 0 or > 8) ModelState.AddModelError("Input.ExpectedBoardColumns", "Board columns must be between 1 and 8.");
+    }
+
+    private void AddQuestions(BingoEvent item)
+    {
+        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         for (var index = 0; index < Input.CustomQuestions.Count; index++)
         {
             var question = Input.CustomQuestions[index];
             var baseKey = EventSlugGenerator.Generate(question.Label).Replace('-', '_');
             var key = baseKey;
-            for (var suffix = 2; !questionKeys.Add(key); suffix++) key = $"{baseKey}_{suffix}";
-            var options = question.Type == SignupQuestionType.SingleChoice
-                ? string.Join('\n', SplitOptions(question.Options))
-                : null;
-            dbContext.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), item.Id, key, question.Label.Trim(), question.Type, question.Required, index + 1, options));
-        }
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await auditWriter.WriteAsync(actorId, User.Identity!.Name!, "event.created", "event", item.Id.ToString(), $"Name: {item.Name}", cancellationToken);
-        TempData["StatusMessage"] = $"{item.Name} was created as a private event.";
-        TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
-        return RedirectToPage("Manage", new { id = item.Id });
-    }
-    private void ValidateSchedule(DateTimeOffset signupOpens, DateTimeOffset signupCloses, DateTimeOffset eventStarts, DateTimeOffset eventEnds)
-    {
-        if (signupCloses <= signupOpens) ModelState.AddModelError("Input.SignupClosesDate", "Signup closing must be after opening.");
-        if (eventEnds <= eventStarts) ModelState.AddModelError("Input.EventEndsDate", "Event end must be after event start.");
-    }
-    private bool TryCreateSchedule(out DateTimeOffset signupOpens, out DateTimeOffset signupCloses, out DateTimeOffset eventStarts, out DateTimeOffset eventEnds)
-    {
-        signupOpens = signupCloses = eventStarts = eventEnds = default;
-        TimeZoneInfo timezone;
-        try { timezone = TimeZoneInfo.FindSystemTimeZoneById(Input.Timezone.Trim()); }
-        catch (TimeZoneNotFoundException) { ModelState.AddModelError("Input.Timezone", "The timezone was not recognized."); return false; }
-        catch (InvalidTimeZoneException) { ModelState.AddModelError("Input.Timezone", "The timezone configuration is invalid."); return false; }
-        return TryCombine(Input.SignupOpensDate, Input.SignupOpensTime, timezone, "Input.SignupOpensTime", "Signup opening", out signupOpens)
-            & TryCombine(Input.SignupClosesDate, Input.SignupClosesTime, timezone, "Input.SignupClosesTime", "Signup closing", out signupCloses)
-            & TryCombine(Input.EventStartsDate, Input.EventStartsTime, timezone, "Input.EventStartsTime", "Event start", out eventStarts)
-            & TryCombine(Input.EventEndsDate, Input.EventEndsTime, timezone, "Input.EventEndsTime", "Event end", out eventEnds);
-    }
-    private bool TryCombine(DateOnly date, string timeText, TimeZoneInfo timezone, string field, string label, out DateTimeOffset result)
-    {
-        result = default;
-        if (!TimeOnly.TryParseExact(timeText, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var time) || time.Minute is not (0 or 30))
-        { ModelState.AddModelError(field, $"{label} must use a valid half-hour time."); return false; }
-        var local = date.ToDateTime(time, DateTimeKind.Unspecified);
-        if (timezone.IsInvalidTime(local)) { ModelState.AddModelError(field, $"{label} falls inside a daylight-saving time change."); return false; }
-        result = new DateTimeOffset(local, timezone.GetUtcOffset(local)); return true;
-    }
-    private void ValidateCustomQuestions()
-    {
-        for (var index = 0; index < Input.CustomQuestions.Count; index++)
-        {
-            var question = Input.CustomQuestions[index];
-            if (string.IsNullOrWhiteSpace(question.Label))
-                ModelState.AddModelError($"Input.CustomQuestions[{index}].Label", "Enter the question shown to players.");
-            if (question.Type == SignupQuestionType.SingleChoice && SplitOptions(question.Options).Length == 0)
-                ModelState.AddModelError($"Input.CustomQuestions[{index}].Options", "Add at least one available answer.");
+            for (var suffix = 2; !keys.Add(key); suffix++) key = $"{baseKey}_{suffix}";
+            db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), item.Id, key, question.Label.Trim(), question.Type, question.Required, index + 1, question.Type == SignupQuestionType.SingleChoice ? string.Join('\n', Split(question.Options)) : null));
         }
     }
-    private static string[] SplitOptions(string? value) => value?.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
-    private async Task<string> CreateUniqueSlugAsync(string name, CancellationToken cancellationToken)
+
+    private async Task DeleteUploadedAsync(StoredEvidence? uploaded, CancellationToken ct)
     {
-        var baseSlug = EventSlugGenerator.Generate(name);
-        var slug = baseSlug;
-        for (var suffix = 2; await dbContext.Events.AnyAsync(item => item.Slug == slug, cancellationToken); suffix++) slug = $"{baseSlug}-{suffix}";
-        return slug;
+        if (uploaded is null) return;
+        try { await storage.DeleteAsync(uploaded.StorageKey, ct); }
+        catch (Exception ex) when (ex is not OperationCanceledException) { }
     }
-    private static DateTimeOffset NextHalfHour()
+
+    private static string[] Split(string? value) => value?.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
+    private static object AuditState(BingoEvent item) => new { item.Name, item.Slug, Description = AuditDescription(item.Description), item.Timezone, item.BannerAssetId };
+    private static string? AuditDescription(string? description) => description is null ? null : description.Length <= 500 ? description : $"{description[..500]}…";
+    private static string? NormalizeSlug(string? value, string name) => EventSlugGenerator.Generate(string.IsNullOrWhiteSpace(value) ? name : value);
+    private static bool IsSlugCollision(DbUpdateException ex) => ex.InnerException?.Message.Contains("events_slug", StringComparison.OrdinalIgnoreCase) == true || ex.InnerException?.Message.Contains("slug", StringComparison.OrdinalIgnoreCase) == true;
+    private static bool TryTimezone(string? timezoneId, out TimeZoneInfo timezone) { timezone = null!; return !string.IsNullOrWhiteSpace(timezoneId) && OptionsFor(timezoneId).Any(x => x.Id == timezoneId) && TryFind(timezoneId, out timezone); }
+    private static bool TryFind(string timezoneId, out TimeZoneInfo timezone) { try { timezone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId); return true; } catch (TimeZoneNotFoundException) { timezone = null!; return false; } catch (InvalidTimeZoneException) { timezone = null!; return false; } }
+    private static List<TimezoneOption> OptionsFor(string? selected)
     {
-        var now = DateTimeOffset.Now;
-        var rounded = new DateTimeOffset(now.Year, now.Month, now.Day, now.Hour, now.Minute < 30 ? 30 : 0, 0, now.Offset);
-        return now.Minute < 30 ? rounded : rounded.AddHours(1);
+        var options = DefaultTimezones.Select(option => new TimezoneOption(option.Id, Label(option.Id, option.Label))).ToList();
+        if (!string.IsNullOrWhiteSpace(selected) && options.All(x => x.Id != selected) && TryFind(selected, out _)) options.Add(new(selected, Label(selected, selected)));
+        return options;
     }
+    private static string Label(string timezoneId, string place)
+    {
+        if (!TryFind(timezoneId, out var timezone)) return place;
+        var offset = timezone.GetUtcOffset(DateTimeOffset.UtcNow);
+        return $"{place} (UTC{(offset < TimeSpan.Zero ? "-" : "+")}{offset.Duration():hh\\:mm})";
+    }
+    private sealed record Schedule(DateTimeOffset? SignupOpens, DateTimeOffset? SignupCloses, DateTimeOffset? DraftAt, DateTimeOffset? Starts, DateTimeOffset? Ends);
+    public sealed record TimezoneOption(string Id, string Label);
     public sealed class CreateInput
     {
-        public CreateInput()
-        {
-            var start = NextHalfHour();
-            SignupOpensDate = DateOnly.FromDateTime(start.DateTime); SignupOpensTime = start.ToString("HH:mm", CultureInfo.InvariantCulture);
-            SignupClosesDate = DateOnly.FromDateTime(start.AddDays(14).DateTime); SignupClosesTime = SignupOpensTime;
-            EventStartsDate = DateOnly.FromDateTime(start.AddDays(21).DateTime); EventStartsTime = SignupOpensTime;
-            EventEndsDate = DateOnly.FromDateTime(start.AddDays(26).DateTime); EventEndsTime = SignupOpensTime;
-        }
         [Required, StringLength(200)] public string Name { get; set; } = string.Empty;
-        [Required, StringLength(4000)] public string Description { get; set; } = string.Empty;
+        [StringLength(120)] public string? Slug { get; set; }
+        [StringLength(4000)] public string? Description { get; set; }
         [Required, StringLength(100)] public string Timezone { get; set; } = "Europe/Copenhagen";
-        [DataType(DataType.Date), Display(Name = "Signup opening date")] public DateOnly SignupOpensDate { get; set; }
-        [Required, Display(Name = "Signup opening time")] public string SignupOpensTime { get; set; }
-        [DataType(DataType.Date), Display(Name = "Signup closing date")] public DateOnly SignupClosesDate { get; set; }
-        [Required, Display(Name = "Signup closing time")] public string SignupClosesTime { get; set; }
-        [DataType(DataType.Date), Display(Name = "Event start date")] public DateOnly EventStartsDate { get; set; }
-        [Required, Display(Name = "Event start time")] public string EventStartsTime { get; set; }
-        [DataType(DataType.Date), Display(Name = "Event end date")] public DateOnly EventEndsDate { get; set; }
-        [Required, Display(Name = "Event end time")] public string EventEndsTime { get; set; }
-        [Range(1, 10000), Display(Name = "Participant cap")] public int ParticipantCap { get; set; } = 50;
+        public IFormFile? Banner { get; set; }
+        public string? SignupOpensLocal { get; set; }
+        public string? SignupClosesLocal { get; set; }
+        public string? DraftLocal { get; set; }
+        public string? EventStartsLocal { get; set; }
+        public string? EventEndsLocal { get; set; }
+        [Range(1, 10000)] public int? ParticipantCap { get; set; }
         public bool WaitingListEnabled { get; set; } = true; public bool AllowPrivateEditing { get; set; } = true; public bool RequireSignupCode { get; set; }
-        [StringLength(100), Display(Name = "Event code")] public string? SignupCode { get; set; }
-        [Range(1, 100), Display(Name = "Expected teams")] public int? ExpectedTeamCount { get; set; }
-        [Range(1, 100), Display(Name = "Expected team size")] public int? ExpectedTeamSize { get; set; }
-        [Range(1, 20), Display(Name = "Expected board rows")] public int? ExpectedBoardRows { get; set; } = 5;
-        [Range(1, 20), Display(Name = "Expected board columns")] public int? ExpectedBoardColumns { get; set; } = 5;
+        [StringLength(100)] public string? SignupCode { get; set; }
+        [StringLength(2000)] public string? BuyInDescription { get; set; }
+        [Range(1, 8)] public int? ExpectedBoardRows { get; set; }
+        [Range(1, 8)] public int? ExpectedBoardColumns { get; set; }
         public List<CustomQuestionInput> CustomQuestions { get; set; } = [];
     }
-    public sealed class CustomQuestionInput
-    {
-        [StringLength(300)] public string Label { get; set; } = string.Empty;
-        public SignupQuestionType Type { get; set; } = SignupQuestionType.ShortText;
-        public bool Required { get; set; }
-        [StringLength(4000)] public string? Options { get; set; }
-    }
+    public sealed class CustomQuestionInput { [StringLength(300)] public string Label { get; set; } = string.Empty; public SignupQuestionType Type { get; set; } = SignupQuestionType.ShortText; public bool Required { get; set; } [StringLength(4000)] public string? Options { get; set; } }
 }

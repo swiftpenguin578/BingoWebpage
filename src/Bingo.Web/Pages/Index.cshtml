@@ -37,10 +37,20 @@
                 <a class="public-event-card panel" asp-page="/Events/Board" asp-route-slug="@bingoEvent.Slug">
                     <span class="public-event-status state-@bingoEvent.State.ToString().ToLowerInvariant()">@status</span>
                     <span class="public-event-title">@bingoEvent.Name</span>
-                    <span class="public-event-meta">@T["{0} × {1} board", bingoEvent.Rows, bingoEvent.Columns] · @bingoEvent.StartsAt.ToString("d MMM yyyy, HH:mm")</span>
+                    <span class="public-event-meta">@T["{0} × {1} board", bingoEvent.Rows, bingoEvent.Columns] · @(bingoEvent.StartsAt?.ToString("d MMM yyyy, HH:mm") ?? T["Not set"])</span>
                     <span class="public-event-action">@T["View bingo"] <span aria-hidden="true">→</span></span>
                 </a>
             }
         </div>
     }
 </section>
+
+@if (Model.PreviousEvents.Count > 0)
+{
+    <section class="public-home"><header class="public-hero"><p class="eyebrow">@T["History"]</p><h2>@T["Previous events"]</h2></header><div class="public-event-list">
+    @foreach (var bingoEvent in Model.PreviousEvents)
+    {
+        <a class="public-event-card panel" asp-page="/Events/Board" asp-route-slug="@bingoEvent.Slug"><span class="public-event-status state-archived">@T["Archived"]</span><span class="public-event-title">@bingoEvent.Name</span><span class="public-event-meta">@T["{0} × {1} board", bingoEvent.Rows, bingoEvent.Columns]</span><span class="public-event-action">@T["View history"] <span aria-hidden="true">→</span></span></a>
+    }
+    </div></section>
+}

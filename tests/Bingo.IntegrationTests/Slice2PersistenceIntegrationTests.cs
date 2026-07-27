@@ -513,6 +513,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
 
         using var routeBeforeMutationPage = await client.GetAsync("/");
         routeBeforeMutationPage.EnsureSuccessStatusCode();
+        Assert.Contains("Your account is ready.", await routeBeforeMutationPage.Content.ReadAsStringAsync(), StringComparison.Ordinal);
 
         var accounts = await client.GetStringAsync("/Account/MyAccounts");
         using var firstMutation = await EnhancedPostAsync(client, "/Account/MyAccounts?handler=Add", new Dictionary<string, string>
@@ -595,7 +596,11 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
 
         await using var db = new ApplicationDbContext(options);
         var characters = new EventParticipantCharacterService(db, TimeProvider.System);
-        var manage = new Bingo.Web.Pages.Admin.Events.ManageModel(db, null!, characters, null!, TimeProvider.System);
+        var readiness = new Bingo.Infrastructure.Events.EventReadinessEvaluator(db, new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+        var signup = new Bingo.Infrastructure.Events.EventSignupLifecycleService(db, readiness, TimeProvider.System);
+        var lifecycle = new Bingo.Infrastructure.Events.EventLifecycleService(db, signup, TimeProvider.System);
+        var destructive = new Bingo.Infrastructure.Events.EventDestructiveLifecycleService(db, TimeProvider.System);
+        var manage = new Bingo.Web.Pages.Admin.Events.ManageModel(db, null!, characters, null!, readiness, signup, lifecycle, destructive, TimeProvider.System);
         Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await manage.OnGetAsync(seed.EventId, CancellationToken.None));
         Assert.Contains(manage.Participants, row => row.Id == withdrawnId && row.Name == "Withdrawn Main" && row.Ehb == 111m);
         Assert.Contains(manage.Participants, row => row.Id == removedId && row.Name == "Removed Main" && row.Ehb == 222m);
@@ -699,7 +704,8 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
     private static BingoEvent Event(DateTimeOffset now, string name, bool signupOpen)
     {
         var bingoEvent = new BingoEvent(Guid.NewGuid(), name, $"{name}-{Guid.NewGuid():N}", "", "UTC", now.AddHours(-1), now.AddDays(1), now.AddDays(2), now.AddDays(3), now.AddDays(4), 20, Guid.NewGuid(), now);
-        if (signupOpen) bingoEvent.OpenSignups(); else bingoEvent.CloseSignups();
+        bingoEvent.OpenSignups();
+        if (!signupOpen) bingoEvent.CloseSignups();
         return bingoEvent;
     }
 

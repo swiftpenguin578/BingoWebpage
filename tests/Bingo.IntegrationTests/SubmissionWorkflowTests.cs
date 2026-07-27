@@ -347,6 +347,8 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var requirementId = Guid.NewGuid();
         var dropId = manualObjective ? (Guid?)null : Guid.NewGuid();
         var ev = new BingoEvent(eventId, $"Event {eventId:N}", $"event-{eventId:N}", "", "UTC", now.AddDays(-10), now.AddDays(-8), now.AddHours(-1), now.AddHours(4), now.AddHours(4.5), 20, adminId, now.AddDays(-20));
+        ev.OpenSignups();
+        ev.CloseSignups();
         ev.StartEvent(now.AddHours(-1));
         if (evidenceCode is not null) ev.SetEvidenceCodeEnabled(true);
         var team = new Team(teamId, eventId, "Team One", $"team-{teamId:N}", TeamFormationType.Drafted, null, true);

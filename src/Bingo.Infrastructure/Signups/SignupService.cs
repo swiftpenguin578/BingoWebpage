@@ -162,7 +162,7 @@ public sealed class SignupService(
                 participant.Source != SignupSource.AdminCreated &&
                 participant.SignupStatus == SignupStatus.Confirmed,
             cancellationToken);
-        var places = Math.Max(0, bingoEvent.ParticipantCap - confirmed);
+        var places = Math.Max(0, (bingoEvent.ParticipantCap ?? 0) - confirmed);
         if (places == 0) return 0;
         var waiting = await dbContext.EventParticipants
             .Where(participant => participant.EventId == bingoEvent.Id && participant.SignupStatus == SignupStatus.WaitingList)

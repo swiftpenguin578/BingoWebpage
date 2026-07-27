@@ -22,6 +22,7 @@ public sealed class DevelopmentScenarioSeeder(
     IEvidenceStorage evidenceStorage,
     TimeProvider timeProvider)
 {
+    private Dictionary<string, OsrsCharacter> seedCharacters = new(StringComparer.Ordinal);
     public const string CaptainPassword = "SeedCaptain!1234";
     public const string SecondaryAdminUsername = "SeedAdminTwo";
     public const string SecondaryAdminPassword = "SeedAdmin!1234";
@@ -44,11 +45,13 @@ public sealed class DevelopmentScenarioSeeder(
             ?? throw new InvalidOperationException("Create a local administrator before resetting test data.");
 
         var blueprint = await BuildCanonicalBlueprintAsync(cancellationToken);
-        var fiveByFiveBlueprint = ExpandBlueprint(blueprint, "Canonical 5x5 public-dashboard board", 5, 5);
         var dklBlueprint = await BuildDklBlueprintAsync(cancellationToken);
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         await ClearWorkflowDataAsync(cancellationToken);
+        db.ChangeTracker.Clear();
+        seedCharacters = await db.OsrsCharacters
+            .ToDictionaryAsync(character => character.NormalizedName, StringComparer.Ordinal, cancellationToken);
 
         var current = timeProvider.GetUtcNow();
         var now = new DateTimeOffset(current.Year, current.Month, current.Day, current.Hour, current.Minute < 30 ? 0 : 30, 0, TimeSpan.Zero);
@@ -56,112 +59,12 @@ public sealed class DevelopmentScenarioSeeder(
         var seeded = new List<SeededScenario>();
 
         seeded.Add(SeedScenario(
-            "TEST 00 — Setup",
-            "test-00-private-setup",
-            ScenarioStage.PrivateSetup,
-            blueprint,
-            admin.Id,
-            now));
-        seeded.Add(SeedScenario(
-            "TEST 01 — Signup",
-            "test-01-signups-open",
-            ScenarioStage.SignupsOpen,
-            blueprint,
-            admin.Id,
-            now));
-        seeded.Add(SeedScenario(
-            "TEST 02 — Closed",
-            "test-02-pre-board",
-            ScenarioStage.PreBoard,
-            blueprint,
-            admin.Id,
-            now));
-        seeded.Add(SeedScenario(
-            "TEST 03 — Board",
-            "test-03-board-draft",
-            ScenarioStage.BoardDraft,
-            blueprint,
-            admin.Id,
-            now));
-        seeded.Add(SeedScenario(
-            "TEST 04 — Teams",
-            "test-04-draft-setup",
-            ScenarioStage.DraftSetup,
-            blueprint,
-            admin.Id,
-            now));
-        seeded.Add(SeedScenario(
-            "TEST 05 — Draft",
-            "test-05-draft-running",
-            ScenarioStage.DraftRunning,
-            blueprint,
-            admin.Id,
-            now));
-        seeded.Add(SeedScenario(
-            "TEST 06 — Ready",
-            "test-06-post-draft",
-            ScenarioStage.PostDraft,
-            blueprint,
-            admin.Id,
-            now));
-        seeded.Add(SeedScenario(
-            "TEST 07 — Live",
-            "test-07-live",
-            ScenarioStage.Live,
-            blueprint,
-            admin.Id,
-            now));
-        seeded.Add(SeedScenario(
-            "TEST 08 — Review",
-            "test-08-final-review",
-            ScenarioStage.FinalReview,
-            blueprint,
-            admin.Id,
-            now));
-        var reviewScenario = SeedScenario(
-            "TEST 09 — Evidence",
-            "test-09-submission-review",
-            ScenarioStage.ReviewCases,
-            blueprint,
-            admin.Id,
-            now);
-        seeded.Add(reviewScenario);
-        await AddReviewCasesAsync(reviewScenario.EventId, admin.Id, now, cancellationToken);
-        var finalizedScenario = SeedScenario(
-            "TEST 10 — Finished",
-            "test-10-finalized-results",
-            ScenarioStage.Finalized,
-            blueprint,
-            admin.Id,
-            now);
-        seeded.Add(finalizedScenario);
-        await AddCompletedBoardAsync(finalizedScenario.EventId, admin.Id, now, cancellationToken);
-        var completedScenario = SeedScenario(
-            "TEST 11 — Complete",
-            "test-11-completed-board",
-            ScenarioStage.CompletedFinalReview,
-            blueprint,
-            admin.Id,
-            now);
-        seeded.Add(completedScenario);
-        await AddCompletedBoardAsync(completedScenario.EventId, admin.Id, now, cancellationToken);
-        seeded.Add(SeedLargeDraftScenario(blueprint, admin.Id, now));
-        seeded.Add(SeedScenario(
             "TEST 13 — DKL Board",
             "test-13-dkl-board",
             ScenarioStage.BoardDraft,
             dklBlueprint,
             admin.Id,
             now));
-        var fiveByFiveReviewScenario = SeedScenario(
-            "TEST 14 — Evidence 5x5",
-            "test-14-submission-review-5x5",
-            ScenarioStage.ReviewCases,
-            fiveByFiveBlueprint,
-            admin.Id,
-            now);
-        seeded.Add(fiveByFiveReviewScenario);
-        await AddReviewCasesAsync(fiveByFiveReviewScenario.EventId, admin.Id, now, cancellationToken);
         var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, now);
         seeded.Add(dklLiveScenario);
         AddDklLiveProgress(dklLiveScenario.EventId, admin.Id, now);
@@ -221,7 +124,7 @@ public sealed class DevelopmentScenarioSeeder(
             "Seeded rules for manual workflow testing.", null, null, 2, 3,
             blueprint.Rows, blueprint.Columns);
         if (stage == ScenarioStage.SignupsOpen) bingoEvent.OpenSignups(now.AddDays(-1));
-        else if (stage != ScenarioStage.PrivateSetup) bingoEvent.CloseSignups();
+        else if (stage != ScenarioStage.PrivateSetup) { bingoEvent.OpenSignups(); bingoEvent.CloseSignups(); }
         if (stage is ScenarioStage.Live or ScenarioStage.ReviewCases) bingoEvent.StartEvent(now);
         if (stage is ScenarioStage.FinalReview or ScenarioStage.Finalized or ScenarioStage.CompletedFinalReview)
         {
@@ -242,6 +145,7 @@ public sealed class DevelopmentScenarioSeeder(
                     Guid.NewGuid(), bingoEvent.Id, "LIVE-DROP", now.AddHours(-1), adminId, now.AddHours(-1),
                     "Current seeded screenshot code."));
         }
+        db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
         db.Events.Add(bingoEvent);
 
         var participants = AddParticipants(bingoEvent.Id, stage, now);
@@ -353,7 +257,9 @@ public sealed class DevelopmentScenarioSeeder(
             targetTeamSize,
             blueprint.Rows,
             blueprint.Columns);
+        bingoEvent.OpenSignups();
         bingoEvent.CloseSignups();
+        db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
         db.Events.Add(bingoEvent);
 
         var participants = new List<EventParticipant>(participantCount);
@@ -468,9 +374,11 @@ public sealed class DevelopmentScenarioSeeder(
             targetTeamSize,
             blueprint.Rows,
             blueprint.Columns);
+        bingoEvent.OpenSignups();
         bingoEvent.CloseSignups();
         bingoEvent.StartEvent(eventStarts);
         bingoEvent.SetDraftLocked(true);
+        db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
         db.Events.Add(bingoEvent);
 
         var participants = participantNames.Select((name, index) =>
@@ -867,11 +775,11 @@ public sealed class DevelopmentScenarioSeeder(
         DateTimeOffset now)
     {
         var normalized = Normalize(name);
-        var character = db.OsrsCharacters.Local.FirstOrDefault(x => x.NormalizedName == normalized);
-        if (character is null)
+        if (!seedCharacters.TryGetValue(normalized, out var character))
         {
             character = new OsrsCharacter(Guid.NewGuid(), name, normalized, now);
             db.OsrsCharacters.Add(character);
+            seedCharacters.Add(normalized, character);
         }
         db.EventParticipantCharacters.Add(new EventParticipantCharacter(
             Guid.NewGuid(), participant.EventId, participant.Id, character.Id, order, now, null, null,
@@ -884,7 +792,7 @@ public sealed class DevelopmentScenarioSeeder(
             .Where(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing)
             .OrderBy(x => x.RegistrationOrder)
             .First();
-        return db.OsrsCharacters.Local.Single(x => x.Id == assignment.OsrsCharacterId).DisplayName;
+        return seedCharacters.Values.Single(x => x.Id == assignment.OsrsCharacterId).DisplayName;
     }
 
     private Account SeededCaptainAccount(Guid teamId, Guid participantId)
@@ -1411,7 +1319,7 @@ public sealed class DevelopmentScenarioSeeder(
                 board_requirement_drop_snapshots, board_requirement_boss_snapshots, board_requirement_snapshots,
                 board_tiles, template_requirement_drops, template_requirement_bosses, tile_template_requirements,
                 tile_templates, boards, signup_answers, event_participant_characters, signup_questions, event_participants,
-                event_state_transitions, events, audit_entries, personal_notifications,
+                scheduled_signup_opening_attempts, scheduled_event_start_attempts, event_state_transitions, event_banner_cleanups, events, audit_entries, personal_notifications,
                 account_event_accesses, password_credential_tokens, account_discord_identity_transitions
             RESTART IDENTITY;
             DELETE FROM accounts WHERE account_type = 'EmergencyCaptain';
