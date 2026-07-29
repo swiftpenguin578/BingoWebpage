@@ -1,18 +1,20 @@
 # UI Overhaul Roadmap
 
-**Status:** Approved functionality is frozen; visual and workflow refinement begins after Milestone 8.
+**Status:** Paused at the current Pass 12 checkpoint while Planning Pass 2 defines and delivers functional expansion under Milestone 8A.
+
+**Last updated:** 2026-07-25
 
 **Related documents:** `IMPLEMENTATION_ROADMAP.md`, `PRODUCT_REQUIREMENTS.md`
 
 ## 1. Purpose
 
-The application now contains the required version-one workflows. The overhaul will improve clarity, navigation, consistency, accessibility, and mobile use without silently changing approved bingo rules.
+The application contains the originally required version-one workflows and a partially completed UI overhaul. Planning Pass 2 has reopened functional scope, so affected pages will not be visually finalized until the selected functionality is designed and implemented under `IMPLEMENTATION_ROADMAP.md` Milestone 8A.
 
-The work is split into small passes so each page can be reviewed, tested, and approved before the next pass begins.
+The approved visual system and completed page decisions remain valuable constraints. The remaining work is still split into small passes, but their order and content must be impact-reviewed before the overhaul resumes.
 
 ## 2. Rules for the overhaul
 
-- Preserve approved business rules unless a usability review reveals a genuine workflow defect.
+- Preserve approved business rules unless an explicitly approved Milestone 8A feature changes them.
 - Do not redesign several unrelated workflows at once.
 - Start every pass by reviewing the current page with the user before making substantial visual decisions.
 - Reuse shared components rather than solving the same layout or control differently on every page.
@@ -27,9 +29,12 @@ The work is split into small passes so each page can be reviewed, tested, and ap
 - Review every visible label, hint, empty state, validation message, confirmation, and success/error message as part of each page pass.
 - Prefer an interface that makes the next action obvious. If ordinary use requires a long explanation, first simplify the control or workflow; use help text only for rules and details that cannot be made clear through the interface itself.
 - Codex may make straightforward wording improvements during an approved UI pass without waiting for separate approval, and will list notable wording changes in the handoff.
+- Every page added during Milestone 8A or later must use the approved shared visual system, controls, spacing, feedback, responsive, accessibility, and progressive-enhancement rules from its first implementation. Milestone 9 still revisits those pages for final cross-site polish; it is not permission to ship an interim page with a separate or legacy design.
+- Every route available to an anonymous visitor, normal User, captain/co-captain, or emergency captain must provide complete English and Danish presentation through the existing language switch. This includes headings, controls, help, validation, confirmations, empty/loading/error/permission states, and server/client feedback. A route restricted entirely to Admin/Super Admin may remain English-only.
 - Danish translations should preserve familiar English OSRS and community terms when a literal translation would sound unnatural. Ambiguous terms will be called out during the relevant page review so the community wording can be confirmed.
 - Show the active event and, where relevant, active team prominently.
 - Every mutation must provide success or failure feedback.
+- Ordinary Admin filters and independent Admin saves may rely on progressive enhancement; no-JavaScript parity is best-effort unless an existing fallback is inexpensive to preserve. This does not relax required responsive route fallbacks for protected board, team, tile, and submission surfaces.
 - Every pass must cover desktop, intermediate/tablet, narrow/mobile, keyboard, empty, loading, error, and permission states where applicable.
 - A pass is complete only after focused regression tests and user approval.
 
@@ -45,8 +50,9 @@ Each pass follows the same sequence:
 6. Implement shared components first, then the page-specific layout.
 7. Verify desktop, intermediate/tablet, and mobile behavior, including widths immediately before and after layout breakpoints.
 8. Verify keyboard focus, plain-language labels, concise confirmations and feedback, and the no-JavaScript fallback.
-9. Run focused automated and manual regression tests.
-10. Obtain explicit approval before starting the next pass.
+9. Inventory the pass's mutation endpoints and verify that each uses the shared success/failure, focus, scroll, and no-JavaScript contract. Do not rely on the user to discover every missing feedback path manually.
+10. Run focused automated tests for the shared mechanism and high-risk exceptions, plus representative manual regression checks rather than duplicating every success/failure combination by hand.
+11. Obtain explicit approval before starting the next pass.
 
 ## 3.1 Global density and alignment baseline
 
@@ -105,6 +111,10 @@ The current shared status box treats every message as success. Pass 1 will repla
 - Use `role="status"` for non-urgent success/information and an appropriate alert treatment for errors.
 - Keep field-specific validation next to the relevant control and use the page notification for the concise overall result.
 - Preserve the notification type across redirects and return the same semantic type from in-page endpoints.
+- A mutation must never look like a silent reload. After a full-page form post or redirect, return the user to the affected control or result instead of jumping to an unrelated page position.
+- When new success, error, or validation feedback is outside the viewport, move focus and scroll it into view. Do not move the page when the feedback is already visible, and respect reduced-motion preferences.
+- Progressive enhancement should preserve the user's useful scroll position and local context. The ordinary Razor fallback may navigate, but must still expose the result immediately through an adjacent message, validation summary, or deliberate fragment target.
+- Repeated enhanced mutations that keep the user on the same logical page replace the current browser-history entry. After any number of same-page changes, Back returns to the route visited before that page. Genuine route changes retain normal history. No-JavaScript forms remain functional even where the browser preserves native POST/redirect entries.
 
 ## 3.4 Role-based action inbox
 
@@ -118,18 +128,17 @@ Pass 1 will reserve a compact top-right action-inbox control for authenticated u
 - Link to the complete review queue.
 - Do not mix completed events into the active-event count.
 
-**Captain/co-captain inbox**
+**Captain/co-captain notifications**
 
-- Show the count of own-team submissions in `ChangesRequested` state.
-- Show the tile/drop and concise reviewer note for each item.
-- Link directly to the correction/resubmission page.
+- Rejected submissions do not become an outstanding correction state in this action inbox.
+- Deliver the durable rejection notification, reason, and submission link to current linked team captains/co-captains through the normal notification surface.
 - Never reveal another team's private submission state.
 
 **Shared behavior**
 
 - Update counts and items through SignalR when submission/review state changes, with a lightweight refresh fallback.
 - Use a visible badge and accessible text; do not rely on colour alone.
-- An item remains outstanding until its underlying workflow state changes. Version one does not add a separate read/unread state or “mark all read” behavior.
+- An admin review item remains outstanding until its underlying pending state changes. Durable rejection notifications retain the normal notification read/unread behavior.
 - Keep the active event/team visible in the menu so notifications cannot be mistaken for another event.
 - Empty state clearly says that nothing currently needs attention.
 
@@ -157,6 +166,7 @@ Apply this checklist to every page before it is approved. During the final regre
 
 - Every mutation provides accurate success or failure feedback that remains visible while scrolled, can be dismissed, and uses the correct semantic type.
 - Field validation appears beside the relevant field, preserves entered values, and keeps the user in the same context.
+- Full-page and in-place mutations return focus to the affected region or newly rendered feedback without an unexplained jump to the top of the document.
 - Simple independent values save on change; redundant Save/Update buttons are removed. Multi-field and major lifecycle actions retain an explicit button.
 - A compact red × is used only when the item being removed is unmistakable. It has an accessible name, tooltip, confirmation, and the correct server-side safeguards.
 - Confirmation text states meaningful side effects, such as promoting a waiting-list player or removing a team.
@@ -174,7 +184,7 @@ Apply this checklist to every page before it is approved. During the final regre
 **Accessibility and fallback**
 
 - Keyboard navigation follows the visual order; Space/Enter operate only the focused control and do not accidentally toggle a parent section.
-- Focus is visible but not oversized, and opening/closing a dialog returns focus sensibly without leaving a stray page outline.
+- Focus is visible but not oversized, and opening/closing a dialog returns focus sensibly without leaving a stray page outline. Shared input-modality handling shows focus rings for keyboard navigation while suppressing programmatic or mouse/touch focus decoration; never remove the keyboard-visible state to solve a pointer-only visual issue.
 - Icons and colour are never the only explanation of status or action.
 - The standard Razor form fallback remains usable when enhanced JavaScript is unavailable or fails.
 - Permission failures, stale/concurrent changes, network failures, and unexpected errors produce a useful page or message rather than a blank screen.
@@ -200,6 +210,7 @@ At the reference desktop viewport of `1280 × 720`, the shared content region is
 - Standard feature cards use `0.85rem` (`13.6px`) internal padding, a `0.6rem` (`9.6px`) internal gap, a one-pixel outline, and `0.8rem` (`12.8px`) radius. Dense nested regions use the established `0.3rem`–`0.65rem` gaps rather than adding large empty zones.
 - Ordinary page regions should generally separate related cards by `0.75rem`–`1rem` (`12px`–`16px`). Major page transitions may use `1.5rem`–`2rem` (`24px`–`32px`). Avoid oversized `3rem+` spacing unless it communicates a genuine section boundary.
 - Panel content should begin close to its outline. Do not reproduce the earlier oversized boxes, padded wrappers within padded wrappers, or large headings that push the primary task below the initial viewport.
+- Compact internal scrollers use the reference board's macOS-like auto-hiding scrollbar treatment on every operating system. Their scrollbar stays hidden while idle, becomes a thin `--border` thumb while hovered, keyboard-focused, or actively scrolling, and hides shortly after scrolling stops. Apply this to board grids, board tabs, tile sidebars, contribution/evidence lists, submission drawers, and similarly constrained nested regions. Keep the primary document/page scrollbar native and visible according to the user's operating-system preference; never hide it. Scrolling must remain available through wheel, trackpad, touch, keyboard, and pointer dragging.
 
 ### Spacing scale
 
@@ -294,14 +305,15 @@ Values between these steps are acceptable when an existing shared component requ
 
 The site-wide system must provide the following reusable hierarchy even when a particular page has no buttons:
 
-1. **Primary:** one clear next action per region. Use a filled `--accent` treatment with high-contrast text. Hover may lighten the border/background slightly; pressed may darken slightly. Never flash to solid white or unrelated Bootstrap blue.
-2. **Secondary:** transparent or surface-filled with a `--border` outline and primary text. Hover uses a subtle accent-tinted background and accent-strengthened border.
+1. **Primary / accent outline:** the default for clear next actions such as Add, Save, Submit drop, Submit for review, and Okay. Use light/accent-mixed text on a transparent or raised-surface background with a one-pixel `--accent` outline. Hover adds a restrained semi-transparent accent fill; it does not become a solid pale-blue block. Filled primary buttons are exceptional rather than the default and require a specific reason.
+2. **Secondary / neutral outline:** transparent or surface-filled with a `--border` outline and primary text. Hover uses a subtle accent-tinted background and accent-strengthened border.
 3. **Quiet/text:** navigation, back, cancel, reveal, or low-priority actions. Use text/accent colour with no permanent filled block; hover adds only a faint tint.
-4. **Success:** reserved for an action whose meaning is explicitly successful/complete, not as a generic primary colour.
+4. **Success outline:** reserved for an action whose meaning is explicitly successful/complete, not as a generic primary colour. A success message normally still uses the accent-outline action because the green status mark already communicates success.
 5. **Warning:** amber outline or restrained fill for risky lifecycle decisions. Warning is not a substitute for primary emphasis.
-6. **Danger:** transparent or restrained red tint with `--danger` text/border. Destructive actions require plain-language confirmation and must never become a solid white hover state.
+6. **Danger / red outline:** transparent or restrained red tint with `--danger` text/border. Hover adds a semi-transparent red fill. Use for Remove, Delete, Reject, and comparable destructive actions; require plain-language confirmation and never use a solid white hover state.
 7. **Icon-only:** square, compact controls only when the icon is conventional and context is clear. Always provide an accessible name and visible focus treatment.
 
+- A **bare remove ×** is an approved compact danger variant when the removable object is visually self-evident, such as an attached screenshot, image thumbnail, chip, or compact nested row. Only the red × is visible; retain an invisible circular hit target larger than the glyph, a precise accessible label, pointer hover feedback, and a keyboard-visible danger-coloured focus ring. Do not use the bare × for ambiguous destructive actions, permanent record deletion, or actions that need explanatory wording.
 - Regular buttons share one height, padding, radius, weight, and alignment within a region; compact buttons use one smaller shared size. Do not size equivalent buttons from their label length.
 - Aim for a visual height near `2.35rem`–`2.5rem`; at touch-oriented narrow widths the target must be at least `44px` high or receive equivalent surrounding hit area.
 - Use a `150ms` colour/border/background transition. Hover is subtle, pressed is visibly but briefly darker, and focus uses the shared two-pixel accent-mixed outline with a two-pixel offset.
@@ -310,6 +322,9 @@ The site-wide system must provide the following reusable hierarchy even when a p
 - Reuse these variants in links, forms, dialogs, empty states, team switching, evidence controls, and leaderboard actions. Do not create one-off page button CSS when a shared variant applies.
 - Tabs are navigation, not buttons. The reference treatment uses muted text, no filled container, and a two-pixel accent underline for the active state. Use filled segmented controls only when switching data modes inside a contained panel.
 - Inputs, selects, textareas, menus, and dialogs must use the same raised surface, one-pixel blue-grey outline, text hierarchy, radius family, and focus treatment as buttons and panels.
+- Image fields use one shared managed-upload control modeled on evidence submission: a clearly labelled drop/select area supports file selection, drag/drop, and paste where the browser permits it; after selection it shows a real thumbnail preview, filename/validation state, and explicit replace/remove actions. Uploading, processing, success, and failure states remain inside the control and preserve the previously saved image when a replacement fails.
+- Event banners, team images, custom board/tile artwork, profile images, and evidence never present an arbitrary image-URL text box. The global OSRS catalogue is the sole exception and may expose a clearly labelled external source-URL field alongside its catalogue-specific caching status.
+- The shared image control uses the normal accent-outline action hierarchy and the approved bare red remove `×` on a self-evident preview. It must have an accessible label, keyboard-operable file selection/removal, server validation feedback, a no-JavaScript file-input fallback, and a compact single-column layout before its preview or actions become compressed on narrow screens.
 - Tables use the same panel boundary and one-pixel internal separators. Header rows use a subtle raised-surface mix rather than a strongly contrasting band. On narrow screens, adapt columns intentionally instead of shrinking text below the shared readable sizes.
 - Destructive confirmation, validation, empty, loading, permission, stale-concurrency, and no-JavaScript states are part of the system. They must use the same surfaces and spacing rather than falling back to browser-default or legacy Bootstrap presentation.
 
@@ -341,12 +356,59 @@ The site-wide system must provide the following reusable hierarchy even when a p
 ### Site-wide migration rules
 
 - Every remaining UI pass must begin by applying the shared flagship shell and tokens, then choose an appropriate composition: public showcase, compact workflow, dense table, form, or dialog. Those are density variants, not separate themes.
-- Existing approved functionality, authorization, validation, lifecycle protections, and progressive enhancement remain fixed while the visual layer migrates.
+- Existing approved functionality, authorization, validation, lifecycle protections, and progressive enhancement remain fixed except where an explicitly approved Milestone 8A feature defines and tests a deliberate change.
+- Anchor returns used by compact Admin filters and saves may currently smooth-scroll; review whether later whole-site UI work should use instant jumps, matching the established approved behavior.
 - Reuse or extract shared components for page mastheads, tabs, cards, notices, buttons, fields, tables, dialogs, empty states, progress, ranks, and responsive containers. Do not duplicate the TEST 15 CSS under new page-specific class names.
 - New one-off colour, spacing, radius, shadow, type size, breakpoint, or control pattern requires a reason that the shared system cannot express. If that reason is valid and reusable, add it to the shared system and document it here.
 - Public and captain boards should be closest to the reference composition. Signup and authentication pages may use a narrower centered column. Admin pages may use denser cards, tables, and multi-column workspaces. All retain the same canvas, surfaces, borders, typography, controls, state colours, focus treatment, spacing scale, and interaction timing.
 - A page is not approved merely because it uses the right colours. It must also match the reference density, alignment discipline, component geometry, feedback quality, responsive transitions, keyboard behavior, and absence of unnecessary visual bulk.
 - The TEST 15 View bingo page remains the visual comparison baseline until the user explicitly approves a replacement reference. Later refinements to that reference must be reflected in shared tokens/components and this roadmap before they are propagated.
+
+## 3.7 Functional-change pause and resume gate
+
+Planning Pass 2 interrupts the page-pass sequence at the current Pass 12 checkpoint because new functionality may change roles, navigation, submission, event operations, public data, and responsive layouts.
+
+During the pause:
+
+- Preserve completed and user-approved UI work; do not roll it back merely because affected workflows may evolve.
+- Treat the flagship tokens, density, component geometry, button hierarchy, route-backed overlay pattern, responsive fallbacks, feedback behavior, and accessibility rules as reusable design constraints rather than proof that every current screen is final.
+- Limit UI changes to those required to make an approved Milestone 8A vertical slice understandable, accessible, and testable.
+- Build every new page and every materially changed page with the section 3.6 shared system from its first implementation. The later complete UI pass revisits cross-site consistency and polish; it does not excuse an interim legacy theme, page-local control language, or missing responsive/accessibility states.
+- Run focused checkpoint regression, not the full final overhaul regression.
+- Record which existing pages and approval gates each selected feature affects.
+
+### Protected interaction baselines during Milestone 8A
+
+Functional expansion may add or change fields, commands, status states, validation, warnings, and workflow steps. It must not incidentally redesign the strongest existing work. The protected baseline is the established information hierarchy, density, spatial context, navigation model, feedback behavior, responsive fallback, and accessibility behavior—not the exact number of controls or the assumption that functionality is frozen.
+
+**Public board ecosystem**
+
+- Preserve the approved overview, route-backed team overlay, nested tile-sidebar replacement, captain submission drawer, persistent submission result, and ordinary narrow/no-JavaScript route fallbacks.
+- Public board, team board, tile, evidence, and submission changes must behave as one connected system. Adding a capability to one route must not regress Back/Escape behavior, active drawer state, realtime invalidation safety, team privacy, or the finished public projection.
+- New functionality should normally extend the existing sidebar, drawer, dialog, or compact board components instead of adding a competing shell or parallel visual language.
+
+**Board editor**
+
+- Preserve the compact visual workspace in which the board, tile context, EHB information, validation, and primary editor controls remain spatially understandable together.
+- At the `1280 × 720` desktop reference viewport, ordinary editing should normally fit within the application viewport. Large boards, catalogues, lists, and contextual panels use deliberate contained scrolling rather than making routine work traverse a long document.
+- This is not a fixed-height or no-scroll requirement. Browser zoom, translated text, smaller screens, accessibility settings, unusually large content, and no-JavaScript fallbacks may use normal document scrolling; content and actions must never be clipped merely to preserve a one-screen appearance.
+- Add approved functionality through the established panels, compact controls, dialogs, drawers, previews, and contained regions where they remain appropriate. A functional requirement that genuinely cannot fit this model receives a focused interaction review before the core composition is replaced.
+
+**Live draft**
+
+- Preserve the operational one-screen relationship between the available pool, teams and capacities, current turn/order, pick history, and draft controls. Admins should not lose situational awareness when using an added command.
+- At the desktop reference viewport, ordinary draft operation should normally remain within the application viewport. Long participant pools, team rosters, and pick histories scroll within clearly bounded regions; responsive and accessibility states may use ordinary page scrolling.
+- Keep realtime state, controller/observer feedback, pending confirmations, scramble, repeated undo, and draft order visually connected to the authoritative draft state. New functionality must not hide or displace the information needed to make the next pick safely.
+
+For any protected surface, a functional slice must identify its exact UI delta before editing. Unaffected composition remains intact. When the delta requires a genuine interaction-model change, record the reason and obtain focused approval rather than allowing a broad redesign to arrive as incidental feature work.
+
+Before resuming the ordered passes:
+
+1. Complete the Milestone 8A planning and implementation gates.
+2. Approve the feature-to-page impact map.
+3. Reorder or expand Passes 8–13 where the stabilized workflows require it.
+4. Reconfirm whether earlier approved passes are unaffected or need a focused revisit.
+5. Resume at the earliest affected pass, then complete the milestone-wide regression once against the revised product.
 
 ## 4. Overhaul sequence
 
@@ -390,24 +452,33 @@ The site-wide system must provide the following reusable hierarchy even when a p
 **Goals**
 
 - Reduce the current large-box/bloated presentation.
-- Group essential event information, signup settings, schedule, and optional planning information logically.
-- Generate the slug silently from the event name.
+- Require only event name and timezone to save the initial private draft; allow description, signup settings, schedule, questions, and planning information to be entered immediately without making them initial-save requirements.
+- Group optional setup sections logically and show their later readiness state without implying that the administrator must finish them in one session.
+- Generate the slug from the event name, allow editing until first public exposure, and explain that it remains stable afterward.
+- Include optional event-banner upload during creation and allow add, replace, and remove actions later; never present missing artwork as an incomplete-event warning.
+- Default timezone to Copenhagen and use a supported-timezone selector with friendly labels instead of the current raw text field.
 - Use the combined date-time picker for signup and event dates.
 - Keep times easy to choose in 30-minute increments while allowing precise corrections elsewhere.
+- Support scheduled and manual signup opening. Manual opening preserves a valid explicit close or clearly proposes the earlier of three months later and event start; never silently replace an invalid explicit close.
+- Include optional draft time as planning information without implying that it starts the draft automatically.
+- Show the default 30-minute submission grace period and keep the cutoff visibly tied to, but editable separately from, event end.
 - Hide or disable the signup code field when code protection is off.
 - Explain private signup editing with a compact information control.
 - Include standard signup fields and make custom questions clearly secondary.
 - Make it clear that publishing/opening an event only exposes event information and signup.
+- Provide an explicitly confirmed discard action for accidental or experimental events that contain no participants, teams, event-scoped accounts, or evidence; board/setup work does not block discard.
+- When protected records block discard, offer the separate pre-live **Cancel event** workflow with strong confirmation/reason and explain that it preserves history.
 
 **Approval gate**
 
-- User can create a correctly configured event without needing developer terminology or scrolling through unnecessarily large controls.
+- User can save a minimal private draft, optionally continue setup immediately, understand what remains before signup can open, and discard an unused experimental event without needing developer terminology or scrolling through unnecessarily large controls.
 
 ### Pass 3 — Event overview and operations
 
 **Pages**
 
 - `Pages/Admin/Events/Manage.cshtml`
+- Target `Pages/Admin/Rules.cshtml`
 
 **Goals**
 
@@ -415,9 +486,17 @@ The site-wide system must provide the following reusable hierarchy even when a p
 - Show lifecycle state, important dates, signup numbers, board state, draft state, submission state, and items requiring attention.
 - Move secondary operations into clearly labelled sections or event navigation destinations.
 - Make start, end, reopen, and final-review actions easy to locate and hard to trigger accidentally.
+- When a scheduled start is blocked, show **Automatic start postponed** as a prominent actionable state with every current blocker and a **Start event now** action that becomes enabled only when readiness succeeds. Clearing blockers never silently starts the event; starting after schedule needs confirmation but no reason, while starting early requests the required reason.
+- During live play, distinguish the scheduled event end, authoritative effective end, and separate submission cutoff. Explain that ending play closes new-drop eligibility but leaves eligible uploads open through the cutoff.
+- Keep **End event early** exceptional: require strong confirmation and a written reason, show that the scheduled end remains preserved, and do not imply that the submission cutoff will move.
+- After event end, show `AWAITING_FINAL_REVIEW` and the remaining grace-period time independently from review counts and finalization blockers.
+- Keep one production current/public operational event. When an opening/publication/unfinalization action is blocked by another event, name that event and link to its archive/cancel/current-operation route.
+- Show cancellation only before live play, require the approved confirmation/reason, and distinguish the generic public cancellation status from the private admin reason.
 - Show explicit success feedback for every operation.
 - Keep evidence-code management understandable without dominating the page.
 - Make links name the destination event rather than relying on surrounding context.
+- Provide one focused editor for the permanent global Rules page. It remains editable by enabled administrators at any time and is not presented as event configuration.
+- Do not provide an in-application editor for source-controlled how-to pages.
 
 **Approval gate**
 
@@ -460,7 +539,8 @@ The site-wide system must provide the following reusable hierarchy even when a p
 - Keep “Add drop” within its boss/activity context and use a focused dialog.
 - Display efficient completions per hour, drop rate, probability, and calculated EHB clearly.
 - Remove the legacy standalone tile-template workflow. The catalogue remains the reusable OSRS data source, while event tiles are created directly in the board editor.
-- Remove the obsolete catalogue CSV importer. Keep the reviewed Wiki maintenance workflow unlinked from the everyday catalogue until it is placed under advanced administration tools.
+- Ordinary Admins may create, edit, deactivate, and reactivate catalogue records. Only the Super Admin may permanently delete a genuinely unused record after confirmation and a dependency check; referenced rows must remain available to history and use deactivation instead.
+- Remove the obsolete catalogue CSV importer. Place the reviewed bulk catalogue preview/apply workflow under Super-Admin-only advanced administration, with exact change/conflict preview and stale-preview protection.
 - Make deactivate/reactivate actions distinct from ordinary editing.
 - Reserve a consistent image area for every boss or activity while the catalogue UI is reviewed.
 - Reserve a compact image area for every drop and allow its shared catalogue item name to be corrected without cluttering the card.
@@ -481,7 +561,7 @@ The site-wide system must provide the following reusable hierarchy even when a p
 - `Pages/Admin/Events/Board.cshtml`
 - `Pages/Admin/Events/_BoardRequirementEditor.cshtml`
 
-Tile reuse should be provided through practical board actions such as duplicating a tile or copying one from a previous bingo, rather than a separate template catalogue.
+Do not add tile duplication, copy-from-event, import, or reusable-template actions. Tiles are configured for the current event board and repositioned through the already approved move/swap interactions.
 
 **Goals**
 
@@ -492,13 +572,17 @@ Tile reuse should be provided through practical board actions such as duplicatin
 - Keep boss selection as a searchable chooser and group eligible drops by boss.
 - Provide select-all/deselect-all drop controls.
 - Make objective wording community-friendly.
+- Keep general evidence/upload instructions out of tile forms. Custom/manual tiles show only their objective-specific completion criteria; link to the global Rules or relevant how-to page when general submission guidance is useful.
 - Keep manual quantities, duplicate rules, higher weighting, multiple bosses, and multiple requirement groups understandable.
 - Make drag-on-tile swapping feel immediate without a disruptive full-page refresh.
 - Preserve an accessible non-drag alternative for keyboard and touch users.
 - Keep row/column hover highlighting, EHB values, total EHB, EHB per expected player, and balancing warnings readable.
+- While the board is Draft, derive catalogue-backed names, images, rates, variants, and all EHB estimates from the current catalogue and refresh affected values after catalogue changes.
+- Make **Approve board** the visible snapshot boundary. Approved values remain frozen despite later catalogue edits; unapproval or competitive editing returns the board to Draft and resumes live derivation.
+- Retain **Preview board** inside the editor. It must use the actual responsive public-board renderer, show live derived values while Draft and the frozen active snapshot while approved, omit admin-only editing/EHB controls, and never approve or publish.
 - Review the tile EHB calculations themselves, not only how the values are displayed.
 - Verify EHB behavior for quantities, multiple bosses, combined drop selections, duplicate restrictions, weighted drops, manual objectives, and requirement groups such as Voidwaker pieces and Barrows plus Moons.
-- Make it clear which catalogue boss rates and drop probabilities produced a tile's EHB, when an admin has overridden a value, and why a tile cannot be calculated automatically.
+- Make it clear which catalogue boss rates and drop probabilities produced a standard tile's automatic EHB. A missing value is a blocking error with actionable catalogue/requirement diagnostics, never a manual-override field. Only a clearly labelled custom/manual objective exposes manual EHB entry.
 - Confirm that tile, row, column, total-board, and per-player EHB remain consistent after editing or rearranging tiles.
 - Make board resizing explain and block tile loss clearly.
 - Keep editing leases visible without overwhelming admins who only want to inspect the board together.
@@ -519,12 +603,16 @@ Tile reuse should be provided through practical board actions such as duplicatin
 
 - Separate draft setup, pre-formed teams, live draft, and finalized rosters into understandable states.
 - Always show whether team counts include or exclude pre-formed teams.
+- Use the shared managed-image upload control for team artwork; never ask for a team image URL.
+- Keep the compact `current/final` roster counter on each drafted-team card. Its denominator uses that team's derived final size, so the counter itself identifies teams that will finish one player smaller without adding a large warning panel.
+- Draft-start readiness distinguishes the required Captain role from optional co-captains and clearly identifies every drafted team still missing its captain.
 - Keep all participants visible during drafting, with clear drafted/available status and EHB ordering.
 - Make confirmed participants and waiting-list members visually distinct.
 - Keep external clan rosters separate from the website signup pool.
 - Revisit the external-team import workflow, including the source format, field mapping, validation, duplicate handling, roster roles, and a clear preview before anything is added to the event.
 - Place the rare “use an internal participant in a pre-formed team” action behind an advanced path.
 - Make scramble, snake order, current pick, undo, pause, takeover, and finalization status obvious.
+- After draft finalization succeeds, open a compact **Publish board?** confirmation or route-backed follow-up page. Show the **Publish board** action only when every board position is filled and the board is approved; otherwise show the exact completion/approval blocker and board-editor route. Closing or leaving this step never reverses roster finalization.
 - Show who controls the draft and make observers clearly read-only.
 - Make post-draft manual team additions understandable without suggesting they alter draft history.
 
@@ -546,15 +634,22 @@ Tile reuse should be provided through practical board actions such as duplicatin
 
 **Goals**
 
-- Always show event, team, captain account mode, submission cutoff, and correction-only state.
-- Make team progress and pending/changes-requested submissions easy to scan.
+- Before/during the draft, reuse the familiar signup table for drafted-team captains/co-captains with additional participant-answer columns. Keep payment, admin notes, identity/security details, and audit data absent.
+- At draft finalization, keep the signup page as a private admin page and redirect non-admin requests for its route to published team rosters; never render signup answers on roster pages.
+- Always show event, team, captain account mode, submission cutoff, and whether submission mutations are currently open.
+- Treat normal captain/co-captain access as an event/team role on the participant's website account, independent of whether they used Discord or password; distinguish explicitly enabled emergency credentials when they are in use.
+- Make team progress and pending/rejected submissions easy to scan.
 - Make pending submissions clickable for inspection and editing.
-- Populate the captain action inbox with own-team changes-requested submissions and direct correction links.
+- Make rejected reasons and **Resubmit** easy to find for notified participants and captains/co-captains. Prefill the rejected attempt's ordinary values, show its locked credited player/account, require a new screenshot, and clearly state when cutoff has disabled the action.
 - Streamline screenshot paste, drag/drop, and file selection.
 - Eliminate the drop-zone focus behavior that accidentally opens Finder.
-- Keep credited player, tile, requirement, drop, weight, privacy request, and note readable.
+- Keep credited player/account, tile, requirement, drop, weight, and note readable. Do not show an evidence-privacy request.
 - Explain duplicate rules and higher weight only when relevant.
-- Make request-change feedback and resubmission history clear.
+- Keep submission and pending-edit controls available during the post-end grace period, including for external-team captains, and remove them only at cutoff.
+- Let captains/co-captains toggle simple tile/row/column focus. Show it normally only to current team members; ordinary admins receive no cross-team focus visibility.
+- Layer authorized team focus onto the existing approved team-board view rather than adding another participant board or reopening the public-board design. If the private layer becomes crowded, use a view-only **Show team focus** toggle or compact summary.
+- Let ordinary participants submit only for themselves and manage only their own pending/rejected evidence. Do not show a credited-account selector; display the server-derived current active account.
+- On another team's page, keep focus absent for the Super Admin until they deliberately enable a clearly labelled, read-only **Inspect team focus** toggle. Make the inspection state obvious, do not remember it as a show-all preference, and stop showing/subscribing to the data when disabled.
 - Provide clear success feedback for submit, edit, withdraw, and replacement actions.
 
 **Approval gate**
@@ -579,8 +674,13 @@ Tile reuse should be provided through practical board actions such as duplicatin
 - Show credited player alongside boss/drop/requirement information, not only in the heading.
 - Make the screenshot large enough to inspect and clickable into a full-size lightbox.
 - Keep evidence code at immutable submission time visible when enabled.
-- Distinguish pending, changes requested, approved, rejected, withdrawn, reversed, duplicate, grace-period, and privacy states.
-- Show immediate confirmation after request changes, approve, reject, reverse, duplicate marking, or visibility changes.
+- Every evidence review shows immutable **Submission time**. Only for a post-end submission, add calculated minutes after event end and **Latest clan event time** using the authoritative event end formatted in UTC.
+- Do not add an editable or separately entered drop-time field. For a post-end submission, the reviewer reads the plugin timestamp from the screenshot and compares it with **Latest clan event time**.
+- Present only the approved review states: pending, approved, rejected, withdrawn, and reversed, plus contextual grace-period indicators.
+- Keep **Approve** and **Reject** as the only review decisions. Rejection requires a reason; duplicates and unusable screenshots use that path.
+- Do not expose a direct credited-participant editor. Changing the credited playing account derives the participant automatically.
+- Require a reason for material tile/drop/credited-account corrections and keep the server submission time, calculated contribution, and evidence image read-only.
+- Show immediate confirmation after approve, reject, reverse, or metadata correction.
 - Keep the one-click resolution path efficient while protecting destructive/reversal actions with confirmation.
 
 **Approval gate**
@@ -600,16 +700,29 @@ Tile reuse should be provided through practical board actions such as duplicatin
 **Goals**
 
 - Make final-review blockers, click-through destinations, overrides, provisional placements, official snapshots, archive, and unfinalization easy to distinguish.
+- Archive only finalized events, require confirmation without a typed reason, and explain that public URLs/results remain while the event moves to Previous events.
+- Show scheduled end, effective end, submission closure, and any approved reopening as separate timestamps so admins can explain why a drop or upload was eligible.
 - Keep original and corrected completion times visible.
 - Use the combined date-time picker consistently.
-- Group accounts by event and role instead of presenting unrelated event accounts together.
-- Clearly show captain/co-captain team scope, active period, correction-only state, expiry, disabled state, and credentials lifecycle.
-- Keep permanent admin accounts visually separate from temporary captain accounts.
+- Group Discord-linked identities and event roles by event/team instead of presenting unrelated access records together.
+- Clearly show participant linkage, captain/co-captain team scope, active period, submission-window state, disabled state, and identity-recovery status.
+- Present ordinary Admin and the sole Super Admin as global roles on normal website accounts, independent of Discord-link state. Keep disabled-by-default emergency captain credentials visually separate and ineligible for those roles.
+- Show one unmistakable current-owner state. Only the Super Admin sees grant/revoke Admin and **Transfer Super Admin** controls; ordinary admins see role state without mutation controls.
+- Use strong confirmation for grant, revoke, and ownership transfer, explain immediate access/session effects, and show success/failure without requesting a typed reason.
+- Prevent the current owner from being demoted/disabled through ordinary controls. Transfer selects an existing eligible active normal website account and explains that the former owner remains Admin; a Discord link is not required because password access is durable.
+- Let Admins disable Users and let only the Super Admin disable/restore Admins. Disable requires a reason and explains immediate session invalidation/history preservation; re-enable is confirmed without implying that expired event authority returns.
+- Let authorized admins generate a password-reset link without seeing or setting the password. Distinguish normal-user reset authority from the Super Admin-only action for another Admin, and provide no in-product reset-link action for the Super Admin.
+- Do not present website-account captain roles as expiring accounts. Show emergency password credentials as explicitly created fallbacks that auto-disable at submission cutoff and require deliberate re-enablement.
 - Give audit entries enough event and actor context for non-developer admins.
+- Present audit history as a newest-first paginated table with 25 rows per page and persistent filters for event, actor, action, entity, and date range. The complete retained history remains reachable; do not add export.
+- Provide one Accounts area with clearly separated website-account and emergency-credential datasets; the page pass chooses the best responsive tabs/sections without visually mixing unlike records.
+- Website-account details show every linked OSRS character, non-authoritative last-known Discord display name, event participation, current/historical event-team roles, and disable history. Emergency rows use their distinct event/team, setup, enablement, last-login, and cutoff fields.
+- Use compact server-side search, filters, and 25-row pagination for both datasets. Keep secrets and unnecessary raw identity values out, and do not add account merge or permanent deletion.
+- Keep personal notification read/unread state separate from the Admin action inbox: opening a notification marks only that message read, while pending reviews, postponed starts, waiting-list follow-up, vacancies, and missing-captain conditions remain until resolved.
 
 **Approval gate**
 
-- User can finalize an event and inspect the correct event's accounts/history without cross-event ambiguity.
+- User can finalize an event and inspect the correct event's accounts/history without cross-event ambiguity; the Super Admin can safely manage Admin access and transfer ownership without creating zero or two owners.
 
 ### Pass 11 — Public signup journey
 
@@ -622,16 +735,31 @@ Tile reuse should be provided through practical board actions such as duplicatin
 
 **Goals**
 
-- Make upcoming, signup-open, live, final-review, finalized, and archived events visually distinct.
+- Make upcoming, signup-open, live, final-review, finalized, archived, and cancelled events visually distinct.
 - Replace the oversized home-page hero with a compact introduction that leaves event content visible in the initial viewport.
 - Reduce the main heading size and remove excessive vertical whitespace above the event list.
 - Replace “Mission Control” wording with the community-facing action “View bingo”.
 - Use a consistent accessible event-state colour system: teal for signup open, blue for upcoming, green for live, amber/orange for final review, gold for finalized results, and grey for archived history.
+- Use a clearly labelled muted/red cancellation treatment without suggesting that private cancellation reasons are public.
+- In production show one current event and a separate Previous events collection. Development/manual-test builds may list several clearly labelled seeded scenarios and must navigate them through explicit slugs.
+- Keep archived boards/results on their existing public routes. Signed-in former participants may reach their own read-only rejected/withdrawn history without introducing a separate post-event dashboard.
 - Apply state meaning through text/badges as well as colour.
-- Give signup a participant-friendly explanation of required fields and privacy editing.
-- Keep primary account, EHB, optional secondary account, captain volunteer, and custom questions ordered logically.
+- Require Discord for initial website-account creation without requiring Discord-server membership; returning users may sign in with Discord or public username/password.
+- Add first-account onboarding that creates the public/password-login username, required password, and preferred linked-character records, while clearly distinguishing the website account, Discord association, and OSRS character.
+- Give signup a participant-friendly explanation of required fields, identity linkage, and privacy.
+- Add a global **My accounts** surface with an ordered flexible list, optional personal labels, and one preferred character; do not force game-mode sections.
+- Support several OSRS characters without presenting one character name as the website identity. The selector may show globally shared/trusted links, but it must make event availability clear and prevent a character from being assigned to two participants in the same event.
+- During signup, show the required primary playing account with its EHB, the always-present captain-volunteer choice, and any admin-added optional Account questions. Each additional playing account gets its own conditional EHB field; explain whether it is playing/drop-eligible or informational-only.
+- Place an explicit **Fetch from Wise Old Man** action beside each playing-account EHB field, preserve manual entry, and show accurate loading, not-found, rate-limited, unavailable, and successful states without clearing an existing value on failure.
+- Distinguish event-registered playing accounts from the single active/drop-eligible character and make unlimited live swaps and their UTC effective time explicit.
+- Show the primary account as planned before event start, enable swaps only while live, and explain that the participant must submit a drop before swapping because new evidence uses the current active account.
+- Keep OSRS characters, EHB, captain volunteer, and custom questions ordered logically.
+- Once responses exist, distinguish safe question edits from locked structural fields and provide a clear disable-and-replace path that explains historical-answer preservation.
 - Make confirmed versus waiting-list outcome unmistakable.
-- Make private edit links and their limitations understandable.
+- Add a public signup board with clearly separated confirmed and waiting-list sections, using unique public usernames and exposing only fields approved by their visibility settings.
+- When draft finalization publishes rosters, keep the signup page and its content admin-only; redirect public, participant, and captain requests for that route to the separate team-roster route.
+- Let authenticated participants edit their signup only while signup is open; do not issue private edit links for new normal signups.
+- Provide a clear read-only state after signup closes.
 - Avoid exposing admin terminology in public messaging.
 
 **Approval gate**
@@ -646,6 +774,8 @@ Tile reuse should be provided through practical board actions such as duplicatin
 - `Pages/Events/Teams.cshtml`
 - `Pages/Events/TeamBoard.cshtml`
 - `Pages/Events/Tile.cshtml`
+- Target `Pages/Rules.cshtml`
+- Target source-controlled public pages such as `Pages/HowTo/SubmitDrops.cshtml`
 - `Pages/Shared/_PublicProgressScripts.cshtml`
 
 **Goals**
@@ -654,14 +784,16 @@ Tile reuse should be provided through practical board actions such as duplicatin
 - Use one breadcrumb-free event dashboard with top-level views for **View bingo**, **Recent drops**, and **Leaderboards**.
 - Preserve the overview-to-team-board concept without using “Mission Control” as public-facing copy.
 - Make team ranking, board completion, line count, tile count, and EHB understandable at a glance.
-- Populate Recent drops only from approved contributions and preserve evidence/player privacy choices.
+- Populate Recent drops only from approved contributions. Approved evidence and credited players are public.
 - Keep official bingo standings visible beside the leaderboard at desktop widths and in a compact leading position at narrower widths.
 - Separate **Drop EHB** (the proportional share of combined expected tile EHB earned by approved credited contributions) from deferred **Activity EHB** (Wise Old Man event gains); team and player Drop EHB must use the same allocation, a completed tile must equal its tile EHB, and a completed board must equal its board EHB. Do not sum standalone time-to-specific-drop values for alternative eligible drops, and do not imply live Wise Old Man data exists until the cached synchronization is implemented.
 - Avoid unnecessary “external clan” labelling unless affiliation itself is useful.
 - Make opening and returning from a team board preserve spatial and navigation context.
 - Keep team switching and previous/next navigation clear.
-- Make tile progress, requirements, approved evidence, privacy-hidden evidence, and credited player information readable.
+- Make tile progress, requirements, approved evidence, and credited player information readable.
 - Keep evidence lightbox behavior consistent.
+- Make the permanent global Rules page and relevant source-controlled how-to pages easy to reach from event and submission workflows without presenting them as event-owned content or repeating general instructions on every tile.
+- Show **Edit rules** to enabled administrators on the Rules page. How-to pages have no in-application edit control.
 - Retain fast SignalR updates with unobtrusive fallback refresh behavior.
 - Provide a practical mobile layout rather than shrinking the desktop board beyond usability.
 
@@ -676,6 +808,9 @@ Tile reuse should be provided through practical board actions such as duplicatin
 - `Pages/Account/Login.cshtml`
 - `Pages/Account/Setup.cshtml`
 - `Pages/Account/ChangePassword.cshtml`
+- `Pages/Account/ForgotPassword.cshtml`
+- `Pages/Account/ResetPassword.cshtml`
+- `Pages/Account/Discord.cshtml`
 - `Pages/Account/AccessDenied.cshtml`
 - `Pages/Error.cshtml`
 - `Pages/Errors/StatusCode.cshtml`
@@ -683,9 +818,14 @@ Tile reuse should be provided through practical board actions such as duplicatin
 
 **Goals**
 
+- Present **Continue with Discord** and public username/password as two routes into the same account, with generic failure messaging and accessible throttling feedback.
+- Make Forgot password direct the user to contact an admin; the reset page accepts only a valid single-use link and never asks for email.
+- In account settings, always show the applicable **Link Discord**, **Unlink Discord**, or **Change linked Discord** action. Require fresh password confirmation, use OAuth for link/change, and explain that the website account, roles, signups, and history do not move.
+- After unlink, continue with a reissued password-authenticated session. Warn the Super Admin that password loss would require operator recovery, but do not forbid unlinking.
+- When changing public username, state that the new name also becomes the password-login username.
 - Provide a deliberate access-denied page instead of blank or confusing output.
-- Distinguish invalid credentials, expired accounts, correction-only accounts, and missing permission.
-- Keep first-admin setup clearly development/installation oriented.
+- Distinguish invalid credentials, expired accounts, closed submission windows, and missing permission.
+- Keep initial-Super-Admin setup and lost-owner recovery clearly operator/deployment oriented and unreachable from public signup or onboarding.
 - Make error pages useful without leaking implementation details.
 - Replace placeholder privacy content with the actual version-one data/evidence policy.
 - Complete keyboard-only navigation, focus order, reduced-motion, screen-reader label, contrast, and responsive checks across the full application.
@@ -696,19 +836,21 @@ Tile reuse should be provided through practical board actions such as duplicatin
 
 ## 5. Final Milestone 9 regression
 
-After all thirteen passes are approved:
+This UI roadmap is executed only when the big roadmap reaches **Milestone 9**, after all ten Milestone 8A functional slices are complete. Milestone 9 requires a complete site-wide UI pass, not only a review of pages directly affected by functional work. Its internal Pass 11 is merely the public-signup page pass; it is not the milestone-wide overhaul gate. Reuse the approved flagship system and interaction checkpoints, then inspect every public, participant, captain, Admin, Super-Admin, authentication, error, privacy, empty, loading, permission, and failure state for compliance with the late shared rules.
+
+After all revised passes are approved:
 
 1. Reset and regenerate canonical test scenarios.
-2. Repeat every Milestone 1–8 manual test against the new interface.
+2. Repeat every Milestone 1–8A manual test against the new interface.
 3. Run the complete automated suite.
 4. Test current Safari/Chromium desktop, intermediate/tablet, and representative mobile widths, including the transition around shared breakpoints.
 5. Recheck two-admin board and draft collaboration.
 6. Recheck captain paste/drag/upload on desktop and mobile.
-7. Recheck public live updates, evidence privacy, and finalized history.
+7. Recheck public live updates, approved-evidence visibility, reversal/resubmission, and finalized history.
 8. Record remaining defects by severity.
 9. Fix all critical/high defects and repeat affected passes.
 10. Freeze the approved UI as the Milestone 10 rehearsal candidate.
 
 ## 6. First overhaul boundary
 
-Begin with **Pass 1 — Global shell and event context**. Individual workflow pages should not be visually finalized before the shared navigation, event context, status feedback, page header, form, table, and dialog patterns are approved.
+The original overhaul began with **Pass 1 — Global shell and event context** and has reached the current Pass 12 checkpoint. Planning Pass 2 now follows section 3.7 during functional implementation. Once Milestone 8A stabilizes, the complete Milestone 9 UI pass revisits Passes 1–13 as needed and applies the shared rules across the whole product rather than merely continuing from Pass 13.

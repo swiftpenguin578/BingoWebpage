@@ -8,7 +8,7 @@
 
 <section class="public-home">
     <header class="public-hero">
-        <p class="eyebrow">OSRS Community Bingo</p>
+        <p class="eyebrow">@T["OSRS Community Bingo"]</p>
         <h1>@T["Follow every team, tile and drop."]</h1>
         <p>@T["Open an event to see how every team is doing, then choose a team to view their board and completed tiles."]</p>
     </header>
@@ -17,7 +17,7 @@
     {
         <section class="panel empty-public-state">
             <h2>@T["No public boards yet"]</h2>
-            <p>@T["The next board will appear here as soon as the draft is completed and the board is published."]</p>
+            <p>@T["The next event will appear here when its roster is available."]</p>
         </section>
     }
     else
@@ -25,22 +25,38 @@
         <div class="public-event-list" aria-label="Public bingo events">
             @foreach (var bingoEvent in Model.Events)
             {
-                var status = bingoEvent.State switch
+                var status = bingoEvent.DisplayPhase switch
                 {
-                    EventState.SignupOpen => T["Signups open"],
-                    EventState.Live => T["Live now"],
-                    EventState.AwaitingFinalReview => T["Final review"],
-                    EventState.Finalized => T["Finished"],
-                    EventState.Archived => T["Archived"],
-                    _ => T["Upcoming"]
+                    Bingo.Web.Events.EventDisplayPhase.DraftFinalized => T["Draft finalized"],
+                    Bingo.Web.Events.EventDisplayPhase.BoardPublished or Bingo.Web.Events.EventDisplayPhase.EventReady => T["Board published"],
+                    Bingo.Web.Events.EventDisplayPhase.StartPostponed => T["Start postponed"],
+                    Bingo.Web.Events.EventDisplayPhase.Live => T["Live now"],
+                    _ => bingoEvent.State switch
+                    {
+                        EventState.SignupOpen => T["Signups open"],
+                        EventState.AwaitingFinalReview => T["Final review"],
+                        EventState.Finalized => T["Finished"],
+                        EventState.Archived => T["Archived"],
+                        _ => T["Upcoming"]
+                    }
                 };
-                <a class="public-event-card panel" asp-page="/Events/Board" asp-route-slug="@bingoEvent.Slug">
+                <a class="public-event-card panel" asp-page="@(bingoEvent.Destination == Bingo.Web.Events.EventDestination.Board ? "/Events/Board" : "/Events/Teams")" asp-route-slug="@bingoEvent.Slug">
                     <span class="public-event-status state-@bingoEvent.State.ToString().ToLowerInvariant()">@status</span>
                     <span class="public-event-title">@bingoEvent.Name</span>
-                    <span class="public-event-meta">@T["{0} × {1} board", bingoEvent.Rows, bingoEvent.Columns] · @bingoEvent.StartsAt.ToString("d MMM yyyy, HH:mm")</span>
-                    <span class="public-event-action">@T["View bingo"] <span aria-hidden="true">→</span></span>
+                    <span class="public-event-meta">@(bingoEvent.Destination == Bingo.Web.Events.EventDestination.Board ? T["{0} × {1} board", bingoEvent.Rows ?? 0, bingoEvent.Columns ?? 0] : T["Roster available · Board not published"]) · @(bingoEvent.StartsAt?.ToString("d MMM yyyy, HH:mm") ?? T["Not set"])</span>
+                    <span class="public-event-action">@T[bingoEvent.Destination == Bingo.Web.Events.EventDestination.Board ? "View board" : "View roster"] <span aria-hidden="true">→</span></span>
                 </a>
             }
         </div>
     }
 </section>
+
+@if (Model.PreviousEvents.Count > 0)
+{
+    <section class="public-home"><header class="public-hero"><p class="eyebrow">@T["History"]</p><h2>@T["Previous events"]</h2></header><div class="public-event-list">
+    @foreach (var bingoEvent in Model.PreviousEvents)
+    {
+        <a class="public-event-card panel" asp-page="/Events/Board" asp-route-slug="@bingoEvent.Slug"><span class="public-event-status state-archived">@T["Archived"]</span><span class="public-event-title">@bingoEvent.Name</span><span class="public-event-meta">@T["{0} × {1} board", bingoEvent.Rows ?? 0, bingoEvent.Columns ?? 0]</span><span class="public-event-action">@T["View history"] <span aria-hidden="true">→</span></span></a>
+    }
+    </div></section>
+}

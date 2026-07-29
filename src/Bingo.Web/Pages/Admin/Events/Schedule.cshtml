@@ -1,0 +1,26 @@
+@page "{id:guid}"
+@model Bingo.Web.Pages.Admin.Events.ScheduleModel
+@{
+    ViewData["Title"] = $"Schedule {Model.EventName}";
+}
+<section class="form-page wide-form">
+    <p class="eyebrow">Event schedule</p><h1>@Model.EventName</h1><p class="form-intro">All values are entered in the event timezone. Empty schedule values remain unset.</p>
+    <form method="post" class="panel form-stack">
+        <div asp-validation-summary="ModelOnly" class="validation-summary app-notice notice-error"></div>
+        <input asp-for="Input.Version" type="hidden" />
+        @if (Model.CanEditScheduledOpening) { <label asp-for="Input.SignupOpensLocal">Signup opens<input asp-for="Input.SignupOpensLocal" type="datetime-local" step="300" class="form-control" data-date-time-picker data-time-label="Time" /></label><span asp-validation-for="Input.SignupOpensLocal" class="field-error"></span><p><strong>@(Model.ScheduledSignupOpeningEnabled ? "Automatic signup opening scheduled for" : "No automatic signup opening scheduled.")</strong>@if (Model.ScheduledSignupOpeningEnabled) { <text> @Model.ScheduledSignupOpening</text> }</p> }
+        else { <p><strong>Actual signup opening:</strong> @Model.ActualSignupOpened</p> }
+        <label asp-for="Input.SignupClosesLocal">Signup closes<input asp-for="Input.SignupClosesLocal" type="datetime-local" step="300" class="form-control" data-date-time-picker data-time-label="Time" /></label><span asp-validation-for="Input.SignupClosesLocal" class="field-error"></span>
+        @if (Model.EventState == Bingo.Domain.Events.EventState.SignupClosed) { <p><strong>Actual signup closing:</strong> @Model.ActualSignupClosed</p> }
+        <label asp-for="Input.DraftLocal">Draft time<input asp-for="Input.DraftLocal" type="datetime-local" step="300" class="form-control" data-date-time-picker data-time-label="Time" /></label><span asp-validation-for="Input.DraftLocal" class="field-error"></span>
+        <label asp-for="Input.EventStartsLocal">Event starts<input asp-for="Input.EventStartsLocal" type="datetime-local" step="300" class="form-control" data-date-time-picker data-time-label="Time" /></label><span asp-validation-for="Input.EventStartsLocal" class="field-error"></span>
+        <label asp-for="Input.EventEndsLocal">Event ends<input asp-for="Input.EventEndsLocal" type="datetime-local" step="300" class="form-control" data-date-time-picker data-time-label="Time" /></label><span asp-validation-for="Input.EventEndsLocal" class="field-error"></span>
+        <label asp-for="Input.ParticipantCap">Participant capacity<input asp-for="Input.ParticipantCap" class="form-control" /></label><span asp-validation-for="Input.ParticipantCap" class="field-error"></span>
+        @if (Model.CanEditScheduledOpening && Model.Readiness?.Warnings.Count > 0) { <label class="check-row"><input asp-for="Input.AcknowledgeScheduledWarnings" /> I acknowledge the active signup warnings for this scheduled opening.</label> }
+        @if (Model.PublicPreview.Count > 0) { <section><h2>Participant-facing time preview</h2><dl>@foreach (var value in Model.PublicPreview) { <div><dt>@value.Label</dt><dd>@value.Current → @value.New</dd></div> }</dl><label class="check-row"><input asp-for="Input.ConfirmPublicScheduleChange" /> I confirm these participant-facing time changes.</label></section> }
+        <label asp-for="Input.Reason">Reason (required when changing a passed time)<textarea asp-for="Input.Reason" class="form-control" rows="3"></textarea></label><span asp-validation-for="Input.Reason" class="field-error"></span>
+        <div><button class="btn btn-primary" type="submit">Save schedule</button> <a class="btn btn-outline-light" asp-page="Manage" asp-route-id="@Model.EventId">Back to event</a></div>
+    </form>
+    @if (Model.Readiness is not null) { <section class="panel"><h2>Signup readiness</h2><h3>Blockers</h3><ul>@if (Model.Readiness.Blockers.Count == 0) { <li>No signup blockers.</li> } @foreach (var item in Model.Readiness.Blockers) { <li>@item.Description</li> }</ul><h3>Warnings</h3><ul>@if (Model.Readiness.Warnings.Count == 0) { <li>No active warnings.</li> } @foreach (var item in Model.Readiness.Warnings) { <li>@item.Description</li> }</ul><h3>Later tasks</h3><ul>@foreach (var item in Model.Readiness.LaterTasks) { <li>@item.Description</li> }</ul></section> }
+</section>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

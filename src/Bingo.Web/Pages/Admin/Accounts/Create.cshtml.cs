@@ -16,9 +16,7 @@ namespace Bingo.Web.Pages.Admin.Accounts;
 [Authorize(Policy = AuthorizationPolicies.Admin)]
 public sealed class CreateModel(
     ApplicationDbContext dbContext,
-    IPasswordHasher<Bingo.Domain.Access.Account> passwordHasher,
-    IAuditWriter auditWriter,
-    TimeProvider timeProvider) : PageModel
+    EmergencyCredentialService credentials) : PageModel
 {
     [BindProperty]
     public CreateInput Input { get; set; } = new();
@@ -28,80 +26,38 @@ public sealed class CreateModel(
     public async Task OnGetAsync(Guid? eventId, Guid? teamId, CancellationToken cancellationToken)
     {
         Input.EventId = eventId; Input.TeamId = teamId;
-        if (eventId is not null) await ApplyCaptainDefaults(eventId.Value, cancellationToken);
         await LoadOptions(cancellationToken);
     }
 
     public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
     {
-        if (Input.Role == AccountRole.Captain && Input.EventId is not null) await ApplyCaptainDefaults(Input.EventId.Value, cancellationToken);
         ValidateCaptainScope();
-        if (Input.Role == AccountRole.Captain && Input.EventId is not null && Input.TeamId is not null && !await dbContext.Teams.AnyAsync(team => team.Id == Input.TeamId && team.EventId == Input.EventId && team.Active, cancellationToken)) ModelState.AddModelError("Input.TeamId", "Choose a team belonging to the selected event.");
-        var normalizedUsername = AccountAuthenticationService.NormalizeUsername(Input.Username);
-        if (await dbContext.Accounts.AnyAsync(account => account.NormalizedUsername == normalizedUsername, cancellationToken))
-        {
-            ModelState.AddModelError("Input.Username", "That username is already in use.");
-        }
-
+        if (Input.EventId is { } eventId && !await dbContext.Events.AnyAsync(bingoEvent => bingoEvent.Id == eventId, cancellationToken)) ModelState.AddModelError("Input.EventId", "Choose an available event.");
+        if (Input.EventId is not null && Input.TeamId is not null && !await dbContext.Teams.AnyAsync(team => team.Id == Input.TeamId && team.EventId == Input.EventId && team.Active, cancellationToken)) ModelState.AddModelError("Input.TeamId", "Choose a team belonging to the selected event.");
         if (!ModelState.IsValid)
         {
             await LoadOptions(cancellationToken);
             return Page();
         }
 
-        var account = new Bingo.Domain.Access.Account(
-            Guid.NewGuid(),
-            Input.Username.Trim(),
-            normalizedUsername,
-            Input.Role,
-            timeProvider.GetUtcNow());
-        if (Input.Role == AccountRole.Captain)
-        {
-            account.ScopeCaptain(
-                Input.EventId!.Value,
-                Input.TeamId!.Value,
-                Input.ActiveFrom,
-                Input.CorrectionOnlyFrom,
-                Input.ExpiresAt);
-        }
-
-        account.SetPasswordHash(passwordHasher.HashPassword(account, Input.Password), Input.MustChangePassword);
-        dbContext.Accounts.Add(account);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await auditWriter.WriteAsync(
-            User.GetAccountId(),
-            User.Identity?.Name ?? "unknown",
-            "account.created",
-            "account",
-            account.Id.ToString(),
-            $"Username: {account.Username}; Role: {account.Role}",
-            cancellationToken);
-        TempData["StatusMessage"] = $"Created {account.Username}.";
+        Bingo.Domain.Access.Account account;
+        try { account = await credentials.CreateAsync(User.GetAccountId()!.Value, Input.Username, Input.EventId!.Value, Input.TeamId!.Value, cancellationToken); }
+        catch (InvalidOperationException) { ModelState.AddModelError(string.Empty, "This action is not available for this account."); await LoadOptions(cancellationToken); return Page(); }
+        TempData["StatusMessage"] = $"Created disabled emergency credential {account.LoginName}. Create a setup link before enabling it.";
+        TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();
         return RedirectToPage("Index");
     }
 
     private async Task LoadOptions(CancellationToken ct)
     {
         Events = await dbContext.Events.AsNoTracking().OrderBy(x => x.Name).Select(x => new SelectListItem(x.Name, x.Id.ToString())).ToListAsync(ct);
-        Teams = await (from team in dbContext.Teams.AsNoTracking() join bingoEvent in dbContext.Events on team.EventId equals bingoEvent.Id where team.Active orderby bingoEvent.Name, team.Name select new TeamOption(team.Id, team.EventId, $"{bingoEvent.Name} — {team.Name}")).ToListAsync(ct);
-    }
-
-    private async Task ApplyCaptainDefaults(Guid eventId, CancellationToken ct)
-    {
-        var ev = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId, ct);
-        if (ev is null) return;
-        Input.ActiveFrom ??= ev.EventStartsAt;
-        Input.CorrectionOnlyFrom ??= ev.SubmissionCutoffAt;
-        Input.ExpiresAt ??= ev.EventEndsAt.AddHours(24);
+        Teams = Input.EventId is { } eventId
+            ? await dbContext.Teams.AsNoTracking().Where(team => team.EventId == eventId && team.Active).OrderBy(team => team.Name).Select(team => new TeamOption(team.Id, team.Name)).ToListAsync(ct)
+            : [];
     }
 
     private void ValidateCaptainScope()
     {
-        if (Input.Role != AccountRole.Captain)
-        {
-            return;
-        }
-
         if (Input.EventId is null)
         {
             ModelState.AddModelError("Input.EventId", "An event is required for a captain.");
@@ -112,15 +68,6 @@ public sealed class CreateModel(
             ModelState.AddModelError("Input.TeamId", "A team is required for a captain.");
         }
 
-        if (Input.CorrectionOnlyFrom is not null && Input.ActiveFrom is not null && Input.CorrectionOnlyFrom < Input.ActiveFrom)
-        {
-            ModelState.AddModelError("Input.CorrectionOnlyFrom", "Correction-only access cannot begin before activation.");
-        }
-
-        if (Input.ExpiresAt is not null && Input.ActiveFrom is not null && Input.ExpiresAt <= Input.ActiveFrom)
-        {
-            ModelState.AddModelError("Input.ExpiresAt", "Expiry must be after activation.");
-        }
     }
 
     public sealed class CreateInput
@@ -128,28 +75,14 @@ public sealed class CreateModel(
         [Required, StringLength(100, MinimumLength = 3)]
         public string Username { get; set; } = string.Empty;
 
-        [Required, StringLength(200, MinimumLength = 12), DataType(DataType.Password)]
-        public string Password { get; set; } = string.Empty;
-
-        public AccountRole Role { get; set; } = AccountRole.Captain;
-
-        [Display(Name = "Event ID")]
+        [Display(Name = "Event")]
         public Guid? EventId { get; set; }
 
-        [Display(Name = "Team ID")]
+        [Display(Name = "Team")]
         public Guid? TeamId { get; set; }
-
-        [DataType(DataType.DateTime), Display(Name = "Active from")]
-        public DateTimeOffset? ActiveFrom { get; set; }
-
-        [DataType(DataType.DateTime), Display(Name = "Correction-only from")]
-        public DateTimeOffset? CorrectionOnlyFrom { get; set; }
-
-        [DataType(DataType.DateTime), Display(Name = "Expires at")]
-        public DateTimeOffset? ExpiresAt { get; set; }
 
         [Display(Name = "Require password change")]
         public bool MustChangePassword { get; set; } = true;
     }
-    public sealed record TeamOption(Guid Id, Guid EventId, string Label);
+    public sealed record TeamOption(Guid Id, string Name);
 }

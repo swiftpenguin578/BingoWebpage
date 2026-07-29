@@ -38,9 +38,10 @@ public static class DependencyInjection
 
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IAuditWriter, AuditWriter>();
+        services.AddScoped<Slice1MigrationPreflight>();
         services.AddSingleton<ISecretHasher, SecretHasher>();
-        services.AddSingleton<IPrivateEditTokenService, PrivateEditTokenService>();
         services.AddScoped<ISignupService, SignupService>();
+        services.AddScoped<EventParticipantCharacterService>();
         if (string.Equals(configuration["EvidenceStorage:Provider"], "R2", StringComparison.OrdinalIgnoreCase))
             services.AddSingleton<IEvidenceStorage, R2EvidenceStorage>();
         else
@@ -48,8 +49,14 @@ public static class DependencyInjection
         services.AddScoped<ISubmissionService, SubmissionService>();
         services.AddScoped<IPublicBoardService, PublicBoardService>();
         services.AddScoped<IEventFinalizationService, EventFinalizationService>();
+        services.AddScoped<IEventReadinessEvaluator, EventReadinessEvaluator>();
+        services.AddScoped<IEventSignupLifecycleService, EventSignupLifecycleService>();
+        services.AddScoped<IEventLifecycleService, EventLifecycleService>();
+        services.AddScoped<IEventDestructiveLifecycleService, EventDestructiveLifecycleService>();
+        services.AddScoped<IEventBannerCleanupService, EventBannerCleanupService>();
         services.AddScoped<IProgressNotifier, NullProgressNotifier>();
         services.AddScoped<IAdminCollaborationNotifier, NullAdminCollaborationNotifier>();
+        services.AddScoped<ITeamCaptainAuthorityService, TeamCaptainAuthorityService>();
 
         return services;
     }

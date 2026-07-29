@@ -1,7 +1,11 @@
 @page "/Events/{slug}/Signup/Confirmation"
 @model Bingo.Web.Pages.Events.ConfirmationModel
 @{
-    ViewData["Title"] = "Signup confirmed";
+    ViewData["Title"] = T["Signup confirmed"];
 }
-<section class="content-page"><p class="eyebrow">Signup received</p><h1>@Model.EventName</h1><div class="panel"><h2>@Model.Status</h2>@if(Model.WaitingPosition is not null){<p>You are currently number <strong>@Model.WaitingPosition</strong> on the waiting list.</p>}else{<p>Your place is confirmed.</p>}
-@if(Model.EditToken is not null){<p>Save this private link if you need to correct your signup:</p><p class="private-link"><a href="/Events/@RouteData.Values["slug"]/Signup/Edit/@Model.EditToken">Edit my signup</a></p><p class="form-hint">Anyone with this link can edit your signup. Do not share it publicly.</p>}</div></section>
+<section class="form-page wide-form"><p class="eyebrow">@T["Signup received"]</p><h1>@Model.EventName</h1>
+<div class="panel form-stack"><h2>@T[Model.Status]</h2>@if(Model.WaitingPosition is not null){<p>@T["You are currently number {0} on the waiting list.", Model.WaitingPosition]</p>}else if(!string.IsNullOrWhiteSpace(Model.StatusDetail)){<p>@T[Model.StatusDetail]</p>}
+@if (Model.Accounts.Any()) { <section><h2>@T["Accounts"]</h2><dl>@foreach (var account in Model.Accounts) { <dt>@account.Label</dt><dd>@account.CharacterName@if(account.Ehb is not null){<text> — @T["EHB"]: @account.Ehb</text>}</dd> }</dl></section> }
+@if (Model.Answers.Any()) { <section><h2>@T["Answers"]</h2><dl>@foreach (var answer in Model.Answers) { <dt>@answer.Label</dt><dd>@answer.Value</dd> }</dl></section> }
+<div class="button-row">@if(Model.CanViewTable){<a class="btn neutral-outline-action" asp-page="/Events/Signups" asp-route-slug="@Model.EventSlug">@T["View signup table"]</a>}@if(Model.CanEdit){<a class="btn action-accent-outline" asp-page="/Events/Signup" asp-route-slug="@Model.EventSlug" asp-route-edit="true">@T["Edit my signup"]</a>}@if(Model.CanWithdraw){<form method="post" asp-page-handler="Withdraw"><label class="check-row"><input asp-for="ConfirmLifecycleAction" /> @T["I understand that this releases my place."]</label><button class="btn destructive-outline-action" type="submit">@T["Withdraw from event"]</button></form>}@if(Model.CanRejoin){<form method="post" asp-page-handler="Rejoin"><label class="check-row"><input asp-for="ConfirmLifecycleAction" /> @T["I understand that I will join at the end of the queue."]</label><button class="btn action-accent-outline" type="submit">@T["Rejoin signup"]</button></form>}</div>
+</div></section>

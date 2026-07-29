@@ -2,8 +2,8 @@
 
 ## Data Model and Calculation Specification
 
-**Status:** Planning draft v0.1  
-**Last updated:** 2026-07-11  
+**Status:** Planning Pass 2 target model v0.2; implementation and migration not started
+**Last updated:** 2026-07-25
 **Companion document:** `PRODUCT_REQUIREMENTS.md`
 
 ## 1. Purpose
@@ -13,10 +13,10 @@ This document defines the logical data model, relationships, state transitions, 
 The model must support:
 
 - Two or three community events per year
-- Public signup without participant accounts
+- Hybrid-authenticated normal website accounts plus admin-created/imported/external roster records without inferred website ownership
 - Capacity limits and an ordered waiting list
 - Admin-operated snake drafts
-- Temporary captain and co-captain accounts
+- Event-scoped captain and co-captain roles, with disabled-by-default emergency credentials
 - Flexible bingo tile requirements
 - Screenshot evidence and reversible admin review
 - Live public boards and rankings
@@ -114,33 +114,40 @@ Required fields:
 - `id`
 - `name`
 - `slug`: Public URL identifier
-- `description`
 - `timezone`
 - `state`
+- `created_by_account_id`
+
+Optional fields:
+
+- `description`
+- `banner_asset_id`
+- `first_public_at`
 - `signup_opens_at`
 - `signup_closes_at`
+- `draft_at`
 - `event_starts_at`
 - `event_ends_at`
 - `submission_cutoff_at`
 - `participant_cap`
 - `waiting_list_enabled`
-- `created_by_account_id`
-
-Optional fields:
-
-- `banner_asset_id`
 - `actual_started_at`
+- `actual_ended_at`
 - `submissions_closed_at`
 - `finalized_at`
 - `archived_at`
+- `cancelled_at`
+- `cancelled_by_account_id`
+- `cancellation_reason`
+- `discarded_at`
+- `discarded_by_account_id`
 - `signup_code_hash`
 - `evidence_code_enabled`
 - `reopened_submission_cutoff_at`
 - `buy_in_description`
 - `prize_description`
-- `public_rules`
-- `expected_team_count`
-- `expected_team_size`
+- `board_ehb_estimated_team_count`
+- `board_ehb_estimated_team_size`
 - `expected_board_rows`
 - `expected_board_columns`
 
@@ -154,7 +161,11 @@ LIVE
 AWAITING_FINAL_REVIEW
 FINALIZED
 ARCHIVED
+CANCELLED
+DISCARDED
 ```
+
+`board_ehb_estimated_team_count` and `board_ehb_estimated_team_size` are edited with the board and exist only to estimate board EHB. They do not seed draft teams, constrain roster sizes, or represent the completed event structure.
 
 Normal transitions:
 
@@ -164,6 +175,41 @@ LIVE → AWAITING_FINAL_REVIEW → FINALIZED → ARCHIVED
 ```
 
 Exceptional admin transitions may reopen signups, reopen submissions, or unfinalize an event. Each exceptional transition requires an audit reason.
+
+The scheduled end transition sets `actual_ended_at = event_ends_at`, even if a background check persists the transition later. An authorized early-end command sets `actual_ended_at` to its authoritative confirmation time and requires a reason in the audit record. The event moves from `LIVE` to `AWAITING_FINAL_REVIEW` at that effective instant. `submission_cutoff_at` remains independent and is not rewritten by early end.
+
+An incomplete `DRAFT` requires only a valid name, unique slug, timezone, creator, and creation time. Schedule, signup, capacity, and planning fields become required only at the readiness gate for the transition that uses them. A field being available during initial creation does not make it required for the first save.
+
+Duplicate event names are allowed. The slug is unique and may change until the event first becomes public; it is immutable afterward.
+
+`first_public_at` records the first instant any event-owned public page is intentionally exposed and is never cleared. It is the authoritative slug-lock boundary.
+
+Description may be null while the event remains a private draft and is required before signup publication. `banner_asset_id` is optional in every state and references a managed decorative asset. Replacing or removing the banner does not change event history or competitive snapshots. Discard creates an `EventBannerCleanup` record before removing event-owned banner metadata: it retains the discarded event ID, event-scoped managed storage key, queued/last-attempt times, attempt count, and safe operational failure detail. The record is unique per event/key and can only represent a key under that event's managed storage namespace; it is removed only after deletion succeeds or the object is already absent.
+
+Timezone defaults to `Europe/Copenhagen` and stores a supported canonical timezone ID. Changing timezone changes only how stored UTC instants are displayed; it never rewrites those instants. Changes after signup publication require explicit confirmation, and changes after event start also require an audit reason.
+
+Schedule fields may be null in an incomplete private draft. Signup publication requires `signup_closes_at`, `event_starts_at`, and `event_ends_at`; `signup_opens_at` is required only for scheduled opening and is set to the actual opening instant for manual opening. `draft_at` is optional and informational. The invariants are:
+
+```text
+signup_opens_at < signup_closes_at <= event_starts_at < event_ends_at <= submission_cutoff_at
+```
+
+For manual opening with no explicit closing time:
+
+```text
+signup_opens_at = now
+signup_closes_at = min(round_up(now + 3 months), event_starts_at)
+```
+
+A valid explicit future closing time no later than event start is preserved. An invalid explicit value blocks opening rather than being silently overwritten. Starting the draft closes and locks signup regardless of the configured closing time.
+
+`DISCARDED` is a terminal administrative tombstone for an accidental or experimental event. Discard is allowed only when no event participant, team, event-scoped account access, submission, or evidence record exists. Event-owned setup records, including boards, tiles, requirements, questions, and planning configuration, may be removed in the discard transaction and do not block it. The tombstone retains the event ID, name, slug, creator, discard actor, and timestamps; the slug remains reserved. Discarded events are excluded from active administration and public listings.
+
+`CANCELLED` is a terminal preserved state for an event with protected records that will not take place. It is reachable only before `LIVE`, requires actor/time/reason, suppresses every scheduled transition, and ends ordinary event-scoped mutations without deleting configuration, participants, assignments, teams, draft history, board data, submissions, evidence, or audit records. A never-public cancelled event remains non-public; an already-public cancelled event exposes only its previously published projection plus a generic cancellation status.
+
+`ARCHIVED` is read-only public history derived only from `FINALIZED`. Archive does not supersede finalization snapshots or alter public URLs. Unfinalization may move an archived event back to final review with a reason only when the production current-event policy permits it.
+
+Production permits multiple `SIGNUP_OPEN` and `SIGNUP_CLOSED` events only when their configured half-open event windows `[event_starts_at, event_ends_at)` do not overlap; an end exactly equal to another start is allowed. Only `LIVE`, `AWAITING_FINAL_REVIEW`, and `FINALIZED` are singleton current states. Drafts do not reserve a window, and cancelled, discarded, or archived events do not block a new one. `is_development_fixture` is an internal persisted marker set only by the Development scenario seeder; ordinary Admin input cannot set it and Production lifecycle commands never honor it.
 
 ### 5.2 Event publication controls
 
@@ -192,6 +238,45 @@ Fields:
 - `reason`, required for exceptional or backward transitions
 - `scheduled`: Whether it resulted from an admin-configured scheduled action
 
+### 5.3.1 ScheduledEventStartAttempt
+
+Records a scheduled start check even when no state transition is allowed.
+
+Fields:
+
+- `event_id`
+- `scheduled_for`
+- `attempted_at`
+- `started`
+- `blocker_codes`
+- `resolved_at`, nullable
+
+When the scheduled instant arrives, the event may enter `LIVE` only if draft finalization, board publication, Captain/emergency-access readiness, and every other event-start invariant pass in the same transaction. A blocked attempt leaves the event pre-live, retains the original scheduled instant, creates the **Automatic start postponed** admin action/notification, and never backdates later eligibility. It is not automatically retried after blockers clear. The later manual start resolves the attempt/action, uses its actual transition time, and requires no written reason when `now >= scheduled_for`; an early manual start requires one.
+
+### 5.3.2 ScheduledSignupOpeningAttempt
+
+`scheduled_signup_opening_enabled` distinguishes an intentional future opening from an informational `signup_opens_at` value. `scheduled_signup_warning_codes` stores the stable warning codes acknowledged for that purpose. One `ScheduledSignupOpeningAttempt` per `(event_id, scheduled_for)` records the actual attempt time, success, stable blocker/unacknowledged-warning codes, and optional resolution time. The unique boundary plus the lifecycle transaction makes worker retries and manual/scheduled races idempotent without making notification read state authoritative.
+
+## 5A. Global public content
+
+### 5A.1 GlobalRulesDocument
+
+The single current Rules document for the permanent public Rules page. It is not event-scoped.
+
+Fields:
+
+- `id`, using a well-known singleton identity
+- `body`
+- `version`, for optimistic concurrency
+- `updated_at`
+- `updated_by_account_id`
+
+Every successful edit retains automatic actor/time/change history through the normal audit mechanism. No written reason is required. Rules revisions do not create participant notifications and are not event-readiness inputs.
+
+### 5A.2 Source-controlled how-to pages
+
+Public how-to pages are application content rather than persisted domain entities. They are versioned with the source code, have stable public routes, and expose no runtime authoring model or administrator editor.
+
 ## 6. Signup domain
 
 ### 6.1 SignupForm
@@ -204,8 +289,8 @@ Fields:
 - `version`
 - `published_at`
 - `closed_at`
+- `first_response_at`, nullable and never cleared after the first accepted/imported response
 - `require_signup_code`
-- `allow_private_editing`
 
 ### 6.2 SignupQuestion
 
@@ -218,49 +303,167 @@ Fields:
 - `type`
 - `required`
 - `system_field`
-- `admin_only_answer`
 - `position`
 - `active`
+- `disabled_at`, nullable
+- `disabled_by_account_id`, nullable
+- `disabled_reason`, nullable
+- `replaced_by_signup_question_id`, nullable
 - `options`, for choice questions
+- `account_answer_role`, nullable and used only for `ACCOUNT`
+- `public_on_signup_board`, retained for future compatibility and fixed/defaulted true for participant-facing questions
 
 Question types:
 
 ```text
-SHORT_TEXT
-LONG_TEXT
+TEXT
 NUMBER
 YES_NO
 SINGLE_CHOICE
+ACCOUNT
 ```
 
-System questions such as primary OSRS account and required EHB cannot be removed while required by event configuration.
+Account answer role:
+
+```text
+PLAYING
+INFORMATIONAL
+```
+
+The user-facing role names are **Regular account** for `PLAYING` and **Alt account** for `INFORMATIONAL`. The built-in primary OSRS account is a required public `ACCOUNT` question with role `PLAYING`; its compound answer requires EHB. Additional Account questions may create regular or alt assignments but are always optional at the question level. When an optional regular Account question is answered, its EHB child value becomes required. An alt Account answer has no EHB. A Yes/No support-alt question creates no OSRS-character assignment. The primary Account/EHB and captain-volunteer system questions cannot be removed.
+
+Every participant-facing answer is public on the unlisted signup table in version one. `public_on_signup_board` remains fixed/defaulted true so selective visibility can be added later without a destructive schema change. There are no admin-only custom signup questions or post-draft privacy mutations. Payment and Admin notes remain separate private data.
+
+Before `first_response_at`, a custom question may be structurally edited or deleted while the form is private/closed. After it is set:
+
+- new participant-facing questions must have `required = false`;
+- `type`, `account_answer_role`, `options`, stable `key`, and answer-shape constraints are immutable;
+- label, help text, and position may change while signup is closed and before draft start;
+- disabling sets `active = false` and `disabled_at` without deleting the question or answers;
+- every change increments `SignupForm.version` and is audited.
+
+Draft start freezes ordinary question metadata. Structural replacement disables the original question and creates a new optional question with a new stable key; it never rewrites existing answers.
 
 ### 6.3 EventParticipant
 
-Represents one signup and participant identity for one event. Participants are intentionally not linked across events. A player who signs up for a later bingo creates a new event-participant record even if the submitted name is unchanged.
+Represents one person's participation, signup, or imported roster record for one event. The participant is not the login identity and is not an OSRS character.
 
 Fields:
 
 - `event_id`
-- `primary_account_name`
-- `normalized_primary_account_name`
-- `second_account_name`
-- `discord_identity`
-- `ehb_snapshot`
-- `comments`
+- `account_id`, nullable for imported/external roster records without a verified website-account relationship
 - `captain_volunteer`
-- `payment_status`
+- `payment_received`, boolean, defaults false
 - `signup_status`
 - `signup_sequence`
 - `signed_up_at`
 - `confirmed_at`
 - `waiting_listed_at`
 - `withdrawn_at`
-- `removed_at`
-- `status_reason`
-- `private_edit_token_hash`
+- `withdrawn_by_account_id`, nullable when the participant initiated the action
 - `form_version`
 - `source`
+
+`(event_id, account_id)` is unique when `account_id` is not null. One website account can therefore own at most one participant record in an event while participating in several different events.
+
+New normal signups have `account_id` at creation. The participant may edit signup fields only while the event is `SIGNUP_OPEN`. Imported or external participants without a verified website-account relationship remain valid roster records. Event-facing names come from registered OSRS-character assignments rather than the website username. Slice 4 removes the temporary private-edit-token model without adding a participant claim-token model.
+
+Editing does not change `signed_up_at`, `signup_sequence`, or queue status. Cancelling/withdrawing changes status and releases current character assignments. Rejoining while signup is open reactivates the same participant identity but assigns a new `signed_up_at` and `signup_sequence` at the end of the queue. Admin restoration before draft start follows the same current-capacity calculation and never restores a former queue position.
+
+### 6.4 OsrsCharacter
+
+Represents a normalized OSRS character identity without asserting exclusive ownership.
+
+Fields:
+
+- `id`
+- `display_name`
+- `normalized_name`
+- `created_at`
+
+`normalized_name` trims surrounding whitespace and applies case-insensitive matching only; it does not rewrite internal spelling/spacing. The application trusts the submitted OSRS name and performs no syntax, availability, ownership, Wise Old Man membership, or existence validation. The normalized value is unique for matching case variants. The character may be linked to several website accounts globally, but it has only one event-participant assignment in a particular event.
+
+### 6.5 AccountOsrsCharacter
+
+Trust-based global association between a website account and an OSRS character.
+
+Fields:
+
+- `account_id`
+- `osrs_character_id`
+- `linked_at`
+- `linked_by_account_id`
+- `unlinked_at`, nullable; hides the association from future selection without deleting history
+- `personal_label`, nullable user-entered label such as Main, Alt, or Borrowed
+- `sort_order`
+- `preferred`
+- `saved_ehb`, nullable personal default used to prefill future regular-account answers
+
+`(account_id, osrs_character_id)` is unique. At most one link per account is `preferred`. Several accounts may link the same OSRS character. This relationship populates My accounts and signup selectors but grants no authority, proves no ownership, and does not reserve the character for an event. Personal labels organize the list without imposing a game-mode taxonomy.
+
+`saved_ehb` belongs to the link rather than the shared character so one borrower's update does not change another website account's default. Saving a regular Account answer updates this default and captures an independent event snapshot. Later edits to `saved_ehb` do not rewrite an existing event assignment. Alt assignments ignore it.
+
+### 6.6 EventParticipantCharacter
+
+Event-specific assignment of OSRS characters to an event participant.
+
+Fields:
+
+- `event_id`
+- `event_participant_id`
+- `osrs_character_id`
+- `registration_order`
+- `registered_at`
+- `registered_by_account_id`
+- `signup_question_id`
+- `event_role`
+- `ehb_snapshot`, required for `PLAYING` and null for `INFORMATIONAL`
+- `ehb_source`, required for `PLAYING`
+- `ehb_fetched_at`, nullable
+- `released_at`, nullable
+- `released_by_account_id`, nullable
+
+One participant may register several characters. A partial unique constraint on `(event_id, osrs_character_id)` where `released_at IS NULL` prevents the same character from being currently assigned to several participants in one event. The participant and assignment `event_id` values must match through a relational constraint. Confirmed and waiting-list participants both hold current assignments. Withdrawal/removal before draft start releases the assignments without deleting their history, after which another participant may acquire that character. The same character may also be assigned to a different participant in another event.
+
+Normal signup selects from `AccountOsrsCharacter`. A missing trusted/borrowed character is added through My accounts before returning to the signup form; it is not created inline by the Account answer. Admin-created, imported, or external participants may receive an event assignment without a linked website account.
+
+Event character role:
+
+```text
+PLAYING
+INFORMATIONAL
+```
+
+Each participant must have at least one current `PLAYING` assignment before signup can be completed. The assignment created by the built-in primary Account question is automatically the initial active account; signup has no separate initial-active selection. Each regular (`PLAYING`) assignment stores its own event-specific EHB snapshot. An alt (`INFORMATIONAL`) assignment has no EHB and may never appear in a swap transition, receive evidence credit, or be synchronized to Wise Old Man. The event role is determined by its Account question and is independent of the optional personal label in My accounts.
+
+EHB source:
+
+```text
+MANUAL
+WISE_OLD_MAN
+IMPORT
+ADMIN_CORRECTION
+```
+
+The assignment created by the built-in primary Account question supplies the participant's draft EHB. Secondary values never contribute to that derived draft value. A fetched value records `WISE_OLD_MAN` and `ehb_fetched_at`; editing it afterward changes the source to `MANUAL`. The event snapshot remains authoritative after signup closes even if the external profile changes.
+
+### 6.7 EventParticipantCharacterSwap
+
+Append-only history that determines the one active/drop-eligible character for a participant at any instant.
+
+Fields:
+
+- `id`
+- `event_id`
+- `event_participant_id`
+- `previous_osrs_character_id`, nullable for initial activation
+- `next_osrs_character_id`
+- `effective_at_utc`
+- `recorded_at_utc`
+- `recorded_by_account_id`
+- `reason`, required for admin corrections or backdated transitions
+
+Both referenced characters must be current `PLAYING` assignments belonging to that event participant. The initial transition activates the assignment from the built-in primary Account question at event start. Normal participant/captain swaps are accepted only while the event is `LIVE`. A normal swap's `recorded_at_utc` is the request time and `effective_at_utc` is the first whole UTC minute strictly after it. The latest applicable transition determines the active character. A swap transaction locks or concurrency-checks the participant's current transition, verifies that `previous_osrs_character_id` is still current, rejects another request while a future-effective transition is pending, and appends exactly one next transition. Swaps are unlimited during live play and never rewrite earlier event assignments or swap history. Event end closes normal swaps.
 
 Signup status:
 
@@ -268,18 +471,9 @@ Signup status:
 CONFIRMED
 WAITING_LIST
 WITHDRAWN
-REMOVED
 ```
 
-Payment status:
-
-```text
-NOT_REQUIRED
-UNKNOWN
-UNPAID
-PAID
-WAIVED
-```
+`payment_received = false` is displayed privately to admins as `Unpaid`; `true` is displayed as `Paid`. It is not projected to public, participant, team, evidence, or leaderboard views.
 
 Signup source:
 
@@ -289,13 +483,11 @@ CSV_IMPORT
 ADMIN_CREATED
 ```
 
-Name normalization is used only to detect likely duplicate signups inside the same event. It does not create a reusable identity or link name changes across bingos.
+Name normalization may identify a shared global character association for admin awareness. It must not block a valid global link, create a reusable person identity, imply account ownership, or link name changes across bingos. It does block a second event assignment for the same normalized character through the event-level uniqueness rule.
 
-`private_edit_token_hash` stores only the secure hash of the participant's private edit token. The original link cannot be reconstructed. Issuing a replacement link overwrites the hash, invalidates the previous link, and exposes the new raw token only in the admin response that created it.
+The same normalized OSRS character may be globally linked by several people but may be assigned to only one participant in an event. Character association alone never merges participant records or grants authority. In-event evidence and Wise Old Man activity resolve through that unique event assignment.
 
-There may be only one active signup for the same normalized primary account in one event unless an admin explicitly approves an exception.
-
-### 6.4 SignupAnswer
+### 6.8 SignupAnswer
 
 Stores event-specific custom answers.
 
@@ -304,13 +496,16 @@ Fields:
 - `event_participant_id`
 - `signup_question_id`
 - `question_label_snapshot`
-- `value`
+- `value`, nullable for `ACCOUNT`
+- `osrs_character_id`, populated for `ACCOUNT`
 
 The label snapshot preserves meaning if the form question is later edited.
 
 An answer row is not guaranteed to exist for every active question and participant. Questions may be added after some players have signed up, optional questions may be left blank, and external roster members may not have a website signup at all. Team, roster, draft, and admin views must load answers with left-join/optional semantics and render missing values without throwing an exception.
 
-### 6.6 Waiting-list calculation
+Answers to disabled questions remain queryable. Public signup-table projection retains participant-facing historical answers and renders later missing optional answers as **Not answered**. Website username, Discord identity, payment, Admin notes, security data, and audit data are never included in that projection.
+
+### 6.9 Waiting-list calculation
 
 Confirmed count includes `CONFIRMED` participants only.
 
@@ -322,6 +517,8 @@ if confirmed_count < participant_cap:
 else:
     status = WAITING_LIST
 ```
+
+Both statuses hold current event-character reservations. The create/edit transaction acquires every requested current assignment and computes status before committing. A character-reservation conflict aborts the entire transaction. Withdrawal or removal before draft lock releases all current assignments for that participant in the same transaction as any waiting-list promotion.
 
 Waiting-list position is derived by ordering active `WAITING_LIST` records by:
 
@@ -336,6 +533,8 @@ promote the first open_places waiting-list records
 ```
 
 The participant cap can be increased but not lowered. If signups close below the cap, the confirmed participants at that time are simply the available participant pool.
+
+Cancellation/withdrawal, rejoin, admin restoration, character reservation changes, status assignment, and waiting-list promotion are atomic. Restoration or rejoin must reacquire every required character reservation and fails without partial state if any is unavailable. Participant- and admin-initiated withdrawal share `WITHDRAWN`; `withdrawn_by_account_id` plus automatic transition history preserves who acted.
 
 After the draft is locked, automatic promotion stops. Replacements require explicit admin action.
 
@@ -356,7 +555,9 @@ Fields:
 - `active`
 - `finalized_at`
 
-`included_in_draft` determines whether the team receives snake-draft turns. A pre-formed team can be added before or after the website draft and can have its roster assigned manually. Pre-formed teams compete normally but do not affect draft order, draft team count, target-size calculations, or pick ownership. Once the first pick is recorded, changing whether a team participates in that draft is blocked; an admin instead manages the team as pre-formed and records roster changes with an audit reason.
+`included_in_draft` determines whether the team receives snake-draft turns. A pre-formed team can be added before or after the website draft and can have its roster assigned manually. Pre-formed teams compete normally but do not affect draft order, drafted-team count, derived roster-size distribution, or pick ownership. Once the first pick is recorded, changing whether a team participates in that draft is blocked. Permitted pre-event roster corrections retain automatic structured history without requiring a typed reason.
+
+Team display name is unique within its event. `slug` is a stable event-scoped URL identifier and does not change when the display name changes. `image_asset_id` references a managed uploaded decorative asset; Team has no arbitrary image-URL field. Name, image, and affiliation may change until event start and are ordinarily locked afterward. A pre-formed team may be created before event start, including after website-draft finalization. Once any pick has been recorded, the drafted-team set and formation types remain structurally locked even if all picks are later undone.
 
 ### 7.2 TeamMembership
 
@@ -369,8 +570,10 @@ Fields:
 - `left_at`
 - `assigned_by_draft_pick_id`
 - `assignment_reason`
+- `membership_source`
+- `replaces_team_membership_id`, nullable
 
-`assigned_by_draft_pick_id` is null for manually assigned members of a pre-formed team. Manual roster assignments record an `assignment_reason` and audit actor. A participant may be created directly within the event for an invited roster and does not need to have submitted the public signup form.
+`assigned_by_draft_pick_id` is null for manually assigned members of a pre-formed team. Manual roster assignments record the structured assignment source/action and audit actor. Ordinary corrections before event start do not require an administrator to type a reason. A participant may be created directly within the event for an invited roster and does not need to have submitted the public signup form.
 
 Membership role:
 
@@ -382,6 +585,58 @@ CO_CAPTAIN
 
 An event participant can have at most one active team membership per event.
 
+Membership source:
+
+```text
+DRAFT_PICK
+PREFORMED
+ROSTER_REPLACEMENT
+```
+
+A post-draft withdrawal sets `left_at` without deleting the membership or its draft-pick link. A replacement membership uses `ROSTER_REPLACEMENT`, points to the ended membership, and begins prospectively. The replacement participant normally comes from the waiting list, becomes `CONFIRMED`, and retains their frozen event-character assignments/EHB. When no waiting participant is available, an admin-created participant may instead supply the required valid unique assignments/EHB and join directly as the replacement. The vacancy may also remain unfilled. The departed participant's post-draft assignments are not released.
+
+For live changes, `left_at` is the first full UTC minute after withdrawal confirmation and the replacement `joined_at` is the first full UTC minute after replacement confirmation. These timestamps may leave a gap and must never overlap. The replacement's initial `EventParticipantCharacterSwap` activates their primary playing assignment at the same `joined_at` instant.
+
+### 7.2.1 TeamMembershipRoleTransition
+
+Append-only captain/co-captain role history.
+
+Fields:
+
+- `team_membership_id`
+- `previous_role`
+- `next_role`
+- `effective_at`
+- `performed_by_account_id`
+
+Only an active membership may receive a current captain/co-captain role. Withdrawing the member appends the required revocation transition atomically. Role authorization resolves from the latest applicable transition/current membership rather than an OSRS character or stale credential.
+
+Draft-start readiness requires every active `DRAFTED` team to have a current `CAPTAIN` membership. `CO_CAPTAIN` alone does not satisfy the gate. Every captain/co-captain assignment occupies a normal roster position used by the derived-size calculation.
+
+Event-start readiness requires every active team to have a current `CAPTAIN` membership with explicit active website-account ownership or an active team-scoped emergency captain access record. A co-captain alone does not satisfy the gate. This invariant is a start-transition blocker, not a live-event invariant; losing the final captain during live play creates an urgent unresolved warning.
+
+### 7.2.2 TeamFocusMarker
+
+Private, non-competitive team coordination state.
+
+Fields:
+
+- `id`
+- `event_id`
+- `team_id`
+- `target_kind`: `TILE`, `ROW`, or `COLUMN`
+- `board_tile_id`, required only for `TILE`
+- `row_index`, required only for `ROW`
+- `column_index`, required only for `COLUMN`
+- `focused`
+- `version`
+- `updated_at`
+- `updated_by_account_id`
+
+The target fields are mutually exclusive according to `target_kind`, and `(team_id, target_kind, target identity)` is unique. Only a current captain/co-captain of the team may mutate a marker. Current team members may read it. Ordinary `ADMIN` authority does not grant read access. The designated global `SUPER_ADMIN` policy may read another team's markers only after an explicit, team-scoped inspection opt-in; the default projection contains no cross-team marker data. This exception never grants mutation without the ordinary team captain/co-captain permission.
+
+The inspection choice is transient authorization/UI state rather than a persistent domain record or global show-all preference. Focus does not affect board snapshots, evidence, progress, ranking, finalization, or public history. It becomes read-only at event end. Updates use optimistic concurrency and team-scoped invalidation so another team cannot infer marker content.
+
 ### 7.3 Draft
 
 Fields:
@@ -389,8 +644,6 @@ Fields:
 - `event_id`
 - `type`: `SNAKE`
 - `state`
-- `team_count`
-- `target_team_size`
 - `initial_order_randomized_at`
 - `started_at`
 - `paused_at`
@@ -407,7 +660,18 @@ PAUSED
 FINALIZED
 ```
 
-`team_count` counts only teams included in this draft. The event may contain additional pre-formed teams that are intentionally absent from `DraftTeamOrder`.
+Team count and target size are not authoritative stored configuration:
+
+- `team_count` is derived from active `DRAFTED` teams included in the draft.
+- The drafted-team participant total includes confirmed internal participants either available for the website draft or already assigned to a drafted team.
+- `larger_size = ceiling(participant_total / team_count)`.
+- `smaller_size = floor(participant_total / team_count)`.
+- `larger_team_count = participant_total mod team_count`; the remaining teams receive `smaller_size`.
+- When the remainder is zero, every team receives the same size.
+
+Captain/co-captain memberships count toward these sizes. Pre-formed teams and all members assigned to them are absent from this calculation. The board editor's team-count/team-size estimates are a separate board-EHB planning input and never become draft constraints.
+
+Before the first pick, the application derives a balanced per-team turn/capacity plan from the participant total, existing drafted-team memberships, and randomized order. A setup is invalid when an existing preassignment makes a maximum final size difference of one impossible. A team whose current membership count exceeds the smallest drafted-team membership count is ineligible until lower-count teams catch up. The partial final round determines which named teams receive the larger final size. The plan is not a user-entered target and cannot strand a confirmed included participant.
 
 ### 7.4 DraftTeamOrder
 
@@ -451,9 +715,17 @@ The team at `initial_order[order_index]` owns the pick.
 
 Undone picks remain stored but become inactive. Undoing the latest active pick removes its active team membership and returns the participant to available status.
 
+Undo may be repeated against the latest remaining active pick until no active picks remain. Each undo restores the turn calculation from the remaining active ledger; an older non-latest pick cannot be undone while later active picks remain.
+
 Every confirmed participant remains visible during the draft. Drafted players display their assigned team rather than disappearing.
 
 The available draft pool excludes participants already assigned to pre-formed teams. Adding or editing a pre-formed team after draft finalization does not add retrospective picks or alter the immutable draft order and pick history.
+
+Draft finalization requires every confirmed participant included in the drafted-team total to have one active drafted-team membership and every drafted team to satisfy the derived balanced distribution.
+
+The public finalized-draft projection includes only active picks, ordered by effective overall pick number, with participant and team. Undone/superseded attempts, recorded-by identity, timestamps, and correction details remain in the admin ledger.
+
+Before event start, `FINALIZED` may transition back to controlled correction mode only with strong confirmation and a non-empty written reason. The current public roster and pick-order projection becomes unavailable until re-finalization, while the drafted-team set/formation lock remains. Finalization and reopening transitions are append-only so prior publication cycles, actors, times, reasons, and superseded picks are never overwritten. An already published board snapshot is independent and remains published.
 
 ## 8. Account and access domain
 
@@ -461,9 +733,18 @@ The available draft pool excludes participants already assigned to pre-formed te
 
 Fields:
 
-- `username`
-- `password_hash`
+- `discord_user_id`, nullable and unique; required during initial normal-account creation but may later be unlinked
+- `discord_display_name`, non-authoritative display metadata
+- `public_username`, required for normal accounts and also used for password login
+- `normalized_public_username`, case-insensitively unique for normal accounts
+- `profile_osrs_character_id`, the character selected during onboarding
+- `onboarding_completed_at`
+- `login_username`, nullable and used only for emergency or legacy password credentials
+- `password_hash`, required for completed normal-account onboarding and enabled emergency credentials; nullable only while a disabled emergency credential awaits initial setup
 - `account_type`
+- `global_role`
+- `authorization_version`
+- `password_version`
 - `active`
 - `last_login_at`
 - `password_changed_at`
@@ -471,33 +752,83 @@ Fields:
 Account type:
 
 ```text
-ADMIN
-CAPTAIN
+WEBSITE_ACCOUNT
+EMERGENCY_CAPTAIN
 ```
 
-Public participants do not have accounts.
+Global role for a normal website account:
+
+```text
+USER
+ADMIN
+SUPER_ADMIN
+```
+
+Normal participants, captains, admins, and the Super Admin use one `WEBSITE_ACCOUNT` with a required public username/password of at least 10 characters and an optional current Discord association. Existing permanent Admin credentials migrate in place during Slice 1. Legacy participant free-text Discord identities remain unlinked, and Slice 2 never infers participant ownership from display text, website username, or an OSRS-character link. Discord guild membership is not required. First-time creation starts with Discord and onboarding chooses an independent website username/password plus a first OSRS character, creates/reuses that character link, and marks it preferred; after onboarding the Discord association may be removed or replaced. Public-username uniqueness is separate from character linking: another account may link the same `profile_osrs_character_id` but must choose a different public username. Later website-username changes may use any valid unique value and do not alter event-facing OSRS-character assignments. OAuth tokens, raw passwords, and recovery tokens are not stored in audit snapshots.
+
+Exactly one active account has `global_role = SUPER_ADMIN`. A partial unique constraint enforces at most one, while controlled bootstrap/migration and the ownership-transfer transaction enforce existence. Public signup/onboarding never assigns a privileged global role. Emergency captain accounts always have no global role and cannot be promoted.
+
+Global role grant/revoke increments `authorization_version`. Every authenticated session carries that version and fails authorization when it no longer matches, making either grant or revoke effective immediately. Revocation changes `ADMIN` to `USER` without disabling the account or changing event-owned records. Password-authenticated sessions additionally carry `password_version`; password change/reset increments it without unnecessarily invalidating a separate Discord-authenticated session. Role changes preserve automatic actor, target, timestamp, and before/after history without requiring a written reason.
+
+A website username may change to any valid case-insensitively unique value without selecting or depending on an `AccountOsrsCharacter` link. The change updates the public website identity and password-login username together, but does not modify My Accounts links, event participants, registered characters, event assignments, evidence, teams, roles, or historical records. Event-facing participant names come from registered OSRS-character assignments. This documentation correction preserves the historical migration record and does not authorize rewriting migrations.
+
+Disabling a normal website account sets `active = false`, records actor/time/reason, increments `authorization_version`, and invalidates every session without deleting any owned/historical records or releasing the normalized username/Discord uniqueness reservations. An Admin may disable a `USER`; only the Super Admin may disable or restore an `ADMIN`; self-disable and disabling the active Super Admin are prohibited. Re-enable clears the current disabled state while retaining transition/audit history and does not recreate expired event authority. Website accounts are neither merged nor permanently deleted in version one.
+
+### 8.1.1 PasswordCredentialToken
+
+Fields:
+
+- `id`
+- `account_id`
+- `purpose`: `PASSWORD_RESET` or `EMERGENCY_INITIAL_SETUP`
+- `token_hash`
+- `created_at`
+- `created_by_account_id`
+- `expires_at`
+- `used_at`, nullable
+- `superseded_at`, nullable
+
+Only hashes of cryptographically random setup/reset tokens are stored. A token is purpose-bound, single-use, expires 60 minutes after creation, and is valid only while unexpired and not superseded. Generating another setup/reset token for the account supersedes every unused prior token. Completion updates `password_hash`/`password_changed_at`, increments `password_version`, consumes the token, and records automatic actor/target/time history. Initial emergency setup leaves the credential disabled. It does not require a written reason.
+
+An enabled Admin may generate a link for a `USER`; only the Super Admin may generate one for an `ADMIN`. No in-product admin-generated reset is available for the current Super Admin.
+
+### 8.1.2 AccountDiscordIdentityTransition
+
+Fields:
+
+- `id`
+- `account_id`
+- `transition_type`: `LINK`, `UNLINK`, or `REPLACE`
+- `previous_discord_user_id`, nullable only for `LINK`
+- `new_discord_user_id`, nullable only for `UNLINK`
+- `changed_at`
+- `changed_by_account_id`
+
+Every Discord link mutation requires fresh current-password verification. `LINK` and `REPLACE` also require a completed OAuth callback for a Discord ID not attached to another account. Updating the account and appending the transition are one transaction. `UNLINK` may leave a completed normal account with no Discord association because its password remains required; `REPLACE` never exposes an intermediate unlinked state. The transition increments `authorization_version`, invalidates other sessions, and never changes event participants, global character links, event roles, evidence, or history.
 
 ### 8.2 AccountEventAccess
 
-Scopes a captain account to one event and team. Admin access may be global or event-specific depending on later architecture decisions.
+Scopes an account to an event participant, team, and effective role. Normal captain/co-captain access derives from the authoritative team membership role; it is not derived from an OSRS character name.
 
 Fields:
 
 - `account_id`
 - `event_id`
-- `team_id`, required for captain accounts
-- `captain_participant_id`, unique when the account was generated from a captain/co-captain roster assignment
+- `event_participant_id`, nullable only for emergency access
+- `team_id`, required for team-scoped roles
 - `access_role`
 - `active_from`
 - `expires_at`
 - `manually_disabled_at`
 - `re_enabled_at`
-- `correction_only`
+
+An emergency captain account is an individual credential separately scoped to one event/team and disabled by default. Any enabled Admin may create multiple individual credentials for the same team. Its globally unique login username shares the normal login-identifier namespace. Initial password setup and later reset use the hashed 60-minute single-use token flow; the Admin never selects or sees the lasting password. Only an initialized credential may be explicitly enabled. Creation, setup/reset, enablement, use, and disablement are audited.
+
+`expires_at` applies only to emergency or legacy password access, not to normal website-account captain/co-captain roles. Captain role history remains on `TeamMembershipRoleTransition`; lifecycle authorization determines whether that historical role can still mutate the event.
 
 Access role:
 
 ```text
-ADMIN
 CAPTAIN
 CO_CAPTAIN
 ```
@@ -508,7 +839,43 @@ Captain authorization requires all of:
 - Event access is active
 - Current time is within access window, unless manually re-enabled without expiry
 - Submission team matches the access team
-- Event state permits new submission or correction
+- Event state and active upload window permit the requested submission mutation
+
+An admin identity transfer updates the event participant's owning `account_id` and any derived normal participant/captain access atomically. The destination `(event_id, account_id)` uniqueness constraint must succeed first. The transfer does not move `AccountOsrsCharacter` rows or merge `Account` records; it preserves all event-owned participant, assignment, team, evidence, and history rows.
+
+### 8.3 AccountNotification
+
+Durable in-site notification for an authenticated website account.
+
+Fields:
+
+- `id`
+- `account_id`
+- `event_id`, nullable
+- `event_participant_id`, nullable
+- `type`
+- `created_at`
+- `read_at`, nullable
+- `target_path`
+
+Waiting-list promotion creates one `SIGNUP_PROMOTED` notification for the participant when they have a linked account and one for every enabled administrator. Admin notification metadata includes the promotion trigger without copying private custom-answer payloads. A recipient-and-transition uniqueness/idempotency key prevents duplicate notifications when a promotion command is retried. Notification content contains no OAuth secret. The notification is supplementary; current event/signup state remains authoritative.
+
+Participant-directed notification types also include:
+
+```text
+SIGNUP_WITHDRAWN_BY_ADMIN
+SIGNUP_RESTORED
+SIGNUP_ACCOUNTS_CHANGED
+TEAM_REPLACEMENT_CONFIRMED
+TEAM_ROLE_CHANGED
+EVIDENCE_REJECTED
+```
+
+Payment changes, private-note changes, and ordinary non-account answer corrections create no participant notification. Every notification command uses the same recipient-and-transition idempotency rule.
+
+`TEAM_VACANCY_CREATED` targets every enabled admin and each remaining linked captain/co-captain on the affected team. `TEAM_REPLACEMENT_CONFIRMED` targets the linked replacement and current linked team captains/co-captains.
+
+`EVIDENCE_REJECTED` targets the linked credited participant and every current linked captain/co-captain on the submission's team. Its metadata includes the submission, event, tile/drop label, and rejection reason. Recipient-and-review-transition uniqueness prevents duplicates when a rejection command is retried. It does not target ordinary team members; when the credited participant is unlinked, the captain/co-captain recipients cover the notification.
 
 ## 9. Global OSRS catalogue
 
@@ -520,6 +887,7 @@ Fields:
 - `slug`
 - `category`
 - `image_asset_id`
+- `source_image_url`, nullable
 - `efficient_completions_per_hour`
 - `external_identifier`
 - `data_source`
@@ -536,6 +904,7 @@ Fields:
 - `name`
 - `normalized_name`
 - `image_asset_id`
+- `source_image_url`, nullable
 - `external_identifier`
 - `active`
 - `notes`
@@ -577,7 +946,9 @@ Fields:
 - `numeric_probability`
 - `condition`
 
-The parent `SourceDrop.numeric_probability` remains empty when no single rate accurately describes every variant. Board EHB calculations must therefore require an explicit applicable variant or an admin override for such drops.
+The parent `SourceDrop.numeric_probability` remains empty when no single rate accurately describes every variant. Board EHB calculations must therefore require an explicit applicable variant. If none is valid, the catalogue/requirement must be corrected before board approval; a standard tile cannot bypass the defect with a manual EHB override.
+
+Catalogue records use deactivate/reactivate for normal lifecycle changes. Permanent deletion is Super-Admin-only and succeeds only when a transactional dependency query finds no catalogue relationship, board draft reference, approval/publication snapshot, asset/cache metadata, import-review record, or other historical reference. Deletion of a genuinely unused row requires confirmation but no reason. Bulk import preview/apply is Super-Admin-only; apply verifies the preview version/hash and never hard-deletes referenced data.
 
 ## 10. Board and tile domain
 
@@ -590,6 +961,9 @@ Fields:
 - `rows`
 - `columns`
 - `state`
+- `validated_at`
+- `validated_by_account_id`
+- `active_approval_snapshot_id`, nullable
 - `published_at`
 - `locked_at`
 - `total_ehb_estimate`
@@ -606,20 +980,24 @@ ARCHIVED
 
 Only one board is active for competitive progress in version one.
 
-A board draft may be created as soon as its event exists and remains privately editable while signups are open or closed and while teams are being prepared. Event publication and signup opening do not require a complete board and do not publish it. Only explicit board validation/publication fixes the competitive snapshot and exposes it according to the event's publication workflow.
+A board draft may be created as soon as its event exists and remains privately editable while signups are open or closed and while teams are being prepared. Event publication and signup opening do not require a complete board and do not publish it. While `DRAFT`, board queries derive catalogue-backed names, artwork, rates, variants, and EHB from current catalogue rows; cached totals are non-authoritative and are invalidated/recalculated after relevant catalogue changes. `VALIDATED` means the complete board passed validation and an admin explicitly approved and snapshotted it. Draft finalization publishes that active immutable approval snapshot when it is ready; otherwise the board remains private and may be validated/published later.
+
+Validation requires every grid position to contain a valid tile. Any enabled admin may approve. Approval locks/rechecks referenced catalogue versions, calculates the complete board, creates a `BoardApprovalSnapshot`, and assigns `active_approval_snapshot_id` atomically. Explicit unapproval or editing any tile/competitive board content changes an unpublished `VALIDATED` board back to `DRAFT`, clears the active pointer without deleting its immutable snapshot, and resumes live catalogue derivation. Prior approval actor/time/data remains append-only history and no typed reason is required while private.
+
+Draft finalization and board publication are separate transitions. After finalization, the UI may offer the board-publication command only while the board is grid-complete, `VALIDATED`, and private. That command rechecks all three conditions in its own transaction; an ineligible request fails without changing the completed draft.
 
 ### 10.2 Tile
 
-A reusable or event-created objective template. Editing a template does not change an event board that already copied it.
+An objective owned by exactly one event board. It cannot be reused by, copied into, or linked from another board.
 
 Fields:
 
+- `board_id`
 - `name`
 - `description`
 - `image_asset_id`
 - `objective_type`
-- `evidence_instructions`
-- `manual_ehb_override`
+- `manual_ehb`, nullable and valid only for `MANUAL`
 - `active`
 
 Objective type:
@@ -629,9 +1007,11 @@ DROP_REQUIREMENTS
 MANUAL
 ```
 
+`DROP_REQUIREMENTS` derives EHB from current catalogue/rate mechanics while the board is `DRAFT` and from its immutable approval snapshot once `VALIDATED`. It cannot store or use `manual_ehb`. `MANUAL` represents a custom objective and requires its explicitly configured manual EHB before board approval.
+
 ### 10.3 BoardTile
 
-Places a tile onto an event board and owns its event-specific snapshot. When a template is placed, its current requirements and eligible drops are copied into board-tile-owned snapshot records.
+Places its board-owned tile at one position. Moving/swapping changes positions; it does not duplicate the tile.
 
 Fields:
 
@@ -639,15 +1019,14 @@ Fields:
 - `tile_id`
 - `row_index`: zero-based
 - `column_index`: zero-based
-- `name_snapshot`
-- `description_snapshot`
-- `image_snapshot`
-- `estimated_ehb_snapshot`
-- `evidence_instructions_snapshot`
+- `name_snapshot`, nullable active-approval/publication projection
+- `description_snapshot`, nullable active-approval/publication projection
+- `image_snapshot`, nullable active-approval/publication projection
+- `estimated_ehb_snapshot`, nullable active-approval/publication projection
 
 There may be only one board tile per board position and only one position per board tile.
 
-Once a board is published, its board tile, requirement, eligible-drop, rate, and EHB snapshot records are immutable through normal catalogue editing. An explicit post-publication board correction creates audited replacement values without rewriting the historical before-state.
+While the board is `DRAFT`, editor/preview queries use the board-owned `Tile` plus live catalogue joins and ignore the approval/publication projection fields. Approval populates the active projection from an immutable `BoardApprovalSnapshot`. Once approved or published, its board tile, requirement, eligible-drop, rate, artwork, and EHB snapshot records are immutable through normal catalogue editing. An explicit unapproval returns an unpublished board to live derivation; an explicit post-publication correction creates audited replacement values without rewriting the historical before-state.
 
 ### 10.4 TileRequirement
 
@@ -673,8 +1052,10 @@ Fields:
 
 - `tile_requirement_id`
 - `boss_activity_id`
-- `boss_name_snapshot`
-- `efficient_rate_snapshot`
+- `boss_name_snapshot`, nullable active-approval/publication projection
+- `efficient_rate_snapshot`, nullable active-approval/publication projection
+
+While the board is `DRAFT`, queries join `boss_activity_id` to the current catalogue row and ignore these projection fields. Board approval freezes them in the new approval snapshot.
 
 ### 10.6 RequirementDrop
 
@@ -684,15 +1065,17 @@ Fields:
 
 - `tile_requirement_id`
 - `source_drop_id`
-- `boss_name_snapshot`
-- `item_name_snapshot`
-- `display_rate_snapshot`
-- `numeric_probability_snapshot`
+- `boss_name_snapshot`, nullable active-approval/publication projection
+- `item_name_snapshot`, nullable active-approval/publication projection
+- `display_rate_snapshot`, nullable active-approval/publication projection
+- `numeric_probability_snapshot`, nullable active-approval/publication projection
 - `maximum_total_contribution`
-- `ehb_per_contribution_snapshot`
+- `ehb_per_contribution_snapshot`, nullable active-approval/publication projection
 - `credited_weight`, defaults to `1`
 
 Every eligible drop has a default credited weight of `1`. The board designer may set a higher `credited_weight` on specific drops. Submitters cannot override the selected drop's snapshot value.
+
+While the board is `DRAFT`, queries join `source_drop_id` and the chosen rate variant to current catalogue data and ignore these projection fields. Board approval freezes the selected names, rate mechanics, and derived EHB in the new approval snapshot.
 
 When duplicates are not allowed, each eligible item normally has a maximum contribution of `1`. An explicit maximum can override this behavior.
 
@@ -711,6 +1094,27 @@ If `placed_tile_count > new_capacity`, resizing is blocked. A confirmation popup
 
 After publication, resizing requires explicit confirmation, an audit reason, and recalculation of every team's board and line state.
 
+### 10.8 BoardApprovalSnapshot
+
+Immutable version created by **Approve board**, before publication.
+
+Fields:
+
+- `id`
+- `board_id`
+- `version`
+- `approved_at`
+- `approved_by_account_id`
+- `rows`
+- `columns`
+- `calculation_version`
+- `total_ehb`
+- `superseded_at`, nullable
+
+Child snapshot rows capture every tile position/name/description/artwork, requirement rule, boss/activity name and efficient rate, source drop/item/rate/variant/probability, contribution cap/weight, manual EHB, and derived tile/line/board EHB value.
+
+Approval locks or version-checks every referenced live board/catalogue row and fails atomically on a concurrent edit. `Board.active_approval_snapshot_id` identifies the frozen version used by `VALIDATED` preview and publication. Unapproval/editing clears that active pointer and marks the snapshot superseded without deleting it. Publication points to the active approval snapshot and never recalculates it.
+
 ## 11. Evidence and submission domain
 
 ### 11.1 Submission
@@ -723,23 +1127,22 @@ Fields:
 - `tile_requirement_id`
 - `source_drop_id`, optional for manual objectives
 - `credited_event_participant_id`
+- `credited_osrs_character_id`
 - `submitted_by_account_id`
 - `credited_weight`
 - `total_claimed_contribution`
 - `total_approved_contribution`
 - `submitted_at`
-- `captain_note`
+- `submitter_note`
 - `status`
-- `public_evidence_hidden`
-- `public_player_hidden`
-- `current_reviewer_note`
+- `resubmits_submission_id`, nullable self-reference to a rejected submission
+- `rejection_reason`, nullable and required when status is `REJECTED`
 - `expected_evidence_code`: Immutable snapshot of the code interval active at `submitted_at`; null when verification was disabled
 
 Submission status:
 
 ```text
 PENDING
-CHANGES_REQUESTED
 APPROVED
 REJECTED
 WITHDRAWN
@@ -761,6 +1164,10 @@ Stores manual or generated verification-code history for one event:
 Intervals may be scheduled in advance. Adding a code recalculates adjacent retirement boundaries, while each existing submission keeps its original `expected_evidence_code` snapshot.
 
 `credited_weight` is copied from the selected immutable requirement-drop snapshot when a submission is created or retargeted. It defaults to `1`; submitters and reviewers do not choose a different per-submission value.
+
+For an ordinary participant submission, `credited_event_participant_id` is the submitter's current event participant. For a captain/co-captain submission, the captain selects one current teammate. In both cases the create command resolves that participant's active character at `submitted_at` and snapshots it as `credited_osrs_character_id`; the submitter never selects a credited account. Pending submitter edits preserve both credited fields. Only a reasoned admin correction may change the credited playing account before approval/rejection.
+
+A submission created through **Resubmit** references exactly one rejected predecessor. It copies that predecessor's credited participant and playing-character snapshots even when the participant's active character has since changed, because the new evidence is correcting the same claimed drop rather than claiming a new one. Those two copied fields are submitter-read-only. Event/team and ordinary structured evidence values are prefilled, tile/requirement/drop/note remain editable under normal validation, and a new evidence asset is required. `resubmits_submission_id` is unique, preventing concurrent direct children; a rejected child may itself be resubmitted to form an append-only chain.
 
 ### 11.2 EvidenceAsset
 
@@ -784,7 +1191,6 @@ Asset role:
 ```text
 ORIGINAL_EVIDENCE
 REPLACEMENT_EVIDENCE
-ADMIN_ATTACHMENT
 ```
 
 Only one active original or replacement screenshot is used as the primary evidence at a time. Previous evidence remains historical.
@@ -804,19 +1210,14 @@ Fields:
 Review action:
 
 ```text
-REQUEST_CHANGES
 EDIT_METADATA
 APPROVE
 REJECT
-MARK_DUPLICATE
-HIDE_PUBLIC_EVIDENCE
-SHOW_PUBLIC_EVIDENCE
 REVERSE_APPROVAL
 WITHDRAW
-RESUBMIT
 ```
 
-Notes are required for request changes, rejection, reversal, and material admin corrections.
+Notes are required for rejection, reversal, and material admin corrections. Approval requires no note.
 
 ### 11.4 Submission transitions
 
@@ -825,25 +1226,29 @@ Normal transitions:
 ```text
 PENDING → APPROVED
 PENDING → REJECTED
-PENDING → CHANGES_REQUESTED
 PENDING → WITHDRAWN
-CHANGES_REQUESTED → PENDING
-CHANGES_REQUESTED → WITHDRAWN
 APPROVED → REVERSED
 ```
 
-An admin may correct metadata while pending or changes requested. Correcting an approved submission should normally reverse it, correct it, and approve it again so progress changes remain explicit.
+An admin may correct a pending submission's tile/requirement, qualifying drop, or credited playing character with a required reason and complete revalidation. Credited participant is derived from the event-unique playing-character assignment and is never independently edited. Server submission time, snapshot weight, calculated contribution, and submitted evidence asset are immutable to the reviewer. Correcting an approved submission requires reversal.
+
+A corrected attempt after rejection is a new `PENDING` submission rather than a transition of the rejected record. It is accepted only while the active upload window permits new submissions and requires a new evidence asset. The predecessor must be `REJECTED`, visible to the submitter under the ordinary participant/captain scope, and have no existing direct resubmission. The command copies and locks the predecessor's credited participant/account snapshots, revalidates the editable structured values, and atomically claims the unique predecessor link. A repeated or racing request cannot create two corrected children.
 
 ### 11.5 Submission timing validity
 
 For a normal drop submission:
 
 ```text
-event_starts_at <= submitted_at <= effective_submission_cutoff_at
 submitted_at <= active submission cutoff or approved reopening cutoff
+credited_osrs_character_id is a PLAYING assignment belonging to
+credited_event_participant_id for the event
 ```
 
 Reopening submissions extends the evidence-upload window but does not extend the valid obtained window unless the event end itself is changed.
+
+The plugin-rendered UTC value inside the evidence image is the only recorded evidence of when the drop occurred. It is neither separately transcribed into structured submission data nor extracted through OCR. Approval attests that the administrator visually confirmed the screenshot time falls between the official event start and authoritative event end and inside an active interval for the credited playing character. No fixed upload-hours rule is represented in the domain model.
+
+Evidence review displays the latest relevant swap transition in UTC. The full transition list remains available as an admin/audit detail when visual validation needs more context.
 
 ## 12. Contribution and progress calculations
 
@@ -1018,7 +1423,7 @@ Every catalogue probability supplied to the calculator is already a final effect
 
 For more complex requirements the calculator models one completion at a time. Drops in the same roll group are mutually exclusive, separate roll groups are independent, and `rolls_per_completion` repeats that roll. It calculates the expected remaining person-hours for each possible progress state, including credited weights and already-collected identities, and chooses the most efficient available boss/activity from that state. Separate objectives are calculated independently and then added.
 
-If a required probability, efficient-completion rate, team/parent assumption, or applicable variant is missing or inconsistent, automatic EHB returns no estimate and the administrator must provide a manual override. The system does not guess.
+If a required probability, efficient-completion rate, team/parent assumption, or applicable variant is missing or inconsistent, automatic EHB returns no estimate and the catalogue-backed/drop tile fails board validation. The administrator must correct the catalogue or requirement configuration. The system does not guess and does not permit a manual override for that tile. Only a `MANUAL` custom objective uses its required explicit manual EHB value.
 
 Every board tile stores the EHB estimate used when the board was published.
 
@@ -1083,28 +1488,31 @@ These records are caches. Approved evidence and board configuration remain autho
 
 ## 16. Evidence visibility
 
-Submission visibility is derived from status, team access, and privacy flags.
+Submission visibility is derived from status and team access.
 
 ### Public
 
-- Approved evidence only
-- Screenshot hidden when `public_evidence_hidden` is true
-- Credited player hidden when `public_player_hidden` is true
-- A captain's `public_privacy_requested` flag automatically sets both hidden flags when the submission is approved
-- Hidden record still shows that qualifying evidence was approved
+- Approved evidence metadata, credited player, and screenshot
 
 ### Captain/co-captain
 
 - All submissions for their own team
 - Approved evidence for other teams only through the same public view available to visitors
-- No access to other teams' pending, rejected, changes-requested, withdrawn, or hidden private data
+- No access to other teams' pending, rejected, or withdrawn private data
+
+### Participant
+
+- Their own pending, rejected, and withdrawn submissions, including rejection feedback
+- Their own pending edit/withdraw actions only while the upload window remains open
+- Approved evidence through the ordinary public view
+- No access to another participant's non-public submission state
+- After archive, read-only access to their own rejected/withdrawn history remains while every mutation is disabled
 
 ### Admin
 
 - Complete evidence, metadata, prior evidence versions, review actions, and audit history
 
-Hiding a screenshot publicly automatically hides the credited player outside admin views.
-An admin can restore both public fields after approval without deleting the captain's recorded privacy request.
+There is no participant/captain evidence-privacy request, public-player hiding flag, or hidden-but-still-approved evidence state. If an approved screenshot must cease being public, an admin reverses approval with a reason; the corrected/redacted attempt is a new submission under the ordinary cutoff and resubmission rules.
 
 ## 17. Finalization and blockers
 
@@ -1113,7 +1521,6 @@ An admin can restore both public fields after approval without deleting the capt
 The event cannot finalize while any configured competitive blocker is active, including:
 
 - Pending submissions that may affect results
-- Changes-requested submissions still eligible for correction
 - Required completion-time inspections not acknowledged
 - Invalid or unreproducible progress calculation
 - Open manual placement correction
@@ -1138,11 +1545,14 @@ Finalization:
 3. Stores official placement snapshots.
 4. Records the finalization actor and time.
 5. Publishes official results.
-6. Reschedules captain account expiry to 24 hours after finalization.
+
+Normal finalization requires strong confirmation but no reason. Every `PENDING` submission is a blocker. `APPROVED`, `REJECTED`, `WITHDRAWN`, and `REVERSED` submissions do not block solely because of status.
+
+At `submissions_closed_at`, every enabled emergency captain `AccountEventAccess` record for the event receives `manually_disabled_at` through the automatic cutoff actor/context. Normal website-account captain/co-captain roles are not deleted, expired, or rewritten. Reopening submissions does not clear emergency disablement.
 
 ### 17.3 Unfinalization
 
-Unfinalization requires an admin reason. It:
+Unfinalization requires strong confirmation and an admin reason. It:
 
 - Marks the current placement snapshot superseded
 - Returns results to provisional status
@@ -1170,6 +1580,8 @@ Fields:
 
 Evidence assets require stricter retention and access rules than decorative images.
 
+Every application-owned event, team, board/tile, profile, or evidence image is created through managed file upload and referenced by an asset ID; those domain records do not store arbitrary image URLs. `BossActivity.source_image_url` and `Item.source_image_url` are the only permitted external image-source fields. They belong to the global OSRS catalogue and may be resolved into cached/local `image_asset_id` records by catalogue infrastructure.
+
 ## 19. Audit domain
 
 ### 19.1 AuditEntry
@@ -1189,6 +1601,7 @@ Fields:
 
 Audited actions include:
 
+- Event creation and discard
 - Event state changes
 - Signup deadline and capacity changes
 - Waiting-list promotions and manual status changes
@@ -1197,7 +1610,6 @@ Audited actions include:
 - Team and roster corrections
 - Board resizing, publication, and post-publication edits
 - Submission metadata edits and review actions
-- Evidence privacy changes
 - Completion-time corrections
 - Approval reversals
 - Placement finalization and unfinalization
@@ -1327,7 +1739,7 @@ The data model is ready for architecture planning when it can represent and expl
 16. Recalculation after reversing approved evidence.
 17. Final-review blockers and admin-confirmed placements.
 18. Historical event snapshots that survive catalogue updates.
-19. Temporary captain access and post-finalization expiry.
+19. Temporary emergency captain access and automatic submission-cutoff disablement without expiring website-account role history.
 20. Auditable corrections without destructive history deletion.
 21. Pre-formed internal or external teams added before or after a draft without altering draft history.
 22. A partially built private board that remains editable while event signups are open.

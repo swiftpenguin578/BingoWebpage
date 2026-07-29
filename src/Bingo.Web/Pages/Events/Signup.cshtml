@@ -1,28 +1,38 @@
 @page "/Events/{slug}/Signup"
 @model Bingo.Web.Pages.Events.SignupModel
 @using Bingo.Domain.Signups
+@using System.Globalization
 @{
-    ViewData["Title"] = Model.EventView?.Name ?? "Signup";
+    ViewData["Title"] = Model.EventView?.Name ?? T["Signup"];
 }
-<section class="form-page wide-form"><p class="eyebrow">Event signup</p><h1>@Model.EventView!.Name</h1><p class="form-intro">@Model.EventView.Description</p>
-<div class="panel event-summary"><p><strong>Signup closes</strong><span>@Model.EventView.SignupClosesAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></p><p><strong>Event</strong><span>@Model.EventView.EventStartsAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm") – @Model.EventView.EventEndsAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></p></div>
-@if (!Model.EventView.Accepting) { <div class="panel"><h2>Signups are not currently open</h2><p>The event information remains visible, but the form is unavailable.</p></div> }
+<section class="form-page wide-form"><p class="eyebrow">@T[Model.IsEditing ? "Edit signup" : "Event signup"]</p><h1>@Model.EventView!.Name</h1><p class="form-intro">@Model.EventView.Description</p>
+<div class="panel event-summary"><p><strong>@T["Signup closes"]</strong><span>@(Model.EventView.SignupClosesAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? T["Not set"])</span></p><p><strong>@T["Event"]</strong><span>@(Model.EventView.EventStartsAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? T["Not set"]) – @(Model.EventView.EventEndsAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? T["Not set"])</span></p></div>
+@if(Model.EventView.TableAvailable){<p><a class="btn neutral-outline-action" asp-page="/Events/Signups" asp-route-slug="@Model.EventView.Slug">@T["View signup table"]</a></p>}
+@if (ViewData.ModelState.ErrorCount > 0) { <div asp-validation-summary="All" class="validation-summary panel" data-feedback-target tabindex="-1"></div> }
+@if (Model.EventView.Cancelled) { <div class="panel"><h2>@T["Event cancelled"]</h2><p>@T["This event will not take place."]</p></div> }
+else if (!Model.EventView.Accepting) { <div class="panel"><h2>@T["Signups are not currently open"]</h2><p>@T["The event information remains visible, but the form is unavailable."]</p></div> }
 else {
-<form method="post" class="panel form-stack"><div asp-validation-summary="ModelOnly" class="validation-summary"></div>
-<label asp-for="Input.PrimaryAccountName"></label><input asp-for="Input.PrimaryAccountName" class="form-control" /><span asp-validation-for="Input.PrimaryAccountName" class="field-error"></span>
-<label asp-for="Input.Ehb"></label><input asp-for="Input.Ehb" class="form-control" /><span asp-validation-for="Input.Ehb" class="field-error"></span>
-<label asp-for="Input.SecondAccountName"></label><input asp-for="Input.SecondAccountName" class="form-control" />
-<label asp-for="Input.DiscordIdentity"></label><input asp-for="Input.DiscordIdentity" class="form-control" />
-<label asp-for="Input.Comments"></label><textarea asp-for="Input.Comments" class="form-control" rows="4"></textarea>
-<label class="check-row"><input asp-for="Input.CaptainVolunteer" /> I am willing to be a captain</label>
+<form method="post" class="panel form-stack">
+<input type="hidden" asp-for="Input.ExpectedResponseVersion" />
 @foreach (var question in Model.Questions) {
 <label for="question-@question.Id">@question.Label @if(question.Required){<span aria-hidden="true">*</span>}</label>
-@if(question.Type == SignupQuestionType.LongText){<textarea id="question-@question.Id" name="Input.CustomAnswers[@question.Id]" class="form-control" rows="3"></textarea>}
-else if(question.Type == SignupQuestionType.YesNo){<select id="question-@question.Id" name="Input.CustomAnswers[@question.Id]" class="form-select"><option value="">Choose…</option><option>Yes</option><option>No</option></select>}
-else if(question.Type == SignupQuestionType.SingleChoice){<select id="question-@question.Id" name="Input.CustomAnswers[@question.Id]" class="form-select"><option value="">Choose…</option>@foreach(var option in question.OptionList){<option>@option</option>}</select>}
-else {<input id="question-@question.Id" name="Input.CustomAnswers[@question.Id]" class="form-control" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" />}
+@if(question.Type == SignupQuestionType.Account){ var accountInput = Model.Input.AccountAnswers.GetValueOrDefault(question.Id) ?? new SignupModel.AccountInput(); <select id="question-@question.Id" name="Input.AccountAnswers[@question.Id].OsrsCharacterId" class="form-select" data-ehb-input="@(question.AccountRole == EventCharacterRole.Playing ? $"ehb-{question.Id}" : null)"><option value="">@T["Choose…"]</option>@foreach(var account in question.Accounts){<option value="@account.Id" data-saved-ehb="@(account.SavedEhb?.ToString(CultureInfo.InvariantCulture) ?? string.Empty)" selected="@(account.Id == accountInput.OsrsCharacterId ? "selected" : null)">@account.Name@if(account.Historical){<text> (@T["Currently registered"])</text>}</option>}</select><span class="field-error">@Html.ValidationMessage($"Input.AccountAnswers[{question.Id}].OsrsCharacterId")</span>@if(question.AccountRole == EventCharacterRole.Playing){<label for="ehb-@question.Id">@T["EHB (Wise Old Man)"]</label><input id="ehb-@question.Id" name="Input.AccountAnswers[@question.Id].Ehb" value="@accountInput.Ehb" class="form-control" type="number" min="0" step="0.01" /><span class="field-error">@Html.ValidationMessage($"Input.AccountAnswers[{question.Id}].Ehb")</span>}<p class="form-hint"><a href="@Model.MyAccountsUrl">@T["Don't see your account? Add it to My accounts"]</a></p>}
+    else if(question.SystemField == SignupSystemField.CaptainVolunteer){<label class="check-row"><input type="checkbox" name="Input.Answers[@question.Id]" value="true" checked="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "true" ? "checked" : null)" /> @T["I am willing to be a captain"]</label>}
+    else if(question.Type == SignupQuestionType.Text){<textarea id="question-@question.Id" name="Input.Answers[@question.Id]" class="form-control" rows="3">@Model.Input.Answers.GetValueOrDefault(question.Id)</textarea>}
+    else if(question.Type == SignupQuestionType.YesNo){<select id="question-@question.Id" name="Input.Answers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option><option value="true" selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "true" ? "selected" : null)">@T["Yes"]</option><option value="false" selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "false" ? "selected" : null)">@T["No"]</option></select>}
+else if(question.Type == SignupQuestionType.SingleChoice){<select id="question-@question.Id" name="Input.Answers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option>@foreach(var option in question.OptionList){<option selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == option ? "selected" : null)">@option</option>}</select>}
+else {<input id="question-@question.Id" name="Input.Answers[@question.Id]" value="@Model.Input.Answers.GetValueOrDefault(question.Id)" class="form-control" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" />}
+@if(question.Type != SignupQuestionType.Account && question.SystemField != SignupSystemField.CaptainVolunteer){<span class="field-error">@Html.ValidationMessage($"Input.Answers[{question.Id}]")</span>}
 }
-@if(Model.EventView.RequireCode){<label asp-for="Input.SignupCode"></label><input asp-for="Input.SignupCode" class="form-control" autocomplete="off" />}
-<button class="btn btn-primary" type="submit">Sign up</button></form> }
+@if(Model.EventView.RequireCode){<label asp-for="Input.SignupCode"></label><input asp-for="Input.SignupCode" class="form-control" autocomplete="off" /><span asp-validation-for="Input.SignupCode" class="field-error"></span>}
+<button class="btn action-accent-outline" type="submit">@T[Model.IsEditing ? "Save signup" : "Sign up"]</button></form> }
 </section>
-@section Scripts { <partial name="_ValidationScriptsPartial" /> }
+@section Scripts { <partial name="_ValidationScriptsPartial" /> <script>
+document.querySelectorAll("select[data-ehb-input]").forEach((select) => {
+    select.addEventListener("change", () => {
+        const ehb = document.getElementById(select.dataset.ehbInput);
+        if (!ehb) return;
+        ehb.value = select.selectedOptions[0]?.dataset.savedEhb ?? "";
+    });
+});
+</script> }

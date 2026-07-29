@@ -1,21 +1,11 @@
 @page "/Captain/Submit/{tileId:guid}"
 @model Bingo.Web.Pages.Captain.SubmitModel
-@{ViewData["Title"]=$"Submit {Model.Tile.Name}";}
-<section class="form-page"><div class="page-heading"><div><p class="eyebrow">Submit one screenshot</p><h1>@Model.Tile.Name</h1><p>@Model.Tile.Description</p></div><a asp-page="Index">Back to board</a></div>
-@if(!string.IsNullOrWhiteSpace(Model.Tile.EvidenceInstructions)){<section class="panel"><strong>Evidence instructions</strong><p>@Model.Tile.EvidenceInstructions</p></section>}
-<div asp-validation-summary="All" class="validation-summary"></div>
-@foreach(var requirement in Model.Requirements)
-{
-@if(requirement.Remaining==0){<section class="panel captain-tile complete"><h2>@requirement.Description</h2><strong>Requirement complete</strong><p>Existing pending submissions remain available to administrators for review.</p></section>continue;}
-<form method="post" enctype="multipart/form-data" class="panel form-stack submission-form"><input type="hidden" name="Input.RequirementId" value="@requirement.Id"/><h2>@requirement.Description</h2><p>Target contribution: @requirement.Target</p>
-@if(!requirement.Manual){<p class="requirement-rule"><strong>@(requirement.DuplicatesAllowed?"Repeated drops are allowed.":"Each eligible drop can count only once after approval.")</strong> Pending submissions do not reserve a drop, so captains may submit another copy while the first is still being reviewed.</p>}
-@if(!requirement.Manual){<label>Eligible drop</label><select name="Input.DropSnapshotId" class="form-select" required><option value="">Choose a drop</option>@foreach(var group in requirement.Drops.GroupBy(x=>x.Boss)){<optgroup label="@group.Key">@foreach(var drop in group){<option value="@drop.Id">@drop.Item (@drop.Rate)@(drop.CreditedWeight > 1 ? $" — counts for {drop.CreditedWeight}" : string.Empty)</option>}</optgroup>}</select>}
-<label>Player who received it</label><select name="Input.CreditedParticipantId" class="form-select" required><option value="">Choose player</option>@foreach(var player in Model.Players){<option value="@player.Id">@player.Name</option>}</select>
-<input name="Input.ClaimedWeight" type="hidden" value="1"/><p class="requirement-rule"><strong>The selected drop's configured weight is applied automatically.</strong></p>
-<label>Optional note</label><textarea name="Input.Note" class="form-control" rows="3"></textarea>
-<label class="checkbox-row"><input name="Input.RequestPublicPrivacy" type="checkbox" value="true"/> Hide the screenshot and player name if this submission is approved</label>
-<label>Screenshot</label><div class="evidence-drop" tabindex="0"><strong>Paste or drag screenshot here</strong><span>or choose a PNG, JPEG, or WebP up to 10 MB</span><div class="evidence-input-actions"><button type="button" class="btn btn-outline-light paste-evidence">Paste screenshot</button><input name="Input.Evidence" type="file" accept="image/png,image/jpeg,image/webp" required/></div><small class="paste-status" aria-live="polite"></small><img alt="Evidence preview" hidden/></div>
-<button class="btn btn-primary">Submit for review</button></form>
-}
+@{ ViewData["Title"] = $"{T["Submit evidence"]}: {Model.Tile.Name}"; }
+<section class="form-page">
+    <div class="page-heading">
+        <div><p class="eyebrow">@T["Submit one screenshot"]</p><h1>@Model.Tile.Name</h1><p>@Model.Tile.Description</p></div>
+        <a asp-page="Index">@T["Back to board"]</a>
+    </div>
+    <partial name="_SubmissionForms" model="Model" />
 </section>
-@section Scripts{<script>document.querySelectorAll('.evidence-drop').forEach(zone=>{const input=zone.querySelector('input[type=file]');const preview=zone.querySelector('img');const status=zone.querySelector('.paste-status');const show=file=>{if(!file)return;const transfer=new DataTransfer();transfer.items.add(file);input.files=transfer.files;preview.src=URL.createObjectURL(file);preview.hidden=false;status.textContent=`Ready: ${file.name||'pasted screenshot'}`;};zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragging')});zone.addEventListener('dragleave',()=>zone.classList.remove('dragging'));zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragging');show([...e.dataTransfer.files].find(x=>x.type.startsWith('image/')))});zone.addEventListener('paste',e=>show([...e.clipboardData.files].find(x=>x.type.startsWith('image/'))));zone.querySelector('.paste-evidence').addEventListener('click',async()=>{try{const items=await navigator.clipboard.read();for(const item of items){const type=item.types.find(x=>x.startsWith('image/'));if(type){const blob=await item.getType(type);show(new File([blob],'pasted-screenshot.png',{type}));return;}}status.textContent='The clipboard does not contain an image.';}catch{status.textContent='Clipboard access was blocked. Click the outer box and press Command+V instead.';zone.focus();}});input.addEventListener('change',()=>show(input.files[0]));});</script>}
+@section Scripts { <script src="~/js/captain-evidence-input.js" asp-append-version="true"></script> }

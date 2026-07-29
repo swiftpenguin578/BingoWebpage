@@ -2,7 +2,7 @@
 @model Bingo.Web.Pages.Events.BoardModel
 @using Bingo.Domain.Events
 @{
-    ViewData["Title"] = $"{Model.Board.EventName} board";
+    ViewData["Title"] = T["{0} board", Model.Board.EventName];
     ViewData["HideBreadcrumbs"] = true;
     ViewData["CompactNavigation"] = true;
     ViewData["BodyClass"] = "public-event-shell";
@@ -18,28 +18,28 @@
             <div class="public-event-mark" aria-hidden="true">▦</div>
             <div class="public-dashboard-title">
                 <h1>@Model.Board.EventName</h1>
-                <p><span class="event-status-dot"></span>@Model.Board.EventState <span aria-hidden="true">·</span> Bingo <span aria-hidden="true">·</span> @Model.Board.Teams.Count teams</p>
+                <p><span class="event-status-dot"></span>@Model.Board.EventState <span aria-hidden="true">·</span> @T["Bingo"] <span aria-hidden="true">·</span> @T["{0} teams", Model.Board.Teams.Count]</p>
             </div>
         </header>
 
-        <nav class="public-dashboard-tabs" aria-label="Bingo views">
+        <nav class="public-dashboard-tabs auto-hide-scrollbar" aria-label="@T["Bingo views"]">
             <a class="@(isMission ? "active" : null)" aria-current="@(isMission ? "page" : null)"
                asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug">
-                View bingo
+                @T["View bingo"]
             </a>
             <a class="@(isDrops ? "active" : null)" aria-current="@(isDrops ? "page" : null)"
                asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="drops">
-                Recent drops
+                @T["Recent drops"]
             </a>
             <a class="@(isLeaderboards ? "active" : null)" aria-current="@(isLeaderboards ? "page" : null)"
                asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards">
-                Leaderboards
+                @T["Leaderboards"]
             </a>
         </nav>
     </div>
 
     <div class="progress-update" data-progress-update hidden role="status">
-        New approved progress is available. <button type="button" data-progress-refresh>Refresh now</button>
+        @T["New approved progress is available."] <button type="button" data-progress-refresh>@T["Refresh now"]</button>
     </div>
 
     @if (isMission)
@@ -70,9 +70,9 @@
                         </div>
                         <div class="mission-completion" aria-label="@completion percent complete"><span style="width:@completion%"></span></div>
                         <footer>
-                            <span><strong>@team.Progress.CompletedTiles/@totalTiles</strong> tiles</span>
-                            <span><strong>@lineCount</strong> @(lineCount == 1 ? "line" : "lines")</span>
-                            <span title="Estimated Drop EHB from approved contributions"><strong>@team.Progress.EhbTiebreak.ToString("N0")</strong> Drop EHB</span>
+                            <span><strong>@team.Progress.CompletedTiles/@totalTiles</strong> @T["tiles"]</span>
+                            <span><strong>@lineCount</strong> @(lineCount == 1 ? "row" : "rows")</span>
+                            <span title="@T["Estimated Drop EHB from approved contributions"]"><strong>@team.Progress.EhbTiebreak.ToString("N0")</strong> @T["Drop EHB"]</span>
                         </footer>
                     </a>
                 }
@@ -83,12 +83,12 @@
     {
         <section class="public-dashboard-view recent-drops-view" aria-labelledby="drops-heading">
             <header class="public-view-heading">
-                <div><p class="eyebrow">Approved moments</p><h2 id="drops-heading">Recent drops</h2></div>
-                <p>The newest approved contributions across every team.</p>
+                <div><p class="eyebrow">@T["Approved moments"]</p><h2 id="drops-heading">@T["Recent drops"]</h2></div>
+                <p>@T["The newest approved contributions across every team."]</p>
             </header>
             @if (Model.Board.RecentDrops.Count == 0)
             {
-                <div class="public-feature-empty panel"><span aria-hidden="true">◇</span><h3>The feed is waiting for its first drop</h3><p>Approved public evidence will appear here as the event unfolds.</p></div>
+                <div class="public-feature-empty panel"><span aria-hidden="true">◇</span><h3>@T["The feed is waiting for its first drop"]</h3><p>@T["Approved public evidence will appear here as the event unfolds."]</p></div>
             }
             else
             {
@@ -110,7 +110,7 @@
                                 <span class="recent-drop-team">@drop.TeamName</span>
                                 <h3>@(drop.Hidden ? "Private approved contribution" : drop.DropName ?? drop.TileName)</h3>
                                 <p>@if (!drop.Hidden && !string.IsNullOrWhiteSpace(drop.PlayerName)) { <strong>@drop.PlayerName</strong><text> · </text> }@drop.TileName</p>
-                                <footer><span>Counts for @drop.Contribution</span><time datetime="@drop.ApprovedAt.ToString("O")">@drop.ApprovedAt.ToString("d MMM, HH:mm")</time></footer>
+                                <footer><span>@T["Counts for {0}", drop.Contribution]</span><time datetime="@drop.ApprovedAt.ToString("O")">@drop.ApprovedAt.ToString("d MMM, HH:mm")</time></footer>
                             </div>
                         </article>
                     }
@@ -122,38 +122,38 @@
     {
         <section class="public-dashboard-view leaderboards-view" aria-labelledby="leaderboards-heading">
             <header class="public-view-heading">
-                <div><p class="eyebrow">Performance</p><h2 id="leaderboards-heading">Leaderboards</h2></div>
-                <p>Official bingo position stays visible while you explore player performance.</p>
+                <div><p class="eyebrow">@T["Performance"]</p><h2 id="leaderboards-heading">@T["Leaderboards"]</h2></div>
+                <p>@T["Official bingo position stays visible while you explore player performance."]</p>
             </header>
             <div class="public-leaderboard-layout">
                 <main class="performance-leaderboard panel">
-                    <nav class="performance-tabs" aria-label="EHB leaderboard">
+                    <nav class="performance-tabs" aria-label="@T["EHB leaderboard"]">
                         <a class="@(Model.ActiveRanking == "drops" ? "active" : null)" aria-current="@(Model.ActiveRanking == "drops" ? "page" : null)"
-                           asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards" asp-route-ranking="drops">Drop EHB</a>
+                           asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards" asp-route-ranking="drops">@T["Drop EHB"]</a>
                         <a class="@(Model.ActiveRanking == "activity" ? "active" : null)" aria-current="@(Model.ActiveRanking == "activity" ? "page" : null)"
-                           asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards" asp-route-ranking="activity">Activity EHB</a>
+                           asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards" asp-route-ranking="activity">@T["Activity EHB"]</a>
                     </nav>
                     @if (Model.ActiveRanking == "activity")
                     {
                         <div class="activity-ehb-preview">
-                            <span class="feature-kicker">Wise Old Man integration</span>
-                            <h3>Activity EHB is coming later</h3>
-                            <p>This view will rank teams by total EHB gained, average gain, and MVP, with each team expanding into its individual players.</p>
+                            <span class="feature-kicker">@T["Wise Old Man integration"]</span>
+                            <h3>@T["Activity EHB is coming later"]</h3>
+                            <p>@T["This view will rank teams by total EHB gained, average gain, and MVP, with each team expanding into its individual players."]</p>
                             <div class="activity-preview-table" aria-hidden="true">
-                                <span>Rank</span><span>Team</span><span>Total gained</span><span>Average</span><span>MVP</span>
-                                <strong>—</strong><strong>Waiting for event snapshots</strong><strong>—</strong><strong>—</strong><strong>—</strong>
+                                <span>@T["Rank"]</span><span>@T["Team"]</span><span>@T["Total gained"]</span><span>@T["Average"]</span><span>@T["MVP"]</span>
+                                <strong>—</strong><strong>@T["Waiting for event snapshots"]</strong><strong>—</strong><strong>—</strong><strong>—</strong>
                             </div>
                         </div>
                     }
                     else if (Model.Board.PlayerLeaderboard.Count == 0)
                     {
-                        <div class="public-feature-empty"><span aria-hidden="true">◇</span><h3>No public player contributions yet</h3><p>Drop EHB appears after evidence is approved and the credited player is public.</p></div>
+                        <div class="public-feature-empty"><span aria-hidden="true">◇</span><h3>@T["No public player contributions yet"]</h3><p>@T["Drop EHB appears after evidence is approved and the credited player is public."]</p></div>
                     }
                     else
                     {
-                        <header class="leaderboard-table-heading"><div><span class="feature-kicker">Approved contributions</span><h3>Player drop EHB</h3></div><span>Private players excluded</span></header>
-                        <div class="public-ranking-list" role="table" aria-label="Player drop EHB leaderboard">
-                            <div class="public-ranking-row heading" role="row"><span role="columnheader">Rank</span><span role="columnheader">Player</span><span role="columnheader">Team</span><span role="columnheader">Drop EHB</span><span role="columnheader">Approvals</span></div>
+                        <header class="leaderboard-table-heading"><div><span class="feature-kicker">@T["Approved contributions"]</span><h3>@T["Player drop EHB"]</h3></div><span>@T["Private players excluded"]</span></header>
+                        <div class="public-ranking-list" role="table" aria-label="@T["Player drop EHB leaderboard"]">
+                            <div class="public-ranking-row heading" role="row"><span role="columnheader">@T["Rank"]</span><span role="columnheader">@T["Player"]</span><span role="columnheader">@T["Team"]</span><span role="columnheader">@T["Drop EHB"]</span><span role="columnheader">@T["Approvals"]</span></div>
                             @foreach (var player in Model.Board.PlayerLeaderboard)
                             {
                                 <div class="public-ranking-row" role="row"><span role="cell" class="ranking-number">#@player.Rank</span><strong role="cell">@player.PlayerName</strong><span role="cell">@player.TeamName</span><span role="cell" class="ranking-value">@player.EstimatedEhb.ToString("N0")</span><span role="cell">@player.ApprovedSubmissions</span></div>
@@ -162,14 +162,14 @@
                     }
                 </main>
                 <aside class="bingo-standings panel" aria-labelledby="standings-heading">
-                    <header><span class="feature-kicker">Always live</span><h3 id="standings-heading">Bingo standings</h3></header>
+                    <header><span class="feature-kicker">@T["Always live"]</span><h3 id="standings-heading">@T["Bingo standings"]</h3></header>
                     <ol>
                         @foreach (var team in Model.Board.Teams.OrderBy(value => value.Rank))
                         {
                             var lines = team.Progress.CompletedRows.Count + team.Progress.CompletedColumns.Count;
                             <li class="@(team.Rank == 1 ? "leader" : null)">
                                 <span class="standings-rank">@team.Rank</span>
-                                <span><strong>@team.TeamName</strong><small>@lines lines · @team.Progress.CompletedTiles/@totalTiles tiles</small></span>
+                                <span><strong>@team.TeamName</strong><small>@lines @(lines == 1 ? T["row"] : T["rows"]) · @team.Progress.CompletedTiles/@totalTiles @T["tiles"]</small></span>
                                 <strong>@team.Progress.EhbTiebreak.ToString("N0")</strong>
                             </li>
                         }
@@ -182,16 +182,21 @@
 
 @if (isMission)
 {
-    <dialog class="team-board-overlay" data-team-board-overlay aria-label="Team board">
-        <button type="button" class="team-board-overlay-close" data-team-board-overlay-close aria-label="Close team board">×</button>
-        <div class="team-board-overlay-content" data-team-board-overlay-content></div>
+    <dialog class="team-board-overlay" data-team-board-overlay aria-label="@T["Team board"]">
+        <button type="button" class="team-board-overlay-close" data-team-board-overlay-close aria-label="@T["Close team board"]">×</button>
+        <div class="team-board-overlay-content auto-hide-scrollbar" data-team-board-overlay-content></div>
     </dialog>
 }
 
-<dialog class="public-lightbox" data-public-lightbox><button type="button" aria-label="Close evidence">×</button><img alt="" /></dialog>
+<dialog class="public-lightbox" data-public-lightbox data-evidence-dialog data-enlarged-evidence="@T["Enlarged approved evidence"]"><button type="button" data-evidence-close aria-label="@T["Close enlarged evidence"]">×</button><img data-evidence-dialog-image alt="" /></dialog>
 
 @section Scripts {
     <partial name="_PublicProgressScripts" model="Model.Board.EventId" />
-    @if (isMission) { <script src="~/js/team-board-overlay.js" asp-append-version="true"></script> }
+    @if (isMission)
+    {
+        <script src="~/js/public-evidence.js" asp-append-version="true"></script>
+        <script src="~/js/captain-evidence-input.js" asp-append-version="true"></script>
+        <script src="~/js/team-board-overlay.js" asp-append-version="true"></script>
+    }
     @if (isDrops) { <script src="~/js/public-evidence.js" asp-append-version="true"></script> }
 }

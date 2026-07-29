@@ -14,6 +14,7 @@ public sealed class CaptainAccountProvisioner(
     IAuditWriter auditWriter,
     TimeProvider time)
 {
+    private readonly IPasswordHasher<Account> legacyPasswordHasher = passwordHasher;
     public async Task<IReadOnlyList<GeneratedCaptainCredential>> ProvisionEventAsync(
         Guid eventId,
         Guid actorId,
@@ -22,7 +23,7 @@ public sealed class CaptainAccountProvisioner(
     {
         var teamIds = await db.Teams.AsNoTracking().Where(x => x.EventId == eventId && x.Active).Select(x => x.Id).ToListAsync(ct);
         var assignments = await (from membership in db.TeamMemberships.AsNoTracking()
-                                 join participant in db.EventParticipants on membership.EventParticipantId equals participant.Id
+                                 join participant in db.PrimaryCharacters() on membership.EventParticipantId equals participant.ParticipantId
                                  where teamIds.Contains(membership.TeamId) && membership.LeftAt == null &&
                                        (membership.Role == TeamMembershipRole.Captain || membership.Role == TeamMembershipRole.CoCaptain)
                                  select new { membership.TeamId, Participant = participant, membership.Role })
@@ -30,7 +31,7 @@ public sealed class CaptainAccountProvisioner(
         var generated = new List<GeneratedCaptainCredential>();
         foreach (var assignment in assignments)
         {
-            var credential = await ProvisionAsync(eventId, assignment.TeamId, assignment.Participant.Id, assignment.Participant.PrimaryAccountName, assignment.Role, actorId, actorName, ct);
+            var credential = await ProvisionAsync(eventId, assignment.TeamId, assignment.Participant.ParticipantId, assignment.Participant.Name, assignment.Role, actorId, actorName, ct);
             if (credential is not null) generated.Add(credential);
         }
         return generated;
@@ -45,17 +46,19 @@ public sealed class CaptainAccountProvisioner(
         CancellationToken ct)
     {
         var assignment = await (from membership in db.TeamMemberships.AsNoTracking()
-                                join participant in db.EventParticipants on membership.EventParticipantId equals participant.Id
+                                join participant in db.PrimaryCharacters() on membership.EventParticipantId equals participant.ParticipantId
                                 where membership.TeamId == teamId && membership.EventParticipantId == participantId && membership.LeftAt == null &&
                                       (membership.Role == TeamMembershipRole.Captain || membership.Role == TeamMembershipRole.CoCaptain)
                                 select new { Participant = participant, membership.Role }).SingleOrDefaultAsync(ct);
-        return assignment is null ? null : await ProvisionAsync(eventId, teamId, participantId, assignment.Participant.PrimaryAccountName, assignment.Role, actorId, actorName, ct);
+        return assignment is null ? null : await ProvisionAsync(eventId, teamId, participantId, assignment.Participant.Name, assignment.Role, actorId, actorName, ct);
     }
 
     public async Task DisableParticipantAsync(Guid participantId, Guid actorId, string actorName, string reason, CancellationToken ct)
     {
-        var account = await db.Accounts.SingleOrDefaultAsync(x => x.CaptainParticipantId == participantId, ct);
-        if (account is null || account.DisabledAt is not null) return;
+        var access = await db.AccountEventAccesses.SingleOrDefaultAsync(x => x.ParticipantId == participantId, ct);
+        if (access is null) return;
+        var account = await db.Accounts.SingleOrDefaultAsync(x => x.Id == access.AccountId, ct);
+        if (account is null) return;
         account.Disable(time.GetUtcNow());
         await db.SaveChangesAsync(ct);
         await auditWriter.WriteAsync(actorId, actorName, "account.captain_auto_disabled", "account", account.Id.ToString(), reason, ct);
@@ -73,24 +76,23 @@ public sealed class CaptainAccountProvisioner(
     {
         var ev = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId, ct);
         var teamName = await db.Teams.AsNoTracking().Where(x => x.Id == teamId).Select(x => x.Name).SingleAsync(ct);
-        var existing = await db.Accounts.SingleOrDefaultAsync(x => x.CaptainParticipantId == participantId, ct);
-        if (existing is not null)
+        var existingAccess = await db.AccountEventAccesses.SingleOrDefaultAsync(x => x.ParticipantId == participantId, ct);
+        if (existingAccess is not null)
         {
-            existing.ScopeCaptain(eventId, teamId, ev.EventStartsAt, ev.SubmissionCutoffAt, ev.EventEndsAt.AddHours(24), participantId);
-            if (existing.DisabledAt is not null) existing.Enable(ev.EventEndsAt.AddHours(24));
             await db.SaveChangesAsync(ct);
             return null;
         }
 
         var username = await GenerateUniqueUsername(playerName, ct);
-        var password = GeneratePassword();
-        var account = new Account(Guid.NewGuid(), username, AccountAuthenticationService.NormalizeUsername(username), AccountRole.Captain, time.GetUtcNow());
-        account.ScopeCaptain(eventId, teamId, ev.EventStartsAt, ev.SubmissionCutoffAt, ev.EventEndsAt.AddHours(24), participantId);
-        account.SetPasswordHash(passwordHasher.HashPassword(account, password), mustChangePassword: true);
+        var now = time.GetUtcNow();
+        var account = Account.CreateEmergency(Guid.NewGuid(), username, AccountAuthenticationService.NormalizeUsername(username), now);
         db.Accounts.Add(account);
+        db.AccountEventAccesses.Add(new AccountEventAccess(Guid.NewGuid(), account.Id, eventId, teamId, participantId, ev.EventStartsAt, null, null));
+        var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+        db.PasswordCredentialTokens.Add(new PasswordCredentialToken(Guid.NewGuid(), account.Id, PasswordCredentialTokenPurpose.EmergencySetup, AccountIdentityService.Hash(token), now.AddMinutes(60), now, actorId));
         await db.SaveChangesAsync(ct);
         await auditWriter.WriteAsync(actorId, actorName, "account.captain_auto_created", "account", account.Id.ToString(), $"{role}: {playerName}; team {teamName}", ct);
-        return new GeneratedCaptainCredential(playerName, teamName, role, username, password);
+        return new GeneratedCaptainCredential(playerName, teamName, role, username, token);
     }
 
     private async Task<string> GenerateUniqueUsername(string playerName, CancellationToken ct)
@@ -102,31 +104,14 @@ public sealed class CaptainAccountProvisioner(
         {
             var candidate = $"{root}{RandomNumberGenerator.GetInt32(1000, 10000)}";
             var normalized = AccountAuthenticationService.NormalizeUsername(candidate);
-            if (!await db.Accounts.AnyAsync(x => x.NormalizedUsername == normalized, ct)) return candidate;
+            if (!await db.Accounts.AnyAsync(x => x.NormalizedLoginName == normalized, ct)) return candidate;
         }
         return $"{root[..Math.Min(root.Length, 88)]}{RandomNumberGenerator.GetInt32(100000, 1000000)}";
     }
 
-    private static string GeneratePassword()
-    {
-        const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-        const string lower = "abcdefghijkmnopqrstuvwxyz";
-        const string digits = "23456789";
-        const string symbols = "!@$%";
-        const string all = upper + lower + digits + symbols;
-        Span<char> value = stackalloc char[16];
-        value[0] = upper[RandomNumberGenerator.GetInt32(upper.Length)];
-        value[1] = lower[RandomNumberGenerator.GetInt32(lower.Length)];
-        value[2] = digits[RandomNumberGenerator.GetInt32(digits.Length)];
-        value[3] = symbols[RandomNumberGenerator.GetInt32(symbols.Length)];
-        for (var index = 4; index < value.Length; index++) value[index] = all[RandomNumberGenerator.GetInt32(all.Length)];
-        for (var index = value.Length - 1; index > 0; index--)
-        {
-            var swap = RandomNumberGenerator.GetInt32(index + 1);
-            (value[index], value[swap]) = (value[swap], value[index]);
-        }
-        return new string(value);
-    }
 }
 
-public sealed record GeneratedCaptainCredential(string PlayerName, string TeamName, TeamMembershipRole Role, string Username, string Password);
+public sealed record GeneratedCaptainCredential(string PlayerName, string TeamName, TeamMembershipRole Role, string Username, string SetupToken)
+{
+    public string Password => SetupToken;
+}

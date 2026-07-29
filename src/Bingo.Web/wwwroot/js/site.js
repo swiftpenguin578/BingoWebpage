@@ -2,25 +2,90 @@
 // for details on configuring this project to bundle and minify static web assets.
 
 // Write your JavaScript code.
+initializeInputModality();
+
+window.bingoDateTimePickerOptions = (overrides = {}) => ({
+  enableTime: true,
+  enableSeconds: false,
+  time_24hr: true,
+  minuteIncrement: 5,
+  disableMobile: true,
+  allowInput: false,
+  ...overrides
+});
+
+window.bingoDateTimeHours = () => Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, "0"));
+window.bingoDateTimeMinutes = () => Array.from({ length: 12 }, (_, index) => String(index * 5).padStart(2, "0"));
+
+window.initializeBingoDateTimePicker = (input, overrides = {}) => {
+  if (typeof window.flatpickr !== "function" || input._flatpickr) return input._flatpickr;
+  const { onChange: changed, onReady: ready, timeLabel = "Time", ...options } = overrides;
+  let hourSelect;
+  let minuteSelect;
+  const sync = (dates) => {
+    if (!hourSelect || !minuteSelect || !dates?.length) return;
+    const value = dates[0];
+    hourSelect.value = String(value.getHours()).padStart(2, "0");
+    minuteSelect.value = String(value.getMinutes()).padStart(2, "0");
+  };
+  return window.flatpickr(input, window.bingoDateTimePickerOptions({
+    ...options,
+    onReady: (dates, value, instance) => {
+      const timeContainer = instance.timeContainer;
+      if (timeContainer) {
+        instance.calendarContainer.classList.add("event-calendar-picker");
+        timeContainer.classList.add("event-calendar-time");
+        const label = document.createElement("span");
+        label.className = "event-calendar-time-label";
+        label.textContent = timeLabel;
+        hourSelect = document.createElement("select");
+        hourSelect.className = "event-time-select";
+        hourSelect.setAttribute("aria-label", timeLabel + " hour");
+        window.bingoDateTimeHours().forEach((hour) => hourSelect.add(new Option(hour, hour)));
+        minuteSelect = document.createElement("select");
+        minuteSelect.className = "event-time-select";
+        minuteSelect.setAttribute("aria-label", timeLabel + " minute");
+        window.bingoDateTimeMinutes().forEach((minute) => minuteSelect.add(new Option(minute, minute)));
+        const setTime = () => {
+          const selected = instance.selectedDates[0] ? new Date(instance.selectedDates[0]) : new Date();
+          selected.setHours(Number(hourSelect.value), Number(minuteSelect.value), 0, 0);
+          instance.setDate(selected, true);
+        };
+        hourSelect.addEventListener("change", setTime);
+        minuteSelect.addEventListener("change", setTime);
+        label.append(hourSelect, minuteSelect);
+        timeContainer.append(label);
+      }
+      sync(dates);
+      ready?.(dates, value, instance);
+    },
+    onChange: (dates, value, instance) => {
+      sync(dates);
+      changed?.(dates, value, instance);
+    }
+  }));
+};
+
 document.addEventListener("DOMContentLoaded", () => {
   restorePostNavigationState();
   initializePostNavigation();
+  initializeAutoHideScrollbars();
+  const feedback = document.querySelector("[data-feedback-target], .validation-summary-errors");
+  if (feedback) {
+    feedback.scrollIntoView({ block: "nearest" });
+    feedback.focus({ preventScroll: true });
+  }
 
   if (typeof window.flatpickr === "function") {
     document.querySelectorAll("[data-date-time-picker]").forEach((input) => {
-      window.flatpickr(input, {
-        enableTime: true,
-        enableSeconds: true,
-        time_24hr: true,
-        dateFormat: "Y-m-d H:i:S",
+      window.initializeBingoDateTimePicker(input, {
+        dateFormat: "Y-m-d\\TH:i",
         altInput: true,
-        altFormat: "d/m/Y H:i:S",
+        altFormat: "d/m/Y H:i",
         defaultDate: input.value || null,
         minDate: input.dataset.minDate || null,
         maxDate: input.dataset.maxDate || null,
-        minuteIncrement: 1,
-        disableMobile: true,
-        allowInput: false
+        timeLabel: input.dataset.timeLabel || "Time"
       });
     });
   }
@@ -39,6 +104,37 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const menu of menus) if (menu.open && !menu.contains(event.target)) menu.open = false;
   });
 });
+
+function initializeInputModality() {
+  const root = document.documentElement;
+  root.classList.add("pointer-navigation");
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Tab") return;
+    root.classList.add("keyboard-navigation");
+    root.classList.remove("pointer-navigation");
+  }, true);
+  document.addEventListener("pointerdown", () => {
+    root.classList.add("pointer-navigation");
+    root.classList.remove("keyboard-navigation");
+  }, true);
+}
+
+function initializeAutoHideScrollbars() {
+  const hideTimers = new WeakMap();
+
+  document.addEventListener("scroll", event => {
+    const region = event.target;
+    if (!(region instanceof HTMLElement) || !region.classList.contains("auto-hide-scrollbar")) return;
+
+    region.classList.add("scrollbar-active");
+    const previousTimer = hideTimers.get(region);
+    if (previousTimer) window.clearTimeout(previousTimer);
+    hideTimers.set(region, window.setTimeout(() => {
+      region.classList.remove("scrollbar-active");
+      hideTimers.delete(region);
+    }, 700));
+  }, true);
+}
 
 function initializePostNavigation() {
   document.addEventListener("submit", async event => {
@@ -73,11 +169,16 @@ function initializePostNavigation() {
     buttons.forEach(button => button.disabled = true);
 
     try {
+      const headers = {
+        "X-Requested-With": "XMLHttpRequest",
+        "X-Bingo-Enhanced-Post": form.dataset.updateTargets ? "partial" : "true"
+      };
+
       const response = await fetch(action, {
         method: "POST",
         body: formData,
         credentials: "same-origin",
-        headers: { "X-Requested-With": "XMLHttpRequest" }
+        headers
       });
 
       const disposition = response.headers.get("Content-Disposition") || "";
@@ -87,13 +188,19 @@ function initializePostNavigation() {
         return;
       }
 
+      const navigation = response.headers.get("X-Bingo-Post-Navigation");
+      if (navigation) {
+        navigatePostResponse(pageState, currentUrl, navigation);
+        return;
+      }
+
       const contentType = response.headers.get("Content-Type") || "";
       if (contentType.toLowerCase().includes("text/html")) {
         const html = await response.text();
         const destination = response.redirected ? response.url : currentUrl;
         const updatedSelectors = updatePostTargets(form, html, currentUrl, destination);
         if (updatedSelectors) {
-          window.history.replaceState(window.history.state, "", destination);
+          replaceSamePageHistory(currentUrl, destination);
           document.dispatchEvent(new CustomEvent("bingo:content-updated", {
             detail: { selectors: updatedSelectors }
           }));
@@ -101,8 +208,10 @@ function initializePostNavigation() {
           return;
         }
 
-        rememberPostNavigationState(pageState, currentUrl, destination);
-        window.history.replaceState(window.history.state, "", destination);
+        if (!rememberPostNavigationState(pageState, currentUrl, destination)) {
+          window.location.assign(destination);
+          return;
+        }
         document.open();
         document.write(html);
         document.close();
@@ -121,6 +230,15 @@ function initializePostNavigation() {
       buttons.forEach((button, index) => button.disabled = buttonStates[index]);
     }
   });
+}
+
+function navigatePostResponse(pageState, currentUrl, destination) {
+  if (rememberPostNavigationState(pageState, currentUrl, destination)) {
+    window.location.replace(destination);
+    return;
+  }
+
+  window.location.assign(destination);
 }
 
 function updatePostTargets(form, html, currentUrl, destination) {
@@ -149,6 +267,18 @@ function updatePostTargets(form, html, currentUrl, destination) {
 
 var postNavigationStateKey = "bingo:post-navigation-state";
 
+function isSamePostNavigationPage(currentUrl, destination) {
+  const current = new URL(currentUrl);
+  const next = new URL(destination, currentUrl);
+  return current.origin === next.origin && current.pathname === next.pathname;
+}
+
+function replaceSamePageHistory(currentUrl, destination) {
+  if (!isSamePostNavigationPage(currentUrl, destination)) return false;
+  window.history.replaceState(window.history.state, "", destination);
+  return true;
+}
+
 function capturePostNavigationState() {
   const details = [...document.querySelectorAll("details")]
     .filter(detail => !detail.closest(".nav-popover") && !detail.matches("[data-no-post-restore]"))
@@ -167,18 +297,19 @@ function capturePostNavigationState() {
 }
 
 function rememberPostNavigationState(state, currentUrl, destination) {
-  const current = new URL(currentUrl);
   const next = new URL(destination, currentUrl);
-  if (current.origin !== next.origin || current.pathname !== next.pathname) {
+  if (!isSamePostNavigationPage(currentUrl, destination)) {
     sessionStorage.removeItem(postNavigationStateKey);
-    return;
+    return false;
   }
 
   sessionStorage.setItem(postNavigationStateKey, JSON.stringify({
     ...state,
     path: next.pathname,
+    destination: `${next.pathname}${next.search}${next.hash}`,
     savedAt: Date.now()
   }));
+  return true;
 }
 
 function restorePostNavigationState() {
@@ -189,6 +320,7 @@ function restorePostNavigationState() {
   try {
     const state = JSON.parse(serialized);
     if (state.path !== window.location.pathname || Date.now() - state.savedAt > 30_000) return;
+    replaceSamePageHistory(window.location.href, state.destination || window.location.href);
     applyPostNavigationState(state);
   } catch {
     // A stale or malformed entry should never prevent the page from loading.

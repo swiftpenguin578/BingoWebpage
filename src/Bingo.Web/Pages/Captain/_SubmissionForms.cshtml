@@ -1,0 +1,157 @@
+@model Bingo.Web.Pages.Captain.SubmitModel
+@{
+    var drawer = ViewData["SubmissionDrawer"] is true;
+    var availableRequirements = Model.Requirements.Where(requirement => requirement.Remaining > 0).ToList();
+    var availableDrops = availableRequirements.SelectMany(requirement => requirement.Drops).ToList();
+    var selectedDrop = availableDrops.SingleOrDefault(drop => drop.Id == Model.Input.DropSnapshotId);
+    var selectedRequirementId = selectedDrop?.RequirementId ??
+        (Model.Input.RequirementId != Guid.Empty &&
+         availableRequirements.Any(requirement => requirement.Id == Model.Input.RequirementId)
+            ? Model.Input.RequirementId
+            : availableRequirements.FirstOrDefault()?.Id);
+    var manualRequirements = availableRequirements.Where(requirement => requirement.Manual).ToList();
+}
+@if (!ViewData.ModelState.IsValid)
+{
+    <div asp-validation-summary="All" class="validation-summary"></div>
+}
+
+@if (drawer && availableRequirements.Count > 0)
+{
+    <form method="post" enctype="multipart/form-data"
+          class="panel form-stack submission-form compact-submission-form"
+          asp-page="/Captain/Submit" asp-page-handler="Drawer" asp-route-tileId="@Model.Tile.Id">
+        <input name="Input.RequirementId" type="hidden" value="@selectedRequirementId" data-submission-requirement-id />
+        <input name="Input.DropSnapshotId" type="hidden" value="@selectedDrop?.Id" data-submission-drop-id />
+        <input name="Input.ClaimedWeight" type="hidden" value="1" />
+
+        @if (availableDrops.Count > 0 || manualRequirements.Count > 1)
+        {
+            <label class="submission-field">
+                <span>@(availableDrops.Count > 0 ? T["Eligible drop"] : T["Completion"])</span>
+                <select class="form-select" data-submission-target-select required>
+                    <option value="">@(availableDrops.Count > 0 ? T["Choose a drop"] : T["Choose a completion"])</option>
+                    @foreach (var group in availableDrops.GroupBy(drop => drop.Boss))
+                    {
+                        <optgroup label="@group.Key">
+                            @foreach (var drop in group)
+                            {
+                                <option value="drop:@drop.Id"
+                                        data-requirement-id="@drop.RequirementId"
+                                        data-drop-id="@drop.Id"
+                                        selected="@(drop.Id == selectedDrop?.Id)">
+                                    @drop.Item (@drop.Rate)@(drop.CreditedWeight > 1 ? $" — {T["counts for"]} {drop.CreditedWeight}" : string.Empty)
+                                </option>
+                            }
+                        </optgroup>
+                    }
+                    @if (manualRequirements.Count > 0)
+                    {
+                        <optgroup label="@T["Manual completions"]">
+                            @foreach (var requirement in manualRequirements)
+                            {
+                                <option value="manual:@requirement.Id"
+                                        data-requirement-id="@requirement.Id"
+                                        data-drop-id=""
+                                        selected="@(selectedDrop is null && requirement.Id == selectedRequirementId)">
+                                    @requirement.Description
+                                </option>
+                            }
+                        </optgroup>
+                    }
+                </select>
+            </label>
+        }
+
+        <div class="submission-secondary-fields">
+            <label class="submission-field">
+                <span>@T["Player"]</span>
+                <select name="Input.CreditedParticipantId" class="form-select" required>
+                    @foreach (var player in Model.Players)
+                    {
+                        <option value="@player.Id" selected="@(player.Id == Model.Input.CreditedParticipantId)">@player.Name</option>
+                    }
+                </select>
+            </label>
+            <label class="submission-field">
+                <span>@T["Note"] <small>@T["Optional"]</small></span>
+                <textarea name="Input.Note" class="form-control" rows="2">@Model.Input.Note</textarea>
+            </label>
+        </div>
+
+        <label class="checkbox-row compact-privacy-row">
+            <input name="Input.RequestPublicPrivacy" type="checkbox" value="true" checked="@Model.Input.RequestPublicPrivacy" />
+            <span>@T["Hide the screenshot and player name publicly after approval"]</span>
+        </label>
+
+        <label class="submission-field">
+            <span>@T["Screenshot"]</span>
+            <div class="evidence-drop compact-evidence-drop" tabindex="0"
+                 data-ready-template="@T["Ready: {0}"]"
+                 data-pasted-screenshot="@T["pasted screenshot"]"
+                 data-clipboard-empty="@T["The clipboard does not contain an image."]"
+                 data-clipboard-blocked="@T["Clipboard access was blocked. Focus the outer box and press Command+V instead."]">
+                <div class="compact-evidence-empty" data-evidence-empty>
+                    <div class="compact-evidence-copy"><strong>@T["Paste or drag screenshot"]</strong><small>@T["PNG, JPEG or WebP · 10 MB maximum"]</small></div>
+                    <div class="evidence-input-actions"><button type="button" class="btn paste-evidence action-neutral-outline">@T["Paste"]</button><input name="Input.Evidence" type="file" accept="image/png,image/jpeg,image/webp" required /></div>
+                    <small class="paste-status" aria-live="polite"></small>
+                </div>
+                <div class="compact-evidence-preview" data-evidence-preview hidden>
+                    <button type="button" class="compact-evidence-preview-button" data-evidence-image data-evidence-alt="@T["Screenshot ready for submission"]">
+                        <img alt="@T["Evidence preview"]" />
+                    </button>
+                    <button type="button" class="compact-evidence-remove action-remove-x" data-evidence-remove aria-label="@T["Remove screenshot"]">×</button>
+                </div>
+            </div>
+        </label>
+        <button class="btn submission-confirm-action action-accent-outline">@T["Submit for review"]</button>
+    </form>
+}
+else
+{
+    @foreach (var requirement in Model.Requirements)
+    {
+        if (requirement.Remaining == 0)
+        {
+            <section class="panel captain-tile complete"><h2>@requirement.Description</h2><strong>@T["Requirement complete"]</strong><p>@T["Existing pending submissions remain available to administrators for review."]</p></section>
+            continue;
+        }
+        <form method="post" enctype="multipart/form-data" class="panel form-stack submission-form"
+              asp-page="/Captain/Submit" asp-route-tileId="@Model.Tile.Id">
+            <input type="hidden" name="Input.RequirementId" value="@requirement.Id" />
+            <h2>@requirement.Description</h2>
+            <p>@T["Target contribution: {0}", requirement.Target]</p>
+            @if (!requirement.Manual)
+            {
+                <label>@T["Eligible drop"]</label>
+                <select name="Input.DropSnapshotId" class="form-select" required>
+                    <option value="">@T["Choose a drop"]</option>
+                    @foreach (var group in requirement.Drops.GroupBy(value => value.Boss))
+                    {
+                        <optgroup label="@group.Key">
+                            @foreach (var drop in group)
+                            {
+                                <option value="@drop.Id" selected="@(requirement.Id == selectedRequirementId && drop.Id == Model.Input.DropSnapshotId)">@drop.Item (@drop.Rate)@(drop.CreditedWeight > 1 ? $" — {T["counts for"]} {drop.CreditedWeight}" : string.Empty)</option>
+                            }
+                        </optgroup>
+                    }
+                </select>
+            }
+            <label>@T["Player"]</label>
+            <select name="Input.CreditedParticipantId" class="form-select" required>
+                @foreach (var player in Model.Players) { <option value="@player.Id" selected="@(player.Id == Model.Input.CreditedParticipantId)">@player.Name</option> }
+            </select>
+            <input name="Input.ClaimedWeight" type="hidden" value="1" />
+            <label>@T["Note"] <small>@T["Optional"]</small></label>
+            <textarea name="Input.Note" class="form-control" rows="2">@(requirement.Id == selectedRequirementId ? Model.Input.Note : null)</textarea>
+            <label class="checkbox-row"><input name="Input.RequestPublicPrivacy" type="checkbox" value="true" checked="@(requirement.Id == selectedRequirementId && Model.Input.RequestPublicPrivacy)" /> @T["Hide the screenshot and player name publicly after approval"]</label>
+            <label>@T["Screenshot"]</label>
+            <div class="evidence-drop" tabindex="0"
+                 data-ready-template="@T["Ready: {0}"]"
+                 data-pasted-screenshot="@T["pasted screenshot"]"
+                 data-clipboard-empty="@T["The clipboard does not contain an image."]"
+                 data-clipboard-blocked="@T["Clipboard access was blocked. Focus the outer box and press Command+V instead."]"><strong>@T["Paste or drag screenshot here"]</strong><input name="Input.Evidence" type="file" accept="image/png,image/jpeg,image/webp" required /><img alt="@T["Evidence preview"]" hidden /></div>
+            <button class="btn action-accent-outline">@T["Submit for review"]</button>
+        </form>
+    }
+}

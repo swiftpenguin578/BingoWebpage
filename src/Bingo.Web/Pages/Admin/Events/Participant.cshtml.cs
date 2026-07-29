@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Bingo.Application.Access;
-using Bingo.Application.Auditing;
-using Bingo.Application.Security;
+using Bingo.Application.Signups;
+using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
@@ -12,19 +12,30 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
 public sealed class ParticipantModel(
     ApplicationDbContext dbContext,
-    IAuditWriter auditWriter,
-    IPrivateEditTokenService tokenService) : PageModel
+    EventParticipantCharacterService characterService,
+    ISignupService? signupService = null,
+    IStringLocalizer<SharedResource>? text = null) : PageModel
 {
-    private const string ReplacementLinkKey = "ParticipantReplacementEditLink";
-
     [BindProperty] public EditInput Input { get; set; } = new();
+    [BindProperty, StringLength(2000)] public string? AdminNote { get; set; }
+    [BindProperty] public string? ExpectedAdminNote { get; set; }
+    [BindProperty] public bool ConfirmLifecycleAction { get; set; }
+    [BindProperty] public string? DestinationUsername { get; set; }
+    [BindProperty] public string? DestinationUsernameConfirmation { get; set; }
+    [BindProperty] public Guid? ExpectedOwnerAccountId { get; set; }
+    [BindProperty, StringLength(4000)] public string? PrivateWithdrawalNote { get; set; }
+    public bool CanAdminWithdraw { get; private set; }
+    public bool CanAdminRestore { get; private set; }
     public Guid EventId { get; private set; }
+    public Guid RouteParticipantId { get; private set; }
+    public PaymentStatus Payment { get; private set; }
     public string EventName { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;
     public SignupStatus Status { get; private set; }
@@ -35,93 +46,85 @@ public sealed class ParticipantModel(
     public string? TeamName { get; private set; }
     public string? StatusReason { get; private set; }
     public IReadOnlyList<QuestionView> Questions { get; private set; } = [];
-    public bool CanReplaceEditLink { get; private set; }
-    public string EditLinkMessage { get; private set; } = string.Empty;
-    public string? ReplacementEditLink { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(Guid id, Guid participantId, CancellationToken ct)
-        => await LoadAsync(id, participantId, true, ct) ? Page() : NotFound();
+    { _ = characterService; return await LoadAsync(id, participantId, true, ct) ? Page() : NotFound(); }
 
     public async Task<IActionResult> OnPostAsync(Guid id, Guid participantId, CancellationToken ct)
     {
-        var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(item => item.EventId == id && item.Id == participantId, ct);
-        if (participant is null) return NotFound();
-
-        var normalizedName = SignupService.NormalizeAccountName(Input.PrimaryAccountName ?? string.Empty);
-        if (!Enum.IsDefined(Input.Payment))
-        {
-            ModelState.AddModelError("Input.Payment", "Choose a valid payment status.");
-        }
-
-        if (!string.IsNullOrWhiteSpace(normalizedName))
-        {
-            var duplicate = await dbContext.EventParticipants.AnyAsync(item =>
-                item.EventId == id && item.Id != participantId &&
-                item.NormalizedPrimaryAccountName == normalizedName &&
-                (item.SignupStatus == SignupStatus.Confirmed || item.SignupStatus == SignupStatus.WaitingList), ct);
-            if (duplicate) ModelState.AddModelError("Input.PrimaryAccountName", "That account is already signed up for this event.");
-        }
-
-        if (!ModelState.IsValid)
-        {
-            if (!await LoadAsync(id, participantId, false, ct)) return NotFound();
-            return Page();
-        }
-
-        participant.UpdatePublicDetails(
-            (Input.PrimaryAccountName ?? string.Empty).Trim(), normalizedName, Input.Ehb,
-            Clean(Input.SecondAccountName), Clean(Input.DiscordIdentity), Clean(Input.Comments), Input.CaptainVolunteer);
-        participant.SetPaymentStatus(Input.Payment);
-        participant.SetAdminNotes(Clean(Input.AdminNotes));
-
-        var activeQuestions = await dbContext.SignupQuestions.AsNoTracking()
-            .Where(question => question.EventId == id && question.Active)
-            .ToListAsync(ct);
-        var existingAnswers = await dbContext.SignupAnswers
-            .Where(answer => answer.EventParticipantId == participantId)
-            .ToDictionaryAsync(answer => answer.SignupQuestionId, ct);
-        foreach (var question in activeQuestions)
-        {
-            var value = Input.CustomAnswers.GetValueOrDefault(question.Id)?.Trim();
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                if (existingAnswers.TryGetValue(question.Id, out var answerToRemove)) dbContext.SignupAnswers.Remove(answerToRemove);
-                continue;
-            }
-
-            if (existingAnswers.TryGetValue(question.Id, out var existing)) existing.Update(value);
-            else dbContext.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participantId, question.Id, question.Label, value));
-        }
-
-        await dbContext.SaveChangesAsync(ct);
-        await auditWriter.WriteAsync(
-            User.GetAccountId(), User.Identity!.Name!, "participant.details_updated", "participant", participant.Id.ToString(),
-            $"Account: {participant.PrimaryAccountName}; EHB: {participant.EhbSnapshot}; payment: {participant.PaymentStatus}", ct);
+        var actorId = User.GetAccountId(); if (actorId is null) return Forbid();
+        var result = signupService is null ? new AdminParticipantResult(false, "Participant correction is not available.") : await signupService.CorrectAdminParticipantAsync(new AdminParticipantChangeRequest(id, participantId, actorId.Value, User.Identity?.Name ?? "Admin", null, Input.AccountAnswers.ToDictionary(x => x.Key, x => new AdminAccountAnswer(x.Value.CharacterName, x.Value.Ehb)), Input.CustomAnswers, Input.ExpectedResponseVersion), ct);
+        if (!result.Succeeded) { ModelState.AddModelError(string.Empty, IsResponseConflict(result.Error) ? (text?["Your signup changed while you were editing it. Please reload and try again."].Value ?? "Your signup changed while you were editing it. Please reload and try again.") : result.Error ?? "Participant details could not be saved."); if (!await LoadAsync(id, participantId, false, ct)) return NotFound(); return Page(); }
         SetStatus("Participant details saved.", UiMessageType.Success);
         return RedirectToPage(new { id, participantId });
     }
 
-    public async Task<IActionResult> OnPostCreateEditLinkAsync(Guid id, Guid participantId, CancellationToken ct)
+    public async Task<IActionResult> OnPostTransferOwnershipAsync(Guid id, Guid participantId, CancellationToken ct)
     {
-        var bingoEvent = await dbContext.Events.SingleOrDefaultAsync(item => item.Id == id, ct);
-        var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(item => item.EventId == id && item.Id == participantId, ct);
-        if (bingoEvent is null || participant is null) return NotFound();
-        if (!CanCreateEditLink(bingoEvent, participant))
+        var actorId = User.GetAccountId(); if (actorId is null) return Forbid();
+        var result = signupService is null ? new ParticipantOwnershipTransferResult(false, "Participant ownership transfer is not available.") : await signupService.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(id, participantId, actorId.Value, User.Identity?.Name ?? "Admin", DestinationUsername ?? string.Empty, DestinationUsernameConfirmation ?? string.Empty, ExpectedOwnerAccountId), ct);
+        SetStatus(result.Succeeded ? "Participant ownership transferred." : result.Error ?? "Participant ownership could not be transferred.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToPage(null, null, new { id, participantId }, "ownership");
+    }
+
+    public async Task<IActionResult> OnPostAdminNoteAsync(Guid id, Guid participantId, CancellationToken ct)
+    {
+        var note = Clean(AdminNote);
+        if (AdminNote?.Length > 2000)
         {
-            SetStatus("A replacement edit link is not available for this participant.", UiMessageType.Error);
-            return RedirectToPage(new { id, participantId });
+            SetStatus("Admin notes must be 2,000 characters or fewer.", UiMessageType.Error);
+            return RedirectToPage(null, null, new { id, participantId }, "admin-notes");
         }
 
-        var created = tokenService.Create();
-        participant.ReplacePrivateEditToken(created.Hash);
-        await dbContext.SaveChangesAsync(ct);
-        var link = Url.Page("/Events/EditSignup", null, new { slug = bingoEvent.Slug, token = created.Token }, Request.Scheme)
-                   ?? $"{Request.Scheme}://{Request.Host}/Events/{bingoEvent.Slug}/Signup/Edit/{created.Token}";
-        TempData[ReplacementLinkKey] = link;
-        await auditWriter.WriteAsync(
-            User.GetAccountId(), User.Identity!.Name!, "participant.private_edit_link_replaced", "participant", participant.Id.ToString(),
-            "Previous private edit link invalidated", ct);
-        SetStatus("Replacement edit link created. The previous link no longer works.", UiMessageType.Success);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+        var bingoEvent = await dbContext.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct);
+        if (bingoEvent is null) return NotFound();
+        if (bingoEvent.DraftLocked || bingoEvent.State is not (EventState.SignupOpen or EventState.SignupClosed))
+        {
+            SetStatus("Participant administration is read-only after the draft starts.", UiMessageType.Error);
+            return RedirectToPage(null, null, new { id, participantId }, "admin-notes");
+        }
+        var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(item => item.EventId == id && item.Id == participantId, ct);
+        if (participant is null) return NotFound();
+        if (!string.Equals(participant.AdminNotes ?? string.Empty, ExpectedAdminNote ?? string.Empty, StringComparison.Ordinal))
+        {
+            SetStatus("This note changed elsewhere. Reload it before saving.", UiMessageType.Error);
+            return RedirectToPage(new { id, participantId });
+        }
+        var before = participant.AdminNotes;
+        if (!string.Equals(before, note, StringComparison.Ordinal))
+        {
+            participant.SetAdminNotes(note);
+            dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), DateTimeOffset.UtcNow, User.GetAccountId(), User.Identity!.Name!, "participant.admin_note_updated", "participant", participant.Id.ToString(), "Private Admin note changed.", id,
+                $"{{\"present\":{(before is not null).ToString().ToLowerInvariant()}}}", $"{{\"present\":{(note is not null).ToString().ToLowerInvariant()}}}"));
+            await dbContext.SaveChangesAsync(ct);
+        }
+        await transaction.CommitAsync(ct);
+        SetStatus("Private Admin note saved.", UiMessageType.Success);
+        return RedirectToPage(null, null, new { id, participantId }, "admin-notes");
+    }
+
+    public async Task<IActionResult> OnPostPaymentAsync(Guid id, Guid participantId, PaymentStatus payment, CancellationToken ct)
+    {
+        var result = signupService is null ? new ParticipantPaymentResult(false, "Participant payment is not available.") : await signupService.SetPaymentAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", payment, ct);
+        SetStatus(result.Succeeded ? "Payment saved." : result.Error ?? "Payment could not be saved.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToPage(null, null, new { id, participantId }, "payment");
+    }
+
+    public async Task<IActionResult> OnPostWithdrawAsync(Guid id, Guid participantId, CancellationToken ct)
+    {
+        if (!ConfirmLifecycleAction) { SetStatus("Confirm the withdrawal before continuing.", UiMessageType.Error); return RedirectToPage(new { id, participantId }); }
+        var result = signupService is null ? new ParticipantLifecycleResult(false, "Participant lifecycle is not available.") : await signupService.WithdrawAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", true, PrivateWithdrawalNote, ct);
+        SetStatus(result.Succeeded ? "Participant withdrawn." : result.Error ?? "Participant could not be withdrawn.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToPage(new { id, participantId });
+    }
+
+    public async Task<IActionResult> OnPostRestoreAsync(Guid id, Guid participantId, CancellationToken ct)
+    {
+        if (!ConfirmLifecycleAction) { SetStatus("Confirm the restoration before continuing.", UiMessageType.Error); return RedirectToPage(new { id, participantId }); }
+        var accountId = User.GetAccountId(); if (accountId is null) return Forbid();
+        var result = signupService is null ? new ParticipantLifecycleResult(false, "Participant lifecycle is not available.") : await signupService.RestoreAsync(id, participantId, accountId.Value, User.Identity?.Name ?? "Admin", ct);
+        SetStatus(result.Succeeded ? "Participant restored." : result.Error ?? "Participant could not be restored.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToPage(new { id, participantId });
     }
 
@@ -132,15 +135,24 @@ public sealed class ParticipantModel(
         if (bingoEvent is null || participant is null) return false;
 
         EventId = id;
+        RouteParticipantId = participantId;
+        Payment = participant.PaymentStatus;
         EventName = bingoEvent.Name;
-        Name = participant.PrimaryAccountName;
+        var authority = await dbContext.AdminPrimaryCharacters().AsNoTracking().SingleAsync(x => x.ParticipantId == participantId, ct);
+        var secondName = await (from assignment in dbContext.EventParticipantCharacters.AsNoTracking()
+                                join character in dbContext.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
+                                where assignment.EventParticipantId == participantId && assignment.ReleasedAt == null &&
+                                      assignment.EventRole == EventCharacterRole.Informational
+                                orderby assignment.RegistrationOrder
+                                select character.DisplayName).FirstOrDefaultAsync(ct);
+        Name = authority.Name;
         Status = participant.SignupStatus;
         StatusLabel = participant.SignupStatus switch
         {
             SignupStatus.Confirmed => "Confirmed",
             SignupStatus.WaitingList => "Waiting list",
             SignupStatus.Withdrawn => "Withdrawn",
-            _ => "Removed"
+            _ => "Withdrawn"
         };
         SourceLabel = participant.Source switch
         {
@@ -171,44 +183,35 @@ public sealed class ParticipantModel(
                 question.Type,
                 question.Required,
                 question.Active,
+                question.AccountAnswerRole,
                 question.Options?.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [],
                 answers.GetValueOrDefault(question.Id)?.Value))
             .ToList();
+
+        var assignments = await (from assignment in dbContext.EventParticipantCharacters.AsNoTracking()
+                                 join character in dbContext.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
+                                 where assignment.EventParticipantId == participantId && assignment.ReleasedAt == null && assignment.SignupQuestionId != null
+                                 select new { QuestionId = assignment.SignupQuestionId!.Value, character.DisplayName, assignment.EhbSnapshot }).ToListAsync(ct);
 
         if (initializeInput)
         {
             Input = new EditInput
             {
-                PrimaryAccountName = participant.PrimaryAccountName,
-                Ehb = participant.EhbSnapshot,
-                SecondAccountName = participant.SecondAccountName,
-                DiscordIdentity = participant.DiscordIdentity,
-                Comments = participant.Comments,
-                CaptainVolunteer = participant.CaptainVolunteer,
-                Payment = participant.PaymentStatus,
-                AdminNotes = participant.AdminNotes,
+                AccountAnswers = assignments.ToDictionary(x => x.QuestionId, x => new AccountInput { CharacterName = x.DisplayName, Ehb = x.EhbSnapshot }),
                 CustomAnswers = Questions.Where(question => question.Active && !string.IsNullOrWhiteSpace(question.Value))
-                    .ToDictionary(question => question.Id, question => question.Value!)
+                    .ToDictionary(question => question.Id, question => question.Type == SignupQuestionType.YesNo && bool.TryParse(question.Value, out var value) ? value ? "true" : "false" : question.Value!)
             };
+            Input.ExpectedResponseVersion = participant.ResponseVersion;
+            var captain = questions.SingleOrDefault(question => question.Active && question.SystemField == SignupSystemField.CaptainVolunteer);
+            if (captain is not null) Input.CustomAnswers[captain.Id] = participant.CaptainVolunteer ? "true" : "false";
+            AdminNote = participant.AdminNotes;
+            ExpectedAdminNote = participant.AdminNotes;
+            ExpectedOwnerAccountId = participant.AccountId;
         }
 
-        CanReplaceEditLink = CanCreateEditLink(bingoEvent, participant);
-        EditLinkMessage = EditLinkExplanation(bingoEvent, participant);
-        ReplacementEditLink = TempData[ReplacementLinkKey]?.ToString();
+        CanAdminWithdraw = !bingoEvent.DraftLocked && bingoEvent.State is EventState.SignupOpen or EventState.SignupClosed && participant.SignupStatus is SignupStatus.Confirmed or SignupStatus.WaitingList;
+        CanAdminRestore = !bingoEvent.DraftLocked && bingoEvent.State is EventState.SignupOpen or EventState.SignupClosed && participant.SignupStatus == SignupStatus.Withdrawn;
         return true;
-    }
-
-    private static bool CanCreateEditLink(BingoEvent bingoEvent, EventParticipant participant)
-        => bingoEvent.AllowPrivateSignupEditing && !bingoEvent.DraftLocked && participant.Source == SignupSource.Website &&
-           participant.SignupStatus is SignupStatus.Confirmed or SignupStatus.WaitingList;
-
-    private static string EditLinkExplanation(BingoEvent bingoEvent, EventParticipant participant)
-    {
-        if (participant.Source != SignupSource.Website) return "This participant did not sign up through the website.";
-        if (!bingoEvent.AllowPrivateSignupEditing) return "Private signup editing is disabled for this event.";
-        if (bingoEvent.DraftLocked) return "Private signup editing closed when the draft started.";
-        if (participant.SignupStatus is not (SignupStatus.Confirmed or SignupStatus.WaitingList)) return "Inactive signups cannot be edited by the player.";
-        return "Existing links cannot be displayed for security. Create a replacement only if the player lost their link.";
     }
 
     private void SetStatus(string message, UiMessageType type)
@@ -218,20 +221,20 @@ public sealed class ParticipantModel(
     }
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static bool IsResponseConflict(string? error) => error?.Contains("changed while you were editing", StringComparison.OrdinalIgnoreCase) == true;
+    private static bool IsAssignmentReservationConflict(DbUpdateException exception) =>
+        exception.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_event_participant_characters_event_id_osrs_character_id" };
 
     public sealed class EditInput
     {
-        [Required, StringLength(100)] public string PrimaryAccountName { get; set; } = string.Empty;
-        [Range(0, 100000)] public decimal Ehb { get; set; }
-        [StringLength(100)] public string? SecondAccountName { get; set; }
-        [StringLength(100)] public string? DiscordIdentity { get; set; }
-        [StringLength(4000)] public string? Comments { get; set; }
-        public bool CaptainVolunteer { get; set; }
-        public PaymentStatus Payment { get; set; }
-        [StringLength(4000)] public string? AdminNotes { get; set; }
+        // Kept for the older direct PageModel test seam; active-form account values live in AccountAnswers.
+        public decimal Ehb { get; set; }
+        public Dictionary<Guid, AccountInput> AccountAnswers { get; set; } = [];
         public Dictionary<Guid, string> CustomAnswers { get; set; } = [];
+        public int? ExpectedResponseVersion { get; set; }
     }
+    public sealed class AccountInput { [StringLength(100)] public string? CharacterName { get; set; } [Range(0, 100000)] public decimal? Ehb { get; set; } }
 
     public sealed record QuestionView(
-        Guid Id, string Label, SignupQuestionType Type, bool Required, bool Active, string[] Options, string? Value);
+        Guid Id, string Label, SignupQuestionType Type, bool Required, bool Active, EventCharacterRole? AccountRole, string[] Options, string? Value);
 }

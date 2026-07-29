@@ -1,4 +1,5 @@
 using Bingo.Application.Teams;
+using Bingo.Domain.Teams;
 
 namespace Bingo.Application.Tests;
 
@@ -48,5 +49,19 @@ public sealed class SnakeDraftOrderTests
         var teams = new[] { Guid.NewGuid(), Guid.NewGuid() };
         var sizes = teams.ToDictionary(team => team, _ => 2);
         Assert.Null(SnakeDraftOrder.GetNextEligibleTurn([teams[0], teams[1]], teams, sizes, 2));
+    }
+
+    [Fact]
+    public void UnequalCaptainSeatsCatchUpThenExhaustEveryDerivedSeat()
+    {
+        var teams = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        var sizes = new Dictionary<Guid, int> { [teams[0]] = 2, [teams[1]] = 1, [teams[2]] = 1 };
+        var distribution = DraftRosterDistribution.Derive(8, teams.Length);
+        var first = SnakeDraftOrder.GetNextEligibleTurn([], teams, sizes, distribution);
+        var final = SnakeDraftOrder.ProjectFinalRosterSizes([], teams, sizes, distribution);
+        Assert.NotNull(first);
+        Assert.NotEqual(teams[0], first!.TeamId);
+        Assert.Equal(8, final.Values.Sum());
+        Assert.Equal(1, final.Values.Max() - final.Values.Min());
     }
 }

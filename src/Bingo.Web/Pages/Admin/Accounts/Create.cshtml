@@ -8,21 +8,26 @@
 <section class="form-page wide-form">
     <p class="eyebrow">Account management</p>
     <h1>Create account</h1>
-    <p class="form-intro">Captain and co-captain accounts are separate logins, each restricted to one event team.</p>
+    <p class="form-intro">Emergency captain credentials are separate disabled logins, each restricted to one active team in an event. The captain sets the password through a one-time setup link, then an Admin enables the credential.</p>
+    <form method="get" class="panel filter-row">
+        <label for="event-selection">Event</label><select id="event-selection" name="eventId" asp-items="Model.Events" class="form-select"><option value="">Choose event</option></select>
+        <button class="btn btn-outline-light" type="submit">Show teams</button>
+    </form>
     <form method="post" class="panel form-stack">
         <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
         <label asp-for="Input.Username"></label><input asp-for="Input.Username" class="form-control" /><span asp-validation-for="Input.Username" class="field-error"></span>
-        <label asp-for="Input.Password"></label><input asp-for="Input.Password" class="form-control" /><span asp-validation-for="Input.Password" class="field-error"></span>
-        <label asp-for="Input.Role"></label><select asp-for="Input.Role" asp-items="Html.GetEnumSelectList<AccountRole>()" class="form-select"></select>
-        <label asp-for="Input.EventId"></label><select asp-for="Input.EventId" asp-items="Model.Events" class="form-select"><option value="">Choose event</option></select><span asp-validation-for="Input.EventId" class="field-error"></span>
-        <label asp-for="Input.TeamId"></label><select asp-for="Input.TeamId" class="form-select"><option value="">Choose team</option>@foreach(var team in Model.Teams){<option value="@team.Id" data-event-id="@team.EventId">@team.Label</option>}</select><span asp-validation-for="Input.TeamId" class="field-error"></span>
-        <p class="form-hint">If left blank, captain access starts with the event, switches to correction-only at the submission cutoff, and expires 24 hours after the event ends.</p>
-        <label asp-for="Input.ActiveFrom"></label><input asp-for="Input.ActiveFrom" class="form-control" /><span asp-validation-for="Input.ActiveFrom" class="field-error"></span>
-        <label asp-for="Input.CorrectionOnlyFrom"></label><input asp-for="Input.CorrectionOnlyFrom" class="form-control" /><span asp-validation-for="Input.CorrectionOnlyFrom" class="field-error"></span>
-        <label asp-for="Input.ExpiresAt"></label><input asp-for="Input.ExpiresAt" class="form-control" /><span asp-validation-for="Input.ExpiresAt" class="field-error"></span>
-        <label class="check-row"><input asp-for="Input.MustChangePassword" /> Require password change at next sign-in</label>
+        <input asp-for="Input.EventId" type="hidden" />
+        @if (Model.Events.SingleOrDefault(item => item.Value == Model.Input.EventId?.ToString()) is { } selectedEvent)
+        {
+            <p class="form-hint">Selected event: @selectedEvent.Text. Access begins at the event start, has full submission access through the submission cutoff, and is disabled at that cutoff. If an Admin deliberately re-enables it afterward, it has correction-only access.</p>
+        }
+        else
+        {
+            <p class="form-hint">Choose an event above to load its active teams.</p>
+        }
+        <label asp-for="Input.TeamId"></label><select asp-for="Input.TeamId" class="form-select"><option value="">Choose team</option>@foreach(var team in Model.Teams){<option value="@team.Id">@team.Name</option>}</select><span asp-validation-for="Input.TeamId" class="field-error"></span>
         <div class="button-row"><button class="btn btn-primary" type="submit">Create</button><a class="btn btn-outline-light" asp-page="Index">Cancel</a></div>
     </form>
 </section>
 
-@section Scripts { <partial name="_ValidationScriptsPartial" /><script>const eventSelect=document.getElementById('Input_EventId'),teamSelect=document.getElementById('Input_TeamId');function filterTeams(){[...teamSelect.options].forEach((option,index)=>{if(index===0)return;option.hidden=option.dataset.eventId!==eventSelect.value;if(option.hidden&&option.selected)teamSelect.value='';});}eventSelect.addEventListener('change',filterTeams);filterTeams();</script> }
+@section Scripts { <partial name="_ValidationScriptsPartial" /><script>document.querySelector('form[method="get"] select').addEventListener('change', event => event.currentTarget.form.requestSubmit());</script> }

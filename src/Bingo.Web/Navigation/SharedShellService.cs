@@ -25,10 +25,38 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
 
     public async Task<NotificationInbox> GetNotificationsAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        if (user.IsInRole("Admin")) return await GetAdminNotifications(cancellationToken);
+        if (Guid.TryParse(user.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier), out var accountId))
+        {
+            var unread = db.PersonalNotifications.AsNoTracking().Where(item => item.RecipientAccountId == accountId && item.ReadAt == null);
+            var unreadCount = await unread.CountAsync(cancellationToken);
+            if (unreadCount > 0)
+            {
+                var personal = await unread.OrderByDescending(item => item.CreatedAt).Take(6).ToListAsync(cancellationToken);
+                return new NotificationInbox([], unreadCount, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personal.Select(item => new ShellNotification(item.Id, NotificationTitle(item.Title), string.IsNullOrWhiteSpace(item.Detail) ? NotificationDetail(item.Title) : item.Detail, $"/notifications?read={item.Id}")).ToList());
+            }
+        }
+        if (user.IsInRole("Admin") || user.IsInRole("SuperAdmin")) return await GetAdminNotifications(cancellationToken);
         if (user.IsInRole("Captain")) return await GetCaptainNotifications(user, cancellationToken);
-        return NotificationInbox.Empty;
+        return new NotificationInbox([], 0, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", []);
     }
+
+    private string NotificationTitle(string type) => type switch
+    {
+        "account.admin_granted" => text["Admin access granted"],
+        "account.admin_revoked" => text["Admin access revoked"],
+        "account.restored" => text["Account restored"],
+        "event.cancelled" => text["Event cancelled"],
+        _ => type
+    };
+
+    private string NotificationDetail(string type) => type switch
+    {
+        "account.admin_granted" => text["An administrator granted your account Admin access."],
+        "account.admin_revoked" => text["An administrator removed your Admin access."],
+        "account.restored" => text["An administrator restored your account."],
+        "event.cancelled" => text["Your event has been cancelled."],
+        _ => string.Empty
+    };
 
     private async Task<NotificationInbox> GetAdminNotifications(CancellationToken cancellationToken)
     {
@@ -47,10 +75,10 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         var query = from submission in db.Submissions.AsNoTracking()
                     join team in db.Teams.AsNoTracking() on submission.TeamId equals team.Id
                     join tile in db.BoardTiles.AsNoTracking() on submission.BoardTileId equals tile.Id
-                    join player in db.EventParticipants.AsNoTracking() on submission.CreditedParticipantId equals player.Id
+                    join player in db.PrimaryCharacters().AsNoTracking() on submission.CreditedParticipantId equals player.ParticipantId
                     where activeEventIds.Contains(submission.EventId) && submission.Status == SubmissionStatus.Pending
                     orderby submission.SubmittedAt descending
-                    select new { submission.Id, submission.EventId, submission.SubmittedAt, Team = team.Name, Tile = tile.NameSnapshot, Player = player.PrimaryAccountName };
+                    select new { submission.Id, submission.EventId, submission.SubmittedAt, Team = team.Name, Tile = tile.NameSnapshot, Player = player.Name };
         var count = await query.CountAsync(cancellationToken);
         var rows = await query.Take(6).ToListAsync(cancellationToken);
         var items = rows.Select(item => new ShellNotification(
@@ -115,7 +143,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         }
         items.Add(new(eventView.Name, $"/Admin/Events/Manage/{eventId}", StatusLabel(eventView.State), eventView.State.ToString().ToLowerInvariant()));
         var current = page == "/Admin/Events/Participant" && TryGuid(values, "participantId", out var participantId)
-            ? await db.EventParticipants.AsNoTracking().Where(item => item.Id == participantId).Select(item => item.PrimaryAccountName).SingleOrDefaultAsync(cancellationToken) ?? text["Player"]
+            ? await db.PrimaryCharacters().AsNoTracking().Where(item => item.ParticipantId == participantId).Select(item => item.Name).SingleOrDefaultAsync(cancellationToken) ?? text["Player"]
             : PageLabel(page);
         items.Add(new(current, null));
         return items;
@@ -142,7 +170,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         if (page == "/Admin/Accounts/Create") { items.Add(new(text["Create account"], null)); return items; }
         if (TryGuid(values, "id", out var accountId))
         {
-            var username = await db.Accounts.AsNoTracking().Where(item => item.Id == accountId).Select(item => item.Username).SingleOrDefaultAsync(cancellationToken);
+            var username = await db.Accounts.AsNoTracking().Where(item => item.Id == accountId).Select(item => item.LoginName).SingleOrDefaultAsync(cancellationToken);
             items.Add(new(username ?? text["Account"], null));
         }
         return items;
@@ -200,7 +228,6 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         "/Admin/Events/Board" => text["Board editor"],
         "/Admin/Events/Draft" => text["Teams and draft"],
         "/Admin/Events/Questions" => text["Signup form"],
-        "/Admin/Events/Csv" => text["CSV import"],
         "/Admin/Events/Finalize" => text["Finish event"],
         _ => text["Current page"]
     };

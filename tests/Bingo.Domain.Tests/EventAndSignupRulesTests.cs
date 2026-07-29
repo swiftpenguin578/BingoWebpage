@@ -9,50 +9,45 @@ public sealed class EventAndSignupRulesTests
     private static readonly DateTimeOffset Now = new(2026, 7, 11, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void ParticipantCapCanIncreaseButCannotDecrease()
+    public void PrivateParticipantCapCanChangeButPublicCapCannotDecrease()
     {
         var item = CreateEvent(50);
         item.IncreaseParticipantCap(60);
         Assert.Equal(60, item.ParticipantCap);
+        item.IncreaseParticipantCap(59);
+        Assert.Equal(59, item.ParticipantCap);
+        item.MarkFirstPublic(Now);
+        item.IncreaseParticipantCap(60);
         Assert.Throws<InvalidOperationException>(() => item.IncreaseParticipantCap(59));
     }
 
     [Fact]
     public void EditingParticipantDoesNotChangeQueueSequenceOrSignupTime()
     {
-        var participant = new EventParticipant(Guid.NewGuid(), Guid.NewGuid(), "Old", "OLD", 100, SignupStatus.WaitingList, 42, Now, SignupSource.Website, "hash");
-        participant.UpdatePublicDetails("New", "NEW", 200, null, null, null, false);
+        var participant = new EventParticipant(Guid.NewGuid(), Guid.NewGuid(), SignupStatus.WaitingList, 42, Now, SignupSource.Website);
+        participant.SetCaptainVolunteer(false);
         Assert.Equal(42, participant.SignupSequence);
         Assert.Equal(Now, participant.SignedUpAt);
     }
 
     [Fact]
-    public void ReplacingParticipantEditTokenInvalidatesThePreviousHash()
-    {
-        var participant = new EventParticipant(Guid.NewGuid(), Guid.NewGuid(), "Player", "PLAYER", 100, SignupStatus.Confirmed, 1, Now, SignupSource.Website, "old-hash");
-
-        participant.ReplacePrivateEditToken("new-hash");
-
-        Assert.Equal("new-hash", participant.PrivateEditTokenHash);
-        Assert.Throws<ArgumentException>(() => participant.ReplacePrivateEditToken(" "));
-    }
-
-    [Fact]
-    public void ManuallyOpeningSignupsCreatesANewThreeMonthWindow()
+    public void ManuallyOpeningSignupsRecordsTheActualOpeningWithoutRewritingTheSchedule()
     {
         var item = CreateEvent(50);
         var openedAt = Now.AddMinutes(11);
         item.OpenSignups(openedAt);
 
         Assert.True(item.AcceptsSignups(openedAt));
-        Assert.Equal(openedAt.AddSeconds(-openedAt.Second), item.SignupOpensAt);
-        Assert.Equal(new DateTimeOffset(2026, 10, 11, 12, 30, 0, TimeSpan.Zero), item.SignupClosesAt);
+        Assert.Equal(openedAt, item.ActualSignupOpenedAt);
+        Assert.Equal(Now, item.SignupOpensAt);
+        Assert.Equal(Now.AddDays(1), item.SignupClosesAt);
     }
 
     [Fact]
     public void ClosedSignupsCannotBeScheduledToOpenInThePast()
     {
         var item = CreateEvent(50);
+        item.OpenSignups();
         item.CloseSignups();
 
         Assert.Throws<InvalidOperationException>(() =>
@@ -74,6 +69,8 @@ public sealed class EventAndSignupRulesTests
     public void SignupControlsCannotMoveAStartedEventBackwards()
     {
         var item = CreateEvent(50);
+        item.OpenSignups();
+        item.CloseSignups();
         item.StartEvent(Now.AddDays(2));
 
         Assert.Throws<InvalidOperationException>(() => item.OpenSignups(Now.AddDays(2)));
@@ -85,6 +82,8 @@ public sealed class EventAndSignupRulesTests
     public void EventCannotBeStartedTwiceOrRestartedFromFinalReview()
     {
         var item = CreateEvent(50);
+        item.OpenSignups();
+        item.CloseSignups();
         item.StartEvent(Now.AddDays(2));
 
         Assert.Throws<InvalidOperationException>(() => item.StartEvent(Now.AddDays(2)));
@@ -93,16 +92,16 @@ public sealed class EventAndSignupRulesTests
     }
 
     [Fact]
-    public void SignupsCanBeManuallyReopenedAfterTheirOriginalClosingTime()
+    public void ADirectDomainReopenDoesNotSilentlyReplaceAnExpiredClosingTime()
     {
         var item = CreateEvent(50);
         var reopenedAt = Now.AddDays(1);
 
         item.OpenSignups(reopenedAt);
 
-        Assert.True(item.AcceptsSignups(reopenedAt));
-        Assert.Equal(reopenedAt, item.SignupOpensAt);
-        Assert.Equal(reopenedAt.AddMonths(3), item.SignupClosesAt);
+        Assert.False(item.AcceptsSignups(reopenedAt));
+        Assert.Equal(Now, item.SignupOpensAt);
+        Assert.Equal(Now.AddDays(1), item.SignupClosesAt);
     }
 
     [Fact]
@@ -133,9 +132,9 @@ public sealed class EventAndSignupRulesTests
 
         item.ChangeSignupWindow(Now.AddHours(2), Now.AddHours(6), Now);
 
-        Assert.Equal(EventState.Draft, item.State);
-        Assert.False(item.AcceptsSignups(Now.AddHours(1)));
-        Assert.True(item.OpenSignupsIfScheduled(Now.AddHours(2)));
+        Assert.Equal(EventState.SignupOpen, item.State);
+        Assert.True(item.AcceptsSignups(Now.AddHours(1)));
+        Assert.False(item.OpenSignupsIfScheduled(Now.AddHours(2)));
     }
 
     [Fact]
@@ -150,6 +149,8 @@ public sealed class EventAndSignupRulesTests
     public void FinalizeArchiveAndUnfinalizeFollowTheOfficialResultsLifecycle()
     {
         var item = CreateEvent(50);
+        item.OpenSignups();
+        item.CloseSignups();
         item.StartEvent(Now.AddDays(2));
         Assert.Throws<InvalidOperationException>(() => item.FinalizeResults(Now.AddDays(3)));
         item.EndEvent();
@@ -159,7 +160,7 @@ public sealed class EventAndSignupRulesTests
 
         item.Archive(Now.AddDays(4));
         Assert.Equal(EventState.Archived, item.State);
-        item.Unfinalize();
+        item.Unfinalize("Correct an official result");
 
         Assert.Equal(EventState.AwaitingFinalReview, item.State);
         Assert.False(item.ResultsPublished);
@@ -173,19 +174,6 @@ public sealed class EventAndSignupRulesTests
         Assert.False(snapshot.Active);
         Assert.Equal("Correct an approval", snapshot.UnfinalizeReason);
         Assert.Equal(Now, snapshot.FinalizedAt);
-    }
-
-    [Fact]
-    public void CaptainExpiryCanBeRescheduledFromFinalizationTime()
-    {
-        var account = new Account(Guid.NewGuid(), "Captain", "CAPTAIN", AccountRole.Captain, Now);
-        account.ScopeCaptain(Guid.NewGuid(), Guid.NewGuid(), Now, Now.AddDays(3), Now.AddDays(4));
-
-        account.ScheduleExpiry(Now.AddDays(3).AddHours(24));
-
-        Assert.Equal(Now.AddDays(4), account.ExpiresAt);
-        Assert.Equal(AccountAccessMode.CorrectionOnly, account.GetAccessMode(Now.AddDays(3).AddHours(1)));
-        Assert.Equal(AccountAccessMode.Disabled, account.GetAccessMode(Now.AddDays(4)));
     }
 
     private static BingoEvent CreateEvent(int cap) => new(Guid.NewGuid(), "Test", "test", "Test", "Europe/Copenhagen", Now, Now.AddDays(1), Now.AddDays(2), Now.AddDays(3), Now.AddDays(4), cap, Guid.NewGuid(), Now);

@@ -58,7 +58,7 @@
                         <tr>
                             <td data-label="@T["Event"]"><strong>@item.Name</strong></td>
                             <td data-label="@T["Status"]">
-                                <span class="event-list-status state-@item.State.ToString().ToLowerInvariant()">@Model.StatusLabel(item.State)</span>
+                                <span class="event-list-status state-@item.State.ToString().ToLowerInvariant()">@Model.StatusLabel(item)</span>
                             </td>
                             <td data-label="@T["Event dates"]" class="event-date-cell">
                                 <strong>@Model.FormatDate(item.EventStartsAt, item.Timezone)</strong>

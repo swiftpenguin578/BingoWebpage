@@ -10,6 +10,7 @@ using Bingo.Infrastructure.Auditing;
 using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Evidence;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Web.Events;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -47,6 +48,43 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var wrongPlayer = Command(setup) with { CreditedParticipantId = Guid.NewGuid() };
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(wrongPlayer));
         Assert.Empty(await db.Submissions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task EmergencyCredentialNeedsTheAuthoritativeReopenedWindowAndExplicitReenableForEverySubmissionMutation()
+    {
+        var setup = await SeedAsync(target: 3, allowHigherWeights: true);
+        var clock = new MutableTimeProvider(now.AddHours(5));
+        await using var db = new ApplicationDbContext(options);
+        var captain = await db.Accounts.SingleAsync(account => account.Id == setup.CaptainId);
+        captain.SetPassword(new PasswordHasher<Account>().HashPassword(captain, "emergency-password"), false, now, incrementVersion: false);
+        var ev = await db.Events.SingleAsync(item => item.Id == setup.EventId);
+        await db.SaveChangesAsync();
+
+        var lifecycle = new EmergencyCredentialLifecycleService(db, clock);
+        await lifecycle.ApplyAsync(CancellationToken.None);
+        var administration = new AccountAdministrationService(db, new PasswordHasher<Account>(), clock);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => administration.SetEmergencyEnabledAsync(setup.AdminId, setup.CaptainId, true, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db, clock).CreateAsync(Command(setup)));
+
+        ev.ReopenSubmissions(clock.GetUtcNow().AddMinutes(10), clock.GetUtcNow());
+        await db.SaveChangesAsync();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db, clock).CreateAsync(Command(setup)));
+
+        await administration.SetEmergencyEnabledAsync(setup.AdminId, setup.CaptainId, true, CancellationToken.None);
+        var service = Service(db, clock);
+        var created = await service.CreateAsync(Command(setup));
+        await service.CorrectAsync(new CorrectSubmissionCommand(created.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId, setup.ParticipantId, 1, "corrected", null, null));
+        await service.WithdrawAsync(created.SubmissionId, setup.CaptainId);
+
+        clock.Set(clock.GetUtcNow().AddMinutes(10));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(Command(setup)));
+        await lifecycle.ApplyAsync(CancellationToken.None);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(Command(setup)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CorrectAsync(new CorrectSubmissionCommand(created.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId, setup.ParticipantId, 1, "closed", null, null)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.WithdrawAsync(created.SubmissionId, setup.CaptainId));
+        Assert.Equal(2, await db.AuditEntries.CountAsync(entry => entry.Action == "account.emergency_cutoff_disabled" && entry.TargetId == setup.CaptainId.ToString()));
+        Assert.Contains(await db.AuditEntries.ToListAsync(), entry => entry.Action == "account.emergency_enabled");
     }
 
     [Fact]
@@ -178,26 +216,19 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task FinalizedCaptainProvisioningGeneratesOneLinkedAccountAndPassword()
+    public async Task CaptainAssignmentDoesNotCreateAccountsOrCredentialTokens()
     {
         var setup = await SeedAsync(target: 1, allowHigherWeights: false);
         await using var db = new ApplicationDbContext(options);
+        var accountCount = await db.Accounts.CountAsync();
+        var tokenCount = await db.PasswordCredentialTokens.CountAsync();
+        var accessCount = await db.AccountEventAccesses.CountAsync();
         var membership = await db.TeamMemberships.SingleAsync(x => x.TeamId == setup.TeamId && x.EventParticipantId == setup.ParticipantId);
         membership.ChangeRole(TeamMembershipRole.Captain);
         await db.SaveChangesAsync();
-        var provisioner = new CaptainAccountProvisioner(db, new PasswordHasher<Account>(), new AuditWriter(db, new FixedTimeProvider(now)), new FixedTimeProvider(now));
-
-        var first = await provisioner.ProvisionEventAsync(setup.EventId, setup.AdminId, "admin", CancellationToken.None);
-        var second = await provisioner.ProvisionEventAsync(setup.EventId, setup.AdminId, "admin", CancellationToken.None);
-
-        var credential = Assert.Single(first);
-        Assert.StartsWith("PlayerOne", credential.Username, StringComparison.Ordinal);
-        Assert.Equal(16, credential.Password.Length);
-        Assert.Empty(second);
-        var account = await db.Accounts.SingleAsync(x => x.CaptainParticipantId == setup.ParticipantId);
-        Assert.Equal(setup.TeamId, account.TeamId);
-        Assert.True(account.MustChangePassword);
-        Assert.Equal(1, await db.Accounts.CountAsync(x => x.CaptainParticipantId == setup.ParticipantId));
+        Assert.Equal(accountCount, await db.Accounts.CountAsync());
+        Assert.Equal(tokenCount, await db.PasswordCredentialTokens.CountAsync());
+        Assert.Equal(accessCount, await db.AccountEventAccesses.CountAsync());
     }
 
     [Fact]
@@ -297,7 +328,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         Assert.Null(evidence.EvidenceAssetId);
     }
 
-    private SubmissionService Service(ApplicationDbContext db) => new(db, new FakeEvidenceStorage(), new FixedTimeProvider(now));
+    private SubmissionService Service(ApplicationDbContext db, TimeProvider? clock = null) => new(db, new FakeEvidenceStorage(), clock ?? new FixedTimeProvider(now));
 
     private static CreateSubmissionCommand Command(Setup setup) => new(
         setup.CaptainId, setup.EventId, setup.TeamId, setup.TileId, setup.RequirementId, setup.DropId,
@@ -316,16 +347,23 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var requirementId = Guid.NewGuid();
         var dropId = manualObjective ? (Guid?)null : Guid.NewGuid();
         var ev = new BingoEvent(eventId, $"Event {eventId:N}", $"event-{eventId:N}", "", "UTC", now.AddDays(-10), now.AddDays(-8), now.AddHours(-1), now.AddHours(4), now.AddHours(4.5), 20, adminId, now.AddDays(-20));
+        ev.OpenSignups();
+        ev.MarkFirstPublic(now.AddDays(-8));
+        ev.CloseSignups();
         ev.StartEvent(now.AddHours(-1));
         if (evidenceCode is not null) ev.SetEvidenceCodeEnabled(true);
         var team = new Team(teamId, eventId, "Team One", $"team-{teamId:N}", TeamFormationType.Drafted, null, true);
-        var participant = new EventParticipant(participantId, eventId, "Player One", "PLAYER ONE", 500, SignupStatus.Confirmed, 1, now.AddDays(-5), SignupSource.Website, null);
-        var captain = new Account(captainId, "captain", "CAPTAIN", AccountRole.Captain, now.AddDays(-10));
-        captain.ScopeCaptain(eventId, teamId, now.AddDays(-1), now.AddHours(5), now.AddHours(30));
-        var admin = new Account(adminId, "admin", "ADMIN", AccountRole.Admin, now.AddDays(-10));
+        var participant = new EventParticipant(participantId, eventId, SignupStatus.Confirmed, 1, now.AddDays(-5), SignupSource.Website);
+        var captain = Account.CreateEmergency(captainId, "captain", "CAPTAIN", now.AddDays(-10));
+        var captainAccess = new AccountEventAccess(Guid.NewGuid(), captainId, eventId, teamId, participantId, now.AddDays(-1), now.AddHours(5), now.AddHours(30));
+        captainAccess.Enable();
+        var admin = Account.CreateWebsite(adminId, "admin", "ADMIN", now.AddDays(-10));
+        admin.SetGlobalRole(GlobalRole.Admin);
         var board = new Board(boardId, eventId, "Board", 1, 1);
         board.Publish(now.AddDays(-1));
-        db.AddRange(ev, team, participant, captain, admin, board,
+        var character = new OsrsCharacter(Guid.NewGuid(), "Player One", "PLAYER ONE", now);
+        var assignment = new EventParticipantCharacter(Guid.NewGuid(), eventId, participantId, character.Id, 0, now, adminId, null, EventCharacterRole.Playing, 500, EhbSource.Manual, null);
+        db.AddRange(ev, team, participant, character, assignment, captain, admin, board, captainAccess,
             new TeamMembership(Guid.NewGuid(), teamId, participantId, TeamMembershipRole.Participant, now.AddDays(-4), null, null),
             new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Manual tile", "Complete it", "Show the message", tileEhb),
             new BoardRequirementSnapshot(requirementId, tileId, 0, target, duplicatesAllowed, allowHigherWeights, "Complete runs", manualObjective, allowHigherWeights ? 2 : 1));
@@ -340,6 +378,13 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => value;
+    }
+
+    private sealed class MutableTimeProvider(DateTimeOffset value) : TimeProvider
+    {
+        private DateTimeOffset current = value;
+        public override DateTimeOffset GetUtcNow() => current;
+        public void Set(DateTimeOffset value) => current = value;
     }
 
     private sealed class FakeEvidenceStorage : IEvidenceStorage

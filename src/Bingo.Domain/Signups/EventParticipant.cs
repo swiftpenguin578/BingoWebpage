@@ -1,3 +1,5 @@
+using Bingo.Domain.Access;
+
 namespace Bingo.Domain.Signups;
 
 public sealed class EventParticipant
@@ -5,57 +7,66 @@ public sealed class EventParticipant
     private EventParticipant() { }
 
     public EventParticipant(
-        Guid id, Guid eventId, string primaryAccountName, string normalizedName, decimal ehbSnapshot,
-        SignupStatus status, long signupSequence, DateTimeOffset signedUpAt, SignupSource source, string? privateEditTokenHash)
+        Guid id, Guid eventId, SignupStatus status, long signupSequence, DateTimeOffset signedUpAt,
+        SignupSource source)
     {
         Id = id;
         EventId = eventId;
-        PrimaryAccountName = primaryAccountName;
-        NormalizedPrimaryAccountName = normalizedName;
-        EhbSnapshot = ehbSnapshot;
         SignupStatus = status;
         SignupSequence = signupSequence;
         SignedUpAt = signedUpAt.ToUniversalTime();
         Source = source;
-        PrivateEditTokenHash = privateEditTokenHash;
-        PaymentStatus = PaymentStatus.Unknown;
+        PaymentReceived = false;
         if (status == SignupStatus.Confirmed) ConfirmedAt = signedUpAt.ToUniversalTime();
         if (status == SignupStatus.WaitingList) WaitingListedAt = signedUpAt.ToUniversalTime();
     }
 
+    // Retained only so older callers can be upgraded independently; the retired value is never stored or used.
+    public EventParticipant(
+        Guid id, Guid eventId, SignupStatus status, long signupSequence, DateTimeOffset signedUpAt,
+        SignupSource source, string? retiredValue)
+        : this(id, eventId, status, signupSequence, signedUpAt, source)
+    {
+        _ = retiredValue;
+    }
+
     public Guid Id { get; private set; }
     public Guid EventId { get; private set; }
-    public string PrimaryAccountName { get; private set; } = string.Empty;
-    public string NormalizedPrimaryAccountName { get; private set; } = string.Empty;
-    public string? SecondAccountName { get; private set; }
-    public string? DiscordIdentity { get; private set; }
-    public decimal EhbSnapshot { get; private set; }
-    public string? Comments { get; private set; }
+    public Guid? AccountId { get; private set; }
     public string? AdminNotes { get; private set; }
     public bool CaptainVolunteer { get; private set; }
-    public PaymentStatus PaymentStatus { get; private set; }
+    public bool PaymentReceived { get; private set; }
+    public PaymentStatus PaymentStatus => PaymentReceived ? PaymentStatus.Paid : PaymentStatus.Unpaid;
     public SignupStatus SignupStatus { get; private set; }
     public long SignupSequence { get; private set; }
     public DateTimeOffset SignedUpAt { get; private set; }
     public DateTimeOffset? ConfirmedAt { get; private set; }
     public DateTimeOffset? WaitingListedAt { get; private set; }
     public DateTimeOffset? WithdrawnAt { get; private set; }
-    public DateTimeOffset? RemovedAt { get; private set; }
+    public Guid? WithdrawnByAccountId { get; private set; }
     public string? StatusReason { get; private set; }
-    public string? PrivateEditTokenHash { get; private set; }
     public int FormVersion { get; private set; } = 1;
+    public int ResponseVersion { get; private set; } = 1;
     public SignupSource Source { get; private set; }
 
-    public void UpdatePublicDetails(string primaryName, string normalizedName, decimal ehb, string? secondName, string? discord, string? comments, bool captainVolunteer)
+    public void AssignOwner(Account account)
     {
-        PrimaryAccountName = primaryName;
-        NormalizedPrimaryAccountName = normalizedName;
-        EhbSnapshot = ehb;
-        SecondAccountName = secondName;
-        DiscordIdentity = discord;
-        Comments = comments;
-        CaptainVolunteer = captainVolunteer;
+        if (account.AccountType != AccountType.WebsiteAccount)
+            throw new InvalidOperationException("Only a website account can own an event participant.");
+        if (AccountId is not null && AccountId != account.Id)
+            throw new InvalidOperationException("Participant ownership is already assigned.");
+        AccountId = account.Id;
     }
+
+    public void TransferOwner(Account account)
+    {
+        if (account.AccountType != AccountType.WebsiteAccount)
+            throw new InvalidOperationException("Only a website account can own an event participant.");
+        AccountId = account.Id;
+    }
+
+    public void SetCaptainVolunteer(bool captainVolunteer) => CaptainVolunteer = captainVolunteer;
+    public void AdvanceResponseVersion() => ResponseVersion++;
 
     public void Promote(DateTimeOffset now)
     {
@@ -65,27 +76,31 @@ public sealed class EventParticipant
         WaitingListedAt = null;
     }
 
-    public void Withdraw(DateTimeOffset now, string reason)
+    public void Withdraw(DateTimeOffset now, string reason, Guid? actorAccountId = null)
     {
+        if (SignupStatus == SignupStatus.Withdrawn) return;
         SignupStatus = SignupStatus.Withdrawn;
         WithdrawnAt = now.ToUniversalTime();
         StatusReason = reason;
+        WithdrawnByAccountId = actorAccountId;
     }
 
-    public void Remove(DateTimeOffset now, string reason)
+    public void Rejoin(SignupStatus status, long sequence, DateTimeOffset now)
     {
-        SignupStatus = SignupStatus.Removed;
-        RemovedAt = now.ToUniversalTime();
-        StatusReason = reason;
+        if (SignupStatus != SignupStatus.Withdrawn) throw new InvalidOperationException("Only withdrawn participants can rejoin.");
+        SignupStatus = status;
+        SignupSequence = sequence;
+        SignedUpAt = now.ToUniversalTime();
+        ConfirmedAt = status == SignupStatus.Confirmed ? SignedUpAt : null;
+        WaitingListedAt = status == SignupStatus.WaitingList ? SignedUpAt : null;
+        WithdrawnAt = null;
+        WithdrawnByAccountId = null;
+        StatusReason = null;
     }
 
-    public void SetPaymentStatus(PaymentStatus status) => PaymentStatus = status;
+    public void SetPaymentReceived(bool received) => PaymentReceived = received;
+    public void SetPaymentStatus(PaymentStatus status) => SetPaymentReceived(status == PaymentStatus.Paid);
 
     public void SetAdminNotes(string? notes) => AdminNotes = notes;
 
-    public void ReplacePrivateEditToken(string tokenHash)
-    {
-        if (string.IsNullOrWhiteSpace(tokenHash)) throw new ArgumentException("A private edit token hash is required.", nameof(tokenHash));
-        PrivateEditTokenHash = tokenHash;
-    }
 }

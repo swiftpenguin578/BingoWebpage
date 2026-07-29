@@ -65,7 +65,7 @@
                 <div><span class="eyebrow">Tile layout</span><h2>Board</h2></div>
                 @if (editable) { <span>Drag a tile onto another position to swap them.</span> }
             </div>
-            <div class="board-editor" data-board-columns="@Model.BoardView.Columns" style="--board-columns:@Model.BoardView.Columns">
+            <div class="board-editor auto-hide-scrollbar" data-board-columns="@Model.BoardView.Columns" style="--board-columns:@Model.BoardView.Columns">
             @for (var position = 0; position < Model.BoardView.Rows * Model.BoardView.Columns; position++)
             {
                 var row = position / Model.BoardView.Columns; var column = position % Model.BoardView.Columns; var tile = Model.Tiles.SingleOrDefault(x => x.Position == position);
@@ -201,7 +201,7 @@
 
         @if (editable)
         {
-            <dialog id="create-tile-dialog" class="tile-dialog create-tile-dialog">
+            <dialog id="create-tile-dialog" class="tile-dialog create-tile-dialog auto-hide-scrollbar">
                 <button type="button" class="dialog-close" aria-label="Close">×</button><p class="eyebrow">Board editor</p><h2 id="create-tile-heading">Create tile</h2>
                 <form method="post" asp-page-handler="CreateTile" class="form-stack" id="create-tile-form" data-native-submit data-create-action="@Url.Page("Board", "CreateTile", new { id = RouteData.Values["id"] })" data-edit-action="@Url.Page("Board", "EditTile", new { id = RouteData.Values["id"] })">
                     <input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" />

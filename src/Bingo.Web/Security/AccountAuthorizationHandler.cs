@@ -23,15 +23,16 @@ public sealed class AccountAuthorizationHandler(ApplicationDbContext dbContext, 
             return;
         }
 
-        var accessMode = account.GetAccessMode(timeProvider.GetUtcNow());
+        var access = await dbContext.AccountEventAccesses.AsNoTracking().SingleOrDefaultAsync(x => x.AccountId == accountId);
+        var accessMode = access?.GetAccessMode(timeProvider.GetUtcNow()) ?? AccountAccessMode.Disabled;
         foreach (var requirement in context.PendingRequirements.ToArray())
         {
             switch (requirement)
             {
-                case AccountAccessRequirement access when Satisfies(accessMode, access.MinimumMode):
+                case AccountAccessRequirement accessRequirement when Satisfies(accessMode, accessRequirement.MinimumMode):
                     context.Succeed(requirement);
                     break;
-                case TeamScopeRequirement when MatchesTeamScope(account, context.Resource):
+                case TeamScopeRequirement when MatchesTeamScope(account, access, context.Resource):
                     context.Succeed(requirement);
                     break;
             }
@@ -42,9 +43,9 @@ public sealed class AccountAuthorizationHandler(ApplicationDbContext dbContext, 
         actual != AccountAccessMode.Disabled &&
         (required == AccountAccessMode.CorrectionOnly || actual == AccountAccessMode.Full);
 
-    private static bool MatchesTeamScope(Account account, object? resource) =>
-        account.Role == AccountRole.Captain &&
+    private static bool MatchesTeamScope(Account account, AccountEventAccess? access, object? resource) =>
+        account.AccountType == AccountType.EmergencyCaptain &&
         resource is TeamScope scope &&
-        account.EventId == scope.EventId &&
-        account.TeamId == scope.TeamId;
+        access?.EventId == scope.EventId &&
+        access.TeamId == scope.TeamId;
 }

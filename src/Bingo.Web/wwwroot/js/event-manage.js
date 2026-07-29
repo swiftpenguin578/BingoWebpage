@@ -5,7 +5,7 @@
   document.addEventListener("bingo:content-updated", () => initialize(document));
   document.addEventListener("change", (event) => {
     const control = event.target.closest("[data-auto-submit]");
-    if (!(control instanceof HTMLSelectElement)) return;
+    if (!(control instanceof HTMLSelectElement) && !(control instanceof HTMLInputElement && control.type === "checkbox")) return;
     control.form?.requestSubmit();
   });
 
@@ -13,6 +13,21 @@
     initializeDatePickers(root);
     initializeDraftSizeConfirmation(root);
     synchronizeRosterRoleDisplays(root);
+
+    root.querySelectorAll("form.participant-payment-form").forEach((form) => {
+      const state = form.querySelector("[data-save-state]");
+      form.addEventListener("submit", () => { if (state) state.textContent = "Saving"; }, { once: true });
+    });
+
+    root.querySelectorAll("form[data-participant-filter-form]").forEach((form) => {
+      if (form.dataset.filterReady === "true") return;
+      form.dataset.filterReady = "true";
+      form.querySelectorAll("select").forEach((control) => control.addEventListener("change", () => form.requestSubmit()));
+      const search = form.querySelector("input[type='search']");
+      let timer;
+      search?.addEventListener("input", () => { window.clearTimeout(timer); timer = window.setTimeout(() => form.requestSubmit(), 350); });
+      form.addEventListener("submit", () => { if (!form.action.includes("#players")) form.action = `${form.action.split("#")[0]}#players`; });
+    });
 
     root.querySelectorAll("[data-participant-group]").forEach((group) => {
       if (group.dataset.interactionsReady === "true") return;
@@ -114,49 +129,12 @@
     if (typeof window.flatpickr !== "function") return;
     root.querySelectorAll("[data-event-manage-datetime-picker]").forEach((input) => {
       if (input._flatpickr) return;
-      let timeSelect;
-      const syncTimeSelect = (dates) => {
-        if (!timeSelect || !dates?.length) return;
-        const date = dates[0];
-        timeSelect.value = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-      };
-      window.flatpickr(input, {
-        enableTime: true,
-        time_24hr: true,
+      window.initializeBingoDateTimePicker(input, {
         dateFormat: "Z",
         altInput: true,
         altFormat: "d/m/Y H:i",
-        minuteIncrement: 30,
-        disableMobile: true,
-        allowInput: false,
         defaultDate: input.value,
-        onReady: (dates, _value, instance) => {
-          const timeContainer = instance.timeContainer;
-          if (!timeContainer) return;
-          instance.calendarContainer.classList.add("event-calendar-picker");
-          timeContainer.classList.add("event-calendar-time");
-          const label = document.createElement("label");
-          label.className = "event-calendar-time-label";
-          const labelText = document.createElement("span");
-          labelText.textContent = input.dataset.timeLabel || "Time";
-          timeSelect = document.createElement("select");
-          timeSelect.className = "event-time-select";
-          timeSelect.setAttribute("aria-label", labelText.textContent);
-          for (let index = 0; index < 48; index++) {
-            const value = `${String(Math.floor(index / 2)).padStart(2, "0")}:${index % 2 === 0 ? "00" : "30"}`;
-            timeSelect.add(new Option(value, value));
-          }
-          timeSelect.addEventListener("change", () => {
-            const selectedDate = instance.selectedDates[0] ? new Date(instance.selectedDates[0]) : new Date();
-            const [hours, minutes] = timeSelect.value.split(":").map(Number);
-            selectedDate.setHours(hours, minutes, 0, 0);
-            instance.setDate(selectedDate, true);
-          });
-          label.append(labelText, timeSelect);
-          timeContainer.append(label);
-          syncTimeSelect(dates);
-        },
-        onChange: syncTimeSelect
+        timeLabel: input.dataset.timeLabel || "Time"
       });
     });
   }

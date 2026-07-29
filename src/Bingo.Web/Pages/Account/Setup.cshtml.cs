@@ -35,19 +35,16 @@ public sealed class SetupModel(
             return Page();
         }
 
-        var account = new Bingo.Domain.Access.Account(
-            Guid.NewGuid(),
-            Input.Username.Trim(),
-            AccountAuthenticationService.NormalizeUsername(Input.Username),
-            AccountRole.Admin,
-            timeProvider.GetUtcNow());
+        var account = Bingo.Domain.Access.Account.CreateWebsite(
+            Guid.NewGuid(), Input.Username.Trim(), AccountAuthenticationService.NormalizeUsername(Input.Username), timeProvider.GetUtcNow());
+        account.SetGlobalRole(GlobalRole.SuperAdmin);
         account.SetPasswordHash(passwordHasher.HashPassword(account, Input.Password), mustChangePassword: false);
         dbContext.Accounts.Add(account);
         dbContext.AuditEntries.Add(new AuditEntry(
             Guid.NewGuid(),
             timeProvider.GetUtcNow(),
             account.Id,
-            account.Username,
+            account.LoginName,
             "account.bootstrap_created",
             "account",
             account.Id.ToString(),
@@ -61,7 +58,7 @@ public sealed class SetupModel(
         var address = HttpContext.Connection.RemoteIpAddress;
         return environment.IsDevelopment() &&
             address is not null && IPAddress.IsLoopback(address) &&
-            !await dbContext.Accounts.AnyAsync(account => account.Role == AccountRole.Admin, cancellationToken);
+            !await dbContext.Accounts.AnyAsync(account => account.GlobalRole == GlobalRole.SuperAdmin, cancellationToken);
     }
 
     public sealed class SetupInput

@@ -1,0 +1,6 @@
+@page "/Account/MyEvents"
+@model Bingo.Web.Pages.Account.MyEventsModel
+@{ ViewData["Title"] = T["My events"]; }
+<section class="content-page"><p class="eyebrow">@T["My events"]</p><h1>@T["My events"]</h1>
+<div class="panel"><h2>@T["Current events"]</h2>@if (!Model.Current.Any()) { <p>@T["You have no current events."]</p> } else { <ul>@foreach (var item in Model.Current) { <li><a asp-page="@item.DestinationPage" asp-route-slug="@item.Slug" asp-route-participantId="@(item.IsConfirmation ? item.ParticipantId : null)">@item.Name</a> — @Model.DisplayLabel(item)</li> }</ul> }</div>
+<div class="panel"><h2>@T["History"]</h2>@if (!Model.History.Any()) { <p>@T["You have no event history."]</p> } else { <ul>@foreach (var item in Model.History) { <li><a asp-page="@item.DestinationPage" asp-route-slug="@item.Slug" asp-route-participantId="@(item.IsConfirmation ? item.ParticipantId : null)">@item.Name</a> — @Model.DisplayLabel(item)</li> }</ul> }</div></section>

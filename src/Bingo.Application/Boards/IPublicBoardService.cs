@@ -43,7 +43,11 @@ public sealed record PublicTileDetails(
     IReadOnlyList<PublicApprovedEvidence> Evidence);
 
 public sealed record PublicRequirementProgress(
-    Guid RequirementId, string Description, int Approved, int Target, bool Complete);
+    Guid RequirementId, string Description, int Approved, int Target, bool Complete,
+    IReadOnlyList<PublicEligibleDrop> EligibleDrops);
+
+public sealed record PublicEligibleDrop(
+    string BossName, string ItemName, string DisplayRate, int CreditedWeight);
 
 public sealed record PublicApprovedEvidence(
     Guid SubmissionId, string? PlayerName, string? BossName, string? DropName,

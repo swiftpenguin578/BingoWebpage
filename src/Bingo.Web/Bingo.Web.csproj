@@ -22,6 +22,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseRazorSourceGenerator>false</UseRazorSourceGenerator>
+    <UserSecretsId>BingoWebpage-Slice1-Local-Configuration</UserSecretsId>
   </PropertyGroup>
 
 </Project>

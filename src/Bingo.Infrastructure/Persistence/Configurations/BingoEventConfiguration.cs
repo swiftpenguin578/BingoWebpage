@@ -18,15 +18,24 @@ public sealed class BingoEventConfiguration : IEntityTypeConfiguration<BingoEven
         entity.Property(item => item.Description).HasColumnName("description").HasMaxLength(4_000);
         entity.Property(item => item.Timezone).HasColumnName("timezone").HasMaxLength(100);
         entity.Property(item => item.State).HasColumnName("state").HasConversion<string>().HasMaxLength(40);
+        entity.Property(item => item.BannerAssetId).HasColumnName("banner_asset_id");
+        entity.HasOne<EventBannerAsset>().WithMany().HasForeignKey(item => item.BannerAssetId).OnDelete(DeleteBehavior.SetNull);
+        entity.Property(item => item.FirstPublicAt).HasColumnName("first_public_at");
         entity.Property(item => item.SignupOpensAt).HasColumnName("signup_opens_at");
         entity.Property(item => item.SignupClosesAt).HasColumnName("signup_closes_at");
+        entity.Property(item => item.DraftAt).HasColumnName("draft_at");
         entity.Property(item => item.EventStartsAt).HasColumnName("event_starts_at");
         entity.Property(item => item.EventEndsAt).HasColumnName("event_ends_at");
         entity.Property(item => item.SubmissionCutoffAt).HasColumnName("submission_cutoff_at");
+        entity.Property(item => item.ActualSignupOpenedAt).HasColumnName("actual_signup_opened_at");
+        entity.Property(item => item.ActualSignupClosedAt).HasColumnName("actual_signup_closed_at");
+        entity.Property(item => item.ActualStartedAt).HasColumnName("actual_started_at");
+        entity.Property(item => item.ActualEndedAt).HasColumnName("actual_ended_at");
+        entity.Property(item => item.ScheduledSignupOpeningEnabled).HasColumnName("scheduled_signup_opening_enabled");
+        entity.Property(item => item.ScheduledSignupWarningCodes).HasColumnName("scheduled_signup_warning_codes").HasMaxLength(2_000);
         entity.Property(item => item.ReopenedSubmissionCutoffAt).HasColumnName("reopened_submission_cutoff_at");
         entity.Property(item => item.ParticipantCap).HasColumnName("participant_cap");
         entity.Property(item => item.WaitingListEnabled).HasColumnName("waiting_list_enabled");
-        entity.Property(item => item.AllowPrivateSignupEditing).HasColumnName("allow_private_signup_editing");
         entity.Property(item => item.RequireSignupCode).HasColumnName("require_signup_code");
         entity.Property(item => item.SignupCodeHash).HasColumnName("signup_code_hash").HasMaxLength(500);
         entity.Property(item => item.PublicRules).HasColumnName("public_rules").HasMaxLength(10_000);
@@ -42,11 +51,96 @@ public sealed class BingoEventConfiguration : IEntityTypeConfiguration<BingoEven
         entity.Property(item => item.BoardPublished).HasColumnName("board_published");
         entity.Property(item => item.ResultsPublished).HasColumnName("results_published");
         entity.Property(item => item.DraftLocked).HasColumnName("draft_locked");
+        entity.Property(item => item.IsDevelopmentFixture).HasColumnName("is_development_fixture");
         entity.Property(item => item.EvidenceCodeEnabled).HasColumnName("evidence_code_enabled");
         entity.Property(item => item.FinalizedAt).HasColumnName("finalized_at");
         entity.Property(item => item.ArchivedAt).HasColumnName("archived_at");
+        entity.Property(item => item.CancelledAt).HasColumnName("cancelled_at");
+        entity.Property(item => item.CancelledByAccountId).HasColumnName("cancelled_by_account_id");
+        entity.Property(item => item.CancellationReason).HasColumnName("cancellation_reason").HasMaxLength(2_000);
+        entity.Property(item => item.DiscardedAt).HasColumnName("discarded_at");
+        entity.Property(item => item.DiscardedByAccountId).HasColumnName("discarded_by_account_id");
+        entity.Property(item => item.Version).HasColumnName("version").IsConcurrencyToken();
         entity.Property(item => item.CreatedByAccountId).HasColumnName("created_by_account_id");
         entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+    }
+}
+
+public sealed class EventBannerAssetConfiguration : IEntityTypeConfiguration<EventBannerAsset>
+{
+    public void Configure(EntityTypeBuilder<EventBannerAsset> builder)
+    {
+        builder.ToTable("event_banner_assets");
+        builder.HasKey(item => item.Id);
+        builder.Property(item => item.Id).HasColumnName("id");
+        builder.Property(item => item.EventId).HasColumnName("event_id");
+        builder.Property(item => item.StorageKey).HasColumnName("storage_key").HasMaxLength(500);
+        builder.Property(item => item.OriginalFilename).HasColumnName("original_filename").HasMaxLength(255);
+        builder.Property(item => item.MediaType).HasColumnName("media_type").HasMaxLength(100);
+        builder.Property(item => item.ByteSize).HasColumnName("byte_size");
+        builder.Property(item => item.Width).HasColumnName("width");
+        builder.Property(item => item.Height).HasColumnName("height");
+        builder.Property(item => item.Checksum).HasColumnName("checksum").HasMaxLength(64);
+        builder.Property(item => item.UploadedByAccountId).HasColumnName("uploaded_by_account_id");
+        builder.Property(item => item.UploadedAt).HasColumnName("uploaded_at");
+        builder.Property(item => item.ReplacedAt).HasColumnName("replaced_at");
+        builder.HasIndex(item => new { item.EventId, item.ReplacedAt });
+    }
+}
+
+public sealed class EventBannerCleanupConfiguration : IEntityTypeConfiguration<EventBannerCleanup>
+{
+    public void Configure(EntityTypeBuilder<EventBannerCleanup> builder)
+    {
+        builder.ToTable("event_banner_cleanups");
+        builder.HasKey(item => item.Id);
+        builder.Property(item => item.Id).HasColumnName("id");
+        builder.Property(item => item.EventId).HasColumnName("event_id");
+        builder.Property(item => item.StorageKey).HasColumnName("storage_key").HasMaxLength(500);
+        builder.Property(item => item.QueuedAt).HasColumnName("queued_at");
+        builder.Property(item => item.LastAttemptedAt).HasColumnName("last_attempted_at");
+        builder.Property(item => item.LastFailure).HasColumnName("last_failure").HasMaxLength(1_000);
+        builder.Property(item => item.AttemptCount).HasColumnName("attempt_count");
+        builder.HasIndex(item => new { item.EventId, item.StorageKey }).IsUnique();
+        builder.HasOne<BingoEvent>().WithMany().HasForeignKey(item => item.EventId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class ScheduledEventStartAttemptConfiguration : IEntityTypeConfiguration<ScheduledEventStartAttempt>
+{
+    public void Configure(EntityTypeBuilder<ScheduledEventStartAttempt> builder)
+    {
+        builder.ToTable("scheduled_event_start_attempts");
+        builder.HasKey(item => item.Id);
+        builder.Property(item => item.Id).HasColumnName("id");
+        builder.Property(item => item.EventId).HasColumnName("event_id");
+        builder.Property(item => item.ScheduledFor).HasColumnName("scheduled_for");
+        builder.Property(item => item.AttemptedAt).HasColumnName("attempted_at");
+        builder.Property(item => item.Started).HasColumnName("started");
+        builder.Property(item => item.BlockerCodes).HasColumnName("blocker_codes").HasMaxLength(2_000);
+        builder.Property(item => item.ResolvedAt).HasColumnName("resolved_at");
+        builder.HasIndex(item => new { item.EventId, item.ScheduledFor }).IsUnique();
+        builder.HasIndex(item => new { item.EventId, item.ResolvedAt });
+    }
+}
+
+public sealed class ScheduledSignupOpeningAttemptConfiguration : IEntityTypeConfiguration<ScheduledSignupOpeningAttempt>
+{
+    public void Configure(EntityTypeBuilder<ScheduledSignupOpeningAttempt> builder)
+    {
+        builder.ToTable("scheduled_signup_opening_attempts");
+        builder.HasKey(item => item.Id);
+        builder.Property(item => item.Id).HasColumnName("id");
+        builder.Property(item => item.EventId).HasColumnName("event_id");
+        builder.Property(item => item.ScheduledFor).HasColumnName("scheduled_for");
+        builder.Property(item => item.AttemptedAt).HasColumnName("attempted_at");
+        builder.Property(item => item.Opened).HasColumnName("opened");
+        builder.Property(item => item.BlockerCodes).HasColumnName("blocker_codes").HasMaxLength(2_000);
+        builder.Property(item => item.BlockerDetails).HasColumnName("blocker_details").HasMaxLength(4_000);
+        builder.Property(item => item.ResolvedAt).HasColumnName("resolved_at");
+        builder.HasIndex(item => new { item.EventId, item.ScheduledFor }).IsUnique();
+        builder.HasIndex(item => new { item.EventId, item.ResolvedAt });
+        builder.HasOne<BingoEvent>().WithMany().HasForeignKey(item => item.EventId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

@@ -14,7 +14,10 @@ public sealed class AuditEntry
         string action,
         string targetType,
         string? targetId,
-        string? details)
+        string? details,
+        Guid? eventId = null,
+        string? beforeState = null,
+        string? afterState = null)
     {
         Id = id;
         OccurredAt = occurredAt.ToUniversalTime();
@@ -24,6 +27,9 @@ public sealed class AuditEntry
         TargetType = targetType;
         TargetId = targetId;
         Details = details;
+        EventId = eventId;
+        BeforeState = beforeState;
+        AfterState = afterState;
     }
 
     public Guid Id { get; private set; }
@@ -41,4 +47,12 @@ public sealed class AuditEntry
     public string? TargetId { get; private set; }
 
     public string? Details { get; private set; }
+
+    public Guid? EventId { get; private set; }
+
+    /// <summary>Sanitized JSON snapshot of fields changed by a security-sensitive mutation.</summary>
+    public string? BeforeState { get; private set; }
+
+    /// <summary>Sanitized JSON snapshot of fields changed by a security-sensitive mutation.</summary>
+    public string? AfterState { get; private set; }
 }

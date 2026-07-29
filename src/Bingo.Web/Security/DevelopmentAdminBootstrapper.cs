@@ -21,7 +21,7 @@ public sealed class DevelopmentAdminBootstrapper(
             return;
         }
 
-        if (await dbContext.Accounts.AnyAsync(account => account.Role == AccountRole.Admin, cancellationToken))
+        if (await dbContext.Accounts.AnyAsync(account => account.GlobalRole == GlobalRole.Admin || account.GlobalRole == GlobalRole.SuperAdmin, cancellationToken))
         {
             return;
         }
@@ -32,19 +32,19 @@ public sealed class DevelopmentAdminBootstrapper(
                 "Development admin bootstrap requires a username and a password of at least 12 characters.");
         }
 
-        var account = new Account(
+        var account = Account.CreateWebsite(
             Guid.NewGuid(),
             settings.Username.Trim(),
             AccountAuthenticationService.NormalizeUsername(settings.Username),
-            AccountRole.Admin,
             timeProvider.GetUtcNow());
+        account.SetGlobalRole(GlobalRole.Admin);
         account.SetPasswordHash(passwordHasher.HashPassword(account, settings.Password), mustChangePassword: true);
         dbContext.Accounts.Add(account);
         dbContext.AuditEntries.Add(new AuditEntry(
             Guid.NewGuid(),
             timeProvider.GetUtcNow(),
             account.Id,
-            account.Username,
+            account.LoginName,
             "account.bootstrap_created",
             "account",
             account.Id.ToString(),

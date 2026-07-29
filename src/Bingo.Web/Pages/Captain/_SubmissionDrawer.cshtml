@@ -1,0 +1,9 @@
+@model Bingo.Web.Pages.Captain.SubmitModel
+@{ ViewData["SubmissionDrawer"] = true; }
+<section class="team-submission-drawer auto-hide-scrollbar" data-submission-drawer aria-label="@T["Submit drop for {0}", Model.Tile.Name]">
+    <header>
+        <div><span class="feature-kicker">@T["Submit drop"]</span><h2>@Model.Tile.Name</h2><p>@Model.Tile.Description</p></div>
+        <button type="button" class="submission-drawer-close" data-submission-drawer-close aria-label="@T["Close submission form"]">×</button>
+    </header>
+    <div class="submission-drawer-body"><partial name="_SubmissionForms" model="Model" /></div>
+</section>

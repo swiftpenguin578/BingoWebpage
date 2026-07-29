@@ -1,3 +1,5 @@
+using Bingo.Domain.Teams;
+
 namespace Bingo.Application.Teams;
 
 public static class SnakeDraftOrder
@@ -16,9 +18,14 @@ public static class SnakeDraftOrder
         IReadOnlyList<Guid> activePickTeamIds,
         IReadOnlyList<Guid> orderedTeamIds,
         IReadOnlyDictionary<Guid, int> currentRosterSizes,
-        int targetTeamSize)
+        DraftRosterDistribution distribution)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(targetTeamSize, 1);
+        if (orderedTeamIds.Count != distribution.DraftedTeamCount)
+            throw new InvalidOperationException("The draft order does not match the derived distribution.");
+        if (currentRosterSizes.Values.Sum() >= distribution.IncludedParticipants)
+            return null;
+        if (distribution.ValidateCurrentRosters(currentRosterSizes).Count != 0)
+            return null;
         var logicalTurn = 0;
         foreach (var pickedTeamId in activePickTeamIds)
         {
@@ -26,10 +33,45 @@ public static class SnakeDraftOrder
             logicalTurn++;
         }
 
-        if (orderedTeamIds.All(teamId => currentRosterSizes.GetValueOrDefault(teamId) >= targetTeamSize)) return null;
-        while (currentRosterSizes.GetValueOrDefault(GetTurn(logicalTurn, orderedTeamIds).TeamId) >= targetTeamSize) logicalTurn++;
-        var snakeTurn = GetTurn(logicalTurn, orderedTeamIds);
-        return snakeTurn with { PickNumber = activePickTeamIds.Count + 1 };
+        // A larger preassigned roster must never receive another ordinary snake turn while a
+        // smaller roster exists.  This is deliberately evaluated before the upper size cap.
+        var smallestRoster = orderedTeamIds.Min(teamId => currentRosterSizes.GetValueOrDefault(teamId));
+        var guard = 0;
+        while (guard++ < orderedTeamIds.Count * (distribution.IncludedParticipants + 1))
+        {
+            var snakeTurn = GetTurn(logicalTurn++, orderedTeamIds);
+            var size = currentRosterSizes.GetValueOrDefault(snakeTurn.TeamId);
+            if (size > smallestRoster || size >= distribution.LargerSize)
+                continue;
+            return snakeTurn with { PickNumber = activePickTeamIds.Count + 1 };
+        }
+        return null;
+    }
+
+    public static DraftTurn? GetNextEligibleTurn(
+        IReadOnlyList<Guid> activePickTeamIds,
+        IReadOnlyList<Guid> orderedTeamIds,
+        IReadOnlyDictionary<Guid, int> currentRosterSizes,
+        int legacyTargetTeamSize) =>
+        GetNextEligibleTurn(activePickTeamIds, orderedTeamIds, currentRosterSizes,
+            DraftRosterDistribution.Derive(legacyTargetTeamSize * orderedTeamIds.Count, orderedTeamIds.Count));
+
+    public static IReadOnlyDictionary<Guid, int> ProjectFinalRosterSizes(
+        IReadOnlyList<Guid> activePickTeamIds,
+        IReadOnlyList<Guid> orderedTeamIds,
+        IReadOnlyDictionary<Guid, int> currentRosterSizes,
+        DraftRosterDistribution distribution)
+    {
+        var sizes = orderedTeamIds.ToDictionary(id => id, id => currentRosterSizes.GetValueOrDefault(id));
+        var picks = activePickTeamIds.ToList();
+        while (sizes.Values.Sum() < distribution.IncludedParticipants)
+        {
+            var next = GetNextEligibleTurn(picks, orderedTeamIds, sizes, distribution);
+            if (next is null) break;
+            sizes[next.TeamId]++;
+            picks.Add(next.TeamId);
+        }
+        return sizes;
     }
 }
 
