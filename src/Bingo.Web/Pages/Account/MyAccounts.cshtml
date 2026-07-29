@@ -13,7 +13,7 @@
     <section class="panel form-stack" aria-labelledby="add-character-heading">
         <h2 id="add-character-heading">@T["Add OSRS character"]</h2>
         <p class="form-hint">@T["Use the exact OSRS character spelling. We do not validate ownership, availability, or existence."]</p>
-        <form method="post" asp-page-handler="Add" class="account-entry-form">
+        <form method="post" asp-page-handler="Add" class="account-entry-form"><input type="hidden" asp-for="ReturnUrl" />
             <label asp-for="Add.CharacterName"></label>
             <input asp-for="Add.CharacterName" class="form-control" />
             <span asp-validation-for="Add.CharacterName" class="field-error"></span>
@@ -32,11 +32,11 @@
         <section class="panel account-warning" aria-labelledby="unlink-warning-heading">
             <h2 id="unlink-warning-heading">@T["Event registration remains"]</h2>
             <p>@T["Unlinking {0} only hides it from future My Accounts selectors. Its upcoming or live event registration remains unchanged.", pending.CharacterName]</p>
-            <form method="post" asp-page-handler="Unlink" class="button-row">
+            <form method="post" asp-page-handler="Unlink" class="button-row"><input asp-for="ReturnUrl" type="hidden" />
                 <input asp-for="Unlink.LinkId" type="hidden" value="@pending.Id" />
                 <input asp-for="Unlink.ConfirmRegistrationWarning" type="hidden" value="true" />
                 <button class="btn btn-outline-danger">@T["Unlink character"]</button>
-                <a class="btn neutral-outline-action" asp-page="MyAccounts">@T["Cancel"]</a>
+                <a class="btn neutral-outline-action" asp-page="MyAccounts" asp-route-returnUrl="@Model.ReturnUrl">@T["Cancel"]</a>
             </form>
         </section>
     }
@@ -58,11 +58,11 @@
                     <header>
                         <div><span class="my-account-position">@T["#{0}", link.Position + 1]</span><strong>@link.CharacterName</strong>@if (link.Preferred) { <span class="account-state">@T["Preferred"]</span> }</div>
                         <div class="my-account-order" aria-label="@T["Change list order"]">
-                            <form method="post" asp-page-handler="MoveUp"><input asp-for="Action.LinkId" type="hidden" value="@link.Id" /><button class="btn neutral-outline-action" aria-label="@T["Move {0} up", link.CharacterName]" disabled="@(link == Model.Links.First())">↑</button></form>
-                            <form method="post" asp-page-handler="MoveDown"><input asp-for="Action.LinkId" type="hidden" value="@link.Id" /><button class="btn neutral-outline-action" aria-label="@T["Move {0} down", link.CharacterName]" disabled="@(link == Model.Links.Last())">↓</button></form>
+                            <form method="post" asp-page-handler="MoveUp"><input asp-for="ReturnUrl" type="hidden" /><input asp-for="Action.LinkId" type="hidden" value="@link.Id" /><button class="btn neutral-outline-action" aria-label="@T["Move {0} up", link.CharacterName]" disabled="@(link == Model.Links.First())">↑</button></form>
+                            <form method="post" asp-page-handler="MoveDown"><input asp-for="ReturnUrl" type="hidden" /><input asp-for="Action.LinkId" type="hidden" value="@link.Id" /><button class="btn neutral-outline-action" aria-label="@T["Move {0} down", link.CharacterName]" disabled="@(link == Model.Links.Last())">↓</button></form>
                         </div>
                     </header>
-                    <form method="post" asp-page-handler="Update" class="account-entry-form compact">
+                    <form method="post" asp-page-handler="Update" class="account-entry-form compact"><input asp-for="ReturnUrl" type="hidden" />
                         <input asp-for="Edit.LinkId" type="hidden" value="@link.Id" />
                         <label for="label-@link.Id">@T["Personal label"]</label>
                         <input id="label-@link.Id" name="Edit.PersonalLabel" value="@link.PersonalLabel" class="form-control" />
@@ -73,14 +73,14 @@
                     <div class="my-account-actions">
                         @if (!link.Preferred)
                         {
-                            <form method="post" asp-page-handler="SetPreferred"><input asp-for="Action.LinkId" type="hidden" value="@link.Id" /><button class="btn action-accent-outline">@T["Make preferred"]</button></form>
+                            <form method="post" asp-page-handler="SetPreferred"><input asp-for="ReturnUrl" type="hidden" /><input asp-for="Action.LinkId" type="hidden" value="@link.Id" /><button class="btn action-accent-outline">@T["Make preferred"]</button></form>
                         }
-                        <form method="post" asp-page-handler="Unlink"><input asp-for="Unlink.LinkId" type="hidden" value="@link.Id" /><button class="btn btn-outline-danger">@T["Unlink"]</button></form>
+                        <form method="post" asp-page-handler="Unlink"><input asp-for="ReturnUrl" type="hidden" /><input asp-for="Unlink.LinkId" type="hidden" value="@link.Id" /><button class="btn btn-outline-danger">@T["Unlink"]</button></form>
                     </div>
                     @if (link.HasUpcomingOrLiveRegistration) { <p class="form-hint">@T["This character is registered for an upcoming or live event. Unlinking will not change that registration."]</p> }
                     <details class="my-account-correction" data-state-key="correct-@link.Id">
                         <summary>@T["Correct spelling"]</summary>
-                        <form method="post" asp-page-handler="Correct" class="account-entry-form compact">
+                        <form method="post" asp-page-handler="Correct" class="account-entry-form compact"><input asp-for="ReturnUrl" type="hidden" />
                             <input asp-for="Correct.LinkId" type="hidden" value="@link.Id" />
                             <label for="correct-@link.Id">@T["Correct OSRS character spelling"]</label>
                             <input id="correct-@link.Id" name="Correct.CharacterName" value="@link.CharacterName" class="form-control" />

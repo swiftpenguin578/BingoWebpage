@@ -445,51 +445,6 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PrivateSignupEditPostRedirectRendersSuccessFeedback()
-    {
-        const string slug = "private-edit-feedback";
-        var seed = await SeedEventAsync(slug);
-        const string token = "private-edit-feedback-token";
-        string eventSlug;
-        await using (var setup = new ApplicationDbContext(options))
-        {
-            var actor = Website("private-edit-feedback-actor", seed.Now);
-            var participant = new EventParticipant(
-                Guid.NewGuid(), seed.EventId, SignupStatus.Confirmed, 1, seed.Now, SignupSource.Website,
-                new PrivateEditTokenService().Hash(token));
-            var character = new OsrsCharacter(Guid.NewGuid(), "Private edit original", "PRIVATE EDIT ORIGINAL", seed.Now);
-            setup.AddRange(actor, participant, character);
-            setup.EventParticipantCharacters.Add(Playing(seed.EventId, participant.Id, character.Id, actor.Id, seed.Now));
-            await setup.SaveChangesAsync();
-            eventSlug = await setup.Events.Where(item => item.Id == seed.EventId).Select(item => item.Slug).SingleAsync();
-        }
-
-        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
-        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        var path = $"/Events/{eventSlug}/Signup/Edit/{token}";
-        var editPage = await client.GetStringAsync(path);
-        var antiForgeryToken = AntiforgeryToken(editPage);
-
-        using var saved = await client.PostAsync(path, new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["Input.PrimaryAccountName"] = "Private edit updated",
-            ["Input.Ehb"] = "123.5",
-            ["Input.SecondAccountName"] = "",
-            ["Input.DiscordIdentity"] = "Private edit Discord",
-            ["Input.Comments"] = "Saved through the private route",
-            ["__RequestVerificationToken"] = antiForgeryToken
-        }));
-
-        Assert.Equal(System.Net.HttpStatusCode.Redirect, saved.StatusCode);
-        Assert.Equal(path, saved.Headers.Location?.OriginalString);
-
-        var redirectedPage = await client.GetStringAsync(path);
-        Assert.Contains("notice-success", redirectedPage, StringComparison.Ordinal);
-        Assert.Contains("Your signup was updated.", redirectedPage, StringComparison.Ordinal);
-        Assert.Contains("Private edit updated", redirectedPage, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public async Task BrowserLevelEnhancedSamePageMutationsReplaceTheMyAccountsNavigation()
     {
         using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
@@ -585,7 +540,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
             var withdrawnAssignment = new EventParticipantCharacter(Guid.NewGuid(), seed.EventId, withdrawn.Id, withdrawnCharacter.Id, 0, seed.Now, null, null, EventCharacterRole.Playing, 111m, EhbSource.Manual, null);
             var removedAssignment = new EventParticipantCharacter(Guid.NewGuid(), seed.EventId, removed.Id, removedCharacter.Id, 0, seed.Now, null, null, EventCharacterRole.Playing, 222m, EhbSource.Manual, null);
             withdrawn.Withdraw(seed.Now.AddMinutes(1), "test");
-            removed.Remove(seed.Now.AddMinutes(2), "test");
+            removed.Withdraw(seed.Now.AddMinutes(2), "test");
             withdrawnAssignment.Release(null, seed.Now.AddMinutes(1));
             removedAssignment.Release(null, seed.Now.AddMinutes(2));
             withdrawnId = withdrawn.Id;
@@ -605,16 +560,14 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         Assert.Contains(manage.Participants, row => row.Id == withdrawnId && row.Name == "Withdrawn Main" && row.Ehb == 111m);
         Assert.Contains(manage.Participants, row => row.Id == removedId && row.Name == "Removed Main" && row.Ehb == 222m);
 
-        var participant = new Bingo.Web.Pages.Admin.Events.ParticipantModel(db, characters, null!, new PrivateEditTokenService())
+        var participant = new Bingo.Web.Pages.Admin.Events.ParticipantModel(db, characters)
         {
             TempData = new TempDataDictionary(new DefaultHttpContext(), new EmptyTempDataProvider())
         };
         Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await participant.OnGetAsync(seed.EventId, withdrawnId, CancellationToken.None));
         Assert.Equal("Withdrawn Main", participant.Name);
-        Assert.Equal(111m, participant.Input.Ehb);
         Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await participant.OnGetAsync(seed.EventId, removedId, CancellationToken.None));
         Assert.Equal("Removed Main", participant.Name);
-        Assert.Equal(222m, participant.Input.Ehb);
     }
 
     [Fact]
@@ -644,9 +597,9 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         var first = await firstContext.EventParticipants.SingleAsync(x => x.Id == firstId);
         var second = await secondContext.EventParticipants.SingleAsync(x => x.Id == secondId);
         await new EventParticipantCharacterService(firstContext, TimeProvider.System)
-            .ApplyFixedSignupAssignmentsAsync(first, "Race Target", 101m, null, EhbSource.Manual, null, CancellationToken.None);
+            .AssignExternalRosterCharacterAsync(first, "Race Target", 101m, null, EhbSource.Manual, null, CancellationToken.None);
         await new EventParticipantCharacterService(secondContext, TimeProvider.System)
-            .ApplyFixedSignupAssignmentsAsync(second, "Race Target", 202m, null, EhbSource.AdminCorrection, null, CancellationToken.None);
+            .AssignExternalRosterCharacterAsync(second, "Race Target", 202m, null, EhbSource.AdminCorrection, null, CancellationToken.None);
 
         var saves = await Task.WhenAll(CaptureAsync(firstContext.SaveChangesAsync()), CaptureAsync(secondContext.SaveChangesAsync()));
         Assert.Single(saves, exception => exception is null);

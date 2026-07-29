@@ -16,16 +16,22 @@ public sealed class MyAccountsModel(
 {
     public IReadOnlyList<MyAccountCharacter> Links { get; private set; } = [];
     public Guid? PendingUnlinkLinkId { get; private set; }
+    [BindProperty(SupportsGet = true)] public string? ReturnUrl { get; set; }
     [BindProperty] public AddInput Add { get; set; } = new();
     [BindProperty] public EditInput Edit { get; set; } = new();
     [BindProperty] public LinkInput Action { get; set; } = new();
     [BindProperty] public UnlinkInput Unlink { get; set; } = new();
     [BindProperty] public CorrectInput Correct { get; set; } = new();
 
-    public async Task<IActionResult> OnGetAsync(CancellationToken ct) => await LoadAsync(ct) ? Page() : Forbid();
+    public async Task<IActionResult> OnGetAsync(CancellationToken ct)
+    {
+        NormalizeReturnUrl();
+        return await LoadAsync(ct) ? Page() : Forbid();
+    }
 
     public async Task<IActionResult> OnPostAddAsync(CancellationToken ct)
     {
+        NormalizeReturnUrl();
         KeepValidationFor(nameof(Add));
         if (!ModelState.IsValid) return await ReloadAsync(ct);
         try
@@ -38,6 +44,7 @@ public sealed class MyAccountsModel(
 
     public async Task<IActionResult> OnPostUpdateAsync(CancellationToken ct)
     {
+        NormalizeReturnUrl();
         KeepValidationFor(nameof(Edit));
         if (!ModelState.IsValid) return await ReloadAsync(ct);
         try
@@ -53,6 +60,7 @@ public sealed class MyAccountsModel(
 
     public async Task<IActionResult> OnPostSetPreferredAsync(CancellationToken ct)
     {
+        NormalizeReturnUrl();
         try
         {
             await accounts.SetPreferredAsync(AccountId, Action.LinkId, ct);
@@ -63,6 +71,7 @@ public sealed class MyAccountsModel(
 
     public async Task<IActionResult> OnPostUnlinkAsync(CancellationToken ct)
     {
+        NormalizeReturnUrl();
         try
         {
             await accounts.UnlinkAsync(AccountId, Unlink.LinkId, Unlink.ConfirmRegistrationWarning, ct);
@@ -79,6 +88,7 @@ public sealed class MyAccountsModel(
 
     public async Task<IActionResult> OnPostCorrectAsync(CancellationToken ct)
     {
+        NormalizeReturnUrl();
         KeepValidationFor(nameof(Correct));
         if (!ModelState.IsValid) return await ReloadAsync(ct);
         try
@@ -96,6 +106,7 @@ public sealed class MyAccountsModel(
 
     private async Task<IActionResult> MoveAsync(int direction, CancellationToken ct)
     {
+        NormalizeReturnUrl();
         try
         {
             await accounts.MoveAsync(AccountId, Action.LinkId, direction, ct);
@@ -112,11 +123,16 @@ public sealed class MyAccountsModel(
 
     private Guid AccountId => User.GetAccountId() ?? throw new InvalidOperationException("An authenticated account is required.");
 
-    private RedirectToPageResult Success(string message)
+    private IActionResult Success(string message)
     {
         TempData["StatusMessage"] = text[message].Value;
         TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
-        return RedirectToPage();
+        return Url.IsLocalUrl(ReturnUrl) ? LocalRedirect(ReturnUrl) : RedirectToPage(new { ReturnUrl });
+    }
+
+    private void NormalizeReturnUrl()
+    {
+        if (!Url.IsLocalUrl(ReturnUrl)) ReturnUrl = null;
     }
 
     private async Task<IActionResult> FailureAsync(InvalidOperationException exception, CancellationToken ct)

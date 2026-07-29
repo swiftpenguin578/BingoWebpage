@@ -1,9 +1,13 @@
 using System.Globalization;
 using Bingo.Application.Access;
+using Bingo.Application.Events;
+using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
 using Bingo.Domain.Signups;
+using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Web.Events;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -13,7 +17,7 @@ using Microsoft.Extensions.Localization;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider timeProvider, IStringLocalizer<SharedResource> localizer) : PageModel
+public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleService eventLifecycle, TimeProvider timeProvider, IStringLocalizer<SharedResource> localizer) : PageModel
 {
     private static readonly string[] KnownFilters = ["all", "upcoming", "live", "wrapping-up", "archived", "attention"];
 
@@ -26,6 +30,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
+        var now = timeProvider.GetUtcNow();
         ActiveFilter = KnownFilters.Contains(Filter ?? string.Empty, StringComparer.OrdinalIgnoreCase)
             ? Filter!.ToLowerInvariant()
             : "all";
@@ -45,8 +50,21 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
                 item.ParticipantCap ?? 0,
                 dbContext.EventParticipants.Count(participant => participant.EventId == item.Id && participant.SignupStatus == SignupStatus.Confirmed),
                 dbContext.EventParticipants.Count(participant => participant.EventId == item.Id && participant.SignupStatus == SignupStatus.WaitingList),
-                dbContext.Submissions.Count(submission => submission.EventId == item.Id && submission.Status == SubmissionStatus.Pending)))
+                dbContext.Submissions.Count(submission => submission.EventId == item.Id && submission.Status == SubmissionStatus.Pending),
+                dbContext.DraftSessions.Any(session => session.EventId == item.Id && session.State == DraftState.Finalized),
+                dbContext.Boards.Any(board => board.EventId == item.Id && board.State == BoardState.Published),
+                dbContext.ScheduledEventStartAttempts.Any(attempt => attempt.EventId == item.Id && attempt.ScheduledFor <= now && !attempt.Started && attempt.ResolvedAt == null),
+                EventDisplayPhase.Lifecycle))
             .ToListAsync(cancellationToken);
+
+        for (var index = 0; index < allEvents.Count; index++)
+        {
+            var item = allEvents[index];
+            bool? startReady = null;
+            if (item.State == EventState.SignupClosed && item.DraftFinalized && item.BoardPublished && !item.StartPostponed)
+                startReady = (await eventLifecycle.GetStartReadinessAsync(item.Id, cancellationToken))?.CanProceed;
+            allEvents[index] = item with { DisplayPhase = EventDisplayPhaseProjection.From(new(item.State, item.DraftFinalized, item.BoardPublished, item.StartPostponed, startReady)) };
+        }
 
         var ordered = allEvents
             .OrderBy(item => SortGroup(item.State))
@@ -65,17 +83,25 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
         ];
     }
 
-    public string StatusLabel(EventState state) => state switch
+    public string StatusLabel(EventRow item) => item.DisplayPhase switch
     {
-        EventState.Draft => localizer["Setup"],
-        EventState.SignupOpen => localizer["Signups open"],
-        EventState.SignupClosed => localizer["Signups closed"],
-        EventState.Live => localizer["Live"],
-        EventState.AwaitingFinalReview => localizer["Final review"],
-        EventState.Finalized => localizer["Finished"],
-        EventState.Archived => localizer["Archived"],
-        EventState.Cancelled => localizer["Cancelled"],
-        _ => localizer["Unknown"]
+        EventDisplayPhase.SignupsClosed => localizer["Signups closed"],
+        EventDisplayPhase.DraftFinalized => localizer["Draft finalized"],
+        EventDisplayPhase.EventReady => localizer["Event ready · Starts {0}", FormatDate(item.EventStartsAt, item.Timezone)],
+        EventDisplayPhase.BoardPublished => localizer["Board published · Not ready"],
+        EventDisplayPhase.StartPostponed => localizer["Start postponed"],
+        EventDisplayPhase.Live => localizer["Live"],
+        _ => item.State switch
+        {
+            EventState.Draft => localizer["Setup"],
+            EventState.SignupOpen => localizer["Signups open"],
+            EventState.SignupClosed => localizer["Signups closed"],
+            EventState.AwaitingFinalReview => localizer["Final review"],
+            EventState.Finalized => localizer["Finished"],
+            EventState.Archived => localizer["Archived"],
+            EventState.Cancelled => localizer["Cancelled"],
+            _ => localizer["Unknown"]
+        }
     };
 
     public string FormatDate(DateTimeOffset? value, string timezoneId)
@@ -151,7 +177,11 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
         int ParticipantCap,
         int Confirmed,
         int Waiting,
-        int PendingReviews);
+        int PendingReviews,
+        bool DraftFinalized,
+        bool BoardPublished,
+        bool StartPostponed,
+        EventDisplayPhase DisplayPhase);
 
     public sealed record FilterOption(string Value, string Label, int Count);
 }

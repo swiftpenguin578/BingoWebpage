@@ -46,7 +46,9 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         await using (var setup = new ApplicationDbContext(options))
         {
             var item = Draft(eventId, "reserved-discard-slug", actor.Id); item.ConfigurePlanning("Rules", "Buy-in", null, null, null, 2, 2); item.ConfigureSchedule(now.AddDays(1), now.AddDays(2), null, now.AddDays(3), now.AddDays(4), 20); item.ConfigureScheduledSignupOpening(true, []); item.SetBannerAsset(bannerId);
-            setup.AddRange(actor, item, new EventBannerAsset(bannerId, eventId, "event/banner", "banner.png", "image/png", 10, 1, 1, "checksum", actor.Id, now), new Board(boardId, eventId, "Setup board", 1, 1), new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Tile", string.Empty, string.Empty, 1, null), new BoardRequirementSnapshot(requirementId, tileId, 0, 1, false, false, "Requirement", true), new SignupQuestion(Guid.NewGuid(), eventId, "question", "Question", SignupQuestionType.ShortText, false, 0, null), new DraftSession(Guid.NewGuid(), eventId, 1), new EvidenceCode(Guid.NewGuid(), eventId, "ABC123", now, actor.Id, now, null), new ScheduledEventStartAttempt(Guid.NewGuid(), eventId, now.AddDays(3), now, false, ["BOARD_NOT_PUBLISHED"]), new ScheduledSignupOpeningAttempt(Guid.NewGuid(), eventId, now.AddDays(1), now, false, ["DESCRIPTION_REQUIRED"]));
+            var form = new SignupForm(Guid.NewGuid(), eventId, now);
+            var question = new SignupQuestion(Guid.NewGuid(), form.Id, eventId, "question", "Question", SignupQuestionType.Text, false, 0, null);
+            setup.AddRange(actor, item, new EventBannerAsset(bannerId, eventId, "event/banner", "banner.png", "image/png", 10, 1, 1, "checksum", actor.Id, now), new Board(boardId, eventId, "Setup board", 1, 1), new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Tile", string.Empty, string.Empty, 1, null), new BoardRequirementSnapshot(requirementId, tileId, 0, 1, false, false, "Requirement", true), form, question, new DraftSession(Guid.NewGuid(), eventId, 1), new EvidenceCode(Guid.NewGuid(), eventId, "ABC123", now, actor.Id, now, null), new ScheduledEventStartAttempt(Guid.NewGuid(), eventId, now.AddDays(3), now, false, ["BOARD_NOT_PUBLISHED"]), new ScheduledSignupOpeningAttempt(Guid.NewGuid(), eventId, now.AddDays(1), now, false, ["DESCRIPTION_REQUIRED"]));
             await setup.SaveChangesAsync();
         }
         await using (var mutation = new ApplicationDbContext(options))
@@ -64,7 +66,7 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         {
             var tombstone = await verify.Events.SingleAsync(x => x.Id == eventId);
             Assert.Equal(EventState.Discarded, tombstone.State); Assert.Equal("reserved-discard-slug", tombstone.Slug); Assert.Equal(actor.Id, tombstone.CreatedByAccountId); Assert.Equal(actor.Id, tombstone.DiscardedByAccountId); Assert.Null(tombstone.Description); Assert.Null(tombstone.EventStartsAt); Assert.Null(tombstone.BannerAssetId);
-            Assert.Empty(await verify.Boards.Where(x => x.EventId == eventId).ToListAsync()); Assert.Empty(await verify.SignupQuestions.Where(x => x.EventId == eventId).ToListAsync()); Assert.Empty(await verify.DraftSessions.Where(x => x.EventId == eventId).ToListAsync()); Assert.Empty(await verify.EventBannerAssets.Where(x => x.EventId == eventId).ToListAsync());
+            Assert.Empty(await verify.Boards.Where(x => x.EventId == eventId).ToListAsync()); Assert.Empty(await verify.SignupQuestions.Where(x => x.EventId == eventId).ToListAsync()); Assert.Empty(await verify.SignupForms.Where(x => x.EventId == eventId).ToListAsync()); Assert.Empty(await verify.DraftSessions.Where(x => x.EventId == eventId).ToListAsync()); Assert.Empty(await verify.EventBannerAssets.Where(x => x.EventId == eventId).ToListAsync());
             Assert.Single(await verify.EventStateTransitions.Where(x => x.EventId == eventId && x.ToState == EventState.Discarded).ToListAsync()); Assert.Single(await verify.AuditEntries.Where(x => x.EventId == eventId && x.Action == "event.discarded").ToListAsync());
             verify.Events.Add(Draft(Guid.NewGuid(), "reserved-discard-slug", actor.Id)); await Assert.ThrowsAsync<DbUpdateException>(() => verify.SaveChangesAsync());
         }
@@ -208,7 +210,7 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         await using (var verify = new ApplicationDbContext(options))
         {
             Assert.Equal(EventState.Cancelled, (await verify.Events.SingleAsync(x => x.Id == cancelledId)).State); Assert.Single(await verify.EventParticipants.Where(x => x.EventId == cancelledId).ToListAsync()); Assert.Equal("Private operational reason", (await verify.Events.SingleAsync(x => x.Id == cancelledId)).CancellationReason); Assert.Equal(EventState.Archived, (await verify.Events.SingleAsync(x => x.Id == archivedId)).State); Assert.Single(await verify.EventFinalizations.Where(x => x.EventId == archivedId).ToListAsync());
-            var publicSignup = new Bingo.Web.Pages.Events.SignupModel(verify, null!, new FixedClock(now)); Assert.IsType<PageResult>(await publicSignup.OnGetAsync("cancelled-public", CancellationToken.None)); Assert.True(publicSignup.EventView!.Cancelled); Assert.DoesNotContain("Private operational reason", publicSignup.EventView.ToString(), StringComparison.Ordinal);
+            var publicSignup = new Bingo.Web.Pages.Events.SignupModel(verify, null!, new FixedClock(now)); Assert.IsType<PageResult>(await publicSignup.GetForTestAsync("cancelled-public", CancellationToken.None)); Assert.True(publicSignup.EventView!.Cancelled); Assert.DoesNotContain("Private operational reason", publicSignup.EventView.ToString(), StringComparison.Ordinal);
         }
         var competingId = Guid.NewGuid();
         await using (var setup = new ApplicationDbContext(options)) { var competing = Draft(competingId, "competing-current", actor.Id); competing.ConfigureSchedule(now.AddHours(-2), now.AddHours(-1), null, now.AddMinutes(-30), now.AddHours(2), 20); competing.OpenSignups(now.AddHours(-2)); competing.CloseSignups(now.AddHours(-1)); competing.StartEvent(now.AddMinutes(-30)); setup.Events.Add(competing); await setup.SaveChangesAsync(); }
@@ -320,10 +322,8 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
             $"/Admin/Events/Identity/{cancelledId}",
             $"/Admin/Events/Schedule/{cancelledId}",
             $"/Admin/Events/Questions/{cancelledId}",
-            $"/Admin/Events/Csv/{cancelledId}?handler=Import",
             $"/Admin/Events/Board/{cancelledId}?handler=Create",
             $"/Admin/Events/Draft/{cancelledId}?handler=Configure",
-            $"/Admin/Events/Participant/{cancelledId}/Participants/{participantId}?handler=CreateEditLink",
             $"/Admin/Events/Finalize/{cancelledId}?handler=Resolve"
         };
         foreach (var route in cancelledRoutes)
@@ -358,7 +358,7 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         var confirmed = Participant(eventId, SignupStatus.Confirmed, 1); confirmed.AssignOwner(confirmedOwner);
         var waiting = Participant(eventId, SignupStatus.WaitingList, 2); waiting.AssignOwner(waitingOwner);
         var withdrawn = Participant(eventId, SignupStatus.Confirmed, 3); withdrawn.AssignOwner(withdrawnOwner); withdrawn.Withdraw(now, "Withdrawn before cancellation");
-        var removed = Participant(eventId, SignupStatus.Confirmed, 4); removed.AssignOwner(removedOwner); removed.Remove(now, "Removed before cancellation");
+        var removed = Participant(eventId, SignupStatus.Confirmed, 4); removed.AssignOwner(removedOwner); removed.Withdraw(now, "Withdrawn before cancellation");
         var unowned = Participant(eventId, SignupStatus.Confirmed, 5);
         await using (var setup = new ApplicationDbContext(options))
         {

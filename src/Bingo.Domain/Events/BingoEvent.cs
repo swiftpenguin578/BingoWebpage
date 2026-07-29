@@ -18,7 +18,6 @@ public sealed class BingoEvent
         CreatedAt = createdAt.ToUniversalTime();
         State = EventState.Draft;
         WaitingListEnabled = true;
-        AllowPrivateSignupEditing = true;
     }
 
     // Compatibility constructor retained until the Slice 3 creation surface moves to the minimal draft command.
@@ -61,7 +60,6 @@ public sealed class BingoEvent
     public DateTimeOffset? ReopenedSubmissionCutoffAt { get; private set; }
     public int? ParticipantCap { get; private set; }
     public bool WaitingListEnabled { get; private set; }
-    public bool AllowPrivateSignupEditing { get; private set; }
     public bool RequireSignupCode { get; private set; }
     public string? SignupCodeHash { get; private set; }
     public string? PublicRules { get; private set; }
@@ -109,12 +107,11 @@ public sealed class BingoEvent
 
     public void AdvanceVersion() => Version++;
 
-    public void ConfigureSignup(bool waitingListEnabled, bool allowPrivateEditing, bool requireCode, string? codeHash)
+    public void ConfigureSignup(bool waitingListEnabled, bool requireCode, string? codeHash)
     {
         EnsureCapability(EventCapability.ConfigureSignup);
         if (DraftLocked) throw new InvalidOperationException("Signup settings are locked because the draft has started.");
         WaitingListEnabled = waitingListEnabled;
-        AllowPrivateSignupEditing = allowPrivateEditing;
         RequireSignupCode = requireCode;
         SignupCodeHash = requireCode ? codeHash : null;
     }

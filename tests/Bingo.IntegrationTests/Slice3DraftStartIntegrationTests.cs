@@ -123,7 +123,7 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
     {
         var item = new BingoEvent(eventId, slug, slug, "UTC", adminId, now.AddDays(-2));
         item.ConfigureSchedule(now.AddDays(-2), closedAt, null, now.AddDays(1), now.AddDays(2), 20);
-        item.ConfigureSignup(true, true, false, null);
+        item.ConfigureSignup(true, false, null);
         if (state is not (EventState.Draft or EventState.Cancelled or EventState.Discarded)) item.OpenSignups(now.AddDays(-2));
         if (state is not (EventState.Draft or EventState.SignupOpen or EventState.Cancelled or EventState.Discarded)) item.CloseSignups(closedAt);
         if (state is EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived) item.StartEvent(now);
@@ -143,8 +143,8 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
             draft,
             firstTeam,
             secondTeam,
-            new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.Website, null),
-            new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 2, now, SignupSource.Website, null));
+            new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.Website),
+            new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 2, now, SignupSource.Website));
         return item;
     }
 

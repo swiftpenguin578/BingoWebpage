@@ -1,9 +1,18 @@
+using System.Net;
+using System.Text.RegularExpressions;
+using Bingo.Application.Events;
+using Bingo.Domain.Access;
 using Bingo.Domain.Signups;
+using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Signups;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.Configuration;
 using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
@@ -36,6 +45,10 @@ public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
         var eventId = Guid.NewGuid();
         var participantId = Guid.NewGuid();
         var created = DateTimeOffset.UtcNow.AddDays(-2);
+        const string legacyDiscord = "RETAINED-LEGACY-DISCORD-SENTINEL";
+        const string retainedAdminPassword = "retained-admin-password";
+        string retainedAdminLogin;
+        string retainedSlug;
 
         await using (var retained = new ApplicationDbContext(options))
         {
@@ -68,11 +81,11 @@ public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
                      FALSE, FALSE, FALSE, FALSE, {accountId}, {created});
                 INSERT INTO event_participants
                     (id, event_id, primary_account_name, normalized_primary_account_name,
-                     second_account_name, ehb_snapshot, captain_volunteer, payment_status,
+                     second_account_name, discord_identity, ehb_snapshot, captain_volunteer, payment_status,
                      signup_status, signup_sequence, signed_up_at, form_version, source)
                 VALUES
                     ({participantId}, {eventId}, {"Existing Main"}, {"EXISTING MAIN"},
-                     {"Helper Alt"}, 123.45, FALSE, {"Unknown"}, {"Confirmed"}, 1, {created}, 1, {"CsvImport"});
+                     {"Helper Alt"}, {legacyDiscord}, 123.45, FALSE, {"Unknown"}, {"Confirmed"}, 1, {created}, 1, {"CsvImport"});
                 """);
 
             await retained.GetService<IMigrator>().MigrateAsync();
@@ -121,6 +134,73 @@ public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
                 });
             Assert.Equal(2, await migrated.OsrsCharacters.CountAsync());
             Assert.Empty(await migrated.AccountOsrsCharacters.Where(x => x.OsrsCharacterId != linkedCharacterId).ToListAsync());
+            var legacyQuestion = await migrated.SignupQuestions.SingleAsync(x => x.EventId == eventId && x.Key == "legacy_discord_identity");
+            Assert.False(legacyQuestion.PublicOnSignupBoard);
+            Assert.Equal(SignupSystemField.None, legacyQuestion.SystemField);
+            Assert.Equal("Discord identity", legacyQuestion.Label);
+            Assert.Equal("Retained historical signup value.", legacyQuestion.HelpText);
+            Assert.Equal(9991, legacyQuestion.Position);
+            var legacyAnswer = await migrated.SignupAnswers.SingleAsync(x => x.EventParticipantId == participantId && x.SignupQuestionId == legacyQuestion.Id);
+            Assert.Equal(legacyDiscord, legacyAnswer.Value);
+            Assert.Equal(participantId, legacyAnswer.EventParticipantId);
+            Assert.Equal(legacyQuestion.Id, legacyAnswer.SignupQuestionId);
+
+            var questions = await migrated.SignupQuestions
+                .Where(x => x.EventId == eventId && x.Active)
+                .OrderBy(x => x.Position)
+                .ToListAsync();
+            Assert.Collection(questions,
+                primary =>
+                {
+                    Assert.Equal("primary_regular_account", primary.Key);
+                    Assert.Equal(SignupQuestionType.Account, primary.Type);
+                    Assert.Equal(0, primary.Position);
+                },
+                captain =>
+                {
+                    Assert.Equal("captain_volunteer", captain.Key);
+                    Assert.Equal(SignupQuestionType.YesNo, captain.Type);
+                    Assert.Equal(1, captain.Position);
+                });
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["DiscordAuthentication:ClientId"] = "test",
+                ["DiscordAuthentication:ClientSecret"] = "test"
+            }).Build();
+            var readiness = await new EventReadinessEvaluator(migrated, configuration)
+                .GetSignupReadinessAsync(eventId, SignupOpeningMode.OpenNow, DateTimeOffset.UtcNow);
+            Assert.DoesNotContain(readiness!.Blockers, blocker => blocker.Code == "SIGNUP_QUESTIONS_INVALID");
+
+            var retainedAdmin = await migrated.Accounts.SingleAsync(x => x.Id == accountId);
+            retainedAdmin.SetGlobalRole(GlobalRole.Admin);
+            retainedAdmin.SetPassword(new PasswordHasher<Account>().HashPassword(retainedAdmin, retainedAdminPassword), false, DateTimeOffset.UtcNow, incrementVersion: false);
+            var retainedEvent = await migrated.Events.SingleAsync(x => x.Id == eventId);
+            retainedEvent.MarkFirstPublic(DateTimeOffset.UtcNow);
+            retainedEvent.OpenSignups(DateTimeOffset.UtcNow);
+            await migrated.SaveChangesAsync();
+            retainedAdminLogin = retainedAdmin.LoginName;
+            retainedSlug = retainedEvent.Slug;
+        }
+
+        await using (var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString())))
+        {
+            using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+            var login = await admin.GetStringAsync("/Account/Login");
+            using (var signedIn = await admin.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["Input.Username"] = retainedAdminLogin,
+                ["Input.Password"] = retainedAdminPassword,
+                ["__RequestVerificationToken"] = AntiforgeryToken(login)
+            }))) Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
+            var detail = await admin.GetAsync($"/Admin/Events/Participant/{eventId}/Participants/{participantId}");
+            var detailHtml = await detail.Content.ReadAsStringAsync();
+            Assert.True(detail.StatusCode == HttpStatusCode.OK, detailHtml);
+            Assert.Contains(legacyDiscord, detailHtml, StringComparison.Ordinal);
+
+            using var anonymous = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+            var publicTable = await anonymous.GetAsync($"/Events/{retainedSlug}/Signups");
+            Assert.Equal(HttpStatusCode.OK, publicTable.StatusCode);
+            Assert.DoesNotContain(legacyDiscord, await publicTable.Content.ReadAsStringAsync(), StringComparison.Ordinal);
         }
 
         await using (var clean = new ApplicationDbContext(options))
@@ -132,6 +212,8 @@ public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
             Assert.Empty(await clean.AccountOsrsCharacters.ToListAsync());
         }
     }
+
+    private static string AntiforgeryToken(string page) => Regex.Match(page, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
 
     [Fact]
     public async Task RetainedCollisionMigrationReleasesHistoryBeforeCreatingCurrentReservationIndex()

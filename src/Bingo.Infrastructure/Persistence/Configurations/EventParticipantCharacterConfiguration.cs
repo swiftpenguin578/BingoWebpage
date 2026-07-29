@@ -50,6 +50,9 @@ public sealed class EventParticipantCharacterConfiguration : IEntityTypeConfigur
         builder.HasOne<OsrsCharacter>().WithMany().HasForeignKey(x => x.OsrsCharacterId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Account>().WithMany().HasForeignKey(x => x.RegisteredByAccountId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Account>().WithMany().HasForeignKey(x => x.ReleasedByAccountId).OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne<SignupQuestion>().WithMany().HasForeignKey(x => x.SignupQuestionId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<SignupQuestion>().WithMany()
+            .HasForeignKey(x => new { x.EventId, x.SignupQuestionId })
+            .HasPrincipalKey(x => new { x.EventId, x.Id })
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

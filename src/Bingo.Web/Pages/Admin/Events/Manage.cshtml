@@ -7,17 +7,24 @@
     ViewData["CompactNavigation"] = true;
 
     var eventView = Model.EventView!;
-    var statusLabel = eventView.State switch
+    var statusLabel = eventView.DisplayPhase switch
     {
-        EventState.SignupOpen => T["Signups open"],
-        EventState.SignupClosed => T["Signups closed"],
-        EventState.Draft => T["Private setup"],
-        EventState.Live => T["Live"],
-        EventState.AwaitingFinalReview => T["Final review"],
-        EventState.Finalized => T["Finished"],
-        EventState.Archived => T["Archived"],
-        EventState.Cancelled => T["Cancelled"],
-        _ => T["Private setup"]
+        Bingo.Web.Events.EventDisplayPhase.SignupsClosed => T["Signups closed"],
+        Bingo.Web.Events.EventDisplayPhase.DraftFinalized => T["Draft finalized"],
+        Bingo.Web.Events.EventDisplayPhase.EventReady => T["Event ready · Starts {0}", eventView.StartsAt?.ToLocalTime().ToString("g") ?? T["Not set"]],
+        Bingo.Web.Events.EventDisplayPhase.BoardPublished => T["Board published · Not ready"],
+        Bingo.Web.Events.EventDisplayPhase.StartPostponed => T["Start postponed"],
+        Bingo.Web.Events.EventDisplayPhase.Live => T["Live"],
+        _ => eventView.State switch
+        {
+            EventState.SignupOpen => T["Signups open"],
+            EventState.Draft => T["Private setup"],
+            EventState.AwaitingFinalReview => T["Final review"],
+            EventState.Finalized => T["Finished"],
+            EventState.Archived => T["Archived"],
+            EventState.Cancelled => T["Cancelled"],
+            _ => T["Private setup"]
+        }
     };
     var statusClass = eventView.State == EventState.Draft ? "setup" : eventView.State.ToString().ToLowerInvariant();
     var signupAndPlayersLocked = eventView.DraftLocked || eventView.State is EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived;
@@ -32,7 +39,7 @@
     {
         (Key: "confirmed", Title: T["Confirmed participants"], Description: T["Available for the website draft."], Rows: Model.Participants.Where(p => p.Status == SignupStatus.Confirmed).ToList(), Open: true),
         (Key: "waiting", Title: T["Waiting list"], Description: T["Promoted in signup order when space becomes available."], Rows: Model.Participants.Where(p => p.Status == SignupStatus.WaitingList).ToList(), Open: true),
-        (Key: "inactive", Title: T["Inactive signups"], Description: T["Withdrawn and removed signup records."], Rows: Model.Participants.Where(p => p.Status is SignupStatus.Withdrawn or SignupStatus.Removed).ToList(), Open: false)
+        (Key: "inactive", Title: T["Inactive signups"], Description: T["Withdrawn signup records."], Rows: Model.Participants.Where(p => p.Status == SignupStatus.Withdrawn).ToList(), Open: false)
     };
 }
 
@@ -51,14 +58,19 @@
 
     @if (eventView.State is not (EventState.Cancelled or EventState.Finalized or EventState.Archived))
     {
-        <nav class="event-manage-links" aria-label="@T["Event tools"]">
+    <nav class="event-manage-links" aria-label="@T["Event tools"]">
             <a asp-page="Identity" asp-route-id="@eventView.Id"><strong>@T["Event identity"]</strong><small>@T["Name, link, timezone and banner"]</small></a>
             <a asp-page="Schedule" asp-route-id="@eventView.Id"><strong>@T["Event schedule"]</strong><small>@T["Schedule, readiness and signup opening"]</small></a>
             <a asp-page="Board" asp-route-id="@eventView.Id"><strong>@T["Board editor"]</strong><small>@T["Build and publish the board"]</small></a>
             <a asp-page="Draft" asp-route-id="@eventView.Id"><strong>@T["Teams and draft"]</strong><small>@T["Set up teams and run the draft"]</small></a>
             <a asp-page="Questions" asp-route-id="@eventView.Id"><strong>@T["Signup form"]</strong><small>@T["Edit questions while signups are closed"]</small></a>
             <a href="/Events/@eventView.Slug/Signup"><strong>@T["Public signup"]</strong><small>/Events/@eventView.Slug/Signup</small></a>
-        </nav>
+    </nav>
+    <section class="panel form-stack" aria-label="@T["Public signup links"]">
+        <h2>@T["Public signup links"]</h2>
+        <label>@T["Signup form"]<input class="form-control" readonly value="@Url.Page("/Events/Signup", new { slug = eventView.Slug })" /></label>
+        <label>@T["Signup table"]<input class="form-control" readonly value="@Url.Page("/Events/Signups", new { slug = eventView.Slug })" /></label>
+    </section>
     }
     else if (showResultsControl)
     {
@@ -287,11 +299,51 @@
         </div>
     </section>
 
-    <section class="event-participants-section">
+    <section id="players" class="event-participants-section">
         <div class="event-participants-heading">
             <div><p class="eyebrow">@T["Signups"]</p><h2>@T["Players"]</h2><p>@T["Review signup details or remove a player before the draft begins."]</p></div>
-            <div><a class="btn btn-outline-light" asp-page="Csv" asp-route-id="@eventView.Id">@T["Import CSV"]</a></div>
+            <div><span class="participant-count">@Model.TotalParticipantCount total · @eventView.Confirmed confirmed · @eventView.Waiting waiting · @Model.WithdrawnParticipantCount withdrawn</span></div>
         </div>
+
+        @if (!eventView.DraftLocked && eventView.State is EventState.SignupOpen or EventState.SignupClosed)
+        {
+            <details class="panel participant-filter-form"><summary>Add internal participant</summary>
+                <p>Use the active signup form. An owner is optional; leave it blank for an explicitly unowned participant.</p>
+                <form method="post" asp-page-handler="CreateInternalParticipant" class="form-stack" data-update-targets="#app-notice-region, #players">
+                    <label asp-for="InternalParticipant.OwnerUsername"><span>Website owner username (optional)</span><input asp-for="InternalParticipant.OwnerUsername" class="form-control" autocomplete="off" /></label>
+                    <div class="participant-field-grid">
+                    @foreach (var question in Model.ActiveSignupQuestions)
+                    {
+                        var account = Model.InternalParticipant.AccountAnswers.GetValueOrDefault(question.Id) ?? new ParticipantModel.AccountInput();
+                        var answer = Model.InternalParticipant.Answers.GetValueOrDefault(question.Id);
+                        <label for="internal-@question.Id"><span>@question.Label @if (question.Required) { <small>Required</small> }</span>
+                        @if (question.Type == SignupQuestionType.Account)
+                        {
+                            <input id="internal-@question.Id" name="InternalParticipant.AccountAnswers[@question.Id].CharacterName" value="@account.CharacterName" class="form-control" maxlength="100" placeholder="OSRS character" />
+                            @if (question.AccountRole == EventCharacterRole.Playing) { <input name="InternalParticipant.AccountAnswers[@question.Id].Ehb" value="@account.Ehb" class="form-control" type="number" min="0" step="0.01" placeholder="EHB" /> }
+                        }
+                        else if (question.Type == SignupQuestionType.Text) { <textarea id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-control" rows="3">@answer</textarea> }
+                        else if (question.Type == SignupQuestionType.YesNo) { <select id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-select"><option value="">Choose…</option><option value="true">Yes</option><option value="false">No</option></select> }
+                        else if (question.Type == SignupQuestionType.SingleChoice) { <select id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-select"><option value="">Choose…</option>@foreach (var option in question.Options) { <option value="@option">@option</option> }</select> }
+                        else { <input id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" value="@answer" class="form-control" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" /> }
+                        </label>
+                    }
+                    </div>
+                    <button class="btn btn-outline-light" type="submit">Create internal participant</button>
+                </form>
+            </details>
+        }
+
+        <form method="get" class="panel participant-filter-form" data-participant-filter-form>
+            <label><span>Search</span><input asp-for="ParticipantSearch" class="form-control" type="search" /></label>
+            <label><span>Status</span><select asp-for="ParticipantStatus" class="form-select"><option value="">All</option><option value="Confirmed">Confirmed</option><option value="WaitingList">Waiting</option><option value="Withdrawn">Withdrawn</option></select></label>
+            <label><span>Payment</span><select asp-for="ParticipantPayment" class="form-select"><option value="">All</option><option value="paid">Paid</option><option value="unpaid">Unpaid</option></select></label>
+            <label><span>Discord</span><select asp-for="ParticipantDiscord" class="form-select"><option value="">All</option><option value="linked">Linked</option><option value="unlinked">Unlinked</option></select></label>
+            <label><span>Captain</span><select asp-for="ParticipantCaptain" class="form-select"><option value="">All</option><option value="true">Volunteer</option><option value="false">Not volunteering</option></select></label>
+            <label><span>Source</span><select asp-for="ParticipantSource" class="form-select"><option value="">All</option><option value="Website">Website</option><option value="AdminCreated">Admin created</option><option value="CsvImport">CSV import</option></select></label>
+            <label><span>Team</span><select asp-for="ParticipantTeamId" class="form-select"><option value="">Any team</option>@foreach (var team in Model.ParticipantTeams) { <option value="@team.Id">@team.Name</option> }</select></label>
+            <div class="participant-filter-actions"><a class="btn btn-outline-light" asp-page="Manage" asp-route-id="@eventView.Id" asp-fragment="players">Clear</a></div>
+        </form>
 
         <div class="participant-group-list">
             @foreach (var group in participantGroups)
@@ -313,10 +365,10 @@
                                 <th><button type="button" class="participant-sort" data-participant-sort data-sort-type="text" data-sort-index="3">@T["Status"]</button></th>
                                 <th><button type="button" class="participant-sort" data-participant-sort data-sort-type="text" data-sort-index="4">@T["Payment"]</button></th>
                                 <th><button type="button" class="participant-sort" data-participant-sort data-sort-type="date" data-sort-index="5">@T["Signed up"]</button></th>
-                                <th><span class="visually-hidden">@T["Actions"]</span></th>
+                                <th>Admin identity</th><th><span class="visually-hidden">@T["Actions"]</span></th>
                             </tr></thead>
                             <tbody>
-                                @if (group.Rows.Count == 0) { <tr><td colspan="7" class="participant-empty">@T["No players in this section."]</td></tr> }
+                                @if (group.Rows.Count == 0) { <tr><td colspan="8" class="participant-empty">@T["No players in this section."]</td></tr> }
                                 @foreach (var participant in group.Rows)
                                 {
                                     var participantStatus = participant.Status switch { SignupStatus.Confirmed => T["Confirmed"], SignupStatus.WaitingList => T["Waiting list"], SignupStatus.Withdrawn => T["Withdrawn"], _ => T["Removed"] };
@@ -328,16 +380,16 @@
                                         <td data-label="@T["Payment"]" data-sort-value="@participant.Payment">
                                             <form method="post" asp-page-handler="Payment" class="participant-payment-form" data-update-targets="#app-notice-region, #participant-row-@participant.Id">
                                                 <input type="hidden" name="participantId" value="@participant.Id" />
-                                                <select name="payment" aria-label="@T["Payment for {0}", participant.Name]" data-auto-submit>
-                                                    <option value="Unknown" selected="@(participant.Payment == PaymentStatus.Unknown)">@T["Unknown"]</option>
-                                                    <option value="Unpaid" selected="@(participant.Payment == PaymentStatus.Unpaid)">@T["Unpaid"]</option>
+                                                <input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="ParticipantPayment" value="@Model.ParticipantPayment" /><input type="hidden" name="ParticipantDiscord" value="@Model.ParticipantDiscord" /><input type="hidden" name="ParticipantCaptain" value="@Model.ParticipantCaptain" /><input type="hidden" name="ParticipantSource" value="@Model.ParticipantSource" /><input type="hidden" name="ParticipantTeamId" value="@Model.ParticipantTeamId" />
+                                                <select name="payment" aria-label="@T["Payment for {0}", participant.Name]" data-auto-submit data-payment-save>
+                                                    <option value="Unpaid" selected="@(participant.Payment != PaymentStatus.Paid)">@T["Unpaid"]</option>
                                                     <option value="Paid" selected="@(participant.Payment == PaymentStatus.Paid)">@T["Paid"]</option>
-                                                    <option value="Waived" selected="@(participant.Payment == PaymentStatus.Waived)">@T["Waived"]</option>
-                                                    <option value="NotRequired" selected="@(participant.Payment == PaymentStatus.NotRequired)">@T["Not required"]</option>
                                                 </select>
+                                                <span class="save-state" aria-live="polite" data-save-state>Saved</span>
                                             </form>
                                         </td>
                                         <td data-label="@T["Signed up"]" data-sort-value="@participant.SignedUpAt.ToUnixTimeMilliseconds()">@participant.SignedUpAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</td>
+                                        <td data-label="Admin identity">@if (participant.WebsiteUsername is null) { <span>Unowned</span> } else { <span>@participant.WebsiteUsername · @(participant.DiscordLinked ? "Discord linked" : "Discord unlinked")</span> }<small>@participant.Source · @(participant.TeamName ?? "No team")</small></td>
                                         <td class="participant-row-actions">
                                             @if (participant.Status is SignupStatus.Confirmed or SignupStatus.WaitingList)
                                             {
@@ -346,9 +398,7 @@
                                                 {
                                                     <form method="post" class="participant-action-form" data-update-targets="@partialUpdateTargets">
                                                         <input type="hidden" name="participantId" value="@participant.Id" />
-                                                        <input name="reason" required placeholder="@T["Reason"]" aria-label="@T["Reason for changing {0}", participant.Name]" />
                                                         <button asp-page-handler="Withdraw" class="btn btn-sm btn-outline-light" type="submit">@T["Withdraw"]</button>
-                                                        <button asp-page-handler="Remove" class="btn btn-sm btn-danger" type="submit">@T["Remove"]</button>
                                                     </form>
                                                 }
                                             }

@@ -49,7 +49,6 @@
   <data name="Create reusable drop and challenge tiles." xml:space="preserve"><value>Opret genbrugelige drop- og udfordrings-tiles.</value></data>
   <data name="Evidence review" xml:space="preserve"><value>Gennemgå indsendelser</value></data>
   <data name="Review tile submissions from captains." xml:space="preserve"><value>Gennemgå kaptajnernes tile-indsendelser.</value></data>
-  <data name="Accounts" xml:space="preserve"><value>Konti</value></data>
   <data name="Manage admins and captain accounts." xml:space="preserve"><value>Administrer admins og kaptajnkonti.</value></data>
   <data name="Audit log" xml:space="preserve"><value>Ændringslog</value></data>
   <data name="See sign-ins and changes made by admins." xml:space="preserve"><value>Se login og ændringer foretaget af admins.</value></data>
@@ -484,7 +483,6 @@
   <data name="Your signup was updated." xml:space="preserve"><value>Din tilmelding er opdateret.</value></data>
   <data name="Received" xml:space="preserve"><value>Modtaget</value></data>
   <data name="In-game name" xml:space="preserve"><value>Navn i spillet</value></data>
-  <data name="EHB (Wise Old Man)" xml:space="preserve"><value>EHB (Wise Old Man)</value></data>
   <data name="Second account (optional)" xml:space="preserve"><value>Ekstra konto (valgfrit)</value></data>
   <data name="Second account" xml:space="preserve"><value>Ekstra konto</value></data>
   <data name="Discord name (optional)" xml:space="preserve"><value>Discord-navn (valgfrit)</value></data>
@@ -560,4 +558,55 @@
   <data name="Event discarded." xml:space="preserve"><value>Eventet blev kasseret.</value></data>
   <data name="Event cancelled" xml:space="preserve"><value>Event aflyst</value></data>
   <data name="Your event has been cancelled." xml:space="preserve"><value>Dit event er blevet aflyst.</value></data>
+  <data name="Accounts" xml:space="preserve"><value>Konti</value></data>
+  <data name="Answers" xml:space="preserve"><value>Svar</value></data>
+  <data name="Choose…" xml:space="preserve"><value>Vælg…</value></data>
+  <data name="Current events" xml:space="preserve"><value>Nuværende events</value></data>
+  <data name="Currently registered" xml:space="preserve"><value>Allerede tilmeldt</value></data>
+  <data name="Don't see your account? Add it to My accounts" xml:space="preserve"><value>Kan du ikke se din konto? Tilføj den i Mine konti</value></data>
+  <data name="Edit signup" xml:space="preserve"><value>Rediger tilmelding</value></data>
+  <data name="EHB" xml:space="preserve"><value>EHB</value></data>
+  <data name="EHB (Wise Old Man)" xml:space="preserve"><value>EHB (Wise Old Man)</value></data>
+  <data name="Event signup" xml:space="preserve"><value>Eventtilmelding</value></data>
+  <data name="History" xml:space="preserve"><value>Historik</value></data>
+  <data name="I am willing to be a captain" xml:space="preserve"><value>Jeg vil gerne være kaptajn</value></data>
+  <data name="My events" xml:space="preserve"><value>Mine events</value></data>
+  <data name="Save signup" xml:space="preserve"><value>Gem tilmelding</value></data>
+  <data name="Sign up" xml:space="preserve"><value>Tilmeld</value></data>
+  <data name="Signup" xml:space="preserve"><value>Tilmelding</value></data>
+  <data name="Signup confirmed" xml:space="preserve"><value>Tilmelding bekræftet</value></data>
+  <data name="Signup received" xml:space="preserve"><value>Tilmelding modtaget</value></data>
+  <data name="Signups are not currently open" xml:space="preserve"><value>Tilmeldingen er ikke åben lige nu</value></data>
+  <data name="The event information remains visible, but the form is unavailable." xml:space="preserve"><value>Eventoplysningerne er stadig synlige, men formularen er ikke tilgængelig.</value></data>
+  <data name="This event will not take place." xml:space="preserve"><value>Dette event bliver ikke afholdt.</value></data>
+  <data name="You are currently number {0} on the waiting list." xml:space="preserve"><value>Du er i øjeblikket nummer {0} på ventelisten.</value></data>
+  <data name="You have no current events." xml:space="preserve"><value>Du har ingen nuværende events.</value></data>
+  <data name="You have no event history." xml:space="preserve"><value>Du har ingen eventhistorik.</value></data>
+  <data name="Your place is confirmed." xml:space="preserve"><value>Din plads er bekræftet.</value></data>
+  <data name="Choose an account from My accounts." xml:space="preserve"><value>Vælg en konto fra Mine konti.</value></data>
+  <data name="Choose each account only once." xml:space="preserve"><value>Vælg hver konto kun én gang.</value></data>
+  <data name="That account is already signed up for this event." xml:space="preserve"><value>Denne konto er allerede tilmeldt dette event.</value></data>
+  <data name="This event is full and does not have a waiting list." xml:space="preserve"><value>Dette event er fuldt og har ingen venteliste.</value></data>
+  <data name="The event code is incorrect." xml:space="preserve"><value>Eventkoden er forkert.</value></data>
+  <data name="Signups are not currently open." xml:space="preserve"><value>Tilmeldingen er ikke åben lige nu.</value></data>
+  <data name="Your signup could not be saved. Please try again." xml:space="preserve"><value>Din tilmelding kunne ikke gemmes. Prøv igen.</value></data>
+  <data name="Your signup changed while you were editing it. Please reload and try again." xml:space="preserve"><value>Din tilmelding blev ændret, mens du redigerede. Genindlæs og prøv igen.</value></data>
+  <data name="Alt account" xml:space="preserve"><value>Alternativ konto</value></data>
+  <data name="Captain volunteer" xml:space="preserve"><value>Frivillig kaptajn</value></data>
+  <data name="Confirmed participants and the waiting list." xml:space="preserve"><value>Bekræftede deltagere og ventelisten.</value></data>
+  <data name="No confirmed participants yet." xml:space="preserve"><value>Ingen bekræftede deltagere endnu.</value></data>
+  <data name="No participants are waiting." xml:space="preserve"><value>Ingen deltagere venter.</value></data>
+  <data name="Public signup links" xml:space="preserve"><value>Offentlige tilmeldingslinks</value></data>
+  <data name="Signup table" xml:space="preserve"><value>Tilmeldingstabel</value></data>
+  <data name="Unknown account" xml:space="preserve"><value>Ukendt konto</value></data>
+  <data name="View signup table" xml:space="preserve"><value>Vis tilmeldingstabel</value></data>
+  <data name="Roster available · Board not published" xml:space="preserve"><value>Holdlister klar · Brættet er ikke udgivet</value></data>
+  <data name="The next event will appear here when its roster is available." xml:space="preserve"><value>Det næste event vises her, når holdlisterne er klar.</value></data>
+  <data name="View board" xml:space="preserve"><value>Vis bræt</value></data>
+  <data name="View roster" xml:space="preserve"><value>Vis holdlister</value></data>
+  <data name="Board published" xml:space="preserve"><value>Bræt udgivet</value></data>
+  <data name="Board published · Not ready" xml:space="preserve"><value>Bræt udgivet · Ikke klar</value></data>
+  <data name="Draft finalized" xml:space="preserve"><value>Draft afsluttet</value></data>
+  <data name="Event ready · Starts {0}" xml:space="preserve"><value>Event klar · Starter {0}</value></data>
+  <data name="Start postponed" xml:space="preserve"><value>Start udsat</value></data>
 </root>

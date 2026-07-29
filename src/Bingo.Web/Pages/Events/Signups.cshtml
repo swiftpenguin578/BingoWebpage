@@ -1,0 +1,14 @@
+@page "/Events/{slug}/Signups"
+@model Bingo.Web.Pages.Events.SignupsModel
+@{ ViewData["Title"] = Model.EventName; }
+<section class="table-page">
+    <div class="page-heading"><div><p class="eyebrow">@T["Event signup"]</p><h1>@Model.EventName</h1><p>@T["Confirmed participants and the waiting list."]</p></div></div>
+    <section class="panel"><h2>@T["Confirmed"]</h2>
+        @if (!Model.Confirmed.Any()) { <p>@T["No confirmed participants yet."]</p> }
+        else { <div class="table-wrap"><table><thead><tr><th>@T["Player"]</th>@foreach(var heading in Model.Headings){<th>@heading</th>}</tr></thead><tbody>@foreach(var participant in Model.Confirmed){<tr><th scope="row">@participant.Name</th>@foreach(var value in participant.Values){<td>@value</td>}</tr>}</tbody></table></div> }
+    </section>
+    <section class="panel"><h2>@T["Waiting list"]</h2>
+        @if (!Model.Waiting.Any()) { <p>@T["No participants are waiting."]</p> }
+        else { <div class="table-wrap"><table><thead><tr><th>@T["Position"]</th><th>@T["Player"]</th>@foreach(var heading in Model.Headings){<th>@heading</th>}</tr></thead><tbody>@foreach(var participant in Model.Waiting){<tr><td>@participant.WaitingPosition</td><th scope="row">@participant.Name</th>@foreach(var value in participant.Values){<td>@value</td>}</tr>}</tbody></table></div> }
+    </section>
+</section>

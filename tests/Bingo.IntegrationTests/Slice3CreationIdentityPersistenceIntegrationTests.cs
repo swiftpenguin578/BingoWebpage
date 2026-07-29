@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Bingo.Application.Events;
 using Bingo.Application.Evidence;
 using Bingo.Domain.Events;
+using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Auditing;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
@@ -94,6 +95,59 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         }).Build();
         await new EventLifecycleService(db, new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), due), due).ProcessDueAsync();
         Assert.Equal(EventState.SignupOpen, (await db.Events.SingleAsync(x => x.Id == fallbackEvent.Id)).State);
+    }
+
+    [Fact]
+    public async Task CreationDefaultsUseZeroBasedSignupQuestionsAndOpenUntilAQuestionIsActuallyMalformed()
+    {
+        var actor = Guid.NewGuid();
+        await using var db = new ApplicationDbContext(options);
+        var creation = Creation(db, new MemoryStorage(), actor, new CreateModel.CreateInput
+        {
+            Name = "Default signup readiness",
+            Timezone = "UTC",
+            Description = "A public description for signup readiness.",
+            ParticipantCap = 20,
+            SignupClosesLocal = "2026-07-29T12:00",
+            EventStartsLocal = "2026-07-30T12:00",
+            EventEndsLocal = "2026-08-01T12:00"
+        });
+
+        Assert.IsType<RedirectToPageResult>(await creation.OnPostAsync(CancellationToken.None));
+        var bingoEvent = await db.Events.SingleAsync(item => item.Name == "Default signup readiness");
+        var questions = await db.SignupQuestions.Where(question => question.EventId == bingoEvent.Id && question.Active).OrderBy(question => question.Position).ToListAsync();
+        Assert.Collection(questions,
+            question =>
+            {
+                Assert.Equal("primary_regular_account", question.Key);
+                Assert.Equal(SignupQuestionType.Account, question.Type);
+                Assert.True(question.Required);
+                Assert.Equal(SignupSystemField.PrimaryRegularAccount, question.SystemField);
+                Assert.Equal(EventCharacterRole.Playing, question.AccountAnswerRole);
+                Assert.Equal(0, question.Position);
+            },
+            question =>
+            {
+                Assert.Equal("captain_volunteer", question.Key);
+                Assert.Equal(SignupQuestionType.YesNo, question.Type);
+                Assert.False(question.Required);
+                Assert.Equal(SignupSystemField.CaptainVolunteer, question.SystemField);
+                Assert.Equal(1, question.Position);
+            });
+
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["DiscordAuthentication:ClientId"] = "test", ["DiscordAuthentication:ClientSecret"] = "test" }).Build();
+        var readiness = new EventReadinessEvaluator(db, configuration);
+        var beforeOpen = await readiness.GetSignupReadinessAsync(bingoEvent.Id, SignupOpeningMode.OpenNow, now);
+        Assert.DoesNotContain(beforeOpen!.Blockers, blocker => blocker.Code == "SIGNUP_QUESTIONS_INVALID");
+        var lifecycle = new EventSignupLifecycleService(db, readiness, new FixedTimeProvider(now));
+        var opened = await lifecycle.OpenAsync(bingoEvent.Id, bingoEvent.Version, acknowledgeWarnings: true, acceptProposedClose: true, actor: new LifecycleActor(actor, "admin"));
+        Assert.True(opened.Succeeded, opened.Error);
+        Assert.Equal(EventState.SignupOpen, await db.Events.Where(item => item.Id == bingoEvent.Id).Select(item => item.State).SingleAsync());
+
+        await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE signup_questions SET position = {-1} WHERE id = {questions[0].Id}");
+        db.ChangeTracker.Clear();
+        var malformed = await readiness.GetSignupReadinessAsync(bingoEvent.Id, SignupOpeningMode.OpenNow, now);
+        Assert.Contains(malformed!.Blockers, blocker => blocker.Code == "SIGNUP_QUESTIONS_INVALID");
     }
 
     [Fact]
@@ -315,25 +369,28 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         var eventId = await SeedEventAsync("waiting-list-settings", actor);
         await using var db = new ApplicationDbContext(options);
         var item = await db.Events.SingleAsync(x => x.Id == eventId);
-        item.ConfigureSignup(false, true, false, null);
+        item.ConfigureSignup(false, false, null);
         await db.SaveChangesAsync();
-        var settings = new QuestionsModel(db, new AuditWriter(db, new FixedTimeProvider(now))) { Settings = new QuestionsModel.SignupSettingsInput { WaitingListEnabled = true } };
+        var settings = new QuestionsModel(db, new AuditWriter(db, new FixedTimeProvider(now)), new SecretHasher(), new FixedTimeProvider(now)) { Settings = new QuestionsModel.SignupSettingsInput { WaitingListEnabled = true } };
         SetAdmin(settings, actor);
-        Assert.IsType<RedirectToPageResult>(await settings.OnPostSettingsAsync(eventId, CancellationToken.None));
+        Assert.IsType<RedirectToPageResult>(await settings.OnPostWaitingListAsync(eventId, settings.Settings, CancellationToken.None));
         Assert.True((await db.Events.SingleAsync(x => x.Id == eventId)).WaitingListEnabled);
         db.EventParticipants.Add(new Bingo.Domain.Signups.EventParticipant(Guid.NewGuid(), eventId, Bingo.Domain.Signups.SignupStatus.WaitingList, 1, now, Bingo.Domain.Signups.SignupSource.Website, null));
         await db.SaveChangesAsync();
-        settings = new QuestionsModel(db, new AuditWriter(db, new FixedTimeProvider(now))) { Settings = new QuestionsModel.SignupSettingsInput { WaitingListEnabled = false } };
+        settings = new QuestionsModel(db, new AuditWriter(db, new FixedTimeProvider(now)), new SecretHasher(), new FixedTimeProvider(now)) { Settings = new QuestionsModel.SignupSettingsInput { WaitingListEnabled = false } };
         SetAdmin(settings, actor);
-        Assert.IsType<RedirectToPageResult>(await settings.OnPostSettingsAsync(eventId, CancellationToken.None));
+        Assert.IsType<RedirectToPageResult>(await settings.OnPostWaitingListAsync(eventId, settings.Settings, CancellationToken.None));
         Assert.True((await db.Events.SingleAsync(x => x.Id == eventId)).WaitingListEnabled);
     }
 
     private async Task<Guid> SeedEventAsync(string slug, Guid actor)
     {
         var item = new BingoEvent(Guid.NewGuid(), slug, slug, "Europe/Copenhagen", actor, now);
+        var form = new SignupForm(Guid.NewGuid(), item.Id, now);
+        var regular = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var captain = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
         await using var db = new ApplicationDbContext(options);
-        db.Events.Add(item);
+        db.AddRange(item, form, regular, captain);
         await db.SaveChangesAsync();
         return item.Id;
     }

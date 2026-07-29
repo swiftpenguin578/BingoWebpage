@@ -127,7 +127,7 @@ public sealed class Slice3EvidenceReviewLifecycleIntegrationTests : IAsyncLifeti
     {
         var character = new OsrsCharacter(Guid.NewGuid(), $"Player {setup.EventId:N}", $"PLAYER {setup.EventId:N}", DateTimeOffset.UtcNow);
         db.AddRange(setup.Event, new Team(setup.TeamId, setup.EventId, "Team", $"team-{setup.EventId:N}", TeamFormationType.Drafted, null, true),
-            new EventParticipant(setup.ParticipantId, setup.EventId, SignupStatus.Confirmed, 1, DateTimeOffset.UtcNow, SignupSource.Website, null), character,
+            new EventParticipant(setup.ParticipantId, setup.EventId, SignupStatus.Confirmed, 1, DateTimeOffset.UtcNow, SignupSource.Website), character,
             new EventParticipantCharacter(Guid.NewGuid(), setup.EventId, setup.ParticipantId, character.Id, 0, DateTimeOffset.UtcNow, setup.AdminId, null, EventCharacterRole.Playing, 100, EhbSource.Manual, null),
             setup.Board, new BoardTile(setup.TileId, setup.BoardId, Guid.NewGuid(), 0, 0, "Tile", "Description", "Evidence", 1),
             new BoardRequirementSnapshot(setup.RequirementId, setup.TileId, 0, 1, true, false, "Requirement", true),

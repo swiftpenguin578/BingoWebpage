@@ -1,3 +1,10 @@
 namespace Bingo.Domain.Signups;
 
-public enum SignupQuestionType { ShortText = 1, LongText = 2, Number = 3, YesNo = 4, SingleChoice = 5 }
+public enum SignupQuestionType
+{
+    Text = 1,
+    Number = 2,
+    YesNo = 3,
+    SingleChoice = 4,
+    Account = 5
+}

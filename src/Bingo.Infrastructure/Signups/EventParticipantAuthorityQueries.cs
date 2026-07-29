@@ -40,7 +40,7 @@ public static class EventParticipantAuthorityQueries
                        other.ReleasedAt == null &&
                        other.RegistrationOrder < assignment.RegistrationOrder))
                   ||
-                  ((participant.SignupStatus == SignupStatus.Withdrawn || participant.SignupStatus == SignupStatus.Removed) &&
+                  (participant.SignupStatus == SignupStatus.Withdrawn &&
                    assignment.ReleasedAt != null &&
                    !db.EventParticipantCharacters.Any(other =>
                        other.EventParticipantId == participant.Id &&

@@ -228,7 +228,6 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         "/Admin/Events/Board" => text["Board editor"],
         "/Admin/Events/Draft" => text["Teams and draft"],
         "/Admin/Events/Questions" => text["Signup form"],
-        "/Admin/Events/Csv" => text["CSV import"],
         "/Admin/Events/Finalize" => text["Finish event"],
         _ => text["Current page"]
     };

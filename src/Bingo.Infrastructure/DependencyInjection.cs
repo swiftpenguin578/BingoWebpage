@@ -40,7 +40,6 @@ public static class DependencyInjection
         services.AddScoped<IAuditWriter, AuditWriter>();
         services.AddScoped<Slice1MigrationPreflight>();
         services.AddSingleton<ISecretHasher, SecretHasher>();
-        services.AddSingleton<IPrivateEditTokenService, PrivateEditTokenService>();
         services.AddScoped<ISignupService, SignupService>();
         services.AddScoped<EventParticipantCharacterService>();
         if (string.Equals(configuration["EvidenceStorage:Provider"], "R2", StringComparison.OrdinalIgnoreCase))

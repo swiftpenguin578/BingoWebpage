@@ -7,7 +7,8 @@ namespace Bingo.Infrastructure.Signups;
 
 public sealed class EventParticipantCharacterService(ApplicationDbContext db, TimeProvider timeProvider)
 {
-    public async Task ApplyFixedSignupAssignmentsAsync(
+    /// <summary>Retained for the separate pre-formed roster workflow; authenticated signup uses SignupForm assignments.</summary>
+    public async Task AssignExternalRosterCharacterAsync(
         EventParticipant participant,
         string primaryName,
         decimal ehb,

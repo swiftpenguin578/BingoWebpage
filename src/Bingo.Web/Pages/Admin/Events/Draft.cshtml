@@ -433,8 +433,8 @@ else
                     var participantRole = participant.TeamId is null
                         ? null
                         : Model.Teams.SelectMany(team => team.Members).FirstOrDefault(member => member.Name == participant.Name)?.Role;
-                    var payment = Model.ParticipantPayments.GetValueOrDefault(participant.Id, PaymentStatus.Unknown);
-                    var paymentLabel = payment == PaymentStatus.NotRequired ? "Not required" : payment.ToString();
+                    var payment = Model.ParticipantPayments.GetValueOrDefault(participant.Id, PaymentStatus.Unpaid);
+                    var paymentLabel = payment.ToString();
                     <tr class="@(participant.TeamId is null ? "" : "drafted-player")" data-participant-row>
                         <td data-label="Player" data-sort-value="@participant.Name">
                             <strong>@participant.Name</strong>
@@ -466,9 +466,9 @@ else
                             <td data-label="Actions" class="participant-row-actions">
                             @if (participant.TeamId is null)
                             {
-                                <form method="post" asp-page-handler="RemoveParticipant" onsubmit="return confirm('Remove this participant from the event? The first eligible player on the waiting list will be promoted if a place becomes available.');">
+                                <form method="post" asp-page-handler="WithdrawParticipant" onsubmit="return confirm('Withdraw this participant from the event? The first eligible player on the waiting list will be promoted if a place becomes available.');">
                                     <input type="hidden" name="participantId" value="@participant.Id" />
-                                    <button class="roster-remove-button" aria-label="Remove @participant.Name from event" title="Remove participant">×</button>
+                                    <button class="roster-remove-button" aria-label="Withdraw @participant.Name from event" title="Withdraw participant">×</button>
                                 </form>
                             }
                             </td>

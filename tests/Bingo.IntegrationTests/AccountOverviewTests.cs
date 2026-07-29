@@ -30,7 +30,7 @@ public sealed class AccountOverviewTests : IAsyncLifetime
             var username = $"overview-user-{index:D2}";
             var web = Account.CreateWebsite(Guid.NewGuid(), username, AccountAuthenticationService.NormalizeUsername(username), now);
             var character = new OsrsCharacter(Guid.NewGuid(), username, AccountAuthenticationService.NormalizeUsername(username), now);
-            var participant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, index, now, SignupSource.Website, null);
+            var participant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, index, now, SignupSource.Website);
             participant.AssignOwner(web);
             db.Accounts.Add(web); db.OsrsCharacters.Add(character); db.AccountOsrsCharacters.Add(new AccountOsrsCharacter(Guid.NewGuid(), web.Id, character.Id, true, 0, now)); db.EventParticipants.Add(participant);
             db.EventParticipantCharacters.Add(new EventParticipantCharacter(Guid.NewGuid(), ev.Id, participant.Id, character.Id, 0, now, web.Id, null, EventCharacterRole.Playing, 1, EhbSource.Manual, null));

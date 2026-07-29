@@ -82,7 +82,8 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db) :
                 : EventCapability.ConfigureSignup;
             return true;
         }
-        capability = path.EndsWith("/Questions.cshtml", StringComparison.OrdinalIgnoreCase)
+        capability = path.EndsWith("/Questions.cshtml", StringComparison.OrdinalIgnoreCase) ||
+                     path.EndsWith("/Participant.cshtml", StringComparison.OrdinalIgnoreCase)
             ? EventCapability.ConfigureSignup
             : EventCapability.ConfigureIdentityOrSchedule;
         return true;

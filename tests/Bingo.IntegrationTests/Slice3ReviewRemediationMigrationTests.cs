@@ -36,6 +36,7 @@ public sealed class Slice3ReviewRemediationMigrationTests : IAsyncLifetime
         await using (var retained = new ApplicationDbContext(options))
         {
             await retained.Database.MigrateAsync("20260727134959_AddScheduledLifecycleExecution");
+            await retained.Database.ExecuteSqlRawAsync("ALTER TABLE events ALTER COLUMN allow_private_signup_editing SET DEFAULT FALSE;");
             retained.Events.Add(new BingoEvent(eventId, "retained-review-event", "retained-review-event", "UTC", Guid.NewGuid(), createdAt));
             await retained.SaveChangesAsync();
             await retained.Database.MigrateAsync();

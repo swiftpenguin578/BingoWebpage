@@ -135,7 +135,7 @@ public sealed class EventLifecycleFoundationTests
     public void StateForbiddenFlagsCannotReenableSignupsOrSubmissions()
     {
         var item = Event();
-        item.ConfigureSignup(true, true, false, null);
+        item.ConfigureSignup(true, false, null);
         item.OpenSignups(Now);
         item.CloseSignups();
         item.StartEvent(Now.AddDays(2));

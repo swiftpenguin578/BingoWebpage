@@ -5,7 +5,7 @@
   document.addEventListener("bingo:content-updated", () => initialize(document));
   document.addEventListener("change", (event) => {
     const control = event.target.closest("[data-auto-submit]");
-    if (!(control instanceof HTMLSelectElement)) return;
+    if (!(control instanceof HTMLSelectElement) && !(control instanceof HTMLInputElement && control.type === "checkbox")) return;
     control.form?.requestSubmit();
   });
 
@@ -13,6 +13,21 @@
     initializeDatePickers(root);
     initializeDraftSizeConfirmation(root);
     synchronizeRosterRoleDisplays(root);
+
+    root.querySelectorAll("form.participant-payment-form").forEach((form) => {
+      const state = form.querySelector("[data-save-state]");
+      form.addEventListener("submit", () => { if (state) state.textContent = "Saving"; }, { once: true });
+    });
+
+    root.querySelectorAll("form[data-participant-filter-form]").forEach((form) => {
+      if (form.dataset.filterReady === "true") return;
+      form.dataset.filterReady = "true";
+      form.querySelectorAll("select").forEach((control) => control.addEventListener("change", () => form.requestSubmit()));
+      const search = form.querySelector("input[type='search']");
+      let timer;
+      search?.addEventListener("input", () => { window.clearTimeout(timer); timer = window.setTimeout(() => form.requestSubmit(), 350); });
+      form.addEventListener("submit", () => { if (!form.action.includes("#players")) form.action = `${form.action.split("#")[0]}#players`; });
+    });
 
     root.querySelectorAll("[data-participant-group]").forEach((group) => {
       if (group.dataset.interactionsReady === "true") return;

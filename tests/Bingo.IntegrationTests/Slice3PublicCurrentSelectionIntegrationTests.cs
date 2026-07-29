@@ -31,7 +31,7 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Fact]
-    public async Task DevelopmentFixtureFilteringIsEnvironmentSpecificAndFailsClosedForMultipleRealCurrentEvents()
+    public async Task DevelopmentFixtureFilteringIsEnvironmentSpecificAndPublicOverviewListsAllEligibleEvents()
     {
         await using var db = new ApplicationDbContext(options);
         await AddCurrentEventAsync(db, "fixture-current", fixture: true);
@@ -50,12 +50,17 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
         Assert.Equal("real-current-one", Assert.Single(development.Events).Slug);
         production = new IndexModel(db, new TestEnvironment(Environments.Production));
         await production.OnGetAsync(CancellationToken.None);
-        Assert.Empty(production.Events);
+        Assert.Equal(2, production.Events.Count);
+        Assert.Contains(production.Events, item => item.Slug == "fixture-current");
+        Assert.Contains(production.Events, item => item.Slug == "real-current-one");
 
         await AddCurrentEventAsync(db, "real-current-two", fixture: false);
         development = new IndexModel(db, new TestEnvironment(Environments.Development));
         await development.OnGetAsync(CancellationToken.None);
-        Assert.Empty(development.Events);
+        Assert.Equal(2, development.Events.Count);
+        Assert.DoesNotContain(development.Events, item => item.Slug == "fixture-current");
+        Assert.Contains(development.Events, item => item.Slug == "real-current-one");
+        Assert.Contains(development.Events, item => item.Slug == "real-current-two");
 
         Assert.NotNull(await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == "fixture-current"));
         Assert.NotNull(await db.Boards.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == db.Events.Where(e => e.Slug == "fixture-current").Select(e => e.Id).Single()));
@@ -67,8 +72,9 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
         var item = new BingoEvent(eventId, slug, slug, "UTC", Guid.NewGuid(), now);
         item.UpdateIdentity(slug, slug, "Public event description", "UTC");
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddDays(-1), now.AddDays(1), 20);
-        item.ConfigureSignup(true, true, false, null);
+        item.ConfigureSignup(true, false, null);
         item.OpenSignups(now.AddDays(-2));
+        item.MarkFirstPublic(now.AddDays(-2));
         item.CloseSignups(now.AddDays(-1));
         item.StartEvent(now);
         db.Events.Add(item);

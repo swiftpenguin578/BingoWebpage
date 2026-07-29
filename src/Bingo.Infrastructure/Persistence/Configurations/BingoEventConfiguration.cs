@@ -36,7 +36,6 @@ public sealed class BingoEventConfiguration : IEntityTypeConfiguration<BingoEven
         entity.Property(item => item.ReopenedSubmissionCutoffAt).HasColumnName("reopened_submission_cutoff_at");
         entity.Property(item => item.ParticipantCap).HasColumnName("participant_cap");
         entity.Property(item => item.WaitingListEnabled).HasColumnName("waiting_list_enabled");
-        entity.Property(item => item.AllowPrivateSignupEditing).HasColumnName("allow_private_signup_editing");
         entity.Property(item => item.RequireSignupCode).HasColumnName("require_signup_code");
         entity.Property(item => item.SignupCodeHash).HasColumnName("signup_code_hash").HasMaxLength(500);
         entity.Property(item => item.PublicRules).HasColumnName("public_rules").HasMaxLength(10_000);

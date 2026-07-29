@@ -34,6 +34,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<EventParticipantCharacter>().Where(entry => entry.State == EntityState.Modified))
             entry.Entity.AdvanceVersion();
+        foreach (var entry in ChangeTracker.Entries<SignupForm>().Where(entry => entry.State == EntityState.Modified))
+            entry.Entity.AdvanceVersion();
+        foreach (var entry in ChangeTracker.Entries<SignupQuestion>().Where(entry => entry.State == EntityState.Modified))
+            entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<BingoEvent>().Where(entry => entry.State == EntityState.Modified))
             entry.Entity.AdvanceVersion();
     }
@@ -60,6 +64,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<TeamCompletionCorrection> TeamCompletionCorrections => Set<TeamCompletionCorrection>();
     public DbSet<EventParticipant> EventParticipants => Set<EventParticipant>();
     public DbSet<EventParticipantCharacter> EventParticipantCharacters => Set<EventParticipantCharacter>();
+    public DbSet<SignupForm> SignupForms => Set<SignupForm>();
     public DbSet<SignupQuestion> SignupQuestions => Set<SignupQuestion>();
     public DbSet<SignupAnswer> SignupAnswers => Set<SignupAnswer>();
     public DbSet<BossActivity> BossActivities => Set<BossActivity>();

@@ -45,13 +45,27 @@ public sealed class EventReadinessEvaluator(ApplicationDbContext db, IConfigurat
         if (mode == SignupOpeningMode.Reopen && (item.State != EventState.SignupClosed || item.DraftLocked)) blockers.Add(new("LIFECYCLE_STATE_INVALID", "Signups can only reopen from an unlocked signup-closed event."));
         if (item.DraftLocked) blockers.Add(new("DRAFT_LOCKED", "Signups cannot change after the draft is locked."));
         if (string.IsNullOrWhiteSpace(configuration["DiscordAuthentication:ClientId"]) || string.IsNullOrWhiteSpace(configuration["DiscordAuthentication:ClientSecret"])) blockers.Add(new("DISCORD_AUTH_UNAVAILABLE", "Discord authentication is not configured for participant signup."));
+        var form = await db.SignupForms.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == item.Id, ct);
+        if (form is null) blockers.Add(new("SIGNUP_FORM_MISSING", "Create the event signup form before opening signup."));
+        else if (form.RequireSignupCode && string.IsNullOrWhiteSpace(form.SignupCodeHash)) blockers.Add(new("SIGNUP_CODE_UNUSABLE", "Signup-code protection is enabled without a usable code."));
         if (item.RequireSignupCode && string.IsNullOrWhiteSpace(item.SignupCodeHash)) blockers.Add(new("SIGNUP_CODE_UNUSABLE", "Signup-code protection is enabled without a usable code."));
 
         var questions = await db.SignupQuestions.AsNoTracking().Where(x => x.EventId == item.Id && x.Active).ToListAsync(ct);
-        if (questions.Any(question => string.IsNullOrWhiteSpace(question.Key) || string.IsNullOrWhiteSpace(question.Label) || !Enum.IsDefined(question.Type) || question.Position < 1 || (question.Type == SignupQuestionType.SingleChoice && string.IsNullOrWhiteSpace(question.Options))))
+        var primary = questions.Where(x => x.SystemField == SignupSystemField.PrimaryRegularAccount).ToList();
+        var captain = questions.Where(x => x.SystemField == SignupSystemField.CaptainVolunteer).ToList();
+        var invalidQuestion = questions.Any(question =>
+            string.IsNullOrWhiteSpace(question.Key) || string.IsNullOrWhiteSpace(question.Label) ||
+            !Enum.IsDefined(question.Type) || question.Position < 0 ||
+            (question.Type == SignupQuestionType.SingleChoice && question.Options?.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.Ordinal).Count() is not > 0) ||
+            (question.Type == SignupQuestionType.Account && question.AccountAnswerRole is not (EventCharacterRole.Playing or EventCharacterRole.Informational)) ||
+            (question.Type != SignupQuestionType.Account && question.AccountAnswerRole is not null) ||
+            (question.Type == SignupQuestionType.Account && question.SystemField == SignupSystemField.None && question.Required));
+        if (primary.Count != 1 || primary.SingleOrDefault() is not { Active: true, Type: SignupQuestionType.Account, Required: true, AccountAnswerRole: EventCharacterRole.Playing } ||
+            captain.Count != 1 || captain.SingleOrDefault() is not { Active: true, Type: SignupQuestionType.YesNo } ||
+            questions.Select(x => x.Position).Distinct().Count() != questions.Count || invalidQuestion)
             blockers.Add(new("SIGNUP_QUESTIONS_INVALID", "One or more existing signup questions are incomplete or invalid."));
         if (!item.WaitingListEnabled) warnings.Add(new("WAITING_LIST_DISABLED", "The waiting list is disabled."));
-        if (questions.Any(question => question.Type is SignupQuestionType.ShortText or SignupQuestionType.LongText)) warnings.Add(new("PUBLIC_FREE_TEXT", "Signup includes public free-text answers that require moderator handling."));
+        if (questions.Any(question => question.Type == SignupQuestionType.Text)) warnings.Add(new("PUBLIC_FREE_TEXT", "Signup includes public free-text answers that require moderator handling."));
         if (mode == SignupOpeningMode.Reopen && await db.EventParticipants.AnyAsync(x => x.EventId == item.Id, ct)) warnings.Add(new("REOPENING_POPULATED_SIGNUP", "Reopening signup keeps the existing participant and signup history."));
         if (!await db.DraftSessions.AnyAsync(x => x.EventId == item.Id && x.State == Bingo.Domain.Teams.DraftState.Finalized, ct)) later.Add(new("DRAFT_NOT_FINALIZED", "Team draft finalization is a later readiness task."));
         if (!await db.Boards.AnyAsync(x => x.EventId == item.Id && x.State == BoardState.Published, ct)) later.Add(new("BOARD_NOT_PUBLISHED", "Board publication is a later readiness task."));

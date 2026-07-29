@@ -348,11 +348,12 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var dropId = manualObjective ? (Guid?)null : Guid.NewGuid();
         var ev = new BingoEvent(eventId, $"Event {eventId:N}", $"event-{eventId:N}", "", "UTC", now.AddDays(-10), now.AddDays(-8), now.AddHours(-1), now.AddHours(4), now.AddHours(4.5), 20, adminId, now.AddDays(-20));
         ev.OpenSignups();
+        ev.MarkFirstPublic(now.AddDays(-8));
         ev.CloseSignups();
         ev.StartEvent(now.AddHours(-1));
         if (evidenceCode is not null) ev.SetEvidenceCodeEnabled(true);
         var team = new Team(teamId, eventId, "Team One", $"team-{teamId:N}", TeamFormationType.Drafted, null, true);
-        var participant = new EventParticipant(participantId, eventId, SignupStatus.Confirmed, 1, now.AddDays(-5), SignupSource.Website, null);
+        var participant = new EventParticipant(participantId, eventId, SignupStatus.Confirmed, 1, now.AddDays(-5), SignupSource.Website);
         var captain = Account.CreateEmergency(captainId, "captain", "CAPTAIN", now.AddDays(-10));
         var captainAccess = new AccountEventAccess(Guid.NewGuid(), captainId, eventId, teamId, participantId, now.AddDays(-1), now.AddHours(5), now.AddHours(30));
         captainAccess.Enable();

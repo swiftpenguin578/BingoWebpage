@@ -54,7 +54,7 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
         item.ConfigureInitialSchedule(schedule.SignupOpens, schedule.SignupCloses, schedule.DraftAt, schedule.Starts, schedule.Ends, Input.ParticipantCap);
         if (schedule.SignupOpens is { } scheduledOpening && scheduledOpening > now)
             item.ConfigureScheduledSignupOpening(true, []);
-        item.ConfigureSignup(Input.WaitingListEnabled, Input.AllowPrivateEditing, Input.RequireSignupCode, Input.RequireSignupCode ? hasher.Hash(Input.SignupCode!) : null);
+        item.ConfigureSignup(Input.WaitingListEnabled, Input.RequireSignupCode, Input.RequireSignupCode ? hasher.Hash(Input.SignupCode!) : null);
         item.ConfigurePlanning(null, Input.BuyInDescription, null, null, null, Input.ExpectedBoardRows, Input.ExpectedBoardColumns);
 
         StoredEvidence? uploaded = null;
@@ -63,6 +63,11 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
         try
         {
             db.Events.Add(item);
+            var form = new SignupForm(Guid.NewGuid(), item.Id, now);
+            form.ConfigureSignupCode(Input.RequireSignupCode, Input.RequireSignupCode ? hasher.Hash(Input.SignupCode!) : null);
+            db.SignupForms.Add(form);
+            db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing));
+            db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer));
             if (Input.Banner is { Length: > 0 })
             {
                 banner = new EventBannerAsset(Guid.NewGuid(), item.Id, string.Empty, string.Empty, string.Empty, 0, 0, 0, string.Empty, actorId, now);
@@ -72,7 +77,7 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
                 db.EventBannerAssets.Add(banner);
                 item.SetBannerAsset(banner.Id);
             }
-            AddQuestions(item);
+            AddQuestions(item, form);
             var after = JsonSerializer.Serialize(AuditState(item));
             db.AuditEntries.Add(new Bingo.Domain.Auditing.AuditEntry(Guid.NewGuid(), now, actorId, User.Identity!.Name!, "event.created", "event", item.Id.ToString(), "Created as a private draft.", item.Id, null, after));
             await db.SaveChangesAsync(ct);
@@ -142,7 +147,7 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
         if (Input.ExpectedBoardColumns is <= 0 or > 8) ModelState.AddModelError("Input.ExpectedBoardColumns", "Board columns must be between 1 and 8.");
     }
 
-    private void AddQuestions(BingoEvent item)
+    private void AddQuestions(BingoEvent item, SignupForm form)
     {
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         for (var index = 0; index < Input.CustomQuestions.Count; index++)
@@ -151,7 +156,7 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
             var baseKey = EventSlugGenerator.Generate(question.Label).Replace('-', '_');
             var key = baseKey;
             for (var suffix = 2; !keys.Add(key); suffix++) key = $"{baseKey}_{suffix}";
-            db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), item.Id, key, question.Label.Trim(), question.Type, question.Required, index + 1, question.Type == SignupQuestionType.SingleChoice ? string.Join('\n', Split(question.Options)) : null));
+            db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, key, question.Label.Trim(), question.Type, question.Required, index + 2, question.Type == SignupQuestionType.SingleChoice ? string.Join('\n', Split(question.Options)) : null));
         }
     }
 
@@ -196,12 +201,12 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
         public string? EventStartsLocal { get; set; }
         public string? EventEndsLocal { get; set; }
         [Range(1, 10000)] public int? ParticipantCap { get; set; }
-        public bool WaitingListEnabled { get; set; } = true; public bool AllowPrivateEditing { get; set; } = true; public bool RequireSignupCode { get; set; }
+        public bool WaitingListEnabled { get; set; } = true; public bool RequireSignupCode { get; set; }
         [StringLength(100)] public string? SignupCode { get; set; }
         [StringLength(2000)] public string? BuyInDescription { get; set; }
         [Range(1, 8)] public int? ExpectedBoardRows { get; set; }
         [Range(1, 8)] public int? ExpectedBoardColumns { get; set; }
         public List<CustomQuestionInput> CustomQuestions { get; set; } = [];
     }
-    public sealed class CustomQuestionInput { [StringLength(300)] public string Label { get; set; } = string.Empty; public SignupQuestionType Type { get; set; } = SignupQuestionType.ShortText; public bool Required { get; set; } [StringLength(4000)] public string? Options { get; set; } }
+    public sealed class CustomQuestionInput { [StringLength(300)] public string Label { get; set; } = string.Empty; public SignupQuestionType Type { get; set; } = SignupQuestionType.Text; public bool Required { get; set; } [StringLength(4000)] public string? Options { get; set; } }
 }

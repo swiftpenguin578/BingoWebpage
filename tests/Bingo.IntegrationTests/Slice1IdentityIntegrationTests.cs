@@ -8,6 +8,7 @@ using Bingo.Application.Signups;
 using Bingo.Application.Teams;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
+using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Auditing;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Catalogue;
@@ -765,7 +766,17 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var retainedLiveCharacter = new OsrsCharacter(Guid.NewGuid(), "ZemaFios", "ZEMAFIOS", seededAt);
         var retainedLink = new AccountOsrsCharacter(Guid.NewGuid(), admin.Id, retainedLiveCharacter.Id, true, 0, seededAt);
         db.AddRange(retainedBoardCharacter, retainedLiveCharacter, retainedLink);
-        db.Events.Add(new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "TEST 00 — Obsolete", "test-00-obsolete", "UTC", admin.Id, seededAt));
+        var obsolete = new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "TEST 00 — Obsolete", "test-00-obsolete", "UTC", admin.Id, seededAt);
+        var manual = new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "S4 Manual Test", "s4-manual-test", "UTC", admin.Id, seededAt);
+        var manualForm = new SignupForm(Guid.NewGuid(), manual.Id, seededAt);
+        var cancelled = new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "Cancelled tombstone", "cancelled-tombstone", "UTC", admin.Id, seededAt);
+        cancelled.Cancel(admin.Id, seededAt, "Reset regression", protectedHistoryExists: true);
+        var discarded = new Bingo.Domain.Events.BingoEvent(Guid.NewGuid(), "Discarded tombstone", "discarded-tombstone", "UTC", admin.Id, seededAt);
+        discarded.Discard(admin.Id, seededAt, protectedHistoryExists: false);
+        db.AddRange(
+            obsolete, manual, manualForm, cancelled, discarded,
+            new SignupQuestion(Guid.NewGuid(), manualForm.Id, manual.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing),
+            new SignupQuestion(Guid.NewGuid(), manualForm.Id, manual.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer));
         await db.SaveChangesAsync();
         var catalogueCount = await db.CatalogueItems.CountAsync();
         var seeder = new DevelopmentScenarioSeeder(db, new DevelopmentEnvironment(), passwords, new SeedEvidenceStorage(), clock);
@@ -788,6 +799,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var seededEvents = await db.Events.OrderBy(item => item.Slug).ToListAsync();
         Assert.Equal(["test-13-dkl-board", "test-15-dkl-live"], seededEvents.Select(item => item.Slug).ToArray());
         Assert.All(seededEvents, item => Assert.True(item.IsDevelopmentFixture));
+        Assert.Empty(await db.SignupForms.Where(form => form.EventId == manual.Id).ToListAsync());
         Assert.Equal(catalogueCount, await db.CatalogueItems.CountAsync());
         Assert.Equal(2, await db.OsrsCharacters.CountAsync(character => character.Id == retainedBoardCharacter.Id || character.Id == retainedLiveCharacter.Id));
         Assert.Equal(await db.OsrsCharacters.CountAsync(), await db.OsrsCharacters.Select(character => character.NormalizedName).Distinct().CountAsync());
@@ -800,6 +812,38 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
                                  select new { bingoEvent.Slug, assignment.OsrsCharacterId }).ToListAsync();
         Assert.Contains(assignments, assignment => assignment.Slug == "test-13-dkl-board" && assignment.OsrsCharacterId == retainedBoardCharacter.Id);
         Assert.Contains(assignments, assignment => assignment.Slug == "test-15-dkl-live" && assignment.OsrsCharacterId == retainedLiveCharacter.Id);
+        var fixtureForms = await db.SignupForms.Where(form => seededEvents.Select(item => item.Id).Contains(form.EventId)).ToListAsync();
+        var fixtureQuestions = await db.SignupQuestions.Where(question => fixtureForms.Select(form => form.Id).Contains(question.SignupFormId)).ToListAsync();
+        Assert.Equal([SignupQuestionType.Account, SignupQuestionType.Number, SignupQuestionType.SingleChoice, SignupQuestionType.Text, SignupQuestionType.YesNo], fixtureQuestions.Select(question => question.Type).Distinct().OrderBy(type => type.ToString()).ToArray());
+        Assert.Contains(fixtureQuestions, question => question.AccountAnswerRole == EventCharacterRole.Playing);
+        Assert.Contains(fixtureQuestions, question => question.AccountAnswerRole == EventCharacterRole.Informational);
+        var fixtureParticipants = await db.EventParticipants.Where(participant => seededEvents.Select(item => item.Id).Contains(participant.EventId)).ToListAsync();
+        Assert.Contains(fixtureParticipants, participant => participant.AccountId is not null);
+        Assert.Contains(fixtureParticipants, participant => participant.AccountId is null);
+        var fixtureParticipantIds = fixtureParticipants.Select(participant => participant.Id).ToArray();
+        Assert.All(await db.EventParticipantCharacters.Where(item => fixtureParticipantIds.Contains(item.EventParticipantId)).ToListAsync(), assignment =>
+        {
+            var participant = Assert.Single(fixtureParticipants, item => item.Id == assignment.EventParticipantId);
+            var question = Assert.Single(fixtureQuestions, item => item.Id == assignment.SignupQuestionId);
+            var form = Assert.Single(fixtureForms, item => item.Id == question.SignupFormId);
+            Assert.Equal(participant.EventId, assignment.EventId); Assert.Equal(participant.EventId, question.EventId); Assert.Equal(participant.EventId, form.EventId); Assert.Equal(SignupQuestionType.Account, question.Type);
+        });
+        Assert.All(await db.SignupAnswers.Where(answer => fixtureParticipantIds.Contains(answer.EventParticipantId)).ToListAsync(), answer =>
+        {
+            var participant = Assert.Single(fixtureParticipants, item => item.Id == answer.EventParticipantId);
+            var question = Assert.Single(fixtureQuestions, item => item.Id == answer.SignupQuestionId);
+            var form = Assert.Single(fixtureForms, item => item.Id == question.SignupFormId);
+            Assert.Equal(participant.EventId, question.EventId); Assert.Equal(participant.EventId, form.EventId);
+        });
+        var liveFixture = Assert.Single(seededEvents, item => item.Slug == "test-15-dkl-live");
+        var liveBoard = Assert.Single(await db.Boards.Where(item => item.EventId == liveFixture.Id).ToListAsync());
+        var liveTiles = await db.BoardTiles.Where(item => item.BoardId == liveBoard.Id).ToListAsync();
+        Assert.NotEmpty(liveTiles);
+        Assert.NotEmpty(await db.BoardRequirementSnapshots.Where(item => liveTiles.Select(tile => tile.Id).Contains(item.BoardTileId)).ToListAsync());
+        var participantProperties = db.Model.FindEntityType(typeof(EventParticipant))!.GetProperties().Select(property => property.Name).ToArray();
+        Assert.DoesNotContain(participantProperties, property => property.Contains("PrivateEdit", StringComparison.Ordinal) || property is "PrimaryAccountName" or "SecondAccountName" or "DiscordIdentity" or "Comments");
+        Assert.DoesNotContain(Enum.GetNames<SignupStatus>(), status => status == "Removed");
+        Assert.DoesNotContain(db.Model.GetEntityTypes().Select(type => type.ClrType.Name), name => name.Contains("Csv", StringComparison.Ordinal) || name.Contains("PrivateEdit", StringComparison.Ordinal));
 
         var access = await db.AccountEventAccesses.FirstAsync(item => item.Enabled);
         var ev = await db.Events.SingleAsync(item => item.Id == access.EventId);
@@ -1256,7 +1300,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         public Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
     private sealed class NoopCollaborationNotifier : IAdminCollaborationNotifier { public Task NotifyDraftChangedAsync(Guid eventId, CancellationToken cancellationToken = default) => Task.CompletedTask; public Task NotifyBoardChangedAsync(Guid eventId, CancellationToken cancellationToken = default) => Task.CompletedTask; }
-    private sealed class NoopSignupService : ISignupService { public Task<SignupResult> SignUpAsync(SignupRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException(); public Task<int> IncreaseCapacityAndPromoteAsync(Guid eventId, int newCap, CancellationToken cancellationToken = default) => Task.FromResult(0); public Task<int> PromoteAvailablePlacesAsync(Guid eventId, CancellationToken cancellationToken = default) => Task.FromResult(0); }
+    private sealed class NoopSignupService : ISignupService { public Task<int> IncreaseCapacityAndPromoteAsync(Guid eventId, int newCap, CancellationToken cancellationToken = default) => Task.FromResult(0); public Task<int> PromoteAvailablePlacesAsync(Guid eventId, CancellationToken cancellationToken = default) => Task.FromResult(0); }
     private sealed class DevelopmentEnvironment : IWebHostEnvironment
     {
         public string ApplicationName { get; set; } = "Bingo.IntegrationTests";

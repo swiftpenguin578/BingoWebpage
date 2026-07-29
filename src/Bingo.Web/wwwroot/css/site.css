@@ -2858,6 +2858,16 @@ th {
 .event-admin-action-form .btn,
 .event-admin-inline-form .btn { display: inline-flex; justify-content: center; align-items: center; width: 100%; min-height: var(--event-control-height); padding: 0.38rem 0.65rem; font-size: 0.78rem; }
 .event-signup-controls { display: grid; gap: 0.65rem; align-items: end; }
+.signup-question-workspace { display: grid; gap: 1rem; }
+.signup-question-section { display: grid; gap: 0.7rem; }
+.signup-question-section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: end; }
+.signup-question-section-heading h2 { margin: 0; font-size: 1.05rem; }
+.signup-question-section-heading p { margin: 0; color: var(--muted); font-size: 0.8rem; }
+.signup-question-section .form-stack { gap: 0.42rem; }
+.signup-question-section .form-stack[aria-label] { max-width: 38rem; padding: 0.8rem; border: 1px solid var(--border); border-radius: 0.45rem; background: color-mix(in srgb, var(--surface) 92%, var(--page)); }
+.signup-question-section .form-stack[aria-label] :is(input, select, textarea) { min-height: 2rem; padding: 0.3rem 0.45rem; color: var(--text); background: color-mix(in srgb, var(--surface) 86%, var(--page)); opacity: 1; }
+.signup-question-section .form-stack[aria-label] :is(input, select, textarea):disabled { color: var(--muted); -webkit-text-fill-color: var(--muted); cursor: default; }
+.saved-question-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.45rem; align-items: center; padding: 0.55rem 0.7rem; }
 .event-signup-toggle-form.button-only .btn { grid-column: 2; }
 .event-signup-toggle-form.has-reason label { grid-column: 1; }
 .event-signup-toggle-form.has-reason input { grid-column: 1; }

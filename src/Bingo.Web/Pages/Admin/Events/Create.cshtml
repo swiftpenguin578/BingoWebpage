@@ -134,12 +134,8 @@
                     </div>
 
                     <div class="signup-field-list" aria-label="@T["Standard signup fields"]">
-                        <div><span><strong>@T["Primary OSRS account"]</strong><small>@T["Required short answer"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
-                        <div><span><strong>@T["EHB (Wise Old Man)"]</strong><small>@T["Required number"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
-                        <div><span><strong>@T["Second OSRS account"]</strong><small>@T["Optional short answer"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
-                        <div><span><strong>@T["Discord name"]</strong><small>@T["Optional short answer"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
-                        <div><span><strong>@T["Comments and availability"]</strong><small>@T["Optional long answer"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
-                        <div><span><strong>@T["Volunteer as captain?"]</strong><small>@T["Optional yes or no"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
+                        <div><span><strong>@T["Account"]</strong><small>@T["Required Regular account selector. EHB belongs to this account answer."]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
+                        <div><span><strong>@T["Captain volunteer"]</strong><small>@T["Optional yes or no"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
                     </div>
 
                     <div class="custom-question-heading">
@@ -161,8 +157,7 @@
                                     <div class="event-create-field">
                                         <label asp-for="Input.CustomQuestions[index].Type">@T["How players answer"]</label>
                                         <select asp-for="Input.CustomQuestions[index].Type" class="form-select" data-question-type>
-                                            <option value="ShortText">@T["Short answer"]</option>
-                                            <option value="LongText">@T["Long answer"]</option>
+                                            <option value="Text">@T["Text"]</option>
                                             <option value="Number">@T["Number"]</option>
                                             <option value="YesNo">@T["Yes or no"]</option>
                                             <option value="SingleChoice">@T["Choose one answer"]</option>
@@ -180,10 +175,6 @@
                     </div>
 
                     <div class="signup-settings-grid">
-                        <label class="setting-card">
-                            <input asp-for="Input.AllowPrivateEditing" />
-                            <span><strong>@T["Allow private signup editing"]</strong><small>@T["Players receive a private link that lets them correct their signup without an account."]</small></span>
-                        </label>
                         <label class="setting-card">
                             <input asp-for="Input.RequireSignupCode" data-signup-code-toggle />
                             <span><strong>@T["Require an event code"]</strong><small>@T["Players must enter the shared code when signing up."]</small></span>
@@ -247,7 +238,7 @@
             <div class="event-create-field">
                 <label for="Input_CustomQuestions___index___Type">@T["How players answer"]</label>
                 <select id="Input_CustomQuestions___index___Type" name="Input.CustomQuestions[__index__].Type" class="form-select" data-question-type>
-                    <option value="ShortText">@T["Short answer"]</option><option value="LongText">@T["Long answer"]</option><option value="Number">@T["Number"]</option><option value="YesNo">@T["Yes or no"]</option><option value="SingleChoice">@T["Choose one answer"]</option>
+                    <option value="Text">@T["Text"]</option><option value="Number">@T["Number"]</option><option value="YesNo">@T["Yes or no"]</option><option value="SingleChoice">@T["Choose one answer"]</option>
                 </select>
             </div>
             <label class="setting-card compact-setting"><input id="Input_CustomQuestions___index___Required" name="Input.CustomQuestions[__index__].Required" type="checkbox" value="true" /><span><strong>@T["Answer required"]</strong><small>@T["Players cannot submit without answering."]</small></span></label>

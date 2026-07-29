@@ -40,7 +40,7 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
             Assert.Equal(EventState.SignupOpen, opened.State);
             Assert.Equal(now, opened.ActualSignupOpenedAt);
             Assert.NotNull(opened.FirstPublicAt);
-            db.EventParticipants.Add(new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.Website, null));
+            db.EventParticipants.Add(new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.Website));
             await db.SaveChangesAsync();
             var evaluator = new EventReadinessEvaluator(db, configuration);
             var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
@@ -169,7 +169,7 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
         var item = await db.Events.SingleAsync(x => x.Id == eventId);
         item.OpenSignups(now);
         item.CloseSignups(now);
-        db.EventParticipants.AddRange(new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.Website, null), new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.WaitingList, 2, now.AddMinutes(1), SignupSource.Website, null));
+        db.EventParticipants.AddRange(new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.Website), new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.WaitingList, 2, now.AddMinutes(1), SignupSource.Website));
         item.ConfigureSchedule(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, 1);
         await db.SaveChangesAsync();
         var evaluator = new EventReadinessEvaluator(db, configuration);
@@ -213,8 +213,13 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
         var item = new BingoEvent(Guid.NewGuid(), slug, slug, "UTC", Guid.NewGuid(), now);
         item.UpdateIdentity(slug, slug, "Public description", "UTC");
         item.ConfigureSchedule(now.AddHours(1), signupClose ? now.AddDays(startDays - 1) : null, null, now.AddDays(startDays), now.AddDays(endDays), 20);
-        item.ConfigureSignup(waitingList, true, false, null);
-        db.Events.Add(item); await db.SaveChangesAsync(); return item.Id;
+        item.ConfigureSignup(waitingList, false, null);
+        var form = new SignupForm(Guid.NewGuid(), item.Id, now);
+        var regular = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var captain = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
+        db.AddRange(item, form, regular, captain);
+        await db.SaveChangesAsync();
+        return item.Id;
     }
     private async Task<Guid> SeedOperationalEventAsync(string slug, EventState state, DateTimeOffset start, DateTimeOffset end)
     {

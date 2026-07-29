@@ -42,4 +42,24 @@ public sealed class HomePageTests : IClassFixture<WebApplicationFactory<Program>
         Assert.Contains("That page could not be found.", content);
         Assert.Contains("Return to public boards", content);
     }
+
+    [Fact]
+    public void PublicCardsHaveExplicitRosterAndBoardDestinations()
+    {
+        var markup = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "Pages", "Index.cshtml"));
+        Assert.Contains("Roster available · Board not published", markup);
+        Assert.Contains("Draft finalized", markup);
+        Assert.Contains("Board published", markup);
+        Assert.Contains("Start postponed", markup);
+        Assert.Contains("View roster", markup);
+        Assert.Contains("View board", markup);
+        Assert.Contains("/Events/Teams", markup);
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+            if (File.Exists(Path.Combine(directory.FullName, "Bingo.slnx"))) return directory.FullName;
+        throw new DirectoryNotFoundException("Repository root was not found.");
+    }
 }

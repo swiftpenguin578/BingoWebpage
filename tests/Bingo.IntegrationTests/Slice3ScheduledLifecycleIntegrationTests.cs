@@ -4,6 +4,7 @@ using Bingo.Application.Events;
 using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
+using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
@@ -55,7 +56,7 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
         var eventId = Guid.NewGuid();
         await using (var setup = new ApplicationDbContext(options))
         {
-            var item = ReadyDraft(eventId, "scheduled-window", now, now.AddHours(1), now.AddDays(1));
+            var item = ReadyDraft(setup, eventId, "scheduled-window", now, now.AddHours(1), now.AddDays(1));
             item.ConfigureScheduledSignupOpening(true, []);
             setup.Events.Add(item);
             await setup.SaveChangesAsync();
@@ -104,8 +105,9 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
             var failed = new BingoEvent(failedId, "Failed opening", "failed-opening", "UTC", Guid.NewGuid(), now);
             failed.UpdateIdentity("Failed opening", "failed-opening", "Public event description", "UTC");
             failed.ConfigureSchedule(clock.GetUtcNow(), now.AddDays(2), null, now.AddDays(3), now.AddDays(4), 20);
-            failed.ConfigureSignup(false, true, false, null);
+            failed.ConfigureSignup(false, false, null);
             failed.ConfigureScheduledSignupOpening(true, []);
+            AddReadySignupForm(setup, failedId);
             setup.AddRange(admin, failed);
             await setup.SaveChangesAsync();
         }
@@ -141,11 +143,11 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
 
         await using (var setup = new ApplicationDbContext(options))
         {
-            var blocking = ReadyDraft(blockingId, "blocking-live-event", now.AddDays(-2), now.AddDays(-1), now.AddDays(3));
+            var blocking = ReadyDraft(setup, blockingId, "blocking-live-event", now.AddDays(-2), now.AddDays(-1), now.AddDays(3));
             blocking.OpenSignups(now.AddDays(-2));
             blocking.CloseSignups(now.AddDays(-1));
             blocking.StartEvent(now);
-            var candidate = ReadyDraft(candidateId, "overlapping-opening", scheduledFor, now.AddHours(1), now.AddDays(4));
+            var candidate = ReadyDraft(setup, candidateId, "overlapping-opening", scheduledFor, now.AddHours(1), now.AddDays(4));
             candidate.ConfigureScheduledSignupOpening(true, []);
             setup.AddRange(admin, superAdmin, disabledAdmin, blocking, candidate);
             await setup.SaveChangesAsync();
@@ -231,11 +233,11 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
         admin.SetGlobalRole(GlobalRole.Admin);
         await using (var setup = new ApplicationDbContext(options))
         {
-            var item = ReadyDraft(eventId, "postponed-start", now.AddHours(-2), now.AddHours(-1), now.AddDays(1));
+            var item = ReadyDraft(setup, eventId, "postponed-start", now.AddHours(-2), now.AddHours(-1), now.AddDays(1));
             var signupOpen = new BingoEvent(signupOpenId, "open-postponed-start", "open-postponed-start", "UTC", Guid.NewGuid(), now);
             signupOpen.UpdateIdentity("open-postponed-start", "open-postponed-start", "Public event description", "UTC");
             signupOpen.ConfigureSchedule(now.AddHours(-4), null, null, now.AddHours(-3), now.AddHours(2), 20);
-            signupOpen.ConfigureSignup(true, true, false, null);
+            signupOpen.ConfigureSignup(true, false, null);
             signupOpen.OpenSignups(now.AddHours(-4));
             setup.Accounts.Add(admin);
             setup.Events.AddRange(item, signupOpen);
@@ -290,7 +292,7 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
         admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "focused-test-password"), false, now, incrementVersion: false);
         await using (var setup = new ApplicationDbContext(options))
         {
-            var item = ReadyDraft(eventId, "postponed-start", now.AddHours(-2), now.AddHours(-1), now.AddDays(1));
+            var item = ReadyDraft(setup, eventId, "postponed-start", now.AddHours(-2), now.AddHours(-1), now.AddDays(1));
             item.OpenSignups(now.AddHours(-2));
             item.CloseSignups(now.AddHours(-1));
             setup.Accounts.Add(admin);
@@ -405,10 +407,10 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
         var secondId = Guid.NewGuid();
         await using (var setup = new ApplicationDbContext(options))
         {
-            var first = ReadyDraft(firstId, "early-start", now.AddHours(-1), now.AddDays(1), now.AddDays(2));
+            var first = ReadyDraft(setup, firstId, "early-start", now.AddHours(-1), now.AddDays(1), now.AddDays(2));
             first.OpenSignups(now.AddHours(-2));
             first.CloseSignups(now.AddHours(-1));
-            var second = ReadyDraft(secondId, "second-current", now.AddHours(-1), now.AddDays(3), now.AddDays(4));
+            var second = ReadyDraft(setup, secondId, "second-current", now.AddHours(-1), now.AddDays(3), now.AddDays(4));
             second.OpenSignups(now.AddHours(-2));
             second.CloseSignups(now.AddHours(-1));
             AddReadyBoardAndDraft(setup, firstId);
@@ -448,7 +450,7 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
         var openingId = Guid.NewGuid();
         await using (var setup = new ApplicationDbContext(options))
         {
-            var item = ReadyDraft(openingId, "opening-race", now, now.AddHours(1), now.AddDays(1));
+            var item = ReadyDraft(setup, openingId, "opening-race", now, now.AddHours(1), now.AddDays(1));
             item.ConfigureScheduledSignupOpening(true, []);
             setup.Events.Add(item);
             await setup.SaveChangesAsync();
@@ -481,7 +483,7 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
         {
             foreach (var pair in new[] { (firstId, "current-race-one"), (secondId, "current-race-two") })
             {
-                var item = ReadyDraft(pair.Item1, pair.Item2, now.AddHours(-2), clock.GetUtcNow(), now.AddDays(2));
+                var item = ReadyDraft(setup, pair.Item1, pair.Item2, now.AddHours(-2), clock.GetUtcNow(), now.AddDays(2));
                 item.OpenSignups(now.AddHours(-2));
                 item.CloseSignups(now.AddHours(-1));
                 setup.Events.Add(item);
@@ -510,7 +512,7 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
         admin.SetGlobalRole(GlobalRole.Admin);
         await using (var setup = new ApplicationDbContext(options))
         {
-            var item = ReadyDraft(eventId, "rollback-start", now.AddHours(-2), now.AddHours(-1), now.AddDays(1));
+            var item = ReadyDraft(setup, eventId, "rollback-start", now.AddHours(-2), now.AddHours(-1), now.AddDays(1));
             item.OpenSignups(now.AddHours(-2));
             item.CloseSignups(now.AddHours(-1));
             setup.AddRange(item, admin);
@@ -582,13 +584,22 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
         };
     }
 
-    private BingoEvent ReadyDraft(Guid id, string slug, DateTimeOffset opening, DateTimeOffset closing, DateTimeOffset end)
+    private BingoEvent ReadyDraft(ApplicationDbContext db, Guid id, string slug, DateTimeOffset opening, DateTimeOffset closing, DateTimeOffset end)
     {
         var item = new BingoEvent(id, slug, slug, "UTC", Guid.NewGuid(), now);
         item.UpdateIdentity(slug, slug, "Public event description", "UTC");
         item.ConfigureSchedule(opening, closing, null, closing, end, 20);
-        item.ConfigureSignup(true, true, false, null);
+        item.ConfigureSignup(true, false, null);
+        AddReadySignupForm(db, id);
         return item;
+    }
+
+    private void AddReadySignupForm(ApplicationDbContext db, Guid eventId)
+    {
+        var form = new SignupForm(Guid.NewGuid(), eventId, now);
+        var regular = new SignupQuestion(Guid.NewGuid(), form.Id, eventId, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var captain = new SignupQuestion(Guid.NewGuid(), form.Id, eventId, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
+        db.AddRange(form, regular, captain);
     }
 
     private void AddReadyBoardAndDraft(ApplicationDbContext db, Guid eventId)

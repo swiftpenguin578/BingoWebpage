@@ -23,6 +23,7 @@ public sealed class DevelopmentScenarioSeeder(
     TimeProvider timeProvider)
 {
     private Dictionary<string, OsrsCharacter> seedCharacters = new(StringComparer.Ordinal);
+    private readonly Dictionary<Guid, SeedSignupForm> seedForms = [];
     public const string CaptainPassword = "SeedCaptain!1234";
     public const string SecondaryAdminUsername = "SeedAdminTwo";
     public const string SecondaryAdminPassword = "SeedAdmin!1234";
@@ -50,6 +51,7 @@ public sealed class DevelopmentScenarioSeeder(
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         await ClearWorkflowDataAsync(cancellationToken);
         db.ChangeTracker.Clear();
+        seedForms.Clear();
         seedCharacters = await db.OsrsCharacters
             .ToDictionaryAsync(character => character.NormalizedName, StringComparer.Ordinal, cancellationToken);
 
@@ -64,8 +66,9 @@ public sealed class DevelopmentScenarioSeeder(
             ScenarioStage.BoardDraft,
             dklBlueprint,
             admin.Id,
+            secondaryAdmin,
             now));
-        var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, now);
+        var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, secondaryAdmin, now);
         seeded.Add(dklLiveScenario);
         AddDklLiveProgress(dklLiveScenario.EventId, admin.Id, now);
 
@@ -95,6 +98,7 @@ public sealed class DevelopmentScenarioSeeder(
         ScenarioStage stage,
         BoardBlueprint blueprint,
         Guid adminId,
+        Account fixtureOwner,
         DateTimeOffset now)
     {
         var signupOpens = now.AddDays(-14);
@@ -119,7 +123,7 @@ public sealed class DevelopmentScenarioSeeder(
             "Europe/Copenhagen", signupOpens, signupCloses, eventStarts, eventEnds,
             eventEnds.AddMinutes(30), stage == ScenarioStage.SignupsOpen ? 6 : 20,
             adminId, now);
-        bingoEvent.ConfigureSignup(true, true, false, null);
+        bingoEvent.ConfigureSignup(true, false, null);
         bingoEvent.ConfigurePlanning(
             "Seeded rules for manual workflow testing.", null, null, 2, 3,
             blueprint.Rows, blueprint.Columns);
@@ -147,8 +151,10 @@ public sealed class DevelopmentScenarioSeeder(
         }
         db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
         db.Events.Add(bingoEvent);
+        AddSignupFoundation(bingoEvent, now);
 
         var participants = AddParticipants(bingoEvent.Id, stage, now);
+        participants.First().AssignOwner(fixtureOwner);
         Board? board = null;
         if (stage >= ScenarioStage.BoardDraft)
         {
@@ -248,7 +254,7 @@ public sealed class DevelopmentScenarioSeeder(
             participantCount,
             adminId,
             now);
-        bingoEvent.ConfigureSignup(true, true, false, null);
+        bingoEvent.ConfigureSignup(true, false, null);
         bingoEvent.ConfigurePlanning(
             "Seeded rules for large-draft testing.",
             null,
@@ -261,6 +267,7 @@ public sealed class DevelopmentScenarioSeeder(
         bingoEvent.CloseSignups();
         db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
         db.Events.Add(bingoEvent);
+        AddSignupFoundation(bingoEvent, now);
 
         var participants = new List<EventParticipant>(participantCount);
         for (var index = 0; index < participantCount; index++)
@@ -271,7 +278,7 @@ public sealed class DevelopmentScenarioSeeder(
             var participant = CreateParticipant(
                 bingoEvent.Id, name, ehb, SignupStatus.Confirmed, number,
                 now.AddMinutes(-participantCount + index), SignupSource.Website,
-                null, $"large-draft-{number:00}", null, captainNames.Contains(name));
+                null, captainVolunteer: captainNames.Contains(name));
             participants.Add(participant);
         }
         db.EventParticipants.AddRange(participants);
@@ -324,6 +331,7 @@ public sealed class DevelopmentScenarioSeeder(
     private SeededScenario SeedDklLiveScenario(
         BoardBlueprint blueprint,
         Guid adminId,
+        Account fixtureOwner,
         DateTimeOffset now)
     {
         const int teamCount = 6;
@@ -365,7 +373,7 @@ public sealed class DevelopmentScenarioSeeder(
             participantNames.Length,
             adminId,
             now);
-        bingoEvent.ConfigureSignup(true, true, false, null);
+        bingoEvent.ConfigureSignup(true, false, null);
         bingoEvent.ConfigurePlanning(
             "Seeded DKL rules for full live-board testing.",
             null,
@@ -380,14 +388,16 @@ public sealed class DevelopmentScenarioSeeder(
         bingoEvent.SetDraftLocked(true);
         db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
         db.Events.Add(bingoEvent);
+        AddSignupFoundation(bingoEvent, now);
 
         var participants = participantNames.Select((name, index) =>
         {
             return CreateParticipant(
                 bingoEvent.Id, name, 175 + index * 83, SignupStatus.Confirmed, index + 1,
                 now.AddDays(-2).AddMinutes(index), SignupSource.Website, null,
-                $"dkl-live-{index + 1:00}", null, leaderNames.Contains(name));
+                captainVolunteer: leaderNames.Contains(name));
         }).ToList();
+        participants.First().AssignOwner(fixtureOwner);
         db.EventParticipants.AddRange(participants);
         var participantsByName = participants.ToDictionary(
             participant => PrimaryName(participant),
@@ -455,9 +465,7 @@ public sealed class DevelopmentScenarioSeeder(
                 waiting ? SignupStatus.WaitingList : SignupStatus.Confirmed,
                 index + 1, now.AddMinutes(-90 + index), SignupSource.Website,
                 index % 3 == 0 ? $"{name} Alt" : null,
-                $"seed-user-{prefix}-{index + 1}",
-                index == 5 ? "Seeded participant with a scheduling comment." : null,
-                index < 2);
+                captainVolunteer: index < 2);
             participants.Add(participant);
         }
         db.EventParticipants.AddRange(participants);
@@ -753,17 +761,37 @@ public sealed class DevelopmentScenarioSeeder(
         DateTimeOffset signedUpAt,
         SignupSource source,
         string? secondName = null,
-        string? discord = null,
-        string? comments = null,
         bool captainVolunteer = false)
     {
         var participant = new EventParticipant(
-            Guid.NewGuid(), eventId, status, sequence, signedUpAt, source, null);
-        participant.UpdateSignupDetails(discord, comments, captainVolunteer);
-        AddAssignment(participant, primaryName, EventCharacterRole.Playing, ehb, 0, signedUpAt);
+            Guid.NewGuid(), eventId, status, sequence, signedUpAt, source);
+        participant.SetCaptainVolunteer(captainVolunteer);
+        var form = seedForms[eventId];
+        AddAssignment(participant, primaryName, EventCharacterRole.Playing, ehb, 0, signedUpAt, form.RegularAccountQuestionId);
         if (!string.IsNullOrWhiteSpace(secondName) && Normalize(secondName) != Normalize(primaryName))
-            AddAssignment(participant, secondName, EventCharacterRole.Informational, null, 1, signedUpAt);
+            AddAssignment(participant, secondName, EventCharacterRole.Informational, null, 1, signedUpAt, form.AltAccountQuestionId);
+        db.SignupAnswers.AddRange(
+            new SignupAnswer(Guid.NewGuid(), participant.Id, form.TextQuestionId, "Seeded note", $"Seeded answer for {primaryName}"),
+            new SignupAnswer(Guid.NewGuid(), participant.Id, form.NumberQuestionId, "Seeded number", ehb.ToString(CultureInfo.InvariantCulture)),
+            new SignupAnswer(Guid.NewGuid(), participant.Id, form.YesNoQuestionId, "Seeded yes/no", captainVolunteer ? "true" : "false"),
+            new SignupAnswer(Guid.NewGuid(), participant.Id, form.ChoiceQuestionId, "Seeded choice", "North"));
+        form.Form.RecordAcceptedResponse(signedUpAt);
         return participant;
+    }
+
+    private void AddSignupFoundation(BingoEvent bingoEvent, DateTimeOffset now)
+    {
+        var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+        db.SignupForms.Add(form);
+        var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
+        var text = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_note", "Seeded note", SignupQuestionType.Text, false, 2, null);
+        var number = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_number", "Seeded number", SignupQuestionType.Number, false, 3, null);
+        var yesNo = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_yes_no", "Seeded yes/no", SignupQuestionType.YesNo, false, 4, null);
+        var choice = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_choice", "Seeded choice", SignupQuestionType.SingleChoice, false, 5, "North\nSouth");
+        var alt = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_alt_account", "Alt account", SignupQuestionType.Account, false, 6, null, accountAnswerRole: EventCharacterRole.Informational);
+        db.SignupQuestions.AddRange(regular, captain, text, number, yesNo, choice, alt);
+        seedForms.Add(bingoEvent.Id, new SeedSignupForm(form, regular.Id, alt.Id, text.Id, number.Id, yesNo.Id, choice.Id));
     }
 
     private void AddAssignment(
@@ -772,7 +800,8 @@ public sealed class DevelopmentScenarioSeeder(
         EventCharacterRole role,
         decimal? ehb,
         int order,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        Guid signupQuestionId)
     {
         var normalized = Normalize(name);
         if (!seedCharacters.TryGetValue(normalized, out var character))
@@ -782,8 +811,9 @@ public sealed class DevelopmentScenarioSeeder(
             seedCharacters.Add(normalized, character);
         }
         db.EventParticipantCharacters.Add(new EventParticipantCharacter(
-            Guid.NewGuid(), participant.EventId, participant.Id, character.Id, order, now, null, null,
+            Guid.NewGuid(), participant.EventId, participant.Id, character.Id, order, now, null, signupQuestionId,
             role, ehb, role == EventCharacterRole.Playing ? EhbSource.Manual : null, null));
+        db.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, signupQuestionId, role == EventCharacterRole.Playing ? "Account" : "Alt account", string.Empty, character.Id));
     }
 
     private string PrimaryName(EventParticipant participant)
@@ -806,6 +836,8 @@ public sealed class DevelopmentScenarioSeeder(
         var scenarioDigits = new string(bingoEvent.Slug.Where(char.IsDigit).Take(2).ToArray());
         return $"{scenarioDigits.PadLeft(2, '0')}{accountNumber:00}";
     }
+
+    private sealed record SeedSignupForm(SignupForm Form, Guid RegularAccountQuestionId, Guid AltAccountQuestionId, Guid TextQuestionId, Guid NumberQuestionId, Guid YesNoQuestionId, Guid ChoiceQuestionId);
 
     private async Task AddReviewCasesAsync(Guid eventId, Guid adminId, DateTimeOffset now, CancellationToken cancellationToken)
     {
@@ -1318,7 +1350,7 @@ public sealed class DevelopmentScenarioSeeder(
                 draft_picks, team_memberships, draft_sessions, teams,
                 board_requirement_drop_snapshots, board_requirement_boss_snapshots, board_requirement_snapshots,
                 board_tiles, template_requirement_drops, template_requirement_bosses, tile_template_requirements,
-                tile_templates, boards, signup_answers, event_participant_characters, signup_questions, event_participants,
+                tile_templates, boards, signup_answers, event_participant_characters, signup_questions, signup_forms, event_participants,
                 scheduled_signup_opening_attempts, scheduled_event_start_attempts, event_state_transitions, event_banner_cleanups, events, audit_entries, personal_notifications,
                 account_event_accesses, password_credential_tokens, account_discord_identity_transitions
             RESTART IDENTITY;
