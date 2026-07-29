@@ -95,9 +95,9 @@ Stop the running web application, keep PostgreSQL running, and execute:
 dotnet run --project src/Bingo.Web -- --reset-test-data
 ```
 
-The command resets generated workflow data and creates only `TEST 13 — DKL Board` and `TEST 15 — DKL Live`. It preserves the retained OSRS catalogue, bootstrap/Super Admin, and the secondary seeded Admin. Both events are internal Development fixtures rather than automatic public current events.
+The command resets generated workflow data and creates only `TEST 13 — DKL Board`, `TEST 15 — DKL Live`, and `TEST 52 — Team and CSV setup`. It preserves the retained OSRS catalogue, bootstrap/Super Admin, and the secondary seeded Admin. All events are internal Development fixtures rather than automatic public current events.
 
-Use `TEST 13 — DKL Board` to review and edit the 5×5 historical DKL comparison board. `TEST 15 — DKL Live` provides the retained full live DKL board, teams, accounts, evidence, and approved progress behavior.
+Use `TEST 13 — DKL Board` to review and edit the 5×5 historical DKL comparison board. `TEST 15 — DKL Live` provides the retained full live DKL board, teams, accounts, evidence, and approved progress behavior. `TEST 52 — Team and CSV setup` is SignupClosed with a published board, a clean draft setup, and five confirmed unassigned participants for the combined Slice 5 Pass 5.2A/5.2B manual acceptance.
 
 The command prints every seeded captain username. All seeded captain accounts use the local-only password `SeedCaptain!1234`. Your existing administrator username and password are unchanged. It also creates or refreshes the development-only administrator `SeedAdminTwo` with password `SeedAdmin!1234`, which is used to test simultaneous board editing and draft control from a second browser session.
 

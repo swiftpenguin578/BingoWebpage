@@ -613,7 +613,7 @@ Only an active membership may receive a current captain/co-captain role. Withdra
 
 Draft-start readiness requires every active `DRAFTED` team to have a current `CAPTAIN` membership. `CO_CAPTAIN` alone does not satisfy the gate. Every captain/co-captain assignment occupies a normal roster position used by the derived-size calculation.
 
-Event-start readiness requires every active team to have a current `CAPTAIN` membership or an active team-scoped emergency captain access record. A co-captain alone does not satisfy the gate. This invariant is a start-transition blocker, not a live-event invariant; losing the final captain during live play creates an urgent unresolved warning.
+Event-start readiness requires every active team to have a current `CAPTAIN` membership with explicit active website-account ownership or an active team-scoped emergency captain access record. A co-captain alone does not satisfy the gate. This invariant is a start-transition blocker, not a live-event invariant; losing the final captain during live play creates an urgent unresolved warning.
 
 ### 7.2.2 TeamFocusMarker
 

@@ -584,7 +584,7 @@ External or pre-formed team members are not required to use the public signup wo
 
 **Approved target**
 
-- An admin creates the external team and its event-participant roster records; a future Slice 5 CSV capability may support external/pre-formed roster entry only, with details deferred.
+- An admin creates the external team and its event-participant roster records. Slice 5 may populate one selected pre-formed team from CSV: each data row is one member, column one is the primary account, column two its EHB, and later columns are additional accounts without EHB for that member. CSV never imports ordinary draft-pool signup, ownership, Discord, Admin-private fields, signup answers, or Captain/Co-captain roles.
 - External roster records contain the OSRS characters needed for visible rosters and Wise Old Man tracking, but they do not require individual website-account ownership.
 - One or more explicitly enabled emergency captain credentials provide team-scoped submission access. Each credential is individually auditable and is not linked to an OSRS character or participant record.
 - External members without website accounts rely on those captains for submissions.
@@ -1100,7 +1100,7 @@ Payment updates, private admin notes, and ordinary non-account answer correction
 ### 16.5 Captain and co-captain changes
 
 - An admin may assign, promote, demote, or revoke captain/co-captain for a current team member after the draft and during the live event.
-- Authority remains attached to that member's Discord-linked event/team identity, never an OSRS account name.
+- Authority remains attached only to the active event/team membership plus explicit `EventParticipant.AccountId` ownership of an active website account. Discord is an authentication/linking method, never role authority; OSRS names, Discord names, volunteer answers, and emergency credentials do not infer ownership.
 - A withdrawn member immediately loses captain/co-captain authority.
 - The system never automatically chooses a new captain. If the final captain/co-captain leaves, the team receives a prominent missing-captain warning until an admin assigns another current member or explicitly enables an emergency credential.
 - Role changes take effect immediately for future website actions, preserve role history, and notify the affected linked participant.
@@ -1188,17 +1188,18 @@ When `P` divides evenly by `T`, every team has the same size. Otherwise, the set
 
 - Drafted teams are added individually. Each has a required event-unique display name, a stable generated URL identifier, an optional managed image asset, and an optional affiliation/clan label.
 - Team images use the shared authenticated image-upload workflow. Admins select and upload a local image file; arbitrary image-URL input is not supported.
-- An empty drafted team may be removed before the first pick.
+- An empty drafted team may be removed in Setup, including after the controller cancels an unpublished private draft back to Setup.
 - Team name, image, and affiliation remain editable before event start, including after draft finalization. The stable team URL does not change.
 - Event start locks ordinary team-metadata editing. Automatic structured history is sufficient for permitted pre-start metadata changes; no typed reason is required.
 - Internal and external/invited pre-formed teams receive no website-draft turns.
 - They do not affect drafted-team count, derived roster-size calculations, or pick ownership.
 - Their manually assigned members are excluded from the available draft pool.
 - External/invited members may be created by an admin without public signup or Discord linking and remain outside normal signup capacity.
+- A pre-formed roster CSV is scoped to one selected team. Each data row is one member: the first column is the required primary account, the second is its required EHB, and later columns are additional accounts without EHB. Import previews validation and applies atomically; Captain/Co-captain remains a separate manual Admin assignment.
 - A pre-formed team may be created before or after website-draft finalization, but not after event start.
 - Its roster may be freely corrected before event start using ordinary validation and automatic history.
 - After event start, roster changes use the approved withdrawal/replacement workflow rather than unrestricted roster editing.
-- Once the first pick has ever been recorded, drafted teams cannot be added, removed, or converted to/from pre-formed teams, even if every pick is subsequently undone. Team metadata remains editable until event start.
+- Active private picks lock drafted-team structure. Before publication, the controller may cancel the attempt to Setup, undoing active picks while retaining their history and restoring setup editing. Team metadata remains editable until event start.
 
 ### 17.5 Start and visibility
 
@@ -1247,7 +1248,7 @@ When `P` divides evenly by `T`, every team has the same size. Otherwise, the set
 4. Waiting, withdrawn, and pre-formed-team participants receive no draft turns.
 5. A preassigned captain occupies a normal roster position and cannot also be picked.
 6. Draft start is blocked until every drafted team has an assigned Captain; co-captain alone does not satisfy the gate.
-7. Scrambling is repeatable before the first pick and blocked afterward.
+7. Scrambling is repeatable before the first active pick and blocked afterward unless the unpublished attempt is cancelled back to Setup.
 8. Repeated undo can unwind several picks in reverse order and restores the correct next snake turn each time.
 9. Finalization is blocked while any confirmed draft-pool participant is unassigned or the derived balanced distribution is not satisfied.
 10. If teams start with two, one, and one preassigned captains/co-captains, the larger roster is skipped until the other two have caught up.
@@ -1256,7 +1257,7 @@ When `P` divides evenly by `T`, every team has the same size. Otherwise, the set
 13. Public draft results show the effective pick order but never undone attempts or internal controller/audit data.
 14. Reopening a finalized draft before event start requires a written reason, temporarily hides rosters/pick order, preserves all history, and permits stack undo/repicking without unlocking team structure.
 15. Team name, uploaded image, and affiliation may change after draft finalization but lock at event start.
-16. Once a pick has been recorded, undoing back to zero does not reopen drafted-team creation, removal, or formation conversion.
+16. Ordinary undo alone does not reopen drafted-team editing; cancelling an unpublished private attempt returns to Setup and restores it while retaining undone-pick history.
 
 ## 18. Cross-cutting managed-image rule
 

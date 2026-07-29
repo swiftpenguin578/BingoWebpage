@@ -2,7 +2,7 @@
 
 **Status:** Planning Pass 2 framework; exact routes, accounts, seed prerequisites, and expected values are completed with each implementation slice before handoff.
 
-**Last updated:** 2026-07-27
+**Last updated:** 2026-07-29
 
 **Purpose:** Preserve the user's manual acceptance checks outside chat without adding testing controls to the application.
 
@@ -25,6 +25,24 @@
 - Account/role:
 - Result: Not run / Passed / Failed / Blocked
 - Notes or defect links:
+
+## Slice 5 Pass 5.2A/5.2B — teams and pre-formed external roster CSV
+
+Reset Development data and use `TEST 52 — Team and CSV setup` (`test-52-team-csv-setup`) for every case in this section. It begins SignupClosed with a published board, draft Setup/no first pick, no teams or memberships, and five confirmed eligible participants; create the Drafted and Pre-formed teams through the UI. Use `TEST 15 — DKL Live` only for the event-start metadata-lock check below.
+
+Automated seed/reset contract verified 2026-07-29: the real PostgreSQL double-reset regression passed `1/1` with representative Slice 5 child rows before its second reset; it preserves the retained account/catalogue foundations and leaves exactly TEST 13, TEST 15, and TEST 52 after each reset.
+
+- [x] **S5-01 — Passed.** Create Drafted and Pre-formed teams; duplicate creation gives safe feedback with no additional team or audit.
+- [x] Derived setup distribution updates for drafted-team changes, including uneven remainders.
+- [x] **S5-02 — Passed.** Managed PNG/JPEG/WebP image replacement/removal and retired-asset protection passed.
+- [x] **S5-03 — Passed.** Saved managed images remain visibly attached after reload.
+- [x] Existing participant Pre-formed roster assignment removes the participant from the draft pool and rejects duplicates.
+- [x] **S5-04 — Passed.** Unowned external roster members retain correct EHB/informational semantics without inferred ownership or captain role.
+- [x] **S5-05 — Passed.** Reserved external-account retries give safe feedback with no residue.
+- [x] Pre-event roster remove/move history, Cancel-draft restoration, and post-start metadata lock passed.
+- [x] **S5-06 — Passed.** Numbers semicolon CSV preview/apply and canonical comma CSV passed.
+- [x] **S5-07 — Automated/covered and approved.** Multi-row CSV with optional additional `Account` columns and Playing/Informational semantics passed.
+- [x] Invalid CSV values, duplicates, reservations, stale/replayed previews, and Drafted-team CSV exclusion passed.
 
 ## Slice 1 — Website accounts, authentication, Super Admin, recovery, and disabling
 
@@ -145,7 +163,7 @@ Pass 3.3 is approved: private/open/closed schedule editing, proposed Open-now an
 - [x] **S3-11 — Passed.** Create and Schedule show localized values while posting canonical `yyyy-MM-ddTHH:mm`; a future five-minute opening schedules and opens automatically without a checkbox.
 - [x] **S3-12 — Passed.** Opening and closing edits preserve untouched values, and overlap feedback appears in notification history.
 - [x] **S3-13 — Passed.** Postponed-start readiness updates after blocker resolution; manual Start resolves the attempt, preserves its history/configured start, records the actual start separately, and immediately renders Live controls.
-- [x] **S3-14A — Passed.** Reset Development data and verify only TEST 13 and TEST 15 remain.
+- [x] **S3-14A — Passed.** Reset Development data and verify only TEST 13, TEST 15, and TEST 52 remain.
 - [x] **S3-14B — Passed.** Fixture-only data has no automatic public current event and one real current event is selected.
 - [x] **S3-15 — Passed.** “Event discarded.” appeared exactly once on Admin Events through enhanced and no-JavaScript journeys.
 - [x] **S3-16 — Passed.** Protected participant/team/access/submission/evidence history blocks discard without cleanup.
@@ -200,11 +218,13 @@ Pass 3.3 is approved: private/open/closed schedule editing, proposed Open-now an
 
 ## Slice 5 — Teams, captain roles, external teams, and draft
 
-- [ ] Exact manual cases to be finalized before Slice 5 handoff.
-- [ ] Derived roster distribution, captain balancing, picks, repeated undo, pause/resume, and finalization.
-- [ ] External/pre-formed team and post-finalization correction paths.
-- [ ] If introduced for Slice 5, CSV is limited to external/pre-formed team rosters; ordinary draft-pool participants are not imported through CSV.
-- [ ] Concurrent-admin and permission states.
+**Slice 5 final acceptance (2026-07-29):** S5-01 through S5-10 and the final Public boards/Board-route retests are approved. Automated gates passed: Domain `153/153`, Application `82/82`, Browser `66/66`, Integration `188/188`, combined `489/489`; Release solution build, formatting, `git diff --check`, EF pending-model verification, and the relevant migration/reset checks passed. Slice 5 is ready for packaging/merge/push; those actions remain unperformed.
+
+- [x] **S5-08 — Passed.** Captain assignment, controller acquisition/takeover/release, lease-guarded Start, and safe displaced-controller behavior passed.
+- [x] **S5-09 — Passed.** The consolidated private-draft journey, including controller-only cancellation and retained draft history, passed.
+- [x] **S5-10 — Passed.** Finalization/publication, frozen public roster privacy, reopening, ledger correction, publication history, and confirmed published Pre-formed correction without a typed reason passed.
+- [x] **Final Public boards/Board-route retests — Passed.** TEST 52 roster-only routes to Teams; board publication routes to Board; the published-board route returns 200 with `FirstPublicAt == null`; unpublished boards return 404.
+- [x] Derived roster distribution, captain balancing, picks, repeated undo, pause/resume, finalization, external/pre-formed corrections, CSV scope, concurrent-admin, and permission states passed.
 
 ## Slice 6 — Catalogue, board derivation, approval snapshot, preview, and publication
 

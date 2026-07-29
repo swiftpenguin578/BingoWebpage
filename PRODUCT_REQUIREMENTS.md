@@ -352,7 +352,7 @@ Board dimensions remain editable planning configuration before board publication
 - A pre-formed team created after the draft joins the same event and competitive board without rewriting the completed draft history.
 - The board editor may change board dimensions before board publication.
 - Board-editor team estimates affect only board-EHB planning and never create teams, set roster sizes, or become draft constraints.
-- Recording the first pick permanently locks drafted-team creation, removal, and formation conversion because those changes invalidate pick order and assignments.
+- Recording a pick locks the active private attempt. Before roster publication, its controller may cancel it back to Setup, retaining undone pick history while restoring drafted-team editing; publication is the ordinary irreversible boundary.
 - Changing board dimensions after tiles have been placed requires a preview of which positions or tiles are affected.
 - Changing published board structure requires an explicit admin confirmation and audit reason. Team display metadata instead follows its separate pre-event edit lock.
 
@@ -885,7 +885,11 @@ A linked participant receives an in-site notification when an admin withdraws or
 
 ### 18.3 External/pre-formed roster CSV
 
-CSV is not a fallback for ordinary website-draft participant signup. If CSV import is delivered, it belongs only to the Slice 5 external/pre-formed team roster workflow. Its field mappings, preview/apply behavior, and validation details remain deferred to that workflow. Existing legacy/compatibility CSV code is neither repurposed nor removed by this requirement.
+CSV is not a fallback for ordinary website-draft participant signup. Slice 5 CSV belongs only to one selected external/pre-formed team.
+
+Each data row represents one roster member. Column one is the required primary regular/playing OSRS account and column two is that account's required valid non-negative EHB value. Columns three and later are optional additional accounts for the same member and carry no EHB. Empty trailing account cells are ignored. The header is `Account,EHB` followed by zero or more additional `Account` columns. The file has no website-username, Discord, payment, note, Captain/Co-captain, team-metadata, or signup-answer fields. Admins assign Captain/Co-captain manually after import.
+
+Import is scoped to the selected pre-formed team, previews all validation before applying, respects event character reservations case-insensitively, and applies atomically and replay-safely. Imported participants remain unowned until an explicit ownership transfer. The primary account supplies event-facing identity and the playing/EHB assignment; later columns register additional accounts without EHB for that same participant. Existing legacy/compatibility CSV code is not repurposed.
 
 ## 19. Page inventory
 

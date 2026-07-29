@@ -417,7 +417,7 @@ Allow admins to combine website-drafted teams with manually managed pre-formed t
 - Keep board-editor team-count/team-size estimates isolated to board-EHB planning.
 - Event-unique team name, optional affiliation, and managed team-image upload; no arbitrary team image URL.
 - Add pre-formed internal or external teams before or after the draft.
-- Define any CSV import only for external/pre-formed team rosters; ordinary draft-pool participants continue through website signup or explicit Admin creation. Field mappings and detailed import behavior remain deferred.
+- Deliver CSV only for one selected external/pre-formed team; ordinary draft-pool participants continue through website signup or explicit Admin creation. Each data row represents one member: column one is the primary account, column two its required EHB, and later columns are additional accounts without EHB. Captain/Co-captain assignment remains manual. Preview validates the complete file and apply is atomic and replay-safe.
 - Optional team affiliation/clan label.
 - Manually add, remove, and move members on pre-formed rosters before event start with automatic structured history and no required typed reason.
 - Exclude pre-formed teams and their assigned players from draft order and the available draft pool.

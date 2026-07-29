@@ -69,6 +69,35 @@ Future agents must follow these rules:
 
 If blocked, useful work may include focused source inspection, independent unit tests, documentation reconciliation, or a precise handoff. Do not claim completion while required verification remains blocked.
 
+## Task roles and lean orchestration
+
+Every delegated task must declare exactly one role and remain within it:
+
+- **Orchestrator/planner:** defines bounded tasks, selects the next worker, verifies handoffs, and stops repeated failures. It does not implement production behavior or review its own work. It asks the user only for product decisions, explicit permissions, environment blockers, and manual acceptance.
+- **Implementer:** completes only the assigned pass or correction. It does not begin the next pass, perform independent review, package, commit, or push unless explicitly assigned.
+- **Remediator:** addresses only named findings with the smallest safe change. It does not reopen the whole pass or add unrelated cleanup.
+- **Independent reviewer:** remains read-only and blocks only on a concrete behavior, security, privacy, authorization, concurrency, or data-integrity defect, or a genuinely non-discriminating required test. It must not demand redundant assertion syntax, exhaustive duplicate coverage, or stylistic expansion.
+- **Verifier:** runs only the agreed gates, reports unrelated failures separately, and does not change production behavior.
+- **Packager:** acts only after acceptance and may stage, commit, merge, and push the accepted state as authorized. It must not introduce implementation changes.
+
+Prefer the simplest implementation that preserves the required invariants:
+
+- Extend existing services, entities, pages, policies, and shared components before adding new abstractions.
+- Do not add a table, service, compatibility layer, or generalized framework without a concrete persistence, transaction, authorization, or reuse need.
+- Avoid speculative future-proofing, broad cleanup during a feature pass, and no-JavaScript-only machinery for ordinary controls. Retain required route-backed fallbacks for protected board, draft, team, tile, and submission interactions.
+- Manual-test findings should receive the smallest bounded correction that fixes the demonstrated behavior.
+
+Use risk-based, non-duplicative testing:
+
+- Use the smallest test set that would fail if an important requirement or risk boundary broke.
+- One scenario or parameterized test may prove several closely related behaviors.
+- Do not create one test for every branch by default.
+- Avoid repeating the same assertion across domain, handler, HTTP, browser, and migration layers unless each layer protects a distinct plausible failure.
+- Expand coverage for authorization, privacy, transactions, concurrency, destructive lifecycle changes, retained migrations, and regressions that previously escaped the suite.
+- Focused tests are the normal per-pass gate. Run the complete suite only at the documented final gate or when the blast radius genuinely warrants it.
+
+Allow one implementation attempt and, when interrupted, one bounded continuation. If the same worker or approach fails repeatedly, change the approach or create a fresh task from the last verified state; do not loop indefinitely.
+
 ## UI work
 
 - Follow the applicable pass and approval gate in `UI_OVERHAUL_ROADMAP.md`.
