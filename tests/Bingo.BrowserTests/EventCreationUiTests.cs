@@ -95,7 +95,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("datetime-local", schedule);
         Assert.Equal(5, Count(schedule, "step=\"300\""));
         Assert.DoesNotContain("item.Code", schedule);
-        Assert.DoesNotContain("item.Code", manage);
+        Assert.Contains("item.Code == \"TEAM_ACCESS_MISSING\"", manage);
         Assert.Contains("yyyy-MM-ddTHH:mm", scheduleHandler);
         Assert.Contains("Settings.WaitingListEnabled", questions);
         Assert.Contains("SignupQuestionType.Text", questions);

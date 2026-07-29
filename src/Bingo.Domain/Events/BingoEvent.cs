@@ -352,6 +352,15 @@ public sealed class BingoEvent
         DraftLocked = locked;
     }
 
+    /// <summary>Draft roster publication is independent from board publication and may be withdrawn only before live play.</summary>
+    public void SetDraftRosterPublication(bool published)
+    {
+        if (State is not (EventState.SignupOpen or EventState.SignupClosed))
+            throw new InvalidOperationException("Draft roster publication can only change before live play.");
+        TeamRostersPublished = published;
+        DraftResultsPublished = published;
+    }
+
     private DateTimeOffset ActiveSubmissionCutoff()
     {
         var cutoff = ReopenedSubmissionCutoffAt is { } reopened && (SubmissionCutoffAt is null || reopened > SubmissionCutoffAt.Value) ? reopened : SubmissionCutoffAt;

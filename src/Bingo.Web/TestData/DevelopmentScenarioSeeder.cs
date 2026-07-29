@@ -71,6 +71,7 @@ public sealed class DevelopmentScenarioSeeder(
         var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, secondaryAdmin, now);
         seeded.Add(dklLiveScenario);
         AddDklLiveProgress(dklLiveScenario.EventId, admin.Id, now);
+        seeded.Add(SeedTeamAndCsvSetupScenario(blueprint, admin.Id, secondaryAdmin, now));
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -174,6 +175,46 @@ public sealed class DevelopmentScenarioSeeder(
         }
 
         return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, board?.State, captainUsernames);
+    }
+
+    private SeededScenario SeedTeamAndCsvSetupScenario(
+        BoardBlueprint blueprint,
+        Guid adminId,
+        Account fixtureOwner,
+        DateTimeOffset now)
+    {
+        var eventStarts = now.AddDays(90);
+        var eventEnds = eventStarts.AddDays(5);
+        var bingoEvent = new BingoEvent(
+            Guid.NewGuid(), "TEST 52 — Team and CSV setup", "test-52-team-csv-setup",
+            "Development seed scenario: SignupClosed setup for team and pre-formed roster CSV manual acceptance.",
+            "Europe/Copenhagen", now.AddDays(-14), now.AddDays(-1), eventStarts, eventEnds,
+            eventEnds.AddMinutes(30), 20, adminId, now);
+        bingoEvent.ConfigureSignup(true, false, null);
+        bingoEvent.ConfigurePlanning(
+            "Seeded rules for team and CSV workflow testing.", null, null, 2, 3,
+            blueprint.Rows, blueprint.Columns);
+        bingoEvent.OpenSignups();
+        bingoEvent.CloseSignups();
+        db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
+        db.Events.Add(bingoEvent);
+        AddSignupFoundation(bingoEvent, now);
+
+        var participants = new List<EventParticipant>();
+        for (var index = 0; index < 5; index++)
+        {
+            var participant = CreateParticipant(
+                bingoEvent.Id, $"52 Setup Player {index + 1:00}", 500 + index * 100,
+                SignupStatus.Confirmed, index + 1, now.AddMinutes(-50 + index), SignupSource.Website,
+                index == 0 ? "52 Setup Player 01 Alt" : null);
+            participants.Add(participant);
+        }
+        participants[0].AssignOwner(fixtureOwner);
+        db.EventParticipants.AddRange(participants);
+
+        var board = AddBoard(bingoEvent.Id, blueprint, publish: true, now);
+        db.DraftSessions.Add(new DraftSession(Guid.NewGuid(), bingoEvent.Id, 3));
+        return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, board.State, []);
     }
 
     private void AddFinalizedResults(BingoEvent bingoEvent, Guid adminId, DateTimeOffset now)
@@ -1347,6 +1388,8 @@ public sealed class DevelopmentScenarioSeeder(
             TRUNCATE TABLE
                 official_placements, event_finalizations, final_review_resolutions, team_completion_corrections,
                 submission_contributions, review_actions, evidence_assets, submissions, evidence_codes,
+                draft_publication_rosters, draft_publication_cycles, team_membership_role_transitions,
+                team_legacy_image_references, team_image_assets,
                 draft_picks, team_memberships, draft_sessions, teams,
                 board_requirement_drop_snapshots, board_requirement_boss_snapshots, board_requirement_snapshots,
                 board_tiles, template_requirement_drops, template_requirement_bosses, tile_template_requirements,

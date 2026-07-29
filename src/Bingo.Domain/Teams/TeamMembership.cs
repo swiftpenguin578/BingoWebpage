@@ -12,7 +12,12 @@ public sealed class TeamMembership
     public DateTimeOffset JoinedAt { get; private set; }
     public DateTimeOffset? LeftAt { get; private set; }
     public Guid? AssignedByDraftPickId { get; private set; }
+    public TeamMembershipSource Source { get; private set; } = TeamMembershipSource.RetainedConversion;
+    public Guid? ReplacesMembershipId { get; private set; }
+    public long Version { get; private set; } = 1;
     public string? AssignmentReason { get; private set; }
     public void ChangeRole(TeamMembershipRole role) => Role = role;
     public void Leave(DateTimeOffset now, string reason) { LeftAt = now.ToUniversalTime(); AssignmentReason = reason; }
+    public void SetSource(TeamMembershipSource source, Guid? replacesMembershipId = null) { Source = source; ReplacesMembershipId = replacesMembershipId; }
+    public void AdvanceVersion() => Version++;
 }

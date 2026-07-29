@@ -37,7 +37,7 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
                              where participant.Id == participantId && participant.AccountId == accountId && item.Slug == slug
                              select new { Participant = participant, Event = item }).SingleOrDefaultAsync(ct);
             if (row is null) return Forbid();
-            var rosterExists = await db.Teams.AsNoTracking().AnyAsync(x => x.EventId == row.Event.Id && x.Active && x.FinalizedAt != null, ct);
+            var rosterExists = await db.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && db.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == row.Event.Id), ct);
             if (!User.IsInRole("Admin"))
             {
                 var destination = EventDestinationPolicy.Decide(EventDestinationPolicy.From(row.Event, rosterExists), false);

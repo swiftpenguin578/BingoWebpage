@@ -8,7 +8,10 @@ using Bingo.Application.Signups;
 using Bingo.Application.Teams;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
+using Bingo.Domain.Boards;
+using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
+using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Auditing;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Catalogue;
@@ -364,7 +367,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
     public async Task CaptainMoveRevokesThePreviousEmergencyScopeInsideTheMoveTransaction()
     {
         await using var db = new ApplicationDbContext(options);
-        var admin = Website("slice1-move-admin", GlobalRole.Admin); var ev = Event(time.GetUtcNow(), time.GetUtcNow().AddDays(1));
+        var admin = Website("slice1-move-admin", GlobalRole.Admin); var ev = Event(time.GetUtcNow().AddHours(2), time.GetUtcNow().AddDays(1));
         var source = new Bingo.Domain.Teams.Team(Guid.NewGuid(), ev.Id, "Source", "slice1-source", Bingo.Domain.Teams.TeamFormationType.Preformed, null, false);
         var target = new Bingo.Domain.Teams.Team(Guid.NewGuid(), ev.Id, "Target", "slice1-target", Bingo.Domain.Teams.TeamFormationType.Preformed, null, false);
         var participant = new Bingo.Domain.Signups.EventParticipant(Guid.NewGuid(), ev.Id, Bingo.Domain.Signups.SignupStatus.Confirmed, 1, time.GetUtcNow(), Bingo.Domain.Signups.SignupSource.AdminCreated, null);
@@ -377,10 +380,15 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var context = new DefaultHttpContext { User = new AccountAuthenticationService(db, passwords, time).CreatePrincipal(admin) };
         var page = new Bingo.Web.Pages.Admin.Events.DraftModel(db, time, new AuditWriter(db, time), new NoopCollaborationNotifier(), new NoopSignupService(), new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, time)) { PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())), TempData = new TempDataDictionary(context, new DictionaryTempDataProvider()) };
 
-        Assert.IsType<RedirectToPageResult>(await page.OnPostMoveMemberAsync(ev.Id, membership.Id, target.Id, "Move captain", CancellationToken.None));
+        Assert.IsType<RedirectToPageResult>(await page.OnPostMoveMemberAsync(ev.Id, membership.Id, target.Id, CancellationToken.None));
         db.ChangeTracker.Clear();
         Assert.False((await db.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
-        Assert.Equal(target.Id, await db.TeamMemberships.Where(item => item.EventParticipantId == participant.Id && item.LeftAt == null).Select(item => item.TeamId).SingleAsync());
+        var retired = await db.TeamMemberships.SingleAsync(item => item.Id == membership.Id);
+        Assert.NotNull(retired.LeftAt);
+        var replacement = await db.TeamMemberships.SingleAsync(item => item.EventParticipantId == participant.Id && item.LeftAt == null);
+        Assert.Equal(target.Id, replacement.TeamId);
+        Assert.Equal(Bingo.Domain.Teams.TeamMembershipSource.Replacement, replacement.Source);
+        Assert.Equal(membership.Id, replacement.ReplacesMembershipId);
     }
 
     [Fact]
@@ -397,7 +405,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         db.AddRange(admin, ev, draft, team, participant, character, assignment, membership); await db.SaveChangesAsync();
         var baseline = (await db.Accounts.CountAsync(), await db.AccountEventAccesses.CountAsync(), await db.PasswordCredentialTokens.CountAsync());
         var context = new DefaultHttpContext { User = new AccountAuthenticationService(db, passwords, time).CreatePrincipal(admin) };
-        var page = new Bingo.Web.Pages.Admin.Events.DraftModel(db, time, new AuditWriter(db, time), new NoopCollaborationNotifier(), new NoopSignupService(), new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, time)) { PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())), TempData = new TempDataDictionary(context, new DictionaryTempDataProvider()) };
+        var page = new Bingo.Web.Pages.Admin.Events.DraftModel(db, time, new AuditWriter(db, time), new NoopCollaborationNotifier(), new NoopSignupService(), new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, time), captainAuthority: new Bingo.Infrastructure.Teams.TeamCaptainAuthorityService(db, time)) { PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())), TempData = new TempDataDictionary(context, new DictionaryTempDataProvider()) };
 
         Assert.IsType<RedirectToPageResult>(await page.OnPostFinalizeAsync(ev.Id, CancellationToken.None));
         Assert.Equal(baseline, (await db.Accounts.CountAsync(), await db.AccountEventAccesses.CountAsync(), await db.PasswordCredentialTokens.CountAsync()));
@@ -449,7 +457,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
                 PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
                 TempData = new TempDataDictionary(context, new DictionaryTempDataProvider())
             };
-            return await page.OnPostAddExternalMemberAsync(eventId, teamId, "Concurrent External", Bingo.Domain.Teams.TeamMembershipRole.Participant, reason, CancellationToken.None);
+            return await page.OnPostAddExternalMemberAsync(eventId, teamId, "Concurrent External", 1m, null, CancellationToken.None);
         }
 
         var results = await Task.WhenAll(
@@ -478,6 +486,61 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal(2, await verification.AuditEntries.CountAsync(item =>
             item.Action == "team.member_added" && item.ActorAccountId == adminId &&
             (item.TargetId == firstTeamId.ToString() || item.TargetId == secondTeamId.ToString())));
+    }
+
+    [Fact]
+    public async Task DraftTeamFeedbackAndManagedImageProjectionAreSafeAndPersistent()
+    {
+        await using var db = new ApplicationDbContext(options);
+        var admin = Website("slice5-draft-feedback-admin", GlobalRole.Admin);
+        var ev = new BingoEvent(Guid.NewGuid(), "Draft feedback", "slice5-draft-feedback", "UTC", admin.Id, time.GetUtcNow());
+        ev.ConfigureSchedule(null, null, null, time.GetUtcNow().AddHours(1), time.GetUtcNow().AddDays(1), 10);
+        var draft = new DraftSession(Guid.NewGuid(), ev.Id, 1);
+        var team = new Team(Guid.NewGuid(), ev.Id, "External", "external", TeamFormationType.Preformed, null, false);
+        var reservedParticipant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, 1, time.GetUtcNow(), SignupSource.AdminCreated);
+        var reservedCharacter = new OsrsCharacter(Guid.NewGuid(), "Reserved", "RESERVED", time.GetUtcNow());
+        var reservedAssignment = new EventParticipantCharacter(Guid.NewGuid(), ev.Id, reservedParticipant.Id, reservedCharacter.Id, 0, time.GetUtcNow(), admin.Id, null, EventCharacterRole.Playing, 1m, EhbSource.AdminCorrection, null);
+        db.AddRange(admin, ev, draft, team, reservedParticipant, reservedCharacter, reservedAssignment);
+        await db.SaveChangesAsync();
+
+        Bingo.Web.Pages.Admin.Events.DraftModel Page(IEvidenceStorage? storage = null)
+        {
+            var context = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, admin.Id.ToString()), new Claim(ClaimTypes.Name, admin.LoginName)], "test")) };
+            return new Bingo.Web.Pages.Admin.Events.DraftModel(db, time, new AuditWriter(db, time), new NoopCollaborationNotifier(), new NoopSignupService(), new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, time), storage)
+            {
+                PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
+                TempData = new TempDataDictionary(context, new DictionaryTempDataProvider())
+            };
+        }
+
+        var duplicateTeam = Page();
+        Assert.IsType<RedirectToPageResult>(await duplicateTeam.OnPostAddTeamAsync(ev.Id, team.Name, TeamFormationType.Preformed, null, CancellationToken.None));
+        Assert.Equal("A team with that name already exists for this event.", duplicateTeam.TempData["StatusMessage"]);
+        Assert.Equal(1, await db.Teams.CountAsync());
+        Assert.Equal(0, await db.AuditEntries.CountAsync());
+
+        var duplicateMember = Page();
+        Assert.IsType<RedirectToPageResult>(await duplicateMember.OnPostAddExternalMemberAsync(ev.Id, team.Id, "Reserved", 5m, null, CancellationToken.None));
+        Assert.Contains("could not be added", duplicateMember.TempData["StatusMessage"]?.ToString());
+        Assert.Equal(1, await db.EventParticipants.CountAsync());
+        Assert.Equal(1, await db.EventParticipantCharacters.CountAsync());
+        Assert.Equal(0, await db.TeamMemberships.CountAsync());
+        Assert.Equal(0, await db.AuditEntries.CountAsync());
+        db.ChangeTracker.Clear();
+
+        var storage = new SeedEvidenceStorage();
+        var upload = new FormFile(new MemoryStream([1, 2, 3]), 0, 3, "image", "team.png") { Headers = new HeaderDictionary(), ContentType = "image/png" };
+        var update = Page(storage);
+        Assert.IsType<RedirectToPageResult>(await update.OnPostUpdateTeamAsync(ev.Id, team.Id, team.Name, null, upload, false, team.Version, CancellationToken.None));
+        db.ChangeTracker.Clear();
+        var persisted = await db.Teams.SingleAsync(item => item.Id == team.Id);
+        Assert.NotNull(persisted.ActiveImageAssetId);
+        Assert.Equal(persisted.ActiveImageAssetId, await db.TeamImageAssets.Where(item => item.TeamId == team.Id && item.ReplacedAt == null).Select(item => (Guid?)item.Id).SingleAsync());
+
+        var projection = Page(storage);
+        Assert.IsType<PageResult>(await projection.OnGetAsync(ev.Id, null, CancellationToken.None));
+        Assert.Contains("handler=TeamImage", projection.Teams.Single().ImageUrl);
+        Assert.IsType<FileStreamResult>(await projection.OnGetTeamImageAsync(ev.Id, team.Id, CancellationToken.None));
     }
 
     [Fact]
@@ -781,13 +844,30 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var catalogueCount = await db.CatalogueItems.CountAsync();
         var seeder = new DevelopmentScenarioSeeder(db, new DevelopmentEnvironment(), passwords, new SeedEvidenceStorage(), clock);
         var result = await seeder.ResetAndSeedAsync();
+        await AssertTest52InvariantsAsync(db, clock.GetUtcNow());
+
+        db.ChangeTracker.Clear();
+        var liveFixtureBeforeRepeat = await db.Events.SingleAsync(item => item.Slug == "test-15-dkl-live");
+        var teamBeforeRepeat = await db.Teams.FirstAsync(item => item.EventId == liveFixtureBeforeRepeat.Id);
+        var membershipBeforeRepeat = await db.TeamMemberships.FirstAsync(item => item.TeamId == teamBeforeRepeat.Id);
+        var sessionBeforeRepeat = await db.DraftSessions.SingleAsync(item => item.EventId == liveFixtureBeforeRepeat.Id);
+        var publication = new DraftPublicationCycle(Guid.NewGuid(), sessionBeforeRepeat.Id, 99, clock.GetUtcNow(), admin.Id);
+        db.AddRange(
+            new TeamImageAsset(Guid.NewGuid(), liveFixtureBeforeRepeat.Id, teamBeforeRepeat.Id, "reset-regression.png", "reset-regression.png", "image/png", 1, 1, 1, new string('a', 64), admin.Id, clock.GetUtcNow()),
+            new TeamMembershipRoleTransition(Guid.NewGuid(), membershipBeforeRepeat.Id, TeamMembershipRole.Participant, TeamMembershipRole.Captain, admin.Id, clock.GetUtcNow()),
+            publication,
+            new DraftPublicationRoster(Guid.NewGuid(), publication.Id, teamBeforeRepeat.Id, membershipBeforeRepeat.EventParticipantId, TeamMembershipRole.Participant, null, "Reset regression"));
+        await db.SaveChangesAsync();
+        await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO team_legacy_image_references (team_id, retired_url, retired_at) VALUES ({teamBeforeRepeat.Id}, {"https://retired.example/reset-regression.png"}, {clock.GetUtcNow()})");
+
         var repeated = await seeder.ResetAndSeedAsync();
+        await AssertTest52InvariantsAsync(db, clock.GetUtcNow());
 
         Assert.Equal(ownerUsername, result.AdminUsername);
         Assert.Equal(ownerUsername, repeated.AdminUsername);
         Assert.Equal(DevelopmentScenarioSeeder.SecondaryAdminUsername, result.SecondaryAdminUsername);
-        Assert.Equal(2, result.Scenarios.Count);
-        Assert.Equal(["TEST 13 — DKL Board", "TEST 15 — DKL Live"], result.Scenarios.Select(scenario => scenario.EventName).OrderBy(name => name).ToArray());
+        Assert.Equal(3, result.Scenarios.Count);
+        Assert.Equal(["TEST 13 — DKL Board", "TEST 15 — DKL Live", "TEST 52 — Team and CSV setup"], result.Scenarios.Select(scenario => scenario.EventName).OrderBy(name => name).ToArray());
         db.ChangeTracker.Clear();
         var owner = await db.Accounts.SingleAsync(account => account.Id == admin.Id);
         Assert.Equal(GlobalRole.SuperAdmin, owner.GlobalRole);
@@ -797,7 +877,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal(GlobalRole.Admin, secondaryAdmin.GlobalRole);
         Assert.True(secondaryAdmin.Active);
         var seededEvents = await db.Events.OrderBy(item => item.Slug).ToListAsync();
-        Assert.Equal(["test-13-dkl-board", "test-15-dkl-live"], seededEvents.Select(item => item.Slug).ToArray());
+        Assert.Equal(["test-13-dkl-board", "test-15-dkl-live", "test-52-team-csv-setup"], seededEvents.Select(item => item.Slug).ToArray());
         Assert.All(seededEvents, item => Assert.True(item.IsDevelopmentFixture));
         Assert.Empty(await db.SignupForms.Where(form => form.EventId == manual.Id).ToListAsync());
         Assert.Equal(catalogueCount, await db.CatalogueItems.CountAsync());
@@ -1210,6 +1290,40 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.All(model.Entries, entry => Assert.Equal(eventId, entry.EventId));
         Assert.Equal("4", model.Entries[0].TargetId);
         Assert.Equal("0", model.Entries[^1].TargetId);
+    }
+
+    private static async Task AssertTest52InvariantsAsync(ApplicationDbContext db, DateTimeOffset seededAt)
+    {
+        db.ChangeTracker.Clear();
+        var events = await db.Events.OrderBy(item => item.Slug).ToListAsync();
+        Assert.Equal(["test-13-dkl-board", "test-15-dkl-live", "test-52-team-csv-setup"], events.Select(item => item.Slug).ToArray());
+        var test52 = Assert.Single(events, item => item.Slug == "test-52-team-csv-setup");
+        Assert.Equal(EventState.SignupClosed, test52.State);
+        Assert.True(test52.IsDevelopmentFixture);
+        Assert.True(test52.EventStartsAt > seededAt.AddDays(30));
+
+        var board = Assert.Single(await db.Boards.Where(item => item.EventId == test52.Id).ToListAsync());
+        Assert.Equal(BoardState.Published, board.State);
+        var draft = Assert.Single(await db.DraftSessions.Where(item => item.EventId == test52.Id).ToListAsync());
+        Assert.Equal(DraftState.Setup, draft.State);
+        Assert.Null(draft.FirstPickRecordedAt);
+        Assert.Empty(await db.Teams.Where(item => item.EventId == test52.Id).ToListAsync());
+
+        var participants = await db.EventParticipants.Where(item => item.EventId == test52.Id).OrderBy(item => item.SignupSequence).ToListAsync();
+        Assert.Equal(5, participants.Count);
+        Assert.All(participants, participant => Assert.Equal(SignupStatus.Confirmed, participant.SignupStatus));
+        Assert.Contains(participants, participant => participant.AccountId is not null && participant.Source == SignupSource.Website);
+        Assert.Contains(participants, participant => participant.AccountId is null);
+        Assert.Empty(await db.TeamMemberships.Where(item => participants.Select(participant => participant.Id).Contains(item.EventParticipantId)).ToListAsync());
+
+        var assignments = await db.EventParticipantCharacters.Where(item => item.EventId == test52.Id && item.ReleasedAt == null).ToListAsync();
+        Assert.Equal(5, assignments.Count(item => item.EventRole == EventCharacterRole.Playing));
+        Assert.All(assignments.Where(item => item.EventRole == EventCharacterRole.Playing), assignment =>
+        {
+            Assert.NotNull(assignment.EhbSnapshot);
+            Assert.True(assignment.EhbSnapshot >= 0);
+            Assert.Equal(EhbSource.Manual, assignment.EhbSource);
+        });
     }
 
     private Account Website(string username, GlobalRole role = GlobalRole.User)

@@ -205,6 +205,14 @@
                     </section>
                 }
 
+                @if (eventView.State == EventState.Live && Model.StartReadiness?.Blockers.Any(item => item.Code == "TEAM_ACCESS_MISSING") == true)
+                {
+                    <section class="event-admin-control-group">
+                        <div><h3>Captain access needs attention</h3><p>The event remains Live. Assign a usable Captain or explicitly enable team-scoped emergency access.</p></div>
+                        <ul>@foreach (var blocker in Model.StartReadiness.Blockers.Where(item => item.Code == "TEAM_ACCESS_MISSING")) { <li>@blocker.Description <a href="@blocker.Route">Resolve</a></li> }</ul>
+                    </section>
+                }
+
                 @if (eventView.State is EventState.Draft or EventState.SignupClosed or EventState.Live)
                 {
                 <section class="event-admin-control-group event-admin-code-group">

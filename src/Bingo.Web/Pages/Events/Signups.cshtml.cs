@@ -1,3 +1,4 @@
+using Bingo.Application.Teams;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
@@ -12,7 +13,7 @@ using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Events;
 
-public sealed class SignupsModel(ApplicationDbContext db, IStringLocalizer<SharedResource> text) : PageModel
+public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityService captainAuthority, IStringLocalizer<SharedResource> text) : PageModel
 {
     public string EventName { get; private set; } = string.Empty;
     public IReadOnlyList<string> Headings { get; private set; } = [];
@@ -23,22 +24,27 @@ public sealed class SignupsModel(ApplicationDbContext db, IStringLocalizer<Share
     {
         var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug, ct);
         if (item is null) return NotFound();
-        var rosterExists = await db.Teams.AsNoTracking().AnyAsync(x => x.EventId == item.Id && x.Active && x.FinalizedAt != null, ct);
+        var rosterExists = await db.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && db.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == item.Id), ct);
         var policy = EventDestinationPolicy.From(item, rosterExists);
         var administrator = await HasHistoricalTableAccessAsync(ct);
+        var accountId = User.GetAccountId();
+        var captainDraftAccess = !administrator && accountId is { } owner && await captainAuthority.HasDraftSignupTableAccessAsync(owner, item.Id, ct);
         var destination = EventDestinationPolicy.Decide(policy, administrator);
-        if (!EventDestinationPolicy.MayUseSignupTable(policy, administrator))
+        if (!EventDestinationPolicy.MayUseSignupTable(policy, administrator) && !captainDraftAccess)
+        {
+            if (rosterExists) return RedirectToPage("Teams", new { slug });
             return destination switch
             {
                 EventDestination.Roster => RedirectToPage("Teams", new { slug }),
                 EventDestination.Board => RedirectToPage("Board", new { slug }),
                 _ => NotFound()
             };
+        }
 
         EventName = item.Name;
         // Retained historical questions remain visible to administrators, but public
         // projections must honour the same explicit board-visibility flag.
-        var questions = await db.SignupQuestions.AsNoTracking().Where(x => x.EventId == item.Id && x.PublicOnSignupBoard).OrderBy(x => x.Position).ToListAsync(ct);
+        var questions = await db.SignupQuestions.AsNoTracking().Where(x => x.EventId == item.Id && (captainDraftAccess ? x.Active : x.PublicOnSignupBoard)).OrderBy(x => x.Position).ToListAsync(ct);
         var accountQuestions = questions.Where(x => x.Type == SignupQuestionType.Account).ToList();
         var regularCount = accountQuestions.Count(x => x.AccountAnswerRole == EventCharacterRole.Playing);
         var altCount = accountQuestions.Count(x => x.AccountAnswerRole == EventCharacterRole.Informational);
@@ -48,7 +54,7 @@ public sealed class SignupsModel(ApplicationDbContext db, IStringLocalizer<Share
             .ToList();
         Headings = columns.Select(x => x.Heading).ToList();
 
-        var participants = await db.EventParticipants.AsNoTracking().Where(x => x.EventId == item.Id && (x.SignupStatus == SignupStatus.Confirmed || x.SignupStatus == SignupStatus.WaitingList)).OrderBy(x => x.SignedUpAt).ThenBy(x => x.SignupSequence).ToListAsync(ct);
+        var participants = await db.EventParticipants.AsNoTracking().Where(x => x.EventId == item.Id && (captainDraftAccess ? x.SignupStatus == SignupStatus.Confirmed : x.SignupStatus == SignupStatus.Confirmed || x.SignupStatus == SignupStatus.WaitingList)).OrderBy(x => x.SignedUpAt).ThenBy(x => x.SignupSequence).ToListAsync(ct);
         var participantIds = participants.Select(x => x.Id).ToList();
         var assignments = await (from assignment in db.EventParticipantCharacters.AsNoTracking()
                                  join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id

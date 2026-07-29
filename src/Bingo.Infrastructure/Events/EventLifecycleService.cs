@@ -165,11 +165,12 @@ public sealed class EventLifecycleService(
 
         var activeTeams = await db.Teams.AsNoTracking().Where(x => x.EventId == item.Id && x.Active).Select(x => new { x.Id, x.Name }).ToListAsync(ct);
         var activeTeamIds = activeTeams.Select(team => team.Id).ToArray();
-        var captainTeams = await db.TeamMemberships.AsNoTracking()
-            .Where(x => x.LeftAt == null && x.Role == TeamMembershipRole.Captain && activeTeamIds.Contains(x.TeamId))
-            .Select(x => x.TeamId)
-            .Distinct()
-            .ToListAsync(ct);
+        var captainTeams = await (from membership in db.TeamMemberships.AsNoTracking()
+                                  join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
+                                  join account in db.Accounts.AsNoTracking() on participant.AccountId equals account.Id
+                                  where membership.LeftAt == null && membership.Role == TeamMembershipRole.Captain && activeTeamIds.Contains(membership.TeamId) &&
+                                        participant.EventId == item.Id && account.Active && account.AccountType == AccountType.WebsiteAccount
+                                  select membership.TeamId).Distinct().ToListAsync(ct);
         var emergencyTeams = await (from access in db.AccountEventAccesses.AsNoTracking()
                                     join account in db.Accounts.AsNoTracking() on access.AccountId equals account.Id
                                     where access.EventId == item.Id && access.Enabled && account.Active && account.AccountType == AccountType.EmergencyCaptain

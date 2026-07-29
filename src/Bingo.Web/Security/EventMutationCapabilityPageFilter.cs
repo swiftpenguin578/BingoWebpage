@@ -82,6 +82,12 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db) :
                 : EventCapability.ConfigureSignup;
             return true;
         }
+        if (path.EndsWith("/Draft.cshtml", StringComparison.OrdinalIgnoreCase) &&
+            name.Contains("ChangeRole", StringComparison.Ordinal))
+        {
+            capability = default; // roster role boundary performs its own operational-state checks.
+            return false;
+        }
         capability = path.EndsWith("/Questions.cshtml", StringComparison.OrdinalIgnoreCase) ||
                      path.EndsWith("/Participant.cshtml", StringComparison.OrdinalIgnoreCase)
             ? EventCapability.ConfigureSignup

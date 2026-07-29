@@ -14,7 +14,7 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
     public async Task<PublicEventBoard?> GetEventBoardAsync(string eventSlug, CancellationToken cancellationToken = default)
     {
         var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(value => value.Slug == eventSlug, cancellationToken);
-        if (bingoEvent is null || bingoEvent.FirstPublicAt is null) return null;
+        if (bingoEvent is null) return null;
         if (bingoEvent.State == EventState.Discarded || bingoEvent.State == EventState.Cancelled && (bingoEvent.FirstPublicAt is null || !bingoEvent.BoardPublished)) return null;
         var board = await db.Boards.AsNoTracking().SingleOrDefaultAsync(value => value.EventId == bingoEvent.Id && value.State == BoardState.Published, cancellationToken);
         if (board is null) return null;

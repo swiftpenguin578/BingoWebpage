@@ -6,6 +6,7 @@ using System.Threading.RateLimiting;
 using Bingo.Application.Access;
 using Bingo.Application.Boards;
 using Bingo.Application.Catalogue;
+using Bingo.Application.Evidence;
 using Bingo.Application.Teams;
 using Bingo.Domain.Access;
 using Bingo.Infrastructure;
@@ -15,6 +16,7 @@ using Bingo.Web.Events;
 using Bingo.Web.Hubs;
 using Bingo.Web.Navigation;
 using Bingo.Web.Security;
+using Bingo.Web.Teams;
 using Bingo.Web.TestData;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OAuth;
@@ -73,6 +75,7 @@ builder.Services.AddScoped<AccountCookieEvents>();
 builder.Services.AddScoped<DevelopmentAdminBootstrapper>();
 builder.Services.AddScoped<OperatorRecoveryService>();
 builder.Services.AddScoped<ClanCatalogueImporter>();
+builder.Services.AddScoped<Bingo.Web.Teams.PreformedRosterCsvImportService>();
 builder.Services.AddHttpClient("OsrsWiki", client =>
 {
     client.BaseAddress = new Uri("https://oldschool.runescape.wiki/");
@@ -89,6 +92,7 @@ builder.Services.AddScoped<OsrsWikiCatalogueDryRunService>();
 builder.Services.AddScoped<CatalogueSnapshotService>();
 builder.Services.AddScoped<DevelopmentScenarioSeeder>();
 builder.Services.AddScoped<SharedShellService>();
+builder.Services.AddScoped<PublicTeamImageService>();
 builder.Services.AddScoped<EventMutationCapabilityPageFilter>();
 builder.Services.AddHostedService<EventLifecycleWorker>();
 builder.Services.AddScoped<IAuthorizationHandler, AccountAuthorizationHandler>();
@@ -442,6 +446,8 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = registration => registration.Tags.Contains("ready")
 });
+app.MapGet("/Events/{slug}/Teams/{teamId:guid}/Image", (string slug, Guid teamId, PublicTeamImageService images, CancellationToken cancellationToken) =>
+    images.OpenAsync(slug, teamId, cancellationToken));
 app.MapGet(OsrsWikiImageCache.EndpointPath, async (string source, HttpContext context, OsrsWikiImageCache cache, CancellationToken cancellationToken) =>
 {
     try

@@ -56,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<IEventBannerCleanupService, EventBannerCleanupService>();
         services.AddScoped<IProgressNotifier, NullProgressNotifier>();
         services.AddScoped<IAdminCollaborationNotifier, NullAdminCollaborationNotifier>();
+        services.AddScoped<ITeamCaptainAuthorityService, TeamCaptainAuthorityService>();
 
         return services;
     }

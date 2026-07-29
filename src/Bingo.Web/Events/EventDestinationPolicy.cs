@@ -27,7 +27,7 @@ public static class EventDestinationPolicy
         item.SignupPublished && (administrator || Decide(item, false) == EventDestination.SignupTable);
 
     public static EventDestination PublicOverview(EventRouteState item) =>
-        !item.RosterAvailable ? EventDestination.Unavailable : item.BoardAvailable ? EventDestination.Board : EventDestination.Roster;
+        !item.RosterAvailable && !item.BoardAvailable ? EventDestination.Unavailable : item.BoardAvailable ? EventDestination.Board : EventDestination.Roster;
 
     public static EventRouteState From(BingoEvent item, bool rosterExists = false, bool boardPublished = false) => new(
         item.State, item.FirstPublicAt, item.ActualSignupOpenedAt is not null || item.State is EventState.SignupOpen or EventState.SignupClosed || item.DraftLocked,

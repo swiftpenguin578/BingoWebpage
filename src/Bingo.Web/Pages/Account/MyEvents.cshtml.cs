@@ -27,7 +27,7 @@ public sealed class MyEventsModel(ApplicationDbContext db, IStringLocalizer<Shar
                           join item in db.Events.AsNoTracking() on participant.EventId equals item.Id
                           where participant.AccountId == accountId
                           orderby item.EventStartsAt descending, participant.SignedUpAt descending
-                          select new EventRow(item.Name, item.Slug, item.State, item.FirstPublicAt, item.ActualSignupOpenedAt, item.DraftLocked, item.TeamRostersPublished, item.DraftResultsPublished, item.BoardPublished, item.ResultsPublished, db.Teams.Any(team => team.EventId == item.Id && team.Active && team.FinalizedAt != null), db.Boards.Any(board => board.EventId == item.Id && board.State == BoardState.Published), participant.Id, participant.SignupStatus, participant.SignedUpAt)).ToListAsync(ct);
+                          select new EventRow(item.Name, item.Slug, item.State, item.FirstPublicAt, item.ActualSignupOpenedAt, item.DraftLocked, item.TeamRostersPublished, item.DraftResultsPublished, item.BoardPublished, item.ResultsPublished, db.DraftPublicationCycles.Any(cycle => cycle.SupersededAt == null && db.DraftSessions.Any(draft => draft.Id == cycle.DraftSessionId && draft.EventId == item.Id)), db.Boards.Any(board => board.EventId == item.Id && board.State == BoardState.Published), participant.Id, participant.SignupStatus, participant.SignedUpAt)).ToListAsync(ct);
         Current = rows.Where(x => x.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview).ToList();
         History = rows.Where(x => !Current.Contains(x)).ToList();
         return Page();

@@ -64,7 +64,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     {
         var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Slug == slug, ct); if (item is null || item.State == Bingo.Domain.Events.EventState.Discarded || item.State == Bingo.Domain.Events.EventState.Cancelled && item.FirstPublicAt is null) return false;
         var cancelled = item.State == Bingo.Domain.Events.EventState.Cancelled;
-        var rosterExists = await dbContext.Teams.AsNoTracking().AnyAsync(x => x.EventId == item.Id && x.Active && x.FinalizedAt != null, ct);
+        var rosterExists = await dbContext.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && dbContext.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == item.Id), ct);
         EventView = new EventInfo(item.Id, item.Slug, item.Name, item.Description ?? string.Empty, item.SignupClosesAt, item.EventStartsAt, item.EventEndsAt, item.RequireSignupCode, !cancelled && item.AcceptsSignups(timeProvider.GetUtcNow()), cancelled, EventDestinationPolicy.MayUseSignupTable(EventDestinationPolicy.From(item, rosterExists), User.IsInRole("Admin")));
         var accountId = User.GetAccountId();
         var links = accountId is null ? [] : await (from link in dbContext.AccountOsrsCharacters.AsNoTracking() join character in dbContext.OsrsCharacters.AsNoTracking() on link.OsrsCharacterId equals character.Id where link.AccountId == accountId && link.Active orderby link.Preferred descending, link.Position select new AccountOption(character.Id, character.DisplayName, link.SavedEhb, link.Preferred, false)).ToListAsync(ct);
@@ -75,7 +75,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     {
         var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug, ct);
         if (item is null || User.IsInRole("Admin")) return null;
-        var rosterExists = await dbContext.Teams.AsNoTracking().AnyAsync(x => x.EventId == item.Id && x.Active && x.FinalizedAt != null, ct);
+        var rosterExists = await dbContext.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && dbContext.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == item.Id), ct);
         return EventDestinationPolicy.Decide(EventDestinationPolicy.From(item, rosterExists), false) switch
         {
             EventDestination.Roster => RedirectToPage("Teams", new { slug }),

@@ -314,11 +314,11 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         {
             var teamIdsForWorkload = eventTeams.Select(x => x.Id).ToList();
             var rosterSizes = await db.TeamMemberships.AsNoTracking().Where(x => teamIdsForWorkload.Contains(x.TeamId) && x.LeftAt == null).GroupBy(x => x.TeamId).ToDictionaryAsync(x => x.Key, x => x.Count(), ct);
-            var draft = await db.DraftSessions.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == id, ct);
             TeamWorkloads = eventTeams.Select(team =>
             {
                 var actualSize = rosterSizes.GetValueOrDefault(team.Id);
-                var sizeUsed = team.FormationType == TeamFormationType.Drafted && draft?.State != DraftState.Finalized ? draft?.TargetTeamSize ?? actualSize : actualSize;
+                // Board planning estimates are independent from the derived website-draft distribution.
+                var sizeUsed = actualSize;
                 return new TeamWorkloadView(team.Name, team.FormationType, actualSize, sizeUsed > 0 ? sizeUsed : null, sizeUsed > 0 ? total / sizeUsed : null);
             }).ToList();
         }

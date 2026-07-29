@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Bingo.Application.Events;
 using Bingo.Application.Teams;
+using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
@@ -68,7 +69,7 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
         Assert.Equal(adminId, draft.ControllerAccountId);
         Assert.All(await verify.Teams.Where(value => value.EventId == eventId).ToListAsync(), team => Assert.Null(team.DraftPosition));
         Assert.Single(await verify.EventStateTransitions.Where(value => value.EventId == eventId).ToListAsync());
-        Assert.Single(await verify.AuditEntries.Where(value => value.TargetId == draft.Id.ToString() && value.Action == "draft.control_acquired").ToListAsync());
+        Assert.Empty(await verify.AuditEntries.Where(value => value.TargetId == draft.Id.ToString() && value.Action == "draft.control_acquired").ToListAsync());
         Assert.Single(await verify.AuditEntries.Where(value => value.TargetId == draft.Id.ToString() && value.Action == "draft.started").ToListAsync());
         Assert.Equal(1, notifier.DraftChanges);
     }
@@ -112,7 +113,7 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
             var draft = await verify.DraftSessions.SingleAsync(value => value.EventId == eventId);
             Assert.False(item.DraftLocked);
             Assert.Equal(DraftState.Setup, draft.State);
-            Assert.Null(draft.ControllerAccountId);
+            Assert.Equal(adminId, draft.ControllerAccountId);
             Assert.Equal([1, 2], await verify.Teams.Where(value => value.EventId == eventId).OrderBy(value => value.DraftPosition).Select(value => value.DraftPosition).ToArrayAsync());
             Assert.Empty(await verify.AuditEntries.Where(value => value.TargetId == draft.Id.ToString()).ToListAsync());
         }
@@ -134,17 +135,25 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
         if (state is EventState.Discarded) item.Discard(adminId, now, false);
 
         var draft = new DraftSession(Guid.NewGuid(), eventId, 1);
+        draft.AcquireControl(adminId, now, DraftControlLease.Duration);
         var firstTeam = new Team(Guid.NewGuid(), eventId, "Team One", $"{slug}-one", TeamFormationType.Drafted, null, true);
         var secondTeam = new Team(Guid.NewGuid(), eventId, "Team Two", $"{slug}-two", TeamFormationType.Drafted, null, true);
         firstTeam.SetDraftPosition(1);
         secondTeam.SetDraftPosition(2);
+        var firstParticipant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        var secondParticipant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 2, now, SignupSource.Website);
+        var firstCharacter = new OsrsCharacter(Guid.NewGuid(), $"{slug} one", $"{slug.ToUpperInvariant()} ONE", now);
+        var secondCharacter = new OsrsCharacter(Guid.NewGuid(), $"{slug} two", $"{slug.ToUpperInvariant()} TWO", now);
         db.AddRange(
             item,
             draft,
             firstTeam,
             secondTeam,
-            new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.Website),
-            new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 2, now, SignupSource.Website));
+            firstParticipant, secondParticipant, firstCharacter, secondCharacter,
+            new EventParticipantCharacter(Guid.NewGuid(), eventId, firstParticipant.Id, firstCharacter.Id, 0, now, null, null, EventCharacterRole.Playing, 1m, EhbSource.Manual, null),
+            new EventParticipantCharacter(Guid.NewGuid(), eventId, secondParticipant.Id, secondCharacter.Id, 0, now, null, null, EventCharacterRole.Playing, 1m, EhbSource.Manual, null),
+            new TeamMembership(Guid.NewGuid(), firstTeam.Id, firstParticipant.Id, TeamMembershipRole.Captain, now, null, "Captain preassignment"),
+            new TeamMembership(Guid.NewGuid(), secondTeam.Id, secondParticipant.Id, TeamMembershipRole.Captain, now, null, "Captain preassignment"));
         return item;
     }
 

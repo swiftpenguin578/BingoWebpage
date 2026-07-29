@@ -863,7 +863,10 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             var item = await db.Events.SingleAsync(x => x.Slug == slug);
             item.CloseSignups(now);
             var team = new Team(Guid.NewGuid(), item.Id, "Published team", "published-team", TeamFormationType.Drafted, null, true); team.Finalize(now);
+            var draft = new DraftSession(Guid.NewGuid(), item.Id, 1);
             db.Add(team);
+            db.Add(draft);
+            db.Add(new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, Guid.NewGuid()));
             await db.SaveChangesAsync();
         }
         var rosterOverview = await anonymous.GetStringAsync("/");
@@ -888,9 +891,11 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         using var formerRedirect = await formerAdminClient.GetAsync($"/Events/{slug}/Signups");
         Assert.Equal(HttpStatusCode.Redirect, formerRedirect.StatusCode);
         Assert.Equal($"/Events/{slug}/Teams", formerRedirect.Headers.Location?.OriginalString);
+        Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"/Events/{slug}/Board")).StatusCode);
         await using (var db = new ApplicationDbContext(options))
         {
-            var board = new Bingo.Domain.Boards.Board(Guid.NewGuid(), await db.Events.Where(item => item.Slug == slug).Select(item => item.Id).SingleAsync(), "Pre-live board", 1, 1);
+            var item = await db.Events.SingleAsync(item => item.Slug == slug);
+            var board = new Bingo.Domain.Boards.Board(Guid.NewGuid(), item.Id, "Pre-live board", 1, 1);
             board.Publish(now);
             db.Boards.Add(board);
             await db.SaveChangesAsync();
@@ -899,6 +904,12 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.Contains("View board", boardOverview, StringComparison.Ordinal);
         Assert.Contains($"/Events/{slug}/Board", boardOverview, StringComparison.Ordinal);
         Assert.Contains($"/Events/{slug}/Board", await ownerClient.GetStringAsync("/Account/MyEvents"), StringComparison.Ordinal);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var item = await db.Events.SingleAsync(item => item.Slug == slug);
+            db.Entry(item).Property(nameof(BingoEvent.FirstPublicAt)).CurrentValue = null;
+            await db.SaveChangesAsync();
+        }
         Assert.Equal(HttpStatusCode.OK, (await anonymous.GetAsync($"/Events/{slug}/Board")).StatusCode);
         await using (var db = new ApplicationDbContext(options))
         {
@@ -906,6 +917,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             item.StartEvent(now);
             item.EndEvent(now);
             item.FinalizeResults(now);
+            db.Entry(item).Property(nameof(BingoEvent.FirstPublicAt)).CurrentValue = now;
             await db.SaveChangesAsync();
         }
         Assert.Contains($"/Events/{slug}/Board", await ownerClient.GetStringAsync("/Account/MyEvents"), StringComparison.Ordinal);

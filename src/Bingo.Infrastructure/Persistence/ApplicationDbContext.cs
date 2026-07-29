@@ -40,6 +40,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<BingoEvent>().Where(entry => entry.State == EntityState.Modified))
             entry.Entity.AdvanceVersion();
+        foreach (var entry in ChangeTracker.Entries<Team>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
+        foreach (var entry in ChangeTracker.Entries<TeamMembership>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
+        foreach (var entry in ChangeTracker.Entries<DraftSession>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
     }
     public DbSet<SystemMetadata> SystemMetadata => Set<SystemMetadata>();
 
@@ -81,9 +84,13 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<BoardRequirementBossSnapshot> BoardRequirementBossSnapshots => Set<BoardRequirementBossSnapshot>();
     public DbSet<BoardRequirementDropSnapshot> BoardRequirementDropSnapshots => Set<BoardRequirementDropSnapshot>();
     public DbSet<Team> Teams => Set<Team>();
+    public DbSet<TeamImageAsset> TeamImageAssets => Set<TeamImageAsset>();
     public DbSet<TeamMembership> TeamMemberships => Set<TeamMembership>();
+    public DbSet<TeamMembershipRoleTransition> TeamMembershipRoleTransitions => Set<TeamMembershipRoleTransition>();
     public DbSet<DraftSession> DraftSessions => Set<DraftSession>();
     public DbSet<DraftPick> DraftPicks => Set<DraftPick>();
+    public DbSet<DraftPublicationCycle> DraftPublicationCycles => Set<DraftPublicationCycle>();
+    public DbSet<DraftPublicationRoster> DraftPublicationRosters => Set<DraftPublicationRoster>();
     public DbSet<EvidenceCode> EvidenceCodes => Set<EvidenceCode>();
     public DbSet<Submission> Submissions => Set<Submission>();
     public DbSet<EvidenceAsset> EvidenceAssets => Set<EvidenceAsset>();

@@ -46,6 +46,14 @@ public sealed class EventDestinationPolicyTests
         Assert.Equal(EventDestination.Board, EventDestinationPolicy.PublicOverview(boardPublished));
     }
 
+    [Fact]
+    public void PublicOverviewUsesTheBoardWhenNoRosterPublicationExists()
+    {
+        var boardOnly = new EventRouteState(EventState.SignupClosed, DateTimeOffset.UtcNow, true, false, true, false);
+
+        Assert.Equal(EventDestination.Board, EventDestinationPolicy.PublicOverview(boardOnly));
+    }
+
     [Theory]
     [InlineData(EventState.SignupClosed, false, false, false, null, EventDisplayPhase.SignupsClosed)]
     [InlineData(EventState.SignupClosed, true, false, false, null, EventDisplayPhase.DraftFinalized)]

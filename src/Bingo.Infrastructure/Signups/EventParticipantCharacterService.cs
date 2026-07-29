@@ -7,26 +7,30 @@ namespace Bingo.Infrastructure.Signups;
 
 public sealed class EventParticipantCharacterService(ApplicationDbContext db, TimeProvider timeProvider)
 {
+    public Task AssignExternalRosterCharacterAsync(
+        EventParticipant participant, string primaryName, decimal ehb, string? secondName,
+        EhbSource source, Guid? actorAccountId, CancellationToken cancellationToken) =>
+        AssignExternalRosterCharactersAsync(participant, primaryName, ehb,
+            string.IsNullOrWhiteSpace(secondName) ? [] : [secondName], source, actorAccountId, cancellationToken);
+
     /// <summary>Retained for the separate pre-formed roster workflow; authenticated signup uses SignupForm assignments.</summary>
-    public async Task AssignExternalRosterCharacterAsync(
+    public async Task AssignExternalRosterCharactersAsync(
         EventParticipant participant,
         string primaryName,
         decimal ehb,
-        string? secondName,
+        IReadOnlyCollection<string>? additionalNames,
         EhbSource source,
         Guid? actorAccountId,
         CancellationToken cancellationToken)
     {
         var normalizedPrimary = SignupService.NormalizeAccountName(primaryName);
-        var cleanSecond = string.IsNullOrWhiteSpace(secondName) ? null : secondName.Trim();
-        var normalizedSecond = cleanSecond is null ? null : SignupService.NormalizeAccountName(cleanSecond);
-        if (normalizedSecond == normalizedPrimary) cleanSecond = normalizedSecond = null;
-
-        var desired = new[]
-        {
-            new Desired(primaryName.Trim(), normalizedPrimary, EventCharacterRole.Playing, (decimal?)ehb, (EhbSource?)source),
-            cleanSecond is null ? null : new Desired(cleanSecond, normalizedSecond!, EventCharacterRole.Informational, null, null)
-        };
+        ArgumentOutOfRangeException.ThrowIfNegative(ehb);
+        var informationals = (additionalNames ?? [])
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => new { Display = name.Trim(), Normalized = SignupService.NormalizeAccountName(name) })
+            .Where(name => name.Normalized != normalizedPrimary)
+            .DistinctBy(name => name.Normalized)
+            .ToList();
         var current = await db.EventParticipantCharacters
             .Where(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null)
             .OrderBy(x => x.RegistrationOrder)
@@ -40,25 +44,11 @@ public sealed class EventParticipantCharacterService(ApplicationDbContext db, Ti
             .MaxAsync(x => (int?)x.RegistrationOrder, cancellationToken) ?? -1) + 1;
         var now = timeProvider.GetUtcNow();
 
-        foreach (var role in new[] { EventCharacterRole.Playing, EventCharacterRole.Informational })
+        foreach (var existing in current) existing.Release(actorAccountId, now);
+        var desired = new[] { new Desired(primaryName.Trim(), normalizedPrimary, EventCharacterRole.Playing, (decimal?)ehb, (EhbSource?)source) }
+            .Concat(informationals.Select(name => new Desired(name.Display, name.Normalized, EventCharacterRole.Informational, null, null)));
+        foreach (var target in desired)
         {
-            var target = desired.SingleOrDefault(x => x?.Role == role);
-            var existing = current.SingleOrDefault(x => x.EventRole == role);
-            if (target is null)
-            {
-                existing?.Release(actorAccountId, now);
-                continue;
-            }
-
-            if (existing is not null &&
-                currentCharacters[existing.OsrsCharacterId].NormalizedName == target.NormalizedName)
-            {
-                if (role == EventCharacterRole.Playing)
-                    existing.UpdatePlayingEhb(target.Ehb!.Value, target.Source!.Value);
-                continue;
-            }
-
-            existing?.Release(actorAccountId, now);
             var character = await db.OsrsCharacters.SingleOrDefaultAsync(
                 x => x.NormalizedName == target.NormalizedName, cancellationToken);
             if (character is null)
@@ -80,7 +70,7 @@ public sealed class EventParticipantCharacterService(ApplicationDbContext db, Ti
 
             db.EventParticipantCharacters.Add(new EventParticipantCharacter(
                 Guid.NewGuid(), participant.EventId, participant.Id, character.Id, nextOrder++, now,
-                actorAccountId, null, role, target.Ehb, target.Source, null));
+                actorAccountId, null, target.Role, target.Ehb, target.Source, null));
         }
     }
 
