@@ -118,7 +118,7 @@ Automated acceptance cases remain listed here so their IDs match `SLICE_2_MANUAL
 - [ ] **S2-12** — Account settings clearly distinguishes website identity from OSRS characters and Discord; a correct-password username change updates the login/display username, while wrong-password and case-insensitive collision attempts leave it unchanged.
 - [ ] **S2-13** — A successful website-username change refreshes the current session without changing Remember-me expiry, invalidating unrelated sessions, or changing My accounts, event assignments, teams, evidence, roles, or event-facing names.
 - [ ] **S2-14** — Emergency credentials cannot open My accounts or use website-username rename, and their reserved login names still block conflicting normal website usernames.
-- [ ] **S2-15** — Existing private signup edit tokens and the fixed signup/edit fields continue to work for Slice 4 compatibility; no participant claim-link or new authenticated-signup behavior appears.
+- [x] **S2-15 — Superseded by Slice 4.** Private signup edit tokens and fixed signup/edit fields were intentionally removed; authenticated ownership is the current path.
 - [ ] **S2-16** — Active runtime code and projections no longer read or write the removed participant primary-name, normalized-name, second-name, or EHB authority; matching names in migrations and fixed-form view models are intentional compatibility.
 - [ ] **S2-17** — Every User-facing Slice 2 page, label, validation message, warning, empty state, success, and safe failure is understandable in both English and Danish.
 - [ ] **S2-18** — My accounts and username settings remain usable at desktop, intermediate, and narrow widths with logical keyboard order, visible focus, restored validation focus, and understandable empty/warning/conflict states.
@@ -164,17 +164,46 @@ Pass 3.3 is approved: private/open/closed schedule editing, proposed Open-now an
 
 ## Slice 4 — Signup, EHB/account questions, public signup board, capacity, and participants
 
-- [ ] Verify cancellation notifications after authenticated signup ownership exists: eligible confirmed and waiting-list participants receive one generic notification, while withdrawn/removed/unowned participants and the private Admin reason are excluded.
-- [ ] Exact manual cases to be finalized before Slice 4 handoff.
-- [ ] Confirmed/waiting-list creation, collision rollback, edit, withdrawal, rejoin, and promotion.
-- [ ] Public/admin answer visibility and optional historical answers.
-- [ ] Participant administration, payment, account correction, notification, and restoration.
+### Consolidated post-4.7 review (accepted 2026-07-29)
+
+- [x] Sign in normally and confirm signup/edit uses the event's current questions and My Accounts. There is no private-edit link, setting, or CSV import control for ordinary participants.
+- [x] As an Admin before draft lock, correct a participant's answers and Regular/Alt accounts; confirm their place, timestamp, payment, and note remain unchanged. A reserved account changes nothing.
+- [x] Create one participant with a selected website owner and one explicitly unowned participant while public signup is closed. Confirm normal confirmed/waiting placement and source without inferred ownership.
+- [x] Transfer one participant by typing the destination username twice. Confirm the old account immediately loses My Events/confirmation access, the new account gains it, and My Accounts links, team/history, payment, and notes do not move.
+- [x] Confirm payment/Admin notes stay private. Protected board, draft, team, tile, and submission routes remain available, while obsolete private-edit and ordinary-participant CSV controls are absent.
+- [x] **Restricted Slice 4 remediation evidence.** Focused authenticated/PostgreSQL route tests prove retained Admin/private history versus anonymous output, stale-edit no-residue, shared withdrawal/promotion notifications, canonical Yes/No values, and My Events confirmation → roster → board → finalized/archived destinations.
+
+- [x] **S4-01 — Passed.** The unauthenticated Login/My Accounts safe-return, normal-account, and emergency-credential boundaries passed. Changing a Regular account updates EHB to that account's saved default (or clears it) without copying the prior account's value.
+- [x] **S4-02 — Passed.** Creation with a preferred Regular account/EHB and captain volunteer confirms only status, selected event accounts/EHB, and answers; website username, Discord identity, payment, Admin notes, token, and secrets remain excluded.
+- [x] **S4-03 — Passed.** Open-signup editing updates answers, Regular/Alt selections, EHB, and captain volunteer without changing status/order/time/payment/Admin fields; closed signup hides Edit and rejects direct POST safely.
+- [x] **S4-04 — Passed.** An unlinked current assignment remains editable without relinking; replacements require an active My Accounts link, and unavailable/duplicate replacements preserve the form and existing registration.
+- [x] **S4-05 — Passed for current My events ownership/isolation and accessible destinations.** Two normal accounts see only explicitly owned records, and emergency credentials are excluded; current/history separation and event overview behavior passed.
+- [x] **Lifecycle destinations — Automated.** Rendered HTTP coverage verifies confirmation, roster, published board, Finalized, and Archived destinations.
+- [x] **Cancellation notifications — Automated.** Eligible owned confirmed/waiting participants receive generic notifications; withdrawn/removed/unowned participants and the private reason are excluded.
+- [x] **S4-06 — Passed.** Form builder acceptance is recorded in CURRENT_STATUS.md.
+- [x] **S4-07 — Passed.** Structural locking/replacement acceptance is recorded in CURRENT_STATUS.md.
+- [x] **S4-08 — Passed.** Withdrawn confirmation states, open rejoin, closed read-only feedback, and stale rejoin protection passed.
+- [x] **S4-09 — Passed.** Exact-link signup-table privacy, headings, positions, frozen EHB, answer history, lifecycle destinations, Admin historical access, and My Events ownership/destinations passed.
+- [x] **S4-09 lifecycle presentation.** Roster-before-board and board-after-publication destinations plus Draft finalized / Board published / Event ready / Start postponed presentation were accepted.
+- [x] Public/Admin answer visibility and optional historical answers.
+- [x] Participant administration, payment, account correction, notification, and restoration.
+
+- [x] **S4-10 — Passed.** Admin workspace filtering, totals, ownership presentation, and accepted smooth anchor returns passed; instant-jump review is deferred to the whole-site UI overhaul.
+- [x] **S4-11 — Passed.** Repeatedly change Paid/Unpaid from participant details and confirm immediate save, `#payment` return, and accurate feedback. No-JavaScript parity is best-effort for these controls.
+
+### Slice 4 Pass 4.6B — accepted
+
+- [x] Correct a pre-draft participant using active Account and custom questions. Queue time/status/waiting position and payment/note remain unchanged; a reserved character rejects the whole correction.
+- [x] Create one owned and one explicitly unowned internal participant while public signup is closed. Active-form validation, normal confirmed/waiting placement, source, and no inferred ownership passed.
+- [x] Transfer one participant by entering the exact destination username twice. Old My Events/confirmation access is revoked, new access works, history/assignments/team remain unchanged, and both owners receive generic notifications.
+- [x] Correction, creation, and transfer are rejected once the draft is locked, and no Admin-only data appears in public projections.
 
 ## Slice 5 — Teams, captain roles, external teams, and draft
 
 - [ ] Exact manual cases to be finalized before Slice 5 handoff.
 - [ ] Derived roster distribution, captain balancing, picks, repeated undo, pause/resume, and finalization.
 - [ ] External/pre-formed team and post-finalization correction paths.
+- [ ] If introduced for Slice 5, CSV is limited to external/pre-formed team rosters; ordinary draft-pool participants are not imported through CSV.
 - [ ] Concurrent-admin and permission states.
 
 ## Slice 6 — Catalogue, board derivation, approval snapshot, preview, and publication

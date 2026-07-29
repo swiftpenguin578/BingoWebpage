@@ -303,22 +303,20 @@ Fields:
 - `type`
 - `required`
 - `system_field`
-- `admin_only_answer`
 - `position`
 - `active`
 - `disabled_at`, nullable
 - `disabled_by_account_id`, nullable
 - `disabled_reason`, nullable
-- `disabled_at`, nullable
+- `replaced_by_signup_question_id`, nullable
 - `options`, for choice questions
 - `account_answer_role`, nullable and used only for `ACCOUNT`
-- `public_on_signup_board`
+- `public_on_signup_board`, retained for future compatibility and fixed/defaulted true for participant-facing questions
 
 Question types:
 
 ```text
-SHORT_TEXT
-LONG_TEXT
+TEXT
 NUMBER
 YES_NO
 SINGLE_CHOICE
@@ -332,17 +330,19 @@ PLAYING
 INFORMATIONAL
 ```
 
-`public_on_signup_board` defaults to true for new custom questions. It is forced false for `admin_only_answer` questions. The built-in primary OSRS account is a required public `ACCOUNT` question with role `PLAYING`; its compound answer requires EHB. Additional Account questions may create playing or informational assignments but are always optional at the question level. When an optional playing Account question is answered, its EHB child value becomes required. A Yes/No support-alt question creates no OSRS-character assignment. The primary Account/EHB and captain-volunteer system questions cannot be removed.
+The user-facing role names are **Regular account** for `PLAYING` and **Alt account** for `INFORMATIONAL`. The built-in primary OSRS account is a required public `ACCOUNT` question with role `PLAYING`; its compound answer requires EHB. Additional Account questions may create regular or alt assignments but are always optional at the question level. When an optional regular Account question is answered, its EHB child value becomes required. An alt Account answer has no EHB. A Yes/No support-alt question creates no OSRS-character assignment. The primary Account/EHB and captain-volunteer system questions cannot be removed.
+
+Every participant-facing answer is public on the unlisted signup table in version one. `public_on_signup_board` remains fixed/defaulted true so selective visibility can be added later without a destructive schema change. There are no admin-only custom signup questions or post-draft privacy mutations. Payment and Admin notes remain separate private data.
 
 Before `first_response_at`, a custom question may be structurally edited or deleted while the form is private/closed. After it is set:
 
 - new participant-facing questions must have `required = false`;
 - `type`, `account_answer_role`, `options`, stable `key`, and answer-shape constraints are immutable;
-- label, help text, position, and public visibility may change while signup is closed and before draft start;
+- label, help text, and position may change while signup is closed and before draft start;
 - disabling sets `active = false` and `disabled_at` without deleting the question or answers;
 - every change increments `SignupForm.version` and is audited.
 
-Draft start freezes ordinary question metadata and visibility changes. A separate privacy operation may set `public_on_signup_board = false` after draft start without altering or deleting the answer; restoring public visibility is a separately confirmed operation. These operations record actor/time and before/after values automatically but do not require a free-text reason.
+Draft start freezes ordinary question metadata. Structural replacement disables the original question and creates a new optional question with a new stable key; it never rewrites existing answers.
 
 ### 6.3 EventParticipant
 
@@ -361,13 +361,12 @@ Fields:
 - `waiting_listed_at`
 - `withdrawn_at`
 - `withdrawn_by_account_id`, nullable when the participant initiated the action
-- `private_edit_token_hash`, nullable legacy/migration fallback only
 - `form_version`
 - `source`
 
 `(event_id, account_id)` is unique when `account_id` is not null. One website account can therefore own at most one participant record in an event while participating in several different events.
 
-New normal signups have `account_id` at creation and do not receive a private edit token. The participant may edit signup fields only while the event is `SIGNUP_OPEN`. Imported or external participants without a verified website-account relationship remain valid roster records. Event-facing names come from registered OSRS-character assignments rather than the website username. Existing private edit tokens remain only as temporary compatibility until Slice 4; there is no participant claim-token model.
+New normal signups have `account_id` at creation. The participant may edit signup fields only while the event is `SIGNUP_OPEN`. Imported or external participants without a verified website-account relationship remain valid roster records. Event-facing names come from registered OSRS-character assignments rather than the website username. Slice 4 removes the temporary private-edit-token model without adding a participant claim-token model.
 
 Editing does not change `signed_up_at`, `signup_sequence`, or queue status. Cancelling/withdrawing changes status and releases current character assignments. Rejoining while signup is open reactivates the same participant identity but assigns a new `signed_up_at` and `signup_sequence` at the end of the queue. Admin restoration before draft start follows the same current-capacity calculation and never restores a former queue position.
 
@@ -398,11 +397,11 @@ Fields:
 - `personal_label`, nullable user-entered label such as Main, Alt, or Borrowed
 - `sort_order`
 - `preferred`
-- `saved_ehb`, nullable personal default used to prefill future playing-account answers
+- `saved_ehb`, nullable personal default used to prefill future regular-account answers
 
 `(account_id, osrs_character_id)` is unique. At most one link per account is `preferred`. Several accounts may link the same OSRS character. This relationship populates My accounts and signup selectors but grants no authority, proves no ownership, and does not reserve the character for an event. Personal labels organize the list without imposing a game-mode taxonomy.
 
-`saved_ehb` belongs to the link rather than the shared character so one borrower's update does not change another website account's default. Saving a playing Account answer updates this default and captures an independent event snapshot. Later edits to `saved_ehb` do not rewrite an existing event assignment. Informational assignments ignore it.
+`saved_ehb` belongs to the link rather than the shared character so one borrower's update does not change another website account's default. Saving a regular Account answer updates this default and captures an independent event snapshot. Later edits to `saved_ehb` do not rewrite an existing event assignment. Alt assignments ignore it.
 
 ### 6.6 EventParticipantCharacter
 
@@ -435,7 +434,7 @@ PLAYING
 INFORMATIONAL
 ```
 
-Each participant must have at least one current `PLAYING` assignment before signup can be completed. The assignment created by the built-in primary Account question is automatically the initial active account; signup has no separate initial-active selection. Each playing assignment stores its own event-specific EHB snapshot. An `INFORMATIONAL` assignment has no EHB and may never appear in a swap transition, receive evidence credit, or be synchronized to Wise Old Man. The event role is determined by its Account question and is independent of the optional personal label in My accounts.
+Each participant must have at least one current `PLAYING` assignment before signup can be completed. The assignment created by the built-in primary Account question is automatically the initial active account; signup has no separate initial-active selection. Each regular (`PLAYING`) assignment stores its own event-specific EHB snapshot. An alt (`INFORMATIONAL`) assignment has no EHB and may never appear in a swap transition, receive evidence credit, or be synchronized to Wise Old Man. The event role is determined by its Account question and is independent of the optional personal label in My accounts.
 
 EHB source:
 
@@ -486,8 +485,6 @@ ADMIN_CREATED
 
 Name normalization may identify a shared global character association for admin awareness. It must not block a valid global link, create a reusable person identity, imply account ownership, or link name changes across bingos. It does block a second event assignment for the same normalized character through the event-level uniqueness rule.
 
-For an existing legacy/imported record that still uses the temporary migration fallback, `private_edit_token_hash` stores only the secure hash of its private edit token. The original link cannot be reconstructed. Issuing a replacement fallback link overwrites the hash, invalidates the previous link, and exposes the new raw token only in the admin response that created it. New normal signups never receive this token, and Slice 4 removes the fallback.
-
 The same normalized OSRS character may be globally linked by several people but may be assigned to only one participant in an event. Character association alone never merges participant records or grants authority. In-event evidence and Wise Old Man activity resolve through that unique event assignment.
 
 ### 6.8 SignupAnswer
@@ -506,7 +503,7 @@ The label snapshot preserves meaning if the form question is later edited.
 
 An answer row is not guaranteed to exist for every active question and participant. Questions may be added after some players have signed up, optional questions may be left blank, and external roster members may not have a website signup at all. Team, roster, draft, and admin views must load answers with left-join/optional semantics and render missing values without throwing an exception.
 
-Answers to disabled questions remain queryable. Public projection includes them only when the question's current `public_on_signup_board` is true; turning visibility off removes only the public projection, not the stored answer or audit history.
+Answers to disabled questions remain queryable. Public signup-table projection retains participant-facing historical answers and renders later missing optional answers as **Not answered**. Website username, Discord identity, payment, Admin notes, security data, and audit data are never included in that projection.
 
 ### 6.9 Waiting-list calculation
 

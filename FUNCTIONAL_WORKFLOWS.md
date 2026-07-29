@@ -142,12 +142,12 @@ An administrator creates a private event, completes the configuration required t
 | `PART-SIGNUP-01` | Submit a valid event signup | Participant | Implemented without an authenticated participant account | Change — approved |
 | `PART-IDENTITY-01` | Create an account, sign in with Discord or password, and recover/relink access | Participant | New | New — approved |
 | `ADM-IDENTITY-02` | Resolve duplicate, missing, or incorrect identity links | Identity administrator | New | New — approved |
-| `PART-SIGNUP-02` | View confirmation, manage signup, and withdraw | Participant | Implemented through a private edit token | Change — approved |
+| `PART-SIGNUP-02` | View confirmation, manage signup, and withdraw | Participant | Implemented through authenticated event-participant ownership | Change — approved |
 | `PART-PROFILE-01` | Complete Discord-backed account creation with public username/password | Participant | New | New — approved |
 | `PART-ACCOUNT-01` | Manage My accounts and active-character swaps | Participant/captain/admin | New | New — approved |
 | `PART-LIVE-01` | Use the team board, swap active account, and manage own evidence through cutoff | Participant | Participant evidence submission is not implemented | New — approved |
 | `PART-HISTORY-01` | Read personal and public event history after archive | Participant | Public archived boards exist; private participant history lacks a complete target contract | Change — approved |
-| `PUB-SIGNUP-01` | View public signup board | Public visitor | Existing requirements hide the participant list during signup | Change — approved |
+| `PUB-SIGNUP-01` | View the unlisted public signup table | Visitor with the exact link | Existing requirements hide the participant list during signup | Change — approved |
 | `PUB-FEEDBACK-01` | Report evidence, bugs, or general feedback | Public visitor | No dedicated public reporting route | Defer — use the community Discord feedback channel |
 | `CAPTAIN-WORKSPACE-01` | Use the draft-information, team-focus, and team-submission workspace | Captain/co-captain | Current captain access uses generated credentials and has no expanded signup/focus workflow | Change — approved |
 | `SUPERADMIN-01` | Hold global owner powers distinct from ordinary event administration | Super Admin | Current admin role is undifferentiated | New — approved |
@@ -517,7 +517,7 @@ Discord participant identity and the replacement of generated captain credential
 | Admin area | Current behavior to revisit | Likely target impact |
 | --- | --- | --- |
 | Signup configuration/readiness | Discord name is an optional text field; participant accounts are absent | Require authentication before normal signup while allowing explicit external/imported roster records without inferred ownership |
-| Participant management | Admin may generate a replacement private edit link | Normal edits move to authenticated ownership; decide whether token links remain only for migration/emergency fallback |
+| Participant management | Admin corrects, creates, and transfers participant ownership | Authenticated ownership is authoritative; no private edit-link fallback remains |
 | Identity recovery | No participant account-link conflict workflow | Add link status, duplicate/mistaken-link resolution, unlink/relink protections, and audit |
 | Captain/co-captain assignment | Finalized roles provision generated event accounts and passwords | Role assignment should normally grant team-scoped permissions to the participant's website account |
 | Account administration | Admin resets/disables temporary captain credentials | Reframe around identity access, role revocation, and explicitly retained emergency fallback accounts |
@@ -584,7 +584,7 @@ External or pre-formed team members are not required to use the public signup wo
 
 **Approved target**
 
-- An admin creates or imports the external team and its event-participant roster records.
+- An admin creates the external team and its event-participant roster records; a future Slice 5 CSV capability may support external/pre-formed roster entry only, with details deferred.
 - External roster records contain the OSRS characters needed for visible rosters and Wise Old Man tracking, but they do not require individual website-account ownership.
 - One or more explicitly enabled emergency captain credentials provide team-scoped submission access. Each credential is individually auditable and is not linked to an OSRS character or participant record.
 - External members without website accounts rely on those captains for submissions.
@@ -607,7 +607,7 @@ This proposal preserves external-team operation without requiring another clan's
 - The destination account cannot already own a participant record in that event. Transfer revokes the previous account's event access immediately while preserving signup order/status, event-character assignments, team membership, evidence, and history.
 - Transfer is strongly confirmed and automatically records old/new identity references, actor, and time, but requires no typed reason.
 - This event-scoped transfer does not merge the two global website accounts or infer ownership from their OSRS-character links.
-- The current private edit-token path is not issued for new authenticated signups. It remains temporarily for existing legacy/imported records until Slice 4 replaces the signup workflow, then is removed without adding a claim-link system.
+- The private edit-token path was removed by Slice 4 compatibility cleanup; no claim-link system replaces it.
 
 ### 11.6 OSRS character assignment consequences
 
@@ -643,7 +643,7 @@ Approved by the user on 2026-07-24:
 1. External/pre-formed roster members do not need public signup or individual website accounts. One or more explicitly enabled, team-scoped emergency captain credentials provide submission access without claiming roster records.
 2. Signup fields become read-only after signup closes, but a participant may withdraw through a separate confirmed action until the draft starts. Normal waiting-list promotion follows.
 3. A participant may register several OSRS characters, but exactly one is active and drop-eligible at a time. Changing it uses the account-swap workflow and append-only history.
-4. Private edit links remain temporarily for existing legacy/imported records, are not issued for new normal signups, and are removed when Slice 4 completes the authenticated signup migration.
+4. Private edit links are removed; authenticated ownership and Admin ownership transfer are the approved access paths.
 
 ### 11.9 My accounts
 
@@ -710,21 +710,23 @@ Approved by the user on 2026-07-24:
 
 ### 12.1 Account questions and event roles
 
-The standard signup form contains exactly one built-in required **Account** question. Its answer is a playing account. Additional OSRS accounts are collected only when an admin adds another custom question of type **Account**.
+The standard signup form contains exactly one built-in required **Account** question. Its answer is a regular account. Additional OSRS accounts are collected only when an admin adds another custom question of type **Account**.
 
 An Account question has an event-use setting:
 
-- **Playing account:** May be selected as the participant's active account and may receive drop credit.
-- **Informational account:** Records a named account for signup information, such as a support alt, but can never be activated, swapped to, credited with a drop, or included in Wise Old Man standings.
+- **Regular account:** May be selected as the participant's active account and may receive drop credit.
+- **Alt account:** Records a named account for signup information, but can never be activated, swapped to, credited with a drop, or included in Wise Old Man standings.
+
+The existing internal `PLAYING`/`INFORMATIONAL` values may remain persistence terminology, but participant-facing UI uses **Regular account** and **Alt account**.
 
 If an organizer only needs to know whether someone has a support alt, they add a Yes/No question instead. No support-alt question exists by default.
 
-The optional global My accounts label is only personal organization and does not determine an Account question's event use. All named playing and informational accounts remain subject to the rule that an OSRS character appears on only one participant in an event.
+The optional global My accounts label is only personal organization and does not determine an Account question's event use. All named regular and alt accounts remain subject to the rule that an OSRS character appears on only one participant in an event.
 
 ### 12.2 Signup lock
 
-- While signup is open, a participant may change their Account-question answers and select the playing account that should be active when the event starts.
-- Closing signup freezes the participant's set of event-assigned characters and their playing/informational roles.
+- While signup is open, a participant may change their Account-question answers. The required primary regular account automatically becomes active when the event starts; signup has no separate initial-active selector.
+- Closing signup freezes the participant's set of event-assigned characters and their regular/alt roles.
 - Reopening signup restores normal participant editing while it is open.
 - After closing, only an audited admin correction may change the registered set or roles.
 - A global My accounts link created later does not add that character to the closed event.
@@ -732,7 +734,7 @@ The optional global My accounts label is only personal organization and does not
 ### 12.3 Live swap
 
 - During the live event, the participant may swap only to a playing account already registered to them for that event.
-- Informational accounts, globally linked but unregistered characters, and characters assigned to another participant are never valid swap targets.
+- Alt accounts, globally linked but unregistered characters, and characters assigned to another participant are never valid swap targets.
 - A normal swap request is recorded immediately at the authoritative server UTC instant and cannot be scheduled or backdated.
 - The old/new evidence-eligibility boundary follows the whole-minute rule still to be approved in section 12.8.
 - Swaps are unlimited and have no cooldown.
@@ -749,7 +751,7 @@ The optional global My accounts label is only personal organization and does not
 - The immutable website submission time is generated by the server. It is never editable by the submitter, captain, or administrator.
 - Evidence review displays the official event-end boundary and account-swap information in UTC so the administrator can compare them directly with the plugin timestamp visible in the screenshot. Event schedules may continue using the event timezone elsewhere.
 - Approval is the administrator's visual attestation that the screenshot timestamp falls inside the official event window and an interval in which the selected playing account was active for that participant.
-- An informational account cannot be selected for evidence.
+- An alt account cannot be selected for evidence.
 - When a participant has swapped, evidence review shows the latest relevant account transition in UTC and provides the full transition history as an admin/audit detail when needed.
 - The immutable website submission time governs ordering rules that explicitly use submission time.
 - The application does not impose a maximum elapsed upload duration; the configured submission cutoff alone controls how late a new upload may be accepted.
@@ -763,7 +765,7 @@ Normal participant/captain evidence views show only the transition relevant to t
 
 ### 12.6 Approved acceptance cases
 
-1. A participant with playing accounts A and B and informational support alt C may swap A → B → A without a cooldown, but can never swap to C.
+1. A participant with regular accounts A and B and alt account C may swap A → B → A without a cooldown, but can never swap to C.
 2. A globally linked character omitted from the event signup is not a swap target after signup closes.
 3. A playing account added during reopened signup becomes eligible; closing signup freezes the revised set again.
 4. Two simultaneous swaps from A cannot both append a valid next transition.
@@ -774,9 +776,9 @@ Normal participant/captain evidence views show only the transition relevant to t
 
 ### 12.7 Wise Old Man and public display
 
-- Wise Old Man synchronization includes every event account marked `PLAYING`, even when it is not currently active.
-- Informational accounts and Yes/No support-alt answers are never sent to Wise Old Man and never appear in participant/team activity standings.
-- Informational account answers may appear only on the public signup board, subject to the signup question's approved public-visibility rule. They do not appear on later team rosters, evidence, board progress, or leaderboards.
+- Wise Old Man synchronization includes every event account internally marked `PLAYING` (shown to users as a regular account), even when it is not currently active.
+- Alt accounts and Yes/No support-alt answers are never sent to Wise Old Man and never appear in participant/team activity standings.
+- Alt-account answers appear only on the unlisted public signup table. They do not appear on later team rosters, evidence, board progress, or leaderboards.
 - The signup board is separate from finalized team rosters and makes signup participation publicly visible. Exact fields and waiting-list visibility are defined in `ADM-SIGNUP-01`/`PUB-SIGNUP-01`.
 
 ### 12.8 Approved whole-minute boundary
@@ -793,21 +795,21 @@ The UI immediately records the request, keeps the old account visibly active unt
 
 ## 13. Next capability — ADM-SIGNUP-01 Configure signup fields and public board
 
-The following signup-board behavior is approved:
+The following signup-table behavior is approved:
 
-- The public board has clearly separated **Confirmed** and **Waiting list** sections and displays people in both.
+- The unlisted public table has clearly separated **Confirmed** and **Waiting list** sections and displays people in both.
 - Waiting-listed people display their exact numbered positions.
-- The person's unique public website username is the normal signup-board identity.
-- The built-in primary playing account is public.
-- Every new custom question's **Show on signup board** setting defaults on.
-- Admin-only questions can never be public, even if stale input attempts to set the public flag.
+- The built-in primary regular OSRS account is the event-facing identity. Website username is never displayed.
+- All participant-facing custom answers are public on this exact-link table.
+- Payment and Admin notes remain private and separate from signup questions.
+- Version one exposes no public/private toggle, admin-only custom signup question, or post-draft question-privacy action. The retained visibility value is forced/defaulted to public for future compatibility.
 
 ### 13.1 Fixed system questions
 
 Every signup form contains exactly these participant-facing system questions:
 
-1. **Primary OSRS playing account**, required.
-2. **EHB for that account**, required as part of the playing-account answer.
+1. **Primary OSRS regular account**, required.
+2. **EHB for that account**, required as part of the regular-account answer.
 3. **Captain volunteer**, always present.
 
 There is no built-in support-alt, secondary-account, comments, or availability question. Admins add those through the normal custom-question workflow when needed.
@@ -816,24 +818,24 @@ There is no built-in support-alt, secondary-account, comments, or availability q
 
 - An admin may add one or more secondary Account questions.
 - Every secondary Account question is optional; the admin cannot make it required.
-- A playing Account answer includes its own EHB field. The account may be left blank, but once supplied its EHB is required.
-- My accounts stores an optional saved EHB default for each linked character. Saving a playing Account answer updates that default and captures a separate event-specific EHB snapshot; later My accounts edits never silently rewrite the submitted snapshot.
-- An informational Account answer has no EHB field and is excluded from swapping, evidence, and Wise Old Man.
+- A regular Account answer includes its own EHB field. The account may be left blank, but once supplied its EHB is required.
+- My accounts stores an optional saved EHB default for each linked character. Saving a regular Account answer updates that default and captures a separate event-specific EHB snapshot; later My accounts edits never silently rewrite the submitted snapshot.
+- An alt Account answer has no EHB field and is excluded from swapping, evidence, and Wise Old Man.
 - A Yes/No question remains the correct choice when the organizer only needs to know whether an alt exists.
 
 ### 13.3 EHB behavior
 
 - The participant's draft sorting and balancing EHB is the EHB snapshot belonging to the built-in primary Account answer.
 - Secondary playing-account EHB values are never summed into or substituted for that draft value, even if a secondary account is stronger or becomes active later.
-- Every playing Account question shown on the public signup board displays its paired EHB.
+- Every regular Account question shown on the public signup table displays its paired EHB.
 - The built-in primary account and primary EHB are always public.
-- A secondary Account question's **Show on signup board** setting controls both its account name and paired EHB together.
-- Captain volunteer is always public on the signup board.
+- Captain volunteer is always public on the signup table.
+- Generated headings are **Account**, **Account 1**, **Account 2**, and so on for regular accounts, and **Alt account**, **Alt account 1**, **Alt account 2**, and so on for alt accounts.
 
 **Required behavior when WoM-assisted entry is delivered**
 
-- Beside each playing-account EHB field, provide **Fetch from Wise Old Man** after the account name is present.
-- This is a system feature, not an event-level or admin-configurable option: when the WoM integration is available, every eligible playing-account EHB control provides it.
+- Beside each regular-account EHB field, provide **Fetch from Wise Old Man** after the account name is present.
+- This is a system feature, not an event-level or admin-configurable option: when the WoM integration is available, every eligible regular-account EHB control provides it.
 - The fetch uses that normalized OSRS character name and populates the EHB field on success.
 - Manual EHB entry remains available when the character is missing, WoM is unavailable, or the response is rate-limited. A failed fetch shows an accurate unavailable/retry message and does not clear an existing value.
 - Fetch is an explicit user action, never triggered on every keystroke, form render, or public page view.
@@ -843,18 +845,17 @@ There is no built-in support-alt, secondary-account, comments, or availability q
 ### 13.4 Approved question lifecycle
 
 - A published form must be closed before any definition change. Private unpublished forms may be edited normally.
-- Before the first accepted or imported response exists, an admin may edit or remove custom questions freely while the form is private or closed.
-- The first accepted/imported response permanently locks the structural meaning of every question that existed for that response.
+- Before the first accepted website or Admin participant response exists, an admin may edit or remove custom questions freely while the form is private or closed.
+- The first accepted website or Admin participant response permanently locks the structural meaning of every question that existed for that response.
 - After that boundary, a newly added participant-facing question must be optional.
-- While signup is closed and the draft has not started, an admin may change an answered question's label, help text, order, and **Show on signup board** setting.
+- While signup is closed and the draft has not started, an admin may change an answered question's label, help text, and order.
 - Once answers exist, the question type, Account role, choice options, and other answer-shape rules cannot change.
 - A structural replacement disables the old question and creates a new optional question with a new stable key.
 - Disabling stops the old question from appearing on new/edit forms but preserves all existing answers, label snapshots, form versions, and audit history.
-- Existing answers to a disabled question remain available to admins. They remain on the public signup board only while **Show on signup board** stays enabled; hiding visibility does not delete the answers.
+- Existing answers to a disabled question remain available to admins and remain understandable on the public signup table.
 - Participants who answered an earlier form version are never forced into an invalid state because a later optional question has no answer. The UI renders **Not answered** where that historical distinction must be shown.
 - Every definition change increments the form version and records the actor, timestamp, and before/after metadata.
-- Once the draft starts, ordinary changes to question definitions, labels, help text, order, and visibility are frozen.
-- A separate post-draft privacy action may hide a question and its answers from the public signup board. Restoring visibility is a separately confirmed action. Both actions retain the same automatic before/after history as other configuration changes, but neither requires a typed reason.
+- Once the draft starts, ordinary changes to question definitions, labels, help text, and order are frozen.
 
 ### 13.5 Approved signup-readiness gate
 
@@ -868,13 +869,13 @@ Opening is blocked unless:
 - The event is in an allowed pre-draft state and the draft has not started.
 - The deployment's normal Discord sign-in path is configured. This means the application has its required Discord OAuth client/callback configuration and participant login is enabled; it is not a per-event setting and does not require a live Discord API probe when signup opens.
 - The built-in primary playing-account/EHB and captain-volunteer fields are intact.
-- Every active custom question has a valid type and definition. A single-choice question has valid choices. An Account question is explicitly either `PLAYING` or `INFORMATIONAL` and, because it is secondary, remains optional.
+- Every active custom question has a valid type and definition. Participant-facing types are Text, Number, Yes/No, Single choice, and Account. A single-choice question has valid choices. An Account question is explicitly either a regular account (`PLAYING`) or alt account (`INFORMATIONAL`) and, because it is secondary, remains optional.
 - Signup-code protection has a usable code when that protection is enabled.
 
 The following are warnings rather than blockers:
 
 - Waiting-list support is disabled, because additional participants will be rejected when capacity is reached.
-- A short-text or long-text answer is configured for public signup-board display.
+- A Text answer is present on the public signup table.
 - An admin reopens signup after responses already exist. Reopening requires confirmation and automatic history, but no typed reason.
 
 Missing custom questions, banner art, board setup, teams, draft time, or signup-code protection is neither a blocker nor a warning. WoM-assisted EHB entry is required functionality when that integration is delivered, but current WoM API availability is never an opening blocker because manual EHB entry remains available.
@@ -890,7 +891,7 @@ At a scheduled opening instant, the scheduler reruns the same readiness rules tr
 5. A WoM outage does not block opening and does not prevent manual EHB entry.
 6. A scheduled transition that became invalid leaves signup closed and alerts admins.
 7. Reopening a populated signup requires confirmation but no written explanation.
-8. After draft start, ordinary form editing is unavailable while the separate privacy action can hide public answers without deleting them.
+8. After draft start, ordinary form editing and visibility changes are unavailable.
 
 ## 14. PART-SIGNUP-01/02 — Submit and confirm an event signup
 
@@ -903,10 +904,10 @@ At a scheduled opening instant, the scheduler reruns the same readiness rules tr
 
 ### 14.2 Account selection and initial active account
 
-- The built-in primary Account answer is required and always has role `PLAYING`.
-- The participant selects a linked character. If the character is missing, a **My accounts** link lets them add it before returning to signup. Additional Account questions behave according to their `PLAYING` or `INFORMATIONAL` role.
-- A playing EHB control is prefilled from the selected link's saved EHB. Saving the signup updates both that saved default and the event snapshot; an informational answer neither requires nor copies EHB.
-- The built-in primary playing account automatically becomes the participant's initial active/drop-eligible account. Signup does not contain a separate initial-active selector.
+- The built-in primary Account answer is required and always has the internal role `PLAYING`, shown as **Regular account**.
+- The participant selects a linked character. If the character is missing, a **My accounts** link lets them add it before returning to signup. An existing event-assigned character remains selectable for editing even if its global link was later unlinked or transferred. Replacing it requires a currently linked, available character. Additional Account questions behave according to their regular (`PLAYING`) or alt (`INFORMATIONAL`) role.
+- A regular-account EHB control is prefilled from the selected link's saved EHB. Saving the signup updates both that saved default and the event snapshot; an alt answer neither requires nor copies EHB.
+- The built-in primary regular account automatically becomes the participant's initial active/drop-eligible account. Signup does not contain a separate initial-active selector.
 - The participant may change the primary and other registered accounts while signup remains open. Closing signup freezes the final account set and roles.
 - At event start, the system creates the initial activation for the frozen primary account. Later active-account changes use the approved swap workflow.
 
@@ -914,7 +915,7 @@ At a scheduled opening instant, the scheduler reruns the same readiness rules tr
 
 - Confirmed and waiting-list signups both reserve every named Account answer within the event. Capacity status does not weaken the one-current-assignment-per-character rule.
 - A participant- or admin-initiated withdrawal before draft start releases those account reservations. Historical assignment rows remain available, but the released character may then be assigned to another participant in that event.
-- Creating or editing a signup is one transaction covering the participant record, answers, event-character assignments, saved-EHB updates for playing answers, event EHB snapshots, status/capacity decision, and first-response marker.
+- Creating or editing a signup is one transaction covering the participant record, answers, event-character assignments, saved-EHB updates for regular-account answers, event EHB snapshots, status/capacity decision, and first-response marker.
 - Every requested current event-character assignment must be acquired before the transaction commits.
 - If any character is already reserved by another confirmed or waiting-list participant, the whole create/edit attempt fails. No partial participant, answer, link, reservation, EHB, or status change commits.
 - The form identifies the conflicting Account answer as already in use for this event, preserves all other entered values in the returned form, and asks the participant to enter or select another account.
@@ -927,13 +928,13 @@ After a successful create or edit, the authenticated participant sees:
 
 - `Confirmed` or `Waiting list` status.
 - Exact waiting-list position when applicable.
-- Primary and secondary playing accounts with their event EHB snapshots.
-- Informational Account answers clearly separated from playing accounts.
+- Primary and secondary regular accounts with their event EHB snapshots.
+- Alt Account answers clearly separated from regular accounts.
 - Captain-volunteer choice and all of their submitted custom answers.
 - Whether signup editing is currently available.
 - Whether the separate withdrawal action is currently available.
 
-The participant-facing confirmation shows their complete submitted record. The public signup board remains a different projection and shows only the fields approved for public display.
+The participant-facing confirmation shows their complete submitted record. The public signup table remains a different projection: all participant-facing answers are public, while website username, Discord identity, payment, Admin notes, security data, and audit data remain excluded.
 
 ### 14.5 Editing, cancellation, rejoin, and restoration
 
@@ -978,6 +979,14 @@ The participant-facing confirmation shows their complete submitted record. The p
 12. Promotion notifies the linked participant and every enabled admin in site, but creates no automated Discord-message dependency.
 13. Identity transfer fails when the destination already participates in the event and otherwise preserves all event history while revoking the old identity's access.
 
+### 14.9 My events
+
+- **My events** is always present in normal authenticated account navigation.
+- It uses explicit `EventParticipant.AccountId` ownership only and never infers participation from website username, Discord, or OSRS-character links.
+- It separates current participation from historical participation.
+- Every owned participant record appears with its authoritative status and the best state-specific destination: signup confirmation/edit, signup table, team roster, board, or results.
+- Imported/external unowned records do not appear until an authorized ownership transfer.
+
 ## 15. ADM-PARTICIPANT-01 — Manage participants before draft
 
 ### 15.1 Authoritative workspace
@@ -988,10 +997,10 @@ The workspace provides:
 
 - Separate `Confirmed`, `Waiting list`, and `Withdrawn` sections with counts.
 - Search plus filters for status, paid/unpaid, linked/unlinked Discord identity, captain volunteer, signup source, and current team assignment.
-- Public username snapshot and Discord-link status; Discord display name is non-authoritative support metadata only.
+- Current website username and Discord-link status for Admin support only; Discord display name is non-authoritative metadata.
 - Signup source, original/current queue time and sequence, status, and exact waiting-list position.
-- Playing accounts with per-account EHB, informational accounts separately, and the planned initial primary account.
-- Captain-volunteer answer and all current/historical custom answers, including whether each answer is public or admin-only.
+- Regular accounts with per-account EHB, alt accounts separately, and the automatic initial primary account.
+- Captain-volunteer answer and all current/historical custom answers. Participant-facing answers are public; payment and Admin notes remain separate private fields.
 - Private paid/unpaid state and private admin notes.
 - Team/draft state and links to the approved identity-transfer and participant actions.
 
@@ -999,14 +1008,14 @@ The workspace provides:
 
 - Payment is a private binary `Unpaid`/`Paid` value, defaulting to `Unpaid`.
 - The public signup form never asks for it.
-- It is never shown on the public signup board, team roster, draft result, evidence, or leaderboard.
+- It is never shown on the public signup table, team roster, draft result, evidence, or leaderboard.
 - Events that do not use a buy-in may ignore the field; no `Unknown`, `Waived`, or `Not required` participant states remain in the target model.
 - Changing payment is a routine admin update with automatic before/after history and no participant notification.
 
 ### 15.3 Pre-draft corrections
 
 - Before draft start, an admin may correct participant-entered answers and Account selections even after public signup closes.
-- Corrections use the same question validation, playing/informational roles, EHB requirements, and atomic event-character reservation rules as participant edits.
+- Corrections use the same question validation, regular/alt roles, EHB requirements, and atomic event-character reservation rules as participant edits.
 - A correction keeps signup time, queue sequence, confirmed/waiting status, and waiting-list position.
 - A conflict rejects the complete attempted correction and leaves the last saved participant record unchanged.
 - Routine pre-draft corrections require no written reason. Actor/time and structured before/after values are recorded automatically.
@@ -1482,7 +1491,7 @@ Approved evidence metadata, credited player, and screenshot are public so commun
 ### 25.2 Draft-information table
 
 - Before and during the website draft, captains/co-captains of drafted teams see the same confirmed signup table used publicly, enhanced with all participant-submitted answer columns needed for selection.
-- The expanded view includes the primary and other registered playing accounts/EHB, captain volunteer, availability/comments, other custom answers, and answers whose **Show on signup board** setting is off. Website username is not the participant's event-facing name.
+- The signup table already includes the primary and other registered regular accounts/EHB, alt accounts, captain volunteer, and all participant-facing custom answers. Website username is not the participant's event-facing name. Captains do not receive a separate private-answer projection.
 - It excludes waiting-list and withdrawn people from the draft pool and never exposes paid/unpaid status, private admin notes, identity-recovery/security metadata, or audit history.
 - Captains of external/pre-formed teams do not receive the internal draft-pool expansion.
 - The website draft controller/order/pick ledger remains admin-only; the expanded table does not expose private draft-control state.

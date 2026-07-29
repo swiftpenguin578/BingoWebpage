@@ -73,7 +73,7 @@ After signing in as an administrator:
 
 1. Open **Admin → Events → Create event**.
 2. Save the event as a private draft.
-3. Add optional signup questions or preview a CSV import from the event workspace.
+3. Add optional signup questions from the event workspace. External/pre-formed roster CSV, if introduced, is deferred to Slice 5.
 4. Open signups. This publishes only the event signup page, not teams or the board.
 5. Follow the displayed public signup URL in a private browser window to test participant signup.
 

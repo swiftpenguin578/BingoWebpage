@@ -243,7 +243,7 @@ Allow admins to create an event, configure signup, open only the signup page, an
 - Yes/No support-alt questions when no account name is required.
 - Always-present captain-volunteer question.
 - Comments and availability only through admin-added custom questions.
-- Custom short text, long text, number, yes/no, single-choice, and Account questions.
+- Custom Text (multiline), Number, Yes/No, Single choice, and Account questions.
 - First-response structural lock: later questions are optional; answered question types, options, Account roles, stable keys, and answer shapes cannot be rewritten.
 - Closed-signup safe edits for label, help, order, and public visibility until draft start.
 - Disable-and-replace workflow that preserves historical answers and form versions.
@@ -258,8 +258,8 @@ Allow admins to create an event, configure signup, open only the signup page, an
 - Confirmed and waiting-list signups reserve Account answers equally; pre-draft withdrawal releases the reservations without deleting history.
 - Account-specific conflict recovery that rolls back the whole attempt, preserves the other entered form values, and leaves a previously saved signup unchanged.
 - Built-in primary playing account as the automatic initial active account at event start, with no separate signup selector.
-- Authenticated signup confirmation showing status, exact waiting-list position, playing accounts/EHB, informational accounts, submitted answers, and current edit/withdraw availability.
-- Public signup board with separate confirmed/waiting-list sections, exact waiting-list positions, event-snapshotted unique public usernames, an always-public primary playing account, and custom-question visibility defaulting on.
+- Authenticated signup confirmation showing status, exact waiting-list position, regular accounts/EHB, alt accounts, submitted answers, and current edit/withdraw availability.
+- Unlisted public signup table with separate confirmed/waiting-list sections, exact waiting-list positions, the primary regular OSRS account as event-facing identity, all participant-facing answers public, and no website-username projection.
 - Role-aware expanded signup-table columns for drafted-team captains/co-captains before/during the draft, excluding payment, private notes, security/recovery data, and audit history.
 - Draft-finalization handoff that keeps the signup page intact and admin-authorized, but redirects non-admin signup-route requests to published team rosters.
 - Signup close/reopen behavior.
@@ -284,15 +284,6 @@ Allow admins to create an event, configure signup, open only the signup page, an
 - Post-close/pre-draft admin correction using ordinary validation/reservation rules without changing queue position.
 - Manual internal participant creation that bypasses public window/code but obeys required fields, capacity/waiting, and account uniqueness; external rosters remain outside the pool.
 - Linked-participant notifications for admin withdrawal, restoration, and event-account changes, excluding payment, notes, and ordinary answer edits.
-
-#### CSV fallback
-
-- Download fixed template.
-- Preview import.
-- Validate required columns.
-- Detect likely duplicates.
-- Warn about unknown columns.
-- Import valid rows with source and audit record.
 
 ### Domain tests
 
@@ -321,7 +312,7 @@ Allow admins to create an event, configure signup, open only the signup page, an
 ### Completion criteria
 
 - The complete signup period can be run without Google Forms.
-- CSV remains a tested fallback, not the primary workflow.
+- Ordinary website-draft participant signup does not use CSV. Future CSV, if needed, is limited to Slice 5 external/pre-formed roster workflow.
 
 ## 8. Milestone 4 — OSRS catalogue and board builder
 
@@ -426,6 +417,7 @@ Allow admins to combine website-drafted teams with manually managed pre-formed t
 - Keep board-editor team-count/team-size estimates isolated to board-EHB planning.
 - Event-unique team name, optional affiliation, and managed team-image upload; no arbitrary team image URL.
 - Add pre-formed internal or external teams before or after the draft.
+- Define any CSV import only for external/pre-formed team rosters; ordinary draft-pool participants continue through website signup or explicit Admin creation. Field mappings and detailed import behavior remain deferred.
 - Optional team affiliation/clan label.
 - Manually add, remove, and move members on pre-formed rosters before event start with automatic structured history and no required typed reason.
 - Exclude pre-formed teams and their assigned players from draft order and the available draft pool.
@@ -775,7 +767,7 @@ These are the ten functional delivery slices inside Milestone 8A. They are not a
 1. Website accounts, password/Discord authentication, Super Admin ownership, recovery, role mutation, and account disable/restore.
 2. My accounts, trust-based OSRS-character links, event assignments, uniqueness rules, and legacy identity migration.
 3. Event creation, scheduling/readiness, current-event selection, cancellation, archive, and lifecycle blockers.
-4. Signup questions, per-playing-account EHB, public signup board, capacity/waiting list, participant administration, and promotion notifications.
+4. Signup questions, per-regular-account EHB, unlisted public signup table, My events, capacity/waiting list, participant administration, and promotion notifications.
 5. Teams, captain/co-captain authority, external teams, roster rules, and draft.
 6. Catalogue permissions/import, live Draft-board derivation, approval snapshots, public-style preview, and publication.
 7. Participant/captain live navigation, active-account swaps, team focus, and role-aware visibility.
@@ -785,7 +777,7 @@ These are the ten functional delivery slices inside Milestone 8A. They are not a
 
 Each slice finalizes its exact manual cases in `MANUAL_TEST_CHECKLIST.md` before handoff. The checklist is durable repository documentation so the user may run it immediately or return to it later; it does not replace automated coverage.
 
-Slices 1 and 2 are implemented, independently cleared, verified, and manually accepted where applicable. Slice 2's completed five-pass record remains in `SLICE_2_IMPLEMENTATION_PLAN.md`. The bounded Slice 3 plan in `SLICE_3_IMPLEMENTATION_PLAN.md` was approved on 2026-07-27. Pass 3.1 is complete and Pass 3.2 is implemented pending its required manual/visual approval; work must remain inside its approved pass boundary.
+Slices 1, 2, and 3 are implemented, independently cleared, verified, manually accepted where applicable, committed, and pushed on their accepted branches. Their detailed records remain in `SLICE_1_IMPLEMENTATION_PLAN.md`, `SLICE_2_IMPLEMENTATION_PLAN.md`, and `SLICE_3_IMPLEMENTATION_PLAN.md`. The bounded seven-pass Slice 4 signup plan is approved in `SLICE_4_IMPLEMENTATION_PLAN.md`; implementation has not started and must remain inside one approved pass per task.
 
 Only after all ten Milestone 8A functional slices are complete and functionally regressed does work proceed to the separate big-roadmap **Milestone 9 — UI overhaul and regression**. Milestone 9 performs the complete site-wide UI pass and full regression through the page passes in `UI_OVERHAUL_ROADMAP.md`. It must not begin merely because a similarly numbered UI page pass is available.
 
@@ -1070,7 +1062,7 @@ Before production:
 - Decide whether original evidence is retained indefinitely with archived events.
 - Publish a short privacy notice for signup data and screenshots.
 - State that player names, teams, approved drops, and approved evidence may become public.
-- State that the paid/unpaid value remains private; document that waiting-list public usernames appear on the signup board and define visibility for comments and other signup answers.
+- State that the paid/unpaid value and Admin notes remain private; document that waiting-list OSRS identities and every participant-facing signup answer appear on the unlisted signup table.
 - Define who can request removal or correction after an event.
 - Define admin responsibilities for sensitive chat visible in screenshots.
 
@@ -1145,7 +1137,7 @@ This register began as the post-version-one backlog. Items explicitly selected d
 - Allow one event participant to register more than two OSRS character names.
 - Allow the same OSRS character to be linked to several Discord identities globally; the link grants no website authority and does not assert exclusive ownership.
 - Assign an OSRS character to at most one participant within an event through a transactional uniqueness constraint. A later event may assign it to a different participant.
-- Mark each named Account answer as playing or informational according to its question. Informational accounts cannot be activated, credited with drops, or synchronized to Wise Old Man.
+- Mark each named Account answer internally as playing or informational according to its question, while the UI calls them Regular account and Alt account. Alt accounts cannot be activated, credited with drops, or synchronized to Wise Old Man.
 - Allow exactly one drop-eligible character per participant at a time.
 - Record every swap as an append-only history entry containing the participant, previous account, new account, effective UTC time, recorded time, and actor.
 - Freeze the registered account set and playing/informational roles when signup closes. During the event, allow unlimited swaps only among the participant's registered playing accounts.

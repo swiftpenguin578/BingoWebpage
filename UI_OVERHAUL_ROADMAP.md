@@ -34,6 +34,7 @@ The approved visual system and completed page decisions remain valuable constrai
 - Danish translations should preserve familiar English OSRS and community terms when a literal translation would sound unnatural. Ambiguous terms will be called out during the relevant page review so the community wording can be confirmed.
 - Show the active event and, where relevant, active team prominently.
 - Every mutation must provide success or failure feedback.
+- Ordinary Admin filters and independent Admin saves may rely on progressive enhancement; no-JavaScript parity is best-effort unless an existing fallback is inexpensive to preserve. This does not relax required responsive route fallbacks for protected board, team, tile, and submission surfaces.
 - Every pass must cover desktop, intermediate/tablet, narrow/mobile, keyboard, empty, loading, error, and permission states where applicable.
 - A pass is complete only after focused regression tests and user approval.
 
@@ -356,6 +357,7 @@ The site-wide system must provide the following reusable hierarchy even when a p
 
 - Every remaining UI pass must begin by applying the shared flagship shell and tokens, then choose an appropriate composition: public showcase, compact workflow, dense table, form, or dialog. Those are density variants, not separate themes.
 - Existing approved functionality, authorization, validation, lifecycle protections, and progressive enhancement remain fixed except where an explicitly approved Milestone 8A feature defines and tests a deliberate change.
+- Anchor returns used by compact Admin filters and saves may currently smooth-scroll; review whether later whole-site UI work should use instant jumps, matching the established approved behavior.
 - Reuse or extract shared components for page mastheads, tabs, cards, notices, buttons, fields, tables, dialogs, empty states, progress, ranks, and responsive containers. Do not duplicate the TEST 15 CSS under new page-specific class names.
 - New one-off colour, spacing, radius, shadow, type size, breakpoint, or control pattern requires a reason that the shared system cannot express. If that reason is valid and reusable, add it to the shared system and document it here.
 - Public and captain boards should be closest to the reference composition. Signup and authentication pages may use a narrower centered column. Admin pages may use denser cards, tables, and multi-column workspaces. All retain the same canvas, surfaces, borders, typography, controls, state colours, focus treatment, spacing scale, and interaction timing.

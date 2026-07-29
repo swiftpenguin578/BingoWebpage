@@ -33,6 +33,7 @@ When documents, code, tests, or current behavior conflict, do not silently choos
 - Preserve authorization, audit, transaction, concurrency, privacy, evidence-integrity, and finalization protections.
 - Treat SignalR messages as invalidations/notifications, not authoritative secret state.
 - Keep ordinary Razor form/navigation fallbacks when progressively enhancing interactions.
+- For ordinary Admin filters and independent Admin value saves, no-JavaScript parity is best-effort rather than a universal acceptance gate; retain existing inexpensive fallbacks, but do not add fallback-only complexity. The responsive route fallbacks for protected board, team, tile, and submission surfaces remain required.
 - Do not add deferred post-version-one features unless the user explicitly expands scope.
 - Never commit secrets, `.env` files, real participant data, or production credentials.
 
