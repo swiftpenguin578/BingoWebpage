@@ -11,6 +11,7 @@ using Bingo.Application.Teams;
 using Bingo.Domain.Access;
 using Bingo.Infrastructure;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Web.Boards;
 using Bingo.Web.Catalogue;
 using Bingo.Web.Events;
 using Bingo.Web.Hubs;
@@ -93,6 +94,7 @@ builder.Services.AddScoped<CatalogueSnapshotService>();
 builder.Services.AddScoped<DevelopmentScenarioSeeder>();
 builder.Services.AddScoped<SharedShellService>();
 builder.Services.AddScoped<PublicTeamImageService>();
+builder.Services.AddScoped<PublicBoardImageService>();
 builder.Services.AddScoped<EventMutationCapabilityPageFilter>();
 builder.Services.AddHostedService<EventLifecycleWorker>();
 builder.Services.AddScoped<IAuthorizationHandler, AccountAuthorizationHandler>();
@@ -183,7 +185,7 @@ if (args.Contains("--export-catalogue-snapshot", StringComparer.Ordinal))
     await snapshotDb.Database.MigrateAsync();
     var snapshots = snapshotScope.ServiceProvider.GetRequiredService<CatalogueSnapshotService>();
     var result = await snapshots.ExportAsync(catalogueSnapshotPath);
-    Console.WriteLine($"Catalogue snapshot exported to {catalogueSnapshotPath}: {result.Bosses} bosses, {result.Items} items, {result.Drops} drops, {result.Variants} variants.");
+    Console.WriteLine($"Catalogue snapshot exported to {catalogueSnapshotPath}: {result.Bosses} bosses, {result.Items} items, {result.Drops} drops.");
     return;
 }
 
@@ -251,7 +253,7 @@ if (args.Contains("--apply-catalogue-snapshot", StringComparer.Ordinal))
     await snapshotDb.Database.MigrateAsync();
     var snapshots = snapshotScope.ServiceProvider.GetRequiredService<CatalogueSnapshotService>();
     var result = await snapshots.ApplyAsync(catalogueSnapshotPath);
-    Console.WriteLine($"Catalogue snapshot applied from {catalogueSnapshotPath}: {result.Bosses} bosses, {result.Items} items, {result.Drops} drops, {result.Variants} variants.");
+    Console.WriteLine($"Catalogue snapshot applied from {catalogueSnapshotPath}: {result.Bosses} bosses, {result.Items} items, {result.Drops} drops.");
     return;
 }
 
@@ -448,6 +450,8 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 });
 app.MapGet("/Events/{slug}/Teams/{teamId:guid}/Image", (string slug, Guid teamId, PublicTeamImageService images, CancellationToken cancellationToken) =>
     images.OpenAsync(slug, teamId, cancellationToken));
+app.MapGet("/Events/{slug}/Board/Tiles/{tileId:guid}/Image", (string slug, Guid tileId, PublicBoardImageService images, CancellationToken cancellationToken) =>
+    images.OpenAsync(slug, tileId, cancellationToken));
 app.MapGet(OsrsWikiImageCache.EndpointPath, async (string source, HttpContext context, OsrsWikiImageCache cache, CancellationToken cancellationToken) =>
 {
     try

@@ -112,8 +112,8 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
         if (publishBoard)
         {
             var board = new Board(Guid.NewGuid(), eventId, $"{slug} board", 1, 1);
-            board.Publish(now);
             db.Add(board);
+            await BoardApprovalFixture.PublishAsync(db, board, now);
         }
         await db.SaveChangesAsync();
     }
@@ -139,8 +139,8 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
         if (boardPublished)
         {
             var board = new Board(Guid.NewGuid(), eventId, $"{slug} board", 1, 1);
-            board.Publish(now);
             db.Add(board);
+            await BoardApprovalFixture.PublishAsync(db, board, now);
         }
 
         await db.SaveChangesAsync();

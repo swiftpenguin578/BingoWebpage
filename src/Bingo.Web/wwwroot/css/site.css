@@ -1471,6 +1471,8 @@ body.team-board-overlay-open { overflow: hidden; }
 .catalogue-status.is-active { color: #d7f4da; background: rgba(64, 136, 76, 0.25); border-color: rgba(114, 184, 121, 0.5); }
 .catalogue-status.is-inactive { color: var(--muted); background: var(--surface-raised); border-color: var(--border); }
 .catalogue-record-body { padding: 0.9rem; border-top: 1px solid var(--border); }
+.catalogue-pagination { display: flex; align-items: center; justify-content: center; gap: 0.75rem; padding: 1rem 0 0; }
+.catalogue-pagination > span { color: var(--muted); }
 .catalogue-boss-editor { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 1rem; align-items: start; padding-bottom: 0.9rem; border-bottom: 1px solid var(--border); }
 .catalogue-editor-image { display: grid; gap: 0.35rem; justify-items: center; }
 .catalogue-editor-image small { color: var(--muted); font-size: 0.66rem; text-align: center; }

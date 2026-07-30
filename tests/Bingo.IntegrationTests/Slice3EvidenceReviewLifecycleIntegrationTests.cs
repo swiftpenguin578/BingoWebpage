@@ -46,8 +46,7 @@ public sealed class Slice3EvidenceReviewLifecycleIntegrationTests : IAsyncLifeti
         await using (var setup = new ApplicationDbContext(options))
         {
             setup.Add(admin);
-            AddSetup(setup, cancelled); AddSetup(setup, finalized); AddSetup(setup, archived); AddSetup(setup, live); AddSetup(setup, finalReview);
-            await setup.SaveChangesAsync();
+            await AddSetupAsync(setup, cancelled); await AddSetupAsync(setup, finalized); await AddSetupAsync(setup, archived); await AddSetupAsync(setup, live); await AddSetupAsync(setup, finalReview);
         }
 
         using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
@@ -117,23 +116,25 @@ public sealed class Slice3EvidenceReviewLifecycleIntegrationTests : IAsyncLifeti
             if (state is EventState.Finalized or EventState.Archived) item.FinalizeResults(now.AddHours(-12));
             if (state == EventState.Archived) item.Archive(now.AddHours(-11));
         }
-        var board = new Board(boardId, eventId, "Board", 1, 1); board.Publish(now.AddDays(-4));
+        var board = new Board(boardId, eventId, "Board", 1, 1);
         var submission = new Submission(submissionId, eventId, teamId, tileId, requirementId, null, participantId, adminId, 1, now.AddDays(-2), null, null);
         submission.Approve(1, now.AddDays(-2));
         return new(eventId, teamId, participantId, boardId, tileId, requirementId, submissionId, item, board, submission, adminId);
     }
 
-    private static void AddSetup(ApplicationDbContext db, ApprovedSetup setup)
+    private static async Task AddSetupAsync(ApplicationDbContext db, ApprovedSetup setup)
     {
         var character = new OsrsCharacter(Guid.NewGuid(), $"Player {setup.EventId:N}", $"PLAYER {setup.EventId:N}", DateTimeOffset.UtcNow);
+        var tile = new BoardTile(setup.TileId, setup.BoardId, Guid.NewGuid(), 0, 0, "Tile", "Description", "Evidence", 1);
+        var requirement = new BoardRequirementSnapshot(setup.RequirementId, setup.TileId, 0, 1, true, false, "Requirement", true);
         db.AddRange(setup.Event, new Team(setup.TeamId, setup.EventId, "Team", $"team-{setup.EventId:N}", TeamFormationType.Drafted, null, true),
             new EventParticipant(setup.ParticipantId, setup.EventId, SignupStatus.Confirmed, 1, DateTimeOffset.UtcNow, SignupSource.Website), character,
             new EventParticipantCharacter(Guid.NewGuid(), setup.EventId, setup.ParticipantId, character.Id, 0, DateTimeOffset.UtcNow, setup.AdminId, null, EventCharacterRole.Playing, 100, EhbSource.Manual, null),
-            setup.Board, new BoardTile(setup.TileId, setup.BoardId, Guid.NewGuid(), 0, 0, "Tile", "Description", "Evidence", 1),
-            new BoardRequirementSnapshot(setup.RequirementId, setup.TileId, 0, 1, true, false, "Requirement", true),
+            setup.Board, tile, requirement,
             new TeamMembership(Guid.NewGuid(), setup.TeamId, setup.ParticipantId, TeamMembershipRole.Participant, DateTimeOffset.UtcNow, null, null),
             setup.Submission, new SubmissionContribution(Guid.NewGuid(), setup.SubmissionId, setup.TeamId, setup.RequirementId, null, setup.ParticipantId, 1, DateTimeOffset.UtcNow),
             new ReviewAction(Guid.NewGuid(), setup.SubmissionId, ReviewActionType.Approve, setup.AdminId, DateTimeOffset.UtcNow, "Seeded", null, null));
+        await BoardApprovalFixture.PublishAsync(db, setup.Board, DateTimeOffset.UtcNow, [tile], [requirement]);
     }
 
     private static FormUrlEncodedContent Form(params (string Key, string Value)[] values) => new(values.ToDictionary(value => value.Key, value => value.Value));

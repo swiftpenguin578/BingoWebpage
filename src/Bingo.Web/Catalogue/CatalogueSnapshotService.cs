@@ -21,14 +21,12 @@ public sealed class CatalogueSnapshotService(ApplicationDbContext db, TimeProvid
         var bosses = await db.BossActivities.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
         var items = await db.CatalogueItems.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
         var drops = await db.SourceDrops.AsNoTracking().OrderBy(x => x.BossActivityId).ThenBy(x => x.ItemId).ToListAsync(cancellationToken);
-        var variants = await db.SourceDropRateVariants.AsNoTracking().OrderBy(x => x.SourceDropId).ThenBy(x => x.Position).ToListAsync(cancellationToken);
         var snapshot = new CatalogueSnapshot(
             1,
             DateTimeOffset.UtcNow,
             bosses.Select(x => new BossRecord(x.Id, x.Name, x.Slug, x.Category, x.EfficientCompletionsPerHour, x.ExternalIdentifier, x.DataSource, x.ImageUrl, x.Active, x.Notes)).ToArray(),
             items.Select(x => new ItemRecord(x.Id, x.Name, x.NormalizedName, x.ExternalIdentifier, x.ImageUrl, x.Active, x.Notes)).ToArray(),
-            drops.Select(x => new DropRecord(x.Id, x.BossActivityId, x.ItemId, x.DisplayRate, x.NumericProbability, x.RateConditionNote, x.DefaultEhbEstimate, x.ProbabilityScope, x.ConditionalOnParent, x.ParentProbability, x.AssumedParticipants, x.RollsPerCompletion, x.RollGroup, x.DataSource, x.Active)).ToArray(),
-            variants.Select(x => new VariantRecord(x.Id, x.SourceDropId, x.Position, x.Label, x.DisplayRate, x.NumericProbability, x.Condition)).ToArray());
+            drops.Select(x => new DropRecord(x.Id, x.BossActivityId, x.ItemId, x.DisplayRate, x.NumericProbability, x.RateConditionNote, x.DefaultEhbEstimate, x.ProbabilityScope, x.ConditionalOnParent, x.ParentProbability, x.AssumedParticipants, x.RollsPerCompletion, x.RollGroup, x.DataSource, x.Active)).ToArray());
 
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         await File.WriteAllTextAsync(path, JsonSerializer.Serialize(snapshot, JsonOptions) + Environment.NewLine, cancellationToken);
@@ -108,38 +106,18 @@ public sealed class CatalogueSnapshotService(ApplicationDbContext db, TimeProvid
         foreach (var drop in drops.Where(x => !appliedDropIds.Contains(x.Id))) drop.SetActive(false);
 
         await db.SaveChangesAsync(cancellationToken);
-        var variants = await db.SourceDropRateVariants.ToListAsync(cancellationToken);
-        foreach (var record in snapshot.Variants)
-        {
-            var sourceDropId = dropIds[record.SourceDropId];
-            var variant = variants.SingleOrDefault(x => x.SourceDropId == sourceDropId && x.Position == record.Position)
-                ?? variants.SingleOrDefault(x => x.Id == record.Id);
-            if (variant is null)
-            {
-                variant = new SourceDropRateVariant(record.Id, sourceDropId, record.Position, record.Label, record.DisplayRate, record.NumericProbability, record.Condition);
-                db.SourceDropRateVariants.Add(variant);
-                variants.Add(variant);
-            }
-            else
-            {
-                variant.Update(record.Position, record.Label, record.DisplayRate, record.NumericProbability, record.Condition);
-            }
-        }
-
-        await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return snapshot.Counts;
     }
 
-    public sealed record CatalogueSnapshot(int SchemaVersion, DateTimeOffset ExportedAt, BossRecord[] Bosses, ItemRecord[] Items, DropRecord[] Drops, VariantRecord[] Variants)
+    public sealed record CatalogueSnapshot(int SchemaVersion, DateTimeOffset ExportedAt, BossRecord[] Bosses, ItemRecord[] Items, DropRecord[] Drops)
     {
         [JsonIgnore]
-        public SnapshotCounts Counts => new(Bosses.Length, Items.Length, Drops.Length, Variants.Length);
+        public SnapshotCounts Counts => new(Bosses.Length, Items.Length, Drops.Length);
     }
 
     public sealed record BossRecord(Guid Id, string Name, string Slug, string Category, decimal? EfficientCompletionsPerHour, string? ExternalIdentifier, string? DataSource, string? ImageUrl, bool Active, string? Notes);
     public sealed record ItemRecord(Guid Id, string Name, string NormalizedName, string? ExternalIdentifier, string? ImageUrl, bool Active, string? Notes);
     public sealed record DropRecord(Guid Id, Guid BossActivityId, Guid ItemId, string DisplayRate, decimal? NumericProbability, string? RateConditionNote, decimal? DefaultEhbEstimate, DropProbabilityScope ProbabilityScope, bool ConditionalOnParent, decimal? ParentProbability, int AssumedParticipants, int RollsPerCompletion, string RollGroup, string? DataSource, bool Active);
-    public sealed record VariantRecord(Guid Id, Guid SourceDropId, int Position, string Label, string DisplayRate, decimal? NumericProbability, string? Condition);
-    public sealed record SnapshotCounts(int Bosses, int Items, int Drops, int Variants);
+    public sealed record SnapshotCounts(int Bosses, int Items, int Drops);
 }

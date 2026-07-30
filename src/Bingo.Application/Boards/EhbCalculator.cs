@@ -103,7 +103,12 @@ public static class EhbCalculator
         {
             var rates = group.Select(x => x.EfficientCompletionsPerHour!.Value).Distinct().ToList();
             if (rates.Count != 1) { valid = false; return result; }
-            result.Add(new BossRate(rates[0], group.Select(x => new RollRate(x.NumericProbability!.Value, outcome(x), x.RollsPerCompletion, x.RollGroup ?? "default")).ToList()));
+            result.Add(new BossRate(rates[0], group.Select(x =>
+            {
+                var rollGroup = string.IsNullOrWhiteSpace(x.RollGroup) ? "default" : x.RollGroup;
+                if (string.Equals(rollGroup, "default", StringComparison.OrdinalIgnoreCase)) rollGroup = $"default:{x.RollsPerCompletion}";
+                return new RollRate(x.NumericProbability!.Value, outcome(x), x.RollsPerCompletion, rollGroup);
+            }).ToList()));
         }
         return result;
     }

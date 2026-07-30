@@ -320,8 +320,7 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
 
         await using (var correction = new ApplicationDbContext(options))
         {
-            AddReadyBoardAndDraft(correction, eventId);
-            await correction.SaveChangesAsync();
+            await AddReadyBoardAndDraftAsync(correction, eventId);
 
             var readyPage = Manage(correction, admin, clock);
             Assert.IsType<PageResult>(await readyPage.OnGetAsync(eventId, CancellationToken.None));
@@ -413,9 +412,10 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
             var second = ReadyDraft(setup, secondId, "second-current", now.AddHours(-1), now.AddDays(3), now.AddDays(4));
             second.OpenSignups(now.AddHours(-2));
             second.CloseSignups(now.AddHours(-1));
-            AddReadyBoardAndDraft(setup, firstId);
-            AddReadyBoardAndDraft(setup, secondId);
             setup.Events.AddRange(first, second);
+            await setup.SaveChangesAsync();
+            await AddReadyBoardAndDraftAsync(setup, firstId);
+            await AddReadyBoardAndDraftAsync(setup, secondId);
             await setup.SaveChangesAsync();
         }
 
@@ -487,7 +487,8 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
                 item.OpenSignups(now.AddHours(-2));
                 item.CloseSignups(now.AddHours(-1));
                 setup.Events.Add(item);
-                AddReadyBoardAndDraft(setup, pair.Item1);
+                await setup.SaveChangesAsync();
+                await AddReadyBoardAndDraftAsync(setup, pair.Item1);
             }
             await setup.SaveChangesAsync();
         }
@@ -516,7 +517,8 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
             item.OpenSignups(now.AddHours(-2));
             item.CloseSignups(now.AddHours(-1));
             setup.AddRange(item, admin);
-            AddReadyBoardAndDraft(setup, eventId);
+            await setup.SaveChangesAsync();
+            await AddReadyBoardAndDraftAsync(setup, eventId);
             for (var index = 0; index < 10; index++)
                 setup.Teams.Add(new Team(Guid.NewGuid(), eventId, $"{new string((char)('A' + index), 120)}", $"rollback-team-{index}", TeamFormationType.Drafted, null, true));
             await setup.SaveChangesAsync();
@@ -602,15 +604,15 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
         db.AddRange(form, regular, captain);
     }
 
-    private void AddReadyBoardAndDraft(ApplicationDbContext db, Guid eventId)
+    private async Task AddReadyBoardAndDraftAsync(ApplicationDbContext db, Guid eventId)
     {
         var board = new Board(Guid.NewGuid(), eventId, "Published board", 1, 1);
-        board.Publish(now);
         var draft = new DraftSession(Guid.NewGuid(), eventId, 1);
         draft.Start(now.AddHours(-2));
         draft.Finalize(now.AddHours(-1));
         db.Boards.Add(board);
         db.DraftSessions.Add(draft);
+        await BoardApprovalFixture.PublishAsync(db, board, now);
     }
 
     private sealed class MutableTimeProvider(DateTimeOffset value) : TimeProvider

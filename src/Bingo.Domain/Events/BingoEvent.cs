@@ -361,6 +361,14 @@ public sealed class BingoEvent
         DraftResultsPublished = published;
     }
 
+    public void SetBoardPublication(bool published, DateTimeOffset now)
+    {
+        if (State is not (EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized))
+            throw new InvalidOperationException("Board publication is unavailable in this event state.");
+        BoardPublished = published;
+        if (published) MarkFirstPublic(now);
+    }
+
     private DateTimeOffset ActiveSubmissionCutoff()
     {
         var cutoff = ReopenedSubmissionCutoffAt is { } reopened && (SubmissionCutoffAt is null || reopened > SubmissionCutoffAt.Value) ? reopened : SubmissionCutoffAt;

@@ -43,6 +43,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         foreach (var entry in ChangeTracker.Entries<Team>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<TeamMembership>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<DraftSession>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
+        foreach (var entry in ChangeTracker.Entries<BossActivity>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
+        foreach (var entry in ChangeTracker.Entries<CatalogueItem>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
+        foreach (var entry in ChangeTracker.Entries<SourceDrop>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
     }
     public DbSet<SystemMetadata> SystemMetadata => Set<SystemMetadata>();
 
@@ -73,16 +76,21 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<BossActivity> BossActivities => Set<BossActivity>();
     public DbSet<CatalogueItem> CatalogueItems => Set<CatalogueItem>();
     public DbSet<SourceDrop> SourceDrops => Set<SourceDrop>();
-    public DbSet<SourceDropRateVariant> SourceDropRateVariants => Set<SourceDropRateVariant>();
     public DbSet<Board> Boards => Set<Board>();
     public DbSet<TileTemplate> TileTemplates => Set<TileTemplate>();
     public DbSet<TileTemplateRequirement> TileTemplateRequirements => Set<TileTemplateRequirement>();
     public DbSet<TemplateRequirementBoss> TemplateRequirementBosses => Set<TemplateRequirementBoss>();
     public DbSet<TemplateRequirementDrop> TemplateRequirementDrops => Set<TemplateRequirementDrop>();
     public DbSet<BoardTile> BoardTiles => Set<BoardTile>();
+    public DbSet<BoardTileImageAsset> BoardTileImageAssets => Set<BoardTileImageAsset>();
     public DbSet<BoardRequirementSnapshot> BoardRequirementSnapshots => Set<BoardRequirementSnapshot>();
     public DbSet<BoardRequirementBossSnapshot> BoardRequirementBossSnapshots => Set<BoardRequirementBossSnapshot>();
     public DbSet<BoardRequirementDropSnapshot> BoardRequirementDropSnapshots => Set<BoardRequirementDropSnapshot>();
+    public DbSet<BoardApprovalSnapshot> BoardApprovalSnapshots => Set<BoardApprovalSnapshot>();
+    public DbSet<BoardApprovalTileSnapshot> BoardApprovalTileSnapshots => Set<BoardApprovalTileSnapshot>();
+    public DbSet<BoardApprovalRequirementSnapshot> BoardApprovalRequirementSnapshots => Set<BoardApprovalRequirementSnapshot>();
+    public DbSet<BoardApprovalRequirementBossSnapshot> BoardApprovalRequirementBossSnapshots => Set<BoardApprovalRequirementBossSnapshot>();
+    public DbSet<BoardApprovalRequirementDropSnapshot> BoardApprovalRequirementDropSnapshots => Set<BoardApprovalRequirementDropSnapshot>();
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<TeamImageAsset> TeamImageAssets => Set<TeamImageAsset>();
     public DbSet<TeamMembership> TeamMemberships => Set<TeamMembership>();

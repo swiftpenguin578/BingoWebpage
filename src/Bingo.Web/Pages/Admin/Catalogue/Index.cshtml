@@ -57,10 +57,14 @@
         var searchText = $"{boss.Name} {boss.Category} {string.Join(" ", bossDrops.Select(x => x.ItemName))}".ToLowerInvariant();
         var missingRate = boss.EfficientRate is null or <= 0;
         var missingDropValues = bossDrops.Count(x => x.Active && (x.Probability is null or <= 0));
+        var isSelected = Model.BossId == boss.Id;
         <details class="panel catalogue-record @(!boss.Active ? "is-inactive" : null)"
+                 open="@isSelected"
                  data-boss-record
                  data-no-post-restore
                  data-boss-id="@boss.Id"
+                 data-editor-loaded="@isSelected.ToString().ToLowerInvariant()"
+                 data-editor-url="@Url.Page("/Admin/Catalogue/Index", new { bossId = boss.Id })"
                  data-category="@boss.Category.ToLowerInvariant()"
                  data-active="@boss.Active.ToString().ToLowerInvariant()"
                  data-search="@searchText">
@@ -89,6 +93,8 @@
                 <span class="catalogue-status @(boss.Active ? "is-active" : "is-inactive")">@(boss.Active ? "Active" : "Inactive")</span>
             </summary>
 
+            @if (isSelected)
+            {
             <div class="catalogue-record-body">
                 <div class="catalogue-boss-editor">
                     <div class="catalogue-editor-image">
@@ -109,6 +115,7 @@
                     </div>
                     <form method="post" asp-page-handler="UpdateBoss" class="catalogue-source-fields">
                         <input type="hidden" name="recordId" value="@boss.Id" />
+                        <input type="hidden" name="expectedVersion" value="@boss.Version" />
                         <div><label>Name</label><input name="name" value="@boss.Name" class="form-control" required /></div>
                         <div>
                             <label>Category</label>
@@ -144,8 +151,13 @@
                         <button type="button" class="btn btn-sm btn-outline-primary catalogue-add-action catalogue-compact-action add-boss-drop" data-boss-id="@boss.Id" data-boss-name="@boss.Name" data-boss-rate="@(boss.EfficientRate?.ToString(CultureInfo.InvariantCulture))">＋ Add drop</button>
                         <form method="post" asp-page-handler="ToggleBoss" class="catalogue-toggle-form" data-confirm="@(boss.Active ? $"Deactivate {boss.Name}? It will remain in the catalogue and can be reactivated later." : null)">
                             <input type="hidden" name="recordId" value="@boss.Id" />
+                            <input type="hidden" name="expectedVersion" value="@boss.Version" />
                             <button class="btn btn-sm catalogue-compact-action @(boss.Active ? "btn-outline-danger" : "btn-outline-light")">@(boss.Active ? "Deactivate" : "Reactivate")</button>
                         </form>
+                        @if (User.IsInRole("SuperAdmin"))
+                        {
+                            <form method="post" asp-page-handler="Delete" class="catalogue-toggle-form"><input type="hidden" name="recordType" value="boss" /><input type="hidden" name="recordId" value="@boss.Id" /><input type="hidden" name="expectedVersion" value="@boss.Version" /><input name="confirmation" class="form-control" placeholder="Type DELETE" required /><button class="btn btn-sm btn-outline-danger">Delete permanently</button></form>
+                        }
                     </div>
                 </div>
 
@@ -182,6 +194,7 @@
                             </header>
                             <form method="post" asp-page-handler="UpdateDrop" class="catalogue-drop-edit-form" id="drop-edit-@drop.Id">
                                 <input type="hidden" name="recordId" value="@drop.Id" />
+                                <input type="hidden" name="expectedVersion" value="@drop.Version" />
                                 <input type="hidden" name="useExistingItem" value="false" data-use-existing-item />
                                 <input type="hidden" name="originalDisplayRate" value="@drop.DisplayRate" />
                                 <input type="hidden" name="originalNumericProbability" value="@(drop.Probability?.ToString("0.############", CultureInfo.InvariantCulture))" />
@@ -207,38 +220,26 @@
                                         <div><label>Rolls per completion</label><input name="rollsPerCompletion" value="@drop.RollsPerCompletion" class="form-control" type="number" min="1" max="100" /></div>
                                         <div><label>Roll group</label><input name="rollGroup" value="@drop.RollGroup" class="form-control" maxlength="120" /></div>
                                     </div>
-                                    @if (drop.RateVariants.Count > 1)
-                                    {
-                                        <div class="catalogue-rate-variants">
-                                            <strong>Drop-rate variants</strong>
-                                            @foreach (var variant in drop.RateVariants)
-                                            {
-                                                <div class="catalogue-rate-variant">
-                                                    <span>@variant.Label</span>
-                                                    <span>@variant.DisplayRate</span>
-                                                    @if (!string.IsNullOrWhiteSpace(variant.Condition))
-                                                    {
-                                                        <small>@variant.Condition</small>
-                                                    }
-                                                </div>
-                                            }
-                                            <small>These conditional rates are kept separately instead of being combined into one misleading probability.</small>
-                                        </div>
-                                    }
                                 </details>
                             </form>
                             <div class="catalogue-drop-card-actions">
                                 <button class="btn btn-sm btn-outline-light catalogue-compact-action" type="submit" form="drop-edit-@drop.Id">Save changes</button>
                                 <form method="post" asp-page-handler="ToggleDrop" class="catalogue-drop-toggle" data-confirm="@(drop.Active ? $"Deactivate {drop.ItemName}? It can be reactivated later." : null)">
                                     <input type="hidden" name="recordId" value="@drop.Id" />
+                                    <input type="hidden" name="expectedVersion" value="@drop.Version" />
                                     <button class="btn btn-sm catalogue-compact-action @(drop.Active ? "btn-outline-danger" : "btn-outline-light")">@(drop.Active ? "Deactivate drop" : "Reactivate drop")</button>
                                 </form>
+                                @if (User.IsInRole("SuperAdmin"))
+                                {
+                                    <form method="post" asp-page-handler="Delete" class="catalogue-drop-toggle"><input type="hidden" name="recordType" value="drop" /><input type="hidden" name="recordId" value="@drop.Id" /><input type="hidden" name="expectedVersion" value="@drop.Version" /><input name="confirmation" class="form-control" placeholder="Type DELETE" required /><button class="btn btn-sm btn-outline-danger">Delete permanently</button></form>
+                                }
                             </div>
                         </article>
                     }
                     </div>
                 }
             </div>
+            }
         </details>
     }
     </div>
@@ -320,12 +321,10 @@
     try { savedState = JSON.parse(sessionStorage.getItem(storageKey) || '{}'); } catch { }
     search.value = savedState.search || '';
     activeFilter = savedState.filter || 'all';
-    records.forEach(record => { record.open = record.dataset.bossId === savedState.restoreOpenBossId; });
 
-    const saveCatalogueState = restoreOpenBossId => sessionStorage.setItem(storageKey, JSON.stringify({
+    const saveCatalogueState = () => sessionStorage.setItem(storageKey, JSON.stringify({
         search: search.value,
-        filter: activeFilter,
-        ...(restoreOpenBossId ? { restoreOpenBossId } : {})
+        filter: activeFilter
     }));
 
     function applyFilters() {
@@ -352,10 +351,26 @@
 
     search.addEventListener('input', applyFilters);
     filters.forEach(button => button.addEventListener('click', () => { activeFilter = button.dataset.catalogueFilter; applyFilters(); }));
-    document.querySelectorAll('[data-boss-record] form').forEach(form => form.addEventListener('submit', () => {
-        const record = form.closest('[data-boss-record]');
-        saveCatalogueState(record?.dataset.bossId);
+    records.forEach(record => record.addEventListener('toggle', () => {
+        if (record.open && record.dataset.editorLoaded !== 'true') location.assign(record.dataset.editorUrl);
     }));
+    document.querySelectorAll('[data-boss-record] form').forEach(form => form.addEventListener('submit', saveCatalogueState));
+
+    const currentParameters = new URLSearchParams(location.search);
+    document.querySelectorAll('form[method="post"]').forEach(form => {
+        const action = new URL(form.action || location.href, location.href);
+        for (const name of ['bossId', 'itemPage']) {
+            if (currentParameters.has(name)) action.searchParams.set(name, currentParameters.get(name));
+        }
+        form.action = action.href;
+        form.querySelectorAll('[formaction]').forEach(submitter => {
+            const submitAction = new URL(submitter.getAttribute('formaction'), location.href);
+            for (const name of ['bossId', 'itemPage']) {
+                if (currentParameters.has(name)) submitAction.searchParams.set(name, currentParameters.get(name));
+            }
+            submitter.setAttribute('formaction', submitAction.href);
+        });
+    });
     applyFilters();
 
     const bossDialog = document.getElementById('add-boss-dialog');

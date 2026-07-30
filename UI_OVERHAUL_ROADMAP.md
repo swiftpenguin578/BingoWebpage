@@ -547,7 +547,7 @@ Before resuming the ordered passes:
 - After this page is approved, import the matching OSRS Wiki images for the existing catalogue and replace the temporary image placeholders.
 - Catalogue images may be supplied by URL or uploaded from a device. Store only the resulting image URL/storage key in PostgreSQL; local development uses local object storage and production uses Cloudflare R2 rather than storing image bytes in the database.
 - Rebuild the seeded catalogue from a reviewed OSRS Wiki dry-run: preserve boss names and clan EHB rates, replace seeded drop rows with selected special/unique rewards, retain Wiki images and attribution, and require manual review for conditional or variable rates.
-- Before applying the reviewed Wiki import, add structured per-drop rate variants (label/context, displayed rate, numeric probability and condition) so delve, raid-scale and other conditional rates are not flattened into one misleading value.
+- Before applying the reviewed Wiki import, retain one authoritative displayed rate/probability per source drop and record applicable assumptions in the source-drop note; distinct drops remain distinct records.
 - After the Wiki catalogue pull is complete, add a duplicate-name correction flow. If an item is renamed to an existing shared item, show a confirmation popup that can move the boss-specific drop connection and rate data to the existing item, then remove the misspelled item only when it is no longer used.
 
 **Approval gate**
@@ -577,9 +577,9 @@ Do not add tile duplication, copy-from-event, import, or reusable-template actio
 - Make drag-on-tile swapping feel immediate without a disruptive full-page refresh.
 - Preserve an accessible non-drag alternative for keyboard and touch users.
 - Keep row/column hover highlighting, EHB values, total EHB, EHB per expected player, and balancing warnings readable.
-- While the board is Draft, derive catalogue-backed names, images, rates, variants, and all EHB estimates from the current catalogue and refresh affected values after catalogue changes.
+- While the board is Draft, derive catalogue-backed names, images, source-drop rates, and all EHB estimates from the current catalogue and refresh affected values after catalogue changes.
 - Make **Approve board** the visible snapshot boundary. Approved values remain frozen despite later catalogue edits; unapproval or competitive editing returns the board to Draft and resumes live derivation.
-- Retain **Preview board** inside the editor. It must use the actual responsive public-board renderer, show live derived values while Draft and the frozen active snapshot while approved, omit admin-only editing/EHB controls, and never approve or publish.
+- Retain **Preview board** inside the editor. It must use the actual responsive public-board renderer, show live derived values while Draft and the frozen active snapshot while approved, omit admin-only editing/EHB controls, and never approve or publish. Slice 6 manually accepted its navigation/functionality, but the current independent preview pages do not yet match/reuse the established public **View bingo** Board composition; resolve that visual parity in this UI-overhaul pass.
 - Review the tile EHB calculations themselves, not only how the values are displayed.
 - Verify EHB behavior for quantities, multiple bosses, combined drop selections, duplicate restrictions, weighted drops, manual objectives, and requirement groups such as Voidwaker pieces and Barrows plus Moons.
 - Make it clear which catalogue boss rates and drop probabilities produced a standard tile's automatic EHB. A missing value is a blocking error with actionable catalogue/requirement diagnostics, never a manual-override field. Only a clearly labelled custom/manual objective exposes manual EHB entry.

@@ -1,0 +1,34 @@
+@page "{id:guid}/Preview/{teamSlug?}/{tileId:guid?}"
+@model Bingo.Web.Pages.Admin.Events.BoardPreviewModel
+@{
+    ViewData["Title"] = "Board preview";
+    ViewData["HideBreadcrumbs"] = true;
+    ViewData["CompactNavigation"] = true;
+    ViewData["BodyClass"] = "public-event-shell";
+}
+<section class="public-event-dashboard" aria-label="Private board preview">
+    <div class="public-dashboard-masthead"><header class="public-dashboard-hero"><div class="public-event-mark" aria-hidden="true">▦</div><div class="public-dashboard-title"><h1>@Model.EventName</h1><p>Private preview · demonstration data only</p></div></header></div>
+    @if (Model.SelectedTeam is null)
+    {
+        <section class="public-dashboard-view mission-control-view" aria-label="Demonstration team boards">
+            <div class="mission-grid">
+                @foreach (var team in Model.Teams)
+                {
+                    <a class="mission-team-card panel" asp-page="BoardPreview" asp-route-id="@RouteData.Values["id"]" asp-route-teamSlug="@team.Slug"><header><span class="rank-medallion rank-@team.Rank">#@team.Rank</span><span class="mission-team-identity"><strong>@team.Name</strong></span></header><div class="mini-board" style="--public-board-columns:@Model.Columns; --public-board-rows:@Model.Rows">@foreach (var tile in Model.Tiles) { <span class="mini-tile @(tile.Approved >= tile.Target ? "complete" : tile.Approved > 0 ? "in-progress" : null)" title="@tile.Name: @tile.Approved/@tile.Target"><span class="visually-hidden">@tile.Name @tile.Approved of @tile.Target</span></span> }</div><footer><span>@team.Summary</span></footer></a>
+                }
+            </div>
+            <aside class="panel stats-panel" aria-label="Demonstration board statistics"><div class="board-panel-heading"><div><span class="eyebrow">Preview</span><h2>Board statistics</h2></div><span>Example only</span></div><dl><div><dt>Completed tiles</dt><dd>4</dd></div><div><dt>Players per team</dt><dd>5</dd></div><div><dt>Progress today</dt><dd>7 completions</dd></div><div><dt>Average tile</dt><dd>2 contributions</dd></div><div><dt>Fastest line</dt><dd>2 tiles away</dd></div></dl></aside>
+        </section>
+    }
+    else if (Model.SelectedTile is null)
+    {
+        <section class="public-team-board" style="--public-board-columns:@Model.Columns" aria-label="@Model.SelectedTeam.Name demonstration board">
+            <header class="public-team-masthead"><a class="public-team-back" asp-page="BoardPreview" asp-route-id="@RouteData.Values["id"]">← View all preview teams</a><div class="public-team-heading"><div class="rank-medallion rank-@Model.SelectedTeam.Rank">#@Model.SelectedTeam.Rank</div><div><p class="feature-kicker">@Model.EventName</p><h2>@Model.SelectedTeam.Name</h2><p>Demonstration board · no event data is changed</p></div></div></header>
+            <div class="public-board-scroll auto-hide-scrollbar" tabindex="0" aria-label="@Model.SelectedTeam.Name demonstration board"><div class="public-full-board">@foreach (var tile in Model.Tiles) { var percent = tile.Target == 0 ? 0 : Math.Min(100, tile.Approved * 100 / tile.Target); <a class="public-tile panel @(tile.Approved >= tile.Target ? "complete" : tile.Approved > 0 ? "in-progress" : null)" asp-page="BoardPreview" asp-route-id="@RouteData.Values["id"]" asp-route-teamSlug="@Model.SelectedTeam.Slug" asp-route-tileId="@tile.Id"><span class="public-tile-art" aria-hidden="true"><span class="tile-art-placeholder">▦</span></span><span class="public-tile-copy"><span class="tile-position">R@(tile.Row + 1) · C@(tile.Column + 1)</span><strong>@tile.Name</strong><span class="public-tile-progress-row"><span class="tile-progress" aria-hidden="true"><span style="width:@percent%"></span></span><span>@tile.Approved/@tile.Target</span></span></span></a> }</div></div>
+        </section>
+    }
+    else
+    {
+        <section class="public-team-board" aria-label="Preview tile details"><header class="public-team-masthead"><a class="public-team-back" asp-page="BoardPreview" asp-route-id="@RouteData.Values["id"]" asp-route-teamSlug="@Model.SelectedTeam.Slug">← Back to @Model.SelectedTeam.Name</a><div class="public-team-heading"><div><p class="feature-kicker">Private preview · demonstration data only</p><h2>@Model.SelectedTile.Name</h2><p>@Model.SelectedTile.Approved of @Model.SelectedTile.Target demonstration contributions approved.</p></div></div></header></section>
+    }
+</section>

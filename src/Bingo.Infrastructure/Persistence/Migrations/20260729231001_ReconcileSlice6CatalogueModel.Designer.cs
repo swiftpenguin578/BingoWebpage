@@ -3,6 +3,7 @@ using System;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Bingo.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260729231001_ReconcileSlice6CatalogueModel")]
+    partial class ReconcileSlice6CatalogueModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -538,10 +541,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("published_at");
 
-                    b.Property<bool>("PublishedCorrectionInProgress")
-                        .HasColumnType("boolean")
-                        .HasColumnName("published_correction_in_progress");
-
                     b.Property<int>("Rows")
                         .HasColumnType("integer")
                         .HasColumnName("rows");
@@ -570,6 +569,59 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("boards", (string)null);
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Boards.BoardApprovalRateVariantSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ApprovalRequirementDropSnapshotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approval_requirement_drop_snapshot_id");
+
+                    b.Property<long>("CatalogueVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("catalogue_version");
+
+                    b.Property<string>("Condition")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("condition");
+
+                    b.Property<string>("DisplayRate")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("display_rate");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("label");
+
+                    b.Property<decimal?>("NumericProbability")
+                        .HasPrecision(18, 12)
+                        .HasColumnType("numeric(18,12)")
+                        .HasColumnName("numeric_probability");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
+                    b.Property<Guid>("RateVariantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("rate_variant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovalRequirementDropSnapshotId", "RateVariantId")
+                        .IsUnique();
+
+                    b.ToTable("board_approval_rate_variant_snapshots", (string)null);
                 });
 
             modelBuilder.Entity("Bingo.Domain.Boards.BoardApprovalRequirementBossSnapshot", b =>
@@ -701,7 +753,8 @@ namespace Bingo.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ApprovalRequirementSnapshotId", "SourceDropId");
+                    b.HasIndex("ApprovalRequirementSnapshotId", "SourceDropId")
+                        .IsUnique();
 
                     b.ToTable("board_approval_requirement_drop_snapshots", (string)null);
                 });
@@ -1043,10 +1096,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<Guid?>("ActiveImageAssetId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("active_image_asset_id");
-
                     b.Property<Guid>("BoardId")
                         .HasColumnType("uuid")
                         .HasColumnName("board_id");
@@ -1093,82 +1142,10 @@ namespace Bingo.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ActiveImageAssetId");
-
                     b.HasIndex("BoardId", "RowIndex", "ColumnIndex")
                         .IsUnique();
 
                     b.ToTable("board_tiles", (string)null);
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Boards.BoardTileImageAsset", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("BoardTileId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("board_tile_id");
-
-                    b.Property<long>("ByteSize")
-                        .HasColumnType("bigint")
-                        .HasColumnName("byte_size");
-
-                    b.Property<string>("Checksum")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("checksum");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("event_id");
-
-                    b.Property<int>("Height")
-                        .HasColumnType("integer")
-                        .HasColumnName("height");
-
-                    b.Property<string>("MediaType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("media_type");
-
-                    b.Property<string>("OriginalFilename")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("original_filename");
-
-                    b.Property<DateTimeOffset?>("ReplacedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("replaced_at");
-
-                    b.Property<string>("StorageKey")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("storage_key");
-
-                    b.Property<DateTimeOffset>("UploadedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("uploaded_at");
-
-                    b.Property<Guid>("UploadedByAccountId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("uploaded_by_account_id");
-
-                    b.Property<int>("Width")
-                        .HasColumnType("integer")
-                        .HasColumnName("width");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BoardTileId", "ReplacedAt");
-
-                    b.ToTable("board_tile_image_assets", (string)null);
                 });
 
             modelBuilder.Entity("Bingo.Domain.Boards.TemplateRequirementBoss", b =>
@@ -1547,6 +1524,62 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("source_drops", (string)null);
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Catalogue.SourceDropRateVariant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("active");
+
+                    b.Property<string>("Condition")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("condition");
+
+                    b.Property<string>("DisplayRate")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("display_rate");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("label");
+
+                    b.Property<decimal?>("NumericProbability")
+                        .HasPrecision(18, 12)
+                        .HasColumnType("numeric(18,12)")
+                        .HasColumnName("numeric_probability");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
+                    b.Property<Guid>("SourceDropId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_drop_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceDropId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("source_drop_rate_variants", (string)null);
                 });
 
             modelBuilder.Entity("Bingo.Domain.Events.BingoEvent", b =>
@@ -3445,6 +3478,15 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("Bingo.Domain.Boards.BoardApprovalRateVariantSnapshot", b =>
+                {
+                    b.HasOne("Bingo.Domain.Boards.BoardApprovalRequirementDropSnapshot", null)
+                        .WithMany()
+                        .HasForeignKey("ApprovalRequirementDropSnapshotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Bingo.Domain.Boards.BoardApprovalRequirementBossSnapshot", b =>
                 {
                     b.HasOne("Bingo.Domain.Boards.BoardApprovalRequirementSnapshot", null)
@@ -3492,23 +3534,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("ApprovalSnapshotId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Boards.BoardTile", b =>
-                {
-                    b.HasOne("Bingo.Domain.Boards.BoardTileImageAsset", null)
-                        .WithMany()
-                        .HasForeignKey("ActiveImageAssetId")
-                        .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Boards.BoardTileImageAsset", b =>
-                {
-                    b.HasOne("Bingo.Domain.Boards.BoardTile", null)
-                        .WithMany()
-                        .HasForeignKey("BoardTileId")
-                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

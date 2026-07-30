@@ -13,16 +13,22 @@ public sealed class Board
     public decimal TotalEhbEstimate { get; private set; }
     public int CalculationVersion { get; private set; }
     public long Version { get; private set; }
+    // The current immutable approval record. A null pointer means this board is still
+    // derived from its draft data and has no approval that may be published.
+    public Guid? ActiveApprovalSnapshotId { get; private set; }
+    // A published board keeps serving ActiveApprovalSnapshotId while an administrator
+    // prepares a replacement. The mutable board rows are the private working copy.
+    public bool PublishedCorrectionInProgress { get; private set; }
     public Guid? EditorAccountId { get; private set; }
     public DateTimeOffset? EditorLeaseExpiresAt { get; private set; }
     public long EditControlVersion { get; private set; }
-    public void Resize(int rows, int columns, int placedTileCount) { EnsureDraft(); ValidateDimensions(rows, columns); if (placedTileCount > rows * columns) throw new InvalidOperationException($"Remove {placedTileCount - rows * columns} tile(s) before shrinking the board."); Rows = rows; Columns = columns; }
+    public void Resize(int rows, int columns, int placedTileCount) { EnsureEditable(); ValidateDimensions(rows, columns); if (placedTileCount > rows * columns) throw new InvalidOperationException($"Remove {placedTileCount - rows * columns} tile(s) before shrinking the board."); Rows = rows; Columns = columns; }
     public void SetTotalEhb(decimal total) => TotalEhbEstimate = total;
     public void MarkChanged() => Version++;
     public bool HasActiveEditor(DateTimeOffset now) => EditorAccountId is not null && EditorLeaseExpiresAt > now.ToUniversalTime();
     public Guid? AcquireEditing(Guid accountId, DateTimeOffset now, TimeSpan leaseDuration, bool force = false)
     {
-        EnsureDraft();
+        EnsureEditable();
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(leaseDuration, TimeSpan.Zero);
         var at = now.ToUniversalTime();
         var previous = HasActiveEditor(at) ? EditorAccountId : null;
@@ -49,7 +55,48 @@ public sealed class Board
         EditorLeaseExpiresAt = null;
         EditControlVersion++;
     }
-    public void Publish(DateTimeOffset now) { EnsureDraft(); State = BoardState.Published; PublishedAt = now.ToUniversalTime(); }
-    private void EnsureDraft() { if (State != BoardState.Draft) throw new InvalidOperationException("Published boards cannot be edited normally."); }
+    public bool IsEditable => State is BoardState.Draft or BoardState.Validated || State == BoardState.Published && PublishedCorrectionInProgress;
+    public void Approve(Guid approvalSnapshotId)
+    {
+        if (State != BoardState.Draft || ActiveApprovalSnapshotId is not null)
+            throw new InvalidOperationException("Only an unapproved private draft can be approved.");
+        ActiveApprovalSnapshotId = approvalSnapshotId;
+        State = BoardState.Validated;
+        MarkChanged();
+    }
+    public void Unapprove()
+    {
+        if (State != BoardState.Validated || ActiveApprovalSnapshotId is null)
+            throw new InvalidOperationException("This board is not currently approved.");
+        ActiveApprovalSnapshotId = null;
+        State = BoardState.Draft;
+        MarkChanged();
+    }
+    public void Publish(DateTimeOffset now)
+    {
+        if (State != BoardState.Validated || ActiveApprovalSnapshotId is null)
+            throw new InvalidOperationException("Only an approved private board can be published.");
+        State = BoardState.Published;
+        PublishedAt = now.ToUniversalTime();
+        MarkChanged();
+    }
+    public void ReplacePublishedApproval(Guid approvalSnapshotId)
+    {
+        if (State != BoardState.Published || approvalSnapshotId == Guid.Empty)
+            throw new InvalidOperationException("Only a published board can receive a corrected approval snapshot.");
+        ActiveApprovalSnapshotId = approvalSnapshotId;
+        PublishedCorrectionInProgress = false;
+        MarkChanged();
+    }
+    public void BeginPublishedCorrection()
+    {
+        if (State != BoardState.Published || ActiveApprovalSnapshotId is null)
+            throw new InvalidOperationException("Only a published board can be corrected here.");
+        if (PublishedCorrectionInProgress)
+            throw new InvalidOperationException("A published board correction is already in progress.");
+        PublishedCorrectionInProgress = true;
+        MarkChanged();
+    }
+    private void EnsureEditable() { if (!IsEditable) throw new InvalidOperationException("Published boards cannot be edited normally."); }
     private static void ValidateDimensions(int rows, int columns) { ArgumentOutOfRangeException.ThrowIfLessThan(rows, 1); ArgumentOutOfRangeException.ThrowIfGreaterThan(rows, 8); ArgumentOutOfRangeException.ThrowIfLessThan(columns, 1); ArgumentOutOfRangeException.ThrowIfGreaterThan(columns, 8); }
 }

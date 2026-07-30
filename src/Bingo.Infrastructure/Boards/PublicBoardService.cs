@@ -18,26 +18,36 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
         if (bingoEvent.State == EventState.Discarded || bingoEvent.State == EventState.Cancelled && (bingoEvent.FirstPublicAt is null || !bingoEvent.BoardPublished)) return null;
         var board = await db.Boards.AsNoTracking().SingleOrDefaultAsync(value => value.EventId == bingoEvent.Id && value.State == BoardState.Published, cancellationToken);
         if (board is null) return null;
+        if (board.ActiveApprovalSnapshotId is not { } approvalId) return null;
+        var approval = await db.BoardApprovalSnapshots.AsNoTracking().SingleOrDefaultAsync(value => value.Id == approvalId && value.BoardId == board.Id, cancellationToken);
+        if (approval is null) return null;
         var teams = await db.Teams.AsNoTracking().Where(value => value.EventId == bingoEvent.Id && value.Active && value.FinalizedAt != null).OrderBy(value => value.Name).ToListAsync(cancellationToken);
         if (teams.Count == 0) return null;
 
-        var tiles = await db.BoardTiles.AsNoTracking().Where(value => value.BoardId == board.Id).OrderBy(value => value.RowIndex).ThenBy(value => value.ColumnIndex).ToListAsync(cancellationToken);
-        var tileIds = tiles.Select(value => value.Id).ToList();
-        var requirements = await db.BoardRequirementSnapshots.AsNoTracking().Where(value => tileIds.Contains(value.BoardTileId)).OrderBy(value => value.Position).ToListAsync(cancellationToken);
-        var requirementIds = requirements.Select(value => value.Id).ToList();
-        var bossArtwork = await (from snapshot in db.BoardRequirementBossSnapshots.AsNoTracking()
-                                 join boss in db.BossActivities.AsNoTracking() on snapshot.BossActivityId equals boss.Id
-                                 where requirementIds.Contains(snapshot.RequirementId) && boss.ImageUrl != null
-                                 select new { snapshot.RequirementId, BossName = boss.Name, boss.ImageUrl }).ToListAsync(cancellationToken);
-        var artworkByRequirement = bossArtwork
-            .Select(value => new { value.RequirementId, value.BossName, ImageUrl = OsrsWikiImageUrl.Normalize(value.ImageUrl) })
-            .Where(value => !string.IsNullOrWhiteSpace(value.ImageUrl))
-            .GroupBy(value => value.RequirementId)
-            .ToDictionary(group => group.Key, group => group
-                .GroupBy(value => BossArtworkFamily.Key(value.BossName), StringComparer.OrdinalIgnoreCase)
-                .Select(family => family.OrderBy(value => BossArtworkFamily.Priority(value.BossName)).ThenBy(value => value.BossName).First().ImageUrl!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList());
+        var frozenTileRows = await db.BoardApprovalTileSnapshots.AsNoTracking()
+            .Where(value => value.ApprovalSnapshotId == approvalId)
+            .OrderBy(value => value.RowIndex).ThenBy(value => value.ColumnIndex)
+            .ToListAsync(cancellationToken);
+        if (frozenTileRows.Count != approval.Rows * approval.Columns ||
+            frozenTileRows.Select(value => (value.RowIndex, value.ColumnIndex)).Distinct().Count() != frozenTileRows.Count) return null;
+        var frozenTiles = frozenTileRows.ToDictionary(value => value.BoardTileId);
+        var frozenTilesByApprovalId = frozenTileRows.ToDictionary(value => value.Id);
+        var frozenArtworkTileIds = frozenTiles.Values.Where(value => !string.IsNullOrWhiteSpace(value.ArtworkReference)).Select(value => value.BoardTileId).ToList();
+        var frozenArtworkTiles = frozenArtworkTileIds.Count == 0
+            ? new HashSet<Guid>()
+            : await (from tile in db.BoardApprovalTileSnapshots.AsNoTracking()
+                     join image in db.BoardTileImageAssets.AsNoTracking() on tile.BoardTileId equals image.BoardTileId
+                     where tile.ApprovalSnapshotId == approvalId && tile.ArtworkReference != null &&
+                           image.EventId == bingoEvent.Id && image.StorageKey == tile.ArtworkReference
+                     select tile.BoardTileId).ToHashSetAsync(cancellationToken);
+        var frozenRequirements = await db.BoardApprovalRequirementSnapshots.AsNoTracking().Where(value => value.ApprovalTileSnapshotId != Guid.Empty && value.BoardRequirementSnapshotId != Guid.Empty)
+            .Join(db.BoardApprovalTileSnapshots.AsNoTracking().Where(value => value.ApprovalSnapshotId == approvalId), requirement => requirement.ApprovalTileSnapshotId, tile => tile.Id, (requirement, _) => requirement)
+            .ToDictionaryAsync(value => value.BoardRequirementSnapshotId, cancellationToken);
+        if (frozenRequirements.Count == 0 || frozenRequirements.Values.Any(value => !frozenTilesByApprovalId.ContainsKey(value.ApprovalTileSnapshotId))) return null;
+        var requirementIds = frozenRequirements.Keys.ToList();
+        // Public board wording/rates must be read from the immutable approval tree.
+        // Boss artwork has no immutable snapshot field, so it is intentionally omitted
+        // rather than consulting a mutable catalogue row after publication.
         var teamIds = teams.Select(value => value.Id).ToList();
         var rosterRows = await (from membership in db.TeamMemberships.AsNoTracking()
                                 join player in db.PrimaryCharacters().AsNoTracking() on membership.EventParticipantId equals player.ParticipantId
@@ -50,12 +60,16 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
                                       where teamIds.Contains(contribution.TeamId) && requirementIds.Contains(contribution.RequirementId) &&
                                             contribution.ReversedAt == null && submission.Status == SubmissionStatus.Approved
                                       select new { contribution, submission, player }).ToListAsync(cancellationToken);
-        var tileByRequirement = requirements.ToDictionary(value => value.Id, value => tiles.Single(tile => tile.Id == value.BoardTileId));
-        var requirementTargetByTile = requirements.GroupBy(value => value.BoardTileId).ToDictionary(group => group.Key, group => Math.Max(1, group.Sum(value => value.TargetContribution)));
-        var definitions = tiles.Select(tile => new ProgressTileDefinition(
-            tile.Id, tile.RowIndex, tile.ColumnIndex, tile.EstimatedEhbSnapshot,
-            requirements.Where(requirement => requirement.BoardTileId == tile.Id)
-                .Select(requirement => new ProgressRequirementDefinition(requirement.Id, requirement.Position, requirement.TargetContribution)).ToList())).ToList();
+        var tileByRequirement = frozenRequirements.ToDictionary(
+            value => value.Key,
+            value => frozenTilesByApprovalId[value.Value.ApprovalTileSnapshotId].BoardTileId);
+        var requirementTargetByTile = frozenRequirements.Values
+            .GroupBy(value => frozenTilesByApprovalId[value.ApprovalTileSnapshotId].BoardTileId)
+            .ToDictionary(group => group.Key, group => Math.Max(1, group.Sum(value => value.TargetContribution)));
+        var definitions = frozenTileRows.Select(tile => new ProgressTileDefinition(
+            tile.BoardTileId, tile.RowIndex, tile.ColumnIndex, tile.EstimatedEhb,
+            frozenRequirements.Values.Where(requirement => requirement.ApprovalTileSnapshotId == tile.Id)
+                .Select(requirement => new ProgressRequirementDefinition(requirement.BoardRequirementSnapshotId, requirement.Position, requirement.TargetContribution)).ToList())).ToList();
 
         var unranked = teams.Select(team =>
         {
@@ -66,15 +80,16 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
                 .ThenBy(row => row.contribution.Id)
                 .Select(row =>
             {
-                var tile = tileByRequirement[row.contribution.RequirementId];
-                var tileTarget = requirementTargetByTile[tile.Id];
-                var creditedBefore = creditedByTile.GetValueOrDefault(tile.Id);
+                var tileId = tileByRequirement[row.contribution.RequirementId];
+                var tileTarget = requirementTargetByTile[tileId];
+                var creditedBefore = creditedByTile.GetValueOrDefault(tileId);
                 var creditedAfter = Math.Min(tileTarget, creditedBefore + row.contribution.Amount);
-                var estimatedBefore = tile.EstimatedEhbSnapshot * creditedBefore / tileTarget;
+                var frozenTile = frozenTiles[tileId];
+                var estimatedBefore = frozenTile.EstimatedEhb * creditedBefore / tileTarget;
                 var estimatedAfter = creditedAfter == tileTarget
-                    ? tile.EstimatedEhbSnapshot
-                    : tile.EstimatedEhbSnapshot * creditedAfter / tileTarget;
-                creditedByTile[tile.Id] = creditedAfter;
+                    ? frozenTile.EstimatedEhb
+                    : frozenTile.EstimatedEhb * creditedAfter / tileTarget;
+                creditedByTile[tileId] = creditedAfter;
                 return new ProgressContribution(
                     row.contribution.Id, row.contribution.RequirementId, row.player.ParticipantId, row.player.Name,
                     row.contribution.Amount, row.submission.SubmittedAt,
@@ -100,7 +115,7 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
             ? new Dictionary<Guid, int>()
             : await db.OfficialPlacements.AsNoTracking().Where(value => value.FinalizationId == activeFinalization.Id).ToDictionaryAsync(value => value.TeamId, value => value.Placement, cancellationToken);
         var teamMap = teams.ToDictionary(value => value.Id);
-        var tileMap = tiles.ToDictionary(value => value.Id);
+        var tileMap = frozenTiles;
         var publicTeams = ranked.Select(value =>
         {
             var team = teamMap[value.TeamId];
@@ -110,15 +125,10 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
                 displayedRank, displayedRank == 1 && value.Progress.BoardComplete, value.Progress,
                 value.Progress.Tiles.Select(progress =>
                 {
-                    var tile = tileMap[progress.Id];
-                    var bossImageUrls = requirements.Where(requirement => requirement.BoardTileId == tile.Id)
-                        .SelectMany(requirement => artworkByRequirement.GetValueOrDefault(requirement.Id) ?? [])
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .Take(4)
-                        .ToList();
-                    return new PublicTileProgress(tile.Id, tile.RowIndex, tile.ColumnIndex, tile.NameSnapshot,
-                        tile.DescriptionSnapshot, OsrsWikiImageUrl.Normalize(tile.ImageUrlSnapshot), bossImageUrls,
-                        tile.EstimatedEhbSnapshot, progress.Approved, progress.Target,
+                    var frozen = tileMap[progress.Id];
+                    return new PublicTileProgress(frozen.BoardTileId, frozen.RowIndex, frozen.ColumnIndex, frozen.Name,
+                        frozen.Description, frozenArtworkTiles.Contains(frozen.BoardTileId) ? $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Board/Tiles/{frozen.BoardTileId}/Image" : null, [],
+                        frozen.EstimatedEhb, progress.Approved, progress.Target,
                         progress.Complete, progress.CompletedAt);
                 }).ToList());
         }).ToList();
@@ -133,11 +143,12 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
             index + 1, value.Player.PlayerId, value.Player.PlayerName, value.TeamName,
             value.Player.EstimatedEhb, value.Player.ApprovedContribution, value.Player.ApprovedSubmissions)).ToList();
 
+        var frozenTileIds = frozenTiles.Keys.ToList();
         var recentRows = await (from submission in db.Submissions.AsNoTracking()
                                 join player in db.PrimaryCharacters().AsNoTracking() on submission.CreditedParticipantId equals player.ParticipantId
                                 join team in db.Teams.AsNoTracking() on submission.TeamId equals team.Id
                                 join tile in db.BoardTiles.AsNoTracking() on submission.BoardTileId equals tile.Id
-                                where teamIds.Contains(submission.TeamId) && tileIds.Contains(submission.BoardTileId) &&
+                                where teamIds.Contains(submission.TeamId) && frozenTileIds.Contains(submission.BoardTileId) &&
                                       submission.Status == SubmissionStatus.Approved
                                 orderby (submission.ReviewedAt ?? submission.SubmittedAt) descending
                                 select new { submission, player, team, tile })
@@ -156,7 +167,7 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
             var hidden = value.submission.PublicEvidenceHidden || value.submission.PublicPlayerHidden;
             var drop = value.submission.DropSnapshotId is Guid dropId ? recentDropsById.GetValueOrDefault(dropId) : null;
             return new PublicRecentDrop(
-                value.submission.Id, value.tile.Id, value.tile.NameSnapshot,
+                value.submission.Id, value.tile.Id, frozenTiles[value.tile.Id].Name,
                 value.team.Name, value.team.Slug, hidden ? null : value.player.Name,
                 hidden ? null : drop?.BossName, hidden ? null : drop?.ItemName,
                 value.submission.ApprovedContribution, value.submission.ReviewedAt ?? value.submission.SubmittedAt,
@@ -164,7 +175,7 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
         }).ToList();
 
         return new PublicEventBoard(bingoEvent.Id, bingoEvent.Name, bingoEvent.Slug, bingoEvent.State,
-            board.Rows, board.Columns, board.TotalEhbEstimate, publicTeams, playerLeaderboard, recentDrops);
+            approval.Rows, approval.Columns, approval.TotalEhbEstimate, publicTeams, playerLeaderboard, recentDrops);
     }
 
     public async Task<PublicTileDetails?> GetTileAsync(string eventSlug, string teamSlug, Guid tileId, CancellationToken cancellationToken = default)
@@ -174,11 +185,19 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
         var team = boardView.Teams.SingleOrDefault(value => value.TeamSlug == teamSlug);
         var tile = team?.Tiles.SingleOrDefault(value => value.TileId == tileId);
         if (team is null || tile is null) return null;
-        var tileEntity = await db.BoardTiles.AsNoTracking().SingleAsync(value => value.Id == tileId, cancellationToken);
-        var requirements = await db.BoardRequirementSnapshots.AsNoTracking().Where(value => value.BoardTileId == tileId).OrderBy(value => value.Position).ToListAsync(cancellationToken);
-        var requirementIds = requirements.Select(value => value.Id).ToList();
-        var eligibleDrops = await db.BoardRequirementDropSnapshots.AsNoTracking()
-            .Where(value => requirementIds.Contains(value.RequirementId))
+        var publishedBoard = await db.Boards.AsNoTracking().SingleAsync(value => value.EventId == boardView.EventId && value.State == BoardState.Published, cancellationToken);
+        if (publishedBoard.ActiveApprovalSnapshotId is not { } approvalId) return null;
+        var approvalTile = await db.BoardApprovalTileSnapshots.AsNoTracking().SingleOrDefaultAsync(value => value.ApprovalSnapshotId == approvalId && value.BoardTileId == tileId, cancellationToken);
+        if (approvalTile is null) return null;
+        var frozenRequirements = await db.BoardApprovalRequirementSnapshots.AsNoTracking()
+            .Join(db.BoardApprovalTileSnapshots.AsNoTracking().Where(value => value.ApprovalSnapshotId == approvalId), requirement => requirement.ApprovalTileSnapshotId, tileSnapshot => tileSnapshot.Id, (requirement, _) => requirement)
+            .ToDictionaryAsync(value => value.BoardRequirementSnapshotId, cancellationToken);
+        var tileRequirements = frozenRequirements.Values.Where(value => value.ApprovalTileSnapshotId == approvalTile.Id).OrderBy(value => value.Position).ToList();
+        if (tileRequirements.Count == 0) return null;
+        var requirementIds = tileRequirements.Select(value => value.BoardRequirementSnapshotId).ToList();
+        var frozenApprovalRequirementIds = tileRequirements.Select(value => value.Id).ToList();
+        var eligibleDrops = await db.BoardApprovalRequirementDropSnapshots.AsNoTracking()
+            .Where(value => frozenApprovalRequirementIds.Contains(value.ApprovalRequirementSnapshotId))
             .OrderBy(value => value.BossName).ThenBy(value => value.ItemName)
             .ToListAsync(cancellationToken);
         var contributionTotals = await db.SubmissionContributions.AsNoTracking()
@@ -205,12 +224,12 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
         }).ToList();
         return new PublicTileDetails(
             boardView.EventName, boardView.EventSlug, team.TeamName, team.TeamSlug,
-            tile.TileId, tile.Name, tile.Description, tileEntity.EvidenceInstructionsSnapshot,
+            tile.TileId, tile.Name, tile.Description, approvalTile.EvidenceInstructions,
             tile.Approved, tile.Target, tile.Complete, tile.CompletedAt,
-            requirements.Select(value => new PublicRequirementProgress(
-                value.Id, value.Description, Math.Min(value.TargetContribution, contributionTotals.GetValueOrDefault(value.Id)),
-                value.TargetContribution, contributionTotals.GetValueOrDefault(value.Id) >= value.TargetContribution,
-                eligibleDrops.Where(drop => drop.RequirementId == value.Id)
+            tileRequirements.Select(value => new PublicRequirementProgress(
+                value.BoardRequirementSnapshotId, value.Description, Math.Min(value.TargetContribution, contributionTotals.GetValueOrDefault(value.BoardRequirementSnapshotId)),
+                value.TargetContribution, contributionTotals.GetValueOrDefault(value.BoardRequirementSnapshotId) >= value.TargetContribution,
+                eligibleDrops.Where(drop => drop.ApprovalRequirementSnapshotId == value.Id)
                     .Select(drop => new PublicEligibleDrop(
                         drop.BossName, drop.ItemName, drop.DisplayRate, drop.CreditedWeight))
                     .ToList())).ToList(),

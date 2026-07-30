@@ -324,7 +324,7 @@ Allow admins to maintain source-specific OSRS data and build every known tile wi
 
 #### Catalogue
 
-- Admin create/edit/deactivate/reactivate for bosses/activities, items, source drops, and rate variants.
+- Admin create/edit/deactivate/reactivate for bosses/activities and source drops; item identities are managed through source drops.
 - Super-Admin-only permanent deletion of genuinely unused catalogue rows after confirmation and a complete dependency check; referenced data is deactivated instead.
 - Displayed and numeric drop rates.
 - Efficient completion rates and EHB values.

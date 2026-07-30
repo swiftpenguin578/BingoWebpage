@@ -96,6 +96,24 @@ public sealed class EhbCalculatorTests
     }
 
     [Fact]
+    public void DefaultRollGroupSeparatesMixedSingleAndMultipleRollDrops()
+    {
+        var boss = Guid.NewGuid();
+        var result = EhbCalculator.CalculateDropRequirement(1,
+        [
+            new EligibleDropRate(10, 1m / 3000m, Guid.NewGuid(), boss),
+            new EligibleDropRate(10, 1m / 4000m, Guid.NewGuid(), boss),
+            new EligibleDropRate(10, 1m / 1024m, Guid.NewGuid(), boss, RollsPerCompletion: 2)
+        ]);
+
+        var singleRollProbability = 1m / 3000m + 1m / 4000m;
+        var multipliedRollProbability = 1m - (1m - 1m / 1024m) * (1m - 1m / 1024m);
+        var expected = 1m / (10m * (1m - (1m - singleRollProbability) * (1m - multipliedRollProbability)));
+
+        Assert.InRange(result!.Value, expected - 0.000001m, expected + 0.000001m);
+    }
+
+    [Fact]
     public void HarmlessStoredProbabilityRoundingDoesNotInvalidateACompleteLootTable()
     {
         var boss = Guid.NewGuid();

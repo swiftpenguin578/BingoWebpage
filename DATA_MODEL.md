@@ -933,20 +933,7 @@ Fields:
 
 `numeric_probability` stores the final effective chance paired with the boss/activity's efficient-completion rate. For ordinary solo content this is the item's full drop chance. Group content may use either a personal in-name probability with the corresponding team completion rate, or a full-contribution probability with a completion rate already normalized per invested player-hour. The pair must represent the same strategy, scale, difficulty, team size, and contribution assumptions so group size is applied exactly once. It accepts any valid fraction numerator, not only `1/x`. Raid-specific purple-table, points, scale, and difficulty assumptions are resolved before entry and recorded in `rate_condition_note`; the EHB calculator never applies raid-specific conversions. The older scope/parent columns remain only for migration compatibility and are ignored by calculation. Repeated rolls remain explicit. `roll_group` identifies mutually exclusive results from the same roll; different groups are independent. The probability remains empty when no reviewed effective probability is available.
 
-### 9.4 SourceDropRateVariant
-
-Stores conditional or alternative rates without flattening them into one misleading value. A normal fixed-rate drop has one default variant; delve, raid-scale, reward-roll, and similar drops may have several.
-
-Fields:
-
-- `source_drop_id`
-- `position`
-- `label`
-- `display_rate`
-- `numeric_probability`
-- `condition`
-
-The parent `SourceDrop.numeric_probability` remains empty when no single rate accurately describes every variant. Board EHB calculations must therefore require an explicit applicable variant. If none is valid, the catalogue/requirement must be corrected before board approval; a standard tile cannot bypass the defect with a manual EHB override.
+Each `SourceDrop` is one authoritative drop record with one displayed rate and numeric probability. Conditional mechanics are recorded in `rate_condition_note`; distinct real drops, such as `Nid` and `Nid (Destroy)`, remain separate records rather than rate choices beneath one drop.
 
 Catalogue records use deactivate/reactivate for normal lifecycle changes. Permanent deletion is Super-Admin-only and succeeds only when a transactional dependency query finds no catalogue relationship, board draft reference, approval/publication snapshot, asset/cache metadata, import-review record, or other historical reference. Deletion of a genuinely unused row requires confirmation but no reason. Bulk import preview/apply is Super-Admin-only; apply verifies the preview version/hash and never hard-deletes referenced data.
 
@@ -980,7 +967,7 @@ ARCHIVED
 
 Only one board is active for competitive progress in version one.
 
-A board draft may be created as soon as its event exists and remains privately editable while signups are open or closed and while teams are being prepared. Event publication and signup opening do not require a complete board and do not publish it. While `DRAFT`, board queries derive catalogue-backed names, artwork, rates, variants, and EHB from current catalogue rows; cached totals are non-authoritative and are invalidated/recalculated after relevant catalogue changes. `VALIDATED` means the complete board passed validation and an admin explicitly approved and snapshotted it. Draft finalization publishes that active immutable approval snapshot when it is ready; otherwise the board remains private and may be validated/published later.
+A board draft may be created as soon as its event exists and remains privately editable while signups are open or closed and while teams are being prepared. Event publication and signup opening do not require a complete board and do not publish it. While `DRAFT`, board queries derive catalogue-backed names, artwork, source-drop rates, and EHB from current catalogue rows; cached totals are non-authoritative and are invalidated/recalculated after relevant catalogue changes. `VALIDATED` means the complete board passed validation and an admin explicitly approved and snapshotted it. Draft finalization publishes that active immutable approval snapshot when it is ready; otherwise the board remains private and may be validated/published later.
 
 Validation requires every grid position to contain a valid tile. Any enabled admin may approve. Approval locks/rechecks referenced catalogue versions, calculates the complete board, creates a `BoardApprovalSnapshot`, and assigns `active_approval_snapshot_id` atomically. Explicit unapproval or editing any tile/competitive board content changes an unpublished `VALIDATED` board back to `DRAFT`, clears the active pointer without deleting its immutable snapshot, and resumes live catalogue derivation. Prior approval actor/time/data remains append-only history and no typed reason is required while private.
 
@@ -1075,7 +1062,7 @@ Fields:
 
 Every eligible drop has a default credited weight of `1`. The board designer may set a higher `credited_weight` on specific drops. Submitters cannot override the selected drop's snapshot value.
 
-While the board is `DRAFT`, queries join `source_drop_id` and the chosen rate variant to current catalogue data and ignore these projection fields. Board approval freezes the selected names, rate mechanics, and derived EHB in the new approval snapshot.
+While the board is `DRAFT`, queries join `source_drop_id` to current catalogue data and ignore these projection fields. Board approval freezes the selected names, source-drop rate mechanics, and derived EHB in the new approval snapshot.
 
 When duplicates are not allowed, each eligible item normally has a maximum contribution of `1`. An explicit maximum can override this behavior.
 
@@ -1111,7 +1098,7 @@ Fields:
 - `total_ehb`
 - `superseded_at`, nullable
 
-Child snapshot rows capture every tile position/name/description/artwork, requirement rule, boss/activity name and efficient rate, source drop/item/rate/variant/probability, contribution cap/weight, manual EHB, and derived tile/line/board EHB value.
+Child snapshot rows capture every tile position/name/description/artwork, requirement rule, boss/activity name and efficient rate, source drop/item/rate/probability, contribution cap/weight, manual EHB, and derived tile/line/board EHB value.
 
 Approval locks or version-checks every referenced live board/catalogue row and fails atomically on a concurrent edit. `Board.active_approval_snapshot_id` identifies the frozen version used by `VALIDATED` preview and publication. Unapproval/editing clears that active pointer and marks the snapshot superseded without deleting it. Publication points to the active approval snapshot and never recalculates it.
 
@@ -1423,7 +1410,7 @@ Every catalogue probability supplied to the calculator is already a final effect
 
 For more complex requirements the calculator models one completion at a time. Drops in the same roll group are mutually exclusive, separate roll groups are independent, and `rolls_per_completion` repeats that roll. It calculates the expected remaining person-hours for each possible progress state, including credited weights and already-collected identities, and chooses the most efficient available boss/activity from that state. Separate objectives are calculated independently and then added.
 
-If a required probability, efficient-completion rate, team/parent assumption, or applicable variant is missing or inconsistent, automatic EHB returns no estimate and the catalogue-backed/drop tile fails board validation. The administrator must correct the catalogue or requirement configuration. The system does not guess and does not permit a manual override for that tile. Only a `MANUAL` custom objective uses its required explicit manual EHB value.
+If a required probability, efficient-completion rate, or source-drop assumption is missing or inconsistent, automatic EHB returns no estimate and the catalogue-backed/drop tile fails board validation. The administrator must correct the catalogue or requirement configuration. The system does not guess and does not permit a manual override for that tile. Only a `MANUAL` custom objective uses its required explicit manual EHB value.
 
 Every board tile stores the EHB estimate used when the board was published.
 

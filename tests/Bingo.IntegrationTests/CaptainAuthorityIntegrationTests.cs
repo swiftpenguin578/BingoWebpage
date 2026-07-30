@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
@@ -70,7 +71,7 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
         var coCaptain = new TeamMembership(Guid.NewGuid(), preformed.Id, coParticipant.Id, TeamMembershipRole.CoCaptain, now, null, "seed");
         var draftCoCaptain = new TeamMembership(Guid.NewGuid(), draftedCoOnly.Id, draftCoParticipant.Id, TeamMembershipRole.CoCaptain, now, null, "seed");
         var draft = new DraftSession(Guid.NewGuid(), item.Id, 1); draft.Start(now); draft.Finalize(now);
-        var board = new Bingo.Domain.Boards.Board(Guid.NewGuid(), item.Id, "Board", 1, 1); board.Publish(now);
+        var board = new Bingo.Domain.Boards.Board(Guid.NewGuid(), item.Id, "Board", 1, 1);
         var draftGateItem = ClosedEvent(admin.Id, "draft-gate", now);
         var gateCaptainParticipant = new EventParticipant(Guid.NewGuid(), draftGateItem.Id, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated);
         var gateCoParticipant = new EventParticipant(Guid.NewGuid(), draftGateItem.Id, SignupStatus.Confirmed, 2, now, SignupSource.AdminCreated);
@@ -80,7 +81,7 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
         db.AddRange(admin, ownedCaptain, item, drafted, draftedCoOnly, preformed, participant, coParticipant, draftCoParticipant, captain, coCaptain, draftCoCaptain, draft, board,
             draftGateItem, gateCaptainParticipant, gateCoParticipant, gateCaptainTeam, gateCoTeam, gateExternal, new DraftSession(Guid.NewGuid(), draftGateItem.Id, 1),
             new TeamMembership(Guid.NewGuid(), gateCaptainTeam.Id, gateCaptainParticipant.Id, TeamMembershipRole.Captain, now, null, "seed"), new TeamMembership(Guid.NewGuid(), gateCoTeam.Id, gateCoParticipant.Id, TeamMembershipRole.CoCaptain, now, null, "seed"));
-        await db.SaveChangesAsync();
+        await BoardApprovalFixture.PublishAsync(db, board, now);
 
         var lifecycle = new EventLifecycleService(db, null!, TimeProvider.System);
         var blocked = await lifecycle.GetStartReadinessAsync(item.Id);
@@ -118,15 +119,40 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
             var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, "seed");
             setup.AddRange(admin, owner, item, team, participant, membership); await setup.SaveChangesAsync(); eventId = item.Id; membershipId = membership.Id; adminId = admin.Id; ownerId = owner.Id;
         }
-        async Task<TeamCaptainRoleChangeResult> Change(TeamMembershipRole role)
-        { await using var context = new ApplicationDbContext(options); return await new TeamCaptainAuthorityService(context, TimeProvider.System).ChangeRoleAsync(new(eventId, membershipId, role, adminId, "race-admin")); }
+        var barrier = new RoleChangeRaceBarrier();
+        var raceOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(barrier).Options;
+        async Task<(TeamMembershipRole Role, TeamCaptainRoleChangeResult Result)> Change(TeamMembershipRole role)
+        { await using var context = new ApplicationDbContext(raceOptions); return (role, await new TeamCaptainAuthorityService(context, TimeProvider.System).ChangeRoleAsync(new(eventId, membershipId, role, adminId, "race-admin"))); }
         var results = await Task.WhenAll(Change(TeamMembershipRole.Captain), Change(TeamMembershipRole.CoCaptain));
-        Assert.Single(results, x => x.Succeeded); Assert.Single(results, x => !x.Succeeded);
+        var winner = Assert.Single(results, x => x.Result.Succeeded);
+        var loser = Assert.Single(results, x => !x.Result.Succeeded);
+        Assert.Contains("changed this membership first", loser.Result.Error, StringComparison.Ordinal);
         await using var verify = new ApplicationDbContext(options);
-        Assert.Single(await verify.TeamMembershipRoleTransitions.Where(x => x.TeamMembershipId == membershipId).ToListAsync());
+        var finalMembership = await verify.TeamMemberships.SingleAsync(x => x.Id == membershipId);
+        Assert.Equal(winner.Role, finalMembership.Role);
+        var transition = Assert.Single(await verify.TeamMembershipRoleTransitions.Where(x => x.TeamMembershipId == membershipId).ToListAsync());
+        Assert.Equal(TeamMembershipRole.Participant, transition.FromRole);
+        Assert.Equal(winner.Role, transition.ToRole);
         Assert.Single(await verify.AuditEntries.Where(x => x.Action == "team.membership_role_changed").ToListAsync());
         Assert.Single(await verify.PersonalNotifications.Where(x => x.RecipientAccountId == ownerId).ToListAsync());
         Assert.Empty(await verify.AccountEventAccesses.ToListAsync());
+    }
+
+    private sealed class RoleChangeRaceBarrier : SaveChangesInterceptor
+    {
+        private int arrivals;
+        private readonly TaskCompletionSource<bool> release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (!eventData.Context!.ChangeTracker.Entries<TeamMembershipRoleTransition>().Any(entry => entry.State == EntityState.Added))
+                return result;
+
+            if (Interlocked.Increment(ref arrivals) == 2)
+                release.TrySetResult(true);
+            await release.Task.WaitAsync(cancellationToken);
+            return result;
+        }
     }
 
     [Fact]

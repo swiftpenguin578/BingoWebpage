@@ -71,7 +71,7 @@ public sealed class DevelopmentScenarioSeeder(
         var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, secondaryAdmin, now);
         seeded.Add(dklLiveScenario);
         AddDklLiveProgress(dklLiveScenario.EventId, admin.Id, now);
-        seeded.Add(SeedTeamAndCsvSetupScenario(blueprint, admin.Id, secondaryAdmin, now));
+        seeded.Add(SeedBoardPublicationSetupScenario(blueprint, admin.Id, secondaryAdmin, now));
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -159,7 +159,7 @@ public sealed class DevelopmentScenarioSeeder(
         Board? board = null;
         if (stage >= ScenarioStage.BoardDraft)
         {
-            board = AddBoard(bingoEvent.Id, blueprint, stage >= ScenarioStage.DraftSetup, now);
+            board = AddBoard(bingoEvent, blueprint, stage >= ScenarioStage.DraftSetup, now);
         }
 
         var captainUsernames = new List<string>();
@@ -177,7 +177,7 @@ public sealed class DevelopmentScenarioSeeder(
         return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, board?.State, captainUsernames);
     }
 
-    private SeededScenario SeedTeamAndCsvSetupScenario(
+    private SeededScenario SeedBoardPublicationSetupScenario(
         BoardBlueprint blueprint,
         Guid adminId,
         Account fixtureOwner,
@@ -186,13 +186,13 @@ public sealed class DevelopmentScenarioSeeder(
         var eventStarts = now.AddDays(90);
         var eventEnds = eventStarts.AddDays(5);
         var bingoEvent = new BingoEvent(
-            Guid.NewGuid(), "TEST 52 — Team and CSV setup", "test-52-team-csv-setup",
-            "Development seed scenario: SignupClosed setup for team and pre-formed roster CSV manual acceptance.",
+            Guid.NewGuid(), "TEST 62 — Board publication setup", "test-62-board-publication-setup",
+            "Development seed scenario: finalized rosters with an approved private board ready for separate publication.",
             "Europe/Copenhagen", now.AddDays(-14), now.AddDays(-1), eventStarts, eventEnds,
             eventEnds.AddMinutes(30), 20, adminId, now);
         bingoEvent.ConfigureSignup(true, false, null);
         bingoEvent.ConfigurePlanning(
-            "Seeded rules for team and CSV workflow testing.", null, null, 2, 3,
+            "Seeded rules for private board approval and separate publication testing.", null, null, 2, 3,
             blueprint.Rows, blueprint.Columns);
         bingoEvent.OpenSignups();
         bingoEvent.CloseSignups();
@@ -200,21 +200,14 @@ public sealed class DevelopmentScenarioSeeder(
         db.Events.Add(bingoEvent);
         AddSignupFoundation(bingoEvent, now);
 
-        var participants = new List<EventParticipant>();
-        for (var index = 0; index < 5; index++)
-        {
-            var participant = CreateParticipant(
-                bingoEvent.Id, $"52 Setup Player {index + 1:00}", 500 + index * 100,
-                SignupStatus.Confirmed, index + 1, now.AddMinutes(-50 + index), SignupSource.Website,
-                index == 0 ? "52 Setup Player 01 Alt" : null);
-            participants.Add(participant);
-        }
+        var participants = AddParticipants(bingoEvent.Id, ScenarioStage.DraftSetup, now);
         participants[0].AssignOwner(fixtureOwner);
-        db.EventParticipants.AddRange(participants);
-
-        var board = AddBoard(bingoEvent.Id, blueprint, publish: true, now);
-        db.DraftSessions.Add(new DraftSession(Guid.NewGuid(), bingoEvent.Id, 3));
-        return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, board.State, []);
+        var board = AddBoard(bingoEvent, blueprint, publish: false, now);
+        var captainUsernames = AddTeamsAndDraft(bingoEvent, participants, DraftSeedState.Finalized, finalized: true, now);
+        AddDraftPublication(bingoEvent, now);
+        bingoEvent.SetDraftRosterPublication(true);
+        ApproveSeedBoard(bingoEvent, board, now);
+        return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, board.State, captainUsernames);
     }
 
     private void AddFinalizedResults(BingoEvent bingoEvent, Guid adminId, DateTimeOffset now)
@@ -327,7 +320,7 @@ public sealed class DevelopmentScenarioSeeder(
             participant => PrimaryName(participant),
             StringComparer.OrdinalIgnoreCase);
 
-        var board = AddBoard(bingoEvent.Id, blueprint, publish: true, now);
+        var board = AddBoard(bingoEvent, blueprint, publish: true, now);
         var draft = new DraftSession(Guid.NewGuid(), bingoEvent.Id, targetTeamSize);
         db.DraftSessions.Add(draft);
 
@@ -444,7 +437,7 @@ public sealed class DevelopmentScenarioSeeder(
             participant => PrimaryName(participant),
             StringComparer.OrdinalIgnoreCase);
 
-        var board = AddBoard(bingoEvent.Id, blueprint, publish: true, now);
+        var board = AddBoard(bingoEvent, blueprint, publish: true, now);
         var draft = new DraftSession(Guid.NewGuid(), bingoEvent.Id, targetTeamSize);
         draft.Start(now.AddHours(-3));
         db.DraftSessions.Add(draft);
@@ -642,8 +635,9 @@ public sealed class DevelopmentScenarioSeeder(
         }
     }
 
-    private Board AddBoard(Guid eventId, BoardBlueprint blueprint, bool publish, DateTimeOffset now)
+    private Board AddBoard(BingoEvent bingoEvent, BoardBlueprint blueprint, bool publish, DateTimeOffset now)
     {
+        var eventId = bingoEvent.Id;
         var board = new Board(Guid.NewGuid(), eventId, blueprint.Name, blueprint.Rows, blueprint.Columns);
         db.Boards.Add(board);
         decimal total = 0;
@@ -692,8 +686,72 @@ public sealed class DevelopmentScenarioSeeder(
             }
         }
         board.SetTotalEhb(total);
-        if (publish) board.Publish(now);
+        if (publish) PublishSeedBoard(bingoEvent, board, now);
         return board;
+    }
+
+    // Development fixtures must exercise the same immutable public-board contract as
+    // production publication. This copies the already-created local board snapshots;
+    // it never derives values from a live public request.
+    private void ApproveSeedBoard(BingoEvent bingoEvent, Board board, DateTimeOffset now)
+    {
+        // A brand-new board and its active approval pointer form a reciprocal FK pair.
+        // Persist the private board tree first (still inside ResetAndSeedAsync's one
+        // transaction), then add the approval tree and its pointer in the next batch.
+        db.SaveChanges();
+        var approval = new BoardApprovalSnapshot(
+            Guid.NewGuid(), board.Id, 1, now, bingoEvent.CreatedByAccountId, null,
+            board.Name, board.Rows, board.Columns, board.TotalEhbEstimate,
+            board.CalculationVersion, board.Version, BoardState.Validated);
+        db.BoardApprovalSnapshots.Add(approval);
+
+        foreach (var tile in db.BoardTiles.Local.Where(value => value.BoardId == board.Id)
+                     .OrderBy(value => value.RowIndex).ThenBy(value => value.ColumnIndex).ToList())
+        {
+            var approvalTile = new BoardApprovalTileSnapshot(
+                Guid.NewGuid(), approval.Id, tile.Id, tile.TileTemplateId,
+                tile.RowIndex, tile.ColumnIndex, tile.NameSnapshot,
+                tile.DescriptionSnapshot, tile.EvidenceInstructionsSnapshot,
+                tile.EstimatedEhbSnapshot, null);
+            db.BoardApprovalTileSnapshots.Add(approvalTile);
+
+            foreach (var requirement in db.BoardRequirementSnapshots.Local
+                         .Where(value => value.BoardTileId == tile.Id)
+                         .OrderBy(value => value.Position).ToList())
+            {
+                var approvalRequirement = new BoardApprovalRequirementSnapshot(
+                    Guid.NewGuid(), approvalTile.Id, requirement.Id, requirement.Position,
+                    requirement.TargetContribution, requirement.DuplicatesAllowed,
+                    requirement.AllowHigherWeightings, requirement.CreditedWeight,
+                    requirement.Description, requirement.ManualObjective);
+                db.BoardApprovalRequirementSnapshots.Add(approvalRequirement);
+
+                foreach (var boss in db.BoardRequirementBossSnapshots.Local
+                             .Where(value => value.RequirementId == requirement.Id).ToList())
+                    db.BoardApprovalRequirementBossSnapshots.Add(new BoardApprovalRequirementBossSnapshot(
+                        Guid.NewGuid(), approvalRequirement.Id, boss.BossActivityId,
+                        boss.BossName, boss.EfficientRate, 1));
+
+                foreach (var drop in db.BoardRequirementDropSnapshots.Local
+                             .Where(value => value.RequirementId == requirement.Id).ToList())
+                {
+                    var approvalDrop = new BoardApprovalRequirementDropSnapshot(
+                        Guid.NewGuid(), approvalRequirement.Id, drop.SourceDropId, drop.BossName,
+                        drop.ItemName, drop.DisplayRate, drop.NumericProbability,
+                        drop.MaximumContribution, drop.EhbPerContribution, drop.CreditedWeight, 1);
+                    db.BoardApprovalRequirementDropSnapshots.Add(approvalDrop);
+                }
+            }
+        }
+
+        board.Approve(approval.Id);
+    }
+
+    private void PublishSeedBoard(BingoEvent bingoEvent, Board board, DateTimeOffset now)
+    {
+        ApproveSeedBoard(bingoEvent, board, now);
+        board.Publish(now);
+        bingoEvent.SetBoardPublication(true, now);
     }
 
     private string[] AddTeamsAndDraft(
@@ -772,6 +830,33 @@ public sealed class DevelopmentScenarioSeeder(
         db.TeamMemberships.Add(new TeamMembership(
             Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant,
             pick.PickedAt, pick.Id, "Seeded snake-draft pick"));
+    }
+
+    private void AddDraftPublication(BingoEvent bingoEvent, DateTimeOffset now)
+    {
+        var session = db.DraftSessions.Local.Single(value => value.EventId == bingoEvent.Id);
+        var cycle = new DraftPublicationCycle(Guid.NewGuid(), session.Id, 1, now, bingoEvent.CreatedByAccountId);
+        db.DraftPublicationCycles.Add(cycle);
+
+        var picks = db.DraftPicks.Local
+            .Where(value => value.DraftSessionId == session.Id && value.UndoneAt is null)
+            .ToDictionary(value => value.Id);
+        var teams = db.Teams.Local
+            .Where(value => value.EventId == bingoEvent.Id && value.Active)
+            .ToDictionary(value => value.Id);
+        foreach (var membership in db.TeamMemberships.Local
+                     .Where(value => value.LeftAt is null && teams.ContainsKey(value.TeamId))
+                     .OrderBy(value => teams[value.TeamId].Name)
+                     .ThenBy(value => value.JoinedAt))
+        {
+            var participant = db.EventParticipants.Local.Single(value => value.Id == membership.EventParticipantId);
+            int? pickNumber = membership.AssignedByDraftPickId is { } pickId && picks.TryGetValue(pickId, out var pick)
+                ? pick.PickNumber
+                : null;
+            db.DraftPublicationRosters.Add(new DraftPublicationRoster(
+                Guid.NewGuid(), cycle.Id, membership.TeamId, participant.Id, membership.Role,
+                pickNumber, PrimaryName(participant)));
+        }
     }
 
     private string AddCaptainAccount(
@@ -1353,23 +1438,24 @@ public sealed class DevelopmentScenarioSeeder(
                 {
                     throw new InvalidOperationException($"The retained catalogue is missing seeded drops for '{specification.Name}': {string.Join(", ", missingItems)}.");
                 }
+                var selectedDropRates = selectedDrops.Select(row => new { row, Probability = row.drop.NumericProbability }).ToList();
                 requirements.Add(new RequirementBlueprint(
                     requirementIndex + 1, requirement.Target, requirement.Duplicates, requirement.HigherWeights,
                     requirement.Description, requirement.Manual,
                     selectedBosses.Select(boss => new BossBlueprint(boss.Id, boss.Name, boss.EfficientCompletionsPerHour)).ToList(),
-                    selectedDrops.Select(row => new DropBlueprint(
-                        row.drop.Id, row.boss.Name, row.item.Name, row.drop.DisplayRate,
-                        row.drop.NumericProbability, requirement.Duplicates ? null : 1, row.drop.DefaultEhbEstimate,
-                        requirement.WeightTwoItems?.Contains(row.item.Name, StringComparer.OrdinalIgnoreCase) == true ? 2 : 1)).ToList()));
+                    selectedDropRates.Select(value => new DropBlueprint(
+                        value.row.drop.Id, value.row.boss.Name, value.row.item.Name, value.row.drop.DisplayRate,
+                        value.Probability, requirement.Duplicates ? null : 1, value.row.drop.DefaultEhbEstimate,
+                        requirement.WeightTwoItems?.Contains(value.row.item.Name, StringComparer.OrdinalIgnoreCase) == true ? 2 : 1)).ToList()));
                 estimates.Add(requirement.Manual
                     ? null
                     : EhbCalculator.CalculateDropRequirement(
                         requirement.Target,
-                        selectedDrops.Select(row => new EligibleDropRate(
-                            row.boss.EfficientCompletionsPerHour, row.drop.NumericProbability, row.drop.ItemId,
-                            row.boss.Id,
-                            requirement.WeightTwoItems?.Contains(row.item.Name, StringComparer.OrdinalIgnoreCase) == true ? 2 : 1,
-                            row.drop.RollsPerCompletion, row.drop.RollGroup)),
+                        selectedDropRates.Select(value => new EligibleDropRate(
+                            value.row.boss.EfficientCompletionsPerHour, value.Probability, value.row.drop.ItemId,
+                            value.row.boss.Id,
+                            requirement.WeightTwoItems?.Contains(value.row.item.Name, StringComparer.OrdinalIgnoreCase) == true ? 2 : 1,
+                            value.row.drop.RollsPerCompletion, value.row.drop.RollGroup)),
                         requirement.Duplicates));
             }
             var description = string.Join("; ", specification.Requirements.Select(requirement => requirement.Description));
@@ -1391,8 +1477,11 @@ public sealed class DevelopmentScenarioSeeder(
                 draft_publication_rosters, draft_publication_cycles, team_membership_role_transitions,
                 team_legacy_image_references, team_image_assets,
                 draft_picks, team_memberships, draft_sessions, teams,
+                board_approval_requirement_drop_snapshots,
+                board_approval_requirement_boss_snapshots, board_approval_requirement_snapshots,
+                board_approval_tile_snapshots, board_approval_snapshots,
                 board_requirement_drop_snapshots, board_requirement_boss_snapshots, board_requirement_snapshots,
-                board_tiles, template_requirement_drops, template_requirement_bosses, tile_template_requirements,
+                board_tile_image_assets, board_tiles, template_requirement_drops, template_requirement_bosses, tile_template_requirements,
                 tile_templates, boards, signup_answers, event_participant_characters, signup_questions, signup_forms, event_participants,
                 scheduled_signup_opening_attempts, scheduled_event_start_attempts, event_state_transitions, event_banner_cleanups, events, audit_entries, personal_notifications,
                 account_event_accesses, password_credential_tokens, account_discord_identity_transitions

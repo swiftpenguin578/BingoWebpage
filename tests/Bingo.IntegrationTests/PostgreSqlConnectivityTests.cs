@@ -64,12 +64,9 @@ public sealed class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(68, result.Bosses);
         Assert.Equal(311, result.Items);
         Assert.Equal(441, result.Drops);
-        Assert.Equal(479, result.Variants);
         Assert.Equal(result.Bosses, await context.BossActivities.CountAsync());
         Assert.Equal(result.Items, await context.CatalogueItems.CountAsync());
         Assert.Equal(result.Drops, await context.SourceDrops.CountAsync());
-        Assert.Equal(result.Variants, await context.SourceDropRateVariants.CountAsync());
-        Assert.Equal(22, await context.SourceDrops.CountAsync(x => x.Active && EF.Functions.ILike(x.DisplayRate, "%+1 variant%")));
     }
 
     [Fact]

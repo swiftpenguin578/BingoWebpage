@@ -43,6 +43,17 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db) :
             await next();
             return;
         }
+        // A published-board correction is an exceptional, separately confirmed
+        // lifecycle operation. Its start handler is the authority for the
+        // confirmation/reason checks. Once begun, the private working copy must
+        // also be editable while the public snapshot remains live, including in
+        // Live events.
+        if (IsPublishedBoardCorrection(path, context.HandlerMethod?.Name) ||
+            await HasPublishedBoardCorrectionWorkspaceAsync(path, eventId, context.HttpContext.RequestAborted))
+        {
+            await next();
+            return;
+        }
         if (!EventStatePolicy.Allows(state.Value, capability))
         {
             if (context.HandlerInstance is PageModel page)
@@ -94,4 +105,13 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db) :
             : EventCapability.ConfigureIdentityOrSchedule;
         return true;
     }
+
+    private static bool IsPublishedBoardCorrection(string path, string? method) =>
+        path.EndsWith("/Board.cshtml", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(method, "CorrectPublished", StringComparison.Ordinal);
+
+    private Task<bool> HasPublishedBoardCorrectionWorkspaceAsync(string path, Guid eventId, CancellationToken ct) =>
+        path.EndsWith("/Board.cshtml", StringComparison.OrdinalIgnoreCase)
+            ? db.Boards.AsNoTracking().AnyAsync(board => board.EventId == eventId && board.PublishedCorrectionInProgress, ct)
+            : Task.FromResult(false);
 }

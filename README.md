@@ -95,9 +95,9 @@ Stop the running web application, keep PostgreSQL running, and execute:
 dotnet run --project src/Bingo.Web -- --reset-test-data
 ```
 
-The command resets generated workflow data and creates only `TEST 13 — DKL Board`, `TEST 15 — DKL Live`, and `TEST 52 — Team and CSV setup`. It preserves the retained OSRS catalogue, bootstrap/Super Admin, and the secondary seeded Admin. All events are internal Development fixtures rather than automatic public current events.
+The command resets generated workflow data and creates only `TEST 13 — DKL Board`, `TEST 15 — DKL Live`, and `TEST 62 — Board publication setup`. It preserves the retained OSRS catalogue, bootstrap/Super Admin, and the secondary seeded Admin. All events are internal Development fixtures rather than automatic public current events.
 
-Use `TEST 13 — DKL Board` to review and edit the 5×5 historical DKL comparison board. `TEST 15 — DKL Live` provides the retained full live DKL board, teams, accounts, evidence, and approved progress behavior. `TEST 52 — Team and CSV setup` is SignupClosed with a published board, a clean draft setup, and five confirmed unassigned participants for the combined Slice 5 Pass 5.2A/5.2B manual acceptance.
+Use `TEST 13 — DKL Board` to review live catalogue derivation, private board editing, approval/unapproval, and the private demonstration preview. `TEST 62 — Board publication setup` is SignupClosed with finalized rosters and an approved but private board: it is the direct separate-publication, start-blocker, frozen-public-board, and exceptional-correction fixture. `TEST 15 — DKL Live` provides the retained full live DKL board, teams, accounts, evidence, and approved progress behavior.
 
 The command prints every seeded captain username. All seeded captain accounts use the local-only password `SeedCaptain!1234`. Your existing administrator username and password are unchanged. It also creates or refreshes the development-only administrator `SeedAdminTwo` with password `SeedAdmin!1234`, which is used to test simultaneous board editing and draft control from a second browser session.
 
@@ -113,7 +113,7 @@ After reviewing **Admin → OSRS catalogue → Wiki import preview**, stop the r
 dotnet run --project src/Bingo.Web -- --apply-wiki-catalogue
 ```
 
-The import preserves boss/activity records and clan EHB rates, replaces their imported drop connections with the reviewed special/unique rewards, stores Wiki source and image URLs, and keeps conditional rates as separate variants. It removes old imported drops and catalogue items only when they are no longer connected to any boss. Run the test-data reset afterward so seeded boards are rebuilt from the new catalogue.
+The import preserves boss/activity records and clan EHB rates, replaces their imported drop connections with reviewed rewards, and stores Wiki source and image URLs. Each imported source drop retains one authoritative rate/probability and records assumptions in its note. It removes old imported drops and catalogue items only when they are no longer connected to any boss. Run the test-data reset afterward so seeded boards are rebuilt from the new catalogue.
 
 ### Preserve and restore the reviewed OSRS catalogue
 

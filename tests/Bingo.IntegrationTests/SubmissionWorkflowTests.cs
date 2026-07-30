@@ -360,16 +360,19 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var admin = Account.CreateWebsite(adminId, "admin", "ADMIN", now.AddDays(-10));
         admin.SetGlobalRole(GlobalRole.Admin);
         var board = new Board(boardId, eventId, "Board", 1, 1);
-        board.Publish(now.AddDays(-1));
+        var tile = new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Manual tile", "Complete it", "Show the message", tileEhb);
+        var requirement = new BoardRequirementSnapshot(requirementId, tileId, 0, target, duplicatesAllowed, allowHigherWeights, "Complete runs", manualObjective, allowHigherWeights ? 2 : 1);
+        var drop = dropId is Guid eligibleDropId
+            ? new BoardRequirementDropSnapshot(eligibleDropId, requirementId, Guid.NewGuid(), "Test boss", "Test drop", "1/10", 0.1m, duplicatesAllowed ? null : 1, dropEhb, allowHigherWeights ? 2 : 1)
+            : null;
         var character = new OsrsCharacter(Guid.NewGuid(), "Player One", "PLAYER ONE", now);
         var assignment = new EventParticipantCharacter(Guid.NewGuid(), eventId, participantId, character.Id, 0, now, adminId, null, EventCharacterRole.Playing, 500, EhbSource.Manual, null);
         db.AddRange(ev, team, participant, character, assignment, captain, admin, board, captainAccess,
             new TeamMembership(Guid.NewGuid(), teamId, participantId, TeamMembershipRole.Participant, now.AddDays(-4), null, null),
-            new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Manual tile", "Complete it", "Show the message", tileEhb),
-            new BoardRequirementSnapshot(requirementId, tileId, 0, target, duplicatesAllowed, allowHigherWeights, "Complete runs", manualObjective, allowHigherWeights ? 2 : 1));
-        if (dropId is Guid eligibleDropId) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(eligibleDropId, requirementId, Guid.NewGuid(), "Test boss", "Test drop", "1/10", 0.1m, duplicatesAllowed ? null : 1, dropEhb, allowHigherWeights ? 2 : 1));
+            tile, requirement);
+        if (drop is not null) db.BoardRequirementDropSnapshots.Add(drop);
         if (!string.IsNullOrEmpty(evidenceCode)) db.EvidenceCodes.Add(new EvidenceCode(Guid.NewGuid(), eventId, evidenceCode, now.AddMinutes(-10), adminId, now.AddMinutes(-10), null));
-        await db.SaveChangesAsync();
+        await BoardApprovalFixture.PublishAsync(db, board, now.AddDays(-1), [tile], [requirement], drop is null ? [] : [drop]);
         return new Setup(eventId, teamId, participantId, captainId, adminId, tileId, requirementId, dropId);
     }
 

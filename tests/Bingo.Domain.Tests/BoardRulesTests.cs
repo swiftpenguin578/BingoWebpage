@@ -43,9 +43,24 @@ public sealed class BoardRulesTests
     public void PublishedBoardCannotBeResizedOrPublishedAgain()
     {
         var board = new Board(Guid.NewGuid(), Guid.NewGuid(), "Board", 5, 5);
+        board.Approve(Guid.NewGuid());
         board.Publish(DateTimeOffset.UtcNow);
         Assert.Throws<InvalidOperationException>(() => board.Resize(6, 6, 25));
         Assert.Throws<InvalidOperationException>(() => board.Publish(DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public void PublicationRequiresAnActivePrivateApprovalAndPublishedCorrectionReplacesIt()
+    {
+        var board = new Board(Guid.NewGuid(), Guid.NewGuid(), "Board", 1, 1);
+        Assert.Throws<InvalidOperationException>(() => board.Publish(DateTimeOffset.UtcNow));
+        var original = Guid.NewGuid();
+        board.Approve(original);
+        board.Publish(DateTimeOffset.UtcNow);
+        var replacement = Guid.NewGuid();
+        board.ReplacePublishedApproval(replacement);
+        Assert.Equal(BoardState.Published, board.State);
+        Assert.Equal(replacement, board.ActiveApprovalSnapshotId);
     }
 
     [Fact]
@@ -60,12 +75,43 @@ public sealed class BoardRulesTests
     }
 
     [Fact]
+    public void DraftTileCanReferenceAndClearItsCurrentManagedImage()
+    {
+        var tile = new BoardTile(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 0, 0, "Tile", "", "", 10);
+        var imageId = Guid.NewGuid();
+
+        tile.SetActiveImageAsset(imageId);
+        Assert.Equal(imageId, tile.ActiveImageAssetId);
+
+        tile.SetActiveImageAsset(null);
+        Assert.Null(tile.ActiveImageAssetId);
+    }
+
+    [Fact]
     public void BoardSnapshotIsUnaffectedByLaterCatalogueChanges()
     {
         var now = DateTimeOffset.UtcNow; var boss = new BossActivity(Guid.NewGuid(), "Mole", "mole", "Boss", 100, now);
         var snapshot = new BoardRequirementBossSnapshot(Guid.NewGuid(), Guid.NewGuid(), boss.Id, boss.Name, boss.EfficientCompletionsPerHour);
         boss.Update("Giant Mole", "Boss", 120, null, "manual", null, now.AddDays(1));
         Assert.Equal("Mole", snapshot.BossName); Assert.Equal(100, snapshot.EfficientRate);
+    }
+
+    [Fact]
+    public void ApprovalSnapshotRetainsPublicArtworkCalculationAndSupersessionLineage()
+    {
+        var boardId = Guid.NewGuid();
+        var firstApproval = Guid.NewGuid();
+        var snapshot = new BoardApprovalSnapshot(Guid.NewGuid(), boardId, 2, DateTimeOffset.UtcNow, Guid.NewGuid(), firstApproval, "Frozen board", 1, 1, 21m, 4, 9);
+        var tile = new BoardApprovalTileSnapshot(Guid.NewGuid(), snapshot.Id, Guid.NewGuid(), Guid.NewGuid(), 0, 0, "Frozen tile", "Public wording", "Evidence", 21m, "assets/tile.png");
+        var requirement = new BoardApprovalRequirementSnapshot(Guid.NewGuid(), tile.Id, Guid.NewGuid(), 1, 2, false, true, 3, "Two drops", false);
+        var drop = new BoardApprovalRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, Guid.NewGuid(), "Boss", "Drop", "1/100", .01m, 2, 10.5m, 3, 7);
+
+        Assert.Equal(firstApproval, snapshot.SupersedesApprovalSnapshotId);
+        Assert.Equal(21m, snapshot.TotalEhbEstimate);
+        Assert.Equal(BoardState.Draft, snapshot.LifecycleState);
+        Assert.Equal("assets/tile.png", tile.ArtworkReference);
+        Assert.Equal(3, requirement.CreditedWeight);
+        Assert.Equal(7, drop.CatalogueVersion);
     }
 
     [Fact]

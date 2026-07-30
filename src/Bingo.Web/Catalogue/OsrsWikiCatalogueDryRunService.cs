@@ -138,7 +138,6 @@ public sealed class OsrsWikiCatalogueDryRunService(
         var bosses = await db.BossActivities.ToListAsync(ct);
         var items = await db.CatalogueItems.ToListAsync(ct);
         var sourceDrops = await db.SourceDrops.ToListAsync(ct);
-        var variants = await db.SourceDropRateVariants.ToListAsync(ct);
         var added = 0;
         var updated = 0;
         var removed = 0;
@@ -201,14 +200,12 @@ public sealed class OsrsWikiCatalogueDryRunService(
                 var hasOneReliableRate = candidate.Rates.Count == 1 && !candidate.NeedsReview && candidate.Rates[0].Probability is > 0;
                 var probability = hasOneReliableRate ? candidate.Rates[0].Probability : null;
                 var rolls = hasOneReliableRate ? candidate.Rates[0].RollsPerCompletion : 1;
-                var displayRate = preserveReviewedPersonalRate ? sourceDrop.DisplayRate : candidate.Rates.Count == 1
-                    ? candidate.Rates[0].DisplayRate
-                    : $"{candidate.Rates[0].DisplayRate} (+{candidate.Rates.Count - 1} variants)";
+                var displayRate = preserveReviewedPersonalRate ? sourceDrop.DisplayRate : candidate.Rates[0].DisplayRate;
                 if (preserveReviewedPersonalRate) probability = sourceDrop.NumericProbability;
                 var condition = preserveReviewedPersonalRate ? sourceDrop.RateConditionNote : JoinNotes(candidate.Condition, candidate.ReviewReason);
-                var effectiveProbability = probability;
+                var effectiveProbability = SourceDrop.CalculateProbabilityPerCompletion(probability, rolls);
                 decimal? ehb = boss.EfficientCompletionsPerHour is > 0 && effectiveProbability is > 0
-                    ? 1 / (boss.EfficientCompletionsPerHour.Value * effectiveProbability.Value * rolls)
+                    ? 1 / (boss.EfficientCompletionsPerHour.Value * effectiveProbability.Value)
                     : null;
                 sourceDrop.Update(displayRate, probability, condition, ehb, candidate.DataSource, now);
                 sourceDrop.SetRateMechanics(
@@ -220,25 +217,12 @@ public sealed class OsrsWikiCatalogueDryRunService(
                     preserveReviewedPersonalRate ? sourceDrop.RollGroup : "default");
                 sourceDrop.SetActive(true);
 
-                var oldVariants = variants.Where(x => x.SourceDropId == sourceDrop.Id).ToList();
-                db.SourceDropRateVariants.RemoveRange(oldVariants);
-                variants.RemoveAll(x => x.SourceDropId == sourceDrop.Id);
-                var position = 1;
-                foreach (var rate in candidate.Rates)
-                {
-                    var variant = new SourceDropRateVariant(
-                        Guid.NewGuid(), sourceDrop.Id, position++, rate.Label, rate.DisplayRate,
-                        rate.Probability, candidate.Condition);
-                    variants.Add(variant);
-                    db.SourceDropRateVariants.Add(variant);
-                }
             }
 
             var obsolete = bossDrops.Where(x => !retainedIds.Contains(x.Id)).ToList();
             if (obsolete.Count > 0)
             {
                 var obsoleteIds = obsolete.Select(x => x.Id).ToHashSet();
-                db.SourceDropRateVariants.RemoveRange(variants.Where(x => obsoleteIds.Contains(x.SourceDropId)));
                 db.SourceDrops.RemoveRange(obsolete);
                 sourceDrops.RemoveAll(x => obsoleteIds.Contains(x.Id));
                 removed += obsolete.Count;

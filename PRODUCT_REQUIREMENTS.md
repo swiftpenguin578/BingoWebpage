@@ -411,7 +411,7 @@ It contains:
 
 ### 9.2 Item
 
-An item is a reusable record and can be connected to multiple bosses or activities.
+An item is an internal identity created and maintained only while adding or editing a boss/activity drop. It may be reused by several source drops, but it has no standalone Admin catalogue workflow.
 
 It contains:
 
@@ -538,7 +538,7 @@ For a simple single-drop requirement, expected EHB is calculated from a reviewed
 
 Complex requirements are estimated from possible completion outcomes rather than by blindly averaging bosses or adding rates. Weighted drops advance by their configured contribution, duplicate-restricted requirements track shared item identities, and alternative sources are chosen according to the lowest expected remaining person-hours. Multiple objectives are estimated separately and added. A catalogue-backed/drop tile must always produce an automatic estimate. Missing or ambiguous rate mechanics block board approval and must be corrected in the catalogue or requirement configuration; they are never guessed and cannot be bypassed with a manual override. Only a custom/manual objective accepts an explicitly entered manual EHB value.
 
-Unapproved boards derive catalogue names, images, rates, variants, and EHB from the current global catalogue. Relevant catalogue changes automatically invalidate and recalculate their tile, row, column, total, and per-player estimates.
+Unapproved boards derive catalogue names, images, source-drop rates, and EHB from the current global catalogue. Relevant catalogue changes automatically invalidate and recalculate their tile, row, column, total, and per-player estimates.
 
 **Approve board** is the snapshot boundary. Approval transactionally revalidates the complete board and captures an immutable version of the catalogue values, board configuration, rates, EHB values, artwork references, and calculations. Later catalogue changes do not alter an approved board. Unapproving or editing approved unpublished competitive content returns the board to Draft, retains the superseded approval snapshot/history, and resumes live catalogue derivation. Publication uses the active approval snapshot without recalculation.
 
@@ -733,7 +733,7 @@ Admins can:
 
 Captains make their selections through the community's normal voice or text communication. An admin records the selections on the website.
 
-Before finalization, the draft board and team assignments are visible only to admins in version one. Captains and public visitors do not see draft state on the website until it is finalized and automatically published.
+Before finalization, the draft board and team assignments are visible only to admins in version one. Captains and public visitors do not see roster state until draft finalization; that roster publication never publishes the board itself.
 
 The full participant pool remains visible during drafting so captains can maintain an overview. Available players are visually distinct from drafted players, and the current team's turn is clearly identified.
 

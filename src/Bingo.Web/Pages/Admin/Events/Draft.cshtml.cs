@@ -6,6 +6,7 @@ using Bingo.Application.Auditing;
 using Bingo.Application.Evidence;
 using Bingo.Application.Signups;
 using Bingo.Application.Teams;
+using Bingo.Domain.Boards;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
@@ -349,6 +350,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     {
         if (!confirmed) { SetStatus("Confirm finalization before publishing the roster.", UiMessageType.Error); return RedirectToPage(new { id }); }
         var published = false;
+        var offerBoardPublication = false;
         await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         try
         {
@@ -386,12 +388,20 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             published = true;
-            SetStatus("Draft finalized and team rosters published.", UiMessageType.Success);
+            offerBoardPublication = await db.Boards.AsNoTracking().AnyAsync(x => x.EventId == id && x.State == BoardState.Validated && x.ActiveApprovalSnapshotId != null, ct);
+            SetStatus(offerBoardPublication
+                ? "Draft finalized and team rosters published. The board is approved and ready to publish separately."
+                : "Draft finalized and team rosters published.", UiMessageType.Success);
         }
         catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); }
         catch (InvalidOperationException ex) { SetStatus(ex.Message, UiMessageType.Error); }
         catch (Exception) { SetStatus("The draft could not be finalized. No roster was published.", UiMessageType.Error); }
         if (published) await NotifyDraft(id, ct);
+        if (published && offerBoardPublication)
+        {
+            TempData["StatusMessage"] = "Publish board? The approved board is ready. Publishing it is a separate action.";
+            return RedirectToPage("Board", new { id });
+        }
         return RedirectToPage(new { id });
     }
 

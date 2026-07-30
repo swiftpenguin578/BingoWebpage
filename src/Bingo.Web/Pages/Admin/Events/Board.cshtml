@@ -5,7 +5,7 @@
     ViewData["Title"] = "Board editor";
     ViewData["BreadcrumbActionLabel"] = "Back to event";
     ViewData["BreadcrumbActionUrl"] = Url.Page("Manage", new { id = RouteData.Values["id"] });
-    var boardCanBeEdited = Model.BoardView?.State == BoardState.Draft;
+    var boardCanBeEdited = Model.BoardView?.State is BoardState.Draft or BoardState.Validated || Model.BoardView?.PublishedCorrectionInProgress == true;
     var editable = boardCanBeEdited && Model.CanEditBoard;
     var published = Model.BoardView?.State == BoardState.Published;
 }
@@ -49,13 +49,49 @@
                 <strong>@Model.BoardView.Rows × @Model.BoardView.Columns board</strong>
                 <span>@Model.Tiles.Count of @(Model.BoardView.Rows * Model.BoardView.Columns) positions filled</span>
             </div>
-            <span class="board-state-pill">@(Model.BoardView.State == BoardState.Draft ? "Private draft" : "Published")</span>
+            <span class="board-state-pill">@(Model.BoardView.PublishedCorrectionInProgress ? "Published · correction in progress" : Model.BoardView.State switch { BoardState.Draft => "Private draft", BoardState.Validated => "Approved privately", BoardState.Published => "Published", _ => Model.BoardView.State.ToString() })</span>
+            <a class="btn btn-sm catalogue-compact-action neutral-outline-action" asp-page="BoardPreview" asp-route-id="@RouteData.Values["id"]">Preview board</a>
             @if (editable)
             {
                 <details><summary class="btn btn-sm catalogue-compact-action neutral-outline-action">Board size</summary><form method="post" asp-page-handler="Resize" class="toolbar-popover"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><label asp-for="Rows"></label><input asp-for="Rows" class="form-control" /><label asp-for="Columns"></label><input asp-for="Columns" class="form-control" /><button class="btn btn-sm catalogue-compact-action catalogue-add-action">Apply size</button></form></details>
-                <form method="post" asp-page-handler="Publish" onsubmit="return confirm('Publish this board? Tiles and their requirements will be locked for the event.');"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn btn-sm catalogue-compact-action btn-warning" disabled="@(Model.Tiles.Count != Model.BoardView.Rows * Model.BoardView.Columns)">Publish board</button></form>
+                @if (Model.BoardView.State == BoardState.Draft)
+                {
+                    <form method="post" asp-page-handler="Approve"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn btn-sm catalogue-compact-action catalogue-add-action">Approve board</button></form>
+                    <span class="text-muted">Approval is private. Publication is a separate action after draft finalization.</span>
+                }
+                else if (Model.BoardView.State == BoardState.Validated)
+                {
+                    <form method="post" asp-page-handler="Unapprove" onsubmit="return confirm('Return this board to live draft values? The approval remains in history.');"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn btn-sm catalogue-compact-action warning-outline-action">Unapprove board</button></form>
+                    <span class="text-muted">This private approval is frozen. Any board-content edit returns to live draft values.</span>
+                    @if (Model.DraftFinalized)
+                    {
+                        <span class="text-muted">The finalized roster makes this private approval eligible for separate publication.</span>
+                    }
+                    else
+                    {
+                        <span class="text-muted">Finalize the team draft before publishing this approved board.</span>
+                    }
+                }
+                else if (Model.BoardView.State == BoardState.Published && Model.BoardView.PublishedCorrectionInProgress)
+                {
+                    <form method="post" asp-page-handler="Approve"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn btn-sm catalogue-compact-action catalogue-add-action">Publish corrected board</button></form>
+                    <span class="text-muted">The current public snapshot remains live until this corrected working copy is published.</span>
+                }
+            }
+            @if (Model.BoardView.State == BoardState.Validated && Model.DraftFinalized)
+            {
+                <form method="post" asp-page-handler="Publish"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn btn-sm catalogue-compact-action catalogue-add-action">Publish board</button></form>
+            }
+            else if (published && !Model.BoardView.PublishedCorrectionInProgress)
+            {
+                <details><summary class="btn btn-sm catalogue-compact-action warning-outline-action">Correct published board</summary><form method="post" asp-page-handler="CorrectPublished" class="toolbar-popover"><label><input type="checkbox" name="confirmed" value="true" /> I confirm this exceptional correction.</label><label>Reason<textarea name="reason" required class="form-control"></textarea></label><button class="btn btn-sm catalogue-compact-action warning-outline-action">Start private correction</button></form></details>
             }
         </div>
+
+        @if (Model.ReadinessWarnings.Count > 0)
+        {
+            <aside class="panel validation-summary" aria-live="polite"><strong>Board readiness needs attention</strong><ul>@foreach (var warning in Model.ReadinessWarnings) { <li>@warning</li> }</ul></aside>
+        }
 
         @if (editable) { <form method="post" asp-page-handler="Move" id="move-form">@Html.AntiForgeryToken()<input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><input type="hidden" name="sourceId" id="move-source" /><input type="hidden" name="targetPosition" id="move-target" /></form> }
 
@@ -149,10 +185,6 @@
                             }
                         </section>
 
-                        <section class="tile-dialog-section">
-                            <h3>Evidence</h3>
-                            <p>@(string.IsNullOrWhiteSpace(tile.EvidenceInstructions) ? "No special evidence instructions." : tile.EvidenceInstructions)</p>
-                        </section>
                         <p class="tile-dialog-ehb"><strong>@tile.Ehb.ToString("0.##") EHB</strong></p>
                         @if (editable)
                         {
@@ -203,7 +235,7 @@
         {
             <dialog id="create-tile-dialog" class="tile-dialog create-tile-dialog auto-hide-scrollbar">
                 <button type="button" class="dialog-close" aria-label="Close">×</button><p class="eyebrow">Board editor</p><h2 id="create-tile-heading">Create tile</h2>
-                <form method="post" asp-page-handler="CreateTile" class="form-stack" id="create-tile-form" data-native-submit data-create-action="@Url.Page("Board", "CreateTile", new { id = RouteData.Values["id"] })" data-edit-action="@Url.Page("Board", "EditTile", new { id = RouteData.Values["id"] })">
+                <form method="post" enctype="multipart/form-data" asp-page-handler="CreateTile" class="form-stack" id="create-tile-form" data-native-submit data-create-action="@Url.Page("Board", "CreateTile", new { id = RouteData.Values["id"] })" data-edit-action="@Url.Page("Board", "EditTile", new { id = RouteData.Values["id"] })">
                     <input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" />
                     <input type="hidden" asp-for="TileDraft.TileId" id="tile-id" />
                     <input type="hidden" asp-for="TileDraft.Position" id="tile-position" />
@@ -212,7 +244,8 @@
                             <label asp-for="TileDraft.Name"><span class="tile-field-label"><span>Tile name</span><small>Suggested from selected bosses</small></span><input asp-for="TileDraft.Name" id="tile-name" class="form-control" placeholder="Suggested automatically" /></label>
                             <label asp-for="TileDraft.Description"><span class="tile-field-label"><span>Short description</span><small>Optional</small></span><input asp-for="TileDraft.Description" class="form-control" /></label>
                         </div>
-                        <label asp-for="TileDraft.ImageUrl"><span class="tile-field-label"><span>Custom tile image URL</span><small>Optional · overrides automatic boss artwork on the future public board</small></span><input asp-for="TileDraft.ImageUrl" id="tile-image-url" class="form-control" type="url" placeholder="https://…" /></label>
+                        <label asp-for="TileDraft.Image"><span class="tile-field-label"><span>Custom tile image</span><small>Optional managed upload</small></span><input asp-for="TileDraft.Image" class="form-control" accept="image/png,image/jpeg,image/webp" /></label>
+                        <label class="checkbox-row" id="tile-remove-image-row" hidden><input asp-for="TileDraft.RemoveImage" /> Remove the current custom image</label>
                     </section>
                     <aside class="tile-objective-guide">
                         <strong>One objective is one target.</strong>
@@ -221,10 +254,9 @@
                     <div id="requirements"><partial name="_BoardRequirementEditor" model="@(new Bingo.Web.Pages.Admin.Events.BoardRequirementEditorViewModel(0, Model.Bosses, Model.Drops))" /></div>
                     <button type="button" class="btn btn-sm catalogue-compact-action catalogue-add-action add-objective-button" id="add-requirement">＋ Add another objective</button>
                     <section class="tile-editor-section tile-finish-section">
-                        <div class="tile-editor-section-heading"><h3>Evidence and EHB</h3></div>
+                        <div class="tile-editor-section-heading"><h3>EHB</h3></div>
                         <div class="tile-finish-grid">
-                            <label asp-for="TileDraft.EvidenceInstructions"><span class="tile-field-label"><span>Evidence instructions</span><small>Optional</small></span><textarea asp-for="TileDraft.EvidenceInstructions" class="form-control" rows="1"></textarea></label>
-                            <label asp-for="TileDraft.ManualEhb"><span class="tile-field-label"><span>Manual total EHB estimate</span><small>Overrides the calculated value</small></span><input asp-for="TileDraft.ManualEhb" class="form-control" type="number" min="0" step="any" /></label>
+                            <label asp-for="TileDraft.ManualEhb"><span class="tile-field-label"><span>Manual total EHB estimate</span><small>Required for a custom challenge; otherwise overrides the live catalogue calculation.</small></span><input asp-for="TileDraft.ManualEhb" class="form-control" type="number" min="0" step="any" /></label>
                         </div>
                     </section>
                     <div class="dialog-actions"><button type="button" class="btn btn-sm catalogue-compact-action neutral-outline-action dialog-cancel">Cancel</button><button class="btn btn-sm catalogue-compact-action catalogue-add-action" id="save-tile-button">Create tile here</button></div>
@@ -318,7 +350,7 @@ document.querySelectorAll('.dialog-close, .dialog-cancel').forEach(button => but
 const createDialog = document.getElementById('create-tile-dialog'); const tileForm = document.getElementById('create-tile-form');
 const tileEditorData = new Map(JSON.parse(document.getElementById('tile-editor-data')?.textContent || '[]').map(tile => [tile.id, tile]));
 let tileNameEdited = false; document.getElementById('tile-name')?.addEventListener('input', event => tileNameEdited = event.target.value.trim().length > 0);
-function resetTileForm() { tileForm.reset(); tileForm.action = tileForm.dataset.createAction; document.getElementById('tile-id').value = ''; document.getElementById('requirements').innerHTML = document.getElementById('requirement-template').innerHTML.replaceAll('Requirements[-1]', 'Requirements[0]').replaceAll('requirement--1', 'requirement-0').replaceAll('data-index="-1"', 'data-index="0"'); requirementIndex = 1; tileNameEdited = false; initializeRequirements(); }
+function resetTileForm() { tileForm.reset(); tileForm.action = tileForm.dataset.createAction; document.getElementById('tile-id').value = ''; document.getElementById('tile-remove-image-row').hidden = true; document.getElementById('requirements').innerHTML = document.getElementById('requirement-template').innerHTML.replaceAll('Requirements[-1]', 'Requirements[0]').replaceAll('requirement--1', 'requirement-0').replaceAll('data-index="-1"', 'data-index="0"'); requirementIndex = 1; tileNameEdited = false; initializeRequirements(); }
 let requirementIndex = 1;
 function renumberObjectiveHeadings() { document.querySelectorAll('#requirements .requirement-editor').forEach((editor, index) => { const number = editor.querySelector('.objective-number'); if (number) number.textContent = String(index + 1); }); }
 function addRequirement(values = null) { const index = requirementIndex++; const html = document.getElementById('requirement-template').innerHTML.replaceAll('Requirements[-1]', `Requirements[${index}]`).replaceAll('requirement--1', `requirement-${index}`).replaceAll('data-index="-1"', `data-index="${index}"`); document.getElementById('requirements').insertAdjacentHTML('beforeend', html); initializeRequirements(); renumberObjectiveHeadings(); const editor = document.getElementById(`requirement-${index}`); if (values) populateRequirement(editor, values); return editor; }
@@ -346,8 +378,8 @@ document.addEventListener('click', event => {
         document.getElementById('tile-id').value = tile.id;
         document.getElementById('tile-name').value = tile.name;
         document.getElementById('TileDraft_Description').value = tile.description;
-        document.getElementById('tile-image-url').value = tile.imageUrl || '';
-        document.getElementById('TileDraft_EvidenceInstructions').value = tile.evidenceInstructions;
+        document.getElementById('tile-remove-image-row').hidden = !tile.imageUrl;
+        document.getElementById('TileDraft_RemoveImage').checked = false;
         document.getElementById('TileDraft_ManualEhb').value = tile.manualEhb ?? '';
         tileNameEdited = true;
         document.getElementById('requirements').innerHTML = '';

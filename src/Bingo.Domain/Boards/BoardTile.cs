@@ -12,6 +12,7 @@ public sealed class BoardTile
     public int ColumnIndex { get; private set; }
     public string NameSnapshot { get; private set; } = string.Empty; public string DescriptionSnapshot { get; private set; } = string.Empty; public string EvidenceInstructionsSnapshot { get; private set; } = string.Empty; public decimal EstimatedEhbSnapshot { get; private set; }
     public string? ImageUrlSnapshot { get; private set; }
+    public Guid? ActiveImageAssetId { get; private set; }
     public void Move(int row, int column) { RowIndex = row; ColumnIndex = column; }
     public void UpdateContent(string name, string description, string evidenceInstructions, decimal estimatedEhb, string? imageUrl = null)
     {
@@ -21,4 +22,5 @@ public sealed class BoardTile
         EstimatedEhbSnapshot = estimatedEhb;
         ImageUrlSnapshot = imageUrl;
     }
+    public void SetActiveImageAsset(Guid? assetId) => ActiveImageAssetId = assetId;
 }

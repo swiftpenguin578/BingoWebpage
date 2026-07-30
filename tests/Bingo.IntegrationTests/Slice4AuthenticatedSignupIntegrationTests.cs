@@ -3,6 +3,7 @@ using System.Net;
 using System.Text.RegularExpressions;
 using Bingo.Application.Signups;
 using Bingo.Domain.Access;
+using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
@@ -814,7 +815,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             var withdrawnCharacter = new OsrsCharacter(Guid.NewGuid(), "Withdrawn Main", $"WITHDRAWN MAIN {Guid.NewGuid():N}", now);
             var history = Event(owner.Id, now.AddDays(-10)); history.MarkFirstPublic(now.AddDays(-10)); history.CloseSignups(now); history.StartEvent(now); history.EndEvent(now); history.FinalizeResults(now); history.Archive(now);
             historySlug = history.Slug;
-            var historyBoard = new Bingo.Domain.Boards.Board(Guid.NewGuid(), history.Id, "Archived history board", 1, 1); historyBoard.Publish(now);
+            var historyBoard = new Bingo.Domain.Boards.Board(Guid.NewGuid(), history.Id, "Archived history board", 1, 1);
             var historyParticipant = new EventParticipant(Guid.NewGuid(), history.Id, SignupStatus.Confirmed, 1, now.AddDays(-10), SignupSource.Website, null); historyParticipant.AssignOwner(owner);
             var historyCharacter = new OsrsCharacter(Guid.NewGuid(), "History Main", $"HISTORY MAIN {Guid.NewGuid():N}", now);
 
@@ -826,6 +827,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
                 new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, withdrawn.Id, withdrawnCharacter.Id, 0, now, withdrawnOwner.Id, regular.Id, EventCharacterRole.Playing, 99m, EhbSource.Manual, null),
                 new EventParticipantCharacter(Guid.NewGuid(), history.Id, historyParticipant.Id, historyCharacter.Id, 0, now, owner.Id, null, EventCharacterRole.Playing, 1m, EhbSource.Manual, null));
             await db.SaveChangesAsync();
+            await BoardApprovalFixture.PublishAsync(db, historyBoard, now);
             db.AddRange(new SignupAnswer(Guid.NewGuid(), confirmed.Id, answer.Id, "Favourite boss", "Allowed answer"), new SignupAnswer(Guid.NewGuid(), confirmed.Id, historical.Id, "Retired question", "Historical answer"));
             await db.SaveChangesAsync();
             ownerLogin = owner.LoginName;
@@ -895,10 +897,12 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await using (var db = new ApplicationDbContext(options))
         {
             var item = await db.Events.SingleAsync(item => item.Slug == slug);
-            var board = new Bingo.Domain.Boards.Board(Guid.NewGuid(), item.Id, "Pre-live board", 1, 1);
-            board.Publish(now);
-            db.Boards.Add(board);
-            await db.SaveChangesAsync();
+            var board = new Board(Guid.NewGuid(), item.Id, "Pre-live board", 1, 1);
+            var template = new TileTemplate(Guid.NewGuid(), "Pre-live tile", "Public description", ObjectiveType.Manual, string.Empty, 1m);
+            var tile = new BoardTile(Guid.NewGuid(), board.Id, template.Id, 0, 0, "Pre-live tile", "Public description", string.Empty, 1m);
+            var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 1, 1, true, false, "Complete the challenge", true);
+            db.AddRange(board, template, tile, requirement);
+            await BoardApprovalFixture.PublishAsync(db, board, now, [tile], [requirement]);
         }
         var boardOverview = await anonymous.GetStringAsync("/");
         Assert.Contains("View board", boardOverview, StringComparison.Ordinal);

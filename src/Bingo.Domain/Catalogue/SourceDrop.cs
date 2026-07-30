@@ -19,6 +19,7 @@ public sealed class SourceDrop
     public string? DataSource { get; private set; }
     public DateTimeOffset DataUpdatedAt { get; private set; }
     public bool Active { get; private set; }
+    public long Version { get; private set; } = 1;
     public void Update(string displayRate, decimal? probability, string? condition, decimal? ehb, string? source, DateTimeOffset now) { DisplayRate = displayRate; NumericProbability = probability; RateConditionNote = condition; DefaultEhbEstimate = ehb; DataSource = source; DataUpdatedAt = now.ToUniversalTime(); }
     public void SetRateMechanics(DropProbabilityScope scope, bool conditionalOnParent, decimal? parentProbability, int assumedParticipants, int rollsPerCompletion, string? rollGroup)
     {
@@ -36,6 +37,15 @@ public sealed class SourceDrop
     {
         return NumericProbability is > 0 and <= 1 ? NumericProbability : null;
     }
+    public decimal? EffectiveProbabilityPerCompletion() => CalculateProbabilityPerCompletion(EffectiveProbabilityPerRoll(), RollsPerCompletion);
+    public static decimal? CalculateProbabilityPerCompletion(decimal? probabilityPerRoll, int rollsPerCompletion)
+    {
+        if (probabilityPerRoll is not (> 0 and <= 1) || rollsPerCompletion < 1) return null;
+        var noDropProbability = 1m;
+        for (var roll = 0; roll < rollsPerCompletion; roll++) noDropProbability *= 1 - probabilityPerRoll.Value;
+        return 1 - noDropProbability;
+    }
     public void ChangeItem(Guid itemId) => ItemId = itemId;
     public void SetActive(bool active) => Active = active;
+    public void AdvanceVersion() => Version++;
 }

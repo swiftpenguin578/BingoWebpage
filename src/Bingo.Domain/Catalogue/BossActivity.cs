@@ -12,7 +12,9 @@ public sealed class BossActivity
     public string? ImageUrl { get; private set; }
     public DateTimeOffset DataUpdatedAt { get; private set; }
     public bool Active { get; private set; }
+    public long Version { get; private set; } = 1;
     public string? Notes { get; private set; }
     public void Update(string name, string category, decimal? rate, string? externalId, string? source, string? notes, DateTimeOffset now, string? imageUrl = null) { Name = name; Category = category; EfficientCompletionsPerHour = rate; ExternalIdentifier = externalId; DataSource = source; Notes = notes; ImageUrl = imageUrl; DataUpdatedAt = now.ToUniversalTime(); }
     public void SetActive(bool active) => Active = active;
+    public void AdvanceVersion() => Version++;
 }

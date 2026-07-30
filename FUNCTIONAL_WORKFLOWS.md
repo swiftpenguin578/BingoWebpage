@@ -1287,7 +1287,7 @@ A board is complete only when:
 - every catalogue-backed/drop tile produces a valid automatic EHB estimate; and
 - every custom/manual objective contains its explicitly configured manual EHB value.
 
-A missing automatic EHB value on a non-custom catalogue/drop tile is a validation error. The admin must correct the underlying catalogue probability/rate/variant or tile requirement. The page must never treat a manual override as the repair for a broken standard tile. Manual EHB entry exists only for a custom/manual objective.
+A missing automatic EHB value on a non-custom catalogue/drop tile is a validation error. The admin must correct the underlying source-drop probability/rate or tile requirement. The page must never treat a manual override as the repair for a broken standard tile. Manual EHB entry exists only for a custom/manual objective.
 
 ### 19.3 Approval and invalidation
 
@@ -1716,7 +1716,7 @@ Approved evidence metadata, credited player, and screenshot are public so commun
 
 ### 29.1 ADM-CATALOGUE-01 — Maintain the OSRS catalogue
 
-- Any enabled Admin may create, edit, deactivate, or reactivate a boss/activity, item, source-specific drop, or rate variant. Routine mutations record actor/time/before-after history without requiring a typed reason.
+- Any enabled Admin may create, edit, deactivate, or reactivate a boss/activity or source-specific drop. Item identities are created and edited through their source drops; they have no standalone workflow. Routine mutations record actor/time/before-after history without requiring a typed reason.
 - Referenced catalogue records are never hard-deleted. Deactivation prevents new selection while preserving current draft references and every approved/published historical board.
 - Only the Super Admin receives a permanent **Delete** action. It requires strong confirmation and succeeds only when the complete dependency check finds no source-drop, board, asset/cache, import-review, or historical reference. A blocked deletion lists the references and offers deactivation instead. No written reason is required for deletion of a genuinely unused record.
 - Catalogue mutations use optimistic concurrency. A stale edit/import returns the current values instead of overwriting them.
@@ -1724,7 +1724,7 @@ Approved evidence metadata, credited player, and screenshot are public so commun
 
 ### 29.2 Live draft-board catalogue coupling and approval snapshot
 
-- A `DRAFT` board stores stable catalogue identifiers and board-owned objective configuration, but catalogue names, images, efficient rates, drop rates, variants, and calculated EHB remain live derived values.
+- A `DRAFT` board stores stable catalogue identifiers and board-owned objective configuration, but catalogue names, images, efficient rates, source-drop rates, and calculated EHB remain live derived values.
 - Editing relevant catalogue data invalidates/recalculates every affected unapproved board projection. An open board editor receives an ordinary invalidation and reloads the authoritative tile/row/column/total EHB; it never silently keeps a stale draft calculation.
 - **Approve board** locks/rechecks the complete board and referenced catalogue versions in one transaction, calculates every EHB value, and creates the first immutable competitive approval snapshot. The board then becomes `VALIDATED`.
 - While `VALIDATED`, later catalogue changes do not alter the approved snapshot. Explicit unapproval or editing competitive board content returns the board to `DRAFT`, retains the superseded approval snapshot/history, and resumes live catalogue derivation. A later approval creates a new immutable version.

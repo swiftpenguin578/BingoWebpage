@@ -22,4 +22,13 @@ public sealed class SourceDropRateMechanicsTests
         Assert.Equal(1m / 27.3m, drop.EffectiveProbabilityPerRoll());
         Assert.Equal(1, drop.AssumedParticipants);
     }
+
+    [Fact]
+    public void MultipleIndependentRollsUseTheProbabilityOfAtLeastOneDrop()
+    {
+        var drop = new SourceDrop(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "2 x 1/1000", .001m, null, DateTimeOffset.UtcNow);
+        drop.SetRateMechanics(DropProbabilityScope.Participant, false, null, 1, 2, "zulrah");
+
+        Assert.Equal(1m - (.999m * .999m), drop.EffectiveProbabilityPerCompletion());
+    }
 }
