@@ -28,9 +28,9 @@
 
 ## Slice 5 Pass 5.2A/5.2B — teams and pre-formed external roster CSV
 
-Reset Development data and use `TEST 52 — Team and CSV setup` (`test-52-team-csv-setup`) for every case in this section. It begins SignupClosed with a published board, draft Setup/no first pick, no teams or memberships, and five confirmed eligible participants; create the Drafted and Pre-formed teams through the UI. Use `TEST 15 — DKL Live` only for the event-start metadata-lock check below.
+Historical note: Slice 5 acceptance used `TEST 52 — Team and CSV setup`, which has now been retired rather than retained as stale setup data. The current Development reset seeds the Slice 6 baselines documented below.
 
-Automated seed/reset contract verified 2026-07-29: the real PostgreSQL double-reset regression passed `1/1` with representative Slice 5 child rows before its second reset; it preserves the retained account/catalogue foundations and leaves exactly TEST 13, TEST 15, and TEST 52 after each reset.
+The retained account/catalogue foundations remain preserved by the real PostgreSQL double-reset regression. The current exact fixture contract is TEST 13, TEST 15, and TEST 62.
 
 - [x] **S5-01 — Passed.** Create Drafted and Pre-formed teams; duplicate creation gives safe feedback with no additional team or audit.
 - [x] Derived setup distribution updates for drafted-team changes, including uneven remainders.
@@ -163,7 +163,7 @@ Pass 3.3 is approved: private/open/closed schedule editing, proposed Open-now an
 - [x] **S3-11 — Passed.** Create and Schedule show localized values while posting canonical `yyyy-MM-ddTHH:mm`; a future five-minute opening schedules and opens automatically without a checkbox.
 - [x] **S3-12 — Passed.** Opening and closing edits preserve untouched values, and overlap feedback appears in notification history.
 - [x] **S3-13 — Passed.** Postponed-start readiness updates after blocker resolution; manual Start resolves the attempt, preserves its history/configured start, records the actual start separately, and immediately renders Live controls.
-- [x] **S3-14A — Passed.** Reset Development data and verify only TEST 13, TEST 15, and TEST 52 remain.
+- [x] **S3-14A — Passed.** The historical reset check passed; the current reset contract is TEST 13, TEST 15, and TEST 62.
 - [x] **S3-14B — Passed.** Fixture-only data has no automatic public current event and one real current event is selected.
 - [x] **S3-15 — Passed.** “Event discarded.” appeared exactly once on Admin Events through enhanced and no-JavaScript journeys.
 - [x] **S3-16 — Passed.** Protected participant/team/access/submission/evidence history blocks discard without cleanup.
@@ -223,17 +223,23 @@ Pass 3.3 is approved: private/open/closed schedule editing, proposed Open-now an
 - [x] **S5-08 — Passed.** Captain assignment, controller acquisition/takeover/release, lease-guarded Start, and safe displaced-controller behavior passed.
 - [x] **S5-09 — Passed.** The consolidated private-draft journey, including controller-only cancellation and retained draft history, passed.
 - [x] **S5-10 — Passed.** Finalization/publication, frozen public roster privacy, reopening, ledger correction, publication history, and confirmed published Pre-formed correction without a typed reason passed.
-- [x] **Final Public boards/Board-route retests — Passed.** TEST 52 roster-only routes to Teams; board publication routes to Board; the published-board route returns 200 with `FirstPublicAt == null`; unpublished boards return 404.
+- [x] **Final Public boards/Board-route retests — Passed.** Historical TEST 52 roster-only/public-board route acceptance passed. TEST 62 now supersedes it as the current separate-publication fixture.
 - [x] Derived roster distribution, captain balancing, picks, repeated undo, pause/resume, finalization, external/pre-formed corrections, CSV scope, concurrent-admin, and permission states passed.
 
 ## Slice 6 — Catalogue, board derivation, approval snapshot, preview, and publication
 
-- [ ] Exact manual cases to be finalized before Slice 6 handoff.
-- [ ] Admin catalogue edit/deactivate/reactivate and Super-Admin-only deletion/import.
-- [ ] Live recalculation of unapproved board EHB after catalogue changes.
-- [ ] Approval snapshot stability, unapproval, reapproval, and stale-concurrency handling.
-- [ ] Public-style Preview board without approval/publication side effects.
-- [ ] Complete-board validation and separate publication.
+**Slice 6 manual acceptance (2026-07-30):** S6-01 through S6-06 are approved, including the final mixed same-boss single-roll/multiplied-roll Zulrah-style EHB retest. Board preview functionality is accepted; its exact visual match to the established public **View bingo** Board is deferred to the UI overhaul and is not a functional blocker.
+
+Reset Development data first. It leaves exactly TEST 13, TEST 62, and TEST 15, with valid selected catalogue-rate bindings and frozen-rate approval data. Use `TEST 13 — DKL Board` (`test-13-dkl-board`) for S6-02 through S6-04. Then use `TEST 62 — Board publication setup` (`test-62-board-publication-setup`) in this order: verify the finalized roster/approved-private board, dismiss the separate-publish handoff, publish later, inspect the public board, then run the confirmed/reasoned correction. Use `TEST 15 — DKL Live` only to compare the existing public live/progress surface.
+
+**Final retest:** The catalogue, Board editor, frozen EHB, preview overview, finalized-roster reopening, published correction, feedback, and mixed same-boss single-roll/multiplied-roll EHB paths are approved.
+
+- [x] **S6-01 — Catalogue administration — Passed.** Confirmed the retained catalogue, source-drop lifecycle, distinct Nid/Nid (Destroy) values, dependency-safe deletion, and absence of Wiki-import web surfaces.
+- [x] **S6-02 — Draft derivation — Passed.** Confirmed live derivation, frozen approved EHB, automatic-EHB validation, manual-objective EHB, and the mixed same-boss single-roll/multiplied-roll Zulrah-style retest.
+- [x] **S6-03 — Private approval — Passed.** Confirmed residue-free rejection, valid immutable approval snapshots, history-preserving unapproval, and Draft return after competitive edits.
+- [x] **S6-04 — Preview — Passed.** Confirmed deterministic, side-effect-free preview behavior without Admin controls or EHB. Exact visual parity with the established public Board is deferred to the UI overhaul.
+- [x] **S6-05 — Separate publication — Passed.** Confirmed the separate publish handoff, dismissal behavior, later publication, and event-start publication gate.
+- [x] **S6-06 — Published correction — Passed.** Confirmed confirmation/reason, replacement snapshot and recalculation, retained history, Live correction, and readable feedback.
 
 ## Slice 7 — Live account swaps, participant navigation, and team focus
 

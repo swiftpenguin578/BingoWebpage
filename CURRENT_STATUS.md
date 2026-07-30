@@ -1,12 +1,22 @@
 # Current Project Status
 
-**Verified:** 2026-07-29
-**Branch:** `codex/milestone-8a-slice-4` (planning branch based on accepted Slice 3)
-**Planning decision:** 2026-07-28
+**Verified:** 2026-07-30
+**Branch:** `codex/milestone-8a-slice-6` (started from merged Slice 5 `main`)
+**Planning decision:** 2026-07-30
 
 ## Active handoff
 
-**Slice 5 accepted (2026-07-29):** Manual acceptance S5-01 through S5-10 and the final TEST 52 Public boards/Board-route retests are approved. Final automated acceptance is complete: Domain `153/153`, Application `82/82`, Browser `66/66` (TRX `/private/tmp/slice5-final-gates-20260729/browser-final/Bingo.BrowserTests-final.trx`), Integration `188/188` (TRX `/private/tmp/slice5-integration-inventory-20260729/retry/Bingo.IntegrationTests-inventory-retry.trx`), combined `489/489`, Release solution build clean, formatting and `git diff --check` passed, EF pending-model check clean, and 21 relevant migration/reset tests passed with 35 migrations, no missing designers, and one snapshot. Audit found no staged files, secrets, generated runtime artifacts, or unrelated modified paths. Slice 5 is ready for packaging/merge/push; those actions remain unperformed.
+**Slice 6 final acceptance (2026-07-30):** Manual acceptance S6-01 through S6-06 is approved, including the final mixed same-boss single-roll/multiplied-roll Zulrah-style EHB retest. The board preview is functionally accepted; its exact visual match to the established **View bingo** Board belongs to the UI overhaul and is not a functional blocker. Final automated results passed with zero failures/skips: Application `83/83`, Domain `157/157`, Browser `66/66`, Integration `203/203`, combined `509/509`. Release build completed with 0 warnings/errors; formatting, EF pending-model, migration rehearsal, Development reset, and `git diff --check` passed. Durable final Integration TRX: `/private/tmp/slice6-final-integration-rerun-20260730/integration-final.trx`. Accepted code/test commits include `deaec56b` and test-only gate stabilization `a3da933d`. Slice 6 is accepted and ready for packaging/integration; no Slice 7 work has started.
+
+**Superseded Slice 6 Pass 6.3 wording (2026-07-30):** The protected Draft editor, live catalogue derivation, readiness validation, managed tile-image boundary, and resize behavior remain. Its active rate-variant wording is superseded: Draft derives each selected source drop's authoritative rate, probability, and EHB directly.
+
+**Superseded Slice 6 Pass 6.2 wording (2026-07-30):** Catalogue concurrency/audit, deletion safeguards, and the removed Wiki Razor route remain. Its independent Items and rate-variant lifecycle claims are superseded: item identities are managed through source drops, and no rate-variant lifecycle exists.
+
+**Slice 6 Pass 6.1 historical foundation (2026-07-30):** Added the immutable approval-snapshot persistence tree, explicit active-approval pointer, catalogue concurrency tokens, and migration `20260729223403_AddSlice6BoardApprovalSnapshotFoundation`. Published retained boards backfill deterministically into one active v1 tree while preserving board/tile/requirement identities, wording/artwork, and EHB/calculation values; legacy publication actor remains explicitly unknown rather than invented. The initial variant-snapshot storage is retired by the catalogue product correction above while source-drop and approval snapshots remain preserved.
+
+**Slice 5 merged (2026-07-30):** Slice 5 was accepted, packaged into logical implementation/documentation commits, merged to `main`, and pushed. Its final accepted automated evidence remains Domain `153/153`, Application `82/82`, Browser `66/66`, Integration `188/188` (`489/489`), with clean Release build, formatting, `git diff --check`, EF pending-model check, and migration/reset coverage. Earlier Slice 5 handoff entries below are historical detail.
+
+**Slice 5 accepted (2026-07-29):** Manual acceptance S5-01 through S5-10 and the final TEST 52 Public boards/Board-route retests are approved. Final automated acceptance is complete: Domain `153/153`, Application `82/82`, Browser `66/66` (TRX `/private/tmp/slice5-final-gates-20260729/browser-final/Bingo.BrowserTests-final.trx`), Integration `188/188` (TRX `/private/tmp/slice5-integration-inventory-20260729/retry/Bingo.IntegrationTests-inventory-retry.trx`), combined `489/489`, Release solution build clean, formatting and `git diff --check` passed, EF pending-model check clean, and 21 relevant migration/reset tests passed with 35 migrations, no missing designers, and one snapshot. Audit found no staged files, secrets, generated runtime artifacts, or unrelated modified paths. Packaging/merge/push are recorded above.
 
 **Slice 5 Public boards follow-up (2026-07-29):** Removed the stale `FirstPublicAt` candidate gate. The focused PostgreSQL regression now proves an event with no published fact is absent, roster-only publication routes to Teams, and board publication routes to Board, all with `FirstPublicAt == null`; it passed `2/2`. Drafted-team feedback was unchanged. The affected Release Web build passed with 0 warnings/errors; formatting verification and `git diff --check` passed. No migration, staging, commit, push, or Slice 6 work occurred.
 
