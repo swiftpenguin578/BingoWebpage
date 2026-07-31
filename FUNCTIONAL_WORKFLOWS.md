@@ -1593,7 +1593,7 @@ Approved evidence metadata, credited player, and screenshot are public so commun
 
 - After draft finalization, a signed-in participant's primary event action opens their published team roster while the board is unavailable.
 - Once the board is published, the primary action opens the existing team-board view. This does not create a separate participant dashboard or redesign the approved public board.
-- The participant view identifies event/team, participant or captain role, lifecycle state, planned/current playing account, event end, and submission cutoff.
+- The participant view identifies event/team, participant or captain role, lifecycle state, planned/current playing account, and event end. The normal submission cutoff remains internal lifecycle data; pages may communicate submission availability without ordinarily displaying the cutoff timestamp.
 
 ### 27.2 Own evidence authority
 
@@ -1634,7 +1634,7 @@ Approved evidence metadata, credited player, and screenshot are public so commun
 ### 27.7 Acceptance scenarios
 
 1. A drafted participant reaches their roster before board publication and their existing team board after publication.
-2. A participant sees event/team, role, planned/current account, event end, and submission cutoff context.
+2. A participant sees event/team, role, planned/current account, and event end; submission availability may be communicated without displaying the internal cutoff timestamp.
 3. A participant submits only for themselves; the server credits their current active account without presenting an account selector.
 4. A captain selects a teammate and the server derives that teammate's current active account.
 5. A participant cannot submit a drop to an earlier registered account after swapping away from it.

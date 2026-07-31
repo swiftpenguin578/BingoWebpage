@@ -243,7 +243,16 @@ Reset Development data first. It leaves exactly TEST 13, TEST 62, and TEST 15, w
 
 ## Slice 7 — Live account swaps, participant navigation, and team focus
 
-- [ ] Exact manual cases to be finalized before Slice 7 handoff.
+- [x] **S7-01 — participant live context and navigation.** Confirm owned participants reach the correct roster/team-board surface and can see their event, team, role, planned/current Playing account, and event-end context on the standalone route.
+- [x] **S7-02 — participant self-swap.** During Live and before event end, select another current Playing account and confirm the planned change, next-whole-minute activation, feedback, and visible focus styling work without exposing another team's private state.
+- [x] **S7-03 — captain/co-captain unlinked-member swap.** Confirm a Captain/Co-captain can schedule a Playing-account change only for an unlinked member of their own pre-formed team, while linked and unrelated participants remain protected.
+- [x] **S7-04 — private focus authority and visibility.** Confirm Captain/Co-captain focus mutations, normal member read-only visibility, other-team privacy, and explicit Super Admin read-only inspection.
+- [x] **S7-05 — concurrency and stale mutation behavior.** Covered by the accepted automated PostgreSQL gate.
+- [x] **S7-06 — realtime refresh and reconnect.** Confirm authorized focus updates become visible without leaking focus data to unauthorized viewers.
+- [x] **S7-07 — event-end boundary.** Confirm swap/focus mutation is unavailable at or after event end while retained focus can remain visible for historical/UI presentation.
+- [x] **Final focus remediation.** Confirm overlapping tile/row/column markers coexist, one marker can be unfocused independently, Clear all affects only the current team, completed tiles cannot be focused or styled, completion clears an existing tile marker, and reversal does not restore it.
+
+Slice 7 manual acceptance approved 2026-07-31.
 - [ ] Planned/active account, whole-minute pending swap, unlimited swaps, and event-end freeze.
 - [ ] Participant/captain/external-team authority.
 - [ ] Team focus visibility, mutation, Super-Admin inspection opt-in, and realtime isolation.

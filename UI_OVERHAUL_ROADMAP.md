@@ -652,6 +652,8 @@ Do not add tile duplication, copy-from-event, import, or reusable-template actio
 - On another team's page, keep focus absent for the Super Admin until they deliberately enable a clearly labelled, read-only **Inspect team focus** toggle. Make the inspection state obvious, do not remember it as a show-all preference, and stop showing/subscribing to the data when disabled.
 - Provide clear success feedback for submit, edit, withdraw, and replacement actions.
 
+**Slice 7 desktop-placement deferral (2026-07-31):** Participant account/event context, account-swap controls, focus controls, Super Admin inspection controls, and focus-realtime presentation remain on the standalone TeamBoard route below `901px` until the planned desktop UI overhaul. This does not defer focus visibility itself: authorized focus markers must render clearly on the shared board tiles in both the standalone route and the desktop board overlay.
+
 **Approval gate**
 
 - A captain can submit a Discord screenshot with minimal file handling and understand every submission state on desktop and mobile.
