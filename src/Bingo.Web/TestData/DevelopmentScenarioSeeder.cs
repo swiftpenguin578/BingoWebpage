@@ -1472,6 +1472,7 @@ public sealed class DevelopmentScenarioSeeder(
         db.Database.ExecuteSqlRawAsync(
             """
             TRUNCATE TABLE
+                team_focus_markers, event_participant_character_swaps,
                 official_placements, event_finalizations, final_review_resolutions, team_completion_corrections,
                 submission_contributions, review_actions, evidence_assets, submissions, evidence_codes,
                 draft_publication_rosters, draft_publication_cycles, team_membership_role_transitions,

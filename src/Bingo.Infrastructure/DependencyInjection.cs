@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddSingleton<ISecretHasher, SecretHasher>();
         services.AddScoped<ISignupService, SignupService>();
         services.AddScoped<EventParticipantCharacterService>();
+        services.AddScoped<IParticipantLiveService, ParticipantLiveService>();
         if (string.Equals(configuration["EvidenceStorage:Provider"], "R2", StringComparison.OrdinalIgnoreCase))
             services.AddSingleton<IEvidenceStorage, R2EvidenceStorage>();
         else
@@ -57,6 +58,8 @@ public static class DependencyInjection
         services.AddScoped<IProgressNotifier, NullProgressNotifier>();
         services.AddScoped<IAdminCollaborationNotifier, NullAdminCollaborationNotifier>();
         services.AddScoped<ITeamCaptainAuthorityService, TeamCaptainAuthorityService>();
+        services.AddScoped<ITeamFocusService, TeamFocusService>();
+        services.AddScoped<ITeamFocusNotifier, NullTeamFocusNotifier>();
 
         return services;
     }

@@ -57,6 +57,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IProgressNotifier, SignalRProgressNotifier>();
 builder.Services.AddScoped<IAdminCollaborationNotifier, SignalRAdminCollaborationNotifier>();
+builder.Services.AddScoped<ITeamFocusNotifier, SignalRTeamFocusNotifier>();
 builder.Services.Configure<DevelopmentAdminBootstrapOptions>(
     builder.Configuration.GetSection(DevelopmentAdminBootstrapOptions.SectionName));
 var discordOptions = builder.Configuration.GetSection(DiscordAuthenticationOptions.SectionName).Get<DiscordAuthenticationOptions>() ?? new DiscordAuthenticationOptions();
@@ -476,6 +477,7 @@ app.MapRazorPages()
    .WithStaticAssets();
 app.MapHub<ProgressHub>("/hubs/progress");
 app.MapHub<AdminCollaborationHub>("/hubs/admin-collaboration");
+app.MapHub<TeamFocusHub>("/hubs/team-focus");
 
 app.Run();
 

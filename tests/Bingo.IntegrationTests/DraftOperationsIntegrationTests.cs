@@ -652,14 +652,16 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         item.ConfigureSignup(true, false, null);
         item.OpenSignups(now.AddDays(-1));
         item.CloseSignups(now.AddHours(-1));
+        var form = new SignupForm(Guid.NewGuid(), item.Id, now);
+        var primaryQuestion = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var firstTeam = new Team(Guid.NewGuid(), item.Id, "First", "first", TeamFormationType.Drafted, null, true);
         var secondTeam = new Team(Guid.NewGuid(), item.Id, "Second", "second", TeamFormationType.Drafted, null, true);
         var draft = new DraftSession(Guid.NewGuid(), item.Id, 1);
         var players = Enumerable.Range(1, 4).Select(index => new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, index, now, SignupSource.Website)).ToList();
         var characters = players.Select((player, index) => new OsrsCharacter(Guid.NewGuid(), $"Draft {index}", $"DRAFT {item.Id:N} {index}", now)).ToList();
-        var assignments = players.Select((player, index) => new EventParticipantCharacter(Guid.NewGuid(), item.Id, player.Id, characters[index].Id, 0, now, null, null, EventCharacterRole.Playing, index + 1, EhbSource.Manual, null)).ToList();
+        var assignments = players.Select((player, index) => new EventParticipantCharacter(Guid.NewGuid(), item.Id, player.Id, characters[index].Id, 0, now, null, primaryQuestion.Id, EventCharacterRole.Playing, index + 1, EhbSource.Manual, null)).ToList();
         await using var db = new ApplicationDbContext(options);
-        db.AddRange(firstAdmin, secondAdmin, item, firstTeam, secondTeam, draft);
+        db.AddRange(firstAdmin, secondAdmin, item, form, primaryQuestion, firstTeam, secondTeam, draft);
         db.AddRange(players); db.AddRange(characters); db.AddRange(assignments);
         db.AddRange(new TeamMembership(Guid.NewGuid(), firstTeam.Id, players[0].Id, TeamMembershipRole.Captain, now, null, "seed"), new TeamMembership(Guid.NewGuid(), secondTeam.Id, players[1].Id, TeamMembershipRole.Captain, now, null, "seed"));
         await db.SaveChangesAsync();

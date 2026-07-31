@@ -125,11 +125,13 @@ public sealed class Slice3EvidenceReviewLifecycleIntegrationTests : IAsyncLifeti
     private static async Task AddSetupAsync(ApplicationDbContext db, ApprovedSetup setup)
     {
         var character = new OsrsCharacter(Guid.NewGuid(), $"Player {setup.EventId:N}", $"PLAYER {setup.EventId:N}", DateTimeOffset.UtcNow);
+        var form = new SignupForm(Guid.NewGuid(), setup.EventId, DateTimeOffset.UtcNow);
+        var primaryQuestion = new SignupQuestion(Guid.NewGuid(), form.Id, setup.EventId, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var tile = new BoardTile(setup.TileId, setup.BoardId, Guid.NewGuid(), 0, 0, "Tile", "Description", "Evidence", 1);
         var requirement = new BoardRequirementSnapshot(setup.RequirementId, setup.TileId, 0, 1, true, false, "Requirement", true);
-        db.AddRange(setup.Event, new Team(setup.TeamId, setup.EventId, "Team", $"team-{setup.EventId:N}", TeamFormationType.Drafted, null, true),
+        db.AddRange(setup.Event, form, primaryQuestion, new Team(setup.TeamId, setup.EventId, "Team", $"team-{setup.EventId:N}", TeamFormationType.Drafted, null, true),
             new EventParticipant(setup.ParticipantId, setup.EventId, SignupStatus.Confirmed, 1, DateTimeOffset.UtcNow, SignupSource.Website), character,
-            new EventParticipantCharacter(Guid.NewGuid(), setup.EventId, setup.ParticipantId, character.Id, 0, DateTimeOffset.UtcNow, setup.AdminId, null, EventCharacterRole.Playing, 100, EhbSource.Manual, null),
+            new EventParticipantCharacter(Guid.NewGuid(), setup.EventId, setup.ParticipantId, character.Id, 0, DateTimeOffset.UtcNow, setup.AdminId, primaryQuestion.Id, EventCharacterRole.Playing, 100, EhbSource.Manual, null),
             setup.Board, tile, requirement,
             new TeamMembership(Guid.NewGuid(), setup.TeamId, setup.ParticipantId, TeamMembershipRole.Participant, DateTimeOffset.UtcNow, null, null),
             setup.Submission, new SubmissionContribution(Guid.NewGuid(), setup.SubmissionId, setup.TeamId, setup.RequirementId, null, setup.ParticipantId, 1, DateTimeOffset.UtcNow),

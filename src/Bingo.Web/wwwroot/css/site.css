@@ -781,6 +781,49 @@ body.public-event-shell .public-tile.complete { border-width: 1px; border-color:
 .public-tile.complete::after { position: absolute; z-index: 3; top: 50%; left: 50%; display: grid; width: 1.65rem; height: 1.65rem; place-items: center; color: #dfffe4; background: color-mix(in srgb, #173d22 82%, transparent); border: 1px solid color-mix(in srgb, var(--success) 82%, white); border-radius: 50%; box-shadow: 0 0.3rem 0.8rem rgba(0, 0, 0, 0.38); content: "✓"; font-size: 0.95rem; font-weight: 900; line-height: 1; pointer-events: none; transform: translate(-50%, -50%); }
 body.public-event-shell .public-tile.in-progress:hover { box-shadow: 0 0.7rem 1.5rem rgba(0, 0, 0, 0.25); }
 body.public-event-shell .public-tile.complete:hover { box-shadow: 0 0.7rem 1.5rem rgba(0, 0, 0, 0.25); }
+.public-tile.team-focus-tile,
+.public-tile.team-focus-row,
+.public-tile.team-focus-column {
+  border: 3px solid #d6e1f8;
+  outline: 2px solid color-mix(in srgb, var(--accent) 68%, transparent);
+  outline-offset: -5px;
+}
+body.public-event-shell .public-tile.team-focus-tile,
+body.public-event-shell .public-tile.team-focus-row,
+body.public-event-shell .public-tile.team-focus-column {
+  border-color: #d6e1f8 !important;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 66%, transparent) !important;
+}
+.public-tile.team-focus-tile::before,
+.public-tile.team-focus-row::before,
+.public-tile.team-focus-column::before {
+  position: absolute;
+  z-index: 4;
+  top: 0.28rem;
+  left: 0.28rem;
+  padding: 0.14rem 0.24rem;
+  color: #151a22;
+  background: #d6e1f8;
+  border: 1px solid #fff;
+  border-radius: 0.2rem;
+  box-shadow: 0 0.18rem 0.4rem rgba(0, 0, 0, 0.45);
+  content: "FOCUS";
+  font-size: clamp(0.42rem, 0.48vw, 0.54rem);
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  pointer-events: none;
+}
+.public-tile.team-focus-row::before { content: "ROW FOCUS"; }
+.public-tile.team-focus-column::before { content: "COLUMN FOCUS"; }
+.public-tile.team-focus-tile::before { content: "TILE FOCUS"; }
+.team-focus-panel, .team-focus-inspection-prompt { margin-bottom: 1rem; }
+.team-focus-heading { display: flex; gap: 0.8rem; align-items: center; justify-content: space-between; }
+.team-focus-heading h2 { margin: 0; }
+.team-focus-inspection-label { color: var(--accent); font-size: 0.78rem; font-weight: 700; text-transform: uppercase; }
+.team-focus-summary { color: var(--muted); margin: 0.45rem 0 0; }
+.team-focus-controls { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.8rem; }
+.team-focus-controls form { margin: 0; }
 .public-tile-art, .public-tile-shade, .public-tile-copy { position: absolute; inset: 0; }
 .public-tile-art { display: grid; overflow: hidden; background: radial-gradient(circle at 50% 35%, #293140, #171a20 68%); }
 .public-tile-art > .custom-art { width: 100%; height: 100%; object-fit: cover; }

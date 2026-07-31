@@ -1,5 +1,7 @@
+using Bingo.Application.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Web.Security;
 using Bingo.Web.Teams;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -7,14 +9,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Web.Pages.Events;
 
-public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, PublicTeamImageService images) : PageModel
+public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, PublicTeamImageService images, IParticipantLiveService? live = null) : PageModel
 {
     public string EventName { get; private set; } = string.Empty;
     public string? CurrentEvidenceCode { get; private set; }
     public IReadOnlyList<TeamView> Teams { get; private set; } = [];
     public IReadOnlyList<PickView> Picks { get; private set; } = [];
+    public ParticipantLiveContext? ParticipantContext { get; private set; }
 
-    public async Task<IActionResult> OnGetAsync(string slug, CancellationToken ct)
+    public async Task<IActionResult> OnGetAsync(string slug, Guid? participantId, CancellationToken ct)
     {
         var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug, ct);
         if (ev is null) return NotFound();
@@ -57,8 +60,20 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, Publi
         Picks = rosterEntries.Where(x => x.EffectivePickNumber is not null && teamNames.ContainsKey(x.TeamId))
             .OrderBy(x => x.EffectivePickNumber).Select(x => new PickView(x.EffectivePickNumber!.Value, x.PublicCharacterName, teamNames[x.TeamId])).ToList();
 
+        if (participantId is { } selectedParticipantId)
+        {
+            var accountId = User.GetAccountId();
+            if (accountId is null) return Challenge();
+            if (live is null) return StatusCode(500);
+            ParticipantContext = await live.GetContextAsync(ev.Id, selectedParticipantId, accountId.Value, ct);
+            if (ParticipantContext is null) return Forbid();
+        }
+
         return Page();
     }
+
+    [NonHandler]
+    public Task<IActionResult> OnGetAsync(string slug, CancellationToken ct) => OnGetAsync(slug, null, ct);
 
     public sealed record TeamView(string Name, string? Affiliation, string? ImageUrl, TeamFormationType FormationType, IReadOnlyList<MemberView> Members);
 

@@ -41,8 +41,17 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
             if (!User.IsInRole("Admin"))
             {
                 var destination = EventDestinationPolicy.Decide(EventDestinationPolicy.From(row.Event, rosterExists), false);
-                if (destination == EventDestination.Roster) return RedirectToPage("Teams", new { slug });
-                if (destination == EventDestination.Board) return RedirectToPage("Board", new { slug });
+                if (destination == EventDestination.Roster) return RedirectToPage("Teams", new { slug, participantId });
+                if (destination == EventDestination.Board)
+                {
+                    var teamSlug = await (from membership in db.TeamMemberships.AsNoTracking()
+                                          join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
+                                          where membership.EventParticipantId == row.Participant.Id && membership.LeftAt == null
+                                          select team.Slug).SingleOrDefaultAsync(ct);
+                    return teamSlug is null
+                        ? RedirectToPage("Board", new { slug })
+                        : RedirectToPage("TeamBoard", new { slug, teamSlug, participantId });
+                }
             }
             EventName = row.Event.Name;
             EventSlug = row.Event.Slug;

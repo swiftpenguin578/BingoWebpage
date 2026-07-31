@@ -136,6 +136,8 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
 
         var draft = new DraftSession(Guid.NewGuid(), eventId, 1);
         draft.AcquireControl(adminId, now, DraftControlLease.Duration);
+        var form = new SignupForm(Guid.NewGuid(), eventId, now);
+        var primaryQuestion = new SignupQuestion(Guid.NewGuid(), form.Id, eventId, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var firstTeam = new Team(Guid.NewGuid(), eventId, "Team One", $"{slug}-one", TeamFormationType.Drafted, null, true);
         var secondTeam = new Team(Guid.NewGuid(), eventId, "Team Two", $"{slug}-two", TeamFormationType.Drafted, null, true);
         firstTeam.SetDraftPosition(1);
@@ -146,12 +148,14 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
         var secondCharacter = new OsrsCharacter(Guid.NewGuid(), $"{slug} two", $"{slug.ToUpperInvariant()} TWO", now);
         db.AddRange(
             item,
+            form,
+            primaryQuestion,
             draft,
             firstTeam,
             secondTeam,
             firstParticipant, secondParticipant, firstCharacter, secondCharacter,
-            new EventParticipantCharacter(Guid.NewGuid(), eventId, firstParticipant.Id, firstCharacter.Id, 0, now, null, null, EventCharacterRole.Playing, 1m, EhbSource.Manual, null),
-            new EventParticipantCharacter(Guid.NewGuid(), eventId, secondParticipant.Id, secondCharacter.Id, 0, now, null, null, EventCharacterRole.Playing, 1m, EhbSource.Manual, null),
+            new EventParticipantCharacter(Guid.NewGuid(), eventId, firstParticipant.Id, firstCharacter.Id, 0, now, null, primaryQuestion.Id, EventCharacterRole.Playing, 1m, EhbSource.Manual, null),
+            new EventParticipantCharacter(Guid.NewGuid(), eventId, secondParticipant.Id, secondCharacter.Id, 0, now, null, primaryQuestion.Id, EventCharacterRole.Playing, 1m, EhbSource.Manual, null),
             new TeamMembership(Guid.NewGuid(), firstTeam.Id, firstParticipant.Id, TeamMembershipRole.Captain, now, null, "Captain preassignment"),
             new TeamMembership(Guid.NewGuid(), secondTeam.Id, secondParticipant.Id, TeamMembershipRole.Captain, now, null, "Captain preassignment"));
         return item;

@@ -1,5 +1,6 @@
 @page "/Events/{slug}/Board/{teamSlug}"
 @model Bingo.Web.Pages.Events.TeamBoardModel
+@using Bingo.Domain.Events
 @using Bingo.Web.Catalogue
 @inject OsrsWikiImageCache WikiImages
 @{
@@ -21,6 +22,115 @@
 {
     <script src="~/js/team-board-overlay-redirect.js" asp-append-version="true"
             data-overview-url="@Url.Page("/Events/Board", new { slug = Model.Board.EventSlug })"></script>
+}
+@if (Model.LiveContexts.Count > 0)
+{
+    <section class="panel participant-live-context" aria-label="@T["Participant event context"]">
+        <p class="eyebrow">@T["Participant event context"]</p>
+        <div class="participant-live-context-grid">
+        @foreach (var context in Model.LiveContexts)
+        {
+            <div>
+                <h2>@(context.ParticipantId == Model.ParticipantContext?.ParticipantId ? T["Your live account"] : T["Team member live account"])</h2>
+                <p>@T["Lifecycle"]: @context.EventState · @T["Role"]: @context.TeamRole · @T["Planned"]: <strong>@context.PlannedCharacterName</strong> · @T["Active"]: <strong>@(context.ActiveCharacterName ?? T["Not active yet"])</strong></p>
+                @if (context.EventEndsAt is { } eventEnd) { <p>@T["Event ends"]: <time datetime="@eventEnd.ToUniversalTime().ToString("O")">@eventEnd.ToUniversalTime().ToString("dd MMM yyyy HH:mm 'UTC'")</time></p> }
+                @if (context.CanSwap)
+                {
+                    <form method="post" asp-page-handler="Swap" class="participant-account-swap">
+                        <input type="hidden" asp-for="Input.ParticipantId" value="@context.ParticipantId" />
+                        <input type="hidden" asp-for="Input.ExpectedCurrentCharacterId" value="@context.PlayingCharacters.Single(character => character.IsActive).CharacterId" />
+                        <label asp-for="Input.NextCharacterId">@T["Switch active account"]</label>
+                        <select asp-for="Input.NextCharacterId">
+                            @foreach (var character in context.PlayingCharacters.Where(character => !character.IsActive))
+                            {
+                                <option value="@character.CharacterId">@character.Name</option>
+                            }
+                        </select>
+                        <button type="submit">@T["Swap next minute"]</button>
+                    </form>
+                }
+            </div>
+        }
+        </div>
+    </section>
+}
+@if (Model.Focus is { CanInspect: true, IsVisible: false })
+{
+    <section class="panel team-focus-inspection-prompt" aria-label="@T["Team focus inspection"]">
+        <strong>@T["Team focus is hidden"]</strong>
+        <p>@T["Super Admin inspection is read-only and must be enabled for this team."]</p>
+        <a class="action-accent-outline" asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Team.TeamSlug" asp-route-inspectFocus="true">@T["Inspect team focus"]</a>
+    </section>
+}
+@if (Model.Focus is { IsVisible: true } focus)
+{
+    var focusedRows = focus.Markers.Where(marker => marker.Focused && marker.TargetKind == Bingo.Domain.Teams.TeamFocusTargetKind.Row).Select(marker => marker.RowIndex!.Value + 1).ToList();
+    var focusedColumns = focus.Markers.Where(marker => marker.Focused && marker.TargetKind == Bingo.Domain.Teams.TeamFocusTargetKind.Column).Select(marker => marker.ColumnIndex!.Value + 1).ToList();
+    var focusedTiles = focus.Markers.Count(marker => marker.Focused && marker.TargetKind == Bingo.Domain.Teams.TeamFocusTargetKind.Tile);
+    <section class="panel team-focus-panel" aria-label="@T["Team focus"]">
+        <div class="team-focus-heading">
+            <div><p class="eyebrow">@T["Team focus"]</p><h2>@T["Current priorities"]</h2></div>
+            @if (focus.IsInspection)
+            {
+                <span class="team-focus-inspection-label">@T["Read-only inspection"]</span>
+                <a class="neutral-outline-action" asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Team.TeamSlug">@T["Stop inspecting"]</a>
+            }
+        </div>
+        <p class="team-focus-summary">@T["{0} focused tile(s)", focusedTiles] · @T["Rows"]: @(focusedRows.Count == 0 ? T["none"] : string.Join(", ", focusedRows)) · @T["Columns"]: @(focusedColumns.Count == 0 ? T["none"] : string.Join(", ", focusedColumns))</p>
+        @if (focus.CanMutate)
+        {
+            <div class="team-focus-controls">
+                @if (focus.Markers.Any(marker => marker.Focused))
+                {
+                    <form method="post" asp-page-handler="ClearAllFocus">
+                        @for (var index = 0; index < focus.Markers.Count; index++)
+                        {
+                            <input type="hidden" name="FocusInput.MarkerVersions[@index].Id" value="@focus.Markers[index].Id" />
+                            <input type="hidden" name="FocusInput.MarkerVersions[@index].Version" value="@focus.Markers[index].Version" />
+                        }
+                        <button type="submit" class="action-danger-outline">@T["Clear all focus"]</button>
+                    </form>
+                }
+                @foreach (var tile in Model.Team.Tiles)
+                {
+                    var marker = focus.Markers.SingleOrDefault(value => value.TargetKind == Bingo.Domain.Teams.TeamFocusTargetKind.Tile && value.BoardTileId == tile.TileId);
+                    if (tile.Complete) continue;
+                    <form method="post" asp-page-handler="ToggleFocus">
+                        <input type="hidden" name="FocusInput.TargetKind" value="Tile" />
+                        <input type="hidden" name="FocusInput.BoardTileId" value="@tile.TileId" />
+                        <input type="hidden" name="FocusInput.Focused" value="@(marker?.Focused != true ? "true" : "false")" />
+                        <input type="hidden" name="FocusInput.ExpectedVersion" value="@(marker?.Version ?? 0)" />
+                        <button type="submit" class="neutral-outline-action">@(marker?.Focused == true ? T["Unfocus {0}", tile.Name] : T["Focus {0}", tile.Name])</button>
+                    </form>
+                }
+                @for (var row = 0; row < Model.Board.Rows; row++)
+                {
+                    var marker = focus.Markers.SingleOrDefault(value => value.TargetKind == Bingo.Domain.Teams.TeamFocusTargetKind.Row && value.RowIndex == row);
+                    <form method="post" asp-page-handler="ToggleFocus">
+                        <input type="hidden" name="FocusInput.TargetKind" value="Row" />
+                        <input type="hidden" name="FocusInput.RowIndex" value="@row" />
+                        <input type="hidden" name="FocusInput.Focused" value="@(marker?.Focused != true ? "true" : "false")" />
+                        <input type="hidden" name="FocusInput.ExpectedVersion" value="@(marker?.Version ?? 0)" />
+                        <button type="submit" class="neutral-outline-action">@(marker?.Focused == true ? T["Unfocus row {0}", row + 1] : T["Focus row {0}", row + 1])</button>
+                    </form>
+                }
+                @for (var column = 0; column < Model.Board.Columns; column++)
+                {
+                    var marker = focus.Markers.SingleOrDefault(value => value.TargetKind == Bingo.Domain.Teams.TeamFocusTargetKind.Column && value.ColumnIndex == column);
+                    <form method="post" asp-page-handler="ToggleFocus">
+                        <input type="hidden" name="FocusInput.TargetKind" value="Column" />
+                        <input type="hidden" name="FocusInput.ColumnIndex" value="@column" />
+                        <input type="hidden" name="FocusInput.Focused" value="@(marker?.Focused != true ? "true" : "false")" />
+                        <input type="hidden" name="FocusInput.ExpectedVersion" value="@(marker?.Version ?? 0)" />
+                        <button type="submit" class="neutral-outline-action">@(marker?.Focused == true ? T["Unfocus column {0}", column + 1] : T["Focus column {0}", column + 1])</button>
+                    </form>
+                }
+            </div>
+        }
+    </section>
+    <script src="~/js/team-focus.js" asp-append-version="true"
+            data-event-id="@Model.Board.EventId" data-team-id="@Model.Team.TeamId"
+            data-inspect="@Model.InspectFocus.ToString().ToLowerInvariant()"></script>
 }
 <section class="public-team-board" data-progress-event="@Model.Board.EventId"
          style="--public-board-columns:@Model.Board.Columns">
@@ -112,7 +222,8 @@
             {
                 var progressPercent = tile.Target == 0 ? 0 : Math.Min(100, tile.Approved * 100 / tile.Target);
                 var stateLabel = tile.Complete ? T["Complete"] : tile.Approved > 0 ? T["In progress"] : T["Not started"];
-                <a class="public-tile panel @(tile.Complete ? "complete" : tile.Approved > 0 ? "in-progress" : null)"
+                var focusPresentation = TeamBoardModel.GetFocusPresentation(tile, Model.Focus?.Markers ?? []);
+                <a class="public-tile panel @(tile.Complete ? "complete" : tile.Approved > 0 ? "in-progress" : null) @(focusPresentation.Tile ? "team-focus-tile" : null) @(focusPresentation.Row ? "team-focus-row" : null) @(focusPresentation.Column ? "team-focus-column" : null)"
                    aria-label="@T["{0}. {1}, {2} of {3}.", tile.Name, stateLabel, tile.Approved, tile.Target]"
                    asp-page="/Events/Tile" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Team.TeamSlug" asp-route-tileId="@tile.TileId">
                     <span class="public-tile-art" aria-hidden="true">

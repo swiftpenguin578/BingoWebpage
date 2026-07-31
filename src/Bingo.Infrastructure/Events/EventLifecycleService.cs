@@ -5,8 +5,10 @@ using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
+using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Signups;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Infrastructure.Events;
@@ -57,6 +59,7 @@ public sealed class EventLifecycleService(
             if (blockers.Count > 0) return new(false, string.Join(" ", blockers.Select(x => x.Description)), blockers);
             var from = item.State;
             item.StartEvent(now);
+            await AppendInitialActivationsAsync(item.Id, item.ActualStartedAt!.Value, ct);
             var unresolved = await db.ScheduledEventStartAttempts.Where(x => x.EventId == eventId && x.ResolvedAt == null && !x.Started).ToListAsync(ct);
             foreach (var attempt in unresolved) attempt.Resolve(now);
             AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.started", reason, now);
@@ -107,6 +110,7 @@ public sealed class EventLifecycleService(
             {
                 var from = item.State;
                 item.StartEvent(now);
+                await AppendInitialActivationsAsync(item.Id, item.ActualStartedAt!.Value, ct);
                 db.ScheduledEventStartAttempts.Add(new(Guid.NewGuid(), eventId, scheduledFor, now, true, []));
                 AddTransitionAndAudit(item, from, null, "System", true, "event.started_automatically", null, now);
             }
@@ -163,6 +167,17 @@ public sealed class EventLifecycleService(
         if (!await db.Boards.AsNoTracking().AnyAsync(x => x.EventId == item.Id && x.State == BoardState.Published, ct))
             blockers.Add(new("BOARD_NOT_PUBLISHED", "Publish the board before starting.", $"/Admin/Events/Board/{item.Id}"));
 
+        var confirmedParticipantIds = await db.EventParticipants.AsNoTracking()
+            .Where(x => x.EventId == item.Id && x.SignupStatus == SignupStatus.Confirmed)
+            .Select(x => x.Id)
+            .ToListAsync(ct);
+        var primaryParticipantIds = await db.PrimaryCharacters().AsNoTracking()
+            .Where(x => x.EventId == item.Id && confirmedParticipantIds.Contains(x.ParticipantId))
+            .Select(x => x.ParticipantId)
+            .ToListAsync(ct);
+        foreach (var participantId in confirmedParticipantIds.Except(primaryParticipantIds))
+            blockers.Add(new("PARTICIPANT_PLAYING_ASSIGNMENT_INVALID", "Every confirmed participant needs an unambiguous current Playing assignment before the event can start.", $"/Admin/Events/Participant/{participantId}"));
+
         var activeTeams = await db.Teams.AsNoTracking().Where(x => x.EventId == item.Id && x.Active).Select(x => new { x.Id, x.Name }).ToListAsync(ct);
         var activeTeamIds = activeTeams.Select(team => team.Id).ToArray();
         var captainTeams = await (from membership in db.TeamMemberships.AsNoTracking()
@@ -187,6 +202,26 @@ public sealed class EventLifecycleService(
         if (current is not null)
             blockers.Add(new("CURRENT_EVENT_EXISTS", $"{current.Name} is already the current {ReadableState(current.State)} event.", $"/Admin/Events/Manage/{current.Id}"));
         return blockers;
+    }
+
+    private async Task AppendInitialActivationsAsync(Guid eventId, DateTimeOffset effectiveAtUtc, CancellationToken ct)
+    {
+        var candidates = await db.PrimaryCharacters().AsNoTracking()
+            .Where(x => x.EventId == eventId && db.EventParticipants.Any(participant =>
+                participant.Id == x.ParticipantId && participant.SignupStatus == SignupStatus.Confirmed))
+            .Select(x => new { x.ParticipantId, x.OsrsCharacterId })
+            .ToListAsync(ct);
+        var participantIds = candidates.Select(x => x.ParticipantId).ToArray();
+        var existing = await db.EventParticipantCharacterSwaps
+            .Where(x => participantIds.Contains(x.EventParticipantId) && x.PreviousOsrsCharacterId == null)
+            .Select(x => x.EventParticipantId)
+            .ToHashSetAsync(ct);
+        foreach (var candidate in candidates.Where(x => !existing.Contains(x.ParticipantId)))
+        {
+            db.EventParticipantCharacterSwaps.Add(new EventParticipantCharacterSwap(
+                Guid.NewGuid(), eventId, candidate.ParticipantId, null, candidate.OsrsCharacterId,
+                effectiveAtUtc, effectiveAtUtc, null, null));
+        }
     }
 
     private async Task<BingoEvent> EventAsync(Guid eventId, long version, CancellationToken ct)

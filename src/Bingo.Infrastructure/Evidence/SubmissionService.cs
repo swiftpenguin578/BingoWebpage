@@ -2,6 +2,7 @@ using System.Data;
 using System.Text.Json;
 using Bingo.Application.Boards;
 using Bingo.Application.Evidence;
+using Bingo.Application.Teams;
 using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
@@ -11,7 +12,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Infrastructure.Evidence;
 
-public sealed class SubmissionService(ApplicationDbContext db, IEvidenceStorage storage, TimeProvider time, IProgressNotifier? progressNotifier = null) : ISubmissionService
+public sealed class SubmissionService(
+    ApplicationDbContext db,
+    IEvidenceStorage storage,
+    TimeProvider time,
+    IProgressNotifier? progressNotifier = null,
+    ITeamFocusService? focus = null,
+    ITeamFocusNotifier? focusNotifier = null) : ISubmissionService
 {
     public async Task<SubmissionResult> CreateAsync(CreateSubmissionCommand command, CancellationToken cancellationToken = default)
     {
@@ -93,12 +100,12 @@ public sealed class SubmissionService(ApplicationDbContext db, IEvidenceStorage 
             var maximum = drop.MaximumContribution ?? (requirement.DuplicatesAllowed ? int.MaxValue : 1); allowed = Math.Min(allowed, Math.Max(0, maximum - dropUsed));
         }
         var amount = Math.Min(remaining, allowed); if (amount < 1) throw new InvalidOperationException("This requirement has no remaining eligible contribution. Mark the submission as a duplicate or reject it.");
-        var now = time.GetUtcNow(); var before = Snapshot(s); s.Approve(amount, now); if (s.PublicPrivacyRequested) s.SetPublicEvidenceHidden(true); db.SubmissionContributions.Add(new SubmissionContribution(Guid.NewGuid(), s.Id, s.TeamId, s.RequirementId, s.DropSnapshotId, s.CreditedParticipantId, amount, now)); db.ReviewActions.Add(Action(s.Id, ReviewActionType.Approve, adminAccountId, now, $"Approved contribution: {amount}", before, Snapshot(s))); await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(cancellationToken); await Notify(s.EventId, cancellationToken); return amount;
+        var now = time.GetUtcNow(); var before = Snapshot(s); s.Approve(amount, now); if (s.PublicPrivacyRequested) s.SetPublicEvidenceHidden(true); db.SubmissionContributions.Add(new SubmissionContribution(Guid.NewGuid(), s.Id, s.TeamId, s.RequirementId, s.DropSnapshotId, s.CreditedParticipantId, amount, now)); db.ReviewActions.Add(Action(s.Id, ReviewActionType.Approve, adminAccountId, now, $"Approved contribution: {amount}", before, Snapshot(s))); await db.SaveChangesAsync(cancellationToken); var focusCleared = focus is not null && await focus.ClearCompletedTileFocusAsync(s.EventId, s.TeamId, s.BoardTileId, cancellationToken); if (focusCleared) await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(cancellationToken); await Notify(s.EventId, cancellationToken); await NotifyFocus(s.EventId, s.TeamId, focusCleared, cancellationToken); return amount;
     }
 
     public async Task ReverseAsync(Guid submissionId, Guid adminAccountId, string reason, CancellationToken cancellationToken = default)
     {
-        await EnsureAdmin(adminAccountId, cancellationToken); await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken); var s = await LockedAdminReviewSubmissionAsync(submissionId, cancellationToken); var contribution = await db.SubmissionContributions.SingleAsync(x => x.SubmissionId == submissionId && x.ReversedAt == null, cancellationToken); var now = time.GetUtcNow(); var before = Snapshot(s); s.Reverse(reason, now); contribution.Reverse(now); db.ReviewActions.Add(Action(s.Id, ReviewActionType.ReverseApproval, adminAccountId, now, reason, before, Snapshot(s))); await RebalanceLaterContributions(s, contribution, adminAccountId, now, cancellationToken); await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(cancellationToken); await Notify(s.EventId, cancellationToken);
+        await EnsureAdmin(adminAccountId, cancellationToken); await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken); var s = await LockedAdminReviewSubmissionAsync(submissionId, cancellationToken); var contribution = await db.SubmissionContributions.SingleAsync(x => x.SubmissionId == submissionId && x.ReversedAt == null, cancellationToken); var now = time.GetUtcNow(); var before = Snapshot(s); s.Reverse(reason, now); contribution.Reverse(now); db.ReviewActions.Add(Action(s.Id, ReviewActionType.ReverseApproval, adminAccountId, now, reason, before, Snapshot(s))); await RebalanceLaterContributions(s, contribution, adminAccountId, now, cancellationToken); await db.SaveChangesAsync(cancellationToken); var focusCleared = focus is not null && await focus.ClearCompletedTileFocusAsync(s.EventId, s.TeamId, s.BoardTileId, cancellationToken); if (focusCleared) await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(cancellationToken); await Notify(s.EventId, cancellationToken); await NotifyFocus(s.EventId, s.TeamId, focusCleared, cancellationToken);
     }
 
     public async Task SetVisibilityAsync(Guid submissionId, Guid adminAccountId, bool hidden, CancellationToken cancellationToken = default)
@@ -169,6 +176,7 @@ public sealed class SubmissionService(ApplicationDbContext db, IEvidenceStorage 
     }
     private async Task EnsureAdmin(Guid id, CancellationToken cancellationToken) { if (!await db.Accounts.AnyAsync(x => x.Id == id && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin) && x.Active, cancellationToken)) throw new InvalidOperationException("Administrator access is required."); }
     private async Task Notify(Guid eventId, CancellationToken cancellationToken) { if (progressNotifier is null) return; try { await progressNotifier.NotifyProgressChangedAsync(eventId, cancellationToken); } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; } catch { /* The saved review must remain successful if a live client disconnects. */ } }
+    private async Task NotifyFocus(Guid eventId, Guid teamId, bool changed, CancellationToken cancellationToken) { if (!changed || focusNotifier is null) return; try { await focusNotifier.NotifyTeamFocusChangedAsync(eventId, teamId, cancellationToken); } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; } catch { /* The saved review must remain successful if a live client disconnects. */ } }
     private async Task<string?> ActiveCode(Guid eventId, DateTimeOffset at, CancellationToken cancellationToken) => await db.EvidenceCodes.AsNoTracking().Where(x => x.EventId == eventId && x.ActivatesAt <= at && (x.RetiresAt == null || x.RetiresAt > at)).OrderByDescending(x => x.ActivatesAt).Select(x => x.Code).FirstOrDefaultAsync(cancellationToken);
     private static EvidenceAsset Asset(Guid submissionId, Guid actor, StoredEvidence stored, EvidenceAssetRole role, DateTimeOffset now) => new(Guid.NewGuid(), submissionId, stored.StorageKey, stored.OriginalFilename, stored.MediaType, stored.ByteSize, stored.Width, stored.Height, stored.Checksum, now, actor, role);
     private static ReviewAction Action(Guid submissionId, ReviewActionType type, Guid actor, DateTimeOffset now, string? note, string? before, string? after) => new(Guid.NewGuid(), submissionId, type, actor, now, note, before, after);

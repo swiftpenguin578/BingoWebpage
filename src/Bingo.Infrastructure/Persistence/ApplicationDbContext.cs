@@ -70,6 +70,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<TeamCompletionCorrection> TeamCompletionCorrections => Set<TeamCompletionCorrection>();
     public DbSet<EventParticipant> EventParticipants => Set<EventParticipant>();
     public DbSet<EventParticipantCharacter> EventParticipantCharacters => Set<EventParticipantCharacter>();
+    public DbSet<EventParticipantCharacterSwap> EventParticipantCharacterSwaps => Set<EventParticipantCharacterSwap>();
     public DbSet<SignupForm> SignupForms => Set<SignupForm>();
     public DbSet<SignupQuestion> SignupQuestions => Set<SignupQuestion>();
     public DbSet<SignupAnswer> SignupAnswers => Set<SignupAnswer>();
@@ -95,6 +96,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<TeamImageAsset> TeamImageAssets => Set<TeamImageAsset>();
     public DbSet<TeamMembership> TeamMemberships => Set<TeamMembership>();
     public DbSet<TeamMembershipRoleTransition> TeamMembershipRoleTransitions => Set<TeamMembershipRoleTransition>();
+    public DbSet<TeamFocusMarker> TeamFocusMarkers => Set<TeamFocusMarker>();
     public DbSet<DraftSession> DraftSessions => Set<DraftSession>();
     public DbSet<DraftPick> DraftPicks => Set<DraftPick>();
     public DbSet<DraftPublicationCycle> DraftPublicationCycles => Set<DraftPublicationCycle>();

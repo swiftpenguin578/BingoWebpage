@@ -354,6 +354,8 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         if (evidenceCode is not null) ev.SetEvidenceCodeEnabled(true);
         var team = new Team(teamId, eventId, "Team One", $"team-{teamId:N}", TeamFormationType.Drafted, null, true);
         var participant = new EventParticipant(participantId, eventId, SignupStatus.Confirmed, 1, now.AddDays(-5), SignupSource.Website);
+        var form = new SignupForm(Guid.NewGuid(), eventId, now.AddDays(-5));
+        var primaryQuestion = new SignupQuestion(Guid.NewGuid(), form.Id, eventId, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var captain = Account.CreateEmergency(captainId, "captain", "CAPTAIN", now.AddDays(-10));
         var captainAccess = new AccountEventAccess(Guid.NewGuid(), captainId, eventId, teamId, participantId, now.AddDays(-1), now.AddHours(5), now.AddHours(30));
         captainAccess.Enable();
@@ -366,8 +368,8 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
             ? new BoardRequirementDropSnapshot(eligibleDropId, requirementId, Guid.NewGuid(), "Test boss", "Test drop", "1/10", 0.1m, duplicatesAllowed ? null : 1, dropEhb, allowHigherWeights ? 2 : 1)
             : null;
         var character = new OsrsCharacter(Guid.NewGuid(), "Player One", "PLAYER ONE", now);
-        var assignment = new EventParticipantCharacter(Guid.NewGuid(), eventId, participantId, character.Id, 0, now, adminId, null, EventCharacterRole.Playing, 500, EhbSource.Manual, null);
-        db.AddRange(ev, team, participant, character, assignment, captain, admin, board, captainAccess,
+        var assignment = new EventParticipantCharacter(Guid.NewGuid(), eventId, participantId, character.Id, 0, now, adminId, primaryQuestion.Id, EventCharacterRole.Playing, 500, EhbSource.Manual, null);
+        db.AddRange(ev, form, primaryQuestion, team, participant, character, assignment, captain, admin, board, captainAccess,
             new TeamMembership(Guid.NewGuid(), teamId, participantId, TeamMembershipRole.Participant, now.AddDays(-4), null, null),
             tile, requirement);
         if (drop is not null) db.BoardRequirementDropSnapshots.Add(drop);
