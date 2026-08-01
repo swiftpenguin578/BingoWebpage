@@ -290,15 +290,19 @@ The Admin **End event now** action on TEST 15 moves the event to `AwaitingFinalR
 
 ### Final manual correction notes
 
-The final correction retest passed in Safari after replacing `optgroup.options` with `group.querySelectorAll("option")`; initial server filtering, native requirement-change synchronization, and cross-tile server rejection all remain accepted. The next gate is a narrow independent re-review of only the post-review/manual corrections and final scope delta, followed by final automated gates. Final Slice 8 acceptance, packaging, commit, merge, and push are not claimed.
+The final correction retest passed in Safari after replacing `optgroup.options` with `group.querySelectorAll("option")`; initial server filtering, native requirement-change synchronization, and cross-tile server rejection all remain accepted. Slice 8 is accepted after the independent implementation review, all restricted re-reviews, final scope-delta review, and consolidated manual acceptance passed. It was packaged and integrated after successful Git operations; Slice 9 has not started.
 
-- [ ] Participant self-submit/edit/withdraw and Captain/Co-captain teammate-submit use server-derived credited character; no account selector or cross-team/private-history leakage.
-- [ ] Rejected-only linked resubmission uses a new image, copies credited snapshots, preserves predecessor history, blocks replay/stale writes, and remains cutoff-bound.
-- [ ] Admin Pending review exposes only reasonless Approve or reasoned Reject; rejection reaches linked credited participant/current linked Captain/Co-captains once, with unlinked fallback to eligible leadership.
-- [ ] Admin reasoned metadata correction derives participant from the selected Playing character and preserves submission time, weight, contribution, and active asset.
-- [ ] Approved and Archived public/tile/board evidence shows only active Approved evidence and stored credited-character snapshots; no private notes/reasons/authority data appear publicly or in realtime payloads.
-- [ ] Only Pending evidence blocks finalization; Approved reversal preserves exact deduction/rebalancing/history.
-- [ ] Deprecated Admin upload, Request Changes, same-record resubmit, active duplicate, privacy/visibility controls, hidden placeholders, routes, and controls are absent; private non-Approved evidence remains scoped, linked Rejected resubmission and protected drawer/standalone fallback remain.
+- [x] Participant self-submit/edit/withdraw and Captain/Co-captain teammate-submit use server-derived credited character; no account selector or cross-team/private-history leakage.
+- [x] Rejected-only linked resubmission uses a new image, copies credited snapshots, preserves predecessor history, blocks replay/stale writes, and remains cutoff-bound.
+- [x] Admin Pending review exposes only reasonless Approve or reasoned Reject; rejection reaches linked credited participant/current linked Captain/Co-captains once, with unlinked fallback to eligible leadership.
+- [x] Admin reasoned metadata correction derives participant from the selected Playing character and preserves submission time, weight, contribution, and active asset.
+- [x] Approved and Archived public/tile/board evidence shows only active Approved evidence and stored credited-character snapshots; no private notes/reasons/authority data appear publicly or in realtime payloads.
+- [x] Only Pending evidence blocks finalization; Approved reversal preserves exact deduction/rebalancing/history.
+- [x] Deprecated Admin upload, Request Changes, same-record resubmit, active duplicate, privacy/visibility controls, hidden placeholders, routes, and controls are absent; private non-Approved evidence remains scoped, linked Rejected resubmission and protected drawer/standalone fallback remain.
+
+### Slice 8 final automated acceptance — 2026-08-02
+
+Domain `156/156`, Application `83/83`, Browser `67/67`, and Integration `230/230` passed with zero failures/skips (`536/536` combined). Durable final Integration TRX: `/private/tmp/slice8-final-automated-gates-20260801/integration-rerun.trx`. Release build, formatting, EF pending-model, `git diff --check`, clean/retained migration/preflight, Development double-reset, parity, artifact/secret scan, and staged-state checks passed; no required gate remains unverified.
 
 ## Slice 9 — Event end, live replacement, finalization, notifications, and history
 
