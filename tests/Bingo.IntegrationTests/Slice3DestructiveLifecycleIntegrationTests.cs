@@ -181,12 +181,23 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
             if (category == "participant") setup.EventParticipants.Add(new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated, null));
             if (category == "team") setup.Teams.Add(new Team(Guid.NewGuid(), eventId, "Team", "team", TeamFormationType.Preformed, null, false));
             if (category == "event access") setup.AccountEventAccesses.Add(new AccountEventAccess(Guid.NewGuid(), actor.Id, eventId, Guid.NewGuid(), null, now, null, null));
-            if (category is "submission" or "evidence") { var submission = new Submission(Guid.NewGuid(), eventId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, Guid.NewGuid(), actor.Id, 1, now, null, null); setup.Submissions.Add(submission); if (category == "evidence") setup.EvidenceAssets.Add(new EvidenceAsset(Guid.NewGuid(), submission.Id, "evidence/key", "proof.png", "image/png", 10, 1, 1, "sum", now, actor.Id, EvidenceAssetRole.OriginalEvidence)); }
+            if (category is "submission" or "evidence")
+            {
+                var tileId = Guid.NewGuid(); var requirementId = Guid.NewGuid(); var teamId = Guid.NewGuid(); var participantId = Guid.NewGuid(); var characterId = Guid.NewGuid();
+                var team = new Team(teamId, eventId, "Submission team", $"submission-team-{eventId:N}", TeamFormationType.Preformed, null, false);
+                var participant = new EventParticipant(participantId, eventId, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated, null);
+                var character = new OsrsCharacter(characterId, "Retained player", "RETAINED PLAYER", now);
+                var tile = new BoardTile(tileId, board.Id, requirementId, 0, 0, "Submission tile", "Description", "Evidence", 1);
+                var requirement = new BoardRequirementSnapshot(requirementId, tileId, 0, 1, true, false, "Requirement", true);
+                var submission = new Submission(Guid.NewGuid(), eventId, teamId, tileId, requirementId, null, participantId, characterId, character.DisplayName, actor.Id, 1, now, null, null);
+                setup.AddRange(team, participant, character, tile, requirement, submission);
+                if (category == "evidence") setup.EvidenceAssets.Add(new EvidenceAsset(Guid.NewGuid(), submission.Id, "evidence/key", "proof.png", "image/png", 10, 1, 1, "sum", now, actor.Id, EvidenceAssetRole.OriginalEvidence));
+            }
             await setup.SaveChangesAsync();
         }
         await using (var mutation = new ApplicationDbContext(options))
         {
-            var item = await mutation.Events.SingleAsync(x => x.Id == eventId); var result = await new EventDestructiveLifecycleService(mutation, new FixedClock(now)).DiscardAsync(eventId, item.Version, true, new LifecycleActor(actor.Id, actor.PublicUsername!)); Assert.False(result.Succeeded); Assert.Contains(category, result.Error!, StringComparison.OrdinalIgnoreCase);
+            var item = await mutation.Events.SingleAsync(x => x.Id == eventId); var result = await new EventDestructiveLifecycleService(mutation, new FixedClock(now)).DiscardAsync(eventId, item.Version, true, new LifecycleActor(actor.Id, actor.PublicUsername!)); Assert.False(result.Succeeded); Assert.Contains("protected", result.Error!, StringComparison.OrdinalIgnoreCase);
         }
         await using var verify = new ApplicationDbContext(options); Assert.Equal(EventState.Draft, (await verify.Events.SingleAsync(x => x.Id == eventId)).State); Assert.True(await verify.Boards.AnyAsync(x => x.EventId == eventId)); Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == eventId && x.Action == "event.discarded").ToListAsync());
     }

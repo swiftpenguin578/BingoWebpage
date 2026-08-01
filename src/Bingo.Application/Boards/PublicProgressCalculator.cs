@@ -50,7 +50,6 @@ public static class PublicProgressCalculator
             .ToList();
         var boardComplete = tileResults.Count == rows * columns && tileResults.All(value => value.Complete);
         var playerContributions = contributions
-            .Where(value => !value.PublicPlayerHidden)
             .GroupBy(value => new { value.PlayerId, value.PlayerName })
             .Select(group => new CalculatedPlayerContribution(
                 group.Key.PlayerId, group.Key.PlayerName,
@@ -101,7 +100,7 @@ public static class PublicProgressCalculator
 
 public sealed record ProgressTileDefinition(Guid Id, int Row, int Column, decimal EstimatedEhb, IReadOnlyList<ProgressRequirementDefinition> Requirements);
 public sealed record ProgressRequirementDefinition(Guid Id, int Position, int Target);
-public sealed record ProgressContribution(Guid Id, Guid RequirementId, Guid PlayerId, string PlayerName, int Amount, DateTimeOffset SubmittedAt, decimal EstimatedEhb, bool PublicPlayerHidden);
+public sealed record ProgressContribution(Guid Id, Guid RequirementId, Guid PlayerId, string PlayerName, int Amount, DateTimeOffset SubmittedAt, decimal EstimatedEhb);
 public sealed record CalculatedRequirementProgress(Guid Id, int Target, int Approved, bool Complete, DateTimeOffset? CompletedAt);
 public sealed record CalculatedTileProgress(Guid Id, int Row, int Column, int Approved, int Target, bool Complete, DateTimeOffset? CompletedAt, decimal EstimatedEhb);
 public sealed record CalculatedPlayerContribution(Guid PlayerId, string PlayerName, decimal EstimatedEhb, int ApprovedContribution, int ApprovedSubmissions);

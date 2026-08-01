@@ -25,6 +25,13 @@ public sealed class DevelopmentScenarioSeeder(
     private Dictionary<string, OsrsCharacter> seedCharacters = new(StringComparer.Ordinal);
     private readonly Dictionary<Guid, SeedSignupForm> seedForms = [];
     public const string CaptainPassword = "SeedCaptain!1234";
+    public const string EvidenceCaptainUsername = "SeedEvidenceCaptain";
+    public const string EvidenceCaptainPassword = "SeedEvidence!1234";
+    public const string EvidenceCoCaptainUsername = "SeedEvidenceCoCaptain";
+    public const string EvidenceCoCaptainPassword = "SeedEvidenceCoCaptain!1234";
+    public const string EvidenceParticipantUsername = "SeedEvidenceParticipant";
+    public const string EvidenceParticipantPassword = "SeedEvidenceParticipant!1234";
+    public const string EvidenceDisabledEmergencyUsername = "SeedEvidenceEmergencyDisabled";
     public const string SecondaryAdminUsername = "SeedAdminTwo";
     public const string SecondaryAdminPassword = "SeedAdmin!1234";
 
@@ -58,6 +65,9 @@ public sealed class DevelopmentScenarioSeeder(
         var current = timeProvider.GetUtcNow();
         var now = new DateTimeOffset(current.Year, current.Month, current.Day, current.Hour, current.Minute < 30 ? 0 : 30, 0, TimeSpan.Zero);
         var secondaryAdmin = await EnsureSecondaryAdminAsync(now, cancellationToken);
+        var evidenceCaptain = await EnsureEvidenceCaptainAsync(now, cancellationToken);
+        var evidenceCoCaptain = await EnsureWebsiteAccountAsync(EvidenceCoCaptainUsername, EvidenceCoCaptainPassword, now, cancellationToken);
+        var evidenceParticipant = await EnsureWebsiteAccountAsync(EvidenceParticipantUsername, EvidenceParticipantPassword, now, cancellationToken);
         var seeded = new List<SeededScenario>();
 
         seeded.Add(SeedScenario(
@@ -68,9 +78,26 @@ public sealed class DevelopmentScenarioSeeder(
             admin.Id,
             secondaryAdmin,
             now));
-        var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, secondaryAdmin, now);
+        var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, evidenceCaptain, evidenceCoCaptain, evidenceParticipant, now);
         seeded.Add(dklLiveScenario);
         AddDklLiveProgress(dklLiveScenario.EventId, admin.Id, now);
+        await AddDklReviewStatesAsync(dklLiveScenario.EventId, admin.Id, now, cancellationToken);
+        var evidenceHistoryScenario = SeedScenario(
+            "TEST 84 — Evidence history",
+            "test-84-evidence-history",
+            ScenarioStage.Finalized,
+            blueprint,
+            admin.Id,
+            evidenceCaptain,
+            now);
+        var historyParticipant = db.EventParticipants.Local
+            .Where(participant => participant.EventId == evidenceHistoryScenario.EventId &&
+                                  db.TeamMemberships.Local.Any(membership => membership.EventParticipantId == participant.Id && membership.Role == TeamMembershipRole.Participant))
+            .OrderBy(participant => participant.SignupSequence)
+            .First();
+        historyParticipant.AssignOwner(evidenceParticipant);
+        await AddHistoryRejectedStateAsync(evidenceHistoryScenario.EventId, historyParticipant, evidenceParticipant.Id, admin.Id, now, cancellationToken);
+        seeded.Add(evidenceHistoryScenario);
         seeded.Add(SeedBoardPublicationSetupScenario(blueprint, admin.Id, secondaryAdmin, now));
 
         await db.SaveChangesAsync(cancellationToken);
@@ -89,6 +116,23 @@ public sealed class DevelopmentScenarioSeeder(
             db.Accounts.Add(account);
         }
         account.SetPasswordHash(passwordHasher.HashPassword(account, SecondaryAdminPassword), mustChangePassword: false);
+        account.Enable();
+        return account;
+    }
+
+    private async Task<Account> EnsureEvidenceCaptainAsync(DateTimeOffset now, CancellationToken cancellationToken)
+        => await EnsureWebsiteAccountAsync(EvidenceCaptainUsername, EvidenceCaptainPassword, now, cancellationToken);
+
+    private async Task<Account> EnsureWebsiteAccountAsync(string username, string password, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var normalized = username.ToUpperInvariant();
+        var account = await db.Accounts.SingleOrDefaultAsync(value => value.NormalizedLoginName == normalized, cancellationToken);
+        if (account is null)
+        {
+            account = Account.CreateWebsite(Guid.NewGuid(), username, normalized, now);
+            db.Accounts.Add(account);
+        }
+        account.SetPasswordHash(passwordHasher.HashPassword(account, password), mustChangePassword: false);
         account.Enable();
         return account;
     }
@@ -366,6 +410,8 @@ public sealed class DevelopmentScenarioSeeder(
         BoardBlueprint blueprint,
         Guid adminId,
         Account fixtureOwner,
+        Account coCaptainOwner,
+        Account participantOwner,
         DateTimeOffset now)
     {
         const int teamCount = 6;
@@ -431,11 +477,13 @@ public sealed class DevelopmentScenarioSeeder(
                 now.AddDays(-2).AddMinutes(index), SignupSource.Website, null,
                 captainVolunteer: leaderNames.Contains(name));
         }).ToList();
-        participants.First().AssignOwner(fixtureOwner);
         db.EventParticipants.AddRange(participants);
         var participantsByName = participants.ToDictionary(
             participant => PrimaryName(participant),
             StringComparer.OrdinalIgnoreCase);
+        participantsByName[teamSeeds[0].Captain].AssignOwner(fixtureOwner);
+        participantsByName[teamSeeds[0].CoCaptain].AssignOwner(coCaptainOwner);
+        participantsByName[remainingNames[0]].AssignOwner(participantOwner);
 
         var board = AddBoard(bingoEvent, blueprint, publish: true, now);
         var draft = new DraftSession(Guid.NewGuid(), bingoEvent.Id, targetTeamSize);
@@ -468,6 +516,8 @@ public sealed class DevelopmentScenarioSeeder(
             team.Finalize(now.AddHours(-2));
             captainUsernames.Add(AddCaptainAccount(
                 bingoEvent, team, captain, CaptainDigits(bingoEvent, teamIndex + 1), now));
+            if (teamIndex == 0)
+                AddDisabledEmergencyCoverage(bingoEvent, team, now);
         }
         draft.Finalize(now.AddHours(-2));
 
@@ -568,9 +618,10 @@ public sealed class DevelopmentScenarioSeeder(
 
                 var submittedAt = now.AddMinutes(-55).AddSeconds(progressSequence++);
                 var creditedParticipant = creditedParticipants[progressSequence % creditedParticipants.Count];
+                var creditedCharacter = PrimaryCharacterSnapshot(creditedParticipant);
                 var submission = new Submission(
                     Guid.NewGuid(), eventId, team.Id, tile.Id, requirement.Id, drop?.Id,
-                    creditedParticipant.Id, captainAccount.Id, drop?.CreditedWeight ?? 1, submittedAt,
+                    creditedParticipant.Id, creditedCharacter.Id, creditedCharacter.Name, captainAccount.Id, drop?.CreditedWeight ?? 1, submittedAt,
                     "Approved Test 15 live-board progress fixture.", null);
                 db.Submissions.Add(submission);
                 db.ReviewActions.Add(SeedAction(
@@ -633,6 +684,62 @@ public sealed class DevelopmentScenarioSeeder(
                 team, creditedParticipants, captainAccount, partialTile,
                 partialRequirement, partialAmount);
         }
+    }
+
+    private async Task AddDklReviewStatesAsync(Guid eventId, Guid adminId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var board = db.Boards.Local.Single(value => value.EventId == eventId);
+        var team = db.Teams.Local.OrderBy(value => value.DraftPosition).First(value => value.EventId == eventId);
+        var captainMembership = db.TeamMemberships.Local.First(value => value.TeamId == team.Id && value.Role == TeamMembershipRole.Captain);
+        var participant = db.EventParticipants.Local.Single(value => value.Id == captainMembership.EventParticipantId);
+        var captain = SeededCaptainAccount(team.Id, participant.Id);
+        var tile = db.BoardTiles.Local.Where(value => value.BoardId == board.Id).OrderBy(value => value.RowIndex).ThenBy(value => value.ColumnIndex).Skip(5).First();
+        var requirement = db.BoardRequirementSnapshots.Local.First(value => value.BoardTileId == tile.Id);
+        var drop = requirement.ManualObjective ? null : db.BoardRequirementDropSnapshots.Local.First(value => value.RequirementId == requirement.Id);
+
+        async Task AddStateAsync(SubmissionStatus status, string note, byte color)
+        {
+            var submittedAt = now.AddMinutes(-20 - color);
+            var credited = PrimaryCharacterSnapshot(participant);
+            var submission = new Submission(Guid.NewGuid(), eventId, team.Id, tile.Id, requirement.Id, drop?.Id, participant.Id, credited.Id, credited.Name, captain.Id, drop?.CreditedWeight ?? 1, submittedAt, note, null);
+            var stored = await StoreSeedImageAsync(eventId, submission.Id, $"review-{status}.png", color, cancellationToken);
+            db.Submissions.Add(submission);
+            db.EvidenceAssets.Add(SeedAsset(submission.Id, captain.Id, stored, EvidenceAssetRole.OriginalEvidence, submittedAt));
+            db.ReviewActions.Add(SeedAction(submission.Id, ReviewActionType.Submitted, captain.Id, submittedAt, note));
+            if (status == SubmissionStatus.Rejected)
+            {
+                submission.Reject("Seeded rejection for linked-resubmission testing.", now.AddMinutes(-5));
+                db.ReviewActions.Add(SeedAction(submission.Id, ReviewActionType.Reject, adminId, now.AddMinutes(-5), "Seeded rejection for linked-resubmission testing."));
+            }
+        }
+
+        await AddStateAsync(SubmissionStatus.Pending, "Pending evidence for Admin review testing.", 21);
+        await AddStateAsync(SubmissionStatus.Rejected, "Rejected evidence for linked-resubmission testing.", 22);
+    }
+
+    private async Task AddHistoryRejectedStateAsync(Guid eventId, EventParticipant participant, Guid submittedByAccountId, Guid adminId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var board = db.Boards.Local.Single(value => value.EventId == eventId);
+        var activeTeamIds = db.TeamMemberships.Local
+            .Where(membership => membership.EventParticipantId == participant.Id && membership.LeftAt == null)
+            .Select(membership => membership.TeamId)
+            .ToHashSet();
+        var team = db.Teams.Local
+            .Where(value => value.EventId == eventId && value.Active && activeTeamIds.Contains(value.Id))
+            .OrderBy(value => value.DraftPosition)
+            .First();
+        var tile = db.BoardTiles.Local.Where(value => value.BoardId == board.Id).OrderBy(value => value.RowIndex).ThenBy(value => value.ColumnIndex).First();
+        var requirement = db.BoardRequirementSnapshots.Local.First(value => value.BoardTileId == tile.Id);
+        var drop = requirement.ManualObjective ? null : db.BoardRequirementDropSnapshots.Local.First(value => value.RequirementId == requirement.Id);
+        var credited = PrimaryCharacterSnapshot(participant);
+        var submittedAt = now.AddHours(-2);
+        var submission = new Submission(Guid.NewGuid(), eventId, team.Id, tile.Id, requirement.Id, drop?.Id, participant.Id, credited.Id, credited.Name, submittedByAccountId, drop?.CreditedWeight ?? 1, submittedAt, "Seeded archived evidence history.", null);
+        var stored = await StoreSeedImageAsync(eventId, submission.Id, "archived-rejected.png", 23, cancellationToken);
+        db.Submissions.Add(submission);
+        db.EvidenceAssets.Add(SeedAsset(submission.Id, submittedByAccountId, stored, EvidenceAssetRole.OriginalEvidence, submittedAt));
+        db.ReviewActions.Add(SeedAction(submission.Id, ReviewActionType.Submitted, submittedByAccountId, submittedAt, "Seeded archived evidence history."));
+        submission.Reject("Seeded rejected history for post-cutoff read-only testing.", now.AddHours(-1));
+        db.ReviewActions.Add(SeedAction(submission.Id, ReviewActionType.Reject, adminId, now.AddHours(-1), "Seeded rejected history for post-cutoff read-only testing."));
     }
 
     private Board AddBoard(BingoEvent bingoEvent, BoardBlueprint blueprint, bool publish, DateTimeOffset now)
@@ -878,6 +985,15 @@ public sealed class DevelopmentScenarioSeeder(
         return username;
     }
 
+    private void AddDisabledEmergencyCoverage(BingoEvent bingoEvent, Team team, DateTimeOffset now)
+    {
+        var account = Account.CreateEmergency(Guid.NewGuid(), EvidenceDisabledEmergencyUsername, EvidenceDisabledEmergencyUsername.ToUpperInvariant(), now);
+        account.SetPasswordHash(passwordHasher.HashPassword(account, CaptainPassword), mustChangePassword: false);
+        account.Enable();
+        db.Accounts.Add(account);
+        db.AccountEventAccesses.Add(new AccountEventAccess(Guid.NewGuid(), account.Id, bingoEvent.Id, team.Id, null, bingoEvent.EventStartsAt, null, now.AddDays(-1)));
+    }
+
     private EventParticipant CreateParticipant(
         Guid eventId,
         string primaryName,
@@ -951,6 +1067,16 @@ public sealed class DevelopmentScenarioSeeder(
         return seedCharacters.Values.Single(x => x.Id == assignment.OsrsCharacterId).DisplayName;
     }
 
+    private (Guid Id, string Name) PrimaryCharacterSnapshot(EventParticipant participant)
+    {
+        var assignment = db.EventParticipantCharacters.Local
+            .Where(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing)
+            .OrderBy(x => x.RegistrationOrder)
+            .First();
+        var character = seedCharacters.Values.Single(x => x.Id == assignment.OsrsCharacterId);
+        return (character.Id, character.DisplayName);
+    }
+
     private Account SeededCaptainAccount(Guid teamId, Guid participantId)
     {
         var access = db.AccountEventAccesses.Local.Single(value => value.TeamId == teamId && value.ParticipantId == participantId);
@@ -980,7 +1106,7 @@ public sealed class DevelopmentScenarioSeeder(
             db.BoardRequirementDropSnapshots.Local.First(value => value.RequirementId == requirement.Id);
 
         async Task<(Submission Submission, EvidenceAsset Asset)> Create(
-            string tileName, int claimed, string note, byte color, bool privacy = false,
+            string tileName, int claimed, string note, byte color,
             BoardRequirementSnapshot? selectedRequirement = null,
             BoardRequirementDropSnapshot? selectedDrop = null,
             byte? sharedColor = null)
@@ -989,9 +1115,10 @@ public sealed class DevelopmentScenarioSeeder(
             var requirement = selectedRequirement ?? Requirement(tileName);
             var drop = requirement.ManualObjective ? null : selectedDrop ?? Drop(requirement);
             var submittedAt = now.AddMinutes(-120 + db.Submissions.Local.Count * 3);
+            var creditedCharacter = PrimaryCharacterSnapshot(player);
             var submission = new Submission(
                 Guid.NewGuid(), eventId, team.Id, tile.Id, requirement.Id, drop?.Id,
-                player.Id, captain.Id, claimed, submittedAt, note, null, privacy);
+                player.Id, creditedCharacter.Id, creditedCharacter.Name, captain.Id, claimed, submittedAt, note, null);
             var stored = await StoreSeedImageAsync(eventId, submission.Id, $"{tileName}-proof.png", sharedColor ?? color, cancellationToken);
             var asset = SeedAsset(submission.Id, captain.Id, stored, EvidenceAssetRole.OriginalEvidence, submittedAt);
             db.Submissions.Add(submission);
@@ -1007,10 +1134,6 @@ public sealed class DevelopmentScenarioSeeder(
         await Create("Voidwaker", 1, "First pending copy of an identical screenshot.", 45, selectedRequirement: voidwaker, selectedDrop: voidwakerDrop, sharedColor: 77);
         await Create("Voidwaker", 1, "Second pending copy: checksum warning and duplicate-action test.", 46, selectedRequirement: voidwaker, selectedDrop: voidwakerDrop, sharedColor: 77);
 
-        var changes = await Create("Zulrah unique table", 1, "Changes-requested workflow fixture.", 95);
-        changes.Submission.RequestChanges("Please upload a clearer screenshot containing the complete game message.", now.AddMinutes(-14));
-        db.ReviewActions.Add(SeedAction(changes.Submission.Id, ReviewActionType.RequestChanges, adminId, now.AddMinutes(-14), "Please upload a clearer screenshot containing the complete game message."));
-
         var rejected = await Create("Araxxor pet or uniques", 1, "Rejected-history fixture.", 115);
         rejected.Submission.Reject("The screenshot does not show the required drop message.", now.AddMinutes(-12));
         db.ReviewActions.Add(SeedAction(rejected.Submission.Id, ReviewActionType.Reject, adminId, now.AddMinutes(-12), "The screenshot does not show the required drop message."));
@@ -1022,22 +1145,12 @@ public sealed class DevelopmentScenarioSeeder(
         var approved = await Create("Nex", 1, "Approved visible evidence fixture.", 155);
         ApproveSeeded(approved.Submission, adminId, 1, now.AddMinutes(-8));
 
-        var privateApproval = await Create("Alchemical Hydra", 1, "Captain requested public privacy.", 175, privacy: true);
-        ApproveSeeded(privateApproval.Submission, adminId, 1, now.AddMinutes(-7));
-        privateApproval.Submission.SetPublicEvidenceHidden(true);
-
         var theatreRequirement = Requirement("Theatre of Blood megarares");
         var theatreDrop = Drop(theatreRequirement);
         var weightedFive = await Create("Theatre of Blood megarares", 5, "Approved weight 5; reverse this to test rebalancing.", 195, selectedRequirement: theatreRequirement, selectedDrop: theatreDrop);
         ApproveSeeded(weightedFive.Submission, adminId, 5, now.AddMinutes(-6));
         var cappedOne = await Create("Theatre of Blood megarares", 5, "Claimed 5 but capped to 1 while the requirement is full.", 215, selectedRequirement: theatreRequirement, selectedDrop: theatreDrop);
         ApproveSeeded(cappedOne.Submission, adminId, 1, now.AddMinutes(-5));
-
-        var replacement = await Create("Chambers of Xeric megarares", 2, "Replacement evidence history fixture.", 235);
-        replacement.Asset.Deactivate();
-        var replacementStored = await StoreSeedImageAsync(eventId, replacement.Submission.Id, "replacement-proof.png", 245, cancellationToken);
-        db.EvidenceAssets.Add(SeedAsset(replacement.Submission.Id, captain.Id, replacementStored, EvidenceAssetRole.ReplacementEvidence, now.AddMinutes(-3)));
-        db.ReviewActions.Add(SeedAction(replacement.Submission.Id, ReviewActionType.ReplaceEvidence, captain.Id, now.AddMinutes(-3), "Seeded replacement image"));
 
         // Finish the remainder of row one so Milestone 7 has a visible completed-line fixture.
         foreach (var position in new[] { 1, 2 })
@@ -1103,9 +1216,10 @@ public sealed class DevelopmentScenarioSeeder(
                     ? null
                     : db.BoardRequirementDropSnapshots.Local.First(value => value.RequirementId == progressRequirement.Id);
                 var submittedAt = now.AddMinutes(-45 + seedColor % 20);
+                var creditedCharacter = PrimaryCharacterSnapshot(progressPlayer);
                 var progressSubmission = new Submission(
                     Guid.NewGuid(), eventId, progressTeam.Id, progressTile.Id, progressRequirement.Id, progressDrop?.Id,
-                    progressPlayer.Id, progressCaptain.Id, approvedAmount, submittedAt,
+                    progressPlayer.Id, creditedCharacter.Id, creditedCharacter.Name, progressCaptain.Id, approvedAmount, submittedAt,
                     "Approved public-overview ranking fixture.", null);
                 var progressStored = await StoreSeedImageAsync(
                     eventId, progressSubmission.Id, $"ranking-{progressTeam.Slug}-{progressTile.RowIndex}-{progressTile.ColumnIndex}.png",
@@ -1156,9 +1270,10 @@ public sealed class DevelopmentScenarioSeeder(
                 {
                     var drop = requirement.ManualObjective ? null : drops[amount % drops.Count];
                     var submittedAt = now.AddHours(-3).AddMinutes(counter);
+                    var creditedCharacter = PrimaryCharacterSnapshot(player);
                     var submission = new Submission(
                         Guid.NewGuid(), eventId, team.Id, tile.Id, requirement.Id, drop?.Id,
-                        player.Id, captain.Id, 1, submittedAt,
+                        player.Id, creditedCharacter.Id, creditedCharacter.Name, captain.Id, 1, submittedAt,
                         "Seeded approved evidence for completed-board finalization testing.", null);
                     var stored = await StoreSeedImageAsync(
                         eventId, submission.Id, $"completed-{counter + 1}.png",

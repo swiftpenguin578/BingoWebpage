@@ -240,8 +240,7 @@ Event timezone choices come from the server's supported canonical timezone set, 
 Cloudflare R2 stores:
 
 - Original evidence screenshots
-- Replacement evidence
-- Admin evidence attachments
+- Historical replacement/admin attachment objects remain readable only for retained audit/history; no active Admin evidence-upload or replacement workflow exists.
 - Event banners
 - Team images
 - Boss and item images when locally managed

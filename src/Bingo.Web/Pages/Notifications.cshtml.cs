@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Bingo.Web.Navigation;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -38,7 +39,24 @@ public sealed class NotificationsModel(Bingo.Infrastructure.Persistence.Applicat
         return Redirect(string.IsNullOrWhiteSpace(notification.Route) ? "/notifications" : notification.Route);
     }
 
-    public string Title(string type) => type switch { "account.admin_granted" => text["Admin access granted"], "account.admin_revoked" => text["Admin access revoked"], "account.restored" => text["Account restored"], "event.cancelled" => text["Event cancelled"], _ => type };
-    public string Detail(string type) => type switch { "account.admin_granted" => text["An administrator granted your account Admin access."], "account.admin_revoked" => text["An administrator removed your Admin access."], "account.restored" => text["An administrator restored your account."], "event.cancelled" => text["Your event has been cancelled."], _ => string.Empty };
+    public string Title(string type) => type switch { "account.admin_granted" => text["Admin access granted"], "account.admin_revoked" => text["Admin access revoked"], "account.restored" => text["Account restored"], "event.cancelled" => text["Event cancelled"], "evidence.rejected" => text["Evidence rejected"], _ => type };
+    public string Detail(string type, string detail) => type switch { "account.admin_granted" => text["An administrator granted your account Admin access."], "account.admin_revoked" => text["An administrator removed your Admin access."], "account.restored" => text["An administrator restored your account."], "event.cancelled" => text["Your event has been cancelled."], "evidence.rejected" => FormatEvidenceRejection(detail), _ => detail };
+    private string FormatEvidenceRejection(string detail)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(detail);
+            var root = document.RootElement;
+            var eventName = root.GetProperty("eventName").GetString() ?? text["Unknown event"];
+            var tile = root.GetProperty("tile").GetString() ?? text["Unknown tile"];
+            var drop = root.TryGetProperty("drop", out var dropValue) && dropValue.ValueKind != JsonValueKind.Null ? $" · {dropValue.GetString()}" : string.Empty;
+            var reason = root.GetProperty("reason").GetString() ?? string.Empty;
+            return text["Evidence for {0} · {1}{2} was rejected. Reason: {3}", eventName, tile, drop, reason];
+        }
+        catch (JsonException)
+        {
+            return text["Evidence rejected."];
+        }
+    }
     public sealed record NotificationView(Guid Id, string Type, string Detail, string Route, DateTimeOffset CreatedAt, DateTimeOffset? ReadAt);
 }

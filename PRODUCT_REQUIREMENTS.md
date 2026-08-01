@@ -1063,7 +1063,7 @@ Version one is ready for a live event when:
 5. Captains cannot submit for or inspect pending evidence from another team.
 6. Admins can approve, reject with a reason, make reasoned metadata corrections, and reverse approvals.
 7. Approval and reversal correctly update all related progress and standings.
-8. Public visitors can inspect all teams, completed tiles, and non-hidden approved evidence.
+8. Public visitors can inspect all teams, completed tiles, and approved evidence.
 9. Full-board finish time and provisional placement use immutable server submission time.
 10. Submissions close at the cutoff while existing evidence remains reviewable.
 11. Event finalization requires an admin action.

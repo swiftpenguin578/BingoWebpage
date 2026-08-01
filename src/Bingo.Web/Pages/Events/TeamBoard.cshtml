@@ -167,6 +167,14 @@
                 </dl>
             </section>
 
+            @if (Model.CanOpenSubmissionWorkspace)
+            {
+                <a class="team-sidebar-section action-neutral-outline" href="@Url.Page("/Captain/Index", new { eventId = Model.Board.EventId, teamId = Model.Team.TeamId })"
+                   data-submission-history-link>
+                    @T["Team submission history"]
+                </a>
+            }
+
             <section class="team-sidebar-section team-ehb-section">
                 <header><span class="feature-kicker">@T["Drop EHB"]</span></header>
                 <div class="team-metric-source">

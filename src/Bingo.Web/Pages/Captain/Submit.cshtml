@@ -4,7 +4,7 @@
 <section class="form-page">
     <div class="page-heading">
         <div><p class="eyebrow">@T["Submit one screenshot"]</p><h1>@Model.Tile.Name</h1><p>@Model.Tile.Description</p></div>
-        <a asp-page="Index">@T["Back to board"]</a>
+        <a asp-page="Index" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId">@T["Back to board"]</a>
     </div>
     <partial name="_SubmissionForms" model="Model" />
 </section>

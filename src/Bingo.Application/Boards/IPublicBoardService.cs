@@ -33,7 +33,7 @@ public sealed record PublicRecentDrop(
     Guid SubmissionId, Guid TileId, string TileName,
     string TeamName, string TeamSlug, string? PlayerName,
     string? BossName, string? DropName, int Contribution,
-    DateTimeOffset ApprovedAt, Guid? EvidenceAssetId, bool Hidden);
+    DateTimeOffset ApprovedAt, Guid? EvidenceAssetId);
 
 public sealed record PublicTileDetails(
     string EventName, string EventSlug, string TeamName, string TeamSlug,
@@ -51,4 +51,4 @@ public sealed record PublicEligibleDrop(
 
 public sealed record PublicApprovedEvidence(
     Guid SubmissionId, string? PlayerName, string? BossName, string? DropName,
-    int Contribution, DateTimeOffset SubmittedAt, Guid? EvidenceAssetId, bool Hidden);
+    int Contribution, DateTimeOffset SubmittedAt, Guid? EvidenceAssetId);

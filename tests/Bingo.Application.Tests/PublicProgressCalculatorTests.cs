@@ -36,7 +36,7 @@ public sealed class PublicProgressCalculatorTests
     public void FullBoardCompletionUsesLatestImmutableSubmissionTime()
     {
         var tiles = Grid(2, 2);
-        var contributions = tiles.Select((tile, index) => new ProgressContribution(Guid.NewGuid(), tile.Requirements[0].Id, Guid.NewGuid(), $"P{index}", 1, Start.AddMinutes(index), 1, false)).ToList();
+        var contributions = tiles.Select((tile, index) => new ProgressContribution(Guid.NewGuid(), tile.Requirements[0].Id, Guid.NewGuid(), $"P{index}", 1, Start.AddMinutes(index), 1)).ToList();
         var result = PublicProgressCalculator.Calculate(2, 2, tiles, contributions);
 
         Assert.True(result.BoardComplete);
@@ -74,15 +74,15 @@ public sealed class PublicProgressCalculatorTests
     }
 
     [Fact]
-    public void HiddenPlayerContributionStillCountsForTeamButNotLeaderboardIdentity()
+    public void ApprovedPlayerContributionCountsForTeamAndLeaderboardIdentity()
     {
         var tile = Grid(1, 1)[0];
-        var contribution = new ProgressContribution(Guid.NewGuid(), tile.Requirements[0].Id, Guid.NewGuid(), "Secret", 1, Start, 4, true);
+        var contribution = new ProgressContribution(Guid.NewGuid(), tile.Requirements[0].Id, Guid.NewGuid(), "Secret", 1, Start, 4);
         var result = PublicProgressCalculator.Calculate(1, 1, [tile], [contribution]);
 
         Assert.True(result.BoardComplete);
         Assert.Equal(4, result.EhbTiebreak);
-        Assert.Empty(result.Players);
+        Assert.Equal("Secret", Assert.Single(result.Players).PlayerName);
     }
 
     private static List<ProgressTileDefinition> Grid(int rows, int columns) =>
@@ -93,5 +93,5 @@ public sealed class PublicProgressCalculatorTests
         }).ToList();
 
     private static List<ProgressContribution> Contributions(IReadOnlySet<Guid> requirementIds) =>
-        requirementIds.Select((id, index) => new ProgressContribution(Guid.NewGuid(), id, Guid.NewGuid(), $"Player {index}", 1, Start.AddMinutes(index), 1, false)).ToList();
+        requirementIds.Select((id, index) => new ProgressContribution(Guid.NewGuid(), id, Guid.NewGuid(), $"Player {index}", 1, Start.AddMinutes(index), 1)).ToList();
 }

@@ -48,6 +48,7 @@ public static class DependencyInjection
         else
             services.AddSingleton<IEvidenceStorage, LocalEvidenceStorage>();
         services.AddScoped<ISubmissionService, SubmissionService>();
+        services.AddScoped<IEvidenceAuthority, EvidenceAuthority>();
         services.AddScoped<IPublicBoardService, PublicBoardService>();
         services.AddScoped<IEventFinalizationService, EventFinalizationService>();
         services.AddScoped<IEventReadinessEvaluator, EventReadinessEvaluator>();

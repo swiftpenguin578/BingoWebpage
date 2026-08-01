@@ -847,6 +847,24 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var result = await seeder.ResetAndSeedAsync();
         await AssertSlice6FixtureInvariantsAsync(db, clock.GetUtcNow());
 
+        async Task AssertEvidenceFixtureOwnersAsync()
+        {
+            var live = await db.Events.SingleAsync(item => item.Slug == "test-15-dkl-live");
+            var firstTeam = await db.Teams.Where(item => item.EventId == live.Id).OrderBy(item => item.DraftPosition).FirstAsync();
+            var ownedRows = await (from membership in db.TeamMemberships
+                                   join participant in db.EventParticipants on membership.EventParticipantId equals participant.Id
+                                   join account in db.Accounts on participant.AccountId equals account.Id
+                                   where membership.TeamId == firstTeam.Id && membership.LeftAt == null
+                                   select new { membership.Role, account.LoginName, participant.Id }).ToListAsync();
+            Assert.Equal(3, ownedRows.Count);
+            Assert.Equal(3, ownedRows.Select(row => row.LoginName).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+            Assert.Contains(ownedRows, row => row.LoginName == DevelopmentScenarioSeeder.EvidenceCaptainUsername && row.Role == TeamMembershipRole.Captain);
+            Assert.Contains(ownedRows, row => row.LoginName == DevelopmentScenarioSeeder.EvidenceCoCaptainUsername && row.Role == TeamMembershipRole.CoCaptain);
+            Assert.Contains(ownedRows, row => row.LoginName == DevelopmentScenarioSeeder.EvidenceParticipantUsername && row.Role == TeamMembershipRole.Participant);
+        }
+
+        await AssertEvidenceFixtureOwnersAsync();
+
         db.ChangeTracker.Clear();
         var test62BeforeReopen = await db.Events.SingleAsync(item => item.Slug == "test-62-board-publication-setup");
         var draftBeforeReopen = await db.DraftSessions.SingleAsync(item => item.EventId == test62BeforeReopen.Id);
@@ -892,12 +910,13 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
 
         var repeated = await seeder.ResetAndSeedAsync();
         await AssertSlice6FixtureInvariantsAsync(db, clock.GetUtcNow());
+        await AssertEvidenceFixtureOwnersAsync();
 
         Assert.Equal(ownerUsername, result.AdminUsername);
         Assert.Equal(ownerUsername, repeated.AdminUsername);
         Assert.Equal(DevelopmentScenarioSeeder.SecondaryAdminUsername, result.SecondaryAdminUsername);
-        Assert.Equal(3, result.Scenarios.Count);
-        Assert.Equal(["TEST 13 — DKL Board", "TEST 15 — DKL Live", "TEST 62 — Board publication setup"], result.Scenarios.Select(scenario => scenario.EventName).OrderBy(name => name).ToArray());
+        Assert.Equal(4, result.Scenarios.Count);
+        Assert.Equal(["TEST 13 — DKL Board", "TEST 15 — DKL Live", "TEST 62 — Board publication setup", "TEST 84 — Evidence history"], result.Scenarios.Select(scenario => scenario.EventName).OrderBy(name => name).ToArray());
         db.ChangeTracker.Clear();
         var owner = await db.Accounts.SingleAsync(account => account.Id == admin.Id);
         Assert.Equal(GlobalRole.SuperAdmin, owner.GlobalRole);
@@ -907,7 +926,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal(GlobalRole.Admin, secondaryAdmin.GlobalRole);
         Assert.True(secondaryAdmin.Active);
         var seededEvents = await db.Events.OrderBy(item => item.Slug).ToListAsync();
-        Assert.Equal(["test-13-dkl-board", "test-15-dkl-live", "test-62-board-publication-setup"], seededEvents.Select(item => item.Slug).ToArray());
+        Assert.Equal(["test-13-dkl-board", "test-15-dkl-live", "test-62-board-publication-setup", "test-84-evidence-history"], seededEvents.Select(item => item.Slug).OrderBy(slug => slug).ToArray());
         Assert.All(seededEvents, item => Assert.True(item.IsDevelopmentFixture));
         Assert.Empty(await db.SignupForms.Where(form => form.EventId == manual.Id).ToListAsync());
         Assert.Equal(catalogueCount, await db.CatalogueItems.CountAsync());
@@ -1326,9 +1345,10 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
     {
         db.ChangeTracker.Clear();
         var events = await db.Events.OrderBy(item => item.Slug).ToListAsync();
-        Assert.Equal(["test-13-dkl-board", "test-15-dkl-live", "test-62-board-publication-setup"], events.Select(item => item.Slug).ToArray());
+        Assert.Equal(["test-13-dkl-board", "test-15-dkl-live", "test-62-board-publication-setup", "test-84-evidence-history"], events.Select(item => item.Slug).ToArray());
         var test13 = Assert.Single(events, item => item.Slug == "test-13-dkl-board");
         var test15 = Assert.Single(events, item => item.Slug == "test-15-dkl-live");
+        var test84 = Assert.Single(events, item => item.Slug == "test-84-evidence-history");
         var test62 = Assert.Single(events, item => item.Slug == "test-62-board-publication-setup");
 
         var test13Board = Assert.Single(await db.Boards.Where(item => item.EventId == test13.Id).ToListAsync());
@@ -1358,6 +1378,21 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             .ToListAsync();
         Assert.NotEmpty(publicationRoster);
         Assert.All(publicationRoster, item => Assert.False(string.IsNullOrWhiteSpace(item.PublicCharacterName)));
+
+        Assert.Equal(EventState.Finalized, test84.State);
+        Assert.True(test84.IsDevelopmentFixture);
+        Assert.True(test84.ActualEndedAt < seededAt);
+        Assert.True(test84.SubmissionCutoffAt < seededAt);
+        Assert.True(test84.ResultsPublished);
+        var historyParticipant = await (from participant in db.EventParticipants
+                                        join account in db.Accounts on participant.AccountId equals account.Id
+                                        join membership in db.TeamMemberships on participant.Id equals membership.EventParticipantId
+                                        where participant.EventId == test84.Id && membership.LeftAt == null && membership.Role == TeamMembershipRole.Participant
+                                        select new { participant.Id, membership.TeamId, account.LoginName }).SingleAsync(item => item.LoginName == DevelopmentScenarioSeeder.EvidenceParticipantUsername);
+        Assert.NotEqual(Guid.Empty, historyParticipant.Id);
+        var historyRejected = Assert.Single(await db.Submissions.Where(item => item.EventId == test84.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Rejected).ToListAsync());
+        Assert.Equal(historyParticipant.TeamId, historyRejected.TeamId);
+        Assert.Single(await db.Submissions.Where(item => item.TeamId == historyParticipant.TeamId && item.CreditedParticipantId == historyParticipant.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Rejected).ToListAsync());
         Assert.NotEmpty(await db.Teams.Where(item => item.EventId == test62.Id && item.Active).ToListAsync());
         Assert.NotEmpty(await db.TeamMemberships.Where(item => db.Teams.Where(team => team.EventId == test62.Id).Select(team => team.Id).Contains(item.TeamId) && item.LeftAt == null).ToListAsync());
         await AssertSeedBoardRateSelectionsAsync(db, test62.Id, activeApprovalId);

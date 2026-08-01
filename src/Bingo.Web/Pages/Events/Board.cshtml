@@ -95,7 +95,7 @@
                 <div class="recent-drop-grid">
                     @foreach (var drop in Model.Board.RecentDrops)
                     {
-                        <article class="recent-drop-card panel @(drop.Hidden ? "private-drop" : null)">
+                        <article class="recent-drop-card panel">
                             @if (drop.EvidenceAssetId is Guid assetId)
                             {
                                 <button type="button" class="recent-drop-image evidence-image-button" data-evidence-image="/Evidence/@assetId" data-evidence-alt="Approved evidence from @drop.PlayerName">
@@ -104,12 +104,12 @@
                             }
                             else
                             {
-                                <div class="recent-drop-placeholder" aria-hidden="true">@(drop.Hidden ? "◌" : "◆")</div>
+                                <div class="recent-drop-placeholder" aria-hidden="true">◆</div>
                             }
                             <div class="recent-drop-copy">
                                 <span class="recent-drop-team">@drop.TeamName</span>
-                                <h3>@(drop.Hidden ? "Private approved contribution" : drop.DropName ?? drop.TileName)</h3>
-                                <p>@if (!drop.Hidden && !string.IsNullOrWhiteSpace(drop.PlayerName)) { <strong>@drop.PlayerName</strong><text> · </text> }@drop.TileName</p>
+                                <h3>@(drop.DropName ?? drop.TileName)</h3>
+                                <p>@if (!string.IsNullOrWhiteSpace(drop.PlayerName)) { <strong>@drop.PlayerName</strong><text> · </text> }@drop.TileName</p>
                                 <footer><span>@T["Counts for {0}", drop.Contribution]</span><time datetime="@drop.ApprovedAt.ToString("O")">@drop.ApprovedAt.ToString("d MMM, HH:mm")</time></footer>
                             </div>
                         </article>

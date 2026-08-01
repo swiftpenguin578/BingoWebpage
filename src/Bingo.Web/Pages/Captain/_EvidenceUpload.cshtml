@@ -1,0 +1,18 @@
+@model string
+<div class="evidence-drop compact-evidence-drop" tabindex="0"
+     data-ready-template="@T["Ready: {0}"]"
+     data-pasted-screenshot="@T["pasted screenshot"]"
+     data-clipboard-empty="@T["The clipboard does not contain an image."]"
+     data-clipboard-blocked="@T["Clipboard access was blocked. Focus the outer box and press Command+V instead."]">
+    <div class="compact-evidence-empty" data-evidence-empty>
+        <div class="compact-evidence-copy"><strong>@T["Paste or drag screenshot"]</strong><small>@T["PNG, JPEG or WebP · 10 MB maximum"]</small></div>
+        <div class="evidence-input-actions"><button type="button" class="btn paste-evidence action-neutral-outline">@T["Paste"]</button><input name="@Model" type="file" accept="image/png,image/jpeg,image/webp" required /></div>
+        <small class="paste-status" aria-live="polite"></small>
+    </div>
+    <div class="compact-evidence-preview" data-evidence-preview hidden>
+        <button type="button" class="compact-evidence-preview-button" data-evidence-image data-evidence-alt="@T["Screenshot ready for submission"]">
+            <img alt="@T["Evidence preview"]" />
+        </button>
+        <button type="button" class="compact-evidence-remove action-remove-x" data-evidence-remove aria-label="@T["Remove screenshot"]">×</button>
+    </div>
+</div>

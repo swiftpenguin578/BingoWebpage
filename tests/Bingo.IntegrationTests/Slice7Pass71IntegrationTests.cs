@@ -303,6 +303,43 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TileSubmissionProjectionExcludesAdminWhileAllowingAuthorizedParticipant()
+    {
+        var eventId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+        var tileId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var participantId = Guid.NewGuid();
+        var board = new PublicEventBoard(
+            eventId, "Evidence board", "evidence-board", EventState.Live, 1, 1, 1,
+            [new PublicTeamBoard(teamId, "Evidence team", "evidence-team", null, null, 1, false,
+                new([], 0, [], [], false, null, 0, []),
+                [new PublicTileProgress(tileId, 0, 0, "Evidence tile", "Description", null, [], 1, 0, 1, false, null)])],
+            [], []);
+        var tile = new PublicTileDetails("Evidence board", "evidence-board", "Evidence team", "evidence-team", tileId,
+            "Evidence tile", "Description", "Instructions", 0, 1, false, null, [], []);
+        var authority = new ProjectionEvidenceAuthority(adminId, eventId, teamId);
+
+        async Task<bool> CanSubmit(Guid accountId)
+        {
+            var context = new DefaultHttpContext
+            {
+                User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
+                    [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, accountId.ToString())], "test"))
+            };
+            var page = new TileModel(new StubBoardService(board, tile), authority, new FixedTimeProvider(now))
+            {
+                PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor()))
+            };
+            Assert.IsType<PageResult>(await page.OnGetAsync("evidence-board", "evidence-team", tileId, CancellationToken.None));
+            return page.CanSubmit;
+        }
+
+        Assert.False(await CanSubmit(adminId));
+        Assert.True(await CanSubmit(Guid.NewGuid()));
+    }
+
+    [Fact]
     public async Task CompletedTileFocusIsRejectedAndClearedThroughApprovalAndReversalRebalance()
     {
         var fixture = await SeedProgressFixtureAsync();
@@ -312,8 +349,8 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         var initial = await focus.SetFocusAsync(new(fixture.EventId, fixture.TeamId, TeamFocusTargetKind.Tile, fixture.TileId, null, null, true, 0, fixture.OwnerId));
         Assert.True(initial.Succeeded, initial.Error);
 
-        var first = new Submission(Guid.NewGuid(), fixture.EventId, fixture.TeamId, fixture.TileId, fixture.RequirementId, null, fixture.ParticipantId, fixture.CaptainId, 2, now, "first", null);
-        var second = new Submission(Guid.NewGuid(), fixture.EventId, fixture.TeamId, fixture.TileId, fixture.RequirementId, null, fixture.ParticipantId, fixture.CaptainId, 3, now, "second", null);
+        var first = new Submission(Guid.NewGuid(), fixture.EventId, fixture.TeamId, fixture.TileId, fixture.RequirementId, null, fixture.ParticipantId, fixture.CharacterId, "Progress player", fixture.CaptainId, 2, now, "first", null);
+        var second = new Submission(Guid.NewGuid(), fixture.EventId, fixture.TeamId, fixture.TileId, fixture.RequirementId, null, fixture.ParticipantId, fixture.CharacterId, "Progress player", fixture.CaptainId, 3, now, "second", null);
         db.Submissions.AddRange(first, second);
         await db.SaveChangesAsync();
         var submissions = new Bingo.Infrastructure.Evidence.SubmissionService(db, new NoopEvidenceStorage(), new FixedTimeProvider(now), focus: focus, focusNotifier: notifier);
@@ -350,6 +387,24 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         Assert.Equal(2, notifier.Count);
         Assert.Equal(3, await db.Submissions.Where(x => x.Id == second.Id).Select(x => x.ApprovedContribution).SingleAsync());
         Assert.Equal(3, await db.SubmissionContributions.Where(x => x.TeamId == fixture.TeamId && x.ReversedAt == null).SumAsync(x => x.Amount));
+    }
+
+    [Fact]
+    public async Task SubmissionMutationRejectsStaleExpectedVersionAfterApproval()
+    {
+        var fixture = await SeedProgressFixtureAsync();
+        await using var db = new ApplicationDbContext(options);
+        var submission = new Submission(Guid.NewGuid(), fixture.EventId, fixture.TeamId, fixture.TileId, fixture.RequirementId, null,
+            fixture.ParticipantId, fixture.CharacterId, "Progress player", fixture.CaptainId, 1, now, "versioned", null);
+        db.Submissions.Add(submission);
+        await db.SaveChangesAsync();
+        var service = new Bingo.Infrastructure.Evidence.SubmissionService(db, new NoopEvidenceStorage(), new FixedTimeProvider(now));
+
+        Assert.Equal(1, submission.Version);
+        Assert.Equal(1, await service.ApproveAsync(submission.Id, fixture.OwnerId, expectedVersion: 1));
+        Assert.Equal(2, submission.Version);
+        var stale = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReverseAsync(submission.Id, fixture.OwnerId, "Stale reversal", expectedVersion: 1));
+        Assert.Contains("changed in another request", stale.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -746,10 +801,10 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         db.AddRange(owner, captain, item, participant, character, assignment, team, membership, access, board, tile, requirement);
         await BoardApprovalFixture.PublishAsync(db, board, now.AddMinutes(-30), [tile], [requirement]);
-        return new(eventId, teamId, participantId, ownerId, captainId, tileId, requirementId);
+        return new(eventId, teamId, participantId, ownerId, captainId, tileId, requirementId, characterId);
     }
 
-    private sealed record ProgressFixture(Guid EventId, Guid TeamId, Guid ParticipantId, Guid OwnerId, Guid CaptainId, Guid TileId, Guid RequirementId);
+    private sealed record ProgressFixture(Guid EventId, Guid TeamId, Guid ParticipantId, Guid OwnerId, Guid CaptainId, Guid TileId, Guid RequirementId, Guid CharacterId);
 
     private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider
     {
@@ -789,10 +844,22 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         public Task<bool> ClearCompletedTileFocusAsync(Guid eventId, Guid teamId, Guid boardTileId, CancellationToken cancellationToken = default) => Task.FromResult(false);
     }
 
-    private sealed class StubBoardService(PublicEventBoard board) : IPublicBoardService
+    private sealed class StubBoardService(PublicEventBoard board, PublicTileDetails? tile = null) : IPublicBoardService
     {
         public Task<PublicEventBoard?> GetEventBoardAsync(string eventSlug, CancellationToken cancellationToken = default) => Task.FromResult<PublicEventBoard?>(board);
-        public Task<PublicTileDetails?> GetTileAsync(string eventSlug, string teamSlug, Guid tileId, CancellationToken cancellationToken = default) => Task.FromResult<PublicTileDetails?>(null);
+        public Task<PublicTileDetails?> GetTileAsync(string eventSlug, string teamSlug, Guid tileId, CancellationToken cancellationToken = default) => Task.FromResult(tile);
+    }
+
+    private sealed class ProjectionEvidenceAuthority(Guid adminId, Guid eventId, Guid teamId) : IEvidenceAuthority
+    {
+        public Task<EvidenceActorScope> ResolveActorAsync(Guid actorAccountId, Guid? requestedEventId, Guid? requestedTeamId, DateTimeOffset now, CancellationToken cancellationToken = default)
+            => Task.FromResult(actorAccountId == adminId
+                ? new EvidenceActorScope(EvidenceActorKind.Administrator, actorAccountId, requestedEventId ?? eventId, requestedTeamId ?? teamId, Guid.Empty)
+                : new EvidenceActorScope(EvidenceActorKind.Participant, actorAccountId, eventId, teamId, Guid.NewGuid()));
+        public Task<EvidenceActorScope> AuthorizeAsync(Guid actorAccountId, Guid requestedEventId, Guid requestedTeamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> CanViewPrivateEvidenceAsync(Guid actorAccountId, Guid requestedEventId, Guid requestedTeamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<IReadOnlyList<EvidenceCandidate>> GetCurrentTeamCandidatesAsync(EvidenceActorScope scope, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<EvidenceCandidate>>([]);
+        public Task<CreditedCharacterSnapshot> ResolveCreditedCharacterAsync(Guid requestedEventId, Guid requestedParticipantId, DateTimeOffset submittedAt, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class StubParticipantLiveService : IParticipantLiveService

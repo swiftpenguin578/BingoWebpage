@@ -32,8 +32,6 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         else if (now <= effectiveCutoff && ev.State == EventState.AwaitingFinalReview) blockers.Add(new("submission-window", "Submission window is still open", $"Captains can submit until {effectiveCutoff.Value.ToLocalTime():g} local time.", null, true, false, null));
         var pending = await db.Submissions.AsNoTracking().Where(x => x.EventId == eventId && x.Status == SubmissionStatus.Pending).Select(x => x.Id).ToListAsync(ct);
         if (pending.Count > 0) blockers.Add(new(BlockerKey("pending-submissions", pending), "Pending submissions", $"{pending.Count} submission(s) still need a decision.", "/Admin/Review?status=Pending", true, false, null));
-        var changes = await db.Submissions.AsNoTracking().Where(x => x.EventId == eventId && x.Status == SubmissionStatus.ChangesRequested).Select(x => x.Id).ToListAsync(ct);
-        if (changes.Count > 0) blockers.Add(new(BlockerKey("changes-requested", changes), "Requested corrections outstanding", $"{changes.Count} submission(s) are waiting for captain corrections.", "/Admin/Review?status=ChangesRequested", true, false, null));
 
         var corrections = await db.TeamCompletionCorrections.AsNoTracking().Where(x => x.EventId == eventId).ToDictionaryAsync(x => x.TeamId, ct);
         var placements = new List<ProvisionalPlacement>();

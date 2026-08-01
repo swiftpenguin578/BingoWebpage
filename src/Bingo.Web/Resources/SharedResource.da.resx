@@ -99,14 +99,12 @@
   <data name="Submissions to correct" xml:space="preserve"><value>Indsendelser der skal rettes</value></data>
   <data name="No submissions need changes." xml:space="preserve"><value>Ingen indsendelser skal ændres.</value></data>
   <data name="Open team board" xml:space="preserve"><value>Åbn holdets bingoplade</value></data>
-  <data name="Changes requested" xml:space="preserve"><value>Ændringer ønskes</value></data>
   <data name="Change password" xml:space="preserve"><value>Skift adgangskode</value></data>
   <data name="Breadcrumb" xml:space="preserve"><value>Brødkrummer</value></data>
   <data name="Success" xml:space="preserve"><value>Gennemført</value></data>
   <data name="Warning" xml:space="preserve"><value>Bemærk</value></data>
   <data name="Error" xml:space="preserve"><value>Fejl</value></data>
   <data name="Information" xml:space="preserve"><value>Information</value></data>
-  <data name="Admin submission" xml:space="preserve"><value>Admin-indsendelse</value></data>
   <data name="Player" xml:space="preserve"><value>Spiller</value></data>
   <data name="Create account" xml:space="preserve"><value>Opret konto</value></data>
   <data name="Account" xml:space="preserve"><value>Konto</value></data>
@@ -314,7 +312,7 @@
   <data name="Captain workspace" xml:space="preserve"><value>Kaptajnarbejdsområde</value></data>
   <data name="Current screenshot code" xml:space="preserve"><value>Nuværende skærmbilledekode</value></data>
   <data name="No active code" xml:space="preserve"><value>Ingen aktiv kode</value></data>
-  <data name="New submissions are currently closed. Requested corrections remain available below." xml:space="preserve"><value>Nye indsendelser er lukket lige nu. Anmodede rettelser er stadig tilgængelige nedenfor.</value></data>
+  <data name="New submissions are currently closed. Pending history remains available below." xml:space="preserve"><value>Nye indsendelser er lukket lige nu. Afventende historik er stadig tilgængelig nedenfor.</value></data>
   <data name="Choose a board tile" xml:space="preserve"><value>Vælg en bingoplade-tile</value></data>
   <data name="Row" xml:space="preserve"><value>Række</value></data>
   <data name="Column" xml:space="preserve"><value>Kolonne</value></data>
@@ -417,6 +415,13 @@
   <data name="Paste, drag, or choose one screenshot." xml:space="preserve"><value>Indsæt, træk eller vælg ét skærmbillede.</value></data>
   <data name="Evidence submitted for review." xml:space="preserve"><value>Bevis er indsendt til gennemgang.</value></data>
   <data name="Submission updated and returned to review." xml:space="preserve"><value>Indsendelsen er opdateret og sendt tilbage til gennemgang.</value></data>
+  <data name="Linked resubmission created and returned to review." xml:space="preserve"><value>Den sammenkædede genindsendelse er oprettet og sendt tilbage til gennemgang.</value></data>
+  <data name="Submitting as your active playing character" xml:space="preserve"><value>Indsender som din aktive spillefigur</value></data>
+  <data name="The credited player, character snapshot, contribution weight, and active screenshot remain unchanged." xml:space="preserve"><value>Den krediterede spiller, figur-øjebliksbilledet, bidragsvægten og det aktive skærmbillede forbliver uændret.</value></data>
+  <data name="Create linked resubmission" xml:space="preserve"><value>Opret sammenkædet genindsendelse</value></data>
+  <data name="This rejected attempt stays in history. The new submission keeps its credited participant and character and requires a new screenshot." xml:space="preserve"><value>Dette afviste forsøg bliver i historikken. Den nye indsendelse beholder den krediterede deltager og figur og kræver et nyt skærmbillede.</value></data>
+  <data name="Submit linked resubmission" xml:space="preserve"><value>Indsend sammenkædet genindsendelse</value></data>
+  <data name="New screenshot" xml:space="preserve"><value>Nyt skærmbillede</value></data>
   <data name="Submission withdrawn." xml:space="preserve"><value>Indsendelsen er trukket tilbage.</value></data>
   <data name="Bingo" xml:space="preserve"><value>Bingo</value></data>
   <data name="Bingo views" xml:space="preserve"><value>Bingovisninger</value></data>
@@ -558,6 +563,11 @@
   <data name="Event discarded." xml:space="preserve"><value>Eventet blev kasseret.</value></data>
   <data name="Event cancelled" xml:space="preserve"><value>Event aflyst</value></data>
   <data name="Your event has been cancelled." xml:space="preserve"><value>Dit event er blevet aflyst.</value></data>
+  <data name="Evidence rejected" xml:space="preserve"><value>Bevis afvist</value></data>
+  <data name="Evidence rejected." xml:space="preserve"><value>Beviset blev afvist.</value></data>
+  <data name="Evidence for {0} · {1}{2} was rejected. Reason: {3}" xml:space="preserve"><value>Bevis for {0} · {1}{2} blev afvist. Begrundelse: {3}</value></data>
+  <data name="Unknown event" xml:space="preserve"><value>Ukendt event</value></data>
+  <data name="Unknown tile" xml:space="preserve"><value>Ukendt tile</value></data>
   <data name="Accounts" xml:space="preserve"><value>Konti</value></data>
   <data name="Answers" xml:space="preserve"><value>Svar</value></data>
   <data name="Choose…" xml:space="preserve"><value>Vælg…</value></data>

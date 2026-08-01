@@ -11,7 +11,7 @@ public sealed class EvidenceRulesTests
         var submittedAt = new DateTimeOffset(2026, 7, 13, 20, 15, 0, TimeSpan.FromHours(2));
         var submission = CreateSubmission(submittedAt, " funny-code ");
 
-        submission.EditPending(Guid.NewGuid(), Guid.NewGuid(), null, Guid.NewGuid(), 2, "corrected");
+        submission.EditPending(Guid.NewGuid(), Guid.NewGuid(), null, submission.CreditedParticipantId, 2, "corrected");
 
         Assert.Equal(submittedAt.ToUniversalTime(), submission.SubmittedAt);
         Assert.Equal("funny-code", submission.ExpectedEvidenceCode);
@@ -29,28 +29,13 @@ public sealed class EvidenceRulesTests
     }
 
     [Fact]
-    public void HidingApprovedEvidenceAlsoHidesPlayer()
+    public void RejectionRequiresAReasonAndIsTerminalForParticipantMutations()
     {
         var submission = CreateSubmission(DateTimeOffset.UtcNow, null);
-        submission.Approve(1, DateTimeOffset.UtcNow.AddMinutes(1));
-
-        submission.SetPublicEvidenceHidden(true);
-
-        Assert.True(submission.PublicEvidenceHidden);
-        Assert.True(submission.PublicPlayerHidden);
-    }
-
-    [Fact]
-    public void RequestedChangesRequireANoteAndCanBeResubmitted()
-    {
-        var submission = CreateSubmission(DateTimeOffset.UtcNow, null);
-        Assert.Throws<ArgumentException>(() => submission.RequestChanges(" ", DateTimeOffset.UtcNow));
-
-        submission.RequestChanges("Show the full game message", DateTimeOffset.UtcNow);
-        submission.Resubmit();
-
-        Assert.Equal(SubmissionStatus.Pending, submission.Status);
-        Assert.Null(submission.CurrentReviewerNote);
+        Assert.Throws<ArgumentException>(() => submission.Reject(" ", DateTimeOffset.UtcNow));
+        submission.Reject("The evidence is not sufficient.", DateTimeOffset.UtcNow);
+        Assert.Equal(SubmissionStatus.Rejected, submission.Status);
+        Assert.Throws<InvalidOperationException>(() => submission.Withdraw(DateTimeOffset.UtcNow));
     }
 
     [Fact]
@@ -87,7 +72,7 @@ public sealed class EvidenceRulesTests
 
     private static Submission CreateSubmission(DateTimeOffset at, string? code) => new(
         Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null,
-        Guid.NewGuid(), Guid.NewGuid(), 1, at, null, code);
+        Guid.NewGuid(), Guid.NewGuid(), "Test character", Guid.NewGuid(), 1, at, null, code);
 
     private static BingoEvent CreateEvent(DateTimeOffset starts, DateTimeOffset ends, DateTimeOffset cutoff) => new(
         Guid.NewGuid(), "Evidence test", "evidence-test", "", "UTC", starts.AddDays(-10), starts.AddDays(-2),

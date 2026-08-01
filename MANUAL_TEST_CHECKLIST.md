@@ -2,7 +2,7 @@
 
 **Status:** Planning Pass 2 framework; exact routes, accounts, seed prerequisites, and expected values are completed with each implementation slice before handoff.
 
-**Last updated:** 2026-07-29
+**Last updated:** 2026-08-01
 
 **Purpose:** Preserve the user's manual acceptance checks outside chat without adding testing controls to the application.
 
@@ -259,11 +259,46 @@ Slice 7 manual acceptance approved 2026-07-31.
 
 ## Slice 8 — Evidence submission, resubmission, review, and public visibility
 
-- [ ] Exact manual cases to be finalized before Slice 8 handoff.
-- [ ] Participant self-submit and captain teammate-submit with server-derived account.
-- [ ] Pending edit/withdraw, reject notification, cutoff-bound Resubmit, and account-after-swap preservation.
-- [ ] Admin metadata correction, approve/reject concurrency, reversal, and recalculation.
-- [ ] Every approved screenshot/player public; no privacy or hidden-approved path.
+### Development reset contract and ordering
+
+Run `dotnet run --project src/Bingo.Web -- --reset-test-data` in Development after applying migrations. The reset creates exactly four fixtures: `TEST 13 — DKL Board` (BoardDraft), `TEST 15 — DKL Live` (Live with a future five-day scheduled end), `TEST 62 — Board publication setup` (future SignupClosed), and `TEST 84 — Evidence history` (Finalized, past cutoff, one Rejected history row). Use `slice1-owner` with the disposable password supplied to `--slice1-bootstrap-owner` (or `SeedAdminTwo` / `SeedAdmin!1234`) for Admin review and lifecycle actions. Use `SeedEvidenceCaptain` / `SeedEvidence!1234` for the normal linked website Captain on the first team of TEST 15; use `SeedEvidenceCoCaptain` / `SeedEvidenceCoCaptain!1234` for its distinct website-owned Co-captain; and use `SeedEvidenceParticipant` / `SeedEvidenceParticipant!1234` for its distinct ordinary website-owned Participant. The enabled and disabled/expired emergency credentials remain available as documented above. Reset is idempotent; repeat it before each sequence that mutates shared state.
+
+Run the sequences in this order from a fresh reset unless stated otherwise:
+
+The Admin **End event now** action on TEST 15 moves the event to `AwaitingFinalReview` but does not itself close the still-active submission cutoff; it is not a post-cutoff read-only shortcut and it does not by itself permit finalization. Use TEST 84 for deterministic post-cutoff read-only and Finalized/Archived checks.
+
+1. **Ordinary Participant live workflow — TEST 15.** Sign in as `SeedEvidenceParticipant`, open `/Captain?eventId={test15EventId}&teamId={firstTeamId}`, choose a tile, and submit one screenshot for the credited participant shown by the server. Open `/Captain/Submissions/{submissionId}`, edit the pending structured fields, and withdraw that submission; expected: the edit and withdrawal succeed through the live cutoff and history remains. Then create a second live submission from the same route and note its `{participantSubmissionId}`. Before the separate seeded Captain Rejected-history check, sign in as `SeedAdminTwo` / `SeedAdmin!1234`, open `/Admin/Review?eventId={test15EventId}`, open that specific participant submission, and reject it with a written reason. Return as `SeedEvidenceParticipant` to `/Captain/Submissions/{participantSubmissionId}` and upload a new image through **Create linked resubmission**. Expected: the participant remains the credited owner, the stored credited-character snapshot is unchanged, the new row links `ResubmissionOfSubmissionId` to the rejected predecessor, and a replay or second direct child is denied. The same account can create only for itself; it cannot select a teammate.
+2. **Website Co-captain team scope — TEST 15.** Sign in as `SeedEvidenceCoCaptain`, open `/Captain?eventId={test15EventId}&teamId={firstTeamId}`, submit one screenshot for a current teammate in the first team, and confirm the result/history route. Then request `/Captain/Submit/{tileId}?eventId={test15EventId}&teamId={secondTeamId}` for a different team; expected: NotFound/denied with no private evidence or asset. Do this before ending TEST 15.
+3. **Admin review — TEST 15.** Sign in as `SeedAdminTwo` / `SeedAdmin!1234`, open `/Admin/Review?eventId={test15EventId}`, approve the seeded Pending row or reject it with a reason, and confirm only the allowed review controls and private notification result. Do not end TEST 15 in this sequence; its cutoff remains future and its live evidence journey must stay available.
+4. **Deterministic post-cutoff read-only — TEST 84.** After the reset, sign in as `SeedEvidenceParticipant` and open `/Captain?eventId={test84EventId}&teamId={historyTeamId}`. Open the seeded Rejected history row at `/Captain/Submissions/{historyRejectedId}`; expected: the record and asset remain readable, but edit, withdraw, and linked-resubmission controls are absent/denied because TEST 84 is already past its authoritative cutoff. A new `/Captain/Submit/{tileId}?eventId={test84EventId}&teamId={historyTeamId}` request is denied/read-only.
+5. **Finalized then Archived history — TEST 84.** Sign in as `SeedAdminTwo`, open `/Admin/Events/Finalize/{test84EventId}`, verify the Finalized official-results/history projection, submit the required confirmation to **Archive event**, then reload the same route. Expected: state is Archived, official result history remains visible, public `/Events/test-84-evidence-history/Board` and tile routes remain historical, and the Rejected evidence is not public. This sequence may be repeated from a fresh reset; do not use TEST 15 for the post-cutoff or archive checks.
+
+- [x] **S8-RM-01** — The exact reset identities, pending/rejected records, live/cutoff ordering, standalone fallback, finalized/archived progression, and expected private/public results above passed in English for the approved reachable surfaces; Danish manual inspection remains deferred to the UI overhaul.
+
+### Slice 8 consolidated manual acceptance — 2026-08-01
+
+- **S8-01 — Passed after correction.** Participant/team-board history navigation reaches the scoped Captain history workspace for TEST 15 and TEST 84.
+- **S8-02 — Passed after correction.** Linked resubmission uses the shared upload interaction, retains success feedback, and Admin review exposes the existing local time plus UTC.
+- **S8-03 — Passed after correction.** Co-captain teammate submission retains visible success feedback.
+- **S8-04 — Passed.** Emergency authority boundaries behaved as expected.
+- **S8-05 — Passed after correction.** Only the selected requirement’s drops are visible/selectable; crafted cross-tile POSTs remain server-rejected.
+- **S8-06 — Passed after correction.** TEST 84 post-cutoff history is reachable and read-only through normal navigation.
+- **S8-07 — Passed.** Public approved-only/privacy behavior remained correct.
+- **S8-08 — Scoped exception.** Manual snapshot-mutation steps were intentionally dropped as unreasonable; public privacy checks remain required and passed.
+- **S8-09 — Passed.** Existing automated authority/concurrency boundary coverage remains accepted.
+- **S8-10 — Deferred by approved boundary.** Danish manual inspection remains deferred to the UI overhaul; existing localization behavior and tests remain preserved.
+
+### Final manual correction notes
+
+The final correction retest passed in Safari after replacing `optgroup.options` with `group.querySelectorAll("option")`; initial server filtering, native requirement-change synchronization, and cross-tile server rejection all remain accepted. The next gate is a narrow independent re-review of only the post-review/manual corrections and final scope delta, followed by final automated gates. Final Slice 8 acceptance, packaging, commit, merge, and push are not claimed.
+
+- [ ] Participant self-submit/edit/withdraw and Captain/Co-captain teammate-submit use server-derived credited character; no account selector or cross-team/private-history leakage.
+- [ ] Rejected-only linked resubmission uses a new image, copies credited snapshots, preserves predecessor history, blocks replay/stale writes, and remains cutoff-bound.
+- [ ] Admin Pending review exposes only reasonless Approve or reasoned Reject; rejection reaches linked credited participant/current linked Captain/Co-captains once, with unlinked fallback to eligible leadership.
+- [ ] Admin reasoned metadata correction derives participant from the selected Playing character and preserves submission time, weight, contribution, and active asset.
+- [ ] Approved and Archived public/tile/board evidence shows only active Approved evidence and stored credited-character snapshots; no private notes/reasons/authority data appear publicly or in realtime payloads.
+- [ ] Only Pending evidence blocks finalization; Approved reversal preserves exact deduction/rebalancing/history.
+- [ ] Deprecated Admin upload, Request Changes, same-record resubmit, active duplicate, privacy/visibility controls, hidden placeholders, routes, and controls are absent; private non-Approved evidence remains scoped, linked Rejected resubmission and protected drawer/standalone fallback remain.
 
 ## Slice 9 — Event end, live replacement, finalization, notifications, and history
 

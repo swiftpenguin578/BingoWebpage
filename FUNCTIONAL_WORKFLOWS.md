@@ -137,7 +137,7 @@ An administrator creates a private event, completes the configuration required t
 | `ADM-EVENT-CANCEL-01` | Cancel a populated event that will not take place | Event administrator | No preserved cancelled-event state exists | New — approved |
 | `ADM-EVENT-ARCHIVE-01` | Move finalized results from current event to public history | Event administrator | Archive exists but lacks a complete workflow contract | Change — approved |
 | `SYS-CURRENT-EVENT-01` | Keep one unambiguous production current event while preserving development scenarios | System/event administrator | Public and review pages currently tolerate several seeded lifecycle states | Change — approved |
-| `ADM-REVIEW-01` | Review, correct, approve, reject, or reverse evidence | Evidence administrator | Implemented with additional request-changes and duplicate actions | Change — approved |
+| `ADM-REVIEW-01` | Review, correct, approve, reject, or reverse evidence | Evidence administrator | Implemented with Approve/Reject-only review, reasoned correction, and reversal; no Request Changes or active duplicate action | Change — approved |
 | `ADM-FINALIZE-01` | Resolve final-review blockers, finalize, and unfinalize results | Event administrator | Implemented with generated-captain expiry behavior that must change for website-account roles | Change — approved |
 | `PART-SIGNUP-01` | Submit a valid event signup | Participant | Implemented without an authenticated participant account | Change — approved |
 | `PART-IDENTITY-01` | Create an account, sign in with Discord or password, and recover/relink access | Participant | New | New — approved |

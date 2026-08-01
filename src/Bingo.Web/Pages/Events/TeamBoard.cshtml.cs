@@ -16,6 +16,7 @@ public sealed class TeamBoardModel(IPublicBoardService boards, IParticipantLiveS
     public PublicTeamBoard? Next { get; private set; }
     public ParticipantLiveContext? ParticipantContext { get; private set; }
     public IReadOnlyList<ParticipantLiveContext> LiveContexts { get; private set; } = [];
+    public bool CanOpenSubmissionWorkspace { get; private set; }
     public TeamFocusContext? Focus { get; private set; }
     public bool InspectFocus { get; private set; }
 
@@ -30,6 +31,7 @@ public sealed class TeamBoardModel(IPublicBoardService boards, IParticipantLiveS
         Previous = index > 0 ? board.Teams[index - 1] : null;
         Next = index + 1 < board.Teams.Count ? board.Teams[index + 1] : null;
         if (!await LoadLiveContextAsync(participantId, cancellationToken)) return Forbid();
+        CanOpenSubmissionWorkspace = User.GetAccountId() is not null && ParticipantContext is not null;
         InspectFocus = inspectFocus;
         var accountId = User.GetAccountId();
         if (accountId is { } viewerAccountId)

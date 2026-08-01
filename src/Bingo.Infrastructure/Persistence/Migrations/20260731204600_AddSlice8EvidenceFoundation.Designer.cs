@@ -3,6 +3,7 @@ using System;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Bingo.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260731204600_AddSlice8EvidenceFoundation")]
+    partial class AddSlice8EvidenceFoundation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2426,6 +2429,10 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("drop_snapshot_id");
 
+                    b.Property<Guid?>("DuplicateOfSubmissionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("duplicate_of_submission_id");
+
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid")
                         .HasColumnName("event_id");
@@ -2434,6 +2441,18 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("expected_evidence_code");
+
+                    b.Property<bool>("PublicEvidenceHidden")
+                        .HasColumnType("boolean")
+                        .HasColumnName("public_evidence_hidden");
+
+                    b.Property<bool>("PublicPlayerHidden")
+                        .HasColumnType("boolean")
+                        .HasColumnName("public_player_hidden");
+
+                    b.Property<bool>("PublicPrivacyRequested")
+                        .HasColumnType("boolean")
+                        .HasColumnName("public_privacy_requested");
 
                     b.Property<Guid>("RequirementId")
                         .HasColumnType("uuid")

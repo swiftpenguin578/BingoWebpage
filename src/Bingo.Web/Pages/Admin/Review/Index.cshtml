@@ -21,7 +21,6 @@
                 <select name="status" class="form-select"><option value="">All statuses</option>@foreach(var s in Enum.GetValues<SubmissionStatus>()){<option value="@s">@s</option>}</select>
             }
             <button class="btn btn-outline-light">@(Model.EventId is null ? "Open queue" : "Filter")</button>
-            @if (Model.EventId is Guid eventId) { <a class="btn btn-primary" asp-page="Submit" asp-route-eventId="@eventId">Admin submission</a> }
         </form>
     }
     @if(Model.EventId is not null)

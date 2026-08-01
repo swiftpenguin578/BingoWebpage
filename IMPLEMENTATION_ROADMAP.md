@@ -523,7 +523,7 @@ Replace Discord drop-channel submissions and manual spreadsheet updates.
 - Size and media-type limits.
 - Image decoding validation.
 - Checksums and generated keys.
-- Original/replacement evidence history.
+- Original evidence plus retained historical asset versions.
 - Safe evidence display.
 - Separate enabled/disabled evidence-code mode with custom or generated codes, immediate/scheduled activation, and immutable per-submission code snapshots.
 
@@ -541,7 +541,7 @@ Replace Discord drop-channel submissions and manual spreadsheet updates.
 - Require a reason for tile/requirement, drop, or credited-account corrections.
 - Keep server submission time, snapshot weight, calculated contribution, and evidence image reviewer-immutable.
 - Notify the linked credited participant and current linked team captains/co-captains after rejection.
-- Keep every approved submission's metadata, credited player, and screenshot public by default; do not implement a participant/captain privacy request.
+- Public projections expose only active Approved evidence, metadata, and stored credited-character snapshots; private non-Approved history remains scoped to its authorized participants, current team leadership/emergency authority, and Admins.
 - Do not retain a hidden-but-still-approved evidence state; use reasoned approval reversal followed by corrected/redacted resubmission when an image must be removed.
 - Reverse approval with reason.
 
@@ -584,7 +584,7 @@ Deliver the participant-facing centerpiece and automatic competitive calculation
 - Mobile list/grid behavior.
 - Tile detail view.
 - Approved evidence list.
-- Hidden evidence/player placeholder.
+- No hidden-evidence/player placeholder; private non-Approved evidence is omitted from public projections.
 
 #### Calculation engine
 
@@ -612,7 +612,7 @@ Deliver the participant-facing centerpiece and automatic competitive calculation
 - Finishers outrank non-finishers.
 - Non-finishers rank by lines, then tiles, then EHB tie-break.
 - Reversal can remove a line, full board, and provisional win.
-- Hidden player is excluded from public contribution identity as required.
+- Public contribution identity comes only from active Approved evidence's stored credited-character snapshot.
 
 ### Browser acceptance
 
@@ -777,6 +777,8 @@ These are the ten functional delivery slices inside Milestone 8A. They are not a
 
 Each slice finalizes its exact manual cases in `MANUAL_TEST_CHECKLIST.md` before handoff. The checklist is durable repository documentation so the user may run it immediately or return to it later; it does not replace automated coverage.
 
+Before implementation begins for each remaining major slice, run one independent read-only implementation-readiness review against the approved slice plan, current code, and source-of-truth documents. Resolve only concrete blockers and explicit product decisions, incorporate the accepted corrections into that slice's plan, and then implement. The review must also confirm manual-test reachability and minimum Development fixtures, complete removal coverage for deprecated behavior, an explicit operational path for fail-closed retained data, and a lean complexity budget for proposed persistence/services/routes/policies/jobs/abstractions. It freezes the approved scope and non-goals, distinguishes required dependencies from optional or adjacent work, and defines which newly discovered product changes require user approval. Optional suggestions do not become implementation requirements, and unrelated defects are recorded separately unless they block safe implementation or verification. Do not turn this into repeated speculative review: a second planning review is justified only when implementation uncovers a genuine contradiction or missing product rule. This gate applies to Slice 8 and must be repeated for Slices 9 and 10.
+
 Slices 1, 2, and 3 are implemented, independently cleared, verified, manually accepted where applicable, committed, and pushed on their accepted branches. Their detailed records remain in `SLICE_1_IMPLEMENTATION_PLAN.md`, `SLICE_2_IMPLEMENTATION_PLAN.md`, and `SLICE_3_IMPLEMENTATION_PLAN.md`. The bounded seven-pass Slice 4 signup plan is approved in `SLICE_4_IMPLEMENTATION_PLAN.md`; implementation has not started and must remain inside one approved pass per task.
 
 Only after all ten Milestone 8A functional slices are complete and functionally regressed does work proceed to the separate big-roadmap **Milestone 9 — UI overhaul and regression**. Milestone 9 performs the complete site-wide UI pass and full regression through the page passes in `UI_OVERHAUL_ROADMAP.md`. It must not begin merely because a similarly numbered UI page pass is available.
@@ -881,7 +883,7 @@ All rehearsal data is fictional and disposable. It is never copied into the prod
 - 5x5 board containing every important objective pattern.
 - Enough fictional evidence to complete tiles, lines, and a board.
 - Waiting list, withdrawal, and promotion examples.
-- Hidden evidence example.
+- Private non-Approved evidence remains out of the public rehearsal projection.
 - Incorrect approval and reversal example.
 
 ### Production-scale capacity rehearsal
@@ -1050,7 +1052,7 @@ Cover only high-value workflows rather than every visual detail:
 - Unsafe upload formats
 - Oversized upload
 - Stored script content in names/comments
-- Hidden evidence access
+- Private non-Approved evidence access
 - Expired account access
 - Secret leakage in logs
 

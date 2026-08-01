@@ -10,7 +10,7 @@
             <button type="button" class="tile-context-back" data-team-sidebar-return>← @T["Team overview"]</button>
             @if (Model.CanSubmit && !Model.Tile.Complete)
             {
-                <a class="btn tile-submit-action action-accent-outline" asp-page="/Captain/Submit" asp-route-tileId="@Model.Tile.TileId" data-open-submission-drawer>@T["Submit drop"]</a>
+                <a class="btn tile-submit-action action-accent-outline" asp-page="/Captain/Submit" asp-route-tileId="@Model.Tile.TileId" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId" data-open-submission-drawer>@T["Submit drop"]</a>
             }
         </div>
         <h2>@Model.Tile.TileName</h2>
@@ -137,11 +137,7 @@
             <div class="tile-evidence-thumbnails auto-hide-scrollbar" tabindex="0" aria-label="@T["Approved evidence"]">
                 @foreach (var evidence in Model.Tile.Evidence)
                 {
-                    if (evidence.Hidden)
-                    {
-                        <span class="tile-evidence-hidden" title="@T["Approved evidence is private"]"><span aria-hidden="true">◌</span><small>@T["Private"]</small></span>
-                    }
-                    else if (evidence.EvidenceAssetId is Guid assetId)
+                    if (evidence.EvidenceAssetId is Guid assetId)
                     {
                         <button type="button" class="tile-evidence-thumbnail" data-evidence-image="/Evidence/@assetId" data-evidence-alt="@T["Approved evidence from {0}", evidence.PlayerName ?? string.Empty]">
                             <img src="/Evidence/@assetId" alt="" loading="lazy" />

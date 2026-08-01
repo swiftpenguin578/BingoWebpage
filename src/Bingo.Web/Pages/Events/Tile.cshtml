@@ -32,17 +32,10 @@
                 <div class="evidence-gallery">
                 @foreach (var evidence in Model.Tile.Evidence)
                 {
-                    if (evidence.Hidden)
-                    {
-                        <article class="panel hidden-evidence"><span aria-hidden="true">◌</span><strong>@T["Evidence hidden"]</strong><p>@T["The screenshot and player name are private. Its approved contribution still counts."]</p><small>@evidence.SubmittedAt.ToString("d MMM yyyy, HH:mm")</small></article>
-                    }
-                    else
-                    {
-                        <article class="panel evidence-card">
+                    <article class="panel evidence-card">
                             @if (evidence.EvidenceAssetId is Guid assetId) { <button type="button" class="evidence-image-button" data-evidence-image="/Evidence/@assetId" data-evidence-alt="@T["Approved evidence from {0}", evidence.PlayerName ?? string.Empty]"><img src="/Evidence/@assetId" alt="@T["Approved evidence from {0}", evidence.PlayerName ?? string.Empty]" loading="lazy" /></button> }
                             <div><strong>@evidence.PlayerName</strong><span>@(evidence.DropName ?? T["Manual completion"]) @if(evidence.Contribution > 1){<text>· @T["weight"] @evidence.Contribution</text>}</span>@if(!string.IsNullOrWhiteSpace(evidence.BossName)){<small>@evidence.BossName</small>}<small>@T["Submitted"] @evidence.SubmittedAt.ToString("d MMM yyyy, HH:mm")</small></div>
-                        </article>
-                    }
+                    </article>
                 }
                 </div>
             }

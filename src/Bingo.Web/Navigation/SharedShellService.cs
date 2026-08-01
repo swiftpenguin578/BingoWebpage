@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.Claims;
+using System.Text.Json;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
 using Bingo.Infrastructure.Persistence;
@@ -32,7 +33,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             if (unreadCount > 0)
             {
                 var personal = await unread.OrderByDescending(item => item.CreatedAt).Take(6).ToListAsync(cancellationToken);
-                return new NotificationInbox([], unreadCount, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personal.Select(item => new ShellNotification(item.Id, NotificationTitle(item.Title), string.IsNullOrWhiteSpace(item.Detail) ? NotificationDetail(item.Title) : item.Detail, $"/notifications?read={item.Id}")).ToList());
+                return new NotificationInbox([], unreadCount, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personal.Select(item => new ShellNotification(item.Id, NotificationTitle(item.Title), NotificationDetail(item.Title, item.Detail), $"/notifications?read={item.Id}")).ToList());
             }
         }
         if (user.IsInRole("Admin") || user.IsInRole("SuperAdmin")) return await GetAdminNotifications(cancellationToken);
@@ -46,17 +47,37 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         "account.admin_revoked" => text["Admin access revoked"],
         "account.restored" => text["Account restored"],
         "event.cancelled" => text["Event cancelled"],
+        "evidence.rejected" => text["Evidence rejected"],
         _ => type
     };
 
-    private string NotificationDetail(string type) => type switch
+    private string NotificationDetail(string type, string detail) => type switch
     {
         "account.admin_granted" => text["An administrator granted your account Admin access."],
         "account.admin_revoked" => text["An administrator removed your Admin access."],
         "account.restored" => text["An administrator restored your account."],
         "event.cancelled" => text["Your event has been cancelled."],
-        _ => string.Empty
+        "evidence.rejected" => FormatEvidenceRejection(detail),
+        _ => detail
     };
+
+    private string FormatEvidenceRejection(string detail)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(detail);
+            var root = document.RootElement;
+            var eventName = root.GetProperty("eventName").GetString() ?? text["Unknown event"];
+            var tile = root.GetProperty("tile").GetString() ?? text["Unknown tile"];
+            var drop = root.TryGetProperty("drop", out var dropValue) && dropValue.ValueKind != JsonValueKind.Null ? $" · {dropValue.GetString()}" : string.Empty;
+            var reason = root.GetProperty("reason").GetString() ?? string.Empty;
+            return text["Evidence for {0} · {1}{2} was rejected. Reason: {3}", eventName, tile, drop, reason];
+        }
+        catch (JsonException)
+        {
+            return text["Evidence rejected."];
+        }
+    }
 
     private async Task<NotificationInbox> GetAdminNotifications(CancellationToken cancellationToken)
     {
@@ -75,10 +96,9 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         var query = from submission in db.Submissions.AsNoTracking()
                     join team in db.Teams.AsNoTracking() on submission.TeamId equals team.Id
                     join tile in db.BoardTiles.AsNoTracking() on submission.BoardTileId equals tile.Id
-                    join player in db.PrimaryCharacters().AsNoTracking() on submission.CreditedParticipantId equals player.ParticipantId
                     where activeEventIds.Contains(submission.EventId) && submission.Status == SubmissionStatus.Pending
                     orderby submission.SubmittedAt descending
-                    select new { submission.Id, submission.EventId, submission.SubmittedAt, Team = team.Name, Tile = tile.NameSnapshot, Player = player.Name };
+                    select new { submission.Id, submission.EventId, submission.SubmittedAt, Team = team.Name, Tile = tile.NameSnapshot, Player = submission.CreditedCharacterName };
         var count = await query.CountAsync(cancellationToken);
         var rows = await query.Take(6).ToListAsync(cancellationToken);
         var items = rows.Select(item => new ShellNotification(
@@ -89,28 +109,8 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         return new NotificationInbox(activeEventIds, count, text["Tile submissions"], text["No tile submissions need review."], text["View all submissions"], "/Admin/Review", items);
     }
 
-    private async Task<NotificationInbox> GetCaptainNotifications(ClaimsPrincipal user, CancellationToken cancellationToken)
-    {
-        var eventId = user.GetEventId();
-        var teamId = user.GetTeamId();
-        if (eventId is null || teamId is null) return NotificationInbox.Empty;
-        var eventName = await db.Events.AsNoTracking().Where(item => item.Id == eventId).Select(item => item.Name).SingleOrDefaultAsync(cancellationToken);
-        if (eventName is null) return NotificationInbox.Empty;
-
-        var query = from submission in db.Submissions.AsNoTracking()
-                    join tile in db.BoardTiles.AsNoTracking() on submission.BoardTileId equals tile.Id
-                    where submission.EventId == eventId && submission.TeamId == teamId && submission.Status == SubmissionStatus.ChangesRequested
-                    orderby submission.ReviewedAt descending, submission.SubmittedAt descending
-                    select new { submission.Id, Tile = tile.NameSnapshot, submission.CurrentReviewerNote };
-        var count = await query.CountAsync(cancellationToken);
-        var rows = await query.Take(6).ToListAsync(cancellationToken);
-        var items = rows.Select(item => new ShellNotification(
-            item.Id,
-            item.Tile,
-            string.IsNullOrWhiteSpace(item.CurrentReviewerNote) ? text["Changes requested"] : item.CurrentReviewerNote,
-            $"/Captain/Submissions/{item.Id}")).ToList();
-        return new NotificationInbox([eventId.Value], count, text["Submissions to correct"], text["No submissions need changes."], text["Open team board"], "/Captain", items);
-    }
+    private static Task<NotificationInbox> GetCaptainNotifications(ClaimsPrincipal user, CancellationToken cancellationToken)
+        => Task.FromResult(NotificationInbox.Empty);
 
     private async Task<IReadOnlyList<BreadcrumbItem>> BuildBreadcrumbs(string page, RouteValueDictionary values, CancellationToken cancellationToken)
     {
@@ -152,7 +152,6 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
     private async Task<IReadOnlyList<BreadcrumbItem>> BuildReviewBreadcrumbs(string page, RouteValueDictionary values, CancellationToken cancellationToken)
     {
         var items = new List<BreadcrumbItem> { AdminRoot(), new(text["Evidence review"], "/Admin/Review") };
-        if (page == "/Admin/Review/Submit") { items.Add(new(text["Admin submission"], null)); return items; }
         if (TryGuid(values, "id", out var submissionId))
         {
             var tile = await (from submission in db.Submissions.AsNoTracking()

@@ -66,6 +66,8 @@ Future agents must follow these rules:
 15. Run the smallest verification set that proves the changed behavior and protects the affected risk surface. Expand verification when failures, dependencies, or blast radius justify it; final completion still requires the repository's applicable definition-of-done gates.
 16. Prefer the shortest **authorized** path through implementation, focused verification, leak checks, and handoff. Stage, commit, push, release, or deploy only when the user has authorized those actions.
 17. Never trade correctness, security, deterministic behavior, or data integrity for speed.
+18. Before adding another test, review, audit, investigation, evidence request, or validation step, name the unresolved uncertainty and how the result could materially change the implementation, verdict, minimum required fix, authority, fulfillment, or significant risk. If it cannot, stop; additional confidence alone does not justify more work.
+19. Stop when the requested outcome exists, its smallest relevant direct verification has passed, and no unresolved finding could materially change correctness, security, privacy, authorization, concurrency, data integrity, or the requested result. Corroboration, proof-of-proof, reviewer/model agreement, speculative improvement, and unrelated defects are not unfinished work.
 
 If blocked, useful work may include focused source inspection, independent unit tests, documentation reconciliation, or a precise handoff. Do not claim completion while required verification remains blocked.
 
@@ -97,6 +99,18 @@ Use risk-based, non-duplicative testing:
 - Focused tests are the normal per-pass gate. Run the complete suite only at the documented final gate or when the blast radius genuinely warrants it.
 
 Allow one implementation attempt and, when interrupted, one bounded continuation. If the same worker or approach fails repeatedly, change the approach or create a fresh task from the last verified state; do not loop indefinitely.
+
+Before implementation begins for each remaining major functional slice, run exactly one independent read-only implementation-readiness review after the user approves the product behavior. The review must compare the complete proposed slice with the current code and source-of-truth documents, identify only concrete blockers, product decisions, compatibility work, implementation risks, and behavior-preserving simplifications, and assess pass ordering and independent deployability. Resolve the named decisions and incorporate accepted corrections into the slice plan before implementation. Do not repeat the planning review unless implementation later exposes a genuine contradiction or missing product decision; ordinary implementation defects belong to focused remediation and the normal post-implementation review.
+
+That readiness review must also establish a lean implementation contract:
+
+- Confirm every planned journey is reachable through existing/planned UI and that Development reset can create the minimum accounts, roles, lifecycle states, and records needed for manual acceptance. Do not add broad demonstration data.
+- For removed/replaced behavior, inventory the affected domain values, persistence, services, routes, controls, notifications, seeds, tests, and source-of-truth wording so obsolete behavior cannot survive accidentally.
+- Include a complexity budget listing the concrete new tables, services, pages/routes, policies, jobs, and abstractions the plan appears to require. Challenge any addition without a specific persistence, transaction, authorization, operational, or demonstrated reuse need.
+- For every fail-closed migration/preflight, state how an operator identifies and corrects affected records before retrying deployment.
+- Freeze the approved scope and explicit non-goals before implementation. Separate necessary dependencies from optional improvements and unrelated defects. Reviewer suggestions classified as optional do not become implementation requirements.
+- Define the implementation stop rule: an implementer may proceed through ordinary technical details, but must stop for user direction before adding behavior, changing an approved product rule, broadening a pass, or resolving an adjacent issue that is not required for the pass. A discovered unrelated defect is recorded separately unless it prevents safe implementation or verification of the approved behavior.
+- Review and remediation remain bounded to the approved slice/pass. Neither is permission for opportunistic cleanup, generalized frameworks, UI redesign, or fixes to adjacent features.
 
 ## UI work
 

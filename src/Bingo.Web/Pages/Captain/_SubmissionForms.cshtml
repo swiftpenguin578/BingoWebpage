@@ -20,7 +20,7 @@
 {
     <form method="post" enctype="multipart/form-data"
           class="panel form-stack submission-form compact-submission-form"
-          asp-page="/Captain/Submit" asp-page-handler="Drawer" asp-route-tileId="@Model.Tile.Id">
+          asp-page="/Captain/Submit" asp-page-handler="Drawer" asp-route-tileId="@Model.Tile.Id" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId">
         <input name="Input.RequirementId" type="hidden" value="@selectedRequirementId" data-submission-requirement-id />
         <input name="Input.DropSnapshotId" type="hidden" value="@selectedDrop?.Id" data-submission-drop-id />
         <input name="Input.ClaimedWeight" type="hidden" value="1" />
@@ -64,45 +64,24 @@
         }
 
         <div class="submission-secondary-fields">
-            <label class="submission-field">
-                <span>@T["Player"]</span>
-                <select name="Input.CreditedParticipantId" class="form-select" required>
-                    @foreach (var player in Model.Players)
-                    {
-                        <option value="@player.Id" selected="@(player.Id == Model.Input.CreditedParticipantId)">@player.Name</option>
-                    }
-                </select>
-            </label>
+            @if (Model.CanChooseCreditedParticipant)
+            {
+                <label class="submission-field"><span>@T["Player"]</span><select name="Input.CreditedParticipantId" class="form-select" required>@foreach (var player in Model.Players){<option value="@player.Id" selected="@(player.Id == Model.Input.CreditedParticipantId)">@player.Name</option>}</select></label>
+            }
+            else
+            {
+                <input name="Input.CreditedParticipantId" type="hidden" value="@Model.DefaultParticipantId" />
+                <p class="submission-owner-note">@T["Submitting as your active playing character"]</p>
+            }
             <label class="submission-field">
                 <span>@T["Note"] <small>@T["Optional"]</small></span>
                 <textarea name="Input.Note" class="form-control" rows="2">@Model.Input.Note</textarea>
             </label>
         </div>
 
-        <label class="checkbox-row compact-privacy-row">
-            <input name="Input.RequestPublicPrivacy" type="checkbox" value="true" checked="@Model.Input.RequestPublicPrivacy" />
-            <span>@T["Hide the screenshot and player name publicly after approval"]</span>
-        </label>
-
         <label class="submission-field">
             <span>@T["Screenshot"]</span>
-            <div class="evidence-drop compact-evidence-drop" tabindex="0"
-                 data-ready-template="@T["Ready: {0}"]"
-                 data-pasted-screenshot="@T["pasted screenshot"]"
-                 data-clipboard-empty="@T["The clipboard does not contain an image."]"
-                 data-clipboard-blocked="@T["Clipboard access was blocked. Focus the outer box and press Command+V instead."]">
-                <div class="compact-evidence-empty" data-evidence-empty>
-                    <div class="compact-evidence-copy"><strong>@T["Paste or drag screenshot"]</strong><small>@T["PNG, JPEG or WebP · 10 MB maximum"]</small></div>
-                    <div class="evidence-input-actions"><button type="button" class="btn paste-evidence action-neutral-outline">@T["Paste"]</button><input name="Input.Evidence" type="file" accept="image/png,image/jpeg,image/webp" required /></div>
-                    <small class="paste-status" aria-live="polite"></small>
-                </div>
-                <div class="compact-evidence-preview" data-evidence-preview hidden>
-                    <button type="button" class="compact-evidence-preview-button" data-evidence-image data-evidence-alt="@T["Screenshot ready for submission"]">
-                        <img alt="@T["Evidence preview"]" />
-                    </button>
-                    <button type="button" class="compact-evidence-remove action-remove-x" data-evidence-remove aria-label="@T["Remove screenshot"]">×</button>
-                </div>
-            </div>
+            <partial name="_EvidenceUpload" model="@("Input.Evidence")" />
         </label>
         <button class="btn submission-confirm-action action-accent-outline">@T["Submit for review"]</button>
     </form>
@@ -117,7 +96,7 @@ else
             continue;
         }
         <form method="post" enctype="multipart/form-data" class="panel form-stack submission-form"
-              asp-page="/Captain/Submit" asp-route-tileId="@Model.Tile.Id">
+              asp-page="/Captain/Submit" asp-route-tileId="@Model.Tile.Id" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId">
             <input type="hidden" name="Input.RequirementId" value="@requirement.Id" />
             <h2>@requirement.Description</h2>
             <p>@T["Target contribution: {0}", requirement.Target]</p>
@@ -137,20 +116,20 @@ else
                     }
                 </select>
             }
-            <label>@T["Player"]</label>
-            <select name="Input.CreditedParticipantId" class="form-select" required>
-                @foreach (var player in Model.Players) { <option value="@player.Id" selected="@(player.Id == Model.Input.CreditedParticipantId)">@player.Name</option> }
-            </select>
+            @if (Model.CanChooseCreditedParticipant)
+            {
+                <label>@T["Player"]</label><select name="Input.CreditedParticipantId" class="form-select" required>@foreach (var player in Model.Players) { <option value="@player.Id" selected="@(player.Id == Model.Input.CreditedParticipantId)">@player.Name</option> }</select>
+            }
+            else
+            {
+                <input name="Input.CreditedParticipantId" type="hidden" value="@Model.DefaultParticipantId" />
+                <p class="submission-owner-note">@T["Submitting as your active playing character"]</p>
+            }
             <input name="Input.ClaimedWeight" type="hidden" value="1" />
             <label>@T["Note"] <small>@T["Optional"]</small></label>
             <textarea name="Input.Note" class="form-control" rows="2">@(requirement.Id == selectedRequirementId ? Model.Input.Note : null)</textarea>
-            <label class="checkbox-row"><input name="Input.RequestPublicPrivacy" type="checkbox" value="true" checked="@(requirement.Id == selectedRequirementId && Model.Input.RequestPublicPrivacy)" /> @T["Hide the screenshot and player name publicly after approval"]</label>
             <label>@T["Screenshot"]</label>
-            <div class="evidence-drop" tabindex="0"
-                 data-ready-template="@T["Ready: {0}"]"
-                 data-pasted-screenshot="@T["pasted screenshot"]"
-                 data-clipboard-empty="@T["The clipboard does not contain an image."]"
-                 data-clipboard-blocked="@T["Clipboard access was blocked. Focus the outer box and press Command+V instead."]"><strong>@T["Paste or drag screenshot here"]</strong><input name="Input.Evidence" type="file" accept="image/png,image/jpeg,image/webp" required /><img alt="@T["Evidence preview"]" hidden /></div>
+            <partial name="_EvidenceUpload" model="@("Input.Evidence")" />
             <button class="btn action-accent-outline">@T["Submit for review"]</button>
         </form>
     }

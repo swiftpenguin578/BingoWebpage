@@ -46,6 +46,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         foreach (var entry in ChangeTracker.Entries<BossActivity>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<CatalogueItem>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<SourceDrop>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
+        foreach (var entry in ChangeTracker.Entries<Submission>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
     }
     public DbSet<SystemMetadata> SystemMetadata => Set<SystemMetadata>();
 

@@ -69,6 +69,7 @@ window.initializeBingoDateTimePicker = (input, overrides = {}) => {
 document.addEventListener("DOMContentLoaded", () => {
   restorePostNavigationState();
   initializePostNavigation();
+  initializeCorrectionDropSelectors();
   initializeAutoHideScrollbars();
   const feedback = document.querySelector("[data-feedback-target], .validation-summary-errors");
   if (feedback) {
@@ -104,6 +105,39 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const menu of menus) if (menu.open && !menu.contains(event.target)) menu.open = false;
   });
 });
+
+document.addEventListener("bingo:content-updated", initializeCorrectionDropSelectors);
+
+function initializeCorrectionDropSelectors() {
+  document.querySelectorAll("[data-correction-requirement]").forEach(syncCorrectionDropSelector);
+}
+
+window.syncCorrectionDropSelector = function (requirement) {
+  const form = requirement.closest("form");
+  const tile = form?.querySelector("[data-correction-tile]");
+  const drop = form?.querySelector("[data-correction-drop]");
+  const catalogue = form?.querySelector("[data-correction-drop-catalogue]");
+  if (!(tile instanceof HTMLInputElement) || !(drop instanceof HTMLSelectElement) || !(catalogue instanceof HTMLSelectElement)) return;
+
+  const groups = [...catalogue.querySelectorAll("optgroup")].map(group => ({
+    label: group.label,
+    options: [...group.querySelectorAll("option")].map(option => option.cloneNode(true))
+  }));
+  const manual = catalogue.querySelector('option[value=""]')?.cloneNode(true);
+  const previous = drop.value;
+  drop.replaceChildren();
+  if (manual) drop.append(manual);
+  for (const group of groups) {
+    const options = group.options.filter(option => option.dataset.requirementId === requirement.value);
+    if (options.length === 0) continue;
+    const element = document.createElement("optgroup");
+    element.label = group.label;
+    element.append(...options);
+    drop.append(element);
+  }
+  tile.value = requirement.selectedOptions[0]?.dataset.tile ?? tile.value;
+  if ([...drop.options].some(option => option.value === previous)) drop.value = previous;
+}
 
 function initializeInputModality() {
   const root = document.documentElement;

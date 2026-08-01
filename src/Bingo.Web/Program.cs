@@ -49,7 +49,7 @@ builder.Services.Configure<RequestLocalizationOptions>(options =>
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Admin", AuthorizationPolicies.Admin);
-    options.Conventions.AuthorizeFolder("/Captain", AuthorizationPolicies.CaptainCorrectionAccess);
+    options.Conventions.AuthorizeFolder("/Captain");
     options.Conventions.ConfigureFilter(new ServiceFilterAttribute(typeof(EventMutationCapabilityPageFilter)));
 }).AddDataAnnotationsLocalization(options =>
     options.DataAnnotationLocalizerProvider = (_, factory) => factory.Create(typeof(Bingo.Web.SharedResource)));
