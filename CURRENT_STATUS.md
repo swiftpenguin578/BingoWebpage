@@ -1,12 +1,12 @@
 # Current Project Status
 
 **Verified:** 2026-08-02
-**Branch:** `codex/milestone-8a-slice-8` (packaged and integrated)
+**Branch:** `codex/milestone-8a-slice-8` (packaged and pushed; main integration blocked)
 **Planning decision:** 2026-07-31
 
 ## Active handoff
 
-**Slice 8 final acceptance (2026-08-02):** Slice 8 is accepted after the independent implementation review, all restricted re-reviews, final scope-delta review, and consolidated manual acceptance passed. Final automated results passed with zero failures/skips: Domain `156/156`, Application `83/83`, Browser `67/67`, Integration `230/230`, combined `536/536`. Durable final Integration TRX: `/private/tmp/slice8-final-automated-gates-20260801/integration-rerun.trx`. The Release solution build completed with 0 warnings/errors; formatting, EF pending-model, `git diff --check`, clean/retained Slice 8 migration/preflight, Development double-reset, parity, artifact/secret scan, and staged-state checks passed. No required gate remains unverified. Slice 8 was packaged and integrated after successful Git operations; Slice 9 has not started.
+**Slice 8 final acceptance (2026-08-02):** Slice 8 is accepted after the independent implementation review, all restricted re-reviews, final scope-delta review, and consolidated manual acceptance passed. Final automated results passed with zero failures/skips: Domain `156/156`, Application `83/83`, Browser `67/67`, Integration `230/230`, combined `536/536`. Durable final Integration TRX: `/private/tmp/slice8-final-automated-gates-20260801/integration-rerun.trx`. The Release solution build completed with 0 warnings/errors; formatting, EF pending-model, `git diff --check`, clean/retained Slice 8 migration/preflight, Development double-reset, parity, artifact/secret scan, and staged-state checks passed. No required gate remains unverified. Slice 8 was packaged and pushed; fast-forward integration is blocked because the designated local `main` worktree `/private/tmp/slice5-main-merge.t7c5q3` has pre-existing user-owned modifications and an untracked plan file. Slice 9 has not started.
 
 **Slice 7 integration (2026-07-31):** Accepted Slice 7 was packaged, pushed, fast-forward merged to `main`, and pushed to `origin/main` at `50535f8d20937726c9ef0bd89e0574e7c286cbc8`. Its final accepted evidence remains Domain `157/157`, Application `83/83`, Browser `66/66`, Integration `216/216` (`522/522` combined), with the remaining Release, formatting, EF, migration/reset, diff, and artifact gates passed.
 

@@ -290,7 +290,7 @@ The Admin **End event now** action on TEST 15 moves the event to `AwaitingFinalR
 
 ### Final manual correction notes
 
-The final correction retest passed in Safari after replacing `optgroup.options` with `group.querySelectorAll("option")`; initial server filtering, native requirement-change synchronization, and cross-tile server rejection all remain accepted. Slice 8 is accepted after the independent implementation review, all restricted re-reviews, final scope-delta review, and consolidated manual acceptance passed. It was packaged and integrated after successful Git operations; Slice 9 has not started.
+The final correction retest passed in Safari after replacing `optgroup.options` with `group.querySelectorAll("option")`; initial server filtering, native requirement-change synchronization, and cross-tile server rejection all remain accepted. Slice 8 is accepted after the independent implementation review, all restricted re-reviews, final scope-delta review, and consolidated manual acceptance passed. It was packaged and pushed; fast-forward integration is blocked by the pre-existing dirty designated local `main` worktree `/private/tmp/slice5-main-merge.t7c5q3`. Slice 9 has not started.
 
 - [x] Participant self-submit/edit/withdraw and Captain/Co-captain teammate-submit use server-derived credited character; no account selector or cross-team/private-history leakage.
 - [x] Rejected-only linked resubmission uses a new image, copies credited snapshots, preserves predecessor history, blocks replay/stale writes, and remains cutoff-bound.
