@@ -484,6 +484,7 @@ Before resuming the ordered passes:
 
 - Turn the current all-in-one manager into a clear event overview.
 - Show lifecycle state, important dates, signup numbers, board state, draft state, submission state, and items requiring attention.
+- Treat lifecycle blockers as the Admin's explicit event-progression guide: show every current blocker in readable language, group it under the transition it prevents, and provide the direct resolution destination wherever one exists. An Admin should be able to understand why the event cannot advance and what to do next without interpreting internal codes or searching unrelated pages.
 - Move secondary operations into clearly labelled sections or event navigation destinations.
 - Make start, end, reopen, and final-review actions easy to locate and hard to trigger accidentally.
 - When a scheduled start is blocked, show **Automatic start postponed** as a prominent actionable state with every current blocker and a **Start event now** action that becomes enabled only when readiness succeeds. Clearing blockers never silently starts the event; starting after schedule needs confirmation but no reason, while starting early requests the required reason.

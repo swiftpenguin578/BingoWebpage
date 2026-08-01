@@ -781,7 +781,11 @@ Before implementation begins for each remaining major slice, run one independent
 
 Slices 1, 2, and 3 are implemented, independently cleared, verified, manually accepted where applicable, committed, and pushed on their accepted branches. Their detailed records remain in `SLICE_1_IMPLEMENTATION_PLAN.md`, `SLICE_2_IMPLEMENTATION_PLAN.md`, and `SLICE_3_IMPLEMENTATION_PLAN.md`. The bounded seven-pass Slice 4 signup plan is approved in `SLICE_4_IMPLEMENTATION_PLAN.md`; implementation has not started and must remain inside one approved pass per task.
 
-Only after all ten Milestone 8A functional slices are complete and functionally regressed does work proceed to the separate big-roadmap **Milestone 9 — UI overhaul and regression**. Milestone 9 performs the complete site-wide UI pass and full regression through the page passes in `UI_OVERHAUL_ROADMAP.md`. It must not begin merely because a similarly numbered UI page pass is available.
+### Post-functional Application Atlas gate
+
+After Slice 10 is accepted and before the UI overhaul begins, create a product-facing Application Atlas of the completed website. Its durable source is `APPLICATION_ATLAS.md`; its primary review surface is a standalone interactive HTML visualization, with an optional PDF summary. Cover role-based navigation, lifecycle transitions, workflow swimlanes, capability-by-state, scheduled automation, data/history ownership, notification triggers, and a complete feature inventory. Classify functionality as required, awkward, duplicated, rare/edge-case, possibly unnecessary, unreachable, or obsolete, and identify missing navigation or workflow gaps. This is a read-only consolidation/audit gate: it does not authorize removal, redesign, or new functionality until the user reviews and approves a resulting change.
+
+Only after all ten Milestone 8A functional slices are complete, functionally regressed, and reviewed through the Application Atlas does work proceed to the separate big-roadmap **Milestone 9 — UI overhaul and regression**. Milestone 9 performs the complete site-wide UI pass and full regression through the page passes in `UI_OVERHAUL_ROADMAP.md`. It must not begin merely because a similarly numbered UI page pass is available.
 
 ### Selected public-guidance slice
 
