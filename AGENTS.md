@@ -78,7 +78,7 @@ Every delegated task must declare exactly one role and remain within it:
 - **Orchestrator/planner:** defines bounded tasks, selects the next worker, verifies handoffs, and stops repeated failures. It does not implement production behavior or review its own work. It asks the user only for product decisions, explicit permissions, environment blockers, and manual acceptance.
 - **Implementer:** completes only the assigned pass or correction. It does not begin the next pass, perform independent review, package, commit, or push unless explicitly assigned.
 - **Remediator:** addresses only named findings with the smallest safe change. It does not reopen the whole pass or add unrelated cleanup.
-- **Independent reviewer:** remains read-only and blocks only on a concrete behavior, security, privacy, authorization, concurrency, or data-integrity defect, or a genuinely non-discriminating required test. It must not demand redundant assertion syntax, exhaustive duplicate coverage, or stylistic expansion.
+- **Independent reviewer:** remains read-only and compares the complete base-to-current implementation diff with the final approved slice/pass plan. It verifies that required scope is present, explicit non-goals remain untouched, and every material addition is approved and traceable. It blocks only on a concrete scope deviation, missing required behavior, behavior/security/privacy/authorization/concurrency/data-integrity defect, unapproved material complexity, or a genuinely non-discriminating required test. It must not demand redundant assertion syntax, exhaustive duplicate coverage, or stylistic expansion.
 - **Verifier:** runs only the agreed gates, reports unrelated failures separately, and does not change production behavior.
 - **Packager:** acts only after acceptance and may stage, commit, merge, and push the accepted state as authorized. It must not introduce implementation changes.
 
@@ -111,6 +111,14 @@ That readiness review must also establish a lean implementation contract:
 - Freeze the approved scope and explicit non-goals before implementation. Separate necessary dependencies from optional improvements and unrelated defects. Reviewer suggestions classified as optional do not become implementation requirements.
 - Define the implementation stop rule: an implementer may proceed through ordinary technical details, but must stop for user direction before adding behavior, changing an approved product rule, broadening a pass, or resolving an adjacent issue that is not required for the pass. A discovered unrelated defect is recorded separately unless it prevents safe implementation or verification of the approved behavior.
 - Review and remediation remain bounded to the approved slice/pass. Neither is permission for opportunistic cleanup, generalized frameworks, UI redesign, or fixes to adjacent features.
+
+### Change control and post-implementation scope review
+
+- The approved slice plan is the authoritative review baseline, not a frozen historical draft. If the user approves a material product, scope, persistence, route, authority, workflow, or complexity change during implementation or manual remediation, update the slice plan and any affected source-of-truth documents before implementing that change. Record the decision, affected pass, changed acceptance criteria, and any changed non-goals or complexity budget.
+- Clarifications that do not change behavior need not create paperwork. When uncertain whether a decision is material, treat it as material if it could change implementation, migration, authorization, user-visible behavior, manual acceptance, or the independent-review verdict.
+- The post-implementation independent review must compare the exact base-to-current diff against the final updated plan. It must explicitly identify required scope delivered, required scope missing, material implementation with no approved plan mapping, explicit non-goals that changed, and any unbudgeted table/service/route/policy/job/abstraction.
+- An unapproved material addition or omitted approved behavior is a review blocker until it is removed, completed, or explicitly approved and added to the plan. Incidental tests, migrations, documentation, and small supporting code are judged by whether they are proportionate to approved behavior, not by requiring a one-to-one plan bullet for every file.
+- Focused remediation does not silently revise the baseline. If a manual finding or review correction changes approved behavior rather than merely fixing its implementation, obtain the user's decision and update the plan first.
 
 ## UI work
 

@@ -1364,14 +1364,23 @@ A missing automatic EHB value on a non-custom catalogue/drop tile is a validatio
 - Reopening or extending submission access never extends the official obtained/drop-eligibility window.
 - Existing submissions, evidence review, contribution recalculation, and final-review work continue after event end. Finalization remains an explicit administrator action.
 
-### 22.3 Live roster consequences
+### 22.3 Resume after a premature end
+
+- Before official finalization, an enabled administrator may resume an event from `AWAITING_FINAL_REVIEW` when it ended prematurely through either the scheduled or manual path.
+- Resume requires strong confirmation, a written reason, and a replacement future event-end time. It must recheck the singleton-current boundary and all authoritative lifecycle constraints before returning the event to `LIVE`.
+- The prior end transition, effective end, actor when applicable, and reason remain immutable audit/history. Resume does not rewrite the event as though the end never happened.
+- The ordinary submission cutoff is re-derived as 30 minutes after the replacement end. A separately reopened submission window is revalidated explicitly and is not silently carried into resumed live play.
+- Evidence, reviews, contributions, account transitions, focus history, and other records created before or during the final-review interval remain intact. New eligibility resumes prospectively and ends at the replacement future end; it is never backdated across the final-review interval.
+- Resume is not available directly from `FINALIZED` or `ARCHIVED`. Prior official finalization history is not silently converted back into live play.
+
+### 22.4 Live roster consequences
 
 - An administrator may withdraw a participant during live play. Website event/team mutation access is revoked when the command commits; the approved whole-minute rule determines the final drop-eligibility boundary.
 - Historical membership, character assignments, swaps, submissions, evidence, and contributions remain intact. Post-draft character assignments remain reserved for the rest of that event and cannot be reassigned.
 - Replacement is optional and never automatic. The normal replacement is an administrator-selected waiting-list participant whose frozen event accounts/EHB are reused and who joins the selected vacant team prospectively without inheriting credit.
 - Losing a team's only Captain does not pause the event. It creates the approved urgent admin/team warning until an administrator assigns another current member or enables emergency captain access.
 
-### 22.4 Acceptance scenarios
+### 22.5 Acceptance scenarios
 
 1. Reaching the scheduled end closes new-drop eligibility at the configured instant while uploads remain available until the cutoff.
 2. A delayed background check records the scheduled instant rather than extending play until the check ran.
@@ -1381,6 +1390,9 @@ A missing automatic EHB value on a non-custom catalogue/drop tile is a validatio
 6. Live withdrawal preserves all prior competitive history and reserves the former participant's event characters.
 7. An optional waiting-list replacement joins prospectively with their existing accounts and no inherited contribution.
 8. Withdrawing the sole Captain leaves the event live and raises the missing-captain warning.
+9. A prematurely ended, not-yet-finalized event can resume only with confirmation, reason, and a future replacement end; the original end remains visible in history.
+10. Resume fails without residue when another current event or a stale concurrent lifecycle mutation blocks it.
+11. Resume preserves intervening evidence/review history, restores prospective live eligibility only, and reaches `AWAITING_FINAL_REVIEW` again at the replacement end without duplicate transitions or notifications.
 
 ## 23. ADM-REVIEW-01 — Review evidence
 
