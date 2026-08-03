@@ -1,4 +1,5 @@
 @page
+@using System.Globalization
 @model Bingo.Web.Pages.Account.MyAccountsModel
 @{
     ViewData["Title"] = T["My accounts"];
@@ -65,9 +66,10 @@
                     <form method="post" asp-page-handler="Update" class="account-entry-form compact"><input asp-for="ReturnUrl" type="hidden" />
                         <input asp-for="Edit.LinkId" type="hidden" value="@link.Id" />
                         <label for="label-@link.Id">@T["Personal label"]</label>
-                        <input id="label-@link.Id" name="Edit.PersonalLabel" value="@link.PersonalLabel" class="form-control" />
+                        <input id="label-@link.Id" name="Edit.PersonalLabel" value="@(Model.FetchFailureLinkId == link.Id ? Model.FetchFailureLabel : link.PersonalLabel)" class="form-control" />
                         <label for="ehb-@link.Id">@T["Saved EHB"]</label>
-                        <input id="ehb-@link.Id" name="Edit.SavedEhb" value="@link.SavedEhb" class="form-control" inputmode="decimal" />
+                        <input id="ehb-@link.Id" name="Edit.SavedEhb" value="@(Model.FetchFailureLinkId == link.Id ? Model.FetchFailureEhb : link.SavedEhb?.ToString(CultureInfo.InvariantCulture))" class="form-control" inputmode="decimal" />
+                        <button class="btn neutral-outline-action" type="submit" formaction="?handler=Fetch" name="Fetch.LinkId" value="@link.Id">@T["Fetch from Wise Old Man"]</button>
                         <button class="btn neutral-outline-action">@T["Save details"]</button>
                     </form>
                     <div class="my-account-actions">

@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Signups;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
@@ -12,11 +14,13 @@ using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Events;
 
-public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService signupService, TimeProvider timeProvider, IStringLocalizer<SharedResource>? text = null) : PageModel
+public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService signupService, TimeProvider timeProvider, IStringLocalizer<SharedResource>? text = null, IWiseOldManPlayerLookup? wiseOldMan = null, ISignupLookupTokenService? lookupTokens = null) : PageModel
 {
     public EventInfo? EventView { get; private set; }
     public IReadOnlyList<QuestionView> Questions { get; private set; } = [];
     public bool IsEditing { get; private set; }
+    public Guid? LookupQuestionId { get; private set; }
+    public DateTimeOffset? LookupFetchedAt { get; private set; }
     [BindProperty] public SignupInput Input { get; set; } = new();
     // Direct-model compatibility only; it is deliberately not a Razor Pages handler.
     public async Task<IActionResult> GetForTestAsync(string slug, CancellationToken ct)
@@ -46,10 +50,15 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
         if (User.Identity?.IsAuthenticated != true) return RedirectToPage("/Account/Login", new { ReturnUrl = SignupReturnUrl(slug, true) });
         if (User.FindFirst("bingo:account_type")?.Value != "WebsiteAccount") return Forbid();
         if (!await LoadAsync(slug, ct)) return NotFound();
+        if (Input.FetchQuestionId is { } fetchQuestionId)
+        {
+            await FetchEhbAsync(fetchQuestionId, ct);
+            return Page();
+        }
         if (!ModelState.IsValid) { await PopulateInputAsync(null, ct, preserveSubmitted: true); return Page(); }
         var accountAnswers = Input.AccountAnswers
             .Where(item => item.Value.OsrsCharacterId is { } characterId && characterId != Guid.Empty)
-            .ToDictionary(item => item.Key, item => new AuthenticatedAccountAnswer(item.Value.OsrsCharacterId!.Value, item.Value.Ehb));
+            .ToDictionary(item => item.Key, item => new AuthenticatedAccountAnswer(item.Value.OsrsCharacterId!.Value, item.Value.Ehb, item.Value.WiseOldManLookupToken));
         var result = await signupService.SignUpAuthenticatedAsync(new AuthenticatedSignupRequest(EventView!.Id, User.GetAccountId()!.Value, accountAnswers, Input.Answers, Input.SignupCode, Input.ExpectedResponseVersion), ct);
         if (!result.Succeeded)
         {
@@ -59,6 +68,53 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
             return Page();
         }
         return RedirectToPage("Confirmation", new { slug, participantId = result.ParticipantId });
+    }
+    private async Task FetchEhbAsync(Guid questionId, CancellationToken ct)
+    {
+        var question = Questions.SingleOrDefault(item => item.Id == questionId);
+        if (question is null || question.Type != SignupQuestionType.Account || question.AccountRole != EventCharacterRole.Playing)
+        {
+            ModelState.AddModelError(string.Empty, "Wise Old Man fetching is available only for regular accounts.");
+            return;
+        }
+        var input = Input.AccountAnswers.GetValueOrDefault(questionId);
+        if (input?.OsrsCharacterId is not { } characterId || characterId == Guid.Empty)
+        {
+            ModelState.AddModelError(string.Empty, "Choose a regular account before fetching its EHB.");
+            return;
+        }
+        var account = question.Accounts.SingleOrDefault(item => item.Id == characterId);
+        if (account is null)
+        {
+            ModelState.AddModelError(string.Empty, "Choose a regular account from My accounts before fetching its EHB.");
+            return;
+        }
+        if (wiseOldMan is null || lookupTokens is null)
+        {
+            ModelState.AddModelError(string.Empty, "Wise Old Man is unavailable right now. Your current EHB was kept.");
+            return;
+        }
+        var normalizedCharacterName = await dbContext.OsrsCharacters.AsNoTracking()
+            .Where(character => character.Id == characterId)
+            .Select(character => character.NormalizedName)
+            .SingleOrDefaultAsync(ct);
+        if (normalizedCharacterName is null)
+        {
+            ModelState.AddModelError(string.Empty, "That character is no longer available. Your current EHB was kept.");
+            return;
+        }
+        var result = await wiseOldMan.LookupPlayerAsync(account.Name, ct);
+        if (!result.Succeeded)
+        {
+            ModelState.AddModelError(string.Empty, LookupFailure(result));
+            return;
+        }
+        var fetchedAt = result.FetchedAt!.Value;
+        var issuedAt = timeProvider.GetUtcNow();
+        input.Ehb = result.Ehb;
+        input.WiseOldManLookupToken = lookupTokens.Create(normalizedCharacterName, result.Ehb!.Value, fetchedAt, issuedAt, issuedAt.AddMinutes(5));
+        LookupQuestionId = questionId;
+        LookupFetchedAt = fetchedAt;
     }
     private async Task<bool> LoadAsync(string slug, CancellationToken ct)
     {
@@ -71,6 +127,14 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
         var questions = cancelled ? [] : await dbContext.SignupQuestions.AsNoTracking().Where(q => q.EventId == item.Id && q.Active).OrderBy(q => q.Position).ToListAsync(ct);
         Questions = questions.Select(q => new QuestionView(q.Id, q.Label, q.Type, q.Required, q.Options == null ? [] : q.Options.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), q.AccountAnswerRole, q.SystemField, links)).ToList(); return true;
     }
+    private string LookupFailure(WiseOldManPlayerLookupResult result) => result.Status switch
+    {
+        WiseOldManLookupStatus.NotFound => text?["Wise Old Man could not find that character."].Value ?? "Wise Old Man could not find that character.",
+        WiseOldManLookupStatus.RateLimited when result.RetryAt is { } retryAt => text?["Wise Old Man is temporarily busy. Try again after {0}.", retryAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)].Value ?? $"Wise Old Man is temporarily busy. Try again after {retryAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)}.",
+        WiseOldManLookupStatus.RateLimited => text?["Wise Old Man is temporarily busy. Try again in about 1 minute."].Value ?? "Wise Old Man is temporarily busy. Try again in about 1 minute.",
+        _ when result.RetryAt is { } retryAt => text?["Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {0}.", retryAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)].Value ?? $"Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {retryAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)}.",
+        _ => text?["Wise Old Man is unavailable right now. Your current EHB was kept."].Value ?? "Wise Old Man is unavailable right now. Your current EHB was kept."
+    };
     private async Task<IActionResult?> RedirectForPublishedSurfaceAsync(string slug, CancellationToken ct)
     {
         var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug, ct);
@@ -123,6 +187,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
         public Dictionary<Guid, string> Answers { get; set; } = [];
         public Dictionary<Guid, AccountInput> AccountAnswers { get; set; } = [];
         public int? ExpectedResponseVersion { get; set; }
+        public Guid? FetchQuestionId { get; set; }
     }
-    public sealed class AccountInput { public Guid? OsrsCharacterId { get; set; } [Range(0, 100000)] public decimal? Ehb { get; set; } }
+    public sealed class AccountInput { public Guid? OsrsCharacterId { get; set; } [Range(0, 100000)] public decimal? Ehb { get; set; } public string? WiseOldManLookupToken { get; set; } }
 }

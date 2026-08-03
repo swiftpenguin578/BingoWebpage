@@ -4,8 +4,10 @@ using System.Globalization;
 using System.Text.Json;
 using Bingo.Application.Access;
 using Bingo.Application.Evidence;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Security;
 using Bingo.Domain.Events;
+using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Events;
@@ -19,7 +21,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, IEvidenceStorage storage, TimeProvider time) : PageModel
+public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, IEvidenceStorage storage, TimeProvider time, IWiseOldManCompetitionClient? competitionClient = null) : PageModel
 {
     private static readonly IReadOnlyList<TimezoneOption> DefaultTimezones =
     [
@@ -47,6 +49,16 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
         if (Input.RequireSignupCode && string.IsNullOrWhiteSpace(Input.SignupCode)) ModelState.AddModelError("Input.SignupCode", "Enter an event code or turn this setting off.");
         if (!ModelState.IsValid) return Page();
 
+        WiseOldManCompetition? linkedCompetition = null;
+        if (Input.CompetitionId is { } competitionId)
+        {
+            if (competitionClient is null) { ModelState.AddModelError("Input.CompetitionId", "Competition validation is not configured."); return Page(); }
+            var result = await competitionClient.GetCompetitionAsync(competitionId, ct);
+            if (!result.Succeeded) { ModelState.AddModelError("Input.CompetitionId", result.Message ?? "The competition could not be validated."); return Page(); }
+            linkedCompetition = result.Competition!;
+            schedule = schedule with { Starts = linkedCompetition.StartsAt, Ends = linkedCompetition.EndsAt };
+        }
+
         var actorId = User.GetAccountId()!.Value;
         var now = time.GetUtcNow();
         var item = new BingoEvent(Guid.NewGuid(), Input.Name.Trim(), slug!, Input.Timezone.Trim(), actorId, now);
@@ -63,6 +75,12 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
         try
         {
             db.Events.Add(item);
+            if (linkedCompetition is not null)
+            {
+                db.EventCompetitionSynchronizations.Add(new EventCompetitionSynchronization(Guid.NewGuid(), item.Id, 1, linkedCompetition.Id,
+                    linkedCompetition.Title, linkedCompetition.StartsAt, linkedCompetition.EndsAt,
+                    Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Array.Empty<byte>())).ToLowerInvariant(), now));
+            }
             var form = new SignupForm(Guid.NewGuid(), item.Id, now);
             form.ConfigureSignupCode(Input.RequireSignupCode, Input.RequireSignupCode ? hasher.Hash(Input.SignupCode!) : null);
             db.SignupForms.Add(form);
@@ -80,6 +98,8 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
             AddQuestions(item, form);
             var after = JsonSerializer.Serialize(AuditState(item));
             db.AuditEntries.Add(new Bingo.Domain.Auditing.AuditEntry(Guid.NewGuid(), now, actorId, User.Identity!.Name!, "event.created", "event", item.Id.ToString(), "Created as a private draft.", item.Id, null, after));
+            if (linkedCompetition is not null)
+                db.AuditEntries.Add(new Bingo.Domain.Auditing.AuditEntry(Guid.NewGuid(), now, actorId, User.Identity!.Name!, "event.competition_linked", "event", item.Id.ToString(), $"Linked Wise Old Man competition {linkedCompetition.Id} ({linkedCompetition.Title}) during event creation.", item.Id));
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
         }
@@ -204,6 +224,7 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
         public bool WaitingListEnabled { get; set; } = true; public bool RequireSignupCode { get; set; }
         [StringLength(100)] public string? SignupCode { get; set; }
         [StringLength(2000)] public string? BuyInDescription { get; set; }
+        [Range(1, long.MaxValue)] public long? CompetitionId { get; set; }
         [Range(1, 8)] public int? ExpectedBoardRows { get; set; }
         [Range(1, 8)] public int? ExpectedBoardColumns { get; set; }
         public List<CustomQuestionInput> CustomQuestions { get; set; } = [];

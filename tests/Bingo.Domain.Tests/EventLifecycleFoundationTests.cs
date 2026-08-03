@@ -121,6 +121,7 @@ public sealed class EventLifecycleFoundationTests
                     EventCapability.ReopenSignup or EventCapability.StartEvent => state == EventState.SignupClosed,
                     EventCapability.ResumeEvent => state == EventState.AwaitingFinalReview,
                     EventCapability.LiveSubmission => state == EventState.Live,
+                    EventCapability.CompetitionSynchronization => state == EventState.Live,
                     EventCapability.ReviewEvidence => state is EventState.Live or EventState.AwaitingFinalReview,
                     EventCapability.ConfigureEvidenceCodes => state is EventState.Draft or EventState.SignupClosed or EventState.Live,
                     EventCapability.Finalize => state == EventState.AwaitingFinalReview,

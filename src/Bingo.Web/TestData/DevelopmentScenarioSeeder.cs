@@ -1,10 +1,13 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Bingo.Application.Boards;
 using Bingo.Application.Evidence;
 using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
+using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
@@ -84,6 +87,8 @@ public sealed class DevelopmentScenarioSeeder(
         seeded.Add(boardScenario);
         var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, evidenceCaptain, evidenceCoCaptain, evidenceParticipant, now);
         seeded.Add(dklLiveScenario);
+        await EnsureDevelopmentLookupCharacterAsync(secondaryAdmin.Id, now, cancellationToken);
+        seeded.Add(SeedSignupLookupScenario(dklBlueprint, admin.Id, now));
         var waitingReplacement = CreateParticipant(
             dklLiveScenario.EventId, "Slice 9 Waiting Replacement", 100, SignupStatus.WaitingList,
             10_000, now.AddMinutes(-5), SignupSource.Website);
@@ -112,6 +117,45 @@ public sealed class DevelopmentScenarioSeeder(
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return new SeedResult(admin.LoginName, secondaryAdmin.LoginName, SecondaryAdminPassword, blueprint.Name, seeded, CaptainPassword, ReplacementUsername, ReplacementPassword);
+    }
+
+    private async Task EnsureDevelopmentLookupCharacterAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var character = seedCharacters.GetValueOrDefault("RASMUS ZEBAK")
+            ?? throw new InvalidOperationException("The Development lookup character was not seeded.");
+        var link = await db.AccountOsrsCharacters.SingleOrDefaultAsync(
+            value => value.AccountId == accountId && value.OsrsCharacterId == character.Id,
+            cancellationToken);
+        if (link is null)
+        {
+            db.AccountOsrsCharacters.Add(new AccountOsrsCharacter(
+                Guid.NewGuid(), accountId, character.Id, accountId, true, 0,
+                "Development lookup account", 12.5m, now));
+            return;
+        }
+
+        if (!link.Active) link.Relink(accountId, now);
+        link.UpdatePreferences("Development lookup account", 0, true, 12.5m, now);
+    }
+
+    private SeededScenario SeedSignupLookupScenario(BoardBlueprint blueprint, Guid adminId, DateTimeOffset now)
+    {
+        var eventStarts = now.AddDays(14);
+        var eventEnds = eventStarts.AddDays(5);
+        var bingoEvent = new BingoEvent(
+            Guid.NewGuid(), "TEST 16 — Signup lookup", "test-16-signup-lookup",
+            "Development seed scenario for explicit Wise Old Man lookup in signup and edit.",
+            "Europe/Copenhagen", now.AddDays(-1), now.AddDays(7), eventStarts, eventEnds,
+            eventEnds.AddMinutes(30), 20, adminId, now);
+        bingoEvent.ConfigureSignup(true, false, null);
+        bingoEvent.ConfigurePlanning(
+            "Seeded signup lookup journey.", null, null, 2, 3,
+            blueprint.Rows, blueprint.Columns);
+        bingoEvent.OpenSignups(now.AddHours(-1));
+        db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
+        db.Events.Add(bingoEvent);
+        AddSignupFoundation(bingoEvent, now);
+        return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, null, []);
     }
 
     private async Task<Account> EnsureSecondaryAdminAsync(DateTimeOffset now, CancellationToken cancellationToken)
@@ -508,6 +552,7 @@ public sealed class DevelopmentScenarioSeeder(
                 captainVolunteer: leaderNames.Contains(name));
         }).ToList();
         db.EventParticipants.AddRange(participants);
+        AddActivitySecondRegularAccount(participants.Single(value => PrimaryName(value) == "Rasmus Zebak"), now);
         var participantsByName = participants.ToDictionary(
             participant => PrimaryName(participant),
             StringComparer.OrdinalIgnoreCase);
@@ -550,6 +595,7 @@ public sealed class DevelopmentScenarioSeeder(
                 AddDisabledEmergencyCoverage(bingoEvent, team, now);
         }
         draft.Finalize(now.AddHours(-2));
+        AddCompleteActivityCache(bingoEvent, now);
 
         return new SeededScenario(
             bingoEvent.Id,
@@ -714,6 +760,53 @@ public sealed class DevelopmentScenarioSeeder(
                 team, creditedParticipants, captainAccount, partialTile,
                 partialRequirement, partialAmount);
         }
+    }
+
+    private void AddActivitySecondRegularAccount(EventParticipant participant, DateTimeOffset now)
+    {
+        const string name = "Rasmus Activity Main";
+        var normalized = Normalize(name);
+        if (!seedCharacters.TryGetValue(normalized, out var character))
+        {
+            character = new OsrsCharacter(Guid.NewGuid(), name, normalized, now);
+            db.OsrsCharacters.Add(character);
+            seedCharacters.Add(normalized, character);
+        }
+        db.EventParticipantCharacters.Add(new EventParticipantCharacter(
+            Guid.NewGuid(), participant.EventId, participant.Id, character.Id, 1, now,
+            null, null, EventCharacterRole.Playing, 0, EhbSource.Manual, null));
+    }
+
+    private void AddCompleteActivityCache(BingoEvent bingoEvent, DateTimeOffset now)
+    {
+        var assignments = db.EventParticipantCharacters.Local
+            .Where(value => value.EventId == bingoEvent.Id && value.EventRole == EventCharacterRole.Playing && value.ReleasedAt == null &&
+                            db.EventParticipants.Local.Any(participant => participant.Id == value.EventParticipantId && participant.SignupStatus == SignupStatus.Confirmed))
+            .OrderBy(value => value.Id.ToString("N"), StringComparer.Ordinal)
+            .ToList();
+        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('|', assignments
+            .Select(value => $"{value.Id:N}:{value.EventParticipantId:N}:{value.OsrsCharacterId:N}"))))).ToLowerInvariant();
+        var fetchedAt = now.AddHours(-3);
+        var synchronization = new EventCompetitionSynchronization(
+            Guid.NewGuid(), bingoEvent.Id, 1, 1515, "TEST 15 local cached competition",
+            bingoEvent.EventStartsAt, bingoEvent.EventEndsAt, fingerprint, fetchedAt);
+        synchronization.MarkSuccess(fetchedAt, fetchedAt, true, "[]", null);
+        db.EventCompetitionSynchronizations.Add(synchronization);
+        var characters = seedCharacters.Values.ToDictionary(value => value.Id);
+        db.EventCompetitionCharacterActivities.AddRange(assignments.Select((assignment, index) =>
+        {
+            var name = characters[assignment.OsrsCharacterId].DisplayName;
+            var gained = name switch
+            {
+                "Rasmus Zebak" => 12m,
+                "Rasmus Activity Main" => 8m,
+                "crunch704" => 20m,
+                _ => 2m + index % 3
+            };
+            return new EventCompetitionCharacterActivity(
+                Guid.NewGuid(), bingoEvent.Id, 1, 1515, assignment.OsrsCharacterId,
+                gained, fetchedAt, fetchedAt, fingerprint);
+        }));
     }
 
     private async Task AddDklReviewStatesAsync(Guid eventId, Guid adminId, DateTimeOffset now, CancellationToken cancellationToken)
@@ -1631,7 +1724,8 @@ public sealed class DevelopmentScenarioSeeder(
                 tile_templates, boards, signup_answers, event_participant_characters, signup_questions, signup_forms, event_participants,
                 scheduled_signup_opening_attempts, scheduled_event_start_attempts, event_state_transitions, event_banner_cleanups, events, audit_entries, personal_notifications,
                 account_event_accesses, password_credential_tokens, account_discord_identity_transitions,
-                waiting_list_promotion_follow_ups
+                waiting_list_promotion_follow_ups,
+                event_competition_character_activity, event_competition_synchronizations
             RESTART IDENTITY;
             DELETE FROM accounts WHERE account_type = 'EmergencyCaptain';
             """,

@@ -5,6 +5,7 @@ using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
+using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
@@ -69,6 +70,7 @@ public sealed class EventLifecycleService(
             if (blockers.Count > 0) return new(false, string.Join(" ", blockers.Select(x => x.Description)), blockers);
             var from = item.State;
             item.StartEvent(now);
+            await DeferInitialCompetitionRefreshAsync(item.Id, now, ct);
             await AppendInitialActivationsAsync(item.Id, item.ActualStartedAt!.Value, ct);
             var unresolved = await db.ScheduledEventStartAttempts.Where(x => x.EventId == eventId && x.ResolvedAt == null && !x.Started).ToListAsync(ct);
             foreach (var attempt in unresolved) attempt.Resolve(now);
@@ -164,6 +166,7 @@ public sealed class EventLifecycleService(
             {
                 var from = item.State;
                 item.StartEvent(now);
+                await DeferInitialCompetitionRefreshAsync(item.Id, now, ct);
                 await AppendInitialActivationsAsync(item.Id, item.ActualStartedAt!.Value, ct);
                 db.ScheduledEventStartAttempts.Add(new(Guid.NewGuid(), eventId, scheduledFor, now, true, []));
                 AddTransitionAndAudit(item, from, null, "System", true, "event.started_automatically", null, now, scheduledFor);
@@ -296,6 +299,13 @@ public sealed class EventLifecycleService(
                 Guid.NewGuid(), eventId, candidate.ParticipantId, null, candidate.OsrsCharacterId,
                 effectiveAtUtc, effectiveAtUtc, null, null));
         }
+    }
+
+    private async Task DeferInitialCompetitionRefreshAsync(Guid eventId, DateTimeOffset liveAt, CancellationToken ct)
+    {
+        var synchronization = await db.EventCompetitionSynchronizations.SingleOrDefaultAsync(x => x.EventId == eventId, ct);
+        if (synchronization is { LastAttemptAt: null, LastSuccessfulAt: null, CompetitionId: not null })
+            synchronization.MakeNormalRefreshDue(liveAt.AddHours(2));
     }
 
     private async Task<BingoEvent> EventAsync(Guid eventId, long version, CancellationToken ct)

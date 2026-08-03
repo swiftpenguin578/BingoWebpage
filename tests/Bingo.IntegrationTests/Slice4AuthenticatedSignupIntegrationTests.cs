@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Signups;
 using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
@@ -10,9 +11,13 @@ using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Security;
 using Bingo.Infrastructure.Signups;
+using Bingo.Web.Security;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
@@ -99,6 +104,143 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.Equal(2, unchanged.ResponseVersion);
         Assert.True(unchanged.CaptainVolunteer);
         Assert.Equal(31m, await db.EventParticipantCharacters.Where(x => x.EventParticipantId == saved.Id && x.ReleasedAt == null).Select(x => x.EhbSnapshot).SingleAsync());
+    }
+
+    [Fact]
+    public async Task FreshWiseOldManSignupTokenIsTheOnlyTrustedSignupProvenance()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var db = new ApplicationDbContext(options);
+        var owner = Website($"wom-provenance-{Guid.NewGuid():N}", now);
+        var bingoEvent = Event(owner.Id, now);
+        var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+        var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var character = new OsrsCharacter(Guid.NewGuid(), "Trusted Main", $"TRUSTED MAIN {Guid.NewGuid():N}", now);
+        var link = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, null, 10m, now);
+        db.AddRange(owner, bingoEvent, form, regular, character, link);
+        await db.SaveChangesAsync();
+
+        var tokens = new SignupLookupTokenService(new EphemeralDataProtectionProvider());
+        var service = new SignupService(db, new SecretHasher(), TimeProvider.System, tokens);
+        var validToken = tokens.Create(character.NormalizedName, 22m, now.AddSeconds(-1), now, now.AddMinutes(5));
+        var created = await service.SignUpAuthenticatedAsync(new AuthenticatedSignupRequest(
+            bingoEvent.Id, owner.Id,
+            new Dictionary<Guid, AuthenticatedAccountAnswer> { [regular.Id] = new(character.Id, 22m, validToken) },
+            new Dictionary<Guid, string>(), null));
+        Assert.True(created.Succeeded);
+        Assert.Equal(EhbSource.WiseOldMan, await db.EventParticipantCharacters.Where(x => x.EventParticipantId == created.ParticipantId).Select(x => x.EhbSource).SingleAsync());
+        Assert.NotNull(await db.EventParticipantCharacters.Where(x => x.EventParticipantId == created.ParticipantId).Select(x => x.EhbFetchedAt).SingleAsync());
+
+        async Task AssertManualAsync(decimal ehb, string? token)
+        {
+            db.ChangeTracker.Clear();
+            var version = await db.EventParticipants.Where(x => x.Id == created.ParticipantId).Select(x => x.ResponseVersion).SingleAsync();
+            var result = await service.SignUpAuthenticatedAsync(new AuthenticatedSignupRequest(
+                bingoEvent.Id, owner.Id,
+                new Dictionary<Guid, AuthenticatedAccountAnswer> { [regular.Id] = new(character.Id, ehb, token) },
+                new Dictionary<Guid, string>(), null, version));
+            Assert.True(result.Succeeded);
+            db.ChangeTracker.Clear();
+            var assignment = await db.EventParticipantCharacters.SingleAsync(x => x.EventParticipantId == created.ParticipantId && x.ReleasedAt == null);
+            Assert.Equal(EhbSource.Manual, assignment.EhbSource);
+            Assert.Null(assignment.EhbFetchedAt);
+        }
+
+        await AssertManualAsync(23m, validToken);
+        await AssertManualAsync(24m, null);
+        await AssertManualAsync(25m, tokens.Create(character.NormalizedName, 25m, now.AddMinutes(-6), now.AddMinutes(-6), now.AddMinutes(-1)));
+        await AssertManualAsync(26m, tokens.Create("OTHER NAME", 26m, now.AddSeconds(-1), now, now.AddMinutes(5)));
+    }
+
+    [Fact]
+    public async Task RenderedMyAccountsAndSignupFetchesAreExplicitAndDoNotFetchOnGetOrNormalSave()
+    {
+        var now = DateTimeOffset.UtcNow;
+        Guid eventId;
+        Guid regularId;
+        Guid characterId;
+        Guid linkId;
+        string loginName;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var owner = Website($"wom-route-{Guid.NewGuid():N}", now);
+            owner.SetPassword(new PasswordHasher<Account>().HashPassword(owner, "wom-route-password"), false, now, incrementVersion: false);
+            var bingoEvent = Event(owner.Id, now);
+            var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+            var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+            var character = new OsrsCharacter(Guid.NewGuid(), "Route WoM Main", $"ROUTE WOM MAIN {Guid.NewGuid():N}", now);
+            var link = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, null, 10m, now);
+            db.AddRange(owner, bingoEvent, form, regular, character, link);
+            await db.SaveChangesAsync();
+            eventId = bingoEvent.Id; regularId = regular.Id; characterId = character.Id; linkId = link.Id; loginName = owner.LoginName;
+        }
+
+        var fake = new FakeWiseOldManPlayerLookup();
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
+            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .ConfigureServices(services =>
+            {
+                services.RemoveAll<IWiseOldManPlayerLookup>();
+                services.AddSingleton<IWiseOldManPlayerLookup>(fake);
+            }));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var login = await client.GetStringAsync("/Account/Login");
+        using var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = loginName,
+            ["Input.Password"] = "wom-route-password",
+            ["__RequestVerificationToken"] = AntiforgeryToken(login)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
+
+        var myAccounts = await client.GetStringAsync("/Account/MyAccounts");
+        Assert.Equal(0, fake.Calls);
+        using var fetchedDefault = await client.PostAsync("/Account/MyAccounts?handler=Fetch", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Fetch.LinkId"] = linkId.ToString(),
+            ["Edit.LinkId"] = linkId.ToString(),
+            ["Edit.PersonalLabel"] = string.Empty,
+            ["Edit.SavedEhb"] = "10",
+            ["__RequestVerificationToken"] = AntiforgeryToken(myAccounts)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, fetchedDefault.StatusCode);
+        Assert.Equal(1, fake.Calls);
+        await using (var verify = new ApplicationDbContext(options)) Assert.Equal(17.5m, await verify.AccountOsrsCharacters.Where(x => x.Id == linkId).Select(x => x.SavedEhb).SingleAsync());
+
+        var slug = await EventSlugAsync(eventId);
+        var signup = await client.GetStringAsync($"/Events/{slug}/Signup");
+        Assert.Equal(1, fake.Calls);
+        var fetchPost = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            [$"Input.AccountAnswers[{regularId}].OsrsCharacterId"] = characterId.ToString(),
+            [$"Input.AccountAnswers[{regularId}].Ehb"] = "17.5",
+            ["Input.FetchQuestionId"] = regularId.ToString(),
+            ["__RequestVerificationToken"] = AntiforgeryToken(signup)
+        });
+        using var fetchedSignup = await client.PostAsync($"/Events/{slug}/Signup", fetchPost);
+        Assert.Equal(HttpStatusCode.OK, fetchedSignup.StatusCode);
+        var fetchedPage = await fetchedSignup.Content.ReadAsStringAsync();
+        Assert.Equal(2, fake.Calls);
+        Assert.Contains("value=\"17.5\"", fetchedPage, StringComparison.Ordinal);
+        var tokenMatch = Regex.Match(fetchedPage, $"name=\"Input.AccountAnswers\\[{Regex.Escape(regularId.ToString())}\\]\\.WiseOldManLookupToken\" value=\"([^\"]*)\"");
+        Assert.True(tokenMatch.Success);
+        var normalSave = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            [$"Input.AccountAnswers[{regularId}].OsrsCharacterId"] = characterId.ToString(),
+            [$"Input.AccountAnswers[{regularId}].Ehb"] = "17.5",
+            [$"Input.AccountAnswers[{regularId}].WiseOldManLookupToken"] = WebUtility.HtmlDecode(tokenMatch.Groups[1].Value),
+            ["__RequestVerificationToken"] = AntiforgeryToken(fetchedPage)
+        });
+        using var saved = await client.PostAsync($"/Events/{slug}/Signup", normalSave);
+        Assert.Equal(HttpStatusCode.Redirect, saved.StatusCode);
+        Assert.Equal(2, fake.Calls);
+        await using (var verify = new ApplicationDbContext(options)) Assert.Equal(EhbSource.WiseOldMan, await verify.EventParticipantCharacters.Where(x => x.EventId == eventId && x.ReleasedAt == null).Select(x => x.EhbSource).SingleAsync());
+
+        async Task<string> EventSlugAsync(Guid id)
+        {
+            await using var lookup = new ApplicationDbContext(options);
+            return await lookup.Events.Where(x => x.Id == id).Select(x => x.Slug).SingleAsync();
+        }
     }
 
     [Fact]
@@ -1228,4 +1370,14 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     }
 
     private static string AntiforgeryToken(string page) => Regex.Match(page, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
+
+    private sealed class FakeWiseOldManPlayerLookup : IWiseOldManPlayerLookup
+    {
+        public int Calls { get; private set; }
+        public Task<WiseOldManPlayerLookupResult> LookupPlayerAsync(string characterName, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return Task.FromResult(new WiseOldManPlayerLookupResult(WiseOldManLookupStatus.Success, 17.5m, DateTimeOffset.UtcNow));
+        }
+    }
 }

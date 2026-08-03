@@ -284,6 +284,55 @@
                 {
                     <section class="event-admin-control-group"><div><h3>@T["Event cancelled"]</h3><p>@T["This event is terminal and no scheduled or ordinary event action can reactivate it."]</p></div><p><strong>@T["Private Admin reason:"]</strong> @Model.PrivateCancellationReason</p></section>
                 }
+                @{ var integration = Model.CompetitionIntegration; var integrationEditable = eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live; }
+                <section class="event-admin-control-group" aria-labelledby="competition-integration-heading">
+                    <div><h3 id="competition-integration-heading">Wise Old Man competition</h3><p>Link one existing competition to cache EHB activity. Wise Old Man is never changed by this site.</p></div>
+                    @if (integration is null || !integration.Configured)
+                    {
+                        <p><strong>Status:</strong> Not configured.</p>
+                    }
+                    else
+                    {
+                        <dl>
+                            <div><dt>Competition</dt><dd><strong>@integration.CompetitionId</strong> · @integration.CompetitionTitle</dd></div>
+                            <div><dt>Competition window</dt><dd>@integration.CompetitionStartsAt?.ToUniversalTime().ToString("u") → @integration.CompetitionEndsAt?.ToUniversalTime().ToString("u")</dd></div>
+                            <div><dt>Latest synchronization</dt><dd>@(integration.LastSuccessfulAt?.ToLocalTime().ToString("g") ?? "Not yet") · @(integration.Complete == true ? "Complete" : integration.Complete == false && integration.MissingAccounts.Count > 0 ? "Partial" : integration.Complete == false ? "Incomplete" : "Waiting")</dd></div>
+                            <div><dt>Next normal attempt</dt><dd>@(integration.NormalDueAt?.ToLocalTime().ToString("g") ?? "Not scheduled")</dd></div>
+                            @if (integration.RetryDueAt is { } retry) { <div><dt>Retry</dt><dd>@retry.ToLocalTime().ToString("g") · attempt @integration.RetryCount of 3</dd></div> }
+                            @if (integration.MissingAccounts.Count > 0) { <div><dt>Missing current Playing accounts</dt><dd>@string.Join(", ", integration.MissingAccounts)</dd></div> }
+                            @if (!string.IsNullOrWhiteSpace(integration.LastError)) { <div><dt>Latest error</dt><dd>@integration.LastError</dd></div> }
+                        </dl>
+                    }
+                    @if (integrationEditable)
+                    {
+                        <form method="post" asp-page-handler="Competition" class="form-stack">
+                            <input asp-for="EventVersion" type="hidden" />
+                            <label asp-for="CompetitionId">Competition ID<input asp-for="CompetitionId" class="form-control" inputmode="numeric" /></label>
+                            @if (eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed)
+                            {
+                                <label class="check-row"><input asp-for="SynchronizeCompetitionSchedule" /> Update this pre-live event window to the exact validated competition window.</label>
+                                <small>Without this option, both event instants must already be within five minutes.</small>
+                            }
+                            <button class="btn btn-primary" type="submit">@(integration?.Configured == true ? eventView.State == EventState.Live ? "Replace and validate competition" : "Change and validate competition" : "Validate and link competition")</button>
+                        </form>
+                        @if (integration?.Configured == true && eventView.State is not EventState.Live)
+                        {
+                            <form method="post" asp-page-handler="ClearCompetition" class="form-stack"><input asp-for="EventVersion" type="hidden" /><button class="btn btn-outline-light" type="submit">Clear competition</button></form>
+                        }
+                        @if (eventView.State == EventState.Live && integration?.Configured == true)
+                        {
+                            <form method="post" asp-page-handler="RefreshCompetition"><button class="btn btn-outline-light" type="submit">Refresh cached activity</button></form>
+                            @if (Model.ShowDevelopmentCompetitionControl)
+                            {
+                                <form method="post" asp-page-handler="MakeDevelopmentCompetitionDue" class="form-stack"><button class="btn btn-outline-light" type="submit">Make next refresh due (Development TEST 15)</button></form>
+                            }
+                        }
+                    }
+                    @if (integration is not null)
+                    {
+                        <p><small>Request budget: @(integration.RequestStatus.ObservedRemaining?.ToString() ?? "unknown") remaining of @(integration.RequestStatus.ObservedLimit?.ToString() ?? "unknown"); reset @(integration.RequestStatus.ResetAt?.ToLocalTime().ToString("g") ?? "unknown").</small></p>
+                    }
+                </section>
             </article>
 
             <aside class="panel event-information" aria-label="@T["Event information"]">

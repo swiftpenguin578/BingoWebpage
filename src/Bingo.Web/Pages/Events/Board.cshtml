@@ -10,6 +10,18 @@
     var isMission = Model.ActiveView == "mission";
     var isDrops = Model.ActiveView == "drops";
     var isLeaderboards = Model.ActiveView == "leaderboards";
+    var activityStateText = Model.Activity.State switch
+    {
+        Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.NotConfigured => T["Activity tracking is not configured."],
+        Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.WaitingForFirstSync => T["Waiting for the first Wise Old Man sync."],
+        Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.Partial => T["Activity is provisional: {0} of {1} current accounts matched.", Model.Activity.MatchedAccountCount, Model.Activity.ExpectedAccountCount],
+        Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.Incomplete => T["Activity rankings are unavailable until the current account set is synchronized."],
+        Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.Stale => T["Cached activity is stale."],
+        Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.TemporarilyUnavailable => Model.Activity.HasRankings
+            ? T["Wise Old Man is temporarily unavailable. Showing the last available cache."]
+            : T["Wise Old Man is temporarily unavailable."],
+        _ => T["Activity cache is current."]
+    };
 }
 
 <section class="public-event-dashboard" data-progress-event="@Model.Board.EventId">
@@ -135,14 +147,46 @@
                     </nav>
                     @if (Model.ActiveRanking == "activity")
                     {
-                        <div class="activity-ehb-preview">
+                        <div class="activity-ehb-preview" data-activity-state="@Model.Activity.State">
                             <span class="feature-kicker">@T["Wise Old Man integration"]</span>
-                            <h3>@T["Activity EHB is coming later"]</h3>
-                            <p>@T["This view will rank teams by total EHB gained, average gain, and MVP, with each team expanding into its individual players."]</p>
-                            <div class="activity-preview-table" aria-hidden="true">
-                                <span>@T["Rank"]</span><span>@T["Team"]</span><span>@T["Total gained"]</span><span>@T["Average"]</span><span>@T["MVP"]</span>
-                                <strong>—</strong><strong>@T["Waiting for event snapshots"]</strong><strong>—</strong><strong>—</strong><strong>—</strong>
-                            </div>
+                            <h3>@T["Activity EHB"]</h3>
+                            <p>@activityStateText</p>
+                            @if (Model.Activity.FetchedAt is { } fetchedAt)
+                            {
+                                <p class="form-hint">@T["Fetched from Wise Old Man"]: <time datetime="@fetchedAt.ToUniversalTime().ToString("O")">@fetchedAt.ToLocalTime().ToString("g")</time></p>
+                            }
+                            @if (Model.Activity.HasRankings &&
+                                 Model.Activity.MatchedAccountCount < Model.Activity.ExpectedAccountCount &&
+                                 (Model.Activity.State == Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.Partial ||
+                                  Model.Activity.State == Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.TemporarilyUnavailable))
+                            {
+                                <p class="form-hint">@T["Provisional coverage"]: @Model.Activity.MatchedAccountCount/@Model.Activity.ExpectedAccountCount @T["current accounts matched"]</p>
+                            }
+                            @if (!Model.Activity.HasRankings)
+                            {
+                                <div class="activity-preview-table" aria-label="@T["Activity EHB status"]">
+                                    <span>@T["Rankings"]</span><strong>@T["No matched current activity is available yet"]</strong>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="activity-preview-table" role="table" aria-label="@T["Activity EHB leaderboard"]">
+                                    <span role="columnheader">@T["Rank"]</span><span role="columnheader">@T["Team"]</span><span role="columnheader">@T["Total gained"]</span><span role="columnheader">@T["Average / participant"]</span><span role="columnheader">@T["MVP"]</span>
+                                    @foreach (var team in Model.Board.Teams.OrderBy(value => value.Rank))
+                                    {
+                                        var activityTeam = Model.Activity.Teams.SingleOrDefault(value => value.TeamId == team.TeamId);
+                                        if (activityTeam is null) { continue; }
+                                        <span role="cell">#@activityTeam.Rank</span><strong role="cell">@activityTeam.TeamName</strong><span role="cell">@activityTeam.TotalGainedEhb.ToString("N2")</span><span role="cell">@activityTeam.AverageGainedEhb.ToString("N2")</span><span role="cell">@string.Join(", ", activityTeam.MvpNames)</span>
+                                        <details class="activity-participant-breakdown">
+                                            <summary>@T["Participant and account breakdown"]</summary>
+                                            @foreach (var participant in activityTeam.Participants)
+                                            {
+                                                <div class="activity-participant-row"><strong>@participant.ParticipantName</strong><b>@participant.TotalGainedEhb.ToString("N2") EHB</b><span>@participant.MatchedAccountCount/@participant.ExpectedAccountCount @T["accounts matched"] · @string.Join(" · ", participant.Accounts.Select(account => $"{account.CharacterName}: {account.GainedEhb:N2}"))</span></div>
+                                            }
+                                        </details>
+                                    }
+                                </div>
+                            }
                         </div>
                     }
                     else if (Model.Board.PlayerLeaderboard.Count == 0)

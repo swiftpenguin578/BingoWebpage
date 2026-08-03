@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
@@ -11,17 +13,22 @@ namespace Bingo.Web.Pages.Account;
 [Authorize]
 public sealed class MyAccountsModel(
     MyAccountsService accounts,
+    IWiseOldManPlayerLookup wiseOldMan,
     IStringLocalizer<SharedResource> text,
     ILogger<MyAccountsModel> logger) : PageModel
 {
     public IReadOnlyList<MyAccountCharacter> Links { get; private set; } = [];
     public Guid? PendingUnlinkLinkId { get; private set; }
+    public Guid? FetchFailureLinkId { get; private set; }
+    public string? FetchFailureLabel { get; private set; }
+    public string? FetchFailureEhb { get; private set; }
     [BindProperty(SupportsGet = true)] public string? ReturnUrl { get; set; }
     [BindProperty] public AddInput Add { get; set; } = new();
     [BindProperty] public EditInput Edit { get; set; } = new();
     [BindProperty] public LinkInput Action { get; set; } = new();
     [BindProperty] public UnlinkInput Unlink { get; set; } = new();
     [BindProperty] public CorrectInput Correct { get; set; } = new();
+    [BindProperty] public FetchInput Fetch { get; set; } = new();
 
     public async Task<IActionResult> OnGetAsync(CancellationToken ct)
     {
@@ -53,6 +60,25 @@ public sealed class MyAccountsModel(
             return Success("My Accounts details saved.");
         }
         catch (InvalidOperationException exception) { return await FailureAsync(exception, ct); }
+    }
+
+    public async Task<IActionResult> OnPostFetchAsync(CancellationToken ct)
+    {
+        NormalizeReturnUrl();
+        try
+        {
+            var characterName = await accounts.GetCharacterNameForLookupAsync(AccountId, Fetch.LinkId, ct);
+            var result = await wiseOldMan.LookupPlayerAsync(characterName, ct);
+            if (!result.Succeeded)
+            {
+                PreserveFetchValues();
+                ModelState.AddModelError(string.Empty, LookupFailure(result));
+                return await ReloadAsync(ct);
+            }
+            await accounts.UpdateSavedEhbAsync(AccountId, Fetch.LinkId, result.Ehb!.Value, ct);
+            return Success("Saved EHB fetched from Wise Old Man.");
+        }
+        catch (InvalidOperationException exception) { PreserveFetchValues(); return await FailureAsync(exception, ct); }
     }
 
     public async Task<IActionResult> OnPostMoveUpAsync(CancellationToken ct) => await MoveAsync(-1, ct);
@@ -147,6 +173,22 @@ public sealed class MyAccountsModel(
         return Page();
     }
 
+    private void PreserveFetchValues()
+    {
+        FetchFailureLinkId = Fetch.LinkId;
+        FetchFailureLabel = Edit.PersonalLabel;
+        FetchFailureEhb = ModelState["Edit.SavedEhb"]?.AttemptedValue ?? Edit.SavedEhb?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private string LookupFailure(WiseOldManPlayerLookupResult result) => result.Status switch
+    {
+        WiseOldManLookupStatus.NotFound => text["Wise Old Man could not find that character."].Value,
+        WiseOldManLookupStatus.RateLimited when result.RetryAt is { } retryAt => text["Wise Old Man is temporarily busy. Try again after {0}.", retryAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)].Value,
+        WiseOldManLookupStatus.RateLimited => text["Wise Old Man is temporarily busy. Try again in about 1 minute."].Value,
+        _ when result.RetryAt is { } retryAt => text["Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {0}.", retryAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)].Value,
+        _ => text["Wise Old Man is unavailable right now. Your current EHB was kept."].Value
+    };
+
     private async Task<bool> LoadAsync(CancellationToken ct)
     {
         if (User.GetAccountId() is not { } accountId || !await accounts.IsWebsiteAccountAsync(accountId, ct)) return false;
@@ -174,6 +216,7 @@ public sealed class MyAccountsModel(
     }
 
     public sealed class LinkInput { public Guid LinkId { get; set; } }
+    public sealed class FetchInput { public Guid LinkId { get; set; } }
     public sealed class UnlinkInput { public Guid LinkId { get; set; } public bool ConfirmRegistrationWarning { get; set; } }
     public sealed class CorrectInput
     {

@@ -8,4 +8,4 @@ public sealed record AuthenticatedSignupRequest(
     string? SignupCode,
     int? ExpectedResponseVersion = null);
 
-public sealed record AuthenticatedAccountAnswer(Guid OsrsCharacterId, decimal? Ehb);
+public sealed record AuthenticatedAccountAnswer(Guid OsrsCharacterId, decimal? Ehb, string? WiseOldManLookupToken = null);

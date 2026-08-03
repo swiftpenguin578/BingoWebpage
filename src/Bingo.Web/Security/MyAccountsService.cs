@@ -76,6 +76,25 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         await SaveAndCommitAsync(transaction, ct);
     }
 
+    public async Task<string> GetCharacterNameForLookupAsync(Guid accountId, Guid linkId, CancellationToken ct)
+    {
+        await RequireWebsiteAccountAsync(accountId, ct);
+        return await (from link in db.AccountOsrsCharacters.AsNoTracking()
+                      join character in db.OsrsCharacters.AsNoTracking() on link.OsrsCharacterId equals character.Id
+                      where link.AccountId == accountId && link.Id == linkId && link.Active
+                      select character.DisplayName).SingleOrDefaultAsync(ct)
+            ?? throw new InvalidOperationException("That character is no longer available in your My Accounts list.");
+    }
+
+    public async Task UpdateSavedEhbAsync(Guid accountId, Guid linkId, decimal savedEhb, CancellationToken ct)
+    {
+        ValidateEhb(savedEhb);
+        await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
+        var link = await ActiveLinkAsync(accountId, linkId, ct);
+        link.UpdatePreferences(link.PersonalLabel, link.Position, link.Preferred, savedEhb, time.GetUtcNow());
+        await SaveAndCommitAsync(transaction, ct);
+    }
+
     public async Task MoveAsync(Guid accountId, Guid linkId, int direction, CancellationToken ct)
     {
         if (direction is not (-1 or 1)) throw new InvalidOperationException("That move is not available.");

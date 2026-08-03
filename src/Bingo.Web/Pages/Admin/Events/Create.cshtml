@@ -118,6 +118,12 @@
                             <span asp-validation-for="Input.DraftLocal" class="field-error"></span>
                         </div>
                         <div class="event-create-field">
+                            <label asp-for="Input.CompetitionId">Wise Old Man competition ID</label>
+                            <input asp-for="Input.CompetitionId" class="form-control" inputmode="numeric" />
+                            <span asp-validation-for="Input.CompetitionId" class="field-error"></span>
+                            <small>Optional. A validated competition fills the exact UTC event window during creation.</small>
+                        </div>
+                        <div class="event-create-field">
                             <span class="field-label">@T["Waiting list"]</span>
                             <label class="setting-card schedule-option-card">
                                 <input asp-for="Input.WaitingListEnabled" />

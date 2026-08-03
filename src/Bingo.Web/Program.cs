@@ -7,10 +7,13 @@ using Bingo.Application.Access;
 using Bingo.Application.Boards;
 using Bingo.Application.Catalogue;
 using Bingo.Application.Evidence;
+using Bingo.Application.Integrations.WiseOldMan;
+using Bingo.Application.Signups;
 using Bingo.Application.Teams;
 using Bingo.Domain.Access;
 using Bingo.Infrastructure;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.WiseOldMan;
 using Bingo.Web.Boards;
 using Bingo.Web.Catalogue;
 using Bingo.Web.Events;
@@ -54,6 +57,7 @@ builder.Services.AddRazorPages(options =>
 }).AddDataAnnotationsLocalization(options =>
     options.DataAnnotationLocalizerProvider = (_, factory) => factory.Create(typeof(Bingo.Web.SharedResource)));
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddDataProtection();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IProgressNotifier, SignalRProgressNotifier>();
 builder.Services.AddScoped<IAdminCollaborationNotifier, SignalRAdminCollaborationNotifier>();
@@ -66,6 +70,7 @@ builder.Services.AddScoped<IPasswordHasher<Account>, PasswordHasher<Account>>();
 builder.Services.AddScoped<AccountAuthenticationService>();
 builder.Services.AddScoped<AccountIdentityService>();
 builder.Services.AddScoped<MyAccountsService>();
+builder.Services.AddSingleton<ISignupLookupTokenService, SignupLookupTokenService>();
 builder.Services.AddSingleton<DiscordOnboardingStateService>();
 builder.Services.AddScoped<AccountAdministrationService>();
 builder.Services.AddScoped<EmergencyCredentialService>();
@@ -78,6 +83,30 @@ builder.Services.AddScoped<DevelopmentAdminBootstrapper>();
 builder.Services.AddScoped<OperatorRecoveryService>();
 builder.Services.AddScoped<ClanCatalogueImporter>();
 builder.Services.AddScoped<Bingo.Web.Teams.PreformedRosterCsvImportService>();
+builder.Services.Configure<WiseOldManOptions>(builder.Configuration.GetSection(WiseOldManOptions.SectionName));
+var wiseOldManHttpClient = builder.Services.AddHttpClient("WiseOldMan", (serviceProvider, client) =>
+{
+    var settings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<WiseOldManOptions>>().Value;
+    client.BaseAddress = new Uri(settings.BaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(Math.Clamp(settings.TimeoutSeconds, 5, 60));
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(settings.UserAgent);
+    if (!string.IsNullOrWhiteSpace(settings.ApiKey)) client.DefaultRequestHeaders.TryAddWithoutValidation("X-API-Key", settings.ApiKey);
+});
+if (builder.Environment.IsDevelopment())
+{
+    wiseOldManHttpClient.ConfigurePrimaryHttpMessageHandler(serviceProvider =>
+    {
+        var settings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<WiseOldManOptions>>().Value;
+        return settings.DevelopmentFake.Enabled
+            ? new WiseOldManDevelopmentFakeHandler(settings, serviceProvider.GetRequiredService<TimeProvider>())
+            : new HttpClientHandler();
+    });
+}
+builder.Services.AddSingleton<WiseOldManRequestLimiter>();
+builder.Services.AddSingleton<WiseOldManClient>();
+builder.Services.AddSingleton<IWiseOldManPlayerLookup>(serviceProvider => serviceProvider.GetRequiredService<WiseOldManClient>());
+builder.Services.AddSingleton<IWiseOldManCompetitionClient>(serviceProvider => serviceProvider.GetRequiredService<WiseOldManClient>());
+builder.Services.AddSingleton<IWiseOldManStatus>(serviceProvider => serviceProvider.GetRequiredService<WiseOldManClient>());
 builder.Services.AddHttpClient("OsrsWiki", client =>
 {
     client.BaseAddress = new Uri("https://oldschool.runescape.wiki/");
@@ -98,6 +127,7 @@ builder.Services.AddScoped<PublicTeamImageService>();
 builder.Services.AddScoped<PublicBoardImageService>();
 builder.Services.AddScoped<EventMutationCapabilityPageFilter>();
 builder.Services.AddHostedService<EventLifecycleWorker>();
+builder.Services.AddHostedService<EventCompetitionSynchronizationWorker>();
 builder.Services.AddScoped<IAuthorizationHandler, AccountAuthorizationHandler>();
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

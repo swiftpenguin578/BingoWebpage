@@ -14,6 +14,18 @@
         .ThenBy(player => player.PlayerName)
         .ToList();
     var dropMvp = publicContributors.FirstOrDefault();
+    var activityStateText = Model.Activity.State switch
+    {
+        Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.NotConfigured => T["Activity tracking is not configured."],
+        Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.WaitingForFirstSync => T["Waiting for the first Wise Old Man sync."],
+        Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.Partial => T["Activity is provisional: {0} of {1} team accounts matched.", Model.TeamActivity?.MatchedAccountCount ?? 0, Model.TeamActivity?.ExpectedAccountCount ?? 0],
+        Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.Incomplete => T["Activity rankings are unavailable until the current account set is synchronized."],
+        Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.Stale => T["Cached activity is stale."],
+        Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.TemporarilyUnavailable => Model.Activity.HasRankings
+            ? T["Wise Old Man is temporarily unavailable. Showing the last available cache."]
+            : T["Wise Old Man is temporarily unavailable."],
+        _ => T["Activity cache is current."]
+    };
     var overlayMode = string.Equals(ViewContext.HttpContext.Request.Query["overlay"], "true", StringComparison.OrdinalIgnoreCase);
     ViewData["OverlayMode"] = overlayMode;
     if (overlayMode) { ViewData["BodyClass"] = "public-event-shell team-board-overlay-document"; }
@@ -201,12 +213,43 @@
                 <header><span class="feature-kicker">@T["Activity EHB"]</span></header>
                 <div class="team-metric-source">
                     <span class="team-activity-mark" aria-hidden="true">↗</span>
-                    <span><strong>@T["Wise Old Man"]</strong><small>@T["Awaiting event synchronization"]</small></span>
+                    <span><strong>@T["Wise Old Man"]</strong><small>@activityStateText</small></span>
                 </div>
-                <div class="team-metric-values" aria-label="@T["Activity EHB is not available yet"]">
-                    <span><small>@T["Team total"]</small><strong>—</strong></span>
-                    <span><small>@T["Activity MVP"]</small><strong>—</strong></span>
-                </div>
+                @if (Model.Activity.FetchedAt is { } fetchedAt)
+                {
+                    <p class="form-hint">@T["Fetched from Wise Old Man"]: <time datetime="@fetchedAt.ToUniversalTime().ToString("O")">@fetchedAt.ToLocalTime().ToString("g")</time></p>
+                }
+                @if (Model.Activity.HasRankings &&
+                     Model.TeamActivity is not null &&
+                     Model.TeamActivity.MatchedAccountCount < Model.TeamActivity.ExpectedAccountCount &&
+                     (Model.Activity.State == Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.Partial ||
+                      Model.Activity.State == Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.TemporarilyUnavailable))
+                {
+                    <p class="form-hint">@T["Provisional coverage"]: @Model.TeamActivity.MatchedAccountCount/@Model.TeamActivity.ExpectedAccountCount @T["team accounts matched"] · @Model.TeamActivity.ContributingParticipantCount/@Model.TeamActivity.ExpectedParticipantCount @T["participants contributing"]</p>
+                }
+                @if (Model.TeamActivity is null || !Model.Activity.HasRankings)
+                {
+                    <div class="team-metric-values" aria-label="@T["Activity EHB is not available yet"]">
+                        <span><small>@T["Team total"]</small><strong>—</strong></span>
+                        <span><small>@T["Activity MVP"]</small><strong>—</strong></span>
+                    </div>
+                }
+                else
+                {
+                    <div class="team-metric-values" aria-label="@T["Activity EHB"]">
+                        <span><small>@T["Activity rank"]</small><strong>#@Model.TeamActivity.Rank</strong></span>
+                        <span><small>@T["Team total"]</small><strong>@Model.TeamActivity.TotalGainedEhb.ToString("N2")</strong></span>
+                        <span><small>@T["Average / participant"]</small><strong>@Model.TeamActivity.AverageGainedEhb.ToString("N2")</strong></span>
+                        <span><small>@T["Activity MVP"]</small><strong>@string.Join(", ", Model.TeamActivity.MvpNames)</strong></span>
+                    </div>
+                    <details class="activity-participant-breakdown">
+                        <summary>@T["Participant and account breakdown"]</summary>
+                        @foreach (var participant in Model.TeamActivity.Participants)
+                        {
+                            <div class="activity-participant-row"><strong>@participant.ParticipantName</strong><b>@participant.TotalGainedEhb.ToString("N2") EHB</b><span>@participant.MatchedAccountCount/@participant.ExpectedAccountCount @T["accounts matched"] · @string.Join(" · ", participant.Accounts.Select(account => $"{account.CharacterName}: {account.GainedEhb:N2}"))</span></div>
+                        }
+                    </details>
+                }
             </section>
 
             @if (publicContributors.Count > 1)

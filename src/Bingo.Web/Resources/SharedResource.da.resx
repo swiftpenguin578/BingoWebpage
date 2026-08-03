@@ -619,4 +619,29 @@
   <data name="Draft finalized" xml:space="preserve"><value>Draft afsluttet</value></data>
   <data name="Event ready · Starts {0}" xml:space="preserve"><value>Event klar · Starter {0}</value></data>
   <data name="Start postponed" xml:space="preserve"><value>Start udsat</value></data>
+  <data name="Fetch from Wise Old Man" xml:space="preserve"><value>Hent fra Wise Old Man</value></data>
+  <data name="Fetched from Wise Old Man" xml:space="preserve"><value>Hentet fra Wise Old Man</value></data>
+  <data name="Wise Old Man could not find that character." xml:space="preserve"><value>Wise Old Man kunne ikke finde den karakter.</value></data>
+  <data name="Wise Old Man is temporarily busy. Try again in about 1 minute." xml:space="preserve"><value>Wise Old Man er midlertidigt optaget. Prøv igen om cirka 1 minut.</value></data>
+  <data name="Wise Old Man is temporarily busy. Try again after {0}." xml:space="preserve"><value>Wise Old Man er midlertidigt optaget. Prøv igen efter {0}.</value></data>
+  <data name="Wise Old Man is unavailable right now. Your current EHB was kept." xml:space="preserve"><value>Wise Old Man er ikke tilgængelig lige nu. Din nuværende EHB blev bevaret.</value></data>
+  <data name="Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {0}." xml:space="preserve"><value>Wise Old Man er ikke tilgængelig lige nu. Din nuværende EHB blev bevaret. Prøv igen efter {0}.</value></data>
+  <data name="Saved EHB fetched from Wise Old Man." xml:space="preserve"><value>Gemt EHB blev hentet fra Wise Old Man.</value></data>
+  <data name="Wise Old Man request status" xml:space="preserve"><value>Wise Old Man-anmodningsstatus</value></data>
+  <data name="Competition refresh completed." xml:space="preserve"><value>Opdatering af konkurrencen er gennemført.</value></data>
+  <data name="The cached competition result is still within its refresh window." xml:space="preserve"><value>Det cachede konkurrenceresultat er stadig inden for opdateringsvinduet.</value></data>
+  <data name="Wise Old Man refresh is temporarily rate-limited. Try again after {0}." xml:space="preserve"><value>Wise Old Man-opdateringen er midlertidigt hastighedsbegrænset. Prøv igen efter {0}.</value></data>
+  <data name="Wise Old Man refresh is temporarily rate-limited." xml:space="preserve"><value>Wise Old Man-opdateringen er midlertidigt hastighedsbegrænset.</value></data>
+  <data name="Wise Old Man returned invalid competition details." xml:space="preserve"><value>Wise Old Man returnerede ugyldige konkurrencedetaljer.</value></data>
+  <data name="Wise Old Man refresh is temporarily unavailable. Try again after {0}." xml:space="preserve"><value>Wise Old Man-opdateringen er midlertidigt utilgængelig. Prøv igen efter {0}.</value></data>
+  <data name="Wise Old Man refresh failed." xml:space="preserve"><value>Wise Old Man-opdateringen mislykkedes.</value></data>
+  <data name="Observed limit" xml:space="preserve"><value>Observeret grænse</value></data>
+  <data name="remaining" xml:space="preserve"><value>tilbage</value></data>
+  <data name="reset" xml:space="preserve"><value>nulstilling</value></data>
+  <data name="last success" xml:space="preserve"><value>seneste succes</value></data>
+  <data name="last error" xml:space="preserve"><value>seneste fejl</value></data>
+  <data name="last 429" xml:space="preserve"><value>seneste 429</value></data>
+  <data name="Last request" xml:space="preserve"><value>Seneste anmodning</value></data>
+  <data name="Never" xml:space="preserve"><value>Aldrig</value></data>
+  <data name="Not observed" xml:space="preserve"><value>Ikke observeret</value></data>
 </root>

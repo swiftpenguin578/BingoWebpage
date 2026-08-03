@@ -4,6 +4,7 @@ using Bingo.Domain.Boards;
 using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
+using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Microsoft.EntityFrameworkCore;
@@ -108,6 +109,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<ReviewAction> ReviewActions => Set<ReviewAction>();
     public DbSet<SubmissionContribution> SubmissionContributions => Set<SubmissionContribution>();
     public DbSet<WaitingListPromotionFollowUp> WaitingListPromotionFollowUps => Set<WaitingListPromotionFollowUp>();
+    public DbSet<EventCompetitionSynchronization> EventCompetitionSynchronizations => Set<EventCompetitionSynchronization>();
+    public DbSet<EventCompetitionCharacterActivity> EventCompetitionCharacterActivities => Set<EventCompetitionCharacterActivity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

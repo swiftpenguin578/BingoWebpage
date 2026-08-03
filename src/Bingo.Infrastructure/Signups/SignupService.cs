@@ -17,7 +17,8 @@ namespace Bingo.Infrastructure.Signups;
 public sealed class SignupService(
     ApplicationDbContext dbContext,
     ISecretHasher secretHasher,
-    TimeProvider timeProvider) : ISignupService
+    TimeProvider timeProvider,
+    ISignupLookupTokenService? lookupTokens = null) : ISignupService
 {
     public async Task<ParticipantPaymentResult> SetPaymentAsync(Guid eventId, Guid participantId, Guid? actorAccountId, string actorName, PaymentStatus payment, CancellationToken cancellationToken = default)
     {
@@ -118,16 +119,23 @@ public sealed class SignupService(
             var reserved = await dbContext.EventParticipantCharacters.AnyAsync(x => x.EventId == request.EventId && x.OsrsCharacterId == selectedAnswer.OsrsCharacterId && x.EventParticipantId != participant.Id && x.ReleasedAt == null, cancellationToken);
             if (reserved) return new(false, "That account is already signed up for this event.", null, null, null);
             var role = question.AccountAnswerRole!.Value;
+            var source = EhbSource.Manual;
+            DateTimeOffset? fetchedAt = null;
+            if (role == EventCharacterRole.Playing && selectedAnswer.Ehb is { } submittedEhb && selected is not null && lookupTokens?.TryValidate(selectedAnswer.WiseOldManLookupToken, selected.Character.NormalizedName, submittedEhb, now, out var trustedFetchedAt) == true)
+            {
+                source = EhbSource.WiseOldMan;
+                fetchedAt = trustedFetchedAt;
+            }
             if (role == EventCharacterRole.Playing && selected is not null)
                 selected.Link.UpdatePreferences(selected.Link.PersonalLabel, selected.Link.Position, selected.Link.Preferred, selectedAnswer.Ehb, now);
             if (sameAssignment)
             {
-                if (role == EventCharacterRole.Playing) current!.UpdatePlayingEhb(selectedAnswer.Ehb!.Value, EhbSource.Manual);
+                if (role == EventCharacterRole.Playing) current!.UpdatePlayingEhb(selectedAnswer.Ehb!.Value, source, fetchedAt);
             }
             else
             {
                 current?.Release(request.AccountId, now);
-                dbContext.EventParticipantCharacters.Add(new EventParticipantCharacter(Guid.NewGuid(), request.EventId, participant.Id, selectedAnswer.OsrsCharacterId, order++, now, request.AccountId, question.Id, role, selectedAnswer.Ehb, role == EventCharacterRole.Playing ? EhbSource.Manual : null, null));
+                dbContext.EventParticipantCharacters.Add(new EventParticipantCharacter(Guid.NewGuid(), request.EventId, participant.Id, selectedAnswer.OsrsCharacterId, order++, now, request.AccountId, question.Id, role, selectedAnswer.Ehb, role == EventCharacterRole.Playing ? source : null, role == EventCharacterRole.Playing ? fetchedAt : null));
             }
             if (answersByQuestion.TryGetValue(question.Id, out var existingAnswer)) existingAnswer.SetAccountCharacter(selectedAnswer.OsrsCharacterId);
             else dbContext.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, question.Id, question.Label, string.Empty, selectedAnswer.OsrsCharacterId));

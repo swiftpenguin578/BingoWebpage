@@ -1009,8 +1009,8 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal(ownerUsername, result.AdminUsername);
         Assert.Equal(ownerUsername, repeated.AdminUsername);
         Assert.Equal(DevelopmentScenarioSeeder.SecondaryAdminUsername, result.SecondaryAdminUsername);
-        Assert.Equal(4, result.Scenarios.Count);
-        Assert.Equal(["TEST 13 — DKL Board", "TEST 15 — DKL Live", "TEST 62 — Board publication setup", "TEST 84 — Evidence history"], result.Scenarios.Select(scenario => scenario.EventName).OrderBy(name => name).ToArray());
+        Assert.Equal(5, result.Scenarios.Count);
+        Assert.Equal(["TEST 13 — DKL Board", "TEST 15 — DKL Live", "TEST 16 — Signup lookup", "TEST 62 — Board publication setup", "TEST 84 — Evidence history"], result.Scenarios.Select(scenario => scenario.EventName).OrderBy(name => name).ToArray());
         db.ChangeTracker.Clear();
         var owner = await db.Accounts.SingleAsync(account => account.Id == admin.Id);
         Assert.Equal(GlobalRole.SuperAdmin, owner.GlobalRole);
@@ -1020,8 +1020,11 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal(GlobalRole.Admin, secondaryAdmin.GlobalRole);
         Assert.True(secondaryAdmin.Active);
         var seededEvents = await db.Events.OrderBy(item => item.Slug).ToListAsync();
-        Assert.Equal(["test-13-dkl-board", "test-15-dkl-live", "test-62-board-publication-setup", "test-84-evidence-history"], seededEvents.Select(item => item.Slug).OrderBy(slug => slug).ToArray());
+        Assert.Equal(["test-13-dkl-board", "test-15-dkl-live", "test-16-signup-lookup", "test-62-board-publication-setup", "test-84-evidence-history"], seededEvents.Select(item => item.Slug).OrderBy(slug => slug).ToArray());
         Assert.All(seededEvents, item => Assert.True(item.IsDevelopmentFixture));
+        var signupLookupEvent = Assert.Single(seededEvents, item => item.Slug == "test-16-signup-lookup");
+        Assert.Equal(EventState.SignupOpen, signupLookupEvent.State);
+        Assert.Empty(await db.EventParticipants.Where(item => item.EventId == signupLookupEvent.Id).ToListAsync());
         Assert.Empty(await db.SignupForms.Where(form => form.EventId == manual.Id).ToListAsync());
         Assert.Equal(catalogueCount, await db.CatalogueItems.CountAsync());
         Assert.Equal(2, await db.OsrsCharacters.CountAsync(character => character.Id == retainedBoardCharacter.Id || character.Id == retainedLiveCharacter.Id));
@@ -1040,11 +1043,11 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal([SignupQuestionType.Account, SignupQuestionType.Number, SignupQuestionType.SingleChoice, SignupQuestionType.Text, SignupQuestionType.YesNo], fixtureQuestions.Select(question => question.Type).Distinct().OrderBy(type => type.ToString()).ToArray());
         Assert.Contains(fixtureQuestions, question => question.AccountAnswerRole == EventCharacterRole.Playing);
         Assert.Contains(fixtureQuestions, question => question.AccountAnswerRole == EventCharacterRole.Informational);
-        var fixtureParticipants = await db.EventParticipants.Where(participant => seededEvents.Select(item => item.Id).Contains(participant.EventId)).ToListAsync();
+        var fixtureParticipants = await db.EventParticipants.Where(participant => seededEvents.Select(item => item.Id).Contains(participant.EventId) && participant.EventId != signupLookupEvent.Id).ToListAsync();
         Assert.Contains(fixtureParticipants, participant => participant.AccountId is not null);
         Assert.Contains(fixtureParticipants, participant => participant.AccountId is null);
         var fixtureParticipantIds = fixtureParticipants.Select(participant => participant.Id).ToArray();
-        Assert.All(await db.EventParticipantCharacters.Where(item => fixtureParticipantIds.Contains(item.EventParticipantId)).ToListAsync(), assignment =>
+        Assert.All(await db.EventParticipantCharacters.Where(item => fixtureParticipantIds.Contains(item.EventParticipantId) && item.SignupQuestionId != null).ToListAsync(), assignment =>
         {
             var participant = Assert.Single(fixtureParticipants, item => item.Id == assignment.EventParticipantId);
             var question = Assert.Single(fixtureQuestions, item => item.Id == assignment.SignupQuestionId);
@@ -1439,13 +1442,18 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
     {
         db.ChangeTracker.Clear();
         var events = await db.Events.OrderBy(item => item.Slug).ToListAsync();
-        Assert.Equal(["test-13-dkl-board", "test-15-dkl-live", "test-62-board-publication-setup", "test-84-evidence-history"], events.Select(item => item.Slug).ToArray());
+        Assert.Equal(["test-13-dkl-board", "test-15-dkl-live", "test-16-signup-lookup", "test-62-board-publication-setup", "test-84-evidence-history"], events.Select(item => item.Slug).ToArray());
         var test13 = Assert.Single(events, item => item.Slug == "test-13-dkl-board");
         var test15 = Assert.Single(events, item => item.Slug == "test-15-dkl-live");
         var test84 = Assert.Single(events, item => item.Slug == "test-84-evidence-history");
         var test62 = Assert.Single(events, item => item.Slug == "test-62-board-publication-setup");
+        var test16 = Assert.Single(events, item => item.Slug == "test-16-signup-lookup");
 
         await AssertDklEventInventoryAsync(db, test13, test15, seededAt);
+        Assert.Equal(EventState.SignupOpen, test16.State);
+        Assert.True(test16.IsDevelopmentFixture);
+        Assert.Equal(20, test16.ParticipantCap);
+        Assert.Empty(await db.EventParticipants.Where(item => item.EventId == test16.Id).ToListAsync());
 
         var test13Board = Assert.Single(await db.Boards.Where(item => item.EventId == test13.Id).ToListAsync());
         Assert.Equal(BoardState.Draft, test13Board.State);

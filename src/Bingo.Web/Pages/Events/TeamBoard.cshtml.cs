@@ -1,4 +1,5 @@
 using Bingo.Application.Boards;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Signups;
 using Bingo.Application.Teams;
 using Bingo.Domain.Teams;
@@ -8,7 +9,11 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Bingo.Web.Pages.Events;
 
-public sealed class TeamBoardModel(IPublicBoardService boards, IParticipantLiveService live, ITeamFocusService focus) : PageModel
+public sealed class TeamBoardModel(
+    IPublicBoardService boards,
+    IParticipantLiveService live,
+    ITeamFocusService focus,
+    IEventCompetitionActivityProjection? activity = null) : PageModel
 {
     public PublicEventBoard Board { get; private set; } = null!;
     public PublicTeamBoard Team { get; private set; } = null!;
@@ -19,6 +24,8 @@ public sealed class TeamBoardModel(IPublicBoardService boards, IParticipantLiveS
     public bool CanOpenSubmissionWorkspace { get; private set; }
     public TeamFocusContext? Focus { get; private set; }
     public bool InspectFocus { get; private set; }
+    public EventCompetitionActivityProjection Activity { get; private set; } = null!;
+    public EventCompetitionTeamActivity? TeamActivity { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(string slug, string teamSlug, Guid? participantId, CancellationToken cancellationToken, bool inspectFocus = false)
     {
@@ -28,6 +35,10 @@ public sealed class TeamBoardModel(IPublicBoardService boards, IParticipantLiveS
         if (index < 0) return NotFound();
         Board = board;
         Team = board.Teams[index];
+        Activity = activity is null
+            ? new(EventCompetitionActivityState.NotConfigured, 0, null, null, [])
+            : await activity.GetAsync(board.EventId, cancellationToken);
+        TeamActivity = Activity.Teams.SingleOrDefault(value => value.TeamId == Team.TeamId);
         Previous = index > 0 ? board.Teams[index - 1] : null;
         Next = index + 1 < board.Teams.Count ? board.Teams[index + 1] : null;
         if (!await LoadLiveContextAsync(participantId, cancellationToken)) return Forbid();

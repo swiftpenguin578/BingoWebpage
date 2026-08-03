@@ -1,4 +1,6 @@
 @page
+@using Bingo.Application.Integrations.WiseOldMan
+@inject IWiseOldManStatus WiseOldManStatus
 @{
     ViewData["Title"] = T["Administration"];
 }
@@ -19,4 +21,10 @@
             <div><h2>@T["Audit log"]</h2><p>@T["See sign-ins and changes made by admins."]</p></div>
         </a>
     </div>
+    @{ var wiseOldMan = WiseOldManStatus.GetStatus(); }
+    <section class="panel" aria-labelledby="wise-old-man-status">
+        <h2 id="wise-old-man-status">@T["Wise Old Man request status"]</h2>
+        <p class="form-hint">@T["Observed limit"]: @(wiseOldMan.ObservedLimit?.ToString() ?? T["Not observed"]), @T["remaining"]: @(wiseOldMan.ObservedRemaining?.ToString() ?? T["Not observed"]), @T["reset"]: @(wiseOldMan.ResetAt?.ToLocalTime().ToString("g") ?? T["Not observed"])</p>
+        <p class="form-hint">@T["Last request"]: @(wiseOldMan.LastRequestAt?.ToLocalTime().ToString("g") ?? T["Never"]) · @T["last success"]: @(wiseOldMan.LastSuccessAt?.ToLocalTime().ToString("g") ?? T["Never"]) · @T["last error"]: @(wiseOldMan.LastErrorAt?.ToLocalTime().ToString("g") ?? T["Never"]) · @T["last 429"]: @(wiseOldMan.LastRateLimitedAt?.ToLocalTime().ToString("g") ?? T["Never"])</p>
+    </section>
 </section>
