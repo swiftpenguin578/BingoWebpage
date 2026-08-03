@@ -36,6 +36,8 @@ public sealed class Slice3LifecyclePersistenceIntegrationTests : IAsyncLifetime
             (EventState.Live, true), (EventState.AwaitingFinalReview, true),
             (EventState.Finalized, true), (EventState.Archived, true)
         };
+        Guid retainedEndEventId = Guid.Empty;
+        var retainedTransitionPerformedAt = created.AddDays(10);
 
         await using (var retained = new ApplicationDbContext(options))
         {
@@ -48,6 +50,7 @@ public sealed class Slice3LifecyclePersistenceIntegrationTests : IAsyncLifetime
             foreach (var (state, _) in states)
             {
                 var id = Guid.NewGuid();
+                if (state == EventState.AwaitingFinalReview) retainedEndEventId = id;
                 var opening = created.AddHours((int)state + 1);
                 DateTimeOffset? finalizedAt = state is EventState.Finalized or EventState.Archived ? opening.AddDays(3) : null;
                 DateTimeOffset? archivedAt = state == EventState.Archived ? opening.AddDays(4) : null;
@@ -56,6 +59,10 @@ public sealed class Slice3LifecyclePersistenceIntegrationTests : IAsyncLifetime
                     VALUES ({id}, {$"retained-{state}"}, {$"retained-{state}"}, {"retained description"}, {"UTC"}, {state.ToString()}, {opening}, {opening.AddHours(1)}, {opening.AddDays(1)}, {opening.AddDays(2)}, {opening.AddDays(2).AddHours(1)}, 19, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, {finalizedAt}, {archivedAt}, {accountId}, {created});
                     """);
             }
+            await retained.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO event_state_transitions (id, event_id, from_state, to_state, performed_by_account_id, performed_at, reason)
+                VALUES ({Guid.NewGuid()}, {retainedEndEventId}, {"Live"}, {"AwaitingFinalReview"}, {accountId}, {retainedTransitionPerformedAt}, {"retained scheduled end"});
+                """);
             await retained.GetService<IMigrator>().MigrateAsync();
         }
 
@@ -74,6 +81,10 @@ public sealed class Slice3LifecyclePersistenceIntegrationTests : IAsyncLifetime
             Assert.Equal(state is EventState.Finalized or EventState.Archived ? row.SignupOpensAt!.Value.AddDays(3) : null, row.FinalizedAt);
             Assert.Equal(state == EventState.Archived ? row.SignupOpensAt!.Value.AddDays(4) : null, row.ArchivedAt);
         }
+        var retainedTransition = await migrated.EventStateTransitions.SingleAsync(x => x.EventId == retainedEndEventId);
+        Assert.Equal(retainedTransitionPerformedAt, retainedTransition.EffectiveAt);
+        var retainedEnd = rows.Single(x => x.Id == retainedEndEventId);
+        Assert.Equal(retainedEnd.SubmissionCutoffAt, retainedEnd.SubmissionsClosedAt);
     }
 
     [Fact]

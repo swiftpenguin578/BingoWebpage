@@ -187,11 +187,13 @@ public sealed class PostgreSqlConnectivityTests : IAsyncLifetime
         await context.Database.EnsureCreatedAsync();
         var now = DateTimeOffset.UtcNow;
         var eventId = Guid.NewGuid();
-        var finalization = new EventFinalizationSnapshot(Guid.NewGuid(), eventId, 1, now, Guid.NewGuid());
+        var cycleId = Guid.NewGuid();
+        var finalization = new EventFinalizationSnapshot(Guid.NewGuid(), eventId, 1, now, Guid.NewGuid(), cycleId);
         var placement = new OfficialPlacementSnapshot(
             Guid.NewGuid(), finalization.Id, eventId, Guid.NewGuid(), "Snapshot Team",
             1, true, now.AddHours(-1), 10, 25, 42.5m);
         context.EventFinalizations.Add(finalization);
+        context.EventStateTransitions.Add(new EventStateTransition(cycleId, eventId, EventState.Live, EventState.AwaitingFinalReview, null, now.AddMinutes(-1), "Ended", effectiveAt: now.AddMinutes(-1)));
         context.OfficialPlacements.Add(placement);
         await context.SaveChangesAsync();
 

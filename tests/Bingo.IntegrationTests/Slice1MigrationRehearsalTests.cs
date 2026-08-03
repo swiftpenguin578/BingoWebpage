@@ -1,4 +1,5 @@
 using Bingo.Domain.Access;
+using Bingo.Domain.Events;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Catalogue;
 using Bingo.Web.Events;
@@ -14,6 +15,8 @@ namespace Bingo.IntegrationTests;
 public sealed class Slice1MigrationRehearsalTests : IAsyncLifetime
 {
     private const string LegacyMigration = "20260721232916_AddBoardEditorAndCatalogueRateMechanics";
+    private const string PreviousSlice9Migration = "20260802002639_AddLiveWithdrawalReplacementPersistence";
+    private const string FinalReviewMigration = "20260802005536_AddFinalReviewCyclesAndSnapshotInputs";
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice1_migration_rehearsal")
         .WithUsername("bingo")
@@ -140,6 +143,76 @@ public sealed class Slice1MigrationRehearsalTests : IAsyncLifetime
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => new Slice1MigrationPreflight(legacy).RunAsync("retained-owner", CancellationToken.None));
         Assert.Contains(expectedMessage, exception.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public async Task RetainedOfficialSnapshotMapsToItsOnlyAwaitingFinalReviewTransition()
+    {
+        var seed = await SeedRetainedOfficialSnapshotAsync(awaitingTransitionCount: 1);
+
+        await using (var migrated = new ApplicationDbContext(options))
+        {
+            await migrated.GetService<IMigrator>().MigrateAsync(FinalReviewMigration);
+        }
+
+        await using var verified = new ApplicationDbContext(options);
+        var snapshot = await verified.EventFinalizations.SingleAsync(item => item.Id == seed.SnapshotId);
+        Assert.Equal(seed.TransitionIds.Single(), snapshot.ReviewCycleId);
+        Assert.Equal(1, await verified.EventStateTransitions.CountAsync(item => item.EventId == seed.EventId && item.ToState == EventState.AwaitingFinalReview));
+        Assert.Contains(FinalReviewMigration, await verified.Database.SqlQueryRaw<string>("SELECT \"MigrationId\" AS \"Value\" FROM \"__EFMigrationsHistory\"").ToListAsync());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    public async Task AmbiguousRetainedOfficialSnapshotFailsClosedWithoutPartialUpgrade(int awaitingTransitionCount)
+    {
+        var seed = await SeedRetainedOfficialSnapshotAsync(awaitingTransitionCount);
+
+        await using var migrated = new ApplicationDbContext(options);
+        var exception = await Record.ExceptionAsync(() => migrated.GetService<IMigrator>().MigrateAsync(FinalReviewMigration));
+
+        Assert.NotNull(exception);
+        var message = exception.ToString();
+        Assert.Contains(seed.EventId.ToString(), message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(seed.SnapshotId.ToString(), message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, await migrated.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\" = '20260802005536_AddFinalReviewCyclesAndSnapshotInputs'").SingleAsync());
+        Assert.Equal(0, await migrated.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_finalizations' AND column_name = 'review_cycle_id'").SingleAsync());
+        Assert.Equal(1, await migrated.Database.SqlQuery<int>($"SELECT COUNT(*) AS \"Value\" FROM event_finalizations WHERE id = {seed.SnapshotId}").SingleAsync());
+    }
+
+    private async Task<RetainedOfficialSnapshotSeed> SeedRetainedOfficialSnapshotAsync(int awaitingTransitionCount)
+    {
+        await using var legacy = new ApplicationDbContext(options);
+        await legacy.Database.EnsureDeletedAsync();
+        var migrator = legacy.GetService<IMigrator>();
+        await migrator.MigrateAsync(LegacyMigration);
+
+        var now = new DateTimeOffset(2026, 8, 2, 12, 0, 0, TimeSpan.Zero);
+        var adminId = Guid.NewGuid();
+        var eventId = Guid.NewGuid();
+        var snapshotId = Guid.NewGuid();
+        await legacy.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO accounts (id, username, normalized_username, password_hash, role, event_id, team_id, captain_participant_id, active_from, correction_only_from, expires_at, disabled_at, created_at, last_login_at, must_change_password)
+            VALUES ({adminId}, {"retained-final-review-admin"}, {"RETAINED-FINAL-REVIEW-ADMIN"}, {"hash"}, {"Admin"}, NULL, NULL, NULL, NULL, NULL, NULL, NULL, {now}, NULL, FALSE);
+            INSERT INTO events (id, name, slug, description, timezone, state, signup_opens_at, signup_closes_at, event_starts_at, event_ends_at, submission_cutoff_at, participant_cap, waiting_list_enabled, allow_private_signup_editing, require_signup_code, participant_list_published, draft_results_published, team_rosters_published, board_published, results_published, draft_locked, created_by_account_id, created_at)
+            VALUES ({eventId}, {"Retained final-review event"}, {"retained-final-review-{eventId:N}"}, {""}, {"UTC"}, {"AwaitingFinalReview"}, {now.AddDays(-3)}, {now.AddDays(-2)}, {now.AddDays(-1)}, {now.AddHours(-1)}, {now.AddMinutes(-30)}, {10}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {true}, {adminId}, {now.AddDays(-4)});
+            INSERT INTO event_finalizations (id, event_id, version, finalized_at, finalized_by_account_id, unfinalized_at, unfinalized_by_account_id, unfinalize_reason)
+            VALUES ({snapshotId}, {eventId}, {1}, {now.AddHours(-2)}, {adminId}, NULL, NULL, NULL);
+            """);
+
+        var transitionIds = new List<Guid>(awaitingTransitionCount);
+        for (var index = 0; index < awaitingTransitionCount; index++)
+        {
+            var transitionId = Guid.NewGuid();
+            transitionIds.Add(transitionId);
+            await legacy.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO event_state_transitions (id, event_id, from_state, to_state, performed_by_account_id, performed_at, reason) VALUES ({transitionId}, {eventId}, {"Live"}, {"AwaitingFinalReview"}, {adminId}, {now.AddHours(-3).AddMinutes(index)}, {"retained transition"})");
+        }
+
+        await migrator.MigrateAsync(PreviousSlice9Migration);
+        return new RetainedOfficialSnapshotSeed(eventId, snapshotId, transitionIds);
+    }
+
+    private sealed record RetainedOfficialSnapshotSeed(Guid EventId, Guid SnapshotId, IReadOnlyList<Guid> TransitionIds);
 }
 
 file sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider

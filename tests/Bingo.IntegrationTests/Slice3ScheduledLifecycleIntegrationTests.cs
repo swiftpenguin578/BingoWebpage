@@ -128,6 +128,72 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task LateScheduledEndUsesEffectiveInstantAndResumeThenSecondEndPreservesHistory()
+    {
+        var eventId = Guid.NewGuid();
+        var scheduledEnd = now.AddHours(-1);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var item = ReadyDraft(setup, eventId, "slice9-authoritative-end", now.AddDays(-3), now.AddDays(-2), scheduledEnd);
+            item.OpenSignups(now.AddDays(-3));
+            item.CloseSignups(now.AddDays(-2));
+            item.StartEvent(now.AddDays(-2).AddMinutes(1));
+            setup.Events.Add(item);
+            await setup.SaveChangesAsync();
+        }
+
+        var clock = new MutableTimeProvider(now);
+        await using (var worker = new ApplicationDbContext(options))
+            await Services(worker, clock).ProcessDueAsync();
+
+        var scheduledVersion = await VersionAsync(eventId);
+        await using (var beforeCatchUp = new ApplicationDbContext(options))
+        {
+            var item = await beforeCatchUp.Events.SingleAsync(x => x.Id == eventId);
+            Assert.Equal(EventState.AwaitingFinalReview, item.State);
+            Assert.Equal(scheduledEnd, item.ActualEndedAt);
+            Assert.False(item.AcceptsNewSubmissions(now));
+            Assert.Equal(scheduledEnd.AddMinutes(30), item.SubmissionsClosedAt);
+        }
+
+        await using (var resume = new ApplicationDbContext(options))
+        {
+            var result = await Services(resume, clock).ResumePrematureEndAsync(eventId, scheduledVersion, true, "The first end was premature.", now.AddHours(2), new LifecycleActor(Guid.NewGuid(), "admin"));
+            Assert.True(result.Succeeded, result.Error);
+        }
+
+        var liveVersion = await VersionAsync(eventId);
+        await using (var repeated = new ApplicationDbContext(options))
+        {
+            var result = await Services(repeated, clock).ResumePrematureEndAsync(eventId, liveVersion, true, "Repeated request.", now.AddHours(3), new LifecycleActor(Guid.NewGuid(), "admin"));
+            Assert.False(result.Succeeded);
+            Assert.Contains("final review", result.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        clock.Set(now.AddHours(3));
+        await using (var secondEnd = new ApplicationDbContext(options))
+        {
+            var result = await Services(secondEnd, clock).EndNowAsync(eventId, await VersionAsync(eventId), true, null, new LifecycleActor(Guid.NewGuid(), "admin"));
+            Assert.True(result.Succeeded, result.Error);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var itemAfterSecondEnd = await verify.Events.SingleAsync(x => x.Id == eventId);
+        Assert.Equal(EventState.AwaitingFinalReview, itemAfterSecondEnd.State);
+        Assert.Equal(now.AddHours(3), itemAfterSecondEnd.ActualEndedAt);
+        Assert.Equal(now.AddHours(2).AddMinutes(30), itemAfterSecondEnd.SubmissionsClosedAt);
+        var transitions = await verify.EventStateTransitions.Where(x => x.EventId == eventId).OrderBy(x => x.PerformedAt).ToListAsync();
+        Assert.Equal(3, transitions.Count);
+        Assert.Equal((EventState.Live, EventState.AwaitingFinalReview), (transitions[0].FromState, transitions[0].ToState));
+        Assert.Equal(scheduledEnd, transitions[0].EffectiveAt);
+        Assert.True(transitions[0].PerformedAt > transitions[0].EffectiveAt);
+        Assert.Equal((EventState.AwaitingFinalReview, EventState.Live), (transitions[1].FromState, transitions[1].ToState));
+        Assert.Equal((EventState.Live, EventState.AwaitingFinalReview), (transitions[2].FromState, transitions[2].ToState));
+        Assert.Equal(now.AddHours(3), transitions[2].EffectiveAt);
+        Assert.Equal(3, await verify.AuditEntries.CountAsync(x => x.EventId == eventId && (x.Action == "event.ended_automatically" || x.Action == "event.resumed" || x.Action == "event.ended")));
+    }
+
+    [Fact]
     public async Task OverlappingScheduledOpeningNotifiesExactlyOnceAndCorrectedRetryOpens()
     {
         var blockingId = Guid.NewGuid();

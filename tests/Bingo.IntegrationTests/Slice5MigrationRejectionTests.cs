@@ -51,7 +51,9 @@ public sealed class Slice5MigrationRejectionTests : IAsyncLifetime
         var assignment = new EventParticipantCharacter(Guid.NewGuid(), ev.Id, participant.Id, character.Id, 0, now, account.Id, null, EventCharacterRole.Playing, 1, EhbSource.AdminCorrection, null);
         var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, "retained");
         var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddMinutes(1), account.Id);
-        retained.AddRange(account, ev, team, draft, participant, character, assignment, membership, cycle); await retained.SaveChangesAsync();
+        retained.Add(account); await retained.SaveChangesAsync();
+        await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO events (id, name, slug, description, timezone, state, signup_opens_at, signup_closes_at, event_starts_at, event_ends_at, submission_cutoff_at, participant_cap, waiting_list_enabled, require_signup_code, participant_list_published, draft_results_published, team_rosters_published, board_published, results_published, draft_locked, created_by_account_id, created_at) VALUES ({ev.Id}, {ev.Name}, {ev.Slug}, {""}, {ev.Timezone}, {"Draft"}, {now}, {now}, {now}, {now.AddDays(1)}, {now.AddDays(1)}, {20}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {account.Id}, {now})");
+        retained.AddRange(team, draft, participant, character, assignment, membership, cycle); await retained.SaveChangesAsync();
         await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO draft_publication_rosters (id, draft_publication_cycle_id, team_id, event_participant_id, role, effective_pick_number) VALUES ({Guid.NewGuid()}, {cycle.Id}, {team.Id}, {participant.Id}, {"Participant"}, {null})");
 
         await retained.GetService<IMigrator>().MigrateAsync();
@@ -65,7 +67,9 @@ public sealed class Slice5MigrationRejectionTests : IAsyncLifetime
         await retained.GetService<IMigrator>().MigrateAsync(Slice5FoundationMigration);
         var now = DateTimeOffset.UtcNow.AddDays(-1); var account = Account.CreateWebsite(Guid.NewGuid(), "missing-admin", "Missing admin", now); var ev = new BingoEvent(Guid.NewGuid(), "Missing publication", "missing-publication", "UTC", account.Id, now);
         var team = new Team(Guid.NewGuid(), ev.Id, "Missing team", "missing-team", TeamFormationType.Preformed, null, false, now); var draft = new DraftSession(Guid.NewGuid(), ev.Id, 1); draft.Start(now); draft.Finalize(now); var participant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated); var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, "missing"); var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, account.Id);
-        retained.AddRange(account, ev, team, draft, participant, membership, cycle); await retained.SaveChangesAsync();
+        retained.Add(account); await retained.SaveChangesAsync();
+        await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO events (id, name, slug, description, timezone, state, signup_opens_at, signup_closes_at, event_starts_at, event_ends_at, submission_cutoff_at, participant_cap, waiting_list_enabled, require_signup_code, participant_list_published, draft_results_published, team_rosters_published, board_published, results_published, draft_locked, created_by_account_id, created_at) VALUES ({ev.Id}, {ev.Name}, {ev.Slug}, {""}, {ev.Timezone}, {"Draft"}, {now}, {now}, {now}, {now.AddDays(1)}, {now.AddDays(1)}, {20}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {account.Id}, {now})");
+        retained.AddRange(team, draft, participant, membership, cycle); await retained.SaveChangesAsync();
         await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO draft_publication_rosters (id, draft_publication_cycle_id, team_id, event_participant_id, role, effective_pick_number) VALUES ({Guid.NewGuid()}, {cycle.Id}, {team.Id}, {participant.Id}, {"Participant"}, {null})");
 
         var exception = await Assert.ThrowsAsync<PostgresException>(() => retained.GetService<IMigrator>().MigrateAsync());

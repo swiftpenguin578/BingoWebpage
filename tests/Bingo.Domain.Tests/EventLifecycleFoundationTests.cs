@@ -119,6 +119,7 @@ public sealed class EventLifecycleFoundationTests
                     EventCapability.ConfigureIdentityOrSchedule or EventCapability.ConfigureSignup or EventCapability.CancelOrDiscard => state is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed,
                     EventCapability.ParticipantSignup => state == EventState.SignupOpen,
                     EventCapability.ReopenSignup or EventCapability.StartEvent => state == EventState.SignupClosed,
+                    EventCapability.ResumeEvent => state == EventState.AwaitingFinalReview,
                     EventCapability.LiveSubmission => state == EventState.Live,
                     EventCapability.ReviewEvidence => state is EventState.Live or EventState.AwaitingFinalReview,
                     EventCapability.ConfigureEvidenceCodes => state is EventState.Draft or EventState.SignupClosed or EventState.Live,
@@ -145,6 +146,43 @@ public sealed class EventLifecycleFoundationTests
         Assert.True(item.AcceptsNewSubmissions(Now.AddDays(3)));
         item.FinalizeResults(Now.AddDays(4));
         Assert.False(item.AcceptsNewSubmissions(Now.AddDays(4)));
+    }
+
+    [Fact]
+    public void PrematureResumeClearsClosedAndReopenedCutoffsAndRestoresProspectiveLiveState()
+    {
+        var item = Event();
+        item.OpenSignups(Now);
+        item.CloseSignups(Now.AddHours(1));
+        item.StartEvent(Now.AddDays(2));
+        item.EndEvent(Now.AddDays(3));
+        item.CloseSubmissionsIfDue(Now.AddDays(4).AddMinutes(30));
+        item.ReopenSubmissions(Now.AddDays(5), Now.AddDays(4));
+
+        item.ResumePrematureEnd(Now.AddDays(6), Now.AddDays(4));
+
+        Assert.Equal(EventState.Live, item.State);
+        Assert.Null(item.ActualEndedAt);
+        Assert.Null(item.SubmissionsClosedAt);
+        Assert.Null(item.ReopenedSubmissionCutoffAt);
+        Assert.Equal(Now.AddDays(6), item.EventEndsAt);
+        Assert.Equal(Now.AddDays(6).AddMinutes(30), item.SubmissionCutoffAt);
+        Assert.True(item.AcceptsNewSubmissions(Now.AddDays(4)));
+    }
+
+    [Fact]
+    public void SubmissionEligibilityStopsAtTheActiveCutoffEvenBeforeWorkerClosureCatchUp()
+    {
+        var item = Event();
+        item.OpenSignups(Now);
+        item.CloseSignups(Now.AddHours(1));
+        item.StartEvent(Now.AddDays(2));
+        item.EndEvent(Now.AddDays(3));
+
+        Assert.False(item.AcceptsNewSubmissions(Now.AddDays(4).AddMinutes(31)));
+        Assert.Null(item.SubmissionsClosedAt);
+        Assert.True(item.CloseSubmissionsIfDue(Now.AddDays(4).AddMinutes(31)));
+        Assert.False(item.CloseSubmissionsIfDue(Now.AddDays(4).AddMinutes(32)));
     }
 
     [Fact]
@@ -180,6 +218,37 @@ public sealed class EventLifecycleFoundationTests
         Assert.Equal(Now.AddMinutes(2), attempt.ResolvedAt);
         Assert.Throws<InvalidOperationException>(() => attempt.Resolve(Now.AddMinutes(3)));
         Assert.Throws<ArgumentException>(() => new ScheduledEventStartAttempt(Guid.NewGuid(), Guid.NewGuid(), Now, Now, true, ["BOARD_UNPUBLISHED"]));
+    }
+
+    [Fact]
+    public void CompletionInspectionIsCycleScopedAndReasonlessWhileOverridesRequireConfirmationReason()
+    {
+        var cycleOne = Guid.NewGuid();
+        var cycleTwo = Guid.NewGuid();
+        var team = Guid.NewGuid();
+        var acknowledgement = new FinalReviewResolution(Guid.NewGuid(), Guid.NewGuid(), cycleOne, $"completion-time-inspected-{team:N}", "Completion time inspected", null, Guid.NewGuid(), Now, FinalReviewResolutionKind.CompletionTimeAcknowledgement, team);
+        Assert.Equal(cycleOne, acknowledgement.ReviewCycleId);
+        Assert.Null(acknowledgement.Reason);
+        Assert.NotEqual(cycleTwo, acknowledgement.ReviewCycleId);
+        Assert.Throws<ArgumentException>(() => new FinalReviewResolution(Guid.NewGuid(), Guid.NewGuid(), cycleOne, "pending", "Pending evidence", null, Guid.NewGuid(), Now));
+        var snapshot = new EventFinalizationSnapshot(Guid.NewGuid(), Guid.NewGuid(), 1, Now, Guid.NewGuid(), cycleOne, $"[\"{acknowledgement.Id}\"]", "inputs", "results");
+        Assert.Equal(cycleOne, snapshot.ReviewCycleId);
+        Assert.Contains(acknowledgement.Id.ToString(), snapshot.ConsumedResolutionIdsJson);
+    }
+
+    [Fact]
+    public void UnfinalizingDoesNotReopenSubmissionUploads()
+    {
+        var item = Event();
+        item.OpenSignups(Now);
+        item.CloseSignups(Now.AddHours(1));
+        item.StartEvent(Now.AddDays(2));
+        item.EndEvent(Now.AddDays(3));
+        item.FinalizeResults(Now.AddDays(4));
+        item.Unfinalize("Correct official placement");
+        Assert.Equal(EventState.AwaitingFinalReview, item.State);
+        Assert.Null(item.ReopenedSubmissionCutoffAt);
+        Assert.False(item.AcceptsNewSubmissions(Now.AddDays(4).AddMinutes(1)));
     }
 
     private static BingoEvent Event() => new(Guid.NewGuid(), "Test", $"test-{Guid.NewGuid():N}", "Test", "UTC", Now, Now.AddDays(1), Now.AddDays(2), Now.AddDays(3), Now.AddDays(4), 20, Guid.NewGuid(), Now);

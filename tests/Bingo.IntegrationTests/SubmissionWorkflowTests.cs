@@ -184,6 +184,36 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ArchivedPrivateEvidenceAllowsOnlyTheCreditedOwnerForRejectedHistory()
+    {
+        var setup = await SeedAsync(target: 3, allowHigherWeights: true);
+        await using var db = new ApplicationDbContext(options);
+        var participantAccount = Account.CreateWebsite(Guid.NewGuid(), "archived-owner", "ARCHIVED-OWNER", now);
+        var unrelatedAccount = Account.CreateWebsite(Guid.NewGuid(), "archived-other", "ARCHIVED-OTHER", now);
+        var participant = await db.EventParticipants.SingleAsync(x => x.Id == setup.ParticipantId);
+        participant.AssignOwner(participantAccount);
+        db.Accounts.AddRange(participantAccount, unrelatedAccount);
+        await db.SaveChangesAsync();
+        var result = await Service(db).CreateAsync(Command(setup));
+        await Service(db).RejectAsync(result.SubmissionId, setup.AdminId, "Archived test rejection");
+        var assetId = await db.EvidenceAssets.Where(x => x.SubmissionId == result.SubmissionId && x.Active).Select(x => x.Id).SingleAsync();
+        var ev = await db.Events.SingleAsync(x => x.Id == setup.EventId);
+        ev.EndEvent(now.AddHours(1)); ev.FinalizeResults(now.AddHours(1)); ev.Archive(now.AddHours(2));
+        await db.SaveChangesAsync();
+
+        async Task<IActionResult> ReadAs(Guid accountId)
+        {
+            var page = new Bingo.Web.Pages.EvidenceModel(db, new FakeEvidenceStorage(), new EvidenceAuthority(db), new FixedTimeProvider(now));
+            page.PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, accountId.ToString())], "test")) } };
+            return await page.OnGetAsync(assetId, CancellationToken.None);
+        }
+
+        Assert.IsType<FileStreamResult>(await ReadAs(participantAccount.Id));
+        Assert.False((await ReadAs(setup.CaptainId)) is FileStreamResult);
+        Assert.False((await ReadAs(unrelatedAccount.Id)) is FileStreamResult);
+    }
+
+    [Fact]
     public async Task EmergencyCredentialNeedsTheAuthoritativeReopenedWindowAndExplicitReenableForEverySubmissionMutation()
     {
         var setup = await SeedAsync(target: 3, allowHigherWeights: true);

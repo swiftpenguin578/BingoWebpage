@@ -86,6 +86,11 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("@blocker.Route", manage);
         Assert.Contains("eventLifecycle.StartNowAsync", manageHandler);
         Assert.Contains("eventLifecycle.EndNowAsync", manageHandler);
+        Assert.Contains("eventLifecycle.ResumePrematureEndAsync", manageHandler);
+        Assert.Contains("asp-page-handler=\"ResumeEvent\"", manage);
+        Assert.Contains("ConfirmResumeEvent", manage);
+        Assert.Contains("ReplacementEventEndsAt", manage);
+        Assert.Contains("ResumeReason", manage);
         Assert.Contains("destructiveLifecycle.DiscardAsync", manageHandler);
         Assert.Contains("destructiveLifecycle.CancelAsync", manageHandler);
         Assert.Contains("@page \"{id:guid}\"", identity);
@@ -126,6 +131,10 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("event-manage.js", questions);
         Assert.Contains("data-auto-submit data-payment-save", participant);
         Assert.Contains("<script src=\"~/js/event-manage.js\" asp-append-version=\"true\"></script>", participant);
+        Assert.Contains("asp-page-handler=\"FillVacancy\"", participant);
+        Assert.Contains("asp-page-handler=\"CompletePromotionFollowUp\"", participant);
+        Assert.Contains("Mark follow-up complete", participant);
+        Assert.Contains("ReplacementWaitingParticipantId", participant);
         Assert.DoesNotContain("selected=\"False\"", participant);
         Assert.Contains("minuteIncrement: 5", siteScript);
         Assert.Contains("time_24hr: true", siteScript);

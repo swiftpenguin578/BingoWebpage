@@ -210,8 +210,8 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         await using (var setup = new ApplicationDbContext(options))
         {
             var cancelled = Draft(cancelledId, "cancelled-public", actor.Id); cancelled.ConfigureSchedule(now.AddHours(-2), now.AddHours(-1), null, now.AddMinutes(-1), now.AddHours(2), 20); cancelled.MarkFirstPublic(now.AddHours(-2)); cancelled.OpenSignups(now.AddHours(-2)); cancelled.CloseSignups(now.AddHours(-1));
-            var archived = Finalized(archivedId, "archived-history", actor.Id); var final = new EventFinalizationSnapshot(Guid.NewGuid(), archivedId, 1, now, actor.Id);
-            setup.AddRange(actor, cancelled, new EventParticipant(Guid.NewGuid(), cancelledId, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated, null), archived, final); await setup.SaveChangesAsync();
+            var archived = Finalized(archivedId, "archived-history", actor.Id); var cycleId = Guid.NewGuid(); var final = new EventFinalizationSnapshot(Guid.NewGuid(), archivedId, 1, now, actor.Id, cycleId);
+            setup.AddRange(actor, cancelled, new EventParticipant(Guid.NewGuid(), cancelledId, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated, null), archived, new EventStateTransition(cycleId, archivedId, EventState.Live, EventState.AwaitingFinalReview, actor.Id, now.AddHours(-2), "Ended", effectiveAt: now.AddHours(-2)), final); await setup.SaveChangesAsync();
         }
         await using (var mutation = new ApplicationDbContext(options))
         {
@@ -352,6 +352,62 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         Assert.Empty(await verify.EventStateTransitions.Where(value => value.EventId == cancelledId).ToListAsync());
         Assert.Empty(await verify.AuditEntries.Where(value => value.EventId == cancelledId).ToListAsync());
         Assert.Empty(await verify.PersonalNotifications.Where(value => value.Route == $"/Admin/Events/Manage/{cancelledId}").ToListAsync());
+    }
+
+    [Fact]
+    public async Task ResumeEventPostReachesLifecycleBoundaryOnlyFromAwaitingFinalReview()
+    {
+        var admin = Account.CreateWebsite(Guid.NewGuid(), "Resume route Admin", "RESUME ROUTE ADMIN", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "resume-route-password"), false, now, incrementVersion: false);
+        var awaitingId = Guid.NewGuid();
+        var archivedId = Guid.NewGuid();
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var awaiting = Draft(awaitingId, "resume-route-awaiting", admin.Id);
+            awaiting.ConfigureSchedule(now.AddDays(-3), now.AddDays(-2), null, now.AddHours(-3), now.AddHours(2), 20);
+            awaiting.OpenSignups(now.AddDays(-3));
+            awaiting.CloseSignups(now.AddDays(-2));
+            awaiting.StartEvent(now.AddHours(-3));
+            awaiting.EndEvent(now.AddHours(-1));
+            var archived = Finalized(archivedId, "resume-route-archived", admin.Id);
+            archived.Archive(now);
+            setup.AddRange(admin, awaiting, archived);
+            await setup.SaveChangesAsync();
+        }
+
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var login = await client.GetStringAsync("/Account/Login");
+        using var loggedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = admin.PublicUsername!,
+            ["Input.Password"] = "resume-route-password",
+            ["__RequestVerificationToken"] = AntiforgeryToken(login)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, loggedIn.StatusCode);
+
+        var awaitingPage = await client.GetStringAsync($"/Admin/Events/Manage/{awaitingId}");
+        var replacementEnd = DateTimeOffset.UtcNow.AddHours(3);
+        using var resumeResponse = await client.PostAsync($"/Admin/Events/Manage/{awaitingId}?handler=ResumeEvent", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["EventVersion"] = InputValue(awaitingPage, "EventVersion"),
+            ["ConfirmResumeEvent"] = "true",
+            ["ResumeReason"] = "The event ended prematurely during the route test.",
+            ["ReplacementEventEndsAt"] = replacementEnd.ToString("O"),
+            ["__RequestVerificationToken"] = AntiforgeryToken(awaitingPage)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, resumeResponse.StatusCode);
+
+        await AssertReadOnlyPostAsync(client, archivedId, $"/Admin/Events/Manage/{archivedId}?handler=ResumeEvent");
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(EventState.Live, (await verify.Events.SingleAsync(value => value.Id == awaitingId)).State);
+        Assert.Single(await verify.EventStateTransitions.Where(value => value.EventId == awaitingId && value.ToState == EventState.Live).ToListAsync());
+        Assert.Single(await verify.AuditEntries.Where(value => value.EventId == awaitingId && value.Action == "event.resumed").ToListAsync());
+        Assert.Equal(EventState.Archived, (await verify.Events.SingleAsync(value => value.Id == archivedId)).State);
+        Assert.Empty(await verify.EventStateTransitions.Where(value => value.EventId == archivedId && value.ToState == EventState.Live).ToListAsync());
+        Assert.Empty(await verify.AuditEntries.Where(value => value.EventId == archivedId && value.Action == "event.resumed").ToListAsync());
     }
 
     [Fact]

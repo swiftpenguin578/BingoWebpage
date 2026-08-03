@@ -3,6 +3,7 @@ using System.Net;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Bingo.Application.Auditing;
+using Bingo.Application.Events;
 using Bingo.Application.Evidence;
 using Bingo.Application.Signups;
 using Bingo.Application.Teams;
@@ -13,6 +14,8 @@ using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Auditing;
+using Bingo.Infrastructure.Boards;
+using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Catalogue;
 using Bingo.Web.Events;
@@ -35,6 +38,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Localization;
 using Testcontainers.PostgreSql;
@@ -359,7 +363,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var emergencyInbox = await shell.GetNotificationsAsync(authentication.CreatePrincipal(emergency), CancellationToken.None);
 
         Assert.Equal(adminInbox.OverviewUrl, ownerInbox.OverviewUrl);
-        Assert.Equal("/Admin/Review", ownerInbox.OverviewUrl);
+        Assert.Equal("/notifications", ownerInbox.OverviewUrl);
         Assert.Equal(0, userInbox.Count);
         Assert.Equal(0, emergencyInbox.Count);
     }
@@ -846,6 +850,96 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var seeder = new DevelopmentScenarioSeeder(db, new DevelopmentEnvironment(), passwords, new SeedEvidenceStorage(), clock);
         var result = await seeder.ResetAndSeedAsync();
         await AssertSlice6FixtureInvariantsAsync(db, clock.GetUtcNow());
+
+        db.ChangeTracker.Clear();
+        var test84ForReopen = await db.Events.SingleAsync(item => item.Slug == "test-84-evidence-history");
+        var versionOneMetrics = await db.OfficialPlacements.AsNoTracking()
+            .Where(item => item.EventId == test84ForReopen.Id)
+            .OrderBy(item => item.TeamName)
+            .Select(item => new { item.TeamId, item.Placement, item.BoardComplete, item.BoardCompletedAt, item.CompletedLines, item.CompletedTiles, item.EhbTiebreak })
+            .ToListAsync();
+        var finalization = new EventFinalizationService(db, new PublicBoardService(db), clock);
+        var actor = new LifecycleActor(admin.Id, admin.LoginName);
+        var previousEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+        try
+        {
+            await finalization.UnfinalizeAsync(test84ForReopen.Id, "Focused re-finalization parity check.", true, actor);
+            var readiness = await finalization.GetReadinessAsync(test84ForReopen.Id) ?? throw new InvalidOperationException("TEST 84 readiness was not available after unfinalizing.");
+            Assert.Equal(EventState.AwaitingFinalReview, readiness.State);
+            foreach (var teamId in readiness.Placements.Where(item => item.BoardComplete).Select(item => item.TeamId).ToList())
+            {
+                await finalization.AcknowledgeCompletionTimeAsync(test84ForReopen.Id, teamId, admin.Id, readiness.EventVersion, readiness.ReviewCycleId);
+                readiness = await finalization.GetReadinessAsync(test84ForReopen.Id) ?? throw new InvalidOperationException("TEST 84 readiness was not available after acknowledging completion.");
+            }
+            foreach (var tie in readiness.Blockers.Where(item => item.CanOverride && !item.IsCompletionTimeAcknowledgement).ToList())
+            {
+                await finalization.ResolveBlockerAsync(test84ForReopen.Id, tie.Key, "Focused parity fixture tie acknowledgement.", true, admin.Id, readiness.EventVersion, readiness.ReviewCycleId);
+                readiness = await finalization.GetReadinessAsync(test84ForReopen.Id) ?? throw new InvalidOperationException("TEST 84 readiness was not available after resolving the tie.");
+            }
+            Assert.True(readiness.CanFinalize);
+            await finalization.FinalizeAsync(test84ForReopen.Id, actor, readiness.EventVersion);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", previousEnvironment);
+        }
+
+        db.ChangeTracker.Clear();
+        var versionTwoMetrics = await db.OfficialPlacements.AsNoTracking()
+            .Where(item => item.EventId == test84ForReopen.Id && item.FinalizationId == db.EventFinalizations.Where(final => final.EventId == test84ForReopen.Id && final.UnfinalizedAt == null).Select(final => final.Id).Single())
+            .OrderBy(item => item.TeamName)
+            .Select(item => new { item.TeamId, item.Placement, item.BoardComplete, item.BoardCompletedAt, item.CompletedLines, item.CompletedTiles, item.EhbTiebreak })
+            .ToListAsync();
+        Assert.Equal(versionOneMetrics, versionTwoMetrics);
+        Assert.Equal(2, await db.EventFinalizations.CountAsync(item => item.EventId == test84ForReopen.Id));
+        Assert.NotNull(await db.EventFinalizations.Where(item => item.EventId == test84ForReopen.Id && item.Version == 1).Select(item => item.UnfinalizedAt).SingleAsync());
+        Assert.Single(await db.EventFinalizations.Where(item => item.EventId == test84ForReopen.Id && item.Version == 2 && item.UnfinalizedAt == null).ToListAsync());
+        await finalization.ArchiveAsync(test84ForReopen.Id, true, actor);
+
+        var historyAssetId = await (from asset in db.EvidenceAssets
+                                    join submission in db.Submissions on asset.SubmissionId equals submission.Id
+                                    where submission.EventId == test84ForReopen.Id && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Rejected
+                                    select asset.Id).SingleAsync();
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+                .ConfigureServices(services =>
+                {
+                    services.RemoveAll<IEvidenceStorage>();
+                    services.AddSingleton<IEvidenceStorage, SeedEvidenceStorage>();
+                }));
+        using var ownerClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var unrelatedClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var anonymousClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        async Task SignInAsync(HttpClient client, string username, string password)
+        {
+            var login = await client.GetStringAsync("/Account/Login");
+            var token = Regex.Match(login, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
+            using var response = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["Input.Username"] = username,
+                ["Input.Password"] = password,
+                ["__RequestVerificationToken"] = token
+            }));
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        }
+
+        await SignInAsync(ownerClient, DevelopmentScenarioSeeder.EvidenceParticipantUsername, DevelopmentScenarioSeeder.EvidenceParticipantPassword);
+        var myEvents = await ownerClient.GetStringAsync("/Account/MyEvents");
+        var evidenceLink = Regex.Match(myEvents, "<a href=\"(/Evidence/[^\"]+)\">View evidence</a>").Groups[1].Value;
+        Assert.Equal($"/Evidence/{historyAssetId}", evidenceLink);
+        using var ownerEvidence = await ownerClient.GetAsync(evidenceLink);
+        Assert.Equal(HttpStatusCode.OK, ownerEvidence.StatusCode);
+
+        await SignInAsync(unrelatedClient, DevelopmentScenarioSeeder.ReplacementUsername, DevelopmentScenarioSeeder.ReplacementPassword);
+        var unrelatedEvents = await unrelatedClient.GetStringAsync("/Account/MyEvents");
+        Assert.DoesNotContain("TEST 84", unrelatedEvents, StringComparison.Ordinal);
+        using var unrelatedEvidence = await unrelatedClient.GetAsync(evidenceLink);
+        Assert.Equal(HttpStatusCode.Redirect, unrelatedEvidence.StatusCode);
+        Assert.Equal("/Account/AccessDenied", unrelatedEvidence.Headers.Location?.ToString());
+        using var anonymousEvidence = await anonymousClient.GetAsync(evidenceLink);
+        Assert.Equal(HttpStatusCode.NotFound, anonymousEvidence.StatusCode);
 
         async Task AssertEvidenceFixtureOwnersAsync()
         {
@@ -1351,11 +1445,18 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var test84 = Assert.Single(events, item => item.Slug == "test-84-evidence-history");
         var test62 = Assert.Single(events, item => item.Slug == "test-62-board-publication-setup");
 
+        await AssertDklEventInventoryAsync(db, test13, test15, seededAt);
+
         var test13Board = Assert.Single(await db.Boards.Where(item => item.EventId == test13.Id).ToListAsync());
         Assert.Equal(BoardState.Draft, test13Board.State);
+        Assert.Equal("DKL comparison board", test13Board.Name);
+        Assert.Equal(5, test13Board.Rows);
+        Assert.Equal(5, test13Board.Columns);
         Assert.Null(test13Board.ActiveApprovalSnapshotId);
         var test13TileIds = await db.BoardTiles.Where(item => item.BoardId == test13Board.Id).Select(item => item.Id).ToListAsync();
+        Assert.Equal(25, test13TileIds.Count);
         var test13RequirementIds = await db.BoardRequirementSnapshots.Where(item => test13TileIds.Contains(item.BoardTileId)).Select(item => item.Id).ToListAsync();
+        Assert.NotEmpty(test13RequirementIds);
         Assert.NotEmpty(await db.BoardRequirementDropSnapshots.Where(item => test13RequirementIds.Contains(item.RequirementId)).ToListAsync());
 
         Assert.Equal(EventState.SignupClosed, test62.State);
@@ -1384,6 +1485,18 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.True(test84.ActualEndedAt < seededAt);
         Assert.True(test84.SubmissionCutoffAt < seededAt);
         Assert.True(test84.ResultsPublished);
+        var historyCycle = Assert.Single(await db.EventStateTransitions
+            .Where(item => item.EventId == test84.Id && item.FromState == EventState.Live && item.ToState == EventState.AwaitingFinalReview)
+            .ToListAsync());
+        var historyFinalization = Assert.Single(await db.EventFinalizations
+            .Where(item => item.EventId == test84.Id && item.Version == 1)
+            .ToListAsync());
+        Assert.Equal(historyCycle.Id, historyFinalization.ReviewCycleId);
+        var historyPlacements = await db.OfficialPlacements
+            .Where(item => item.EventId == test84.Id)
+            .ToListAsync();
+        Assert.NotEmpty(historyPlacements);
+        Assert.All(historyPlacements, item => Assert.Equal(historyFinalization.Id, item.FinalizationId));
         var historyParticipant = await (from participant in db.EventParticipants
                                         join account in db.Accounts on participant.AccountId equals account.Id
                                         join membership in db.TeamMemberships on participant.Id equals membership.EventParticipantId
@@ -1399,10 +1512,119 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
 
         var liveBoard = Assert.Single(await db.Boards.Where(item => item.EventId == test15.Id).ToListAsync());
         Assert.Equal(BoardState.Published, liveBoard.State);
+        Assert.Equal("DKL comparison board", liveBoard.Name);
+        Assert.Equal(5, liveBoard.Rows);
+        Assert.Equal(5, liveBoard.Columns);
+        Assert.Equal(25, await db.BoardTiles.CountAsync(item => item.BoardId == liveBoard.Id));
         Assert.NotNull(liveBoard.ActiveApprovalSnapshotId);
         Assert.True(test15.BoardPublished);
         Assert.NotEmpty(await db.Submissions.Where(item => item.EventId == test15.Id).ToListAsync());
         await AssertSeedBoardRateSelectionsAsync(db, test15.Id, liveBoard.ActiveApprovalSnapshotId.Value);
+    }
+
+    private static async Task AssertDklEventInventoryAsync(
+        ApplicationDbContext db,
+        BingoEvent test13,
+        BingoEvent test15,
+        DateTimeOffset seededAt)
+    {
+        Assert.Equal("TEST 13 — DKL Board", test13.Name);
+        Assert.Equal("test-13-dkl-board", test13.Slug);
+        Assert.Equal("Europe/Copenhagen", test13.Timezone);
+        Assert.Equal(EventState.SignupClosed, test13.State);
+        Assert.True(test13.IsDevelopmentFixture);
+        Assert.Equal(20, test13.ParticipantCap);
+        Assert.Equal(5, test13.ExpectedBoardRows);
+        Assert.Equal(5, test13.ExpectedBoardColumns);
+        Assert.True(test13.EventStartsAt > seededAt.AddDays(6));
+        var test13Ends = Assert.IsType<DateTimeOffset>(test13.EventEndsAt);
+        Assert.Equal(test13Ends.AddMinutes(30), test13.SubmissionCutoffAt);
+        Assert.Null(test13.ActualStartedAt);
+        Assert.Null(test13.ActualEndedAt);
+        Assert.Null(test13.SubmissionsClosedAt);
+        Assert.False(test13.DraftLocked);
+        Assert.False(test13.BoardPublished);
+        Assert.Empty(await db.Teams.Where(item => item.EventId == test13.Id).ToListAsync());
+        Assert.Empty(await db.EventParticipants.Where(item => item.EventId == test13.Id && item.SignupStatus == SignupStatus.WaitingList).ToListAsync());
+
+        Assert.Equal("TEST 15 — DKL Live", test15.Name);
+        Assert.Equal("test-15-dkl-live", test15.Slug);
+        Assert.Equal("Europe/Copenhagen", test15.Timezone);
+        Assert.Equal(EventState.Live, test15.State);
+        Assert.True(test15.IsDevelopmentFixture);
+        Assert.Equal(60, test15.ParticipantCap);
+        Assert.Equal(6, test15.ExpectedTeamCount);
+        Assert.Equal(10, test15.ExpectedTeamSize);
+        Assert.Equal(5, test15.ExpectedBoardRows);
+        Assert.Equal(5, test15.ExpectedBoardColumns);
+        Assert.True(test15.EventStartsAt < seededAt);
+        var test15Ends = Assert.IsType<DateTimeOffset>(test15.EventEndsAt);
+        Assert.True(test15Ends > seededAt.AddDays(4));
+        Assert.Equal(test15Ends.AddMinutes(30), test15.SubmissionCutoffAt);
+        Assert.NotNull(test15.ActualStartedAt);
+        Assert.Null(test15.ActualEndedAt);
+        Assert.Null(test15.SubmissionsClosedAt);
+        Assert.True(test15.DraftLocked);
+        Assert.True(test15.BoardPublished);
+
+        var expectedTeams = new[]
+        {
+            (Name: "Touch kids, not grass", Slug: "touch-kids-not-grass"),
+            (Name: "Såeh cs?", Slug: "saeh-cs"),
+            (Name: "Morytania Monkeys", Slug: "morytania-monkeys"),
+            (Name: "The Agency", Slug: "the-agency"),
+            (Name: "Xen0%_d_rops", Slug: "xen0-d-rops"),
+            (Name: "Zalamalikum", Slug: "zalamalikum")
+        };
+        var teams = await db.Teams.Where(item => item.EventId == test15.Id).OrderBy(item => item.DraftPosition).ToListAsync();
+        Assert.Equal(expectedTeams.Length, teams.Count);
+        Assert.Equal(expectedTeams.Select(item => item.Name), teams.Select(item => item.Name));
+        Assert.Equal(expectedTeams.Select(item => item.Slug), teams.Select(item => item.Slug));
+        Assert.All(teams, team => Assert.True(team.Active));
+        Assert.All(teams, team => Assert.NotNull(team.FinalizedAt));
+
+        var activeMemberships = await db.TeamMemberships
+            .Where(item => teams.Select(team => team.Id).Contains(item.TeamId) && item.LeftAt == null)
+            .ToListAsync();
+        Assert.Equal(60, activeMemberships.Count);
+        Assert.Equal(6, activeMemberships.Count(item => item.Role == TeamMembershipRole.Captain));
+        Assert.Equal(6, activeMemberships.Count(item => item.Role == TeamMembershipRole.CoCaptain));
+        Assert.Equal(48, activeMemberships.Count(item => item.Role == TeamMembershipRole.Participant));
+        Assert.Equal(60, await db.EventParticipants.CountAsync(item => item.EventId == test15.Id && item.SignupStatus == SignupStatus.Confirmed));
+
+        var waiting = await db.EventParticipants
+            .Where(item => item.EventId == test15.Id && item.SignupStatus == SignupStatus.WaitingList)
+            .SingleAsync();
+        Assert.Equal(DevelopmentScenarioSeeder.ReplacementUsername, await db.Accounts
+            .Where(account => account.Id == waiting.AccountId)
+            .Select(account => account.LoginName)
+            .SingleAsync());
+        Assert.NotEmpty(await db.EventParticipantCharacters.Where(item => item.EventParticipantId == waiting.Id && item.EventRole == EventCharacterRole.Playing && item.ReleasedAt == null).ToListAsync());
+
+        var firstTeam = teams[0];
+        var firstTeamOwners = await (from membership in db.TeamMemberships
+                                     join participant in db.EventParticipants on membership.EventParticipantId equals participant.Id
+                                     join account in db.Accounts on participant.AccountId equals account.Id
+                                     where membership.TeamId == firstTeam.Id && membership.LeftAt == null
+                                     select new { membership.Role, account.LoginName }).ToListAsync();
+        Assert.Contains(firstTeamOwners, item => item.Role == TeamMembershipRole.Captain && item.LoginName == DevelopmentScenarioSeeder.EvidenceCaptainUsername);
+        Assert.Contains(firstTeamOwners, item => item.Role == TeamMembershipRole.CoCaptain && item.LoginName == DevelopmentScenarioSeeder.EvidenceCoCaptainUsername);
+        Assert.Contains(firstTeamOwners, item => item.Role == TeamMembershipRole.Participant && item.LoginName == DevelopmentScenarioSeeder.EvidenceParticipantUsername);
+
+        var liveAccesses = await db.AccountEventAccesses.Where(item => item.EventId == test15.Id).ToListAsync();
+        Assert.Equal(7, liveAccesses.Count);
+        Assert.Equal(6, liveAccesses.Count(item => item.Enabled));
+        Assert.All(liveAccesses, item => Assert.NotEqual(Guid.Empty, item.TeamId));
+        Assert.Equal(1, await db.Accounts.CountAsync(item => item.LoginName == DevelopmentScenarioSeeder.EvidenceDisabledEmergencyUsername));
+
+        var draft = await db.DraftSessions.Where(item => item.EventId == test15.Id).SingleAsync();
+        Assert.Equal(DraftState.Finalized, draft.State);
+        Assert.Equal(48, await db.DraftPicks.CountAsync(item => item.DraftSessionId == draft.Id && item.UndoneAt == null));
+        Assert.Equal(1, await db.BoardApprovalSnapshots.CountAsync(item => item.BoardId == (db.Boards.Where(board => board.EventId == test15.Id).Select(board => board.Id).Single())));
+        Assert.Equal(1, await db.Submissions.CountAsync(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending));
+        Assert.Equal(1, await db.Submissions.CountAsync(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Rejected));
+        Assert.True(await db.Submissions.AnyAsync(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Approved));
+        Assert.True(await db.EvidenceAssets.AnyAsync(item => item.SubmissionId == db.Submissions.Where(submission => submission.EventId == test15.Id && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending).Select(submission => submission.Id).Single()));
     }
 
     private static async Task AssertSeedBoardRateSelectionsAsync(ApplicationDbContext db, Guid eventId, Guid approvalId)

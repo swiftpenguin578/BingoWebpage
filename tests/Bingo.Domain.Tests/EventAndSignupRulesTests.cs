@@ -169,7 +169,7 @@ public sealed class EventAndSignupRulesTests
     [Fact]
     public void UnfinalizingSnapshotPreservesItsOfficialPlacementsAsHistory()
     {
-        var snapshot = new EventFinalizationSnapshot(Guid.NewGuid(), Guid.NewGuid(), 1, Now, Guid.NewGuid());
+        var snapshot = new EventFinalizationSnapshot(Guid.NewGuid(), Guid.NewGuid(), 1, Now, Guid.NewGuid(), Guid.NewGuid());
         snapshot.Unfinalize(Now.AddHours(1), Guid.NewGuid(), "Correct an approval");
         Assert.False(snapshot.Active);
         Assert.Equal("Correct an approval", snapshot.UnfinalizeReason);

@@ -82,7 +82,10 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
             var tile = new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Completed retained tile", "Description", "Evidence", 1);
             var requirement = new BoardRequirementSnapshot(requirementId, tileId, 0, 3, true, true, "Complete it", true);
             var team = new Team(teamId, eventId, "Retained focus team", $"retained-focus-team-{eventId:N}", TeamFormationType.Preformed, null, false);
-            retained.AddRange(owner, eventItem, board, tile, requirement, team);
+            retained.Add(owner);
+            await retained.SaveChangesAsync();
+            await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO events (id, name, slug, description, timezone, state, signup_opens_at, signup_closes_at, event_starts_at, event_ends_at, submission_cutoff_at, participant_cap, waiting_list_enabled, require_signup_code, participant_list_published, draft_results_published, team_rosters_published, board_published, results_published, draft_locked, created_by_account_id, created_at) VALUES ({eventItem.Id}, {eventItem.Name}, {eventItem.Slug}, {""}, {eventItem.Timezone}, {"Draft"}, {now}, {now}, {now}, {now.AddDays(1)}, {now.AddDays(1)}, {20}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {ownerId}, {now})");
+            retained.AddRange(board, tile, requirement, team);
             await retained.SaveChangesAsync();
             await retained.Database.ExecuteSqlInterpolatedAsync($"""
                 INSERT INTO submission_contributions
@@ -460,10 +463,12 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         var lifecycle = new EventLifecycleService(db, new NoopSignupLifecycleService(), new FixedTimeProvider(now));
         var item = await db.Events.SingleAsync(x => x.Id == fixture.EventId);
+        var readiness = await lifecycle.GetStartReadinessAsync(item.Id);
         var result = await lifecycle.StartNowAsync(item.Id, item.Version, true, null, new(Guid.NewGuid(), "test-admin"));
 
         Assert.False(result.Succeeded);
         Assert.Contains("Playing assignment", result.Error, StringComparison.Ordinal);
+        Assert.Equal($"/Admin/Events/Participant/{fixture.EventId}/Participants/{fixture.ParticipantId}", Assert.Single(readiness!.Blockers, x => x.Code == "PARTICIPANT_PLAYING_ASSIGNMENT_INVALID").Route);
         Assert.Equal(EventState.SignupClosed, (await db.Events.SingleAsync(x => x.Id == fixture.EventId)).State);
         Assert.Empty(await db.EventParticipantCharacterSwaps.Where(x => x.EventParticipantId == fixture.ParticipantId).ToListAsync());
     }

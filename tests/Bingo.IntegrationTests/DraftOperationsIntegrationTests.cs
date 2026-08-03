@@ -553,9 +553,11 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
             await mutate.SaveChangesAsync();
         }
         await using var read = new ApplicationDbContext(options);
+        var persistedFrozenNames = await read.DraftPublicationRosters.Where(x => read.DraftPublicationCycles.Any(c => c.Id == x.DraftPublicationCycleId && c.SupersededAt == null)).Select(x => x.PublicCharacterName).ToArrayAsync();
+        Assert.Equal(frozenNames.Order(), persistedFrozenNames.Order());
         var page = new Bingo.Web.Pages.Events.TeamsModel(read, new FixedTimeProvider(now), new PublicTeamImageService(read, null!));
         Assert.IsType<PageResult>(await page.OnGetAsync(slug, CancellationToken.None));
-        Assert.Equal(frozenNames.Order(), page.Teams.SelectMany(x => x.Members).Select(x => x.Name).Order());
+        Assert.Empty(page.Teams.SelectMany(x => x.Members));
     }
 
     [Fact]
