@@ -16,6 +16,8 @@ The approved visual system and completed page decisions remain valuable constrai
 
 ## 2. Rules for the overhaul
 
+The permanent public Rules page and the source-controlled **How to submit drops** page remain planned product behavior, but are intentionally sequenced after the site-wide UI overhaul. Do not add either route, placeholder, or workflow link during the overhaul; implement them afterward in the completed visual system so screenshots and videos use the final presentation.
+
 - Preserve approved business rules unless an explicitly approved Milestone 8A feature changes them.
 - Do not redesign several unrelated workflows at once.
 - Start every pass by reviewing the current page with the user before making substantial visual decisions.
@@ -480,7 +482,7 @@ Before resuming the ordered passes:
 **Pages**
 
 - `Pages/Admin/Events/Manage.cshtml`
-- Target `Pages/Admin/Rules.cshtml`
+- Deferred post-overhaul target: `Pages/Admin/Rules.cshtml`
 
 **Goals**
 
@@ -498,7 +500,7 @@ Before resuming the ordered passes:
 - Show explicit success feedback for every operation.
 - Keep evidence-code management understandable without dominating the page.
 - Make links name the destination event rather than relying on surrounding context.
-- Provide one focused editor for the permanent global Rules page. It remains editable by enabled administrators at any time and is not presented as event configuration.
+- Keep the permanent global Rules editor as a post-overhaul target; do not add its route, placeholder, or workflow links during this overhaul. It remains an enabled-administrator workflow and is not event configuration when implemented.
 - Do not provide an in-application editor for source-controlled how-to pages.
 
 **Approval gate**
@@ -779,8 +781,8 @@ Do not add tile duplication, copy-from-event, import, or reusable-template actio
 - `Pages/Events/Teams.cshtml`
 - `Pages/Events/TeamBoard.cshtml`
 - `Pages/Events/Tile.cshtml`
-- Target `Pages/Rules.cshtml`
-- Target source-controlled public pages such as `Pages/HowTo/SubmitDrops.cshtml`
+- Deferred post-overhaul target: `Pages/Rules.cshtml`
+- Deferred post-overhaul target: source-controlled public pages such as `Pages/HowTo/SubmitDrops.cshtml`
 - `Pages/Shared/_PublicProgressScripts.cshtml`
 
 **Goals**
@@ -797,8 +799,8 @@ Do not add tile duplication, copy-from-event, import, or reusable-template actio
 - Keep team switching and previous/next navigation clear.
 - Make tile progress, requirements, approved evidence, and credited player information readable.
 - Keep evidence lightbox behavior consistent.
-- Make the permanent global Rules page and relevant source-controlled how-to pages easy to reach from event and submission workflows without presenting them as event-owned content or repeating general instructions on every tile.
-- Show **Edit rules** to enabled administrators on the Rules page. How-to pages have no in-application edit control.
+- Keep the permanent global Rules page and relevant source-controlled how-to pages planned for implementation after this overhaul; do not add routes or workflow links during the overhaul. When implemented, make them easy to reach from event and submission workflows without presenting them as event-owned content or repeating general instructions on every tile.
+- Preserve the approved future behavior: **Edit rules** is for enabled administrators on the Rules page, while how-to pages have no in-application edit control.
 - Retain fast SignalR updates with unobtrusive fallback refresh behavior.
 - Provide a practical mobile layout rather than shrinking the desktop board beyond usability.
 

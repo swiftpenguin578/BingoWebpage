@@ -408,7 +408,7 @@ public sealed class BingoEvent
 
     private void EnsureIdentityEditable()
     {
-        if (State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live))
+        if (State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
             throw new InvalidOperationException("Event identity cannot change in this event state.");
     }
 

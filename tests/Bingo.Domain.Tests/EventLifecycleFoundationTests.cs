@@ -98,6 +98,20 @@ public sealed class EventLifecycleFoundationTests
         Assert.Equal(Now.AddDays(5).AddMinutes(30), item.SubmissionCutoffAt);
     }
 
+    [Fact]
+    public void IdentityAndScheduleEditsAreSupportedBeforeLiveButRejectedDuringLive()
+    {
+        var item = new BingoEvent(Guid.NewGuid(), "Original", "original", "Europe/Copenhagen", Guid.NewGuid(), Now);
+        item.UpdateIdentity("Updated", "updated", "Description", "UTC");
+        item.ConfigureSchedule(null, null, null, Now.AddDays(1), Now.AddDays(2), 10);
+        item.OpenSignups(Now);
+        item.CloseSignups(Now);
+        item.StartEvent(Now);
+
+        Assert.Throws<InvalidOperationException>(() => item.UpdateIdentity("Live update", "updated", null, "UTC"));
+        Assert.Throws<InvalidOperationException>(() => item.ConfigureSchedule(null, null, null, Now.AddDays(3), Now.AddDays(4), 10));
+    }
+
     [Theory]
     [InlineData(0, 5)]
     [InlineData(5, 9)]
