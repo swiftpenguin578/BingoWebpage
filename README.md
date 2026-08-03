@@ -30,6 +30,17 @@ dotnet ef database update \
   --startup-project src/Bingo.Web
 ```
 
+When the configured local Development database is explicitly disposable, recreate only that database (never the Docker volume) with:
+
+```bash
+DOTNET_ENVIRONMENT=Development dotnet ef database drop --force \
+  --project src/Bingo.Infrastructure \
+  --startup-project src/Bingo.Web
+DOTNET_ENVIRONMENT=Development dotnet ef database update \
+  --project src/Bingo.Infrastructure \
+  --startup-project src/Bingo.Web
+```
+
 Run the web application:
 
 ```bash
@@ -95,11 +106,11 @@ Stop the running web application, keep PostgreSQL running, and execute:
 dotnet run --project src/Bingo.Web -- --reset-test-data
 ```
 
-The command resets generated workflow data and creates only `TEST 13 — DKL Board`, `TEST 15 — DKL Live`, and `TEST 62 — Board publication setup`. It preserves the retained OSRS catalogue, bootstrap/Super Admin, and the secondary seeded Admin. All events are internal Development fixtures rather than automatic public current events.
+The command resets generated workflow data and creates exactly `TEST 13 — DKL Board`, `TEST 15 — DKL Live`, `TEST 62 — Board publication setup`, and `TEST 84 — Evidence history`. It preserves the retained OSRS catalogue, bootstrap/Super Admin, and the secondary seeded Admin. All events are internal Development fixtures rather than automatic public current events; obsolete or manually created disposable events are removed.
 
 Use `TEST 13 — DKL Board` to review live catalogue derivation, private board editing, approval/unapproval, and the private demonstration preview. `TEST 62 — Board publication setup` is SignupClosed with finalized rosters and an approved but private board: it is the direct separate-publication, start-blocker, frozen-public-board, and exceptional-correction fixture. `TEST 15 — DKL Live` provides the retained full live DKL board, teams, accounts, evidence, and approved progress behavior.
 
-The command prints every seeded captain username. All seeded captain accounts use the local-only password `SeedCaptain!1234`. Your existing administrator username and password are unchanged. It also creates or refreshes the development-only administrator `SeedAdminTwo` with password `SeedAdmin!1234`, which is used to test simultaneous board editing and draft control from a second browser session.
+The command prints every seeded captain username. All seeded captain accounts use the local-only password `SeedCaptain!1234`. Your existing administrator username and password are unchanged. It also creates or refreshes the development-only administrator `SeedAdminTwo` with password `SeedAdmin!1234`, the linked waiting-list account `SeedReplacement` with password `SeedReplacement!1234`, and the TEST 15 evidence accounts documented in `MANUAL_TEST_CHECKLIST.md`.
 
 For public-board testing, open `TEST 15 — DKL Live` directly. Approval, reversal, and evidence-visibility changes invalidate open public pages through SignalR; a 30-second refresh remains as a fallback.
 

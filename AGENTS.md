@@ -120,6 +120,18 @@ That readiness review must also establish a lean implementation contract:
 - An unapproved material addition or omitted approved behavior is a review blocker until it is removed, completed, or explicitly approved and added to the plan. Incidental tests, migrations, documentation, and small supporting code are judged by whether they are proportionate to approved behavior, not by requiring a one-to-one plan bullet for every file.
 - Focused remediation does not silently revise the baseline. If a manual finding or review correction changes approved behavior rather than merely fixing its implementation, obtain the user's decision and update the plan first.
 
+### Manual-acceptance preflight
+
+After implementation review/remediation clears and before asking the user to run a slice's manual checklist, perform one bounded manual-acceptance preflight against the exact written checklist and authoritative Development reset state. This is a reachability and integration check, not another broad architecture review or a requirement for one automated test per checklist sentence.
+
+- Walk each manual journey in order from its documented starting state. Verify the required seeded account, role, event state, record, control, and navigation path exist.
+- Follow the application's real rendered links and forms through authenticated HTTP or the smallest equivalent route-level scenario. Do not prove reachability by constructing the destination URL directly when the checklist expects navigation through the site.
+- Verify each request survives page filters and authorization, reaches the intended handler/service, returns a renderable destination, and leaves the next checklist step reachable.
+- For notifications and Admin actions, follow the actual emitted destination and verify it resolves for the intended role. Checking only notification presence, count, or URL text is insufficient.
+- One focused journey may prove several consecutive checklist steps. Add coverage only where it protects a plausible integration seam that existing focused tests do not exercise.
+- Report visual clarity, responsive composition, wording preference, and subjective usability as manual-only unless they prevent the journey. Do not expand the preflight into UI redesign, exhaustive browser automation, full-suite execution, or unrelated cleanup.
+- If the preflight finds a concrete defect, stop the affected manual journey, apply only the smallest authorized remediation, rerun that journey, and then resume the remaining preflight. Hand the checklist to the user only when every non-visual journey is reachable or an explicit known limitation is recorded.
+
 ## UI work
 
 - Follow the applicable pass and approval gate in `UI_OVERHAUL_ROADMAP.md`.

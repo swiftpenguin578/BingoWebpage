@@ -306,11 +306,34 @@ Domain `156/156`, Application `83/83`, Browser `67/67`, and Integration `230/230
 
 ## Slice 9 — Event end, live replacement, finalization, notifications, and history
 
-- [ ] Exact manual cases to be finalized before Slice 9 handoff.
-- [ ] Scheduled/early end, upload grace, cutoff, and UTC screenshot review.
-- [ ] Withdrawal, vacancy, optional replacement, and captain-warning paths.
-- [ ] Blocker resolution, finalization/unfinalization, archive, and participant read-only history.
-- [ ] Personal notification versus unresolved-action behavior.
+- [x] Consolidated manual cases finalized for the Slice 9 handoff.
+- [x] Scheduled/early end, upload grace, cutoff, and UTC screenshot review.
+- [x] Withdrawal, vacancy, optional replacement, and captain-warning paths.
+- [x] Blocker resolution, finalization/unfinalization, archive, and participant read-only history.
+- [x] Personal notification versus unresolved-action behavior.
+
+### Slice 9 consolidated manual checklist — Passes 9.1–9.3
+
+Development reset: `dotnet run --project src/Bingo.Web -- --reset-test-data` after migrations. Reset is idempotent and retains exactly TEST 13 (`test-13-dkl-board`), TEST 15 (`test-15-dkl-live`), TEST 62 (`test-62-board-publication-setup`), and TEST 84 (`test-84-evidence-history`); outdated or manually created disposable events are removed. The linked `SeedReplacement` waiting-list participant belongs to TEST 15. Use `SeedAdminTwo` / `SeedAdmin!1234` for Admin actions, `SeedReplacement` / `SeedReplacement!1234` for the linked replacement, `SeedEvidenceCaptain` / `SeedEvidence!1234`, `SeedEvidenceCoCaptain` / `SeedEvidenceCoCaptain!1234`, and `SeedEvidenceParticipant` / `SeedEvidenceParticipant!1234` for the existing TEST 15 evidence journeys. Use the reset/bootstrap owner credentials where the existing Admin route requires the owner identity. If a retained database fails the final-review migration preflight, record the reported event and official-snapshot IDs, reconcile the retained transition history from backup/operational records, and rerun migrations before attempting reset; do not delete the database to bypass the preflight.
+The user externally completed two post-correction resets against the recreated local Development database through the Release `--no-build` path, both with exit code `0`. Direct inventory confirms the exact four approved events and complete DKL/Slice 9 fixture relationships described below; no unrelated manual/test events remain.
+
+Approved DKL fixture inventory, recreated on every reset:
+
+- `TEST 13 — DKL Board` / `test-13-dkl-board`: `SignupClosed`, `Europe/Copenhagen`, future schedule, 20-person cap, 5×5 `DKL comparison board` in `Draft`, no teams or waiting-list rows, and no publication pointer. Use `/Events/test-13-dkl-board/Board` and the Admin board/editor routes for private derivation, approval, and preview checks.
+- `TEST 15 — DKL Live` / `test-15-dkl-live`: `Live`, started one hour before reset, scheduled five-day end with the normal +30-minute cutoff, 60 confirmed drafted participants across six named teams of ten, finalized draft with 48 picks, six enabled Captain authorities plus the disabled emergency coverage account, published 5×5 DKL board/approval snapshots, approved progress, one Pending and one Rejected review fixture, and one linked `SeedReplacement` waiting participant with a frozen Playing account. Use `/Events/test-15-dkl-live/Board`, `/Admin/Events/Participant/{eventId}/Participants/{participantId}`, `/Admin/Events/Manage/{eventId}`, `/Admin/Review`, and `/Captain`/`/Evidence` routes for the Slice 9 journeys.
+
+Required routes: `/Admin/Events`, `/Admin/Events/Manage/{eventId}`, `/Admin/Events/Finalize/{eventId}`, `/Admin/Events/Participant/{eventId}/Participants/{participantId}`, `/Admin/Review`, `/notifications`, `/Account/MyEvents`, `/Events/{slug}/Board`, and `/Evidence/{id}`.
+
+- [x] TEST 15: exercise the due/premature-end path, confirmed reasoned resume with a future replacement end, stale/repeated recovery rejection, and the second authoritative end; confirm ordinary uploads/cutoffs and emergency access are not silently reopened.
+- [x] TEST 15: withdraw a live participant, leave the vacancy open, promote `SeedReplacement`, verify prospective membership/authority/history, and mark the waiting-list follow-up complete. Confirm notification reading does not resolve the Admin action.
+- [x] Final review: use a no-completed-team event to confirm no completion acknowledgement is required; use completed teams to confirm each team requires **Completion time inspected**. Verify reasoned correction, reinspection after correction, and strongly confirmed/reasoned exceptional override.
+- [x] Finalize, unfinalize with confirmation/reason, re-finalize, and archive through `/Admin/Events/Finalize/{eventId}`. Confirm both official snapshot cycles/resolutions remain visible, results are deterministic, and uploads do not reopen.
+- [x] Finalization: submit the normal finalization POST without the bound confirmation value and confirm it is denied; submit the checked confirmation and confirm official publication succeeds. Review a resumed-cycle submission timestamp in the final-review gap and confirm the Admin review page identifies it as outside an eligible live interval.
+- [x] TEST 84: archive the seeded finalized event, open `/Account/MyEvents`, follow the archived evidence-history link, and confirm the former participant sees only their own rejected/withdrawn history read-only. Confirm another participant, team-private evidence, submission, edit, review, and public rejected evidence remain unavailable.
+- [x] As Admin, inspect `/notifications`: personal unread count/read state and Admin action count/list remain separate. Confirm direct destinations for pending review, waiting follow-up, postponed start, vacancy, and missing Captain appear only while authoritative work is unresolved.
+- [x] Follow the waiting-list action link after the vacancy is filled and confirm the promoted participant route still renders the explicit Mark follow-up complete form; complete it once and repeat the stale/idempotent POST.
+
+This checklist is the compact Slice 9 manual handoff. S9-01 through S9-07 passed; S9-05 preserved placements, metrics, and Version 1 history after unchanged TEST 84 re-finalization. S9-06 accepted the owner-rendered archived evidence link, current raw-image display, and unrelated/anonymous privacy boundaries; viewer presentation is deferred to the UI overhaul. Consolidated Slice 9 manual acceptance and final automated verification are approved; Slice 10 was not started.
 
 ## Slice 10 — Wise Old Man integration
 
