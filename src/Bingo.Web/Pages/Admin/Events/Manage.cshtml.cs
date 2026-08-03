@@ -316,7 +316,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     {
         "DRAFT_NOT_FINALIZED" => new(code, "Finalize the team draft.", $"/Admin/Events/Draft/{eventId}"),
         "BOARD_NOT_PUBLISHED" => new(code, "Publish the approved board.", $"/Admin/Events/Board/{eventId}"),
-        "TEAM_ACCESS_MISSING" => new(code, "Give every active team a current Captain or enabled emergency credential.", $"/Admin/Events/Teams/{eventId}"),
+        "TEAM_ACCESS_MISSING" => new(code, "Give every active team a current Captain or enabled emergency credential.", $"/Admin/Events/Draft/{eventId}"),
         "LIFECYCLE_STATE_INVALID" when eventState == EventState.Draft => new(code, "Signup has not been opened and closed. Open signup, then close it before starting the event.", $"/Admin/Events/Manage/{eventId}"),
         "LIFECYCLE_STATE_INVALID" when eventState == EventState.SignupOpen => new(code, "Signup is still open. Close signup before starting the event.", $"/Admin/Events/Manage/{eventId}"),
         "LIFECYCLE_STATE_INVALID" => new(code, "The scheduled start was postponed until signup lifecycle requirements are resolved.", $"/Admin/Events/Manage/{eventId}"),

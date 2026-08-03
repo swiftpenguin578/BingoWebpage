@@ -268,7 +268,7 @@ public sealed class EventLifecycleService(
                                     where access.EventId == item.Id && access.Enabled && account.Active && account.AccountType == AccountType.EmergencyCaptain
                                     select access.TeamId).Distinct().ToListAsync(ct);
         foreach (var team in activeTeams.Where(x => !captainTeams.Contains(x.Id) && !emergencyTeams.Contains(x.Id)))
-            blockers.Add(new("TEAM_ACCESS_MISSING", $"{team.Name} needs a current Captain or enabled emergency credential.", $"/Admin/Events/Teams/{item.Id}"));
+            blockers.Add(new("TEAM_ACCESS_MISSING", $"{team.Name} needs a current Captain or enabled emergency credential.", $"/Admin/Events/Draft/{item.Id}"));
 
         var developmentMode = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
         var current = await db.Events.AsNoTracking()

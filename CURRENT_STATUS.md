@@ -4,7 +4,7 @@
 **Branch:** accepted `main` at `2301d63ae166873a750266ce5ee6a087f3039054`
 **Planning decision:** 2026-08-03
 
-**Post-functional Application Atlas (2026-08-03):** Created `APPLICATION_ATLAS.md` and the standalone dependency-free `APPLICATION_ATLAS.html` from the clean accepted main commit. The Atlas maps roles/navigation, all event states/transitions and feature substates, workflow swimlanes, qualified capabilities, automation/idempotency/recovery, data/history ownership, personal notifications versus Admin actions, full feature classifications, evidence limitations, and a ranked decision ledger. It changes no production code, tests, migrations, configuration, runtime data, or Git history. The top verified user-impact finding is the missing-Captain readiness route: `EventLifecycleService` and Manage’s blocker mapping emit `/Admin/Events/Teams/{eventId}`, while team/authority management exists at `/Admin/Events/Draft/{eventId}`. Nothing in the Atlas authorizes a fix or UI work; user review remains the next gate.
+**Application Atlas F-01 remediation (2026-08-03):** Corrected only the missing-Captain readiness destination in `EventLifecycleService` and Manage’s blocker mapping from the nonexistent `/Admin/Events/Teams/{eventId}` to the existing `/Admin/Events/Draft/{eventId}` team/authority workspace. Focused tests prove both independent producers and reject the obsolete route. `APPLICATION_ATLAS.md` and `APPLICATION_ATLAS.html` retain F-01 as resolved historical evidence. No UI overhaul or Ponytail cleanup was started.
 
 **Slice 10 consolidated manual acceptance (2026-08-03):** The user approved S10-01 through S10-06. S10-01 passed with one note: the successful action at checklist step 8 had no visible feedback; cached/team Activity EHB is functionally correct, while its current presentation is visually broken and deferred to the UI overhaul. S10-02 passed; the Development fake accepting arbitrary non-missing names in Success mode is deterministic test behavior, while production remains authoritative to real WoM. S10-03 passed after the Live competition-synchronization capability correction, S10-04 passed, and S10-05 passed with screenshots confirming stale cached activity, timestamp, totals/ranks/coverage after event end; its visual table layout is deferred to the UI overhaul. S10-06 passed and the Development fake prevented real WoM calls. The user explicitly approved the Admin manual “Refresh cached activity” feature. Manual Slice 10 acceptance is complete; the visual notes are deferred presentation work, not functional blockers.
 
@@ -352,7 +352,7 @@ The retained Slice 7 migration rehearsal and affected Slice 7 class passed `13/1
 
 ## Remaining work
 
-- Review the Application Atlas findings and make explicit product decisions before any functional correction, removal, cleanup, or Milestone 9 UI work.
+- Review the remaining Application Atlas findings and make explicit product decisions before further functional correction, removal, cleanup, or Milestone 9 UI work. F-01 is resolved.
 - The deferred Ponytail cleanup list is non-blocking and is not an Atlas defect.
 
 ## Historical summary
