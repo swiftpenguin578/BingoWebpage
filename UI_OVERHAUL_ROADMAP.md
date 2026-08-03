@@ -2,6 +2,8 @@
 
 **Status:** Paused at the current Pass 12 checkpoint while Planning Pass 2 defines and delivers functional expansion under Milestone 8A.
 
+**Slice 10 presentation deferral (2026-08-03):** Manual acceptance found cached/team Activity EHB functionally correct but visually broken, including the retained activity table presentation after event end; one successful S10-01 action also had no visible feedback. These are deferred presentation/feedback items for the UI overhaul and are not functional blockers for accepted Slice 10 behavior.
+
 **Last updated:** 2026-07-25
 
 **Related documents:** `IMPLEMENTATION_ROADMAP.md`, `PRODUCT_REQUIREMENTS.md`

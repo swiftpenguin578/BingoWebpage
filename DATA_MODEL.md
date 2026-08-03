@@ -451,6 +451,28 @@ ADMIN_CORRECTION
 
 The assignment created by the built-in primary Account question supplies the participant's draft EHB. Secondary values never contribute to that derived draft value. A fetched value records `WISE_OLD_MAN` and `ehb_fetched_at`; editing it afterward changes the source to `MANUAL`. The event snapshot remains authoritative after signup closes even if the external profile changes.
 
+My accounts stores only an optional numeric saved-EHB default. A WoM lookup performed there may populate that value, but it does not add durable source/fetch metadata to `AccountOsrsCharacter`. Using the saved default later is therefore `MANUAL`. Only a fresh signed lookup submitted and verified with an event signup may create a `WISE_OLD_MAN` event snapshot.
+
+#### Slice 10 Wise Old Man event integration
+
+An event may have at most one Wise Old Man integration-state record. It owns:
+
+- event and competition identity plus validated competition title/start/end;
+- latest generation identity and completeness/error state;
+- last request and successful-fetch time;
+- separate next normal-cycle and retry due times;
+- retry count;
+- opaque synchronization lease owner and expiry;
+- observed request-budget diagnostics needed by Admin projection.
+
+The competition interval must match the configured Bingo start/end within five minutes unless an Admin explicitly synchronizes a pre-Live event schedule to the exact competition instants through the existing schedule boundary. Live correction requires an already matching interval; AwaitingFinalReview, Finalized, Archived, and Cancelled configuration is immutable.
+
+Each synchronization attempt snapshots a generation identity, competition ID, and fingerprint of all current unreleased `PLAYING` event assignments. Cached per-character activity rows belong to that generation and store the event, participant, character, gained EHB, and fetch time. Alt/informational and released assignments are excluded.
+
+Lease acquisition and HTTP do not share a database transaction. Final cache publication succeeds only while the event remains `LIVE` and the competition ID, opaque lease owner, and assignment fingerprint still match. A later complete or partial generation is authoritative for projection and replaces older displayed values, although older rows may remain retained for recovery/diagnosis. A successful response with missing expected accounts persists only matched current-generation rows; missing accounts have no row, are never represented as zero, and never carry forward an older value. Partial projections show available totals and coverage when at least one expected account matches; zero matches show no rankings.
+
+Participant activity is the sum of their current generation's matched regular-character deltas. Team total sums current-member participant totals once; team average divides by current participants with at least one matched account rather than accounts. Every participant tied for the highest available total is a provisional MVP; coverage makes the partial state explicit. Synchronization stops outside `LIVE`; the latest generation state is retained without mutation and may resume only after a legitimate return to `LIVE`.
+
 ### 6.7 EventParticipantCharacterSwap
 
 Append-only history that determines the one active/drop-eligible character for a participant at any instant.

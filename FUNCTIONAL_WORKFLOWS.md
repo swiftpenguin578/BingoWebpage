@@ -834,13 +834,24 @@ There is no built-in support-alt, secondary-account, comments, or availability q
 
 **Required behavior when WoM-assisted entry is delivered**
 
-- Beside each regular-account EHB field, provide **Fetch from Wise Old Man** after the account name is present.
+- In My accounts and beside each regular-account EHB field in signup/edit, provide **Fetch from Wise Old Man** after the account name is present.
 - This is a system feature, not an event-level or admin-configurable option: when the WoM integration is available, every eligible regular-account EHB control provides it.
 - The fetch uses that normalized OSRS character name and populates the EHB field on success.
 - Manual EHB entry remains available when the character is missing, WoM is unavailable, or the response is rate-limited. A failed fetch shows an accurate unavailable/retry message and does not clear an existing value.
 - Fetch is an explicit user action, never triggered on every keystroke, form render, or public page view.
 - Before implementation, review the then-current official Wise Old Man API documentation and usage/rate-limit rules. Add the required server-side caching, throttling, `Retry-After` handling, and accurate unavailable/retry feedback.
 - Persist the submitted event EHB snapshot plus whether its last value was manually entered or fetched and the fetch time when applicable. Do not treat the external profile as authoritative after signup closes.
+
+**Live competition activity**
+
+- An Admin may link an event to one existing Wise Old Man competition ID. The application is read-only toward that competition and stores no verification code. Creation may prefill the schedule from its exact UTC dates; an existing pre-Live event explicitly offers schedule synchronization. Without synchronization, both boundaries must match within five minutes.
+- Competition configuration may be created/changed/cleared before Live. A Live correction must already match the schedule, is audited, and invalidates the prior displayed cache. AwaitingFinalReview, Finalized, Archived, and Cancelled configuration is read-only; synchronization resumes only through a legitimate return to Live.
+- While the event is `Live`, one shared background/manual synchronization reads one competition-details response at most every two hours and calculates participant/team gained EHB locally. Public/team page traffic never contacts Wise Old Man.
+- Every `PLAYING` assignment contributes its full competition delta to its participant; Alt/informational accounts are excluded. The application does not split gains around active-account swaps or replacements.
+- A successful response missing expected accounts makes the newest generation partial/provisional. Every matched current-generation value remains visible; missing accounts have no zero or carried-forward value. Public/team projections show available totals, deterministic provisional rankings, missing-count and participant/account coverage when at least one account matches, while zero matches show no rankings. Admins see the exact missing accounts; public/team routes never show their names.
+- Team average uses participant totals, not account count. Every tied highest participant shares MVP.
+- Manual and automatic requests share one monitored limiter. Manual requests stop before the remote limit's final three requests and show an accurate retry message. One initial automatic attempt may receive three retries using `Retry-After` or scheduled 1-, 2-, and 4-minute delays; failure four exhausts that cycle without moving the separately anchored next normal cycle.
+- Synchronization stops outside `Live`; retained cached results remain readable and synchronization resumes only if the event legitimately returns to `Live`.
 
 ### 13.4 Approved question lifecycle
 

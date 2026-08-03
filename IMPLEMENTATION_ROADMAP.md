@@ -758,7 +758,7 @@ This milestone does not automatically promote the entire former post-version-one
 
 Planning Pass 2 has approved the target workflows for hybrid identity, trust-based character links, event-unique character assignment, My accounts, signup/account questions, participant administration, teams/draft, board publication, participant/captain live access, evidence resubmission/public visibility, lifecycle cancellation/archive, current-event selection, role/account administration, and historical access. `FUNCTIONAL_WORKFLOWS.md` contains their capability contracts and acceptance scenarios.
 
-The dependency/migration order below is approved as the implementation sequence. Public tile artwork/preview is governed by the approved managed-image/board rules. The explicit per-playing-account Wise Old Man EHB fetch is required in the Wise Old Man slice; broader competition synchronization/activity leaderboards remain outside that slice until their separate acceptance contract is approved.
+The dependency/migration order below is approved as the implementation sequence. Public tile artwork/preview is governed by the approved managed-image/board rules. Slice 10's explicit Wise Old Man EHB fetch and bounded competition synchronization/activity contract are approved in `SLICE_10_IMPLEMENTATION_PLAN.md`.
 
 ### Approved implementation sequence
 
@@ -773,7 +773,7 @@ These are the ten functional delivery slices inside Milestone 8A. They are not a
 7. Participant/captain live navigation, active-account swaps, team focus, and role-aware visibility.
 8. Evidence creation, resubmission/review, public approved evidence, and removal of privacy-request behavior.
 9. Event end, reasoned recovery from a premature manual or automatic end before finalization, live replacements, finalization/history, archive access, and operational notifications.
-10. Wise Old Man EHB fetching; add broader synchronization/activity projections only after their separate acceptance contract is approved.
+10. Wise Old Man explicit EHB fetching plus cached Live competition synchronization and participant/team activity projections.
 
 Each slice finalizes its exact manual cases in `MANUAL_TEST_CHECKLIST.md` before handoff. The checklist is durable repository documentation so the user may run it immediately or return to it later; it does not replace automated coverage.
 
@@ -1203,7 +1203,7 @@ This register began as the post-version-one backlog. Items explicitly selected d
 
 #### Wise Old Man integration
 
-- Add an explicit per-playing-account **Fetch from Wise Old Man** signup action that uses the entered character name and populates EHB while preserving manual fallback. Once delivered, this action is present for every eligible playing-account EHB field and is not an event-level option.
+- Add an explicit per-playing-account **Fetch from Wise Old Man** action in My accounts and signup/edit that uses the selected character name and populates EHB while preserving manual fallback. It is not available for Alt accounts, Admin correction/internal creation, CSV/external rosters, or automatic page activity.
 - A failed, unavailable, or rate-limited fetch shows accurate feedback without clearing an existing value; WoM availability never blocks signup opening or manual EHB entry.
 - Review the current official API documentation and rate/usage rules immediately before implementation; do not rely on planning-time assumptions.
 - Cache and throttle signup lookups server-side, honor `Retry-After`, and never fetch on every keystroke, render, or ordinary public request.
@@ -1220,6 +1220,10 @@ This register began as the post-version-one backlog. Items explicitly selected d
 - Rank the participant by the combined total, not each character separately. Show the per-character breakdown beneath the participant total so multiple-account players are not misleadingly split across leaderboard positions.
 - Never send informational Account answers or Yes/No support-alt answers to Wise Old Man and do not display them in activity standings.
 - Team EHB is the sum of those participant-level totals, with each registered character counted once through its owning participant.
+- Team average divides participant totals by represented current participants, not regular-account count; tied top participants share MVP.
+- Use one competition-details request per due Live event, not separate requests per player/team. When expected regular accounts are absent, persist matched fresh values only, mark the cache partial/provisional, show deterministic available rankings with privacy-safe coverage when at least one matches, show no rankings when zero match, and show exact missing-account diagnostics only to Admins.
+- Send every manual and automatic request through one shared limiter. Preserve the last three observed requests as reserve, block manual calls locally with an accurate roughly-one-minute retry message, and expose observed limit/remaining/reset plus sync status to Admins.
+- A locally blocked automatic sync remains pending. Each cycle has one initial attempt plus at most three retries, honoring `Retry-After` or scheduling approximately 1-, 2-, and 4-minute delays; failure four exhausts the cycle without shifting its separately anchored next ordinary cycle. Never hold a worker asleep or create a tight retry loop.
 
 #### Manual signup opening deadline
 
