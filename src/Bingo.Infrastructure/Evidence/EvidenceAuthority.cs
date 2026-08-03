@@ -47,8 +47,8 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         if (scope.Kind == EvidenceActorKind.Participant && scope.CreditedParticipantId != creditedParticipantId)
             throw new InvalidOperationException("Participants may submit evidence only for themselves.");
         if (scope.Kind is EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain &&
-            !await db.TeamMemberships.AsNoTracking().AnyAsync(x => x.TeamId == teamId && x.EventParticipantId == creditedParticipantId && x.LeftAt == null, cancellationToken))
-            throw new InvalidOperationException("The credited player is not a current member of this team.");
+            !await IsEligibleTeamCreditAsync(teamId, creditedParticipantId, now, cancellationToken))
+            throw new InvalidOperationException("The credited player is not eligible for this team at the evidence time.");
         return scope with { CreditedParticipantId = creditedParticipantId };
     }
 
@@ -70,7 +70,8 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         var candidates = from participant in db.EventParticipants.AsNoTracking()
                          join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
                          join character in db.PrimaryCharacters().AsNoTracking() on participant.Id equals character.ParticipantId
-                         where participant.EventId == scope.EventId && membership.TeamId == scope.TeamId && membership.LeftAt == null
+                         where participant.EventId == scope.EventId && membership.TeamId == scope.TeamId &&
+                               (membership.LeftAt == null || (participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && participant.WithdrawnAt >= DateTimeOffset.UtcNow))
                          select new { participant.Id, character.Name };
         if (scope.Kind == EvidenceActorKind.Participant) candidates = candidates.Where(x => x.Id == scope.CreditedParticipantId);
         return (await candidates.OrderBy(x => x.Name).ToListAsync(cancellationToken)).Select(x => new EvidenceCandidate(x.Id, x.Name)).ToList();
@@ -83,6 +84,8 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         var characterId = transition?.OsrsCharacterId;
         if (characterId is null)
         {
+            if (await db.EventParticipantCharacterSwaps.AsNoTracking().AnyAsync(x => x.EventId == eventId && x.EventParticipantId == participantId, cancellationToken))
+                throw new InvalidOperationException("The credited participant has no active Playing account at the evidence time.");
             var fallback = await (from assignment in db.EventParticipantCharacters.AsNoTracking()
                                   join participant in db.EventParticipants.AsNoTracking() on assignment.EventParticipantId equals participant.Id
                                   where assignment.EventId == eventId && assignment.EventParticipantId == participantId && participant.EventId == eventId &&
@@ -96,5 +99,18 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         var character = await db.OsrsCharacters.AsNoTracking().SingleOrDefaultAsync(x => x.Id == characterId.Value, cancellationToken)
             ?? throw new InvalidOperationException($"The credited character {characterId} for participant {participantId} does not exist.");
         return new(character.Id, character.DisplayName);
+    }
+
+    private async Task<bool> IsEligibleTeamCreditAsync(Guid teamId, Guid participantId, DateTimeOffset submittedAt, CancellationToken cancellationToken)
+    {
+        if (await db.TeamMemberships.AsNoTracking().AnyAsync(x => x.TeamId == teamId && x.EventParticipantId == participantId && x.LeftAt == null, cancellationToken))
+            return true;
+
+        return await (from participant in db.EventParticipants.AsNoTracking()
+                      join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
+                      where membership.TeamId == teamId && membership.EventParticipantId == participantId && membership.LeftAt != null &&
+                            participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && participant.WithdrawnAt != null &&
+                            submittedAt.ToUniversalTime() <= participant.WithdrawnAt.Value
+                      select participant.Id).AnyAsync(cancellationToken);
     }
 }

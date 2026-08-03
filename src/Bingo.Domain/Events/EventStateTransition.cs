@@ -4,7 +4,7 @@ public sealed class EventStateTransition
 {
     private EventStateTransition() { }
 
-    public EventStateTransition(Guid id, Guid eventId, EventState fromState, EventState toState, Guid? actorId, DateTimeOffset performedAt, string? reason, bool scheduled = false)
+    public EventStateTransition(Guid id, Guid eventId, EventState fromState, EventState toState, Guid? actorId, DateTimeOffset performedAt, string? reason, bool scheduled = false, DateTimeOffset? effectiveAt = null)
     {
         Id = id;
         EventId = eventId;
@@ -12,6 +12,7 @@ public sealed class EventStateTransition
         ToState = toState;
         PerformedByAccountId = actorId;
         PerformedAt = performedAt.ToUniversalTime();
+        EffectiveAt = (effectiveAt ?? performedAt).ToUniversalTime();
         Reason = reason;
         Scheduled = scheduled;
     }
@@ -22,6 +23,7 @@ public sealed class EventStateTransition
     public EventState ToState { get; private set; }
     public Guid? PerformedByAccountId { get; private set; }
     public DateTimeOffset PerformedAt { get; private set; }
+    public DateTimeOffset EffectiveAt { get; private set; }
     public string? Reason { get; private set; }
     public bool Scheduled { get; private set; }
 }

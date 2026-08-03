@@ -115,13 +115,47 @@
                 <label><span>Confirm destination username</span><input asp-for="DestinationUsernameConfirmation" class="form-control" autocomplete="off" /></label>
                 <button class="btn btn-outline-light" type="submit">Transfer ownership</button>
             </form>
-            @if (Model.CanAdminWithdraw || Model.CanAdminRestore)
-            {
-                <section class="panel participant-edit-link-card"><h2>@T["Participant lifecycle"]</h2>
-                @if (Model.CanAdminWithdraw) { <form method="post" asp-page-handler="Withdraw"><label class="check-row"><input asp-for="ConfirmLifecycleAction" /> @T["I confirm this withdrawal."]</label><label asp-for="PrivateWithdrawalNote">@T["Private Admin note (optional)"]<textarea asp-for="PrivateWithdrawalNote" class="form-control"></textarea></label><button class="btn destructive-outline-action" type="submit">@T["Withdraw participant"]</button></form> }
+                @if (Model.CanAdminWithdraw || Model.CanAdminRestore || Model.CanFillVacancy || Model.PromotionFollowUp is not null)
+                {
+                    <section class="panel participant-edit-link-card"><h2>@T["Participant lifecycle"]</h2>
+                @if (Model.CanAdminWithdraw) { <form method="post" asp-page-handler="Withdraw"><input asp-for="ExpectedMembershipVersion" type="hidden" /><label class="check-row"><input asp-for="ConfirmLifecycleAction" /> @T["I confirm this withdrawal."]</label><label asp-for="PrivateWithdrawalNote">@T["Private Admin note (optional)"]<textarea asp-for="PrivateWithdrawalNote" class="form-control"></textarea></label><button class="btn destructive-outline-action" type="submit">@T["Withdraw participant"]</button></form> }
                 @if (Model.CanAdminRestore) { <form method="post" asp-page-handler="Restore"><label class="check-row"><input asp-for="ConfirmLifecycleAction" /> @T["I confirm this restoration."]</label><button class="btn action-accent-outline" type="submit">@T["Restore participant"]</button></form> }
+                @if (Model.CanFillVacancy)
+                {
+                    <hr />
+                    <h3>Fill open vacancy</h3>
+                    <p>Choose an available waiting-list participant, or leave the selector blank and provide a validated internal participant. Contact remains manual.</p>
+                    <form method="post" asp-page-handler="FillVacancy" class="form-stack">
+                        <input asp-for="VacancyMembershipId" type="hidden" /><input asp-for="VacancyMembershipVersion" type="hidden" />
+                        <label><span>Waiting-list participant (optional)</span><select asp-for="ReplacementWaitingParticipantId" class="form-select"><option value="">Create internal replacement</option>@foreach (var candidate in Model.WaitingReplacementCandidates) { <option value="@candidate.Id">@candidate.Name · #@candidate.Sequence</option> }</select></label>
+                        <label><span>Internal owner username (optional)</span><input asp-for="InternalReplacement.OwnerUsername" class="form-control" autocomplete="off" /></label>
+                        @foreach (var question in Model.Questions.Where(x => x.Active))
+                        {
+                            var account = Model.InternalReplacement.AccountAnswers.GetValueOrDefault(question.Id) ?? new ParticipantModel.AccountInput();
+                            if (question.Type == SignupQuestionType.Account)
+                            {
+                                <label><span>@question.Label @if (question.Required) { <small>Required</small> }</span><input name="InternalReplacement.AccountAnswers[@question.Id].CharacterName" value="@account.CharacterName" class="form-control" maxlength="100" placeholder="OSRS character" />@if (question.AccountRole == EventCharacterRole.Playing) { <input name="InternalReplacement.AccountAnswers[@question.Id].Ehb" value="@account.Ehb" class="form-control" type="number" min="0" step="0.01" placeholder="EHB" /> }</label>
+                            }
+                            else
+                            {
+                                <label><span>@question.Label @if (question.Required) { <small>Required</small> }</span><input name="InternalReplacement.Answers[@question.Id]" value="@Model.InternalReplacement.Answers.GetValueOrDefault(question.Id)" class="form-control" /></label>
+                            }
+                        }
+                        <button class="btn action-accent-outline" type="submit">Confirm replacement</button>
+                    </form>
+                }
+                @if (Model.PromotionFollowUp is { } followUp)
+                {
+                    <hr /><h3>Waiting-list promotion follow-up</h3>
+                    @if (followUp.CompletedAt is null)
+                    {
+                        <p>Contact the participant manually, then mark this follow-up complete.</p>
+                        <form method="post" asp-page-handler="CompletePromotionFollowUp"><input type="hidden" name="followUpId" value="@followUp.Id" /><button class="btn btn-outline-light" type="submit">Mark follow-up complete</button></form>
+                    }
+                    else { <p>Completed at @followUp.CompletedAt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm").</p> }
+                }
                 </section>
-            }
+                }
         </aside>
     </div>
 </section>

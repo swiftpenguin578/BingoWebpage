@@ -88,7 +88,8 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db) :
         if (path.EndsWith("/Manage.cshtml", StringComparison.OrdinalIgnoreCase))
         {
             if (name.Contains("StartEvent", StringComparison.Ordinal) || name.Contains("EndEvent", StringComparison.Ordinal) || name.Contains("Discard", StringComparison.Ordinal) || name.Contains("Cancel", StringComparison.Ordinal)) { capability = default; return false; }
-            capability = name.Contains("ReopenSubmissions", StringComparison.Ordinal) ? EventCapability.ReviewEvidence
+            capability = name.Contains("ResumeEvent", StringComparison.Ordinal) ? EventCapability.ResumeEvent
+                : name.Contains("ReopenSubmissions", StringComparison.Ordinal) ? EventCapability.ReviewEvidence
                 : name.Contains("EvidenceCode", StringComparison.Ordinal) ? EventCapability.ConfigureEvidenceCodes
                 : EventCapability.ConfigureSignup;
             return true;
@@ -97,6 +98,14 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db) :
             name.Contains("ChangeRole", StringComparison.Ordinal))
         {
             capability = default; // roster role boundary performs its own operational-state checks.
+            return false;
+        }
+        if (path.EndsWith("/Participant.cshtml", StringComparison.OrdinalIgnoreCase) &&
+            (name.Contains("Withdraw", StringComparison.Ordinal) ||
+             name.Contains("FillVacancy", StringComparison.Ordinal) ||
+             name.Contains("CompletePromotionFollowUp", StringComparison.Ordinal)))
+        {
+            capability = default; // Participant lifecycle services perform their own state and authorization checks.
             return false;
         }
         capability = path.EndsWith("/Questions.cshtml", StringComparison.OrdinalIgnoreCase) ||

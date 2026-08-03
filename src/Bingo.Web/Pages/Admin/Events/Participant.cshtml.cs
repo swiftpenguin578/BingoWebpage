@@ -31,7 +31,14 @@ public sealed class ParticipantModel(
     [BindProperty] public string? DestinationUsernameConfirmation { get; set; }
     [BindProperty] public Guid? ExpectedOwnerAccountId { get; set; }
     [BindProperty, StringLength(4000)] public string? PrivateWithdrawalNote { get; set; }
+    [BindProperty] public long? ExpectedMembershipVersion { get; set; }
+    [BindProperty] public Guid? ReplacementWaitingParticipantId { get; set; }
+    [BindProperty] public InternalReplacementInput InternalReplacement { get; set; } = new();
     public bool CanAdminWithdraw { get; private set; }
+    public bool CanAdminLiveWithdraw { get; private set; }
+    public bool CanFillVacancy { get; private set; }
+    [BindProperty] public Guid? VacancyMembershipId { get; set; }
+    [BindProperty] public long? VacancyMembershipVersion { get; set; }
     public bool CanAdminRestore { get; private set; }
     public Guid EventId { get; private set; }
     public Guid RouteParticipantId { get; private set; }
@@ -46,6 +53,8 @@ public sealed class ParticipantModel(
     public string? TeamName { get; private set; }
     public string? StatusReason { get; private set; }
     public IReadOnlyList<QuestionView> Questions { get; private set; } = [];
+    public IReadOnlyList<ReplacementCandidate> WaitingReplacementCandidates { get; private set; } = [];
+    public PromotionFollowUpView? PromotionFollowUp { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(Guid id, Guid participantId, CancellationToken ct)
     { _ = characterService; return await LoadAsync(id, participantId, true, ct) ? Page() : NotFound(); }
@@ -114,8 +123,41 @@ public sealed class ParticipantModel(
     public async Task<IActionResult> OnPostWithdrawAsync(Guid id, Guid participantId, CancellationToken ct)
     {
         if (!ConfirmLifecycleAction) { SetStatus("Confirm the withdrawal before continuing.", UiMessageType.Error); return RedirectToPage(new { id, participantId }); }
-        var result = signupService is null ? new ParticipantLifecycleResult(false, "Participant lifecycle is not available.") : await signupService.WithdrawAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", true, PrivateWithdrawalNote, ct);
+        var result = signupService is null ? new ParticipantLifecycleResult(false, "Participant lifecycle is not available.") : await signupService.WithdrawAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", true, PrivateWithdrawalNote, ExpectedMembershipVersion, ct);
         SetStatus(result.Succeeded ? "Participant withdrawn." : result.Error ?? "Participant could not be withdrawn.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToPage(new { id, participantId });
+    }
+
+    public async Task<IActionResult> OnPostFillVacancyAsync(Guid id, Guid participantId, CancellationToken ct)
+    {
+        var actorId = User.GetAccountId();
+        if (actorId is null || VacancyMembershipId is null) return Forbid();
+        Guid? ownerId = null;
+        if (!string.IsNullOrWhiteSpace(InternalReplacement.OwnerUsername))
+        {
+            ownerId = await dbContext.Accounts.AsNoTracking().Where(x => x.LoginName == InternalReplacement.OwnerUsername.Trim() && x.Active && x.AccountType == Bingo.Domain.Access.AccountType.WebsiteAccount).Select(x => (Guid?)x.Id).SingleOrDefaultAsync(ct);
+            if (ownerId is null)
+            {
+                SetStatus("The internal owner must be an active website account.", UiMessageType.Error);
+                return RedirectToPage(new { id, participantId });
+            }
+        }
+        var internalRequest = ReplacementWaitingParticipantId is null
+            ? new AdminParticipantChangeRequest(id, null, actorId.Value, User.Identity?.Name ?? "Admin", ownerId,
+                InternalReplacement.AccountAnswers.ToDictionary(x => x.Key, x => new AdminAccountAnswer(x.Value.CharacterName, x.Value.Ehb)), InternalReplacement.Answers)
+            : null;
+        var result = signupService is null
+            ? new LiveParticipantResult(false, "Live participant replacement is not available.")
+            : await signupService.ReplaceVacancyAsync(new LiveReplacementRequest(id, VacancyMembershipId.Value, actorId.Value, User.Identity?.Name ?? "Admin", ReplacementWaitingParticipantId, internalRequest, VacancyMembershipVersion), ct);
+        SetStatus(result.Succeeded ? "Replacement saved." : result.Error ?? "The vacancy could not be filled.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToPage(new { id, participantId });
+    }
+
+    public async Task<IActionResult> OnPostCompletePromotionFollowUpAsync(Guid id, Guid participantId, Guid followUpId, CancellationToken ct)
+    {
+        var actorId = User.GetAccountId(); if (actorId is null) return Forbid();
+        var result = signupService is null ? new PromotionFollowUpResult(false, "Promotion follow-up is not available.") : await signupService.CompletePromotionFollowUpAsync(id, followUpId, actorId.Value, User.Identity?.Name ?? "Admin", ct);
+        SetStatus(result.Succeeded ? "Promotion follow-up marked complete." : result.Error ?? "The promotion follow-up could not be completed.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToPage(new { id, participantId });
     }
 
@@ -138,14 +180,14 @@ public sealed class ParticipantModel(
         RouteParticipantId = participantId;
         Payment = participant.PaymentStatus;
         EventName = bingoEvent.Name;
-        var authority = await dbContext.AdminPrimaryCharacters().AsNoTracking().SingleAsync(x => x.ParticipantId == participantId, ct);
+        var authority = await dbContext.AdminPrimaryCharacters().AsNoTracking().SingleOrDefaultAsync(x => x.ParticipantId == participantId, ct);
         var secondName = await (from assignment in dbContext.EventParticipantCharacters.AsNoTracking()
                                 join character in dbContext.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
                                 where assignment.EventParticipantId == participantId && assignment.ReleasedAt == null &&
                                       assignment.EventRole == EventCharacterRole.Informational
                                 orderby assignment.RegistrationOrder
                                 select character.DisplayName).FirstOrDefaultAsync(ct);
-        Name = authority.Name;
+        Name = authority?.Name ?? "External roster member";
         Status = participant.SignupStatus;
         StatusLabel = participant.SignupStatus switch
         {
@@ -167,6 +209,32 @@ public sealed class ParticipantModel(
                           join team in dbContext.Teams.AsNoTracking() on membership.TeamId equals team.Id
                           where membership.EventParticipantId == participantId && membership.LeftAt == null
                           select team.Name).SingleOrDefaultAsync(ct);
+        ExpectedMembershipVersion = await dbContext.TeamMemberships.AsNoTracking()
+            .Where(x => x.EventParticipantId == participantId && x.LeftAt == null)
+            .Select(x => (long?)x.Version).SingleOrDefaultAsync(ct);
+
+        var vacancy = await (from membership in dbContext.TeamMemberships.AsNoTracking()
+                             join team in dbContext.Teams.AsNoTracking() on membership.TeamId equals team.Id
+                             where membership.EventParticipantId == participantId && membership.LeftAt != null && team.EventId == id &&
+                                   !dbContext.TeamMemberships.Any(replacement => replacement.ReplacesMembershipId == membership.Id)
+                             orderby membership.LeftAt descending
+                             select new { membership.Id, membership.Version, TeamName = team.Name }).FirstOrDefaultAsync(ct);
+        if (vacancy is not null && TeamName is null) TeamName = $"{vacancy.TeamName} (vacancy)";
+        VacancyMembershipId = vacancy?.Id;
+        VacancyMembershipVersion = vacancy?.Version;
+        CanFillVacancy = bingoEvent.State == EventState.Live && participant.SignupStatus == SignupStatus.Withdrawn && vacancy is not null;
+        if (CanFillVacancy)
+        {
+            WaitingReplacementCandidates = await (from candidate in dbContext.EventParticipants.AsNoTracking()
+                                                  join primary in dbContext.AdminPrimaryCharacters().AsNoTracking() on candidate.Id equals primary.ParticipantId into primaries
+                                                  from primary in primaries.DefaultIfEmpty()
+                                                  where candidate.EventId == id && candidate.SignupStatus == SignupStatus.WaitingList
+                                                  orderby candidate.SignedUpAt, candidate.SignupSequence
+                                                  select new ReplacementCandidate(candidate.Id, primary == null ? "Participant" : primary.Name, candidate.SignupSequence)).ToListAsync(ct);
+        }
+        var followUp = await dbContext.WaitingListPromotionFollowUps.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.EventId == id && x.PromotedParticipantId == participantId, ct);
+        if (followUp is not null) PromotionFollowUp = new PromotionFollowUpView(followUp.Id, followUp.CompletedAt, followUp.CompletedByAccountId);
 
         var questions = await dbContext.SignupQuestions.AsNoTracking()
             .Where(question => question.EventId == id)
@@ -209,7 +277,8 @@ public sealed class ParticipantModel(
             ExpectedOwnerAccountId = participant.AccountId;
         }
 
-        CanAdminWithdraw = !bingoEvent.DraftLocked && bingoEvent.State is EventState.SignupOpen or EventState.SignupClosed && participant.SignupStatus is SignupStatus.Confirmed or SignupStatus.WaitingList;
+        CanAdminLiveWithdraw = bingoEvent.State == EventState.Live && participant.SignupStatus == SignupStatus.Confirmed && await dbContext.TeamMemberships.AnyAsync(x => x.EventParticipantId == participantId && x.LeftAt == null, ct);
+        CanAdminWithdraw = (!bingoEvent.DraftLocked && bingoEvent.State is EventState.SignupOpen or EventState.SignupClosed && participant.SignupStatus is SignupStatus.Confirmed or SignupStatus.WaitingList) || CanAdminLiveWithdraw;
         CanAdminRestore = !bingoEvent.DraftLocked && bingoEvent.State is EventState.SignupOpen or EventState.SignupClosed && participant.SignupStatus == SignupStatus.Withdrawn;
         return true;
     }
@@ -234,6 +303,16 @@ public sealed class ParticipantModel(
         public int? ExpectedResponseVersion { get; set; }
     }
     public sealed class AccountInput { [StringLength(100)] public string? CharacterName { get; set; } [Range(0, 100000)] public decimal? Ehb { get; set; } }
+
+    public sealed class InternalReplacementInput
+    {
+        [StringLength(100)] public string? OwnerUsername { get; set; }
+        public Dictionary<Guid, AccountInput> AccountAnswers { get; set; } = [];
+        public Dictionary<Guid, string> Answers { get; set; } = [];
+    }
+
+    public sealed record ReplacementCandidate(Guid Id, string Name, long Sequence);
+    public sealed record PromotionFollowUpView(Guid Id, DateTimeOffset? CompletedAt, Guid? CompletedByAccountId);
 
     public sealed record QuestionView(
         Guid Id, string Label, SignupQuestionType Type, bool Required, bool Active, EventCharacterRole? AccountRole, string[] Options, string? Value);

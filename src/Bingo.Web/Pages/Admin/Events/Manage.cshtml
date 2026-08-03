@@ -201,6 +201,17 @@
                             <button class="btn btn-outline-light" type="submit">@T["Reopen submissions"]</button>
                         </form>
                         @if (eventView.ReopenedCutoff is not null) { <small class="event-reopened-note">@T["Submissions reopened until"] @eventView.ReopenedCutoff.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</small> }
+                        <section class="event-admin-control-group" aria-labelledby="resume-event-heading">
+                            <h3 id="resume-event-heading">Resume premature end</h3>
+                            <p>The prior end remains in immutable history. Choose a future replacement end to return this event to live play.</p>
+                            <form method="post" asp-page-handler="ResumeEvent" class="form-stack" data-update-targets="@partialUpdateTargets">
+                                <input asp-for="EventVersion" type="hidden" />
+                                <label asp-for="ReplacementEventEndsAt"><span>Replacement event end</span><input asp-for="ReplacementEventEndsAt" asp-format="{0:yyyy-MM-ddTHH:mm:ss.fffzzz}" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="Time" required /></label>
+                                <label asp-for="ResumeReason"><span>Reason (required)</span><textarea asp-for="ResumeReason" class="form-control" rows="3" required></textarea></label>
+                                <label class="check-row"><input asp-for="ConfirmResumeEvent" required /> I confirm that this event ended prematurely and should resume.</label>
+                                <button class="btn btn-outline-light" type="submit">Resume event</button>
+                            </form>
+                        </section>
                     }
                     </section>
                 }
@@ -298,6 +309,7 @@
                     <div><dt>@T["Actual signup closing"]</dt><dd>@(eventView.ActualSignupClosedAt is { } closed ? closed.ToLocalTime().ToString("dd MMM yyyy, HH:mm") : T["Not yet"])</dd></div>
                     <div><dt>@T["Actual event start"]</dt><dd>@(eventView.ActualStartedAt is { } started ? started.ToLocalTime().ToString("dd MMM yyyy, HH:mm") : T["Not yet"])</dd></div>
                     <div><dt>@T["Actual event end"]</dt><dd>@(eventView.ActualEndedAt is { } ended ? ended.ToLocalTime().ToString("dd MMM yyyy, HH:mm") : T["Not yet"])</dd></div>
+                    <div><dt>Submissions closed</dt><dd>@(eventView.SubmissionsClosedAt is { } submissionClosed ? submissionClosed.ToLocalTime().ToString("dd MMM yyyy, HH:mm") : T["Not yet"])</dd></div>
                 </dl>
                 @if (eventView.ReopenedCutoff is not null)
                 {
@@ -401,7 +413,8 @@
                                         <td class="participant-row-actions">
                                             @if (participant.Status is SignupStatus.Confirmed or SignupStatus.WaitingList)
                                             {
-                                                @if (signupAndPlayersLocked) { <small>@T["Locked for draft"]</small> }
+                                                @if (eventView.State == EventState.Live) { <a asp-page="Participant" asp-route-id="@eventView.Id" asp-route-participantId="@participant.Id">@T["Manage live participant"]</a> }
+                                                else if (signupAndPlayersLocked) { <small>@T["Locked for draft"]</small> }
                                                 else
                                                 {
                                                     <form method="post" class="participant-action-form" data-update-targets="@partialUpdateTargets">

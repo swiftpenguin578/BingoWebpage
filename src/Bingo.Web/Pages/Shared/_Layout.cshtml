@@ -37,7 +37,7 @@
                             <div class="nav-panel notification-panel">
                                 <div class="nav-panel-heading">
                                     <strong data-notification-heading>@shell.Notifications.Heading</strong>
-                                    <span class="notification-total">@T["Notifications"]</span>
+                                    <span class="notification-total">@T["Personal {0} · Admin {1}", shell.Notifications.PersonalCount, shell.Notifications.AdminActionCount]</span>
                                 </div>
                                 <div class="notification-list" data-notification-list>
                                     @foreach (var item in shell.Notifications.Items)
@@ -47,6 +47,17 @@
                                 </div>
                                 <p class="notification-empty" data-notification-empty hidden="@(shell.Notifications.Count > 0)">@shell.Notifications.EmptyText</p>
                                 <a class="notification-overview" data-notification-overview href="@shell.Notifications.OverviewUrl" hidden="@(string.IsNullOrWhiteSpace(shell.Notifications.OverviewUrl))">@shell.Notifications.OverviewLabel</a>
+                                @if (shell.Notifications.AdminActionCount > 0 || shell.Notifications.AdminItems.Count > 0)
+                                {
+                                    <div class="nav-panel-heading"><strong>@shell.Notifications.AdminHeading</strong><span class="notification-total">@shell.Notifications.AdminActionCount</span></div>
+                                    <div class="notification-list">
+                                        @foreach (var item in shell.Notifications.AdminItems)
+                                        {
+                                            <a class="notification-item" href="@item.Url"><strong>@item.Title</strong><span>@item.Detail</span></a>
+                                        }
+                                    </div>
+                                    <a class="notification-overview" href="@shell.Notifications.AdminOverviewUrl">@shell.Notifications.AdminOverviewLabel</a>
+                                }
                             </div>
                         </details>
                     </div>

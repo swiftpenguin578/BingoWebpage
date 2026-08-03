@@ -213,13 +213,22 @@ public sealed class SubmissionService(
     }
     private async Task<int> ValidateTarget(Guid eventId, Guid teamId, Guid tileId, Guid requirementId, Guid? dropId, Guid participantId, CancellationToken cancellationToken)
     {
-        if (!await db.Teams.AnyAsync(x => x.Id == teamId && x.EventId == eventId && x.Active, cancellationToken)) throw new InvalidOperationException("Team not found."); if (!await db.TeamMemberships.AnyAsync(x => x.TeamId == teamId && x.EventParticipantId == participantId && x.LeftAt == null, cancellationToken)) throw new InvalidOperationException("The credited player does not belong to this team.");
+        if (!await db.Teams.AnyAsync(x => x.Id == teamId && x.EventId == eventId && x.Active, cancellationToken)) throw new InvalidOperationException("Team not found."); if (!await IsEligibleTeamCreditAsync(teamId, participantId, time.GetUtcNow(), cancellationToken)) throw new InvalidOperationException("The credited player is not eligible for this team at the evidence time.");
         var tile = await (from t in db.BoardTiles join b in db.Boards on t.BoardId equals b.Id where t.Id == tileId && b.EventId == eventId && b.State == BoardState.Published select t).SingleOrDefaultAsync(cancellationToken) ?? throw new InvalidOperationException("Choose a tile from the published event board.");
         var requirement = await db.BoardRequirementSnapshots.AsNoTracking().SingleOrDefaultAsync(x => x.Id == requirementId && x.BoardTileId == tile.Id, cancellationToken) ?? throw new InvalidOperationException("Choose a requirement from that tile.");
         var creditedWeight = 1; if (requirement.ManualObjective && dropId is not null) throw new InvalidOperationException("Manual objectives do not use a drop."); if (!requirement.ManualObjective && dropId is null) throw new InvalidOperationException("Choose an eligible drop."); if (!requirement.ManualObjective && dropId is Guid selectedDropId) { var drop = await db.BoardRequirementDropSnapshots.AsNoTracking().SingleOrDefaultAsync(x => x.Id == selectedDropId && x.RequirementId == requirementId, cancellationToken) ?? throw new InvalidOperationException("Choose an eligible drop."); creditedWeight = drop.CreditedWeight; var maximum = drop.MaximumContribution ?? (requirement.DuplicatesAllowed ? int.MaxValue : 1); var dropApproved = await db.SubmissionContributions.Where(x => x.TeamId == teamId && x.RequirementId == requirementId && x.DropSnapshotId == selectedDropId && x.ReversedAt == null).SumAsync(x => (int?)x.Amount, cancellationToken) ?? 0; if (dropApproved >= maximum) throw new InvalidOperationException("This drop has already reached its approved contribution limit."); }
         var approved = await db.SubmissionContributions.Where(x => x.TeamId == teamId && x.RequirementId == requirementId && x.ReversedAt == null).SumAsync(x => (int?)x.Amount, cancellationToken) ?? 0; if (approved >= requirement.TargetContribution) throw new InvalidOperationException("This requirement is already complete."); return creditedWeight;
     }
     private async Task EnsureAdmin(Guid id, CancellationToken cancellationToken) { if (!await db.Accounts.AnyAsync(x => x.Id == id && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin) && x.Active, cancellationToken)) throw new InvalidOperationException("Administrator access is required."); }
+    private async Task<bool> IsEligibleTeamCreditAsync(Guid teamId, Guid participantId, DateTimeOffset submittedAt, CancellationToken cancellationToken)
+    {
+        if (await db.TeamMemberships.AnyAsync(x => x.TeamId == teamId && x.EventParticipantId == participantId && x.LeftAt == null, cancellationToken)) return true;
+        return await (from participant in db.EventParticipants
+                      join membership in db.TeamMemberships on participant.Id equals membership.EventParticipantId
+                      where membership.TeamId == teamId && membership.EventParticipantId == participantId && membership.LeftAt != null &&
+                            participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && participant.WithdrawnAt != null && submittedAt.ToUniversalTime() <= participant.WithdrawnAt.Value
+                      select participant.Id).AnyAsync(cancellationToken);
+    }
     private IEvidenceAuthority Authority => authority ??= new EvidenceAuthority(db);
     private static void EnsureExpectedVersion(Submission submission, int? expectedVersion)
     { if (expectedVersion is not null && submission.Version != expectedVersion.Value) throw new InvalidOperationException("This evidence changed in another request. Reload it and review the latest version before saving."); }

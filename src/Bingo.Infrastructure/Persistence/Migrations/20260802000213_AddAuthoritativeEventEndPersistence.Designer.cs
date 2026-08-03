@@ -3,6 +3,7 @@ using System;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Bingo.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802000213_AddAuthoritativeEventEndPersistence")]
+    partial class AddAuthoritativeEventEndPersistence
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1898,21 +1901,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<string>("CalculationInputsJson")
-                        .HasMaxLength(30000)
-                        .HasColumnType("character varying(30000)")
-                        .HasColumnName("calculation_inputs_json");
-
-                    b.Property<string>("CalculationResultsJson")
-                        .HasMaxLength(30000)
-                        .HasColumnType("character varying(30000)")
-                        .HasColumnName("calculation_results_json");
-
-                    b.Property<string>("ConsumedResolutionIdsJson")
-                        .HasMaxLength(12000)
-                        .HasColumnType("character varying(12000)")
-                        .HasColumnName("consumed_resolution_ids_json");
-
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid")
                         .HasColumnName("event_id");
@@ -1924,10 +1912,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("FinalizedByAccountId")
                         .HasColumnType("uuid")
                         .HasColumnName("finalized_by_account_id");
-
-                    b.Property<Guid>("ReviewCycleId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("review_cycle_id");
 
                     b.Property<string>("UnfinalizeReason")
                         .HasMaxLength(2000)
@@ -1947,8 +1931,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnName("version");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("EventId", "ReviewCycleId");
 
                     b.HasIndex("EventId", "Version")
                         .IsUnique();
@@ -2030,13 +2012,8 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("event_id");
 
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)")
-                        .HasColumnName("kind");
-
                     b.Property<string>("Reason")
+                        .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("reason");
@@ -2049,22 +2026,9 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("resolved_by_account_id");
 
-                    b.Property<Guid>("ReviewCycleId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("review_cycle_id");
-
-                    b.Property<Guid?>("TeamId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("team_id");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("EventId", "ReviewCycleId");
-
-                    b.HasIndex("EventId", "TeamId");
-
-                    b.HasIndex("ReviewCycleId", "BlockerKey")
-                        .IsUnique();
+                    b.HasIndex("EventId", "BlockerKey");
 
                     b.ToTable("final_review_resolutions", (string)null);
                 });
@@ -2120,8 +2084,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnName("team_name");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("EventId", "FinalizationId");
 
                     b.HasIndex("FinalizationId", "TeamId")
                         .IsUnique();
@@ -2250,77 +2212,16 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("recorded_at");
 
-                    b.Property<Guid>("ReviewCycleId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("review_cycle_id");
-
                     b.Property<Guid>("TeamId")
                         .HasColumnType("uuid")
                         .HasColumnName("team_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EventId", "ReviewCycleId");
-
-                    b.HasIndex("EventId", "TeamId");
-
-                    b.HasIndex("ReviewCycleId", "TeamId")
+                    b.HasIndex("EventId", "TeamId")
                         .IsUnique();
 
                     b.ToTable("team_completion_corrections", (string)null);
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Events.WaitingListPromotionFollowUp", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("completed_at");
-
-                    b.Property<Guid?>("CompletedByAccountId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("completed_by_account_id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid>("EndedMembershipId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("ended_membership_id");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("event_id");
-
-                    b.Property<Guid>("PromotedParticipantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("promoted_participant_id");
-
-                    b.Property<Guid>("ReplacementMembershipId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("replacement_membership_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompletedByAccountId");
-
-                    b.HasIndex("EndedMembershipId");
-
-                    b.HasIndex("PromotedParticipantId");
-
-                    b.HasIndex("ReplacementMembershipId");
-
-                    b.HasIndex("EventId", "CompletedAt");
-
-                    b.HasIndex("EventId", "EndedMembershipId")
-                        .IsUnique();
-
-                    b.ToTable("waiting_list_promotion_follow_ups", (string)null);
                 });
 
             modelBuilder.Entity("Bingo.Domain.Evidence.EvidenceAsset", b =>
@@ -3610,9 +3511,7 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("left_at IS NULL");
 
-                    b.HasIndex("ReplacesMembershipId")
-                        .IsUnique()
-                        .HasFilter("replaces_membership_id IS NOT NULL");
+                    b.HasIndex("ReplacesMembershipId");
 
                     b.HasIndex("TeamId", "EventParticipantId");
 
@@ -3792,90 +3691,11 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Bingo.Domain.Events.EventFinalizationSnapshot", b =>
-                {
-                    b.HasOne("Bingo.Domain.Events.EventStateTransition", null)
-                        .WithMany()
-                        .HasForeignKey("EventId", "ReviewCycleId")
-                        .HasPrincipalKey("EventId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Events.FinalReviewResolution", b =>
-                {
-                    b.HasOne("Bingo.Domain.Events.EventStateTransition", null)
-                        .WithMany()
-                        .HasForeignKey("EventId", "ReviewCycleId")
-                        .HasPrincipalKey("EventId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Bingo.Domain.Teams.Team", null)
-                        .WithMany()
-                        .HasForeignKey("EventId", "TeamId")
-                        .HasPrincipalKey("EventId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Events.OfficialPlacementSnapshot", b =>
-                {
-                    b.HasOne("Bingo.Domain.Events.EventFinalizationSnapshot", null)
-                        .WithMany()
-                        .HasForeignKey("EventId", "FinalizationId")
-                        .HasPrincipalKey("EventId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Bingo.Domain.Events.ScheduledSignupOpeningAttempt", b =>
                 {
                     b.HasOne("Bingo.Domain.Events.BingoEvent", null)
                         .WithMany()
                         .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Events.TeamCompletionCorrection", b =>
-                {
-                    b.HasOne("Bingo.Domain.Events.EventStateTransition", null)
-                        .WithMany()
-                        .HasForeignKey("EventId", "ReviewCycleId")
-                        .HasPrincipalKey("EventId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Bingo.Domain.Teams.Team", null)
-                        .WithMany()
-                        .HasForeignKey("EventId", "TeamId")
-                        .HasPrincipalKey("EventId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Events.WaitingListPromotionFollowUp", b =>
-                {
-                    b.HasOne("Bingo.Domain.Access.Account", null)
-                        .WithMany()
-                        .HasForeignKey("CompletedByAccountId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Bingo.Domain.Teams.TeamMembership", null)
-                        .WithMany()
-                        .HasForeignKey("EndedMembershipId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Bingo.Domain.Signups.EventParticipant", null)
-                        .WithMany()
-                        .HasForeignKey("PromotedParticipantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Bingo.Domain.Teams.TeamMembership", null)
-                        .WithMany()
-                        .HasForeignKey("ReplacementMembershipId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

@@ -1,6 +1,7 @@
 using Bingo.Application.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Signups;
 using Bingo.Web.Security;
 using Bingo.Web.Teams;
 using Microsoft.AspNetCore.Mvc;
@@ -44,6 +45,11 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, Publi
             .OrderBy(x => x.DraftPosition).ThenBy(x => x.Name).ToListAsync(ct);
         if (teams.Count == 0) return NotFound();
         var imageTeamIds = await images.CurrentTeamIdsAsync(ev.Id, teamIds, ct);
+        var currentRoster = await (from membership in db.TeamMemberships.AsNoTracking()
+                                   join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
+                                   join primary in db.AdminPrimaryCharacters().AsNoTracking() on participant.Id equals primary.ParticipantId
+                                   where teamIds.Contains(membership.TeamId) && membership.LeftAt == null && participant.EventId == ev.Id
+                                   select new { membership.TeamId, primary.Name, membership.Role }).ToListAsync(ct);
 
         EventName = ev.Name;
         Teams = teams.Select(t => new TeamView(
@@ -51,8 +57,8 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, Publi
                 t.AffiliationName,
                 imageTeamIds.Contains(t.Id) ? $"/Events/{ev.Slug}/Teams/{t.Id}/Image" : null,
                 t.FormationType,
-                rosterEntries.Where(m => m.TeamId == t.Id)
-                    .Select(m => new MemberView(m.PublicCharacterName, m.Role))
+                currentRoster.Where(m => m.TeamId == t.Id)
+                    .Select(m => new MemberView(m.Name, m.Role))
                     .OrderBy(x => x.Role).ThenBy(x => x.Name).ToList()))
             .ToList();
 

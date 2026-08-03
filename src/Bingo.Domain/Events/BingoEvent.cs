@@ -55,6 +55,7 @@ public sealed class BingoEvent
     public DateTimeOffset? ActualSignupClosedAt { get; private set; }
     public DateTimeOffset? ActualStartedAt { get; private set; }
     public DateTimeOffset? ActualEndedAt { get; private set; }
+    public DateTimeOffset? SubmissionsClosedAt { get; private set; }
     public bool ScheduledSignupOpeningEnabled { get; private set; }
     public string ScheduledSignupWarningCodes { get; private set; } = string.Empty;
     public DateTimeOffset? ReopenedSubmissionCutoffAt { get; private set; }
@@ -234,11 +235,34 @@ public sealed class BingoEvent
         State = EventState.AwaitingFinalReview;
     }
 
+    public void ResumePrematureEnd(DateTimeOffset replacementEventEndsAt, DateTimeOffset resumedAt)
+    {
+        EnsureCapability(EventCapability.ResumeEvent);
+        replacementEventEndsAt = replacementEventEndsAt.ToUniversalTime();
+        resumedAt = resumedAt.ToUniversalTime();
+        if (replacementEventEndsAt <= resumedAt) throw new InvalidOperationException("The replacement event end must be in the future.");
+        EventEndsAt = replacementEventEndsAt;
+        SetNormalSubmissionCutoff(replacementEventEndsAt);
+        ReopenedSubmissionCutoffAt = null;
+        ActualEndedAt = null;
+        SubmissionsClosedAt = null;
+        State = EventState.Live;
+    }
+
+    public bool CloseSubmissionsIfDue(DateTimeOffset now)
+    {
+        var cutoff = ActiveSubmissionCutoff();
+        if (SubmissionsClosedAt is not null || cutoff == DateTimeOffset.MinValue || now.ToUniversalTime() < cutoff) return false;
+        SubmissionsClosedAt = cutoff;
+        return true;
+    }
+
     public void ReopenSubmissions(DateTimeOffset until, DateTimeOffset now)
     {
         EnsureCapability(EventCapability.ReviewEvidence);
         if (until <= now) throw new InvalidOperationException("The new cutoff must be in the future.");
         ReopenedSubmissionCutoffAt = until.ToUniversalTime();
+        SubmissionsClosedAt = null;
     }
 
     public void SetEvidenceCodeEnabled(bool enabled)
@@ -263,6 +287,8 @@ public sealed class BingoEvent
         State = EventState.AwaitingFinalReview;
         ResultsPublished = false;
         ArchivedAt = null;
+        ReopenedSubmissionCutoffAt = null;
+        SubmissionsClosedAt ??= SubmissionCutoffAt;
     }
 
     public void Archive(DateTimeOffset now)

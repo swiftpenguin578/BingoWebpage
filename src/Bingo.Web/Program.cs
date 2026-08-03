@@ -347,6 +347,7 @@ if (args.Contains("--reset-test-data", StringComparer.Ordinal))
     var result = await seeder.ResetAndSeedAsync();
     Console.WriteLine($"Test database reset complete. Preserved admin: {result.AdminUsername}");
     Console.WriteLine($"Second admin for concurrency tests: {result.SecondaryAdminUsername} / {result.SecondaryAdminPassword}");
+    Console.WriteLine($"Waiting-list replacement account: {result.ReplacementUsername} / {result.ReplacementPassword}");
     Console.WriteLine($"Board blueprint: {result.BoardBlueprint}");
     foreach (var scenario in result.Scenarios)
     {

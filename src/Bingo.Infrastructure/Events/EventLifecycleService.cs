@@ -36,6 +36,16 @@ public sealed class EventLifecycleService(
             .Select(x => x.Id)
             .ToListAsync(ct);
         foreach (var eventId in dueEnds) await ExecuteScheduledEndAsync(eventId, now, ct);
+
+        var dueClosures = await db.Events.AsNoTracking()
+            .Where(x => (x.State == EventState.Live || x.State == EventState.AwaitingFinalReview || x.State == EventState.Finalized || x.State == EventState.Archived)
+                && x.SubmissionsClosedAt == null
+                && x.SubmissionCutoffAt != null
+                && ((x.ReopenedSubmissionCutoffAt != null && x.ReopenedSubmissionCutoffAt > x.SubmissionCutoffAt && x.ReopenedSubmissionCutoffAt <= now)
+                    || ((x.ReopenedSubmissionCutoffAt == null || x.ReopenedSubmissionCutoffAt <= x.SubmissionCutoffAt) && x.SubmissionCutoffAt <= now)))
+            .Select(x => x.Id)
+            .ToListAsync(ct);
+        foreach (var eventId in dueClosures) await ExecuteSubmissionClosureAsync(eventId, now, ct);
     }
 
     public async Task<EventStartReadiness?> GetStartReadinessAsync(Guid eventId, CancellationToken ct = default)
@@ -62,7 +72,7 @@ public sealed class EventLifecycleService(
             await AppendInitialActivationsAsync(item.Id, item.ActualStartedAt!.Value, ct);
             var unresolved = await db.ScheduledEventStartAttempts.Where(x => x.EventId == eventId && x.ResolvedAt == null && !x.Started).ToListAsync(ct);
             foreach (var attempt in unresolved) attempt.Resolve(now);
-            AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.started", reason, now);
+            AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.started", reason, now, now);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             return new(true);
@@ -78,13 +88,15 @@ public sealed class EventLifecycleService(
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
+            await LockCurrentBoundaryAsync(ct);
             var item = await EventAsync(eventId, version, ct);
             var now = time.GetUtcNow();
             if (item.EventEndsAt is { } scheduledEnd && now < scheduledEnd && string.IsNullOrWhiteSpace(reason))
                 return new(false, "Enter a reason when ending the event before its configured end.");
             var from = item.State;
             item.EndEvent(now);
-            AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.ended", reason, now);
+            item.CloseSubmissionsIfDue(now);
+            AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.ended", reason, now, now);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             return new(true);
@@ -92,6 +104,48 @@ public sealed class EventLifecycleService(
         catch (DbUpdateConcurrencyException) { await tx.RollbackAsync(ct); return new(false, "This event changed while it was being ended. Review its current state and try again."); }
         catch (InvalidOperationException ex) { await tx.RollbackAsync(ct); return new(false, ex.Message); }
         catch (DbUpdateException) { await tx.RollbackAsync(ct); return new(false, "The event could not be ended. Review its current state and try again."); }
+    }
+
+    public async Task<EventStartResult> ResumePrematureEndAsync(Guid eventId, long version, bool confirmed, string? reason, DateTimeOffset replacementEventEndsAt, LifecycleActor actor, CancellationToken ct = default)
+    {
+        if (!confirmed) return new(false, "Confirm that you want to resume the event.");
+        if (string.IsNullOrWhiteSpace(reason)) return new(false, "Enter a reason for resuming the event.");
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        try
+        {
+            await LockCurrentBoundaryAsync(ct);
+            var item = await EventAsync(eventId, version, ct);
+            var now = time.GetUtcNow();
+            replacementEventEndsAt = replacementEventEndsAt.ToUniversalTime();
+            if (item.State != EventState.AwaitingFinalReview)
+                return new(false, "Only an event in final review can be resumed.");
+            if (await db.EventFinalizations.AnyAsync(x => x.EventId == eventId, ct))
+                return new(false, "An event with official finalization history cannot be resumed through this action.");
+            if (replacementEventEndsAt <= now)
+                return new(false, "The replacement event end must be in the future.");
+            if (item.EventStartsAt is not { } startsAt || replacementEventEndsAt <= startsAt)
+                return new(false, "The replacement event end must be after the event start.");
+            var singleton = await db.Events.AsNoTracking()
+                .Where(x => x.Id != eventId && CurrentStates.Contains(x.State) && !(IsDevelopmentMode() && x.IsDevelopmentFixture))
+                .OrderBy(x => x.Name)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync(ct);
+            if (singleton is not null)
+                return new(false, $"{singleton} is already the current event. Archive it before resuming this event.");
+            var overlap = await FindLifecycleOverlapAsync(item, replacementEventEndsAt, ct);
+            if (overlap is not null)
+                return new(false, overlap);
+
+            var from = item.State;
+            item.ResumePrematureEnd(replacementEventEndsAt, now);
+            AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.resumed", reason.Trim(), now, now);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return new(true);
+        }
+        catch (DbUpdateConcurrencyException) { await tx.RollbackAsync(ct); return new(false, "This event changed while it was being resumed. Review its current state and try again."); }
+        catch (InvalidOperationException ex) { await tx.RollbackAsync(ct); return new(false, ex.Message); }
+        catch (DbUpdateException) { await tx.RollbackAsync(ct); return new(false, "The event could not be resumed. Review its current state and try again."); }
     }
 
     private async Task ExecuteScheduledStartAsync(Guid eventId, DateTimeOffset now, CancellationToken ct)
@@ -112,7 +166,7 @@ public sealed class EventLifecycleService(
                 item.StartEvent(now);
                 await AppendInitialActivationsAsync(item.Id, item.ActualStartedAt!.Value, ct);
                 db.ScheduledEventStartAttempts.Add(new(Guid.NewGuid(), eventId, scheduledFor, now, true, []));
-                AddTransitionAndAudit(item, from, null, "System", true, "event.started_automatically", null, now);
+                AddTransitionAndAudit(item, from, null, "System", true, "event.started_automatically", null, now, scheduledFor);
             }
             else
             {
@@ -135,12 +189,32 @@ public sealed class EventLifecycleService(
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
+            await LockCurrentBoundaryAsync(ct);
             var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId, ct);
             if (item is null || item.State != EventState.Live || item.EventEndsAt is not { } scheduledEnd || scheduledEnd > now)
                 return;
             var from = item.State;
             item.EndEvent(scheduledEnd);
-            AddTransitionAndAudit(item, from, null, "System", true, "event.ended_automatically", null, now);
+            item.CloseSubmissionsIfDue(now);
+            AddTransitionAndAudit(item, from, null, "System", true, "event.ended_automatically", null, now, scheduledEnd);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch (Exception) when (!ct.IsCancellationRequested)
+        {
+            await tx.RollbackAsync(ct);
+            db.ChangeTracker.Clear();
+        }
+    }
+
+    private async Task ExecuteSubmissionClosureAsync(Guid eventId, DateTimeOffset now, CancellationToken ct)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        try
+        {
+            await LockCurrentBoundaryAsync(ct);
+            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId, ct);
+            if (item is null || !item.CloseSubmissionsIfDue(now)) return;
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
         }
@@ -176,7 +250,7 @@ public sealed class EventLifecycleService(
             .Select(x => x.ParticipantId)
             .ToListAsync(ct);
         foreach (var participantId in confirmedParticipantIds.Except(primaryParticipantIds))
-            blockers.Add(new("PARTICIPANT_PLAYING_ASSIGNMENT_INVALID", "Every confirmed participant needs an unambiguous current Playing assignment before the event can start.", $"/Admin/Events/Participant/{participantId}"));
+            blockers.Add(new("PARTICIPANT_PLAYING_ASSIGNMENT_INVALID", "Every confirmed participant needs an unambiguous current Playing assignment before the event can start.", $"/Admin/Events/Participant/{item.Id}/Participants/{participantId}"));
 
         var activeTeams = await db.Teams.AsNoTracking().Where(x => x.EventId == item.Id && x.Active).Select(x => new { x.Id, x.Name }).ToListAsync(ct);
         var activeTeamIds = activeTeams.Select(team => team.Id).ToArray();
@@ -244,11 +318,31 @@ public sealed class EventLifecycleService(
             db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), recipient, title, detail, route, now));
     }
 
-    private void AddTransitionAndAudit(BingoEvent item, EventState from, Guid? actorId, string actorName, bool scheduled, string action, string? reason, DateTimeOffset now)
+    private void AddTransitionAndAudit(BingoEvent item, EventState from, Guid? actorId, string actorName, bool scheduled, string action, string? reason, DateTimeOffset now, DateTimeOffset effectiveAt)
     {
-        db.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), item.Id, from, item.State, actorId, now, reason, scheduled));
+        db.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), item.Id, from, item.State, actorId, now, reason, scheduled, effectiveAt));
         db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actorId, actorName, action, "event", item.Id.ToString(), reason, item.Id, JsonSerializer.Serialize(new { state = from }), JsonSerializer.Serialize(new { state = item.State, item.ActualStartedAt, item.ActualEndedAt })));
     }
+
+    private async Task<string?> FindLifecycleOverlapAsync(BingoEvent item, DateTimeOffset replacementEnd, CancellationToken ct)
+    {
+        if (item.EventStartsAt is not { } start) return "Configure an event start before resuming this event.";
+        var states = new[] { EventState.SignupOpen, EventState.SignupClosed, EventState.Live, EventState.AwaitingFinalReview, EventState.Finalized };
+        var signupOpensAt = item.SignupOpensAt;
+        var signupClosesAt = item.SignupClosesAt;
+        var overlap = await db.Events.AsNoTracking()
+            .Where(x => x.Id != item.Id && states.Contains(x.State) && !(IsDevelopmentMode() && x.IsDevelopmentFixture))
+            .Where(x =>
+                (x.EventStartsAt != null && x.EventEndsAt != null && x.EventStartsAt < replacementEnd && start < x.EventEndsAt)
+                || (signupOpensAt != null && signupClosesAt != null && x.SignupOpensAt != null && x.SignupClosesAt != null && signupOpensAt < x.SignupClosesAt && x.SignupOpensAt < signupClosesAt))
+            .OrderBy(x => x.EventStartsAt)
+            .ThenBy(x => x.Name)
+            .Select(x => x.Name)
+            .FirstOrDefaultAsync(ct);
+        return overlap is null ? null : $"The replacement lifecycle window overlaps {overlap}.";
+    }
+
+    private static bool IsDevelopmentMode() => string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
 
     private static string ReadableState(EventState state) => state switch
     {

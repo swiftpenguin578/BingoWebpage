@@ -39,7 +39,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         foreach (var entry in ChangeTracker.Entries<SignupQuestion>().Where(entry => entry.State == EntityState.Modified))
             entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<BingoEvent>().Where(entry => entry.State == EntityState.Modified))
-            entry.Entity.AdvanceVersion();
+            if (!entry.Property(item => item.Version).IsModified) entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<Team>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<TeamMembership>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<DraftSession>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
@@ -107,6 +107,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<EvidenceAsset> EvidenceAssets => Set<EvidenceAsset>();
     public DbSet<ReviewAction> ReviewActions => Set<ReviewAction>();
     public DbSet<SubmissionContribution> SubmissionContributions => Set<SubmissionContribution>();
+    public DbSet<WaitingListPromotionFollowUp> WaitingListPromotionFollowUps => Set<WaitingListPromotionFollowUp>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -159,6 +160,25 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
         modelBuilder.Entity<AccountEventAccess>(entity => { entity.ToTable("account_event_accesses"); entity.HasKey(x => x.Id); entity.HasIndex(x => x.AccountId); entity.HasIndex(x => new { x.EventId, x.TeamId }); entity.Property(x => x.ActiveFrom).HasColumnName("active_from"); entity.Property(x => x.CorrectionOnlyFrom).HasColumnName("correction_only_from"); entity.Property(x => x.ExpiresAt).HasColumnName("expires_at"); entity.Property(x => x.CutoffDisabled).HasColumnName("cutoff_disabled"); });
         modelBuilder.Entity<PersonalNotification>(entity => { entity.ToTable("personal_notifications"); entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.RecipientAccountId, x.ReadAt, x.CreatedAt }); entity.Property(x => x.Title).HasMaxLength(200); entity.Property(x => x.Detail).HasMaxLength(1_000); entity.Property(x => x.Route).HasMaxLength(500); });
+        modelBuilder.Entity<WaitingListPromotionFollowUp>(entity =>
+        {
+            entity.ToTable("waiting_list_promotion_follow_ups");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.EventId).HasColumnName("event_id");
+            entity.Property(x => x.EndedMembershipId).HasColumnName("ended_membership_id");
+            entity.Property(x => x.ReplacementMembershipId).HasColumnName("replacement_membership_id");
+            entity.Property(x => x.PromotedParticipantId).HasColumnName("promoted_participant_id");
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.CompletedByAccountId).HasColumnName("completed_by_account_id");
+            entity.Property(x => x.CompletedAt).HasColumnName("completed_at");
+            entity.HasIndex(x => new { x.EventId, x.EndedMembershipId }).IsUnique();
+            entity.HasIndex(x => new { x.EventId, x.CompletedAt });
+            entity.HasOne<TeamMembership>().WithMany().HasForeignKey(x => x.EndedMembershipId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<TeamMembership>().WithMany().HasForeignKey(x => x.ReplacementMembershipId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<EventParticipant>().WithMany().HasForeignKey(x => x.PromotedParticipantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Account>().WithMany().HasForeignKey(x => x.CompletedByAccountId).OnDelete(DeleteBehavior.Restrict);
+        });
         modelBuilder.Entity<PasswordCredentialToken>(entity => { entity.ToTable("password_credential_tokens"); entity.HasKey(x => x.Id); entity.HasIndex(x => x.TokenHash).IsUnique(); entity.HasIndex(x => new { x.AccountId, x.Purpose }); entity.Property(x => x.Purpose).HasConversion<string>().HasMaxLength(30); entity.Property(x => x.TokenHash).HasMaxLength(200); });
         modelBuilder.Entity<AccountDiscordIdentityTransition>(entity => { entity.ToTable("account_discord_identity_transitions"); entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.AccountId, x.OccurredAt }); entity.Property(x => x.Action).HasMaxLength(30); });
         modelBuilder.Entity<OsrsCharacter>(entity => { entity.ToTable("osrs_characters"); entity.HasKey(x => x.Id); entity.Property(x => x.DisplayName).HasMaxLength(100); entity.Property(x => x.NormalizedName).HasMaxLength(100); entity.HasIndex(x => x.NormalizedName).IsUnique(); });

@@ -31,6 +31,8 @@ public sealed class DevelopmentScenarioSeeder(
     public const string EvidenceCoCaptainPassword = "SeedEvidenceCoCaptain!1234";
     public const string EvidenceParticipantUsername = "SeedEvidenceParticipant";
     public const string EvidenceParticipantPassword = "SeedEvidenceParticipant!1234";
+    public const string ReplacementUsername = "SeedReplacement";
+    public const string ReplacementPassword = "SeedReplacement!1234";
     public const string EvidenceDisabledEmergencyUsername = "SeedEvidenceEmergencyDisabled";
     public const string SecondaryAdminUsername = "SeedAdminTwo";
     public const string SecondaryAdminPassword = "SeedAdmin!1234";
@@ -68,21 +70,28 @@ public sealed class DevelopmentScenarioSeeder(
         var evidenceCaptain = await EnsureEvidenceCaptainAsync(now, cancellationToken);
         var evidenceCoCaptain = await EnsureWebsiteAccountAsync(EvidenceCoCaptainUsername, EvidenceCoCaptainPassword, now, cancellationToken);
         var evidenceParticipant = await EnsureWebsiteAccountAsync(EvidenceParticipantUsername, EvidenceParticipantPassword, now, cancellationToken);
+        var replacementAccount = await EnsureWebsiteAccountAsync(ReplacementUsername, ReplacementPassword, now, cancellationToken);
         var seeded = new List<SeededScenario>();
 
-        seeded.Add(SeedScenario(
+        var boardScenario = await SeedScenario(
             "TEST 13 — DKL Board",
             "test-13-dkl-board",
             ScenarioStage.BoardDraft,
             dklBlueprint,
             admin.Id,
             secondaryAdmin,
-            now));
+            now);
+        seeded.Add(boardScenario);
         var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, evidenceCaptain, evidenceCoCaptain, evidenceParticipant, now);
         seeded.Add(dklLiveScenario);
+        var waitingReplacement = CreateParticipant(
+            dklLiveScenario.EventId, "Slice 9 Waiting Replacement", 100, SignupStatus.WaitingList,
+            10_000, now.AddMinutes(-5), SignupSource.Website);
+        waitingReplacement.AssignOwner(replacementAccount);
+        db.EventParticipants.Add(waitingReplacement);
         AddDklLiveProgress(dklLiveScenario.EventId, admin.Id, now);
         await AddDklReviewStatesAsync(dklLiveScenario.EventId, admin.Id, now, cancellationToken);
-        var evidenceHistoryScenario = SeedScenario(
+        var evidenceHistoryScenario = await SeedScenario(
             "TEST 84 — Evidence history",
             "test-84-evidence-history",
             ScenarioStage.Finalized,
@@ -102,7 +111,7 @@ public sealed class DevelopmentScenarioSeeder(
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return new SeedResult(admin.LoginName, secondaryAdmin.LoginName, SecondaryAdminPassword, blueprint.Name, seeded, CaptainPassword);
+        return new SeedResult(admin.LoginName, secondaryAdmin.LoginName, SecondaryAdminPassword, blueprint.Name, seeded, CaptainPassword, ReplacementUsername, ReplacementPassword);
     }
 
     private async Task<Account> EnsureSecondaryAdminAsync(DateTimeOffset now, CancellationToken cancellationToken)
@@ -137,7 +146,7 @@ public sealed class DevelopmentScenarioSeeder(
         return account;
     }
 
-    private SeededScenario SeedScenario(
+    private async Task<SeededScenario> SeedScenario(
         string name,
         string slug,
         ScenarioStage stage,
@@ -168,6 +177,7 @@ public sealed class DevelopmentScenarioSeeder(
             "Europe/Copenhagen", signupOpens, signupCloses, eventStarts, eventEnds,
             eventEnds.AddMinutes(30), stage == ScenarioStage.SignupsOpen ? 6 : 20,
             adminId, now);
+        Guid? reviewCycleId = null;
         bingoEvent.ConfigureSignup(true, false, null);
         bingoEvent.ConfigurePlanning(
             "Seeded rules for manual workflow testing.", null, null, 2, 3,
@@ -179,7 +189,15 @@ public sealed class DevelopmentScenarioSeeder(
         {
             bingoEvent.StartEvent(eventStarts);
             bingoEvent.EndEvent();
-            if (stage == ScenarioStage.Finalized) bingoEvent.FinalizeResults(now.AddMinutes(-30));
+            if (stage == ScenarioStage.Finalized)
+            {
+                bingoEvent.FinalizeResults(now.AddMinutes(-30));
+                var reviewCycle = new EventStateTransition(
+                    Guid.NewGuid(), bingoEvent.Id, EventState.Live, EventState.AwaitingFinalReview,
+                    adminId, eventEnds, "Seeded final-review cycle for archive history testing.");
+                db.EventStateTransitions.Add(reviewCycle);
+                reviewCycleId = reviewCycle.Id;
+            }
         }
         if (stage == ScenarioStage.ReviewCases)
         {
@@ -215,7 +233,11 @@ public sealed class DevelopmentScenarioSeeder(
                 : finalized ? DraftSeedState.Finalized : DraftSeedState.Setup;
             captainUsernames.AddRange(AddTeamsAndDraft(
                 bingoEvent, participants, draftState, finalized, now));
-            if (stage == ScenarioStage.Finalized) AddFinalizedResults(bingoEvent, adminId, now);
+            if (stage == ScenarioStage.Finalized)
+            {
+                await AddCompletedBoardAsync(bingoEvent.Id, adminId, now, CancellationToken.None);
+                AddFinalizedResults(bingoEvent, adminId, now, reviewCycleId ?? throw new InvalidOperationException("Seeded finalized event is missing its review cycle."));
+            }
         }
 
         return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, board?.State, captainUsernames);
@@ -254,10 +276,10 @@ public sealed class DevelopmentScenarioSeeder(
         return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, board.State, captainUsernames);
     }
 
-    private void AddFinalizedResults(BingoEvent bingoEvent, Guid adminId, DateTimeOffset now)
+    private void AddFinalizedResults(BingoEvent bingoEvent, Guid adminId, DateTimeOffset now, Guid reviewCycleId)
     {
         var finalization = new EventFinalizationSnapshot(
-            Guid.NewGuid(), bingoEvent.Id, 1, now.AddMinutes(-30), adminId);
+            Guid.NewGuid(), bingoEvent.Id, 1, now.AddMinutes(-30), adminId, reviewCycleId);
         db.EventFinalizations.Add(finalization);
 
         var teams = db.Teams.Local
@@ -268,11 +290,19 @@ public sealed class DevelopmentScenarioSeeder(
         for (var index = 0; index < teams.Count; index++)
         {
             var team = teams[index];
+            var board = db.Boards.Local.Single(value => value.EventId == bingoEvent.Id);
+            var completed = index == 0;
+            var completedAt = completed
+                ? db.Submissions.Local
+                    .Where(value => value.EventId == bingoEvent.Id && value.TeamId == team.Id && value.Status == SubmissionStatus.Approved)
+                    .Select(value => (DateTimeOffset?)value.SubmittedAt)
+                    .Max()
+                : null;
             db.OfficialPlacements.Add(new OfficialPlacementSnapshot(
                 Guid.NewGuid(), finalization.Id, bingoEvent.Id, team.Id, team.Name,
-                index + 1, index == 0, index == 0 ? now.AddHours(-2) : null,
-                index == 0 ? 7 : 1, index == 0 ? 12 : Math.Max(1, 8 - index),
-                Math.Max(1, 25 - index * 4)));
+                completed ? 1 : 2, completed, completedAt,
+                completed ? board.Rows + board.Columns : 0, completed ? board.Rows * board.Columns : 0,
+                completed ? board.TotalEhbEstimate : 0));
         }
 
     }
@@ -1600,7 +1630,8 @@ public sealed class DevelopmentScenarioSeeder(
                 board_tile_image_assets, board_tiles, template_requirement_drops, template_requirement_bosses, tile_template_requirements,
                 tile_templates, boards, signup_answers, event_participant_characters, signup_questions, signup_forms, event_participants,
                 scheduled_signup_opening_attempts, scheduled_event_start_attempts, event_state_transitions, event_banner_cleanups, events, audit_entries, personal_notifications,
-                account_event_accesses, password_credential_tokens, account_discord_identity_transitions
+                account_event_accesses, password_credential_tokens, account_discord_identity_transitions,
+                waiting_list_promotion_follow_ups
             RESTART IDENTITY;
             DELETE FROM accounts WHERE account_type = 'EmergencyCaptain';
             """,
@@ -1690,7 +1721,9 @@ public sealed record SeedResult(
     string SecondaryAdminPassword,
     string BoardBlueprint,
     IReadOnlyList<SeededScenario> Scenarios,
-    string CaptainPassword);
+    string CaptainPassword,
+    string ReplacementUsername,
+    string ReplacementPassword);
 
 public sealed record SeededScenario(
     Guid EventId,

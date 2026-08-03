@@ -26,28 +26,38 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
 
     public async Task<NotificationInbox> GetNotificationsAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
     {
+        var personalItems = new List<ShellNotification>();
         if (Guid.TryParse(user.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier), out var accountId))
         {
             var unread = db.PersonalNotifications.AsNoTracking().Where(item => item.RecipientAccountId == accountId && item.ReadAt == null);
-            var unreadCount = await unread.CountAsync(cancellationToken);
-            if (unreadCount > 0)
-            {
-                var personal = await unread.OrderByDescending(item => item.CreatedAt).Take(6).ToListAsync(cancellationToken);
-                return new NotificationInbox([], unreadCount, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personal.Select(item => new ShellNotification(item.Id, NotificationTitle(item.Title), NotificationDetail(item.Title, item.Detail), $"/notifications?read={item.Id}")).ToList());
-            }
+            var personal = await unread.OrderByDescending(item => item.CreatedAt).Take(6).ToListAsync(cancellationToken);
+            personalItems = personal.Select(item => new ShellNotification(item.Id, NotificationTitle(item.Title), NotificationDetail(item.Title, item.Detail), $"/notifications?read={item.Id}")).ToList();
+            var personalCount = await unread.CountAsync(cancellationToken);
+            var adminActions = user.IsInRole("Admin") || user.IsInRole("SuperAdmin")
+                ? await GetAdminActionsAsync(cancellationToken)
+                : new AdminActionProjection([], [], 0);
+            var eventIds = await db.Events.AsNoTracking().Where(item => item.State == EventState.Live || item.State == EventState.AwaitingFinalReview).Select(item => item.Id).ToListAsync(cancellationToken);
+            return new NotificationInbox(eventIds, personalCount + adminActions.Count, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personalItems,
+                personalCount, adminActions.Count, text["Admin actions"], text["No unresolved Admin actions."], text["Open Admin actions"], "/Admin", adminActions.Items);
         }
-        if (user.IsInRole("Admin") || user.IsInRole("SuperAdmin")) return await GetAdminNotifications(cancellationToken);
-        if (user.IsInRole("Captain")) return await GetCaptainNotifications(user, cancellationToken);
-        return new NotificationInbox([], 0, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", []);
+        var anonymousAdminActions = user.IsInRole("Admin") || user.IsInRole("SuperAdmin")
+            ? await GetAdminActionsAsync(cancellationToken)
+            : new AdminActionProjection([], [], 0);
+        var anonymousEventIds = await db.Events.AsNoTracking().Where(item => item.State == EventState.Live || item.State == EventState.AwaitingFinalReview).Select(item => item.Id).ToListAsync(cancellationToken);
+        return new NotificationInbox(anonymousEventIds, anonymousAdminActions.Count, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personalItems,
+            0, anonymousAdminActions.Count, text["Admin actions"], text["No unresolved Admin actions."], text["Open Admin actions"], "/Admin", anonymousAdminActions.Items);
     }
 
     private string NotificationTitle(string type) => type switch
     {
         "account.admin_granted" => text["Admin access granted"],
         "account.admin_revoked" => text["Admin access revoked"],
-        "account.restored" => text["Account restored"],
+        "account.restored" => text["An administrator restored your account."],
         "event.cancelled" => text["Event cancelled"],
+        "event.results_published" => text["Official results published"],
         "evidence.rejected" => text["Evidence rejected"],
+        "participant.live_withdrawn" => text["Live participant withdrawn"],
+        "participant.live_replaced" => text["Live replacement confirmed"],
         _ => type
     };
 
@@ -57,7 +67,9 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         "account.admin_revoked" => text["An administrator removed your Admin access."],
         "account.restored" => text["An administrator restored your account."],
         "event.cancelled" => text["Your event has been cancelled."],
+        "event.results_published" => detail,
         "evidence.rejected" => FormatEvidenceRejection(detail),
+        "participant.live_withdrawn" or "participant.live_replaced" => detail,
         _ => detail
     };
 
@@ -79,38 +91,71 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         }
     }
 
-    private async Task<NotificationInbox> GetAdminNotifications(CancellationToken cancellationToken)
+    public async Task<AdminActionProjection> GetAdminActionsAsync(CancellationToken cancellationToken)
     {
-        var activeEvents = await db.Events.AsNoTracking()
-            .Where(item => item.State == EventState.Live || item.State == EventState.AwaitingFinalReview)
-            .OrderByDescending(item => item.EventStartsAt)
-            .Select(item => new { item.Id, item.Name, item.Timezone })
-            .ToListAsync(cancellationToken);
-        if (activeEvents.Count == 0)
-        {
-            return new NotificationInbox([], 0, text["Notifications"], text["No active event needs attention."], text["Open evidence review"], "/Admin/Review", []);
-        }
-
+        var activeEvents = await db.Events.AsNoTracking().Where(item => item.State == EventState.Draft || item.State == EventState.SignupOpen || item.State == EventState.SignupClosed || item.State == EventState.Live || item.State == EventState.AwaitingFinalReview).Select(item => new { item.Id, item.Name, item.Timezone }).ToListAsync(cancellationToken);
         var activeEventIds = activeEvents.Select(item => item.Id).ToList();
         var eventMap = activeEvents.ToDictionary(item => item.Id);
-        var query = from submission in db.Submissions.AsNoTracking()
-                    join team in db.Teams.AsNoTracking() on submission.TeamId equals team.Id
-                    join tile in db.BoardTiles.AsNoTracking() on submission.BoardTileId equals tile.Id
-                    where activeEventIds.Contains(submission.EventId) && submission.Status == SubmissionStatus.Pending
-                    orderby submission.SubmittedAt descending
-                    select new { submission.Id, submission.EventId, submission.SubmittedAt, Team = team.Name, Tile = tile.NameSnapshot, Player = submission.CreditedCharacterName };
-        var count = await query.CountAsync(cancellationToken);
-        var rows = await query.Take(6).ToListAsync(cancellationToken);
-        var items = rows.Select(item => new ShellNotification(
+        var items = new List<ShellNotification>();
+        var pending = from submission in db.Submissions.AsNoTracking()
+                      join team in db.Teams.AsNoTracking() on submission.TeamId equals team.Id
+                      join tile in db.BoardTiles.AsNoTracking() on submission.BoardTileId equals tile.Id
+                      where activeEventIds.Contains(submission.EventId) && submission.Status == SubmissionStatus.Pending
+                      orderby submission.SubmittedAt descending
+                      select new { submission.Id, submission.EventId, submission.SubmittedAt, Team = team.Name, Tile = tile.NameSnapshot, Player = submission.CreditedCharacterName };
+        var pendingRows = await pending.Take(6).ToListAsync(cancellationToken);
+        var pendingCount = await pending.CountAsync(cancellationToken);
+        items.AddRange(pendingRows.Select(item => new ShellNotification(
             item.Id,
-            $"{item.Team} · {item.Tile}",
+            $"Evidence review · {item.Team} · {item.Tile}",
             text["{0} · {1} · submitted {2}", eventMap[item.EventId].Name, item.Player, FormatDate(item.SubmittedAt, eventMap[item.EventId].Timezone)],
-            $"/Admin/Review/Details/{item.Id}")).ToList();
-        return new NotificationInbox(activeEventIds, count, text["Tile submissions"], text["No tile submissions need review."], text["View all submissions"], "/Admin/Review", items);
-    }
+            $"/Admin/Review/Details/{item.Id}")));
 
-    private static Task<NotificationInbox> GetCaptainNotifications(ClaimsPrincipal user, CancellationToken cancellationToken)
-        => Task.FromResult(NotificationInbox.Empty);
+        var followups = await (from followUp in db.WaitingListPromotionFollowUps.AsNoTracking()
+                               join participant in db.EventParticipants.AsNoTracking() on followUp.PromotedParticipantId equals participant.Id
+                               where followUp.CompletedAt == null && activeEventIds.Contains(followUp.EventId)
+                               select new { followUp.Id, followUp.EventId, ParticipantId = participant.Id }).Take(6).ToListAsync(cancellationToken);
+        var followupCount = await db.WaitingListPromotionFollowUps.CountAsync(x => x.CompletedAt == null && activeEventIds.Contains(x.EventId), cancellationToken);
+        items.AddRange(followups.Select(x => new ShellNotification(x.Id, "Waiting-list follow-up", "Contact the promoted participant, then mark the follow-up complete.", $"/Admin/Events/Participant/{x.EventId}/Participants/{x.ParticipantId}")));
+
+        var postponed = await db.ScheduledEventStartAttempts.AsNoTracking().Where(x => activeEventIds.Contains(x.EventId) && !x.Started && x.ResolvedAt == null && x.ScheduledFor <= DateTimeOffset.UtcNow).OrderByDescending(x => x.AttemptedAt).Take(6).ToListAsync(cancellationToken);
+        var postponedCount = await db.ScheduledEventStartAttempts.CountAsync(x => activeEventIds.Contains(x.EventId) && !x.Started && x.ResolvedAt == null && x.ScheduledFor <= DateTimeOffset.UtcNow, cancellationToken);
+        items.AddRange(postponed.Select(x => new ShellNotification(x.Id, "Postponed start", "Resolve the scheduled start blockers.", $"/Admin/Events/Manage/{x.EventId}")));
+
+        var vacancies = await (from membership in db.TeamMemberships.AsNoTracking()
+                               join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
+                               join ev in db.Events.AsNoTracking() on participant.EventId equals ev.Id
+                               where (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) && participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && !db.TeamMemberships.Any(replacement => replacement.ReplacesMembershipId == membership.Id)
+                               select new { membership.Id, EventId = ev.Id, ParticipantId = participant.Id }).Take(6).ToListAsync(cancellationToken);
+        var vacancyCount = await (from membership in db.TeamMemberships.AsNoTracking()
+                                  join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
+                                  join ev in db.Events.AsNoTracking() on participant.EventId equals ev.Id
+                                  where (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) && participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && !db.TeamMemberships.Any(replacement => replacement.ReplacesMembershipId == membership.Id)
+                                  select membership.Id).CountAsync(cancellationToken);
+        items.AddRange(vacancies.Select(x => new ShellNotification(x.Id, "Open vacancy", "Review the open team vacancy and choose whether to replace it.", $"/Admin/Events/Participant/{x.EventId}/Participants/{x.ParticipantId}")));
+
+        var missingCaptains = await (from team in db.Teams.AsNoTracking()
+                                     join ev in db.Events.AsNoTracking() on team.EventId equals ev.Id
+                                     where team.Active && (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) &&
+                                           !db.TeamMemberships.Any(membership => membership.TeamId == team.Id && membership.LeftAt == null && membership.Role == Bingo.Domain.Teams.TeamMembershipRole.Captain &&
+                                               db.EventParticipants.Any(participant => participant.Id == membership.EventParticipantId && participant.AccountId != null && participant.EventId == ev.Id &&
+                                                   db.Accounts.Any(account => account.Id == participant.AccountId && account.Active && account.AccountType == Bingo.Domain.Access.AccountType.WebsiteAccount))) &&
+                                           !db.AccountEventAccesses.Any(access => access.EventId == ev.Id && access.TeamId == team.Id && access.Enabled &&
+                                               db.Accounts.Any(account => account.Id == access.AccountId && account.Active && account.AccountType == Bingo.Domain.Access.AccountType.EmergencyCaptain))
+                                     select new { team.Id, team.EventId }).Take(6).ToListAsync(cancellationToken);
+        var missingCaptainCount = await (from team in db.Teams.AsNoTracking()
+                                         join ev in db.Events.AsNoTracking() on team.EventId equals ev.Id
+                                         where team.Active && (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) &&
+                                               !db.TeamMemberships.Any(membership => membership.TeamId == team.Id && membership.LeftAt == null && membership.Role == Bingo.Domain.Teams.TeamMembershipRole.Captain &&
+                                                   db.EventParticipants.Any(participant => participant.Id == membership.EventParticipantId && participant.AccountId != null && participant.EventId == ev.Id &&
+                                                       db.Accounts.Any(account => account.Id == participant.AccountId && account.Active && account.AccountType == Bingo.Domain.Access.AccountType.WebsiteAccount))) &&
+                                               !db.AccountEventAccesses.Any(access => access.EventId == ev.Id && access.TeamId == team.Id && access.Enabled &&
+                                                   db.Accounts.Any(account => account.Id == access.AccountId && account.Active && account.AccountType == Bingo.Domain.Access.AccountType.EmergencyCaptain))
+                                         select team.Id).CountAsync(cancellationToken);
+        items.AddRange(missingCaptains.Select(x => new ShellNotification(x.Id, "Missing Captain", "Assign a current Captain through the event roster.", $"/Admin/Events/Manage/{x.EventId}")));
+
+        return new AdminActionProjection(activeEventIds, items.Take(8).ToList(), pendingCount + followupCount + postponedCount + vacancyCount + missingCaptainCount);
+    }
 
     private async Task<IReadOnlyList<BreadcrumbItem>> BuildBreadcrumbs(string page, RouteValueDictionary values, CancellationToken cancellationToken)
     {
@@ -265,7 +310,8 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
 public sealed record SharedShellData(IReadOnlyList<BreadcrumbItem> Breadcrumbs, NotificationInbox Notifications);
 public sealed record BreadcrumbItem(string Label, string? Url, string? Status = null, string? StatusClass = null);
 public sealed record ShellNotification(Guid Id, string Title, string Detail, string Url);
-public sealed record NotificationInbox(IReadOnlyList<Guid> EventIds, int Count, string Heading, string EmptyText, string OverviewLabel, string OverviewUrl, IReadOnlyList<ShellNotification> Items)
+public sealed record NotificationInbox(IReadOnlyList<Guid> EventIds, int Count, string Heading, string EmptyText, string OverviewLabel, string OverviewUrl, IReadOnlyList<ShellNotification> Items, int PersonalCount, int AdminActionCount, string AdminHeading, string AdminEmptyText, string AdminOverviewLabel, string AdminOverviewUrl, IReadOnlyList<ShellNotification> AdminItems)
 {
-    public static NotificationInbox Empty { get; } = new([], 0, string.Empty, string.Empty, string.Empty, string.Empty, []);
+    public static NotificationInbox Empty { get; } = new([], 0, string.Empty, string.Empty, string.Empty, string.Empty, [], 0, 0, string.Empty, string.Empty, string.Empty, string.Empty, []);
 }
+public sealed record AdminActionProjection(IReadOnlyList<Guid> EventIds, IReadOnlyList<ShellNotification> Items, int Count);

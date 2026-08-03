@@ -172,7 +172,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
                 foreach (var failedOpening in failedOpenings)
                     failedOpening.Resolve(now);
                 db.ScheduledSignupOpeningAttempts.Add(new(Guid.NewGuid(), eventId, scheduledFor, now, true, []));
-                AddScheduledTransitionAndAudit(item, from, "event.signup_opened_automatically", JsonSerializer.Serialize(new { scheduledFor }));
+                AddScheduledTransitionAndAudit(item, from, "event.signup_opened_automatically", JsonSerializer.Serialize(new { scheduledFor }), scheduledFor);
             }
             else
             {
@@ -206,7 +206,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
                 return;
             var from = item.State;
             item.CloseSignups(now);
-            AddScheduledTransitionAndAudit(item, from, "event.signup_closed_automatically", JsonSerializer.Serialize(new { scheduledFor }));
+            AddScheduledTransitionAndAudit(item, from, "event.signup_closed_automatically", JsonSerializer.Serialize(new { scheduledFor }), scheduledFor);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
         }
@@ -227,10 +227,10 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), recipient, title, detail, route, now));
     }
 
-    private void AddScheduledTransitionAndAudit(BingoEvent item, EventState from, string action, string? details)
+    private void AddScheduledTransitionAndAudit(BingoEvent item, EventState from, string action, string? details, DateTimeOffset effectiveAt)
     {
         var now = time.GetUtcNow();
-        db.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), item.Id, from, item.State, null, now, null, scheduled: true));
+        db.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), item.Id, from, item.State, null, now, null, scheduled: true, effectiveAt: effectiveAt));
         db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, null, "System", action, "event", item.Id.ToString(), details, item.Id, JsonSerializer.Serialize(new { state = from }), JsonSerializer.Serialize(new { state = item.State, item.ActualSignupOpenedAt, item.ActualSignupClosedAt })));
     }
 

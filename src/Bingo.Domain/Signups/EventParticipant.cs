@@ -77,10 +77,13 @@ public sealed class EventParticipant
     }
 
     public void Withdraw(DateTimeOffset now, string reason, Guid? actorAccountId = null)
+        => Withdraw(now, reason, actorAccountId, null);
+
+    public void Withdraw(DateTimeOffset now, string reason, Guid? actorAccountId, DateTimeOffset? eligibilityEndsAt)
     {
         if (SignupStatus == SignupStatus.Withdrawn) return;
         SignupStatus = SignupStatus.Withdrawn;
-        WithdrawnAt = now.ToUniversalTime();
+        WithdrawnAt = (eligibilityEndsAt ?? now).ToUniversalTime();
         StatusReason = reason;
         WithdrawnByAccountId = actorAccountId;
     }

@@ -10,9 +10,10 @@ using Microsoft.Extensions.Localization;
 namespace Bingo.Web.Pages;
 
 [Authorize]
-public sealed class NotificationsModel(Bingo.Infrastructure.Persistence.ApplicationDbContext db, TimeProvider time, IStringLocalizer<SharedResource> text) : PageModel
+public sealed class NotificationsModel(Bingo.Infrastructure.Persistence.ApplicationDbContext db, TimeProvider time, IStringLocalizer<SharedResource> text, SharedShellService? shell = null) : PageModel
 {
     public IReadOnlyList<NotificationView> Notifications { get; private set; } = [];
+    public AdminActionProjection AdminActions { get; private set; } = new([], [], 0);
     public async Task<IActionResult> OnGetAsync(Guid? read, CancellationToken cancellationToken)
     {
         if (read is not null)
@@ -20,6 +21,7 @@ public sealed class NotificationsModel(Bingo.Infrastructure.Persistence.Applicat
         var accountId = User.GetAccountId();
         if (accountId is null) return Challenge();
         Notifications = await db.PersonalNotifications.AsNoTracking().Where(item => item.RecipientAccountId == accountId).OrderByDescending(item => item.CreatedAt).Select(item => new NotificationView(item.Id, item.Title, item.Detail, item.Route, item.CreatedAt, item.ReadAt)).ToListAsync(cancellationToken);
+        if (shell is not null && (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))) AdminActions = await shell.GetAdminActionsAsync(cancellationToken);
         return Page();
     }
 
@@ -39,8 +41,8 @@ public sealed class NotificationsModel(Bingo.Infrastructure.Persistence.Applicat
         return Redirect(string.IsNullOrWhiteSpace(notification.Route) ? "/notifications" : notification.Route);
     }
 
-    public string Title(string type) => type switch { "account.admin_granted" => text["Admin access granted"], "account.admin_revoked" => text["Admin access revoked"], "account.restored" => text["Account restored"], "event.cancelled" => text["Event cancelled"], "evidence.rejected" => text["Evidence rejected"], _ => type };
-    public string Detail(string type, string detail) => type switch { "account.admin_granted" => text["An administrator granted your account Admin access."], "account.admin_revoked" => text["An administrator removed your Admin access."], "account.restored" => text["An administrator restored your account."], "event.cancelled" => text["Your event has been cancelled."], "evidence.rejected" => FormatEvidenceRejection(detail), _ => detail };
+    public string Title(string type) => type switch { "account.admin_granted" => text["Admin access granted"], "account.admin_revoked" => text["Admin access revoked"], "account.restored" => text["Account restored"], "event.cancelled" => text["Event cancelled"], "event.results_published" => text["Official results published"], "evidence.rejected" => text["Evidence rejected"], "participant.live_withdrawn" => text["Live participant withdrawn"], "participant.live_replaced" => text["Live replacement confirmed"], _ => type };
+    public string Detail(string type, string detail) => type switch { "account.admin_granted" => text["An administrator granted your account Admin access."], "account.admin_revoked" => text["An administrator removed your Admin access."], "account.restored" => text["Account restored"], "event.cancelled" => text["Your event has been cancelled."], "event.results_published" => detail, "evidence.rejected" => FormatEvidenceRejection(detail), "participant.live_withdrawn" or "participant.live_replaced" => detail, _ => detail };
     private string FormatEvidenceRejection(string detail)
     {
         try

@@ -3,6 +3,7 @@ using System;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Bingo.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802005536_AddFinalReviewCyclesAndSnapshotInputs")]
+    partial class AddFinalReviewCyclesAndSnapshotInputs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1925,7 +1928,7 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("finalized_by_account_id");
 
-                    b.Property<Guid>("ReviewCycleId")
+                    b.Property<Guid?>("ReviewCycleId")
                         .HasColumnType("uuid")
                         .HasColumnName("review_cycle_id");
 
@@ -1947,8 +1950,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnName("version");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("EventId", "ReviewCycleId");
 
                     b.HasIndex("EventId", "Version")
                         .IsUnique();
@@ -2059,10 +2060,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EventId", "ReviewCycleId");
-
-                    b.HasIndex("EventId", "TeamId");
-
                     b.HasIndex("ReviewCycleId", "BlockerKey")
                         .IsUnique();
 
@@ -2120,8 +2117,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnName("team_name");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("EventId", "FinalizationId");
 
                     b.HasIndex("FinalizationId", "TeamId")
                         .IsUnique();
@@ -2259,10 +2254,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnName("team_id");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("EventId", "ReviewCycleId");
-
-                    b.HasIndex("EventId", "TeamId");
 
                     b.HasIndex("ReviewCycleId", "TeamId")
                         .IsUnique();
@@ -3792,64 +3783,11 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Bingo.Domain.Events.EventFinalizationSnapshot", b =>
-                {
-                    b.HasOne("Bingo.Domain.Events.EventStateTransition", null)
-                        .WithMany()
-                        .HasForeignKey("EventId", "ReviewCycleId")
-                        .HasPrincipalKey("EventId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Events.FinalReviewResolution", b =>
-                {
-                    b.HasOne("Bingo.Domain.Events.EventStateTransition", null)
-                        .WithMany()
-                        .HasForeignKey("EventId", "ReviewCycleId")
-                        .HasPrincipalKey("EventId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Bingo.Domain.Teams.Team", null)
-                        .WithMany()
-                        .HasForeignKey("EventId", "TeamId")
-                        .HasPrincipalKey("EventId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Events.OfficialPlacementSnapshot", b =>
-                {
-                    b.HasOne("Bingo.Domain.Events.EventFinalizationSnapshot", null)
-                        .WithMany()
-                        .HasForeignKey("EventId", "FinalizationId")
-                        .HasPrincipalKey("EventId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Bingo.Domain.Events.ScheduledSignupOpeningAttempt", b =>
                 {
                     b.HasOne("Bingo.Domain.Events.BingoEvent", null)
                         .WithMany()
                         .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Bingo.Domain.Events.TeamCompletionCorrection", b =>
-                {
-                    b.HasOne("Bingo.Domain.Events.EventStateTransition", null)
-                        .WithMany()
-                        .HasForeignKey("EventId", "ReviewCycleId")
-                        .HasPrincipalKey("EventId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Bingo.Domain.Teams.Team", null)
-                        .WithMany()
-                        .HasForeignKey("EventId", "TeamId")
-                        .HasPrincipalKey("EventId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

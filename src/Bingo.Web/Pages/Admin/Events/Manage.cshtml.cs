@@ -60,6 +60,10 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     [BindProperty, StringLength(2000)] public string? StartReason { get; set; }
     [BindProperty] public bool ConfirmEndEvent { get; set; }
     [BindProperty, StringLength(2000)] public string? EndReason { get; set; }
+    [BindProperty] public bool ConfirmResumeEvent { get; set; }
+    [BindProperty, DataType(DataType.DateTime), Display(Name = "Replacement event end")] public DateTimeOffset ReplacementEventEndsAt { get; set; }
+    [BindProperty, StringLength(2000), Display(Name = "Reason for resuming")]
+    public string? ResumeReason { get; set; }
     [BindProperty] public bool ConfirmDestructiveAction { get; set; }
     [BindProperty, StringLength(2000)] public string? CancellationReason { get; set; }
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct) { _ = characterService; return await LoadAsync(id, ct) ? Page() : NotFound(); }
@@ -127,6 +131,12 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     {
         var result = await eventLifecycle.EndNowAsync(id, EventVersion, ConfirmEndEvent, EndReason, Actor, ct);
         SetStatus(result.Succeeded ? "Event ended and moved to final review." : result.Error ?? "The event could not be ended.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToPage(new { id });
+    }
+    public async Task<IActionResult> OnPostResumeEventAsync(Guid id, CancellationToken ct)
+    {
+        var result = await eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, ReplacementEventEndsAt, Actor, ct);
+        SetStatus(result.Succeeded ? "Event resumed and returned to live play." : result.Error ?? "The event could not be resumed.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostDiscardAsync(Guid id, CancellationToken ct)
@@ -204,7 +214,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var teamNames = teams.ToDictionary(team => team.Id, team => team.Name);
         Participants = filteredParticipants.Select(p => new ParticipantRow(p.Id, p.SignupSequence, authorities.TryGetValue(p.Id, out var primary) ? primary.Name : "External roster member", authorities.TryGetValue(p.Id, out primary) ? primary.Ehb : 0m, p.SignupStatus, p.PaymentStatus, p.SignedUpAt, p.CaptainVolunteer, waiting.TryGetValue(p.Id, out var position) ? position : null, p.Source, p.AccountId is { } owner && owners.TryGetValue(owner, out var account) ? account.LoginName : null, p.AccountId is { } linkedOwner && owners.TryGetValue(linkedOwner, out var discordAccount) && discordAccount.DiscordUserId is not null, memberships.Where(m => m.EventParticipantId == p.Id).Select(m => teamNames.GetValueOrDefault(m.TeamId)).FirstOrDefault())).ToList();
         EvidenceCodes = await dbContext.EvidenceCodes.AsNoTracking().Where(x => x.EventId == id).OrderByDescending(x => x.ActivatesAt).Select(x => new EvidenceCodeRow(x.Id, x.Code, x.ActivatesAt, x.RetiresAt, x.Note)).ToListAsync(ct);
-        EventView = new EventDetails(item.Id, item.Name, item.Slug, item.State, item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ActualSignupOpenedAt, item.ActualSignupClosedAt, item.ActualStartedAt, item.ActualEndedAt, item.ScheduledSignupOpeningEnabled, item.ReopenedSubmissionCutoffAt, item.ParticipantCap ?? 0, allParticipants.Count(p => p.SignupStatus == SignupStatus.Confirmed), waiting.Count, item.DraftLocked, item.EvidenceCodeEnabled, activeTeamIds.Count, actualTeamSize, boardSize, item.ExpectedTeamCount, item.ExpectedTeamSize, item.ExpectedBoardRows is not null && item.ExpectedBoardColumns is not null ? $"{item.ExpectedBoardRows} × {item.ExpectedBoardColumns}" : null, canStartEvent, EventDisplayPhaseProjection.From(new(item.State, draftReady, board?.State == BoardState.Published, postponed is not null, StartReadiness?.CanProceed)));
+        EventView = new EventDetails(item.Id, item.Name, item.Slug, item.State, item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ActualSignupOpenedAt, item.ActualSignupClosedAt, item.ActualStartedAt, item.ActualEndedAt, item.SubmissionsClosedAt, item.ScheduledSignupOpeningEnabled, item.ReopenedSubmissionCutoffAt, item.ParticipantCap ?? 0, allParticipants.Count(p => p.SignupStatus == SignupStatus.Confirmed), waiting.Count, item.DraftLocked, item.EvidenceCodeEnabled, activeTeamIds.Count, actualTeamSize, boardSize, item.ExpectedTeamCount, item.ExpectedTeamSize, item.ExpectedBoardRows is not null && item.ExpectedBoardColumns is not null ? $"{item.ExpectedBoardRows} × {item.ExpectedBoardColumns}" : null, canStartEvent, EventDisplayPhaseProjection.From(new(item.State, draftReady, board?.State == BoardState.Published, postponed is not null, StartReadiness?.CanProceed)));
         SignupReadiness = await readinessEvaluator.GetSignupReadinessAsync(id, item.State == EventState.SignupClosed ? SignupOpeningMode.Reopen : SignupOpeningMode.OpenNow, timeProvider.GetUtcNow(), ct);
         CanDiscard = item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed
             && !await dbContext.EventParticipants.AnyAsync(x => x.EventId == id, ct)
@@ -219,7 +229,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
                 failedOpening.Details.Count > 0
                     ? failedOpening.Details.Select(detail => new ReadinessItem("SCHEDULED_OPENING_FAILED", detail, $"/Admin/Events/Schedule/{id}")).ToArray()
                     : failedOpening.Blockers.Select(code => DescribeBlocker(code, id, item.State)).ToArray()) : null;
-        EventVersion = item.Version; NewCap = item.ParticipantCap ?? 0; NewSignupOpening = item.SignupOpensAt ?? timeProvider.GetUtcNow(); NewSignupClosing = item.SignupClosesAt ?? timeProvider.GetUtcNow().AddDays(1); EvidenceCodeActivatesAt = timeProvider.GetUtcNow(); ReopenUntil = timeProvider.GetUtcNow().AddHours(1); return true;
+        EventVersion = item.Version; NewCap = item.ParticipantCap ?? 0; NewSignupOpening = item.SignupOpensAt ?? timeProvider.GetUtcNow(); NewSignupClosing = item.SignupClosesAt ?? timeProvider.GetUtcNow().AddDays(1); EvidenceCodeActivatesAt = timeProvider.GetUtcNow(); ReopenUntil = timeProvider.GetUtcNow().AddHours(1); ReplacementEventEndsAt = item.EventEndsAt ?? timeProvider.GetUtcNow().AddHours(1); return true;
     }
     private LifecycleActor Actor => new(User.GetAccountId()!.Value, User.Identity!.Name!);
     private Task<IActionResult> SignupResult(SignupLifecycleResult result, Guid id, string success)
@@ -229,7 +239,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         dbContext.AdminPrimaryCharacters().Where(x => x.ParticipantId == participantId).Select(x => x.Name).SingleAsync(ct);
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     private bool HasBindingErrors(params string[] fields) => fields.Any(field => ModelState.TryGetValue(field, out var entry) && entry.Errors.Count > 0);
-    public sealed record EventDetails(Guid Id, string Name, string Slug, EventState State, DateTimeOffset? SignupOpensAt, DateTimeOffset? SignupClosesAt, DateTimeOffset? DraftAt, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, DateTimeOffset? ActualSignupOpenedAt, DateTimeOffset? ActualSignupClosedAt, DateTimeOffset? ActualStartedAt, DateTimeOffset? ActualEndedAt, bool ScheduledSignupOpeningEnabled, DateTimeOffset? ReopenedCutoff, int ParticipantCap, int Confirmed, int Waiting, bool DraftLocked, bool EvidenceCodeEnabled, int ActualTeamCount, string? ActualTeamSize, string? ActualBoardSize, int? ExpectedTeamCount, int? ExpectedTeamSize, string? ExpectedBoardSize, bool CanStartEvent, EventDisplayPhase DisplayPhase);
+    public sealed record EventDetails(Guid Id, string Name, string Slug, EventState State, DateTimeOffset? SignupOpensAt, DateTimeOffset? SignupClosesAt, DateTimeOffset? DraftAt, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, DateTimeOffset? ActualSignupOpenedAt, DateTimeOffset? ActualSignupClosedAt, DateTimeOffset? ActualStartedAt, DateTimeOffset? ActualEndedAt, DateTimeOffset? SubmissionsClosedAt, bool ScheduledSignupOpeningEnabled, DateTimeOffset? ReopenedCutoff, int ParticipantCap, int Confirmed, int Waiting, bool DraftLocked, bool EvidenceCodeEnabled, int ActualTeamCount, string? ActualTeamSize, string? ActualBoardSize, int? ExpectedTeamCount, int? ExpectedTeamSize, string? ExpectedBoardSize, bool CanStartEvent, EventDisplayPhase DisplayPhase);
     private static ReadinessItem DescribeBlocker(string code, Guid eventId, EventState eventState) => code switch
     {
         "DRAFT_NOT_FINALIZED" => new(code, "Finalize the team draft.", $"/Admin/Events/Draft/{eventId}"),
