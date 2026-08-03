@@ -2,7 +2,7 @@
 
 An event platform for running OSRS bingo events for one Discord community.
 
-The repository currently contains Milestones 1–7: the application foundation; identity, access, and audit; event signup; catalogue and board building; teams and snake draft; evidence review; and public live boards with rankings.
+The repository contains the accepted Milestone 8A functional application through Slice 10. Review its roles, lifecycle, workflows, automation, data ownership, notifications, inventory, and open product decisions in the [Application Atlas](APPLICATION_ATLAS.md) or the [interactive Atlas](APPLICATION_ATLAS.html).
 
 ## Requirements
 

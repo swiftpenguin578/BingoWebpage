@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>OSRS Community Bingo — Application Atlas</title>
+  <style>
+    :root {
+      --ink: #172026; --muted: #5e6a71; --line: #d8dee2; --soft: #f4f6f7;
+      --paper: #ffffff; --accent: #315f7d; --accent-soft: #e9f1f6; --danger: #9e3434;
+      --warn: #8a5b13; --good: #276447; --shadow: 0 12px 34px rgba(25, 42, 53, .08);
+      --radius: 14px; --space: clamp(1rem, 2vw, 1.5rem);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: #edf1f3; font: 16px/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    a { color: var(--accent); }
+    button, select, input { font: inherit; }
+    button, select, input, a { outline-offset: 3px; }
+    :focus-visible { outline: 3px solid #e19c37; }
+    .skip { position: fixed; left: .75rem; top: .75rem; z-index: 10; transform: translateY(-150%); background: var(--paper); padding: .65rem 1rem; border-radius: 8px; }
+    .skip:focus { transform: none; }
+    header { background: #15242e; color: white; padding: clamp(1.5rem, 4vw, 3rem) max(1rem, calc((100vw - 1240px) / 2)); }
+    header p { color: #cfdae0; max-width: 72ch; margin: .45rem 0 0; }
+    header h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 3rem); line-height: 1.08; }
+    .meta { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin-top: 1rem; font-size: .9rem; color: #cfdae0; }
+    .notice { margin-top: 1.1rem; max-width: 78ch; padding: .8rem 1rem; border: 1px solid #7593a6; border-radius: 10px; background: #203742; color: white; }
+    .shell { width: min(1240px, calc(100% - 2rem)); margin: -1rem auto 3rem; }
+    nav[aria-label="Atlas sections"] { position: sticky; top: 0; z-index: 5; display: flex; gap: .35rem; overflow-x: auto; padding: .65rem; background: rgba(255,255,255,.96); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+    .tab { white-space: nowrap; border: 1px solid transparent; background: transparent; color: var(--muted); padding: .55rem .8rem; border-radius: 8px; cursor: pointer; }
+    .tab[aria-selected="true"] { color: var(--ink); border-color: var(--accent); background: var(--accent-soft); }
+    main { padding-top: var(--space); }
+    section[role="tabpanel"][hidden] { display: none; }
+    h2 { font-size: clamp(1.45rem, 3vw, 2rem); margin: 0 0 .45rem; }
+    h3 { margin: 0 0 .35rem; font-size: 1.08rem; }
+    .lede { max-width: 78ch; color: var(--muted); margin-top: 0; }
+    .panel, .card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .panel { padding: var(--space); margin-bottom: var(--space); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1rem; }
+    .card { padding: 1rem; box-shadow: none; min-width: 0; }
+    .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+    .eyebrow { margin: 0 0 .25rem; color: var(--accent); font-size: .76rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .journey { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .55rem; padding: 0; list-style: none; counter-reset: step; }
+    .journey li { position: relative; min-height: 5.5rem; padding: .8rem .8rem .8rem 2.8rem; border-left: 3px solid var(--accent); background: var(--soft); border-radius: 9px; }
+    .journey li::before { counter-increment: step; content: counter(step); position: absolute; left: .7rem; top: .7rem; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--accent); color: white; font-weight: 700; }
+    .state-strip { display: grid; grid-template-columns: repeat(9, minmax(115px, 1fr)); gap: .5rem; overflow-x: auto; padding: .25rem .1rem .7rem; }
+    .state-button { min-height: 4.2rem; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); padding: .6rem; cursor: pointer; text-align: left; }
+    .state-button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+    .state-button small { display: block; color: var(--muted); }
+    .state-detail { scroll-margin-top: 5rem; }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .detail-grid > div { min-width: 0; padding: .75rem; background: var(--soft); border-radius: 9px; }
+    .detail-grid p { margin: .2rem 0; }
+    .tags { display: flex; flex-wrap: wrap; gap: .35rem; }
+    .tag { display: inline-flex; align-items: center; border: 1px solid var(--line); background: var(--soft); border-radius: 999px; padding: .15rem .55rem; font-size: .8rem; }
+    .tag.required { color: var(--good); border-color: #91b8a4; }
+    .tag.awkward, .tag.inferred { color: var(--warn); border-color: #d9b87d; }
+    .tag.unreachable, .tag.obsolete, .tag.high { color: var(--danger); border-color: #dda2a2; }
+    .tag.verified { color: var(--accent); border-color: #9ab9cb; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; margin: 1rem 0; }
+    .toolbar label { display: grid; gap: .25rem; min-width: min(100%, 210px); color: var(--muted); font-size: .85rem; }
+    .toolbar select, .toolbar input { width: 100%; border: 1px solid #aab5bb; border-radius: 8px; background: white; color: var(--ink); padding: .55rem .65rem; }
+    .table-wrap { width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; background: white; }
+    th, td { padding: .7rem .75rem; vertical-align: top; text-align: left; border-bottom: 1px solid var(--line); }
+    th { position: sticky; top: 0; background: #eef3f5; font-size: .82rem; letter-spacing: .02em; }
+    tr:last-child td { border-bottom: 0; }
+    code { overflow-wrap: anywhere; color: #294f68; background: #edf3f6; padding: .08rem .25rem; border-radius: 4px; }
+    .transition { border-left: 3px solid var(--accent); }
+    .transition + .transition { margin-top: .75rem; }
+    .transition dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem .75rem; margin: .5rem 0 0; }
+    .transition dt { font-weight: 700; }
+    .transition dd { margin: 0; min-width: 0; }
+    .finding { border-left: 4px solid var(--line); }
+    .finding.high { border-left-color: var(--danger); }
+    .finding.medium { border-left-color: var(--warn); }
+    .finding.low { border-left-color: var(--accent); }
+    .empty { color: var(--muted); font-style: italic; }
+    footer { width: min(1240px, calc(100% - 2rem)); margin: 0 auto 2rem; color: var(--muted); font-size: .9rem; }
+    @media (max-width: 760px) {
+      .shell { width: min(100% - 1rem, 1240px); }
+      nav[aria-label="Atlas sections"] { border-radius: 0 0 10px 10px; margin-inline: -.5rem; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .panel { padding: 1rem; }
+      .grid { grid-template-columns: 1fr; }
+      .state-strip { grid-template-columns: repeat(9, 125px); }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    @media print {
+      nav, .toolbar, .skip { display: none !important; }
+      body { background: white; }
+      header { color: black; background: white; padding: 1rem 0; }
+      header p, .meta { color: #444; }
+      .shell { width: 100%; margin: 0; }
+      section[hidden] { display: block !important; }
+      .panel, .card { box-shadow: none; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#atlas-main">Skip to Atlas content</a>
+  <header>
+    <p class="eyebrow" style="color:#a9c4d4">Post-functional product/code audit</p>
+    <h1>OSRS Community Bingo — Application Atlas</h1>
+    <p>A role-aware map of the accepted application: event lifecycle, feature substates, workflows, authority, automation, data history, notifications, inventory, and review findings.</p>
+    <div class="meta"><span>Generated 2026-08-03</span><span>Accepted commit <code>2301d63ae166873a750266ce5ee6a087f3039054</code></span><span>Standalone · no network/runtime dependency</span></div>
+    <div class="notice"><strong>Nothing is authorized by this Atlas.</strong> Findings and recommendations require explicit product review before removal, redesign, new functionality, data correction, or implementation.</div>
+  </header>
+
+  <div class="shell">
+    <nav aria-label="Atlas sections" role="tablist"></nav>
+    <main id="atlas-main" tabindex="-1"></main>
+  </div>
+  <footer>Durable source: <a href="APPLICATION_ATLAS.md">APPLICATION_ATLAS.md</a>. This review surface embeds all application data locally.</footer>
+
+  <script>
+  "use strict";
+  const atlas = {
+    tabs: [
+      ["overview", "Overview"], ["roles", "Roles & navigation"], ["workflows", "Workflows"],
+      ["capabilities", "Capability matrix"], ["automation", "Automation"], ["data", "Data & history"],
+      ["notifications", "Notifications"], ["inventory", "Feature inventory"], ["findings", "Findings"]
+    ],
+    journey: ["Create private event", "Configure signup, teams and board", "Open and close signup", "Finalize and publish roster", "Approve and publish board", "Start Live event", "Submit and review evidence", "End and resolve final review", "Finalize and archive official results"],
+    lifecycle: [
+      {
+        id:"draft", label:"Draft", summary:"Private, incomplete setup; not current.",
+        actions:"Admin configures identity, schedule, signup/form, teams and board; may open/schedule signup or cancel/discard.",
+        timestamps:"Schedule may be null. Scheduled opening requires future SignupOpensAt; no actual public instant until opening.",
+        cutoff:"Submission cutoff is derived from an end when present, but has no upload authority before Live.",
+        substates:["first public: unset", "signup form editable", "draft Setup", "board Draft/Validated private"],
+        blockers:"Signup readiness: description, capacity, start/end/close, Discord, form integrity, code/warnings and non-overlap.",
+        authorities:["EventStatePolicy", "EventSignupLifecycleService", "EventDestructiveLifecycleService"],
+        routes:["/Admin/Events/Manage/{id}", "/Admin/Events/Schedule/{id}", "/Admin/Events/Questions/{id}"],
+        transitions:[
+          {to:"SignupOpen", who:"Admin or scheduled system", route:"/Admin/Events/Schedule/{id}", service:"EventSignupLifecycleService", time:"Manual actual now; scheduled retains scheduled_for and attempted time.", cutoff:"No change to upload authority.", blockers:"Mode readiness, warnings, valid future close and event-window overlap.", recovery:"Fix Manage/Schedule/Questions; open manually or reschedule.", stale:"Event version, serializable transaction, unique scheduled attempt."},
+          {to:"Cancelled", who:"Admin", route:"/Admin/Events/Manage/{id}", service:"EventDestructiveLifecycleService", time:"Records actor/time/reason.", cutoff:"Closes all mutation.", blockers:"Requires protected history.", recovery:"Terminal; retained read-only history.", stale:"Transactional protected-history recheck."},
+          {to:"Discarded", who:"Admin", route:"/Admin/Events/Manage/{id}", service:"EventDestructiveLifecycleService", time:"Records actor/time; reserves slug.", cutoff:"Not applicable.", blockers:"No protected participant/team/access/submission/evidence history.", recovery:"Terminal tombstone.", stale:"Transactional preflight; cleanup outbox."}
+        ]
+      },
+      {
+        id:"signup-open", label:"SignupOpen", summary:"Exact-link public signup; overlapping event windows prohibited.",
+        actions:"Owned website accounts create/edit/withdraw/rejoin; Admin closes, manages participants and continues private setup.",
+        timestamps:"ActualSignupOpenedAt is authoritative; configured opening remains history. Closing may be scheduled or manual.",
+        cutoff:"Evidence cutoff is not active.",
+        substates:["first public: set", "responses may lock question shape", "waiting list/capacity", "board and roster still independent"],
+        blockers:"Capacity, waiting-list policy, account reservations and form validation.",
+        authorities:["EventStatePolicy", "SignupService", "EventSignupLifecycleService"],
+        routes:["/Events/{slug}/Signup", "/Events/{slug}/Signup/Confirmation", "/Admin/Events/Participant/{id}/Participants/{participantId}"],
+        transitions:[
+          {to:"SignupClosed", who:"Admin or scheduled system", route:"/Admin/Events/Schedule/{id}", service:"EventSignupLifecycleService", time:"Actual closure records command/worker time; transition retains scheduled context.", cutoff:"No evidence effect.", blockers:"Current state/version.", recovery:"Admin may reopen before draft lock.", stale:"Event lock/version; repeated worker sees closed state."},
+          {to:"Cancelled", who:"Admin", route:"/Admin/Events/Manage/{id}", service:"EventDestructiveLifecycleService", time:"Actor/time/reason.", cutoff:"All mutation closes.", blockers:"Protected history required.", recovery:"Terminal; generic public cancellation only if previously public.", stale:"Transactional recheck."},
+          {to:"Discarded", who:"Admin", route:"/Admin/Events/Manage/{id}", service:"EventDestructiveLifecycleService", time:"Actor/time.", cutoff:"Not applicable.", blockers:"No protected history.", recovery:"Terminal tombstone.", stale:"Transactional preflight."}
+        ]
+      },
+      {
+        id:"signup-closed", label:"SignupClosed", summary:"Signup closed; roster/draft/board readiness progresses independently.",
+        actions:"Pre-draft participant withdrawal; Admin reopens before lock, runs/finalizes draft, publishes roster/board and starts.",
+        timestamps:"ActualSignupClosedAt records closure. Scheduled start remains separate from actual start.",
+        cutoff:"Normal cutoff remains a configured derived fact; upload authority begins with Live.",
+        substates:["draft Setup/Running/Paused/Finalized", "roster private/published", "board Draft/Validated/Published", "start ready/postponed"],
+        blockers:"Start: valid schedule, finalized draft, published board, Playing assignments, usable Captain/emergency, singleton current.",
+        authorities:["EventStatePolicy", "EventLifecycleService", "DraftSession", "Board approval/publication guards"],
+        routes:["/Admin/Events/Draft/{id}", "/Admin/Events/Board/{id}", "/Admin/Events/Manage/{id}"],
+        transitions:[
+          {to:"SignupOpen", who:"Admin", route:"/Admin/Events/Schedule/{id}", service:"EventSignupLifecycleService", time:"New actual opening; old history retained.", cutoff:"No evidence effect.", blockers:"Draft lock, readiness/warnings, future close, overlap.", recovery:"Resolve readiness or keep closed.", stale:"Version/current-boundary lock."},
+          {to:"Live", who:"Admin or one scheduled attempt", route:"/Admin/Events/Manage/{id}", service:"EventLifecycleService", time:"Actual start time; scheduled attempt retains configured instant.", cutoff:"Ordinary cutoff remains event end +30m.", blockers:"Draft, board, Playing authority, Captain/emergency, schedule, current event. Missing-Captain route defect F-01.", recovery:"Follow Schedule/Draft/Board/Participant links, then Start event now.", stale:"Version, advisory lock, unique scheduled attempt; no automatic retry after blockage."},
+          {to:"Cancelled", who:"Admin", route:"/Admin/Events/Manage/{id}", service:"EventDestructiveLifecycleService", time:"Actor/time/reason.", cutoff:"All mutation closes.", blockers:"Protected history required.", recovery:"Terminal.", stale:"Transactional recheck."},
+          {to:"Discarded", who:"Admin", route:"/Admin/Events/Manage/{id}", service:"EventDestructiveLifecycleService", time:"Actor/time.", cutoff:"Not applicable.", blockers:"No protected history.", recovery:"Terminal.", stale:"Transactional preflight."}
+        ]
+      },
+      {
+        id:"live", label:"Live", summary:"Singleton current event; active competition and evidence operation.",
+        actions:"Participant swaps/focus/evidence; leaders/emergency team evidence; Admin review, roster recovery, WoM and event end.",
+        timestamps:"ActualStartedAt is authoritative. EventEndsAt is the scheduled end.",
+        cutoff:"Gameplay ends at authoritative end; uploads remain through ordinary/reopened cutoff.",
+        substates:["active-account history", "private team focus", "submission lifecycle", "WoM generation", "vacancy/Captain actions"],
+        blockers:"No cancellation/discard/signup mutation. Missing Captain is an operational action, not a whole-event stop.",
+        authorities:["EventStatePolicy", "ParticipantLiveService", "TeamFocusService", "SubmissionService", "EventCompetitionSynchronizationService"],
+        routes:["/Events/{slug}/Board", "/Captain", "/Admin/Review", "/Admin/Events/Manage/{id}"],
+        transitions:[
+          {to:"AwaitingFinalReview", who:"Scheduled system or Admin", route:"/Admin/Events/Manage/{id}", service:"EventLifecycleService", time:"Scheduled effective end is configured instant even if processed late; early end uses confirmed actual time and reason.", cutoff:"Upload grace remains; no new drop eligibility after effective end.", blockers:"Current Live state/version.", recovery:"Review evidence and current-cycle checklist; premature end may resume.", stale:"Event lock/version; repeat tick/post sees non-Live."}
+        ]
+      },
+      {
+        id:"awaiting-final-review", label:"AwaitingFinalReview", summary:"Singleton current final-review cycle; gameplay ended.",
+        actions:"Cutoff-bound evidence recovery; Admin review, reopen uploads, resume premature end, resolve blockers and finalize.",
+        timestamps:"ActualEndedAt is effective end. Current Awaiting transition ID is the review-cycle identity.",
+        cutoff:"Submissions close at active cutoff; Admin review continues afterward.",
+        substates:["upload grace/open/closed", "pending evidence", "cycle acknowledgements/corrections/overrides", "provisional placements"],
+        blockers:"Finalize: pending evidence, unresolved integrity items and completion inspections. Resume: no official history, future end, singleton/overlap clear.",
+        authorities:["EventStatePolicy", "EventLifecycleService", "EventFinalizationService", "SubmissionService"],
+        routes:["/Admin/Events/Manage/{id}", "/Admin/Review", "/Admin/Events/Finalize/{id}"],
+        transitions:[
+          {to:"Live", who:"Admin", route:"/Admin/Events/Manage/{id}", service:"EventLifecycleService.ResumePrematureEndAsync", time:"Actual resume now; replacement future scheduled end; prior end remains immutable.", cutoff:"Re-derive normal cutoff; clear reopened cutoff and closure; no retroactive eligibility.", blockers:"Reason/confirmation, no official history, singleton, overlap, valid future end.", recovery:"Resolve blocking current event/schedule or remain in review.", stale:"Event version/current-boundary lock; no-residue failures."},
+          {to:"Finalized", who:"Admin", route:"/Admin/Events/Finalize/{id}", service:"EventFinalizationService", time:"Records finalization/version and consumed current-cycle inputs/results.", cutoff:"Never silently reopens uploads.", blockers:"All current-cycle blockers resolved.", recovery:"Use direct checklist links; exceptional override only where allowed.", stale:"Serializable transaction, global advisory lock, expected version/cycle."}
+        ]
+      },
+      {
+        id:"finalized", label:"Finalized", summary:"Official result version is current and public until archive.",
+        actions:"Read-only participant/public results; Admin views history, archives or reasoned-unfinalizes.",
+        timestamps:"FinalizedAt and immutable result version actor/time.", cutoff:"Closed; unfinalization does not reopen.",
+        substates:["active official snapshot", "prior superseded versions", "frozen WoM auxiliary cache"],
+        blockers:"Archive requires Finalized. Unfinalize requires active snapshot and singleton-current clearance.",
+        authorities:["EventStatePolicy", "EventFinalizationService"],
+        routes:["/Events/{slug}/Board", "/Admin/Events/Finalize/{id}"],
+        transitions:[
+          {to:"Archived", who:"Admin", route:"/Admin/Events/Finalize/{id}", service:"EventFinalizationService.ArchiveAsync", time:"Records ArchivedAt; official version unchanged.", cutoff:"Remains closed.", blockers:"Current Finalized state.", recovery:"Archived history remains public.", stale:"Serializable/global lock; repeat is idempotent."},
+          {to:"AwaitingFinalReview", who:"Admin", route:"/Admin/Events/Finalize/{id}", service:"EventFinalizationService.UnfinalizeAsync", time:"Supersedes active official snapshot; opens new review cycle.", cutoff:"Remains closed.", blockers:"Confirmation/reason, active snapshot, singleton current.", recovery:"Resolve review and create a later official version.", stale:"Expected version/global lock."}
+        ]
+      },
+      {
+        id:"archived", label:"Archived", summary:"Read-only public history; no longer current.",
+        actions:"Public results; former participant own rejected/withdrawn history; Admin exceptional unfinalize.",
+        timestamps:"ArchivedAt; all prior lifecycle and result versions retained.", cutoff:"Closed and immutable through ordinary history.",
+        substates:["active official snapshot", "own private evidence history", "public URLs preserved"],
+        blockers:"Unfinalize requires active snapshot and singleton-current clearance.",
+        authorities:["EventStatePolicy", "EventFinalizationService", "EventDestinationPolicy"],
+        routes:["/Events/{slug}/Board", "/Account/MyEvents", "/Admin/Events/Finalize/{id}"],
+        transitions:[
+          {to:"AwaitingFinalReview", who:"Admin", route:"/Admin/Events/Finalize/{id}", service:"EventFinalizationService.UnfinalizeAsync", time:"Archive marker clears; official snapshot becomes superseded; prior history remains.", cutoff:"Remains closed.", blockers:"Reason/confirmation, active snapshot, singleton current.", recovery:"Resolve new review cycle.", stale:"Expected version/global lock."}
+        ]
+      },
+      {id:"cancelled", label:"Cancelled", summary:"Terminal preserved event; generic public state only when previously public.", actions:"No mutation. Admin reads private reason/history.", timestamps:"CancelledAt, actor and reason.", cutoff:"All mutation closed; schedulers ignore.", substates:["never-public private or prior public projection", "protected history retained"], blockers:"No ordinary recovery.", authorities:["EventStatePolicy", "EventDestructiveLifecycleService"], routes:["/Admin/Events/Manage/{id}"], transitions:[]},
+      {id:"discarded", label:"Discarded", summary:"Terminal tombstone; absent from public and active event administration.", actions:"No workflow; global audit/tombstone only.", timestamps:"DiscardedAt and actor; slug reserved.", cutoff:"Not applicable.", substates:["minimal tombstone", "cleanup outbox"], blockers:"No recovery.", authorities:["EventStatePolicy", "EventDestructiveLifecycleService", "EventBannerCleanupService"], routes:["/Admin/Audit"], transitions:[]}
+    ],
+    roles: [
+      {id:"public", label:"Anonymous/public", nav:"Public boards, language, Privacy, Sign in", routes:"/; /Events/{slug}/Teams; /Events/{slug}/Board; team/tile; /Evidence/{id}", authority:"Approved/public projections only", assessment:"Required; exact-link signup/table intentionally unlisted"},
+      {id:"participant", label:"Website account / participant", nav:"Public boards, Settings, My accounts, My events, password, notifications", routes:"/Account/MyAccounts; /Account/MyEvents; /Events/{slug}/Signup; confirmation; best EventDestinationPolicy route", authority:"Explicit EventParticipant.AccountId only", assessment:"Required; My Events is durable entry"},
+      {id:"captain", label:"Captain", nav:"Participant navigation + Captain board", routes:"/Captain; /Captain/Submit/{tileId}; /Captain/Submissions/{id}; TeamBoard", authority:"Current linked Captain membership and ownership", assessment:"Required"},
+      {id:"co-captain", label:"Co-captain", nav:"Rendered through Captain board", routes:"Same evidence/focus routes where policy permits", authority:"Current linked Co-captain; does not satisfy Captain-only readiness", assessment:"Awkward global terminology"},
+      {id:"emergency", label:"Enabled emergency credential", nav:"Public boards, Captain board, Settings/password; no My Accounts/My Events", routes:"Exact event/team Captain routes", authority:"Initialized, active, enabled AccountEventAccess, exact team/time", assessment:"Required rare fallback"},
+      {id:"admin", label:"Admin", nav:"Admin tools + website-account navigation + action inbox", routes:"/Admin; Events/Manage/Identity/Schedule/Questions/Draft/Board/Finalize/Participant; Review; Accounts; Catalogue; Audit", authority:"Active website Admin/Super Admin, reauthorized per command", assessment:"Required; F-01 broken readiness link"},
+      {id:"disabled-admin", label:"Disabled Admin", nav:"No valid authenticated operation", routes:"Sign-in/access-denied/recovery only", authority:"Inactive account is rejected by AccountCookieEvents", assessment:"Required security state"},
+      {id:"super-admin", label:"Super Admin", nav:"All Admin + ownership transfer", routes:"/Admin/Accounts/Transfer and Super-Admin-only commands", authority:"Exactly one active owner; transactional checks", assessment:"Required rare role"}
+    ],
+    reviewFixtures:[
+      {name:"Existing local Admin/Super Admin", use:"Owner/Admin navigation, reset and event administration", limit:"Reset prerequisite; username is installation-specific."},
+      {name:"SeedAdminTwo", use:"Second Admin, concurrent operation and disable/restore target", limit:"Disabled state requires an explicit Admin action."},
+      {name:"SeedEvidenceParticipant", use:"Ordinary participant, My Accounts/My Events and own evidence", limit:"Scoped to seeded scenarios."},
+      {name:"SeedEvidenceCaptain / SeedEvidenceCoCaptain", use:"Linked Captain and Co-captain in TEST 15", limit:"Shared shell labels both Captain board."},
+      {name:"Generated emergency usernames", use:"Enabled exact event/team Captain fallback", limit:"Use reset output; names are derived, not manually constructed."},
+      {name:"SeedEvidenceEmergencyDisabled", use:"Disabled/expired emergency coverage", limit:"Cannot demonstrate an enabled journey."},
+      {name:"SeedReplacement", use:"Waiting-list and Live replacement", limit:"Starts as TEST 15 waiting replacement."},
+      {name:"TEST 13 / 15 / 16 / 62 / 84", use:"Board draft, Live, signup lookup, board publication and finalized history", limit:"Not all nine lifecycle states are simultaneous; other states need transitions."}
+    ],
+    workflows: [
+      {id:"auth", title:"Account, authentication & My Accounts", roles:["participant","emergency","admin","super-admin"], public:"Password/Discord login, onboarding, username/password/settings and character links.", team:"Emergency consumes setup/reset and receives scoped Captain entry; no My Accounts.", admin:"Create/enable/disable emergency; roles, disable/restore, Super Admin transfer.", owner:"Account, link/security/Discord history; /Account/MyAccounts and /Admin/Accounts."},
+      {id:"event", title:"Event creation, schedule & readiness", roles:["admin","super-admin"], public:"No private visibility.", team:"No pre-public authority.", admin:"Create → Manage; identity, schedule, signup readiness; worker lifecycle.", owner:"BingoEvent, transitions and scheduled attempts; lifecycle services."},
+      {id:"signup", title:"Signup, edit, withdraw & waiting promotion", roles:["participant","captain","admin"], public:"My Accounts selection, Signup, confirmation/edit, withdraw/rejoin, queue position.", team:"Drafted leaders may inspect expanded pool before finalization.", admin:"Questions, capacity, correction, restore, promotion follow-up.", owner:"Form/questions/answers, participant version, reservations; SignupService."},
+      {id:"participant-admin", title:"Correction, internal creation & ownership transfer", roles:["participant","admin"], public:"Owner access changes immediately after explicit transfer.", team:"No inferred ownership from role/name.", admin:"Correct accounts/answers; create owned/unowned; repeat-username transfer.", owner:"Serializable event lock, response version, audit/notifications."},
+      {id:"draft", title:"Teams, pre-formed CSV & private draft", roles:["captain","admin"], public:"Published roster only after publication.", team:"Linked Drafted leaders inspect pool; pre-formed excluded.", admin:"Teams, CSV, roles, controller, picks, undo/pause, finalize/reopen.", owner:"Membership/role/pick/publication history; /Admin/Events/Draft/{id}."},
+      {id:"board", title:"Catalogue & board approval/publication", roles:["public","admin"], public:"Published immutable board and managed artwork.", team:"Uses published snapshot.", admin:"Manual catalogue; derive Draft; approve privately; publish separately; correct exceptionally.", owner:"Catalogue versions and BoardApprovalSnapshots."},
+      {id:"live", title:"Live accounts & private team focus", roles:["participant","captain","co-captain","admin","super-admin"], public:"Owned participant context through My Events/team route.", team:"Swap allowed accounts; focus tile/row/column; clear all.", admin:"Super Admin inspect-only; roster authority recovery.", owner:"Append-only swaps, focus markers, participant/team services."},
+      {id:"evidence", title:"Evidence submit, reject, resubmit, approve & reverse", roles:["participant","captain","emergency","admin","public"], public:"Active Approved evidence only.", team:"Participant self; leaders/emergency team scope; Rejected linked resubmission.", admin:"Approve/Reject, reasoned correction and reversal.", owner:"Submission, immutable credit, active asset, review/contribution; SubmissionService."},
+      {id:"closeout", title:"End, grace, final review, results & archive", roles:["public","captain","admin"], public:"No new drop after end; public official/archive results.", team:"Uploads through cutoff; then history read-only.", admin:"End/resume, review/reopen, resolve cycle, finalize versions, unfinalize/archive.", owner:"Effective transitions, closure, cycle and official snapshots."},
+      {id:"wom", title:"Wise Old Man lookup & cached synchronization", roles:["participant","captain","admin","public"], public:"Explicit player fetch only; pages consume local cache.", team:"Cached team activity; no render-time API call.", admin:"Configure existing competition ID; manual refresh; status/missing names.", owner:"Signed token, limiter; fenced generation/cache; never lifecycle authority."}
+    ],
+    capabilityStates:["Draft","SignupOpen","SignupClosed","Live","AwaitingFinalReview","Finalized","Archived","Cancelled","Discarded"],
+    capabilities:[
+      ["Identity/schedule", "Admin", "Admin", "Admin", "Blocked (F-04 mismatch)", "—", "—", "—", "—", "—"],
+      ["Signup/form", "Admin", "Admin; response locks", "Admin until draft lock", "—", "—", "—", "—", "—", "—"],
+      ["Participant signup/edit", "—", "Owned website account", "Withdrawal only pre-lock", "—", "—", "—", "—", "—", "—"],
+      ["Team/draft", "Admin setup", "Admin setup", "Admin draft/finalize", "Roster recovery only", "Vacancy actions", "Read", "Read", "Read-only", "—"],
+      ["Board", "Private Admin", "Private Admin", "Approve/publish Admin", "Published correction only", "Supported correction/review", "Read", "Read", "Prior public only", "—"],
+      ["Active swap/focus", "—", "—", "—", "Owned participant / scoped leader", "—", "—", "—", "—", "—"],
+      ["New evidence", "—", "—", "—", "Participant/leader/emergency to cutoff", "Same to cutoff", "—", "—", "—", "—"],
+      ["Admin evidence review", "—", "—", "—", "Admin", "Admin after cutoff", "Read", "Read", "—", "—"],
+      ["WoM sync", "Configure", "Configure", "Configure", "Refresh/config correction", "Frozen", "Frozen", "Frozen", "—", "—"],
+      ["Finalize/resume", "—", "—", "—", "—", "Admin finalize or reasoned resume", "—", "—", "—", "—"],
+      ["Archive/unfinalize", "—", "—", "—", "—", "—", "Archive or reasoned unfinalize", "Reasoned unfinalize", "—", "—"],
+      ["Cancel/discard", "Admin by history", "Admin by history", "Admin by history", "—", "—", "—", "—", "—", "—"],
+      ["Public read", "None", "Exact signup/table", "Signup/table + published features", "Published board/roster/evidence", "Same", "Official results", "Official history", "Prior generic projection", "None"]
+    ],
+    automation:[
+      {title:"Signup opening", trigger:"Lifecycle worker: Draft + enabled due opening", fact:"Unique ScheduledSignupOpeningAttempt + transition/audit", retry:"Full readiness rerun; failure disables delayed retry and notifies Admins", recovery:"Fix Manage/Schedule/Questions and open manually/reschedule"},
+      {title:"Signup closing", trigger:"SignupOpen + due close", fact:"Event state + transition/audit", retry:"Catch-up once; later ticks see closed state", recovery:"Reopen before draft lock"},
+      {title:"Event start/postponed", trigger:"Pre-Live + due start", fact:"Unique ScheduledEventStartAttempt and blocker codes", retry:"Blocked start never auto-retries", recovery:"Resolve links and Start event now"},
+      {title:"End & submission closure", trigger:"Live end / active cutoff due", fact:"Effective transition + SubmissionsClosedAt", retry:"Late end uses configured effective instant; closure idempotent", recovery:"Review/resume premature end; reasoned reopen uploads"},
+      {title:"Banner cleanup outbox", trigger:"Discard/banner replacement", fact:"Durable pending cleanup status/attempt", retry:"Lifecycle worker retries; already missing is success", recovery:"Restore storage and inspect outbox/logs"},
+      {title:"Evidence asset failure cleanup", trigger:"Create/resubmit stores an asset but database work fails before commit", fact:"No persisted cleanup outbox; absence of committed EvidenceAsset is authoritative", retry:"SubmissionService makes one non-cancelled best-effort delete; no background retry", recovery:"Operator inspects storage and removes an exceptional orphan"},
+      {title:"WoM synchronization", trigger:"Dedicated worker; configured Live state due", fact:"Generation, fingerprint, due/retry, fenced lease", retry:"Initial + 3 retries; Retry-After or ~1/2/4m; separate 2h anchor", recovery:"Correct link/status; cooldown-respecting manual refresh"},
+      {title:"WoM pause/resume", trigger:"Event leaves or returns to Live", fact:"Persisted normal/retry due times and latest generation", retry:"No refresh outside Live; future due waits and overdue return permits prompt fetch", recovery:"Use legitimate lifecycle recovery; page views never force synchronization"},
+      {title:"Notifications & Admin actions", trigger:"Transactional mutation or unresolved-state query", fact:"Durable notification; underlying action record", retry:"Deterministic IDs on retry-sensitive events; read state never resolves work", recovery:"Follow destination and complete authoritative operation"},
+      {title:"SignalR invalidations", trigger:"Progress, draft/board, focus changes", fact:"Database state remains authoritative", retry:"Client refresh; public progress has 30s fallback", recovery:"Reload route"}
+    ],
+    data:[
+      {title:"Account / Discord / OSRS links", owner:"Account and per-account link", kind:"Current account/link + immutable security/Discord/audit history", visibility:"Owner/Admin; no secret/public identity leakage", retention:"Disable/unlink preserves event history"},
+      {title:"Participant / form answers", owner:"Event participant and SignupForm", kind:"Current status/version; retained question/answer shape", visibility:"Exact-link public answers; Admin private identity/payment/notes", retention:"Survives withdrawal, transfer, draft, archive"},
+      {title:"Assignments / swaps", owner:"Event participant", kind:"Current reservations + append-only activation intervals", visibility:"Scoped participant/team/Admin; approved credit may be public", retention:"Global unlink/replacement never rewrites"},
+      {title:"Teams / draft / publications", owner:"Event/team", kind:"Current membership separated from immutable roles/picks/publications", visibility:"Current published roster; private controller/audit excluded", retention:"Withdrawal/replacement never rewrites ledger"},
+      {title:"Catalogue / board", owner:"Global catalogue; event board", kind:"Draft derived; approvals/publications immutable snapshots", visibility:"Catalogue Admin; published board public", retention:"Catalogue changes never rewrite approved history"},
+      {title:"Evidence / reviews / contributions", owner:"Event/team submission; credited participant/character snapshot", kind:"Current status/asset + retained reviews/predecessors/contributions", visibility:"Approved public; other states scope-private; Admin complete", retention:"Finalized/Archived readable; reversal retains history"},
+      {title:"Final review / official results", owner:"Event and cycle", kind:"Immutable cycle resolutions/corrections and versioned official snapshots", visibility:"Admin detail; official placements public", retention:"Unfinalization supersedes, never deletes"},
+      {title:"WoM generations", owner:"Event integration and assignment fingerprint", kind:"Derived latest-generation cache; older rows internal", visibility:"Privacy-safe totals public/team; missing names Admin", retention:"Frozen outside Live; not official snapshot"}
+    ],
+    notifications:[
+      {type:"personal", title:"Account role/restore", trigger:"Admin grant, revoke or restore", recipient:"Target account", destination:"/notifications → safe account route", boundary:"Generic state; private reasons excluded", idempotency:"Account transaction"},
+      {type:"personal", title:"Event cancellation/results", trigger:"Cancellation or finalization", recipient:"Explicit participant owners", destination:"Best event route / Board", boundary:"Generic cancellation; public result availability", idempotency:"Destructive transaction / deterministic event-recipient result ID"},
+      {type:"personal", title:"Promotion/restore/ownership", trigger:"Signup lifecycle or ownership transfer", recipient:"Participant owner, old/new owner, enabled Admins as applicable", destination:"Confirmation, Manage or Participant", boundary:"No custom answers/payment/notes", idempotency:"Locked transition; deterministic where retry-sensitive"},
+      {type:"personal", title:"Team role/live roster", trigger:"Role change, Live withdrawal/replacement", recipient:"Owned member, replacement, current leaders/Admins", destination:"Roster or corrected Participant route", boundary:"Private-safe event/team context", idempotency:"Deterministic purpose-target-recipient for Live actions"},
+      {type:"personal", title:"Evidence rejection", trigger:"Pending → Rejected", recipient:"Credited owner + current linked leaders", destination:"/Captain/Submissions/{id}", boundary:"Event/tile/drop/reason only", idempotency:"Deterministic review-recipient ID"},
+      {type:"action", title:"Evidence review", trigger:"Pending submission", recipient:"Enabled Admin/Super Admin", destination:"/Admin/Review/Details/{id}", boundary:"Admin private", idempotency:"Resolved by submission state"},
+      {type:"action", title:"Promotion follow-up", trigger:"Incomplete follow-up record", recipient:"Enabled Admin/Super Admin", destination:"Correct Participant route", boundary:"Contact instruction without private answers", idempotency:"Explicit completion actor/time"},
+      {type:"action", title:"Postponed start / vacancy / missing Captain", trigger:"Unresolved attempt or authoritative roster query", recipient:"Enabled Admin/Super Admin", destination:"Manage or Participant; readiness Captain link has F-01", boundary:"Operational context only", idempotency:"Underlying record/query, not read state"}
+    ],
+    inventory:[
+      ["Password + Discord authentication", "required", "Primary normal-account entry; cookie/version validation."],
+      ["My Accounts and event assignments", "required", "Identity, saved EHB, reservation and history authority."],
+      ["Emergency Captain credential", "rare/edge-case", "Approved exact-scoped fallback; cutoff auto-disable."],
+      ["Operator-only owner recovery", "rare/edge-case", "Deliberately CLI-only, not a navigation gap."],
+      ["Event schedule/readiness", "required", "Entry and automated lifecycle authority."],
+      ["Derived display phases", "awkward", "Avoids state proliferation but can be confused with lifecycle."],
+      ["Signup/capacity/waiting", "required", "Core intake and promotion workflow."],
+      ["Unlisted signup table", "awkward", "Required exact-link privacy/discovery decision."],
+      ["Participant correction/ownership transfer", "rare/edge-case", "Operational recovery with concurrency/privacy."],
+      ["Drafted/pre-formed teams and snake draft", "required", "Core competitive roster models."],
+      ["Pre-formed CSV", "rare/edge-case", "Required team-scoped import; not ordinary signup CSV."],
+      ["Manual source-drop catalogue", "required", "Version-one board source authority."],
+      ["Non-web Wiki import service", "possibly unnecessary", "Web route removed; retained service has no v1 web journey."],
+      ["Board approval separate from publication", "required", "Prevents accidental publication; immutable snapshots."],
+      ["Published correction", "rare/edge-case", "Required exceptional history-safe correction."],
+      ["Active-account swaps and team focus", "required", "Live identity and coordination."],
+      ["Evidence + linked resubmission", "required", "Authoritative progress and rejected recovery."],
+      ["Request Changes / duplicate workflow", "obsolete", "Removed; historical metadata only."],
+      ["Evidence privacy/hidden-approved", "obsolete", "Removed; reversal is the correction path."],
+      ["Admin evidence upload", "obsolete", "Removed by accepted Slice 8 decision."],
+      ["Final review/results/archive", "required", "Immutable competitive closeout."],
+      ["Premature-end resume / Live replacement", "rare/edge-case", "Required operational recovery."],
+      ["Personal notifications/Admin actions", "required", "Information and operational source-of-work kept separate."],
+      ["SignalR invalidations", "required", "Progressive enhancement; database/routes authoritative."],
+      ["Explicit WoM lookup/cached activity", "required", "Optional integration; no lifecycle dependency."],
+      ["WoM competition mutation/update-all", "possibly unnecessary", "Explicitly deferred and not implemented."],
+      ["Global Rules/how-to pages", "required", "Missing selected functionality tracked separately: no accepted routes yet."],
+      ["Missing-Captain /Admin/Events/Teams route", "unreachable", "Emitted by the readiness service and Manage mapping; route does not exist."],
+      ["Deferred Ponytail cleanup list", "possibly unnecessary", "Non-blocking cleanup only; not Atlas defects."]
+    ],
+    ponytail:[
+      "Remove 51 unreferenced Bootstrap/jQuery distribution variants and source maps while retaining referenced assets and licenses.",
+      "Remove the retired seven-argument EventParticipant constructor after updating stale test fixtures.",
+      "Remove the legacy integer SnakeDraftOrder.GetNextEligibleTurn test-only overload.",
+      "Remove Team.ImageUrl (always null) and ignored Update slug/imageUrl parameters.",
+      "Remove zero-caller DraftSession.ConfigureTargetSize.",
+      "Remove the unreferenced ApplicationDependencies wrapper.",
+      "Remove constructor dependencies retained only through no-op assignments in Manage, Participant and Finalize."
+    ],
+    findings:[
+      {id:"F-01", level:"high", evidence:"verified", title:"Missing-Captain readiness destination is unreachable", detail:"EventLifecycleService and Manage’s blocker mapping both emit /Admin/Events/Teams/{eventId}; no such Razor route exists. Teams and authority live at /Admin/Events/Draft/{eventId}.", recommendation:"Approve a bounded correction to the Draft team section and verify rendered action navigation."},
+      {id:"F-02", level:"low", evidence:"verified", title:"Baseline status summaries were stale; resolved here", detail:"At the accepted source commit, the roadmap said implementation not started, CURRENT_STATUS still said package Slice 10 and README said Milestones 1–7. This Atlas handoff corrects those current-summary surfaces.", recommendation:"No product decision remains; retain historical evidence and keep the concise current status authoritative."},
+      {id:"F-03", level:"medium", evidence:"verified", title:"Admin progression guidance is distributed", detail:"Manage, Schedule, Draft, Board, Finalize, display phases, route filter and service blocker strings each own part of progression; F-01 shows divergence risk.", recommendation:"Milestone 9 Pass 3 should render one authoritative state/substate checklist without weakening service guards."},
+      {id:"F-04", level:"medium", evidence:"verified", title:"Live identity edit guard mismatch", detail:"EventStatePolicy and route filter block ordinary Live identity/schedule edits, while BingoEvent.EnsureIdentityEditable includes Live.", recommendation:"Decide whether a narrow Live correction is intended or align the domain guard."},
+      {id:"F-05", level:"medium", evidence:"verified", title:"Notification data-model wording conflicts with code", detail:"DATA_MODEL describes richer AccountNotification fields/universal idempotency; accepted code uses PersonalNotification and selective deterministic IDs.", recommendation:"Reconcile documentation without changing privacy/idempotency until reviewed."},
+      {id:"F-06", level:"medium", evidence:"verified", title:"Selected global Rules/how-to slice is missing", detail:"Roadmap selects permanent Rules/how-to pages, but route/code inventory contains no such functionality and event PublicRules compatibility remains.", recommendation:"Decide whether the functional slice precedes Milestone 9; do not hide it in UI work."},
+      {id:"F-07", level:"low", evidence:"verified", title:"Co-captain global entry is labelled Captain board", detail:"Membership/readiness distinguishes Captain and Co-captain, while the shared shell uses one Captain label.", recommendation:"Consider neutral Team workspace wording in Milestone 9."},
+      {id:"I-01", level:"medium", evidence:"inferred", title:"Public signup link may be misleading outside signup phases", detail:"Manage markup exposes a Public signup entry while state-aware route behavior may redirect or be unavailable.", recommendation:"Review whether Manage should show the best current public destination."},
+      {id:"I-02", level:"medium", evidence:"inferred", title:"Admin action ordering may bury work", detail:"Five action sources are concatenated and only the first eight are shown; no global severity/age order exists.", recommendation:"Define action priority and grouping in Milestone 9."},
+      {id:"I-03", level:"low", evidence:"inferred", title:"Frozen WoM activity could look official", detail:"Activity remains visible after finalization/archive but is not part of official result snapshots.", recommendation:"Label it as frozen external auxiliary data."},
+      {id:"M-01", level:"medium", evidence:"manual", title:"Lifecycle/derived-phase responsive composition", detail:"This audit did not render every application state at desktop/narrow widths.", recommendation:"Manual Milestone 9 state matrix."},
+      {id:"M-02", level:"medium", evidence:"manual", title:"Late visual debt", detail:"Slice 10 Activity EHB/table presentation and archived raw-image viewer are functionally accepted but visually deferred.", recommendation:"Prioritize in the mapped UI passes."}
+    ]
+  };
+
+  const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]);
+  const code = value => `<code>${esc(value)}</code>`;
+  const list = values => `<div class="tags">${values.map(v => `<span class="tag">${esc(v)}</span>`).join("")}</div>`;
+  const tabs = document.querySelector('[role="tablist"]');
+  const main = document.querySelector("main");
+
+  tabs.innerHTML = atlas.tabs.map(([id,label], i) => `<button class="tab" role="tab" id="tab-${id}" aria-controls="panel-${id}" aria-selected="${i===0}" tabindex="${i===0?0:-1}" data-tab="${id}">${esc(label)}</button>`).join("");
+  main.innerHTML = atlas.tabs.map(([id,label], i) => `<section role="tabpanel" id="panel-${id}" aria-labelledby="tab-${id}" ${i===0?"":"hidden"}><h2>${esc(label)}</h2><div data-content="${id}"></div></section>`).join("");
+
+  function openTab(id, focus=false) {
+    const target = document.querySelector(`[data-tab="${CSS.escape(id)}"]`);
+    if (!target) return;
+    document.querySelectorAll('[role="tab"]').forEach(tab => { const active = tab === target; tab.setAttribute("aria-selected", active); tab.tabIndex = active ? 0 : -1; });
+    document.querySelectorAll('[role="tabpanel"]').forEach(panel => panel.hidden = panel.id !== `panel-${id}`);
+    if (focus) target.focus();
+    history.replaceState(null, "", `#${id}`);
+  }
+  tabs.addEventListener("click", event => { const tab = event.target.closest("[data-tab]"); if (tab) openTab(tab.dataset.tab); });
+  tabs.addEventListener("keydown", event => {
+    if (!["ArrowRight","ArrowLeft","Home","End"].includes(event.key)) return;
+    const buttons = [...tabs.querySelectorAll('[role="tab"]')]; let index = buttons.indexOf(document.activeElement);
+    if (event.key === "ArrowRight") index = (index + 1) % buttons.length;
+    if (event.key === "ArrowLeft") index = (index - 1 + buttons.length) % buttons.length;
+    if (event.key === "Home") index = 0; if (event.key === "End") index = buttons.length - 1;
+    event.preventDefault(); openTab(buttons[index].dataset.tab, true);
+  });
+
+  function renderState(id) {
+    const state = atlas.lifecycle.find(item => item.id === id) || atlas.lifecycle[0];
+    document.querySelectorAll(".state-button").forEach(button => button.setAttribute("aria-pressed", button.dataset.state === state.id));
+    const transitions = state.transitions.length ? state.transitions.map(t => `<article class="card transition"><h3>${esc(state.label)} → ${esc(t.to)}</h3><dl><dt>Initiator</dt><dd>${esc(t.who)}</dd><dt>Route</dt><dd>${code(t.route)}</dd><dt>Authority</dt><dd>${code(t.service)}</dd><dt>Time</dt><dd>${esc(t.time)}</dd><dt>Cutoff</dt><dd>${esc(t.cutoff)}</dd><dt>Blockers</dt><dd>${esc(t.blockers)}</dd><dt>Recovery</dt><dd>${esc(t.recovery)}</dd><dt>Stale/retry</dt><dd>${esc(t.stale)}</dd></dl></article>`).join("") : `<p class="empty">No ordinary outgoing transition. This is a terminal state.</p>`;
+    document.querySelector("#state-detail").innerHTML = `<p class="eyebrow">Selected lifecycle state</p><h2>${esc(state.label)}</h2><p class="lede">${esc(state.summary)}</p><div class="detail-grid"><div><h3>Available actions</h3><p>${esc(state.actions)}</p></div><div><h3>Timestamps</h3><p>${esc(state.timestamps)}</p></div><div><h3>Submission cutoff</h3><p>${esc(state.cutoff)}</p></div><div><h3>Blockers & recovery</h3><p>${esc(state.blockers)}</p></div><div><h3>Substates</h3>${list(state.substates)}</div><div><h3>Authorities & routes</h3>${list(state.authorities)}<p>${state.routes.map(code).join(" · ")}</p></div></div><p><strong>Related:</strong> <a href="#panel-capabilities" data-open-tab="capabilities">capability matrix</a> · <a href="#panel-workflows" data-open-tab="workflows">workflow swimlanes</a> · <a href="#panel-findings" data-open-tab="findings">review findings</a></p><h3 style="margin-top:1.2rem">Valid transitions and recovery paths</h3>${transitions}`;
+  }
+
+  document.querySelector('[data-content="overview"]').innerHTML = `
+    <div class="panel"><p class="lede">Run one community Bingo from private setup through signup, teams, a published board, Live evidence and immutable official history. Cross-check the <a href="#panel-roles" data-open-tab="roles">role map</a> and <a href="#panel-automation" data-open-tab="automation">automatic transitions</a>.</p><ol class="journey">${atlas.journey.map(x=>`<li>${esc(x)}</li>`).join("")}</ol></div>
+    <div class="panel"><h3>Event state versus feature substate</h3><p>Whole-event authority comes from <code>EventStatePolicy</code>. Draft state, roster/board publication, upload cutoff, final-review cycle and WoM generation independently narrow behavior. A feature lock is not whole-event read-only state.</p></div>
+    <div class="panel"><h3>Navigable lifecycle</h3><p class="lede">Select a state to inspect actions, substates, timestamps, cutoff, blockers, routes, services, transitions and recovery.</p><div class="state-strip">${atlas.lifecycle.map((s,i)=>`<button class="state-button" type="button" data-state="${s.id}" aria-controls="state-detail" aria-pressed="${i===0}"><strong>${esc(s.label)}</strong><small>${esc(s.summary)}</small></button>`).join("")}</div></div>
+    <div class="panel state-detail" id="state-detail" aria-live="polite"></div>`;
+  document.querySelector('[data-content="overview"]').addEventListener("click", event => { const button=event.target.closest("[data-state]"); if(button){renderState(button.dataset.state); document.querySelector("#state-detail").scrollIntoView({block:"start"});} });
+  renderState(atlas.lifecycle[0].id);
+
+  const rolesRoot = document.querySelector('[data-content="roles"]');
+  rolesRoot.innerHTML = `<p class="lede">Visible navigation, authoritative routes and authority qualifiers for every supported persona.</p><div class="grid">${atlas.roles.map(r=>`<article class="card" id="role-${r.id}"><p class="eyebrow">${esc(r.assessment)}</p><h3>${esc(r.label)}</h3><p><strong>Navigation:</strong> ${esc(r.nav)}</p><p><strong>Routes:</strong> ${esc(r.routes)}</p><p><strong>Authority:</strong> ${esc(r.authority)}</p></article>`).join("")}</div><div class="panel" style="margin-top:1rem"><h3>Development review reachability</h3><div class="grid">${atlas.reviewFixtures.map(x=>`<article class="card"><h3>${esc(x.name)}</h3><p><strong>Use:</strong> ${esc(x.use)}</p><p><strong>Limit:</strong> ${esc(x.limit)}</p></article>`).join("")}</div><p>No seed password is duplicated here; the Development seeder/reset output remains authoritative.</p></div><div class="panel"><h3>Verified navigation gap</h3><p><code>/Admin/Events/Teams/{eventId}</code> is emitted by both the lifecycle blocker and Manage mapping but does not exist. Team/authority management is <code>/Admin/Events/Draft/{eventId}</code>. <a href="#panel-findings" data-open-tab="findings">Review F-01</a>.</p></div>`;
+
+  const workflowsRoot = document.querySelector('[data-content="workflows"]');
+  workflowsRoot.innerHTML = `<div class="toolbar"><label>Role filter<select id="workflow-role"><option value="">All roles</option>${atlas.roles.map(r=>`<option value="${r.id}">${esc(r.label)}</option>`).join("")}</select></label><label>Search workflows<input id="workflow-search" type="search" placeholder="e.g. evidence, ownership"></label></div><div class="grid" id="workflow-grid"></div>`;
+  function renderWorkflows(){const role=document.querySelector("#workflow-role").value, term=document.querySelector("#workflow-search").value.toLowerCase();const rows=atlas.workflows.filter(w=>(!role||w.roles.includes(role))&&(!term||JSON.stringify(w).toLowerCase().includes(term)));document.querySelector("#workflow-grid").innerHTML=rows.map(w=>`<article class="card"><p class="eyebrow">${w.roles.map(esc).join(" · ")}</p><h3>${esc(w.title)}</h3><p><strong>Participant/public:</strong> ${esc(w.public)}</p><p><strong>Team:</strong> ${esc(w.team)}</p><p><strong>Admin/system:</strong> ${esc(w.admin)}</p><p><strong>Authority:</strong> ${esc(w.owner)}</p></article>`).join("")||`<p class="empty">No workflow matches the current filters.</p>`;}
+  workflowsRoot.addEventListener("input", renderWorkflows); renderWorkflows();
+
+  const capRoot=document.querySelector('[data-content="capabilities"]');
+  capRoot.innerHTML=`<p class="lede">Qualifiers matter: “Admin” means an enabled Admin/Super Admin reauthorized inside the command; participant/leader authority is explicit and scoped.</p><div class="table-wrap"><table><thead><tr><th>Capability</th>${atlas.capabilityStates.map(s=>`<th>${esc(s)}</th>`).join("")}</tr></thead><tbody>${atlas.capabilities.map(row=>`<tr>${row.map((x,i)=>`<${i?"td":"th"}>${esc(x)}</${i?"td":"th"}>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+
+  document.querySelector('[data-content="automation"]').innerHTML=`<p class="lede">Every automatic path names its trigger, persisted idempotency fact, retry behavior and human recovery.</p><div class="grid">${atlas.automation.map(a=>`<article class="card"><h3>${esc(a.title)}</h3><p><strong>Trigger:</strong> ${esc(a.trigger)}</p><p><strong>Idempotency:</strong> ${esc(a.fact)}</p><p><strong>Retry:</strong> ${esc(a.retry)}</p><p><strong>Recovery:</strong> ${esc(a.recovery)}</p></article>`).join("")}</div>`;
+  document.querySelector('[data-content="data"]').innerHTML=`<p class="lede">Current, immutable, derived, private and public facts remain distinct across lifecycle changes.</p><div class="grid">${atlas.data.map(d=>`<article class="card"><h3>${esc(d.title)}</h3><p><strong>Owner:</strong> ${esc(d.owner)}</p><p><strong>Kind:</strong> ${esc(d.kind)}</p><p><strong>Visibility:</strong> ${esc(d.visibility)}</p><p><strong>Retention:</strong> ${esc(d.retention)}</p></article>`).join("")}</div>`;
+
+  const notificationsRoot=document.querySelector('[data-content="notifications"]');
+  notificationsRoot.innerHTML=`<div class="toolbar"><label>Projection<select id="notification-type"><option value="">Personal + Admin actions</option><option value="personal">Personal notifications</option><option value="action">Admin actions</option></select></label></div><div id="notification-grid" class="grid"></div><div class="panel" style="margin-top:1rem"><h3>Boundary</h3><p>Personal notification read state is informational. Admin actions are derived from unresolved authoritative records and disappear only when the underlying work resolves. Compare their <a href="#panel-automation" data-open-tab="automation">automatic triggers</a> and <a href="#panel-data" data-open-tab="data">data ownership</a>.</p></div>`;
+  function renderNotifications(){const type=document.querySelector("#notification-type").value;const rows=atlas.notifications.filter(n=>!type||n.type===type);document.querySelector("#notification-grid").innerHTML=rows.map(n=>`<article class="card"><p class="eyebrow">${n.type==="personal"?"Personal notification":"Admin action"}</p><h3>${esc(n.title)}</h3><p><strong>Trigger:</strong> ${esc(n.trigger)}</p><p><strong>Recipient:</strong> ${esc(n.recipient)}</p><p><strong>Destination:</strong> ${esc(n.destination)}</p><p><strong>Boundary:</strong> ${esc(n.boundary)}</p><p><strong>Idempotency:</strong> ${esc(n.idempotency)}</p></article>`).join("");}
+  notificationsRoot.addEventListener("change",renderNotifications);renderNotifications();
+
+  const inventoryRoot=document.querySelector('[data-content="inventory"]');
+  const classifications=[...new Set(atlas.inventory.map(x=>x[1]))];
+  inventoryRoot.innerHTML=`<div class="toolbar"><label>Classification<select id="inventory-class"><option value="">All classifications</option>${classifications.map(x=>`<option>${esc(x)}</option>`).join("")}</select></label><label>Search<input id="inventory-search" type="search" placeholder="feature or evidence"></label></div><div class="table-wrap"><table><thead><tr><th>Capability</th><th>Classification</th><th>Evidence/rationale</th></tr></thead><tbody id="inventory-body"></tbody></table></div><div class="panel" style="margin-top:1rem"><h3>Deferred Ponytail cleanup</h3><p>These seven findings are non-blocking and are not Atlas defects:</p><ol>${atlas.ponytail.map(x=>`<li>${esc(x)}</li>`).join("")}</ol><p>The approximately 82,540-line estimate is overwhelmingly vendor distribution files, not architectural complexity. Review separately from the <a href="#panel-findings" data-open-tab="findings">Atlas findings</a>.</p></div>`;
+  function renderInventory(){const kind=document.querySelector("#inventory-class").value,term=document.querySelector("#inventory-search").value.toLowerCase();const rows=atlas.inventory.filter(x=>(!kind||x[1]===kind)&&(!term||x.join(" ").toLowerCase().includes(term)));document.querySelector("#inventory-body").innerHTML=rows.map(x=>`<tr><th>${esc(x[0])}</th><td><span class="tag ${x[1].split("/")[0].replaceAll(" ","-")}">${esc(x[1])}</span></td><td>${esc(x[2])}</td></tr>`).join("")||`<tr><td colspan="3" class="empty">No feature matches the current filters.</td></tr>`;}
+  inventoryRoot.addEventListener("input",renderInventory);renderInventory();
+
+  const findingsRoot=document.querySelector('[data-content="findings"]');
+  findingsRoot.innerHTML=`<p class="lede">Ranked findings are separated into verified facts, inferred concerns and manual/visual uncertainty. Recommendations are decisions or UI priorities only.</p><div class="toolbar"><label>Evidence<select id="finding-evidence"><option value="">All evidence classes</option><option value="verified">Verified</option><option value="inferred">Inferred</option><option value="manual">Manual/visual</option></select></label><label>Impact<select id="finding-level"><option value="">All impacts</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label></div><div id="finding-grid" class="grid"></div><div class="panel" style="margin-top:1rem"><h3>Decision boundary</h3><p><strong>Nothing is authorized by this Atlas.</strong> Product review must explicitly decide F-01, Live identity intent, the global Rules/how-to slice, Admin progression/action ordering, and any later cleanup.</p></div>`;
+  function renderFindings(){const evidence=document.querySelector("#finding-evidence").value,level=document.querySelector("#finding-level").value;const rows=atlas.findings.filter(f=>(!evidence||f.evidence===evidence)&&(!level||f.level===level));document.querySelector("#finding-grid").innerHTML=rows.map(f=>`<article class="card finding ${f.level}"><div class="tags"><span class="tag ${f.level}">${esc(f.level)} impact</span><span class="tag ${f.evidence}">${esc(f.evidence)}</span></div><h3>${esc(f.id)} · ${esc(f.title)}</h3><p>${esc(f.detail)}</p><p><strong>Review:</strong> ${esc(f.recommendation)}</p></article>`).join("")||`<p class="empty">No finding matches the current filters.</p>`;}
+  findingsRoot.addEventListener("change",renderFindings);renderFindings();
+
+  main.addEventListener("click", event => {
+    const link = event.target.closest("[data-open-tab]");
+    if (!link) return;
+    event.preventDefault();
+    openTab(link.dataset.openTab, true);
+  });
+
+  const requested = location.hash.slice(1).replace(/^panel-/, "");
+  if (atlas.tabs.some(([id])=>id===requested)) openTab(requested);
+  </script>
+</body>
+</html>

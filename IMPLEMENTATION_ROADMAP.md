@@ -2,9 +2,9 @@
 
 ## Implementation Roadmap
 
-**Status:** Planning Pass 2 selected scope and implementation sequence recorded; implementation not started
+**Status:** Milestone 8A Slices 1–10 accepted; post-functional Application Atlas produced for review
 
-**Last updated:** 2026-07-25
+**Last updated:** 2026-08-03
 
 **Companion documents:** `PRODUCT_REQUIREMENTS.md`, `FUNCTIONAL_WORKFLOWS.md`, `DATA_MODEL.md`, `TECHNICAL_ARCHITECTURE.md`, `UI_OVERHAUL_ROADMAP.md`
 
@@ -785,11 +785,15 @@ Slices 1, 2, and 3 are implemented, independently cleared, verified, manually ac
 
 ### Post-functional Application Atlas gate
 
+**Atlas status (2026-08-03):** Complete as a read-only consolidation/audit deliverable at accepted source commit `2301d63ae166873a750266ce5ee6a087f3039054`. The durable source is `APPLICATION_ATLAS.md` and the standalone interactive review surface is `APPLICATION_ATLAS.html`. All ten functional slices are accepted; older implementation-position prose elsewhere in this roadmap is historical and is superseded by this status and `CURRENT_STATUS.md`. Atlas findings require user review and authorize no application or UI change.
+
 After Slice 10 is accepted and before the UI overhaul begins, create a product-facing Application Atlas of the completed website. Its durable source is `APPLICATION_ATLAS.md`; its primary review surface is a standalone interactive HTML visualization, with an optional PDF summary. Cover role-based navigation, lifecycle transitions, workflow swimlanes, capability-by-state, scheduled automation, data/history ownership, notification triggers, and a complete feature inventory. Classify functionality as required, awkward, duplicated, rare/edge-case, possibly unnecessary, unreachable, or obsolete, and identify missing navigation or workflow gaps.
 
 The Atlas must include a dedicated lifecycle consistency audit rather than only a high-level state diagram. For every event state and valid recovery path, map the permitted transition, initiating role, available actions, progression blockers and resolution destinations, scheduled and actual timestamps, submission cutoff behavior, and the authoritative route/service/policy enforcing it. Show related signup, draft, roster, board-publication, evidence, final-review, official-results, and archive substates separately so a feature-level lock is not mistaken for a whole-event prohibition. Compare this map against the implemented guards, UI wording, and source-of-truth documents; record contradictory labels, unreachable actions, duplicated guards, and missing Admin progression guidance as explicit review findings.
 
 This is a read-only consolidation/audit gate: it does not authorize removal, redesign, or new functionality until the user reviews and approves a resulting change.
+
+Deferred Ponytail cleanup is non-blocking and is not an Atlas defect: remove 51 unreferenced Bootstrap/jQuery distribution variants/source maps while retaining referenced assets/licenses; retire the stale seven-argument `EventParticipant` constructor and integer `SnakeDraftOrder.GetNextEligibleTurn` test overload after fixture updates; remove `Team.ImageUrl` and ignored `Update` slug/imageUrl parameters; remove zero-caller `DraftSession.ConfigureTargetSize`; remove the unreferenced `ApplicationDependencies` wrapper; and remove constructor dependencies retained only by no-op assignments in Manage/Participant/Finalize. The approximately 82,540-line estimate is overwhelmingly vendor distribution files and does not represent architectural complexity.
 
 Only after all ten Milestone 8A functional slices are complete, functionally regressed, and reviewed through the Application Atlas does work proceed to the separate big-roadmap **Milestone 9 — UI overhaul and regression**. Milestone 9 performs the complete site-wide UI pass and full regression through the page passes in `UI_OVERHAUL_ROADMAP.md`. It must not begin merely because a similarly numbered UI page pass is available.
 
