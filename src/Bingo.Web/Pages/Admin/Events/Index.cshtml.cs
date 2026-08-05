@@ -19,26 +19,32 @@ namespace Bingo.Web.Pages.Admin.Events;
 [Authorize(Policy = AuthorizationPolicies.Admin)]
 public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleService eventLifecycle, TimeProvider timeProvider, IStringLocalizer<SharedResource> localizer) : PageModel
 {
-    private static readonly string[] KnownFilters = ["all", "upcoming", "live", "wrapping-up", "archived", "attention"];
+    private static readonly string[] KnownStates = ["all", "draft", "signupopen", "signupclosed", "live", "awaitingfinalreview", "finalized", "archived", "cancelled"];
 
     [BindProperty(SupportsGet = true, Name = "filter")]
     public string? Filter { get; set; }
 
+    [BindProperty(SupportsGet = true, Name = "search")]
+    public string? Search { get; set; }
+
     public string ActiveFilter { get; private set; } = "all";
+    public string ActiveSearch { get; private set; } = string.Empty;
     public IReadOnlyList<EventRow> Events { get; private set; } = [];
-    public IReadOnlyList<FilterOption> FilterOptions { get; private set; } = [];
+    public IReadOnlyList<StateOption> StateOptions { get; private set; } = [];
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
-        ActiveFilter = KnownFilters.Contains(Filter ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+        ActiveFilter = KnownStates.Contains(Filter ?? string.Empty, StringComparer.OrdinalIgnoreCase)
             ? Filter!.ToLowerInvariant()
             : "all";
+        ActiveSearch = Search?.Trim() ?? string.Empty;
 
         var allEvents = await dbContext.Events.AsNoTracking().Where(item => item.State != EventState.Discarded)
             .Select(item => new EventRow(
                 item.Id,
                 item.Name,
+                item.Slug,
                 item.State,
                 item.Timezone,
                 item.SignupOpensAt,
@@ -71,15 +77,18 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
             .ThenBy(item => SortDate(item))
             .ThenBy(item => item.Name);
 
-        Events = ordered.Where(MatchesActiveFilter).ToList();
-        FilterOptions =
+        Events = ordered.Where(MatchesActiveFilter).Where(MatchesSearch).ToList();
+        StateOptions =
         [
-            new("all", localizer["All"], allEvents.Count),
-            new("upcoming", localizer["Upcoming"], allEvents.Count(IsUpcoming)),
-            new("live", localizer["Live"], allEvents.Count(item => item.State == EventState.Live)),
-            new("wrapping-up", localizer["Wrapping up"], allEvents.Count(IsWrappingUp)),
-            new("archived", localizer["Archived"], allEvents.Count(item => item.State == EventState.Archived)),
-            new("attention", localizer["Needs attention"], allEvents.Count(item => item.PendingReviews > 0))
+            new("all", localizer["All states"]),
+            new("draft", localizer["Setup"]),
+            new("signupopen", localizer["Signups open"]),
+            new("signupclosed", localizer["Signups closed"]),
+            new("live", localizer["Live"]),
+            new("awaitingfinalreview", localizer["Final review"]),
+            new("finalized", localizer["Finished"]),
+            new("archived", localizer["Archived"]),
+            new("cancelled", localizer["Cancelled"])
         ];
     }
 
@@ -133,16 +142,20 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
 
     private bool MatchesActiveFilter(EventRow item) => ActiveFilter switch
     {
-        "upcoming" => IsUpcoming(item),
+        "draft" => item.State == EventState.Draft,
+        "signupopen" => item.State == EventState.SignupOpen,
+        "signupclosed" => item.State == EventState.SignupClosed,
         "live" => item.State == EventState.Live,
-        "wrapping-up" => IsWrappingUp(item),
+        "awaitingfinalreview" => item.State == EventState.AwaitingFinalReview,
+        "finalized" => item.State == EventState.Finalized,
         "archived" => item.State == EventState.Archived,
-        "attention" => item.PendingReviews > 0,
+        "cancelled" => item.State == EventState.Cancelled,
         _ => true
     };
 
-    private static bool IsUpcoming(EventRow item) => item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
-    private static bool IsWrappingUp(EventRow item) => item.State is EventState.AwaitingFinalReview or EventState.Finalized;
+    private bool MatchesSearch(EventRow item) => string.IsNullOrWhiteSpace(ActiveSearch)
+        || item.Name.Contains(ActiveSearch, StringComparison.OrdinalIgnoreCase)
+        || item.Slug.Contains(ActiveSearch, StringComparison.OrdinalIgnoreCase);
 
     private static int SortGroup(EventState state) => state switch
     {
@@ -166,6 +179,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
     public sealed record EventRow(
         Guid Id,
         string Name,
+        string Slug,
         EventState State,
         string Timezone,
         DateTimeOffset? SignupOpensAt,
@@ -183,5 +197,5 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
         bool StartPostponed,
         EventDisplayPhase DisplayPhase);
 
-    public sealed record FilterOption(string Value, string Label, int Count);
+    public sealed record StateOption(string Value, string Label);
 }

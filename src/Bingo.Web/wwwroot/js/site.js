@@ -68,9 +68,22 @@ window.initializeBingoDateTimePicker = (input, overrides = {}) => {
 
 document.addEventListener("DOMContentLoaded", () => {
   restorePostNavigationState();
+  const pendingToast = sessionStorage.getItem("bingo:pending-toast");
+  if (pendingToast) {
+    sessionStorage.removeItem("bingo:pending-toast");
+    try {
+      const toast = JSON.parse(pendingToast);
+      window.setTimeout(() => window.showBingoToast?.(toast.message, toast.type), 0);
+    } catch {
+      // Ignore stale toast state.
+    }
+  }
   initializePostNavigation();
   initializeCorrectionDropSelectors();
   initializeAutoHideScrollbars();
+  initializeAdminMenu();
+  initializeAdminEventSection();
+  initializeAdminEventDirectorySearch();
   const feedback = document.querySelector("[data-feedback-target], .validation-summary-errors");
   if (feedback) {
     feedback.scrollIntoView({ block: "nearest" });
@@ -97,6 +110,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!menu.open) return;
       for (const other of menus) if (other !== menu) other.open = false;
     });
+    if (menu.closest("[data-admin-event-selector]")) {
+      menu.addEventListener("keydown", event => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        menu.open = false;
+        menu.querySelector("summary")?.focus();
+      });
+    }
   }
   document.addEventListener("click", event => {
     const dismissButton = event.target.closest("[data-dismiss-notice]");
@@ -105,6 +126,111 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const menu of menus) if (menu.open && !menu.contains(event.target)) menu.open = false;
   });
 });
+
+function initializeAdminMenu() {
+  const toggle = document.querySelector("[data-admin-menu-toggle]");
+  const sidebar = toggle instanceof HTMLButtonElement ? document.getElementById(toggle.getAttribute("aria-controls")) : null;
+  const scrim = document.querySelector("[data-admin-menu-scrim]");
+  if (!(toggle instanceof HTMLButtonElement) || !(sidebar instanceof HTMLElement) || !(scrim instanceof HTMLButtonElement)) return;
+
+  document.documentElement.classList.add("admin-menu-enhanced");
+  let open = false;
+
+  const setOpen = (next, restoreFocus = false) => {
+    open = next;
+    sidebar.classList.toggle("is-open", open);
+    sidebar.setAttribute("aria-hidden", String(!open && window.innerWidth <= 900));
+    toggle.setAttribute("aria-expanded", String(open));
+    scrim.hidden = !open;
+    document.body.classList.toggle("admin-menu-open", open);
+    if (open) {
+      sidebar.querySelector("a")?.focus({ preventScroll: true });
+    } else if (restoreFocus) {
+      toggle.focus({ preventScroll: true });
+    }
+  };
+
+  const syncDesktopState = () => {
+    if (window.innerWidth > 900) {
+      open = false;
+      sidebar.classList.remove("is-open");
+      sidebar.setAttribute("aria-hidden", "false");
+      toggle.setAttribute("aria-expanded", "false");
+      scrim.hidden = true;
+      document.body.classList.remove("admin-menu-open");
+    } else {
+      sidebar.setAttribute("aria-hidden", String(!open));
+    }
+  };
+
+  toggle.addEventListener("click", () => setOpen(!open));
+  scrim.addEventListener("click", () => setOpen(false, true));
+  sidebar.addEventListener("click", event => {
+    if (event.target.closest("a") && window.innerWidth <= 900) setOpen(false);
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && open) {
+      event.preventDefault();
+      setOpen(false, true);
+    }
+  });
+  window.addEventListener("resize", syncDesktopState);
+  syncDesktopState();
+}
+
+function initializeAdminEventSection() {
+  const navigation = document.querySelector("[data-admin-event-navigation]");
+  if (!(navigation instanceof HTMLElement)) return;
+  const serverActive = navigation.querySelector(".admin-nav-link.is-active");
+
+  const sync = () => {
+    navigation.querySelectorAll("[data-admin-event-section]").forEach(link => {
+      link.classList.remove("is-active");
+      link.removeAttribute("aria-current");
+    });
+
+    const active = window.location.hash === "#players"
+      ? navigation.querySelector('[data-admin-event-section="participants"]')
+      : serverActive;
+    if (!(active instanceof HTMLElement)) return;
+    active.classList.add("is-active");
+    active.setAttribute("aria-current", "page");
+  };
+
+  window.addEventListener("hashchange", sync);
+  sync();
+}
+
+function initializeAdminEventDirectorySearch() {
+  const form = document.querySelector("[data-admin-event-directory-search]");
+  const page = form?.closest(".admin-events-page");
+  const input = form?.querySelector("[data-admin-event-search-input]");
+  const state = form?.querySelector("[data-admin-event-state-filter]");
+  const table = page?.querySelector("[data-admin-event-table]");
+  const empty = page?.querySelector("[data-admin-event-filter-empty]");
+  if (!(form instanceof HTMLFormElement) || !(input instanceof HTMLInputElement) || !(state instanceof HTMLSelectElement) || !(table instanceof HTMLTableElement) || !(empty instanceof HTMLElement)) return;
+
+  const apply = () => {
+    const search = input.value.trim().toLowerCase();
+    const selectedState = state.value.toLowerCase();
+    let visible = 0;
+    table.querySelectorAll("[data-admin-event-row]").forEach(row => {
+      const matchesSearch = !search || row.dataset.eventName?.toLowerCase().includes(search) || row.dataset.eventSlug?.toLowerCase().includes(search);
+      const matchesState = selectedState === "all" || row.dataset.eventState === selectedState;
+      row.hidden = !(matchesSearch && matchesState);
+      if (!row.hidden) visible++;
+    });
+    table.hidden = visible === 0;
+    empty.hidden = visible > 0;
+  };
+
+  input.addEventListener("input", apply);
+  state.addEventListener("change", apply);
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    apply();
+  });
+}
 
 document.addEventListener("bingo:content-updated", initializeCorrectionDropSelectors);
 
@@ -416,3 +542,20 @@ async function downloadPostResponse(response, disposition) {
   link.remove();
   URL.revokeObjectURL(url);
 }
+
+window.showBingoToast = (message, type = "success") => {
+  let stack = document.querySelector("[data-bingo-toast-stack]");
+  if (!stack) {
+    stack = document.createElement("div");
+    stack.className = "app-toast-stack";
+    stack.dataset.bingoToastStack = "true";
+    stack.setAttribute("aria-live", "polite");
+    document.body.appendChild(stack);
+  }
+  const toast = document.createElement("div");
+  toast.className = `app-toast app-toast-${type}`;
+  toast.setAttribute("role", type === "error" ? "alert" : "status");
+  toast.textContent = message;
+  stack.appendChild(toast);
+  window.setTimeout(() => toast.remove(), type === "error" ? 8000 : 5000);
+};

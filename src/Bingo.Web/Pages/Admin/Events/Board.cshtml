@@ -3,8 +3,6 @@
 @using Bingo.Domain.Boards
 @{
     ViewData["Title"] = "Board editor";
-    ViewData["BreadcrumbActionLabel"] = "Back to event";
-    ViewData["BreadcrumbActionUrl"] = Url.Page("Manage", new { id = RouteData.Values["id"] });
     var boardCanBeEdited = Model.BoardView?.State is BoardState.Draft or BoardState.Validated || Model.BoardView?.PublishedCorrectionInProgress == true;
     var editable = boardCanBeEdited && Model.CanEditBoard;
     var published = Model.BoardView?.State == BoardState.Published;

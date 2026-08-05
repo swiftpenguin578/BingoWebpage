@@ -294,6 +294,53 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PrepareDestructiveConfirmationRendersCancellationUiWithoutMutatingEvent()
+    {
+        var admin = Account.CreateWebsite(Guid.NewGuid(), "Prepare cancellation Admin", "PREPARE CANCELLATION ADMIN", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "prepare-cancellation-password"), false, now, incrementVersion: false);
+        var eventItem = Draft(Guid.NewGuid(), "prepare-cancellation", admin.Id);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(admin, eventItem, Participant(eventItem.Id, SignupStatus.Confirmed, 1));
+            await setup.SaveChangesAsync();
+        }
+
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var login = await client.GetStringAsync("/Account/Login");
+        using var loggedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = admin.PublicUsername!,
+            ["Input.Password"] = "prepare-cancellation-password",
+            ["__RequestVerificationToken"] = AntiforgeryToken(login)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, loggedIn.StatusCode);
+
+        var path = $"/Admin/Events/Manage/{eventItem.Id}";
+        var manage = await client.GetStringAsync(path);
+        using var prepareResponse = await client.PostAsync($"{path}?handler=PrepareDestructiveConfirmation", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = AntiforgeryToken(manage)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, prepareResponse.StatusCode);
+        Assert.Equal($"{path}?confirm=destructive", prepareResponse.Headers.Location!.OriginalString);
+
+        var confirmation = await client.GetStringAsync(prepareResponse.Headers.Location!.OriginalString);
+        Assert.Contains("Cancellation reason", confirmation, StringComparison.Ordinal);
+        Assert.Contains("Confirm cancellation", confirmation, StringComparison.Ordinal);
+        Assert.Contains("name=\"ConfirmDestructiveAction\"", confirmation, StringComparison.Ordinal);
+
+        await using var verify = new ApplicationDbContext(options);
+        var unchanged = await verify.Events.SingleAsync(item => item.Id == eventItem.Id);
+        Assert.Equal(EventState.Draft, unchanged.State);
+        Assert.Null(unchanged.CancellationReason);
+        Assert.Empty(await verify.EventStateTransitions.Where(item => item.EventId == eventItem.Id).ToListAsync());
+        Assert.Empty(await verify.AuditEntries.Where(item => item.EventId == eventItem.Id).ToListAsync());
+    }
+
+    [Fact]
     public async Task TerminalEventRoutesRejectEveryAuditedAdminMutationBeforeAnySideEffect()
     {
         var admin = Account.CreateWebsite(Guid.NewGuid(), "Terminal route Admin", "TERMINAL ROUTE ADMIN", now);

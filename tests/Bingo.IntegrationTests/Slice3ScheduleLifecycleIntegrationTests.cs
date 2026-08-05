@@ -101,11 +101,25 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
         {
             var evaluator = new EventReadinessEvaluator(db, configuration);
             var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
+            var readiness = await evaluator.GetSignupReadinessAsync(proposalEvent, SignupOpeningMode.OpenNow, now);
+            Assert.True(readiness!.CloseDecision.RequiresAcceptance);
+            Assert.Equal(now.AddDays(2), readiness.CloseDecision.ProposedClose);
             var version = (await db.Events.AsNoTracking().SingleAsync(x => x.Id == proposalEvent)).Version;
             var proposal = await service.OpenAsync(proposalEvent, version, true, false, actor);
             Assert.False(proposal.Succeeded);
             Assert.Equal(now.AddDays(2), proposal.ProposedClose);
             Assert.True((await service.OpenAsync(proposalEvent, version, true, true, actor)).Succeeded);
+        }
+
+        var validEvent = await SeedReadyDraftAsync("valid-close", waitingList: true, startDays: 20, endDays: 22);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var evaluator = new EventReadinessEvaluator(db, configuration);
+            var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
+            var readiness = await evaluator.GetSignupReadinessAsync(validEvent, SignupOpeningMode.OpenNow, now);
+            Assert.False(readiness!.CloseDecision.RequiresAcceptance);
+            var version = (await db.Events.AsNoTracking().SingleAsync(x => x.Id == validEvent)).Version;
+            Assert.True((await service.OpenAsync(validEvent, version, true, false, actor)).Succeeded);
         }
 
         var publicEvent = await SeedReadyDraftAsync("public-schedule", waitingList: true);

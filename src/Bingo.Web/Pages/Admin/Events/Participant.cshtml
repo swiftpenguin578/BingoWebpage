@@ -7,18 +7,23 @@
     var partialTargets = "#app-notice-region, .participant-admin-workspace";
 }
 
-<section class="table-page participant-admin-page">
-    <header class="participant-admin-heading">
+<section class="event-create-page participant-admin-page">
+    <header class="event-create-heading admin-events-heading">
         <div>
             <p class="eyebrow">@T["Participant"]</p>
             <div class="participant-admin-title-row">
                 <h1>@Model.Name</h1>
                 <span class="participant-status-badge status-@Model.Status.ToString().ToLowerInvariant()">@T[Model.StatusLabel]</span>
             </div>
-            <p>@T["Review and correct this player's signup details."]</p>
+            <p class="admin-module-description">@T["Review and correct this player's signup details while preserving signup history."]</p>
         </div>
-        <a class="btn btn-outline-light" asp-page="Manage" asp-route-id="@Model.EventId">← @T["Back to event"]</a>
+        <a class="admin-button-secondary event-create-cancel" asp-page="Participants" asp-route-id="@Model.EventId">@T["Back to participants"]</a>
     </header>
+
+    @if (!Model.CanEditParticipant)
+    {
+        <div class="information-callout participant-read-only-note"><strong>@T["Participant administration is read-only"]</strong><span>@T["Details, payment, ownership, notes, and signup lifecycle changes are locked after the draft starts or when the event has moved on."]</span></div>
+    }
 
     <div class="participant-admin-workspace">
         <form method="post" class="panel participant-edit-card" data-update-targets="@partialTargets">
@@ -27,7 +32,7 @@
                     <h2>@T["Participant details"]</h2>
                     <p>@T["Update information supplied during signup."]</p>
                 </div>
-                <button class="btn btn-primary" type="submit">@T["Save changes"]</button>
+                <button class="admin-button-primary" type="submit" disabled="@(!Model.CanEditParticipant)">@T["Save changes"]</button>
             </header>
 
             <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
@@ -48,24 +53,24 @@
                                 <span>@question.Label @if (question.Required) { <small>@T["Required for new signups"]</small> }</span>
                                 @if (question.Type == SignupQuestionType.Account)
                                 {
-                                    <input id="question-@question.Id" name="@accountName" value="@account.CharacterName" class="form-control" maxlength="100" placeholder="OSRS character" />
-                                    @if (question.AccountRole == EventCharacterRole.Playing) { <input name="@accountEhb" value="@account.Ehb" class="form-control participant-short-field" type="number" min="0" step="0.01" placeholder="EHB" /> }
+                                    <input id="question-@question.Id" name="@accountName" value="@account.CharacterName" class="form-control" maxlength="100" placeholder="OSRS character" disabled="@(!Model.CanEditParticipant)" />
+                                    @if (question.AccountRole == EventCharacterRole.Playing) { <input name="@accountEhb" value="@account.Ehb" class="form-control participant-short-field" type="number" min="0" step="0.01" placeholder="EHB" disabled="@(!Model.CanEditParticipant)" /> }
                                 }
                                 else if (question.Type == SignupQuestionType.Text)
                                 {
-                                    <textarea id="question-@question.Id" name="@fieldName" class="form-control" rows="3" placeholder="@T["Not answered"]">@value</textarea>
+                                    <textarea id="question-@question.Id" name="@fieldName" class="form-control" rows="3" placeholder="@T["Not answered"]" disabled="@(!Model.CanEditParticipant)">@value</textarea>
                                 }
                                 else if (question.Type == SignupQuestionType.YesNo)
                                 {
-                                    <select id="question-@question.Id" name="@fieldName" class="form-select"><option value="">@T["Not answered"]</option>@if (value == "true") { <option value="true" selected>@T["Yes"]</option> } else { <option value="true">@T["Yes"]</option> } @if (value == "false") { <option value="false" selected>@T["No"]</option> } else { <option value="false">@T["No"]</option> }</select>
+                                    <select id="question-@question.Id" name="@fieldName" class="form-select" disabled="@(!Model.CanEditParticipant)"><option value="">@T["Not answered"]</option>@if (value == "true") { <option value="true" selected>@T["Yes"]</option> } else { <option value="true">@T["Yes"]</option> } @if (value == "false") { <option value="false" selected>@T["No"]</option> } else { <option value="false">@T["No"]</option> }</select>
                                 }
                                 else if (question.Type == SignupQuestionType.SingleChoice)
                                 {
-                                    <select id="question-@question.Id" name="@fieldName" class="form-select"><option value="">@T["Not answered"]</option>@foreach (var option in question.Options) { <option value="@option" selected="@(value == option)">@option</option> }</select>
+                                    <select id="question-@question.Id" name="@fieldName" class="form-select" disabled="@(!Model.CanEditParticipant)"><option value="">@T["Not answered"]</option>@foreach (var option in question.Options) { <option value="@option" selected="@(value == option)">@option</option> }</select>
                                 }
                                 else
                                 {
-                                    <input id="question-@question.Id" name="@fieldName" value="@value" class="form-control" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" placeholder="@T["Not answered"]" />
+                                    <input id="question-@question.Id" name="@fieldName" value="@value" class="form-control" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" placeholder="@T["Not answered"]" disabled="@(!Model.CanEditParticipant)" />
                                 }
                             </label>
                         }
@@ -81,19 +86,19 @@
                 </details>
             }
 
-            <footer><button class="btn btn-primary" type="submit">@T["Save changes"]</button></footer>
+            <footer><button class="admin-button-primary" type="submit" disabled="@(!Model.CanEditParticipant)">@T["Save changes"]</button></footer>
         </form>
 
         <aside class="participant-admin-sidebar">
             <form id="admin-notes" method="post" asp-page-handler="AdminNote" class="panel participant-edit-link-card" data-update-targets="#app-notice-region, .participant-admin-workspace">
                 <h2>@T["Private admin notes"]</h2><p>@T["Only administrators can see these notes."]</p>
                 <input type="hidden" asp-for="ExpectedAdminNote" />
-                <textarea asp-for="AdminNote" class="form-control" rows="5" maxlength="2000" placeholder="@T["Only administrators can see these notes."]"></textarea>
-                <div class="participant-note-actions"><span class="save-state" aria-live="polite" data-save-state>Saved</span><button class="btn btn-outline-light" type="submit">Save note</button></div>
+                <textarea asp-for="AdminNote" class="form-control" rows="5" maxlength="2000" placeholder="@T["Only administrators can see these notes."]" disabled="@(!Model.CanEditParticipant)"></textarea>
+                <div class="participant-note-actions"><span class="save-state" aria-live="polite" data-save-state>Saved</span><button class="btn btn-outline-light" type="submit" disabled="@(!Model.CanEditParticipant)">Save note</button></div>
             </form>
             <form id="payment" method="post" asp-page-handler="Payment" class="panel participant-edit-link-card participant-payment-form" data-update-targets="#app-notice-region, .participant-admin-workspace">
                 <h2>Payment</h2>
-                <label><span>Payment status</span><select name="payment" class="form-select" data-auto-submit data-payment-save><option value="Unpaid" selected="@(Model.Payment != PaymentStatus.Paid ? "selected" : null)">Unpaid</option><option value="Paid" selected="@(Model.Payment == PaymentStatus.Paid ? "selected" : null)">Paid</option></select></label><span class="save-state" aria-live="polite" data-save-state>Saved</span>
+                <label><span>Payment status</span><select name="payment" class="form-select" data-auto-submit data-payment-save disabled="@(!Model.CanEditParticipant)"><option value="Unpaid" selected="@(Model.Payment != PaymentStatus.Paid ? "selected" : null)">Unpaid</option><option value="Paid" selected="@(Model.Payment == PaymentStatus.Paid ? "selected" : null)">Paid</option></select></label><span class="save-state" aria-live="polite" data-save-state>Saved</span>
             </form>
             <section class="panel participant-summary-card">
                 <header><h2>@T["Signup information"]</h2></header>
@@ -111,15 +116,15 @@
             <form id="ownership" method="post" asp-page-handler="TransferOwnership" class="panel participant-edit-link-card" data-update-targets="#app-notice-region, .participant-admin-workspace">
                 <h2>Transfer participant ownership</h2><p>Move this participant to an active website account. Enter its username twice to confirm.</p>
                 <input type="hidden" asp-for="ExpectedOwnerAccountId" />
-                <label><span>Destination username</span><input asp-for="DestinationUsername" class="form-control" autocomplete="off" /></label>
-                <label><span>Confirm destination username</span><input asp-for="DestinationUsernameConfirmation" class="form-control" autocomplete="off" /></label>
-                <button class="btn btn-outline-light" type="submit">Transfer ownership</button>
+                <label><span>Destination username</span><input asp-for="DestinationUsername" class="form-control" autocomplete="off" disabled="@(!Model.CanEditParticipant)" /></label>
+                <label><span>Confirm destination username</span><input asp-for="DestinationUsernameConfirmation" class="form-control" autocomplete="off" disabled="@(!Model.CanEditParticipant)" /></label>
+                <button class="btn btn-outline-light" type="submit" disabled="@(!Model.CanEditParticipant)">Transfer ownership</button>
             </form>
                 @if (Model.CanAdminWithdraw || Model.CanAdminRestore || Model.CanFillVacancy || Model.PromotionFollowUp is not null)
                 {
                     <section class="panel participant-edit-link-card"><h2>@T["Participant lifecycle"]</h2>
-                @if (Model.CanAdminWithdraw) { <form method="post" asp-page-handler="Withdraw"><input asp-for="ExpectedMembershipVersion" type="hidden" /><label class="check-row"><input asp-for="ConfirmLifecycleAction" /> @T["I confirm this withdrawal."]</label><label asp-for="PrivateWithdrawalNote">@T["Private Admin note (optional)"]<textarea asp-for="PrivateWithdrawalNote" class="form-control"></textarea></label><button class="btn destructive-outline-action" type="submit">@T["Withdraw participant"]</button></form> }
-                @if (Model.CanAdminRestore) { <form method="post" asp-page-handler="Restore"><label class="check-row"><input asp-for="ConfirmLifecycleAction" /> @T["I confirm this restoration."]</label><button class="btn action-accent-outline" type="submit">@T["Restore participant"]</button></form> }
+                @if (Model.CanAdminWithdraw) { <details class="participant-confirmation-box"><summary>@T["Withdraw participant"]</summary><p>@T["This preserves the signup history and may promote the next waiting-list entry."]</p><form method="post" asp-page-handler="Withdraw"><input asp-for="ExpectedMembershipVersion" type="hidden" /><input type="hidden" name="ConfirmLifecycleAction" value="true" /><label asp-for="PrivateWithdrawalNote">@T["Private Admin note (optional)"]<textarea asp-for="PrivateWithdrawalNote" class="form-control"></textarea></label><button class="btn action-danger-outline" type="submit">@T["Confirm withdrawal"]</button></form></details> }
+                @if (Model.CanAdminRestore) { <details class="participant-confirmation-box"><summary>@T["Restore participant"]</summary><p>@T["Restore this signup using the current capacity and waiting-list rules."]</p><form method="post" asp-page-handler="Restore"><input type="hidden" name="ConfirmLifecycleAction" value="true" /><button class="btn action-accent-outline" type="submit">@T["Confirm restoration"]</button></form></details> }
                 @if (Model.CanFillVacancy)
                 {
                     <hr />

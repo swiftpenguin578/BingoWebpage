@@ -70,8 +70,42 @@ The existing interface is visually spacious but often inefficient. Pass 1 will e
 - Keep primary actions aligned predictably; place rare/destructive actions in a secondary menu or clearly separated area.
 - Reduce table row height while preserving readable click/touch targets.
 - Avoid large decorative headings consuming most of the initial viewport on operational pages.
-- Default admin workflow and operational subpages to a compact heading row with a small yellow page label. Put explicit return links at the far right of the breadcrumb row instead of letting them consume page-heading space. Keep the large title-and-description treatment only on landing pages, overviews, or pages where it materially helps orientation.
+- Default admin workflow and operational subpages to a compact heading row with a small yellow page label. Put explicit return links at the far right of the heading row instead of letting them consume page-heading space; when a header has a right-side action, align its bottom edge with the title/subtitle block rather than vertically centering it. Keep the large title-and-description treatment only on landing pages, overviews, or pages where it materially helps orientation.
 - Prevent footers, sticky panels, dialogs, and toolbars from overlapping content at short viewport heights.
+
+### Shared Admin UI contract
+
+The following mappings are executable ownership rules. The class/component named in the middle column is the reusable primitive; the final column is its approved source and owning CSS in `src/Bingo.Web/wwwroot/css/site.css`.
+
+| Semantic role | Canonical class/component | Approved source |
+| --- | --- | --- |
+| Admin page canvas and surfaces | `--admin-page`, `--admin-surface`, `--admin-surface-raised`, `--admin-surface-active`, `--admin-border`, `--admin-border-strong`, `--admin-accent`, `--admin-accent-strong`, `--admin-success`, `--admin-warning`, `--admin-danger` | global Admin token block at `site.css`; consumed by `/Admin/Events` and `/Admin/Events/Create` |
+| Admin sans text | `"Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif` | `.admin-events-page, .event-create-page` and loaded Admin family in `Pages/Shared/_AdminLayout.cshtml` |
+| Display serif titles | `Cinzel, Georgia, serif` | `.admin-events-page .admin-module-title-row h1`, `.event-create-heading h1`, `.event-create-panel-heading h2` in `site.css` |
+| Machine identifiers | `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` | Admin event slug/ID selectors in `site.css` |
+| Header creation action | `admin-header-create-action` | `Pages/Admin/Events/Index.cshtml` Create New Event link; shared declaration in `site.css` |
+| Header secondary/navigation | `admin-button-secondary event-create-cancel` | `Pages/Admin/Events/Create.cshtml` Cancel & Return link; shared declaration in `site.css` |
+| Ordinary in-content action | `admin-button-secondary` | `Pages/Admin/Events/Index.cshtml` Workspace link and Create step navigation; shared declaration in `site.css` |
+| In-content creation/commit | `admin-button-primary` | `Pages/Admin/Events/Create.cshtml` Next/Create private event buttons; shared declaration in `site.css` |
+| Destructive action | `action-danger-outline` | Manage Danger zone source in `Pages/Admin/Events/Manage.cshtml`; shared danger treatment in `site.css` |
+| Low-priority navigation | `action-ghost`, `admin-nav-link`, ordinary text links | global action rules and Admin shell selectors in `site.css` |
+| Icon-only action | `nav-icon-button` (shell) and `event-copy-link` (copy enhancement) | shared navigation selectors and Manage Public pages source in `site.css` |
+| Admin fields | `admin-field` with `.form-control` / `.form-select` | Create field markup in `Pages/Admin/Events/Create.cshtml`; shared field declaration in `site.css` |
+| Admin search field | `admin-search-field` wrapper containing exactly one `admin-search-field-input form-control` and one leading search SVG | Events directory search in `Pages/Admin/Events/Index.cshtml`; shared declaration in `site.css`; future Participants and OSRS Catalogue consumers must reuse this pair |
+| Admin filter select | `admin-filter-select form-select` inside the visible `admin-events-state-filter` label/icon wrapper | Events directory State filter in `Pages/Admin/Events/Index.cshtml`; compact outlined filter-select declaration in `site.css`; do not apply this specialized variant to ordinary Admin form selects |
+| Admin state/status pill | `.admin-state` is intrinsic-width (`width: fit-content`, self-aligned start) and single-line (`white-space: nowrap`) | Shared Admin state-pill declaration in `site.css`; pills never stretch into a full-width bar or split words/letters |
+| Admin data-management table | `.admin-events-toolbar` + `.admin-events-table-wrap` + `.admin-events-table-scroll` + `.event-table` | Canonical markup in `Pages/Admin/Events/Index.cshtml`; authoritative table/toolbar/empty/mobile rules in the `.admin-events-page` block of `site.css` |
+| File input | `admin-field input[type="file"].form-control` and its `::file-selector-button` | Create banner field in `Create.cshtml`; shared field declaration in `site.css` |
+| Section/card heading | `admin-module-heading`, `event-create-panel-heading`, `event-overview-section-heading` | Events/Create markup and approved Manage readiness/Important information source |
+| Ordinary action row | `event-overview-row` and `.event-row-action` | Manage readiness rows and Events table action column |
+| Confirmation box/dialog | `event-confirmation-box`, `event-confirmation-actions` | Manage lifecycle confirmation source in `Pages/Admin/Events/Manage.cshtml` |
+| Danger zone | `event-danger-zone-container`, `event-danger-zone-form`, `action-danger-outline` | Manage destructive source in `Manage.cshtml` |
+| Toast feedback | `app-toast-stack`, `app-toast`, `app-toast-error` | shared bottom-right stack declaration in `site.css` |
+| Header action alignment | `.admin-module-heading` at the `640px` row breakpoint and `.event-create-cancel { align-self: end; }` | Events/Create header selectors in `site.css` |
+
+Component surfaces use the established compact rhythm; where a full component needs the reference desktop inset, the standard is `24px` (`1.5rem`). Create's compact approved panels remain `1.25rem` (`20px`) and the Events toolbar remains `1rem` (`16px`) because those are the source compositions, not new page-local scales. No page may add a competing color, font-family, button geometry, input fill/border, radius, or component-size answer.
+
+Spacing and divider ownership is executable: adjacent or stacked dividers are prohibited globally, and every boundary has exactly one owner (component header, parent section, row list, or following section). A child or following section must not add a second border when its parent/header already owns the boundary; a one-pixel boundary plus ordinary spacing is one divider, never an adjacent border, empty bordered row, or pseudo-element. `/Admin/Events/Create` is the canonical spacing source: title-to-supporting-copy uses `.admin-events-heading .admin-module-description { margin-top: 0.25rem; line-height: 1.5; }`; tight label-to-control-to-help/validation uses `.admin-shell-body .admin-field, .admin-shell-body .event-create-field { gap: 0.25rem; }` plus `.admin-shell-body .event-create-field small { line-height: 1.35; }`; related controls in one feature use `.admin-shell-body .event-create-fields { gap: 0.75rem; }`; feature groups use `.admin-shell-body .event-schedule-group { padding: 0.9rem 0; }`; a section divider is owned once by `.admin-shell-body .event-schedule-group + .event-schedule-group { border-top: 1px solid var(--admin-border); }` or `.admin-shell-body .schedule-secondary-fields { padding: 0.9rem 0; border-top: 1px solid var(--admin-border); }`; heading-to-its-divider and divider-to-first content use `.admin-shell-body .admin-section-heading { margin-bottom: 0.85rem; padding-bottom: 0.7rem; border-bottom: 1px solid var(--admin-border); }`; component inset uses `.admin-shell-body .event-create-panel { padding: 1.25rem; }`; related component separation uses `.admin-shell-body .event-create-workspace.panel { gap: 1rem; }` and `.admin-shell-body .event-create-layout { gap: 1rem; }`; content-to-adjacent-action uses `.admin-shell-body .event-create-guided-actions { gap: 1rem; }` and `.admin-shell-body .event-create-heading { column-gap: 1rem; }`. Heading hierarchy is explicit: top-level component headings place the title left and contextual description right on wide layouts, stacking on narrow layouts; nested subsections use a sans-serif title with the description directly beneath; row-level actions or status occupy the right-side action column. Other Admin pages consume these semantic relationships rather than flattening them into one universal gap or adding a second divider owner.
 
 ## 3.2 In-page interaction baseline
 
@@ -102,6 +136,10 @@ Every enhanced action must prevent double submission, show progress, show succes
 - Use a compact × removal control when the item being removed is unmistakable from context. Provide an accessible label, tooltip, and confirmation before destructive removal.
 - Keep explicit action buttons for multi-field forms, creation flows, major lifecycle transitions, and destructive actions whose meaning would not be clear from an × icon.
 - Preserve a standard Razor form fallback for automatically saved controls, and never display a successful local change until the server has accepted it.
+- Action acknowledgement/confirmation checkboxes are not used. Use a compact confirmation box/dialog with explicit Confirm and Cancel actions and a nearby reason field when required; persistent boolean settings may still use checkboxes. Preserve authoritative POST validation, accessibility, keyboard/focus behavior, and route-backed/no-JavaScript confirmation.
+- Typography ownership is explicit: display serif `Cinzel, Georgia, serif` is reserved for page titles and top-level section/card titles; Admin sans `Plus Jakarta Sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif` is used for navigation, action-row titles, body/supporting copy, field labels, inputs, buttons, metrics, states/statuses, and ordinary controls; monospace `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` is reserved for slugs, IDs, codes, and other machine identifiers. Pages reuse these shared typography tokens/classes and may not introduce page-local font-family substitutions or use display serif for ordinary controls/body copy.
+- Shared Admin fields use `.admin-shell-body .event-create-field .form-control` and `.admin-shell-body .event-create-field .form-select`: `2.25rem` standard height, `.4rem .6rem` internal padding, `var(--admin-surface-raised)` interior, `1px solid var(--admin-border-strong)` border, `.5rem` radius, `var(--admin-text)` text, `var(--admin-muted)` placeholder, and `0.75`/`1.25` type scale. Hover remains on the shared surface; keyboard focus uses `var(--admin-accent)` border and the shared `0.15rem` accent-mixed ring; validation uses the existing `.field-error` and `.validation-summary`; disabled/read-only and browser autofill preserve the shared Admin surface/text semantics. Textareas and selects use the same classes/tokens, with the shared textarea minimum height. All Admin forms reuse this field system and may not add page-local fills, borders, radii, placeholder colors, focus rings, disabled/read-only palettes, or autofill overrides.
+- Button roles reuse the exact Create-page `event-create-cancel` treatment for ordinary non-creation Admin actions (including review, lifecycle, verification-code, synchronization, and readiness navigation). Creation actions retain their existing creation-primary treatment, and destructive actions retain the shared `action-danger-outline`; no fourth Event-controls button variant is introduced.
 
 ## 3.3 Feedback and notification baseline
 
@@ -115,10 +153,15 @@ The current shared status box treats every message as success. Pass 1 will repla
 - Use `role="status"` for non-urgent success/information and an appropriate alert treatment for errors.
 - Keep field-specific validation next to the relevant control and use the page notification for the concise overall result.
 - Preserve the notification type across redirects and return the same semantic type from in-page endpoints.
+- Enhanced page-level outcomes use one shared viewport-fixed toast stack at the bottom-right, above drawers, dialogs, and other overlay surfaces. Stack additional messages upward so feedback remains visible without displacing the active workflow.
+- Success and information toasts auto-dismiss after approximately five seconds. Warning and error toasts remain longer (approximately eight seconds) or until dismissed; every toast remains manually dismissible. Pause auto-dismiss while the toast is hovered or contains keyboard focus.
+- On narrow/mobile viewports, toasts use the available width near the bottom with safe edge spacing and must not cover essential controls. Preserve semantic `role="status"`/alert announcements and visible type labels or icons.
+- Do not rebuild toast behavior per page. Migrate existing Admin page-level outcomes to the shared layer as their pages are overhauled; field validation remains inline. No-JavaScript responses retain the existing in-page notification/validation fallback.
 - A mutation must never look like a silent reload. After a full-page form post or redirect, return the user to the affected control or result instead of jumping to an unrelated page position.
-- When new success, error, or validation feedback is outside the viewport, move focus and scroll it into view. Do not move the page when the feedback is already visible, and respect reduced-motion preferences.
+- Because an enhanced toast is already viewport-fixed, it does not move the page. When non-toast error or validation feedback is outside the viewport, move focus and scroll it into view; otherwise preserve useful focus and respect reduced-motion preferences.
 - Progressive enhancement should preserve the user's useful scroll position and local context. The ordinary Razor fallback may navigate, but must still expose the result immediately through an adjacent message, validation summary, or deliberate fragment target.
 - Repeated enhanced mutations that keep the user on the same logical page replace the current browser-history entry. After any number of same-page changes, Back returns to the route visited before that page. Genuine route changes retain normal history. No-JavaScript forms remain functional even where the browser preserves native POST/redirect entries.
+- Signup questions ownership: Participants is the post-creation entry point. Normal Admin links use the Questions route as their no-JavaScript/direct-link fallback and progressively enhance into one native, route-backed overlay; the overlay URL is history-aware (Back closes, Forward reopens, reload restores it), preserves the originating Participants filters/context, and reuses the authoritative Questions page markup and handlers.
 
 ## 3.4 Role-based action inbox
 
@@ -195,11 +238,11 @@ Apply this checklist to every page before it is approved. During the final regre
 
 ## 3.6 Site-wide flagship visual system
 
-Pass 12 establishes the visual language for the entire application, not only the public event pages. The approved reference surface is the **View bingo** state at `/Events/test-15-dkl-live/Board`. Its implemented rules are the source of truth for every later public, captain, signup, authentication, error, account, and administration pass. Pages may use a denser composition when their task requires forms, tables, or operational controls, but they must remain recognizably part of this same product.
+Pass 12 establishes the flagship visual language for public and participant pages. The approved reference surface is the **View bingo** state at `/Events/test-15-dkl-live/Board`. Its implemented rules are the source of truth for later public, captain, signup, authentication, error, and account passes. The approved Admin shell is governed by the Admin boundary in section 4 while preserving the same product semantics and accessibility discipline. Pages may use a denser composition when their task requires forms, tables, or operational controls, but they must remain recognizably part of this same product.
 
-The reference is a system, not a screenshot to imitate loosely. Future work must reuse its colour roles, typography, content width, spacing rhythm, outlines, radii, control sizing, state treatments, interaction feedback, responsive transitions, and motion rules. Do not preserve the older brown/gold visual language on pages merely because they have not yet been migrated. Do not create a second visual system for admin pages. Administrative density is a layout variant within this system.
+The reference is a system, not a screenshot to imitate loosely. Future public and participant work must reuse its colour roles, typography, content width, spacing rhythm, outlines, radii, control sizing, state treatments, interaction feedback, responsive transitions, and motion rules. Do not preserve the older brown/gold visual language on pages merely because they have not yet been migrated. The Admin workspace is an approved distinct compact operational shell: it keeps the same semantic token discipline, control hierarchy, focus treatment, responsive/accessibility rules, and motion rules while using calm charcoal/slate operational surfaces and denser shell geometry. Do not create page-local themes or a parallel navigation framework.
 
-The exact implemented values remain centralized under `body.public-event-shell` and the related shared selectors in `wwwroot/css/site.css`. As the overhaul moves site-wide, promote reusable values and components to shared tokens/selectors rather than copying `public-*` declarations into page-specific CSS. If the roadmap text and implementation drift, compare the page with the TEST 15 View bingo reference, resolve the discrepancy deliberately, and update both the shared implementation and this section.
+The exact public reference values remain centralized under `body.public-event-shell` and the related shared selectors in `wwwroot/css/site.css`; Admin shell values belong in the global Admin tokens and selectors in that same file. As the overhaul moves site-wide, promote reusable values and components to shared tokens/selectors rather than copying `public-*` declarations into page-specific CSS. If the roadmap text and implementation drift, compare the page with the TEST 15 View bingo reference, resolve the discrepancy deliberately, and update both the shared implementation and this section.
 
 ### Reference composition and density
 
@@ -368,6 +411,35 @@ The site-wide system must provide the following reusable hierarchy even when a p
 - A page is not approved merely because it uses the right colours. It must also match the reference density, alignment discipline, component geometry, feedback quality, responsive transitions, keyboard behavior, and absence of unnecessary visual bulk.
 - The TEST 15 View bingo page remains the visual comparison baseline until the user explicitly approves a replacement reference. Later refinements to that reference must be reflected in shared tokens/components and this roadmap before they are propagated.
 
+### Admin UI rules
+
+The approved Admin shell and Events Directory are the concrete visual baseline for every later Admin module. The exported Gemini Admin components and CSS under `/Users/christopher/Downloads/bingowebpage` are implementation references, not loose inspiration: before changing an Admin page, inspect its matching exported component and reuse its compatible structure, SVG/Lucide icon choice, typography, spacing, and component geometry in Razor without importing its runtime or fake behavior.
+
+- Reuse existing shared Admin classes, components, and tokens before adding page-local CSS. Do not create a page-local design system, arbitrary colours, or one-off spacing.
+- Ordinary colours—including borders, outlines, focus, surfaces, text, lifecycle states, feedback, and actions—come from global semantic tokens. A component-specific exception needs a concrete visual reason.
+- Use the approved reference/Lucide SVGs with `currentColor`; do not improvise an icon when the reference already contains the intended icon.
+- Keep consistent shared patterns for page headers; primary, secondary, and destructive actions; search/filter bars; tables; lifecycle pills; cards; empty, error, and permission states; and Event workspace navigation.
+
+#### Admin/Events canonical data-management table
+
+`Pages/Admin/Events/Index.cshtml` and the `.admin-events-page` rules in `src/Bingo.Web/wwwroot/css/site.css` are the explicit source of truth for Admin entity directories and data-management tables. Full-width data workspaces use the shared Admin canvas; narrower centered widths such as `.event-create-page` are for form-focused pages. A new data page must reuse or extract this table primitive and its behavior—not merely copy a few CSS declarations or introduce a parallel page-local table system.
+
+- Keep one cohesive surface: the compact `.admin-events-toolbar` sits above one `.admin-events-table-wrap`, containing `.admin-events-table-scroll` and one `.event-table`. Do not split one entity dataset into several unrelated boxed tables. Headers and section labels are sans-serif; use the established `th` (`0.75rem 1rem`) and `td` (`0.875rem 1rem`) density, one-pixel row dividers, `.admin-state` badges, and right-aligned `.event-row-action` controls. Ordinary table sections do not use serif display headings.
+- The toolbar owns search and filtering: use one recessed `.admin-search-field` with exactly one `.admin-search-field-input.form-control` and one leading search icon, plus the compact `.admin-events-state-filter` / `.admin-filter-select.form-select` treatment. Do not add loose oversized filter grids or duplicate per-section searches unless the sections are genuinely independent datasets.
+- Confirmed, waiting-list, history, or comparable states of the same entity normally remain one table/view controlled by filters, tabs, or compact disclosure. Three large boxed tables require a real workflow distinction and still use the shared primitive. Capacity and wait-list settings remain compact secondary controls subordinate to the primary data task.
+- Preserve the exact responsive transformation at `@media (max-width: 767px)`: `.admin-events-table-wrap` and `.admin-events-table-scroll` become non-scrolling transparent containers; the table, body, rows, and cells become blocks; the header is hidden; each cell uses `data-label` field labels; `.admin-state` remains intrinsic/non-stretched; and `.event-row-action` keeps its compact divider and right alignment. Mobile controls remain compact and usable rather than becoming a new card system.
+- Use `.event-list-empty` for server-empty and `.admin-local-filter-empty` for local-filter-empty states. Empty states are natural-height compact content and must not reserve full table-height space. The sticky positioning belongs to the shared Admin shell (`.admin-header` and `.admin-sidebar`); do not add a page-local sticky-table variant without focused approval.
+- Any exception to this composition, state grouping, ownership, or responsive transformation must be called out for focused approval before implementation; do not silently invent a new Admin data-table composition.
+- Overlay content mode contains only the focused page/editor content and must never nest the global/Admin shell. The standalone route may retain its normal shell.
+- Preserve the sparse accent and subdued dark palette. Lifecycle pills use faded semantic colours. An important primary action may use the approved toned-down filled treatment with white text.
+- Follow the approved shell/directory typography hierarchy and weights. Avoid accidental boldness and page-local font overrides.
+- Text-input and textarea placeholders across the Admin workspace use the same typography and muted treatment as the approved Events-directory search placeholder; keep this rule shared and do not add page-local placeholder variants.
+- Already-rendered local collections should search/filter immediately without a full-page reload. Preserve route/query and no-JavaScript fallbacks where applicable.
+- Preserve real Razor routes, server validation, authorization, mutation feedback, accessibility, keyboard/focus behavior, and progressive enhancement.
+- Desktop uses the sticky Admin header/sidebar and Event workspace tree; narrow layouts use the established accessible drawer and card transformations.
+- Before implementation, compare the exact reference with the current rendered page and source. A page is not ready because it merely “looks similar” when matching reference markup/CSS is available. Require manual visual approval before moving to the next Admin module.
+- This rule set changes no business behavior or existing module body outside the approved page pass.
+
 ## 3.7 Functional-change pause and resume gate
 
 Planning Pass 2 interrupts the page-pass sequence at the current Pass 12 checkpoint because new functionality may change roles, navigation, submission, event operations, public data, and responsive layouts.
@@ -416,18 +488,20 @@ Before resuming the ordered passes:
 
 ## 4. Overhaul sequence
 
-### Pass 1 — Global shell and event context
+### Pass 1 — Admin shell and event context
+
+The first Admin-specific pass establishes only the shared production Admin shell and its design tokens. It does not redesign any Admin module body. The approved Admin sequence is: shared shell/tokens; Admin dashboard and Events directory; global Admin modules; event overview/setup; signups/participants; board editor; teams/draft; evidence/finalization; responsive/accessibility polish.
 
 **Pages/components**
 
 - `Pages/Shared/_Layout.cshtml`
-- Shared navigation, breadcrumbs, status messages, dialogs, form controls, tables, and page headers
+- Shared public navigation, breadcrumbs, status messages, dialogs, form controls, tables, and page headers
 - `Pages/Admin/Index.cshtml`
 - `Pages/Admin/Events/Index.cshtml`
 
 **Goals**
 
-- Establish the final visual system before editing individual workflows.
+- Establish the compact Admin operational shell and its semantic tokens before editing individual workflows; public/participant pages continue to use the flagship public visual source of truth.
 - Separate global navigation from event-specific navigation.
 - Make the selected event and its lifecycle state visible throughout admin workflows.
 - Provide a clear route back to the event overview.
@@ -436,8 +510,8 @@ Before resuming the ordered passes:
 - Establish the shared in-page action pattern for loading, success, validation errors, conflicts, and fallback navigation.
 - Replace the single green status box with shared success, error, warning, and information notifications.
 - Establish the top-right role-based action inbox shell and empty/loading/error states.
-- Add role-aware breadcrumbs below the main navigation on deeper pages. Admin paths show the full hierarchy, such as `Admin tools → Events → Event name → Board editor`; captain and public paths use shorter trails appropriate to their shallower workflows.
-- Make every previous breadcrumb step clickable and render the current page as plain text. Do not show breadcrumbs on landing pages where they add no useful context.
+- Add role-aware breadcrumbs below the main navigation on deeper Captain and public pages; the persistent Admin sidebar and event workspace supply Admin location and navigation context without a redundant breadcrumb row.
+- Make every previous breadcrumb step clickable and render the current page as plain text. Do not show breadcrumbs on landing pages where they add no useful context; Admin pages use the persistent shell instead.
 - On narrow screens, prioritize the immediate parent and current page while keeping the full path accessible.
 - Keep the skip link accessible without allowing it to obscure focused navigation.
 - Reduce the aggressive focus outline while retaining clear keyboard focus.
@@ -446,6 +520,30 @@ Before resuming the ordered passes:
 **Approval gate**
 
 - User approves the global shell, admin landing page, event list, event context pattern, and shared component direction.
+
+**Status:** Pass 1 was manually approved by the user on 2026-08-03. Pass 2 was not started; Admin module redesign and responsive/accessibility polish remain deferred to the approved sequence.
+
+### Pass 1B — Admin dashboard and Events directory
+
+Pass 1B applies the approved Admin shell and visual tokens to the global Admin landing page and Events directory only. It preserves existing server projections, lifecycle semantics, route-backed filters, feedback, authorization, and navigation. It does not begin Event Creation or redesign any event-specific module body.
+
+**Pages**
+
+- `Pages/Admin/Index.cshtml`
+- `Pages/Admin/Events/Index.cshtml`
+
+**Goals**
+
+- Give administrators a useful global overview with clear real destinations and only authoritative status facts already available from existing projections.
+- Make the Events directory easy to scan, filter, open, and use for creating an event while preserving its existing server-side projections and lifecycle labels.
+- Port the approved compact Admin dashboard/directory hierarchy, surfaces, spacing, typography, status tags, icons, responsive behavior, and focus treatment without importing React, Tailwind, fake state, or prototype routes.
+- Keep OSRS Catalogue in Pass 5 and Accounts/Audit in Pass 10; neither is redesigned in Pass 1B.
+
+**Approval gate**
+
+- User visually approves the Admin dashboard and Events directory on desktop, narrow/mobile, keyboard/focus, empty, and filtered states.
+
+**Status:** Implemented and remediated on 2026-08-04; the dashboard uses only authoritative event, evidence, readiness, Wise Old Man, milestone, and audit projections, and the directory has route-backed name/slug search plus lifecycle-state filtering with shared state pills. Focused verification passed; both pages await user visual/manual approval. Pass 2 — Event creation — was not started.
 
 ### Pass 2 — Event creation
 
@@ -466,6 +564,7 @@ Before resuming the ordered passes:
 - Support scheduled and manual signup opening. Manual opening preserves a valid explicit close or clearly proposes the earlier of three months later and event start; never silently replace an invalid explicit close.
 - Include optional draft time as planning information without implying that it starts the draft automatically.
 - Show the default 30-minute submission grace period and keep the cutoff visibly tied to, but editable separately from, event end.
+- Preserve the existing five-step creation interaction exactly: **Event details**, **Schedule and capacity**, **Signup form**, **Planning**, and **Review and create**. Keep the `Step X of 5` orientation, navigation across all five panels, validation routing, and route-backed final submission; the WoM reference informs only the date/time presentation inside Step 2, not the workflow stages.
 - Hide or disable the signup code field when code protection is off.
 - Explain private signup editing with a compact information control.
 - Include standard signup fields and make custom questions clearly secondary.
@@ -500,12 +599,17 @@ Before resuming the ordered passes:
 - Show explicit success feedback for every operation.
 - Keep evidence-code management understandable without dominating the page.
 - Make links name the destination event rather than relying on surrounding context.
+- After the Admin information architecture is complete, retest every Overview readiness-blocker action against its final ownership. Each blocker must either navigate directly to the route and control that resolves it or open a focused popup backed by the same authoritative mutation; stale, generic, or manually constructed destinations do not satisfy the final Admin-overhaul gate.
 - Keep the permanent global Rules editor as a post-overhaul target; do not add its route, placeholder, or workflow links during this overhaul. It remains an enabled-administrator workflow and is not event configuration when implemented.
 - Do not provide an in-application editor for source-controlled how-to pages.
 
 **Approval gate**
 
 - User can understand the event's current state and next likely admin action at a glance.
+
+**Implementation status (2026-08-04)**
+
+- Implemented on `Pages/Admin/Events/Manage.cshtml` using the existing lifecycle, signup-readiness, final-review, and Manage operation handlers. The overview uses the reference operational-health shield/check/warning geometry as inline SVGs, a 1.25rem primary surface inset, flattened divider rows, stage-specific summary values, real blocker routes, and configured/effective/actual end plus submission-cutoff dates. The existing operations and participant workspace remain route-backed and authoritative. Focused UI and lifecycle route tests pass; this page awaits manual visual approval.
 
 ### Pass 4 — Signup administration
 
@@ -518,14 +622,16 @@ Before resuming the ordered passes:
 
 **Goals**
 
-- Visually separate confirmed participants and waiting-list entries.
-- Make capacity changes and automatic promotions clear.
+- Keep confirmed participants, waiting-list entries, and signup history in one Participants data view/table by default; use compact filters, tabs, or disclosure to distinguish states rather than three large boxed tables. A genuinely distinct workflow may be separate, but it must reuse the Admin/Events table primitive and receive focused approval.
+- Make the Participants workspace the single post-creation owner of maximum players and waiting-list settings; move those controls from Schedule during this pass without duplicating them. Make capacity changes and automatic promotions clear.
 - Make participant removal, withdrawal, payment state, captain volunteering, comments, and secondary account details readable.
 - Replace question-type implementation language with plain-language choices and examples.
 - Explain “choice per line” or replace it with a clearer editing interaction.
 - Keep the fixed signup fields visible and non-removable.
 - Treat CSV as a low-priority advanced import path with a documented expected format.
 - Keep website signups and externally created roster members conceptually separate.
+- Active pre-formed roster membership is excluded from website participant lists, waiting-list order, capacity counts, and promotion; genuine admin-created signup participants remain included.
+- When participant administration is locked by the event lifecycle, render one authoritative read-only capability state and disable mutation controls while preserving values, navigation, and history.
 
 **Approval gate**
 

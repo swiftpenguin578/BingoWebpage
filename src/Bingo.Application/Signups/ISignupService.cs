@@ -10,6 +10,17 @@ public interface ISignupService
 
     Task<int> IncreaseCapacityAndPromoteAsync(Guid eventId, int newCap, CancellationToken cancellationToken = default);
 
+    Task<SignupAdministrationResult> UpdateSignupAdministrationAsync(
+        Guid eventId,
+        long expectedVersion,
+        int newCap,
+        bool waitingListEnabled,
+        Guid actorAccountId,
+        string actorName,
+        bool confirmWaitingListDisablement = false,
+        CancellationToken cancellationToken = default)
+        => Task.FromException<SignupAdministrationResult>(new NotSupportedException("Signup administration is not available."));
+
     Task<int> PromoteAvailablePlacesAsync(Guid eventId, CancellationToken cancellationToken = default);
 
     Task<ParticipantLifecycleResult> WithdrawAsync(Guid eventId, Guid participantId, Guid? actorAccountId, string actorName, bool byAdmin, string? privateNote = null, CancellationToken cancellationToken = default)
@@ -47,6 +58,7 @@ public interface ISignupService
 }
 
 public sealed record ParticipantLifecycleResult(bool Succeeded, string? Error, SignupStatus? Status = null, int? WaitingPosition = null, bool Changed = false);
+public sealed record SignupAdministrationResult(bool Succeeded, string? Error = null, int PromotedParticipants = 0, int? EffectiveParticipantCap = null);
 public sealed record ParticipantPaymentResult(bool Succeeded, string? Error, bool Changed = false);
 public sealed record AdminAccountAnswer(string? CharacterName, decimal? Ehb);
 public sealed record AdminParticipantChangeRequest(

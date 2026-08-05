@@ -4,7 +4,21 @@ namespace Bingo.Application.Events;
 
 public enum SignupOpeningMode { OpenNow, ScheduleOpening, ScheduledExecution, Reopen }
 public sealed record ReadinessItem(string Code, string Description, string? Route = null);
-public sealed record SignupReadiness(IReadOnlyList<ReadinessItem> Blockers, IReadOnlyList<ReadinessItem> Warnings, IReadOnlyList<ReadinessItem> LaterTasks)
+public sealed record SignupCloseDecision(bool IsValid, DateTimeOffset? ProposedClose)
+{
+    public bool RequiresAcceptance => !IsValid && ProposedClose is not null;
+
+    public static SignupCloseDecision Evaluate(DateTimeOffset? signupClosesAt, DateTimeOffset? draftAt, DateTimeOffset? eventStartsAt, DateTimeOffset now)
+    {
+        now = now.ToUniversalTime();
+        var valid = signupClosesAt is { } close && close > now && eventStartsAt is { } start && close <= start;
+        DateTimeOffset? proposed = eventStartsAt is { } futureStart && futureStart > now
+            ? draftAt is { } draft && draft > now && draft <= futureStart ? draft : futureStart
+            : null;
+        return new(valid, proposed);
+    }
+}
+public sealed record SignupReadiness(IReadOnlyList<ReadinessItem> Blockers, IReadOnlyList<ReadinessItem> Warnings, IReadOnlyList<ReadinessItem> LaterTasks, SignupCloseDecision CloseDecision)
 { public bool CanProceed => Blockers.Count == 0; }
 public sealed record EventScheduleValues(DateTimeOffset? SignupOpensAt, DateTimeOffset? SignupClosesAt, DateTimeOffset? DraftAt, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, int? ParticipantCap);
 public sealed record LifecycleActor(Guid Id, string Username);

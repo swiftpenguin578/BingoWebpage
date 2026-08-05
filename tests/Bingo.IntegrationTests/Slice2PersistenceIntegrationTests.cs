@@ -555,10 +555,10 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         var signup = new Bingo.Infrastructure.Events.EventSignupLifecycleService(db, readiness, TimeProvider.System);
         var lifecycle = new Bingo.Infrastructure.Events.EventLifecycleService(db, signup, TimeProvider.System);
         var destructive = new Bingo.Infrastructure.Events.EventDestructiveLifecycleService(db, TimeProvider.System);
-        var manage = new Bingo.Web.Pages.Admin.Events.ManageModel(db, null!, characters, null!, readiness, signup, lifecycle, destructive, TimeProvider.System);
-        Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await manage.OnGetAsync(seed.EventId, CancellationToken.None));
-        Assert.Contains(manage.Participants, row => row.Id == withdrawnId && row.Name == "Withdrawn Main" && row.Ehb == 111m);
-        Assert.Contains(manage.Participants, row => row.Id == removedId && row.Name == "Removed Main" && row.Ehb == 222m);
+        var participants = new Bingo.Web.Pages.Admin.Events.ParticipantsModel(db, null!);
+        Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await participants.OnGetAsync(seed.EventId, CancellationToken.None));
+        Assert.Contains(participants.Participants, row => row.Id == withdrawnId && row.Name == "Withdrawn Main" && row.Ehb == 111m);
+        Assert.Contains(participants.Participants, row => row.Id == removedId && row.Name == "Removed Main" && row.Ehb == 222m);
 
         var participant = new Bingo.Web.Pages.Admin.Events.ParticipantModel(db, characters)
         {

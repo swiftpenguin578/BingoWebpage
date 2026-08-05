@@ -7,12 +7,6 @@
     var isActiveDraft = Model.Draft?.State is DraftState.Running or DraftState.Paused;
     var isPreDraft = Model.Draft?.State == DraftState.Setup;
     var isFinalizedDraft = Model.Draft?.State == DraftState.Finalized;
-    ViewData["HideBreadcrumbs"] = isActiveDraft;
-    if (!isActiveDraft)
-    {
-        ViewData["BreadcrumbActionLabel"] = "Back to event";
-        ViewData["BreadcrumbActionUrl"] = Url.Page("Manage", new { id = RouteData.Values["id"] });
-    }
 }
 <section class="table-page draft-page @(!isActiveDraft ? "event-manage-page" : null) @(Model.Draft is null ? "draft-page-setup" : null) @(isPreDraft ? "draft-page-predraft" : null) @(isFinalizedDraft ? "draft-page-finalized" : null) @(isActiveDraft ? "draft-page-live" : null)">
 @if (!isActiveDraft)

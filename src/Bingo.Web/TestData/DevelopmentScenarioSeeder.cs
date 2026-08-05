@@ -85,8 +85,89 @@ public sealed class DevelopmentScenarioSeeder(
             secondaryAdmin,
             now);
         seeded.Add(boardScenario);
+        seeded.Add(SeedMissingSignupFormScenario(admin.Id, now));
+        seeded.Add(SeedMalformedSignupQuestionScenario(admin.Id, now));
+        seeded.Add(SeedUnusableSignupCodeScenario(admin.Id, now));
+        seeded.Add(SeedScheduledConstraintScenario(
+            "TEST 95 — Missing scheduled window",
+            "test-95-missing-scheduled-window",
+            null, null, now.AddDays(7), now.AddDays(12), admin.Id, now));
+        seeded.Add(SeedScheduledConstraintScenario(
+            "TEST 96 — Invalid scheduled window",
+            "test-96-invalid-scheduled-window",
+            now.AddDays(1), now.AddDays(-1), now.AddDays(7), now.AddDays(12), admin.Id, now));
+        seeded.Add(SeedScheduledConstraintScenario(
+            "TEST 97 — Signup closes after event",
+            "test-97-signup-closes-after-event",
+            now.AddDays(1), now.AddDays(8), now.AddDays(7), now.AddDays(12), admin.Id, now));
+        var missingPlayingScenario = await SeedScenario(
+            "TEST 98 — Missing Playing assignment",
+            "test-98-missing-playing-assignment",
+            ScenarioStage.PostDraft,
+            blueprint,
+            admin.Id,
+            secondaryAdmin,
+            now);
+        var missingPlayingParticipant = db.EventParticipants.Local
+            .Where(participant => participant.EventId == missingPlayingScenario.EventId)
+            .OrderBy(participant => participant.SignupSequence)
+            .First();
+        db.EventParticipantCharacters.Local
+            .Single(assignment => assignment.EventId == missingPlayingScenario.EventId &&
+                                  assignment.EventParticipantId == missingPlayingParticipant.Id &&
+                                  assignment.EventRole == EventCharacterRole.Playing)
+            .Release(admin.Id, now);
+        seeded.Add(missingPlayingScenario);
+        var scheduledScenario = await SeedScenario(
+            "TEST 05 — Scheduled lifecycle blockers",
+            "test-05-scheduled-lifecycle-blockers",
+            ScenarioStage.PreBoard,
+            blueprint,
+            admin.Id,
+            secondaryAdmin,
+            now);
+        db.ScheduledEventStartAttempts.Add(new ScheduledEventStartAttempt(
+            Guid.NewGuid(), scheduledScenario.EventId, now.AddHours(-2), now.AddHours(-1), false,
+            ["BOARD_NOT_PUBLISHED", "DRAFT_NOT_FINALIZED"]));
+        db.ScheduledSignupOpeningAttempts.Add(new ScheduledSignupOpeningAttempt(
+            Guid.NewGuid(), scheduledScenario.EventId, now.AddHours(-3), now.AddHours(-2), false,
+            ["LIFECYCLE_STATE_INVALID"],
+            ["A scheduled signup opening can only be saved for a private draft."]));
+        seeded.Add(scheduledScenario);
+        seeded.Add(SeedReadinessBlockerScenario(admin.Id, now));
+        seeded.Add(await SeedScenario(
+            "TEST 03 — Draft discard candidate",
+            "test-03-draft-discard-candidate",
+            ScenarioStage.PrivateSetup,
+            blueprint,
+            admin.Id,
+            secondaryAdmin,
+            now));
         var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, evidenceCaptain, evidenceCoCaptain, evidenceParticipant, now);
         seeded.Add(dklLiveScenario);
+        var currentPublicScenario = await SeedScenario(
+            "TEST 90 — Current public event",
+            "test-90-current-public-event",
+            ScenarioStage.Live,
+            blueprint,
+            admin.Id,
+            secondaryAdmin,
+            now);
+        var currentPublicEvent = db.Events.Local.Single(value => value.Id == currentPublicScenario.EventId);
+        currentPublicEvent.MarkFirstPublic(now.AddMinutes(-30));
+        db.Entry(currentPublicEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = false;
+        seeded.Add(currentPublicScenario);
+        seeded.Add(SeedScheduledWindowOverlapScenario(admin.Id, now));
+        var accessBlockerScenario = await SeedScenario(
+            "TEST 88 — Live access blocker",
+            "test-88-live-access-blocker",
+            ScenarioStage.Live,
+            blueprint,
+            admin.Id,
+            secondaryAdmin,
+            now);
+        db.RemoveRange(db.AccountEventAccesses.Local.Where(access => access.EventId == accessBlockerScenario.EventId).ToList());
+        seeded.Add(accessBlockerScenario);
         await EnsureDevelopmentLookupCharacterAsync(secondaryAdmin.Id, now, cancellationToken);
         seeded.Add(SeedSignupLookupScenario(dklBlueprint, admin.Id, now));
         var waitingReplacement = CreateParticipant(
@@ -112,11 +193,166 @@ public sealed class DevelopmentScenarioSeeder(
         historyParticipant.AssignOwner(evidenceParticipant);
         await AddHistoryRejectedStateAsync(evidenceHistoryScenario.EventId, historyParticipant, evidenceParticipant.Id, admin.Id, now, cancellationToken);
         seeded.Add(evidenceHistoryScenario);
+        seeded.Add(await SeedScenario(
+            "TEST 21 — Final review",
+            "test-21-final-review",
+            ScenarioStage.FinalReview,
+            blueprint,
+            admin.Id,
+            secondaryAdmin,
+            now));
+        seeded.Add(await SeedScenario(
+            "TEST 85 — Archived results",
+            "test-85-archived-results",
+            ScenarioStage.Archived,
+            blueprint,
+            admin.Id,
+            secondaryAdmin,
+            now));
+        seeded.Add(SeedCancelledScenario(admin.Id, secondaryAdmin, now));
+        seeded.Add(SeedDiscardedScenario(admin.Id, now));
         seeded.Add(SeedBoardPublicationSetupScenario(blueprint, admin.Id, secondaryAdmin, now));
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return new SeedResult(admin.LoginName, secondaryAdmin.LoginName, SecondaryAdminPassword, blueprint.Name, seeded, CaptainPassword, ReplacementUsername, ReplacementPassword);
+    }
+
+    private SeededScenario SeedReadinessBlockerScenario(Guid adminId, DateTimeOffset now)
+    {
+        var bingoEvent = new BingoEvent(
+            Guid.NewGuid(), "TEST 04 — Readiness blockers", "test-04-readiness-blockers",
+            "Europe/Copenhagen", adminId, now);
+        db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
+        db.Events.Add(bingoEvent);
+        AddSignupFoundation(bingoEvent, now);
+        return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, null, []);
+    }
+
+    private SeededScenario SeedMissingSignupFormScenario(Guid adminId, DateTimeOffset now)
+    {
+        var eventStarts = now.AddDays(7);
+        var eventEnds = now.AddDays(12);
+        var bingoEvent = new BingoEvent(
+            Guid.NewGuid(), "TEST 92 — Missing signup form", "test-92-missing-signup-form",
+            "Development seed scenario: signup form has not been created.",
+            "Europe/Copenhagen", now.AddDays(-1), now.AddDays(1), eventStarts, eventEnds,
+            eventEnds.AddMinutes(30), 20, adminId, now);
+        bingoEvent.ConfigureSignup(true, false, null);
+        bingoEvent.ConfigurePlanning("Seeded missing-form rules.", null, null, 2, 3, 5, 5);
+        db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
+        db.Events.Add(bingoEvent);
+        return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, null, []);
+    }
+
+    private SeededScenario SeedMalformedSignupQuestionScenario(Guid adminId, DateTimeOffset now)
+    {
+        var eventStarts = now.AddDays(7);
+        var eventEnds = now.AddDays(12);
+        var bingoEvent = new BingoEvent(
+            Guid.NewGuid(), "TEST 93 — Malformed signup questions", "test-93-malformed-signup-questions",
+            "Development seed scenario: signup question definition is structurally invalid.",
+            "Europe/Copenhagen", now.AddDays(-1), now.AddDays(1), eventStarts, eventEnds,
+            eventEnds.AddMinutes(30), 20, adminId, now);
+        bingoEvent.ConfigureSignup(true, false, null);
+        bingoEvent.ConfigurePlanning("Seeded malformed-question rules.", null, null, 2, 3, 5, 5);
+        db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
+        db.Events.Add(bingoEvent);
+        AddSignupFoundation(bingoEvent, now);
+        var form = db.SignupForms.Local.Single(item => item.EventId == bingoEvent.Id);
+        db.SignupQuestions.Add(new SignupQuestion(
+            Guid.NewGuid(), form.Id, bingoEvent.Id, "invalid_required_account", "Invalid required account",
+            SignupQuestionType.Account, true, 7, null, SignupSystemField.None, EventCharacterRole.Playing));
+        return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, null, []);
+    }
+
+    private SeededScenario SeedUnusableSignupCodeScenario(Guid adminId, DateTimeOffset now)
+    {
+        var eventStarts = now.AddDays(7);
+        var eventEnds = now.AddDays(12);
+        var bingoEvent = new BingoEvent(
+            Guid.NewGuid(), "TEST 94 — Unusable signup code", "test-94-unusable-signup-code",
+            "Development seed scenario: signup-code protection has no usable hash.",
+            "Europe/Copenhagen", now.AddDays(-1), now.AddDays(1), eventStarts, eventEnds,
+            eventEnds.AddMinutes(30), 20, adminId, now);
+        bingoEvent.ConfigureSignup(true, true, null);
+        bingoEvent.ConfigurePlanning("Seeded signup-code rules.", null, null, 2, 3, 5, 5);
+        db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
+        db.Events.Add(bingoEvent);
+        AddSignupFoundation(bingoEvent, now);
+        return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, null, []);
+    }
+
+    private SeededScenario SeedScheduledConstraintScenario(
+        string name,
+        string slug,
+        DateTimeOffset? signupOpensAt,
+        DateTimeOffset? signupClosesAt,
+        DateTimeOffset eventStartsAt,
+        DateTimeOffset eventEndsAt,
+        Guid adminId,
+        DateTimeOffset now)
+    {
+        var bingoEvent = new BingoEvent(
+            Guid.NewGuid(), name, slug,
+            "Development seed scenario: scheduled signup timing requires correction.",
+            "Europe/Copenhagen", signupOpensAt, signupClosesAt, eventStartsAt, eventEndsAt,
+            eventEndsAt.AddMinutes(30), 20, adminId, now);
+        bingoEvent.ConfigureSignup(true, false, null);
+        bingoEvent.ConfigurePlanning("Seeded schedule-constraint rules.", null, null, 2, 3, 5, 5);
+        db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
+        db.Events.Add(bingoEvent);
+        AddSignupFoundation(bingoEvent, now);
+        return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, null, []);
+    }
+
+    private SeededScenario SeedCancelledScenario(Guid adminId, Account fixtureOwner, DateTimeOffset now)
+    {
+        var eventStarts = now.AddDays(7);
+        var eventEnds = eventStarts.AddDays(12);
+        var bingoEvent = new BingoEvent(
+            Guid.NewGuid(), "TEST 86 — Cancelled event", "test-86-cancelled-event",
+            "Development seed scenario: cancelled after participant history exists.",
+            "Europe/Copenhagen", now.AddDays(-14), now.AddDays(-1), eventStarts, eventEnds,
+            eventEnds.AddMinutes(30), 20, adminId, now);
+        bingoEvent.ConfigureSignup(true, false, null);
+        bingoEvent.ConfigurePlanning("Seeded cancelled-event rules.", null, null, 2, 3, 5, 5);
+        bingoEvent.OpenSignups();
+        bingoEvent.CloseSignups();
+        db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
+        db.Events.Add(bingoEvent);
+        AddSignupFoundation(bingoEvent, now);
+        var participants = AddParticipants(bingoEvent.Id, ScenarioStage.PreBoard, now);
+        participants[0].AssignOwner(fixtureOwner);
+        bingoEvent.Cancel(adminId, now, "Seeded cancellation for terminal-state review.", protectedHistoryExists: true);
+        return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, null, []);
+    }
+
+    private SeededScenario SeedDiscardedScenario(Guid adminId, DateTimeOffset now)
+    {
+        var bingoEvent = new BingoEvent(
+            Guid.NewGuid(), "TEST 87 — Discarded empty draft", "test-87-discarded-empty-draft",
+            "Europe/Copenhagen", adminId, now);
+        db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
+        db.Events.Add(bingoEvent);
+        bingoEvent.Discard(adminId, now, protectedHistoryExists: false);
+        return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, null, []);
+    }
+
+    private SeededScenario SeedScheduledWindowOverlapScenario(Guid adminId, DateTimeOffset now)
+    {
+        var bingoEvent = new BingoEvent(
+            Guid.NewGuid(), "TEST 91 — Overlapping scheduled opening", "test-91-overlapping-scheduled-opening",
+            "Europe/Copenhagen", adminId, now);
+        bingoEvent.ConfigureSignup(true, false, null);
+        bingoEvent.ConfigurePlanning("Seeded scheduled-opening overlap rules.", null, null, 2, 3, 5, 5);
+        bingoEvent.ConfigureSchedule(
+            now.AddHours(-1), now.AddDays(1), null, now.AddDays(2), now.AddDays(7), 20);
+        bingoEvent.ConfigureScheduledSignupOpening(true, []);
+        db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
+        db.Events.Add(bingoEvent);
+        AddSignupFoundation(bingoEvent, now);
+        return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, null, []);
     }
 
     private async Task EnsureDevelopmentLookupCharacterAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken)
@@ -205,13 +441,13 @@ public sealed class DevelopmentScenarioSeeder(
         {
             ScenarioStage.Live => now.AddHours(-1),
             ScenarioStage.ReviewCases => now.AddMinutes(-10),
-            ScenarioStage.FinalReview or ScenarioStage.Finalized or ScenarioStage.CompletedFinalReview => now.AddDays(-3),
+            ScenarioStage.FinalReview or ScenarioStage.Finalized or ScenarioStage.Archived or ScenarioStage.CompletedFinalReview => now.AddDays(-3),
             _ => now.AddDays(7)
         };
         var eventEnds = stage switch
         {
             ScenarioStage.Live or ScenarioStage.ReviewCases => now.AddDays(5),
-            ScenarioStage.FinalReview or ScenarioStage.Finalized or ScenarioStage.CompletedFinalReview => now.AddHours(-1),
+            ScenarioStage.FinalReview or ScenarioStage.Finalized or ScenarioStage.Archived or ScenarioStage.CompletedFinalReview => now.AddHours(-1),
             _ => now.AddDays(12)
         };
 
@@ -229,11 +465,11 @@ public sealed class DevelopmentScenarioSeeder(
         if (stage == ScenarioStage.SignupsOpen) bingoEvent.OpenSignups(now.AddDays(-1));
         else if (stage != ScenarioStage.PrivateSetup) { bingoEvent.OpenSignups(); bingoEvent.CloseSignups(); }
         if (stage is ScenarioStage.Live or ScenarioStage.ReviewCases) bingoEvent.StartEvent(now);
-        if (stage is ScenarioStage.FinalReview or ScenarioStage.Finalized or ScenarioStage.CompletedFinalReview)
+        if (stage is ScenarioStage.FinalReview or ScenarioStage.Finalized or ScenarioStage.Archived or ScenarioStage.CompletedFinalReview)
         {
             bingoEvent.StartEvent(eventStarts);
             bingoEvent.EndEvent();
-            if (stage == ScenarioStage.Finalized)
+            if (stage is ScenarioStage.Finalized or ScenarioStage.Archived)
             {
                 bingoEvent.FinalizeResults(now.AddMinutes(-30));
                 var reviewCycle = new EventStateTransition(
@@ -261,7 +497,7 @@ public sealed class DevelopmentScenarioSeeder(
         AddSignupFoundation(bingoEvent, now);
 
         var participants = AddParticipants(bingoEvent.Id, stage, now);
-        participants.First().AssignOwner(fixtureOwner);
+        if (participants.Count > 0) participants.First().AssignOwner(fixtureOwner);
         Board? board = null;
         if (stage >= ScenarioStage.BoardDraft)
         {
@@ -277,12 +513,14 @@ public sealed class DevelopmentScenarioSeeder(
                 : finalized ? DraftSeedState.Finalized : DraftSeedState.Setup;
             captainUsernames.AddRange(AddTeamsAndDraft(
                 bingoEvent, participants, draftState, finalized, now));
-            if (stage == ScenarioStage.Finalized)
+            if (stage is ScenarioStage.Finalized or ScenarioStage.Archived)
             {
                 await AddCompletedBoardAsync(bingoEvent.Id, adminId, now, CancellationToken.None);
                 AddFinalizedResults(bingoEvent, adminId, now, reviewCycleId ?? throw new InvalidOperationException("Seeded finalized event is missing its review cycle."));
             }
         }
+
+        if (stage == ScenarioStage.Archived) bingoEvent.Archive(now.AddMinutes(-15));
 
         return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, board?.State, captainUsernames);
     }
@@ -1770,6 +2008,7 @@ public sealed class DevelopmentScenarioSeeder(
         ScenarioStage.FinalReview => "the event ended and is waiting for review or corrections",
         ScenarioStage.ReviewCases => "the live review queue contains seeded submission lifecycle and evidence edge cases",
         ScenarioStage.Finalized => "official placements are snapshotted and ready for archive or correction-history testing",
+        ScenarioStage.Archived => "official placements are archived and available for unfinalization-history testing",
         ScenarioStage.CompletedFinalReview => "one team has completed the full board and its completion time can be corrected",
         _ => stage.ToString()
     };
@@ -1787,7 +2026,8 @@ public sealed class DevelopmentScenarioSeeder(
         FinalReview = 8,
         ReviewCases = 9,
         Finalized = 10,
-        CompletedFinalReview = 11
+        Archived = 11,
+        CompletedFinalReview = 12
     }
 
     private enum DraftSeedState { Setup, Running, Finalized }

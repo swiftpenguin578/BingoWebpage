@@ -6,6 +6,7 @@ using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
+using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -69,7 +70,7 @@ public sealed class EventReadinessEvaluator(ApplicationDbContext db, IConfigurat
         if (mode == SignupOpeningMode.Reopen && await db.EventParticipants.AnyAsync(x => x.EventId == item.Id, ct)) warnings.Add(new("REOPENING_POPULATED_SIGNUP", "Reopening signup keeps the existing participant and signup history."));
         if (!await db.DraftSessions.AnyAsync(x => x.EventId == item.Id && x.State == Bingo.Domain.Teams.DraftState.Finalized, ct)) later.Add(new("DRAFT_NOT_FINALIZED", "Team draft finalization is a later readiness task."));
         if (!await db.Boards.AnyAsync(x => x.EventId == item.Id && x.State == BoardState.Published, ct)) later.Add(new("BOARD_NOT_PUBLISHED", "Board publication is a later readiness task."));
-        return new SignupReadiness(blockers, warnings, later);
+        return new SignupReadiness(blockers, warnings, later, SignupCloseDecision.Evaluate(item.SignupClosesAt, item.DraftAt, item.EventStartsAt, now));
     }
 }
 
@@ -264,13 +265,12 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             if (evaluated.Warnings.Count > 0 && !acknowledgeWarnings) return new(false, "Acknowledge the active signup warnings before continuing.");
             var boundaryConflict = await CurrentEventBoundaryConflictAsync(item, ct);
             if (boundaryConflict is not null) return new(false, boundaryConflict.Description);
-            var proposedClose = ProposedClose(item, now);
-            var validClose = item.SignupClosesAt is { } close && close > now && item.EventStartsAt is { } start && close <= start;
-            if (!validClose)
+            var closeDecision = evaluated.CloseDecision;
+            if (!closeDecision.IsValid)
             {
-                if (proposedClose is null) return new(false, "Set a future draft time or event start that can be used as the signup closing time.");
-                if (!acceptProposedClose) return new(false, "Confirm the proposed signup closing time before opening signup.", proposedClose);
-                item.ConfigureSchedule(item.SignupOpensAt, proposedClose, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ParticipantCap);
+                if (!closeDecision.RequiresAcceptance) return new(false, "Set a future draft time or event start that can be used as the signup closing time.");
+                if (!acceptProposedClose) return new(false, "Confirm the proposed signup closing time before opening signup.", closeDecision.ProposedClose);
+                item.ConfigureSchedule(item.SignupOpensAt, closeDecision.ProposedClose, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ParticipantCap);
             }
             var from = item.State;
             item.OpenSignups(now);
@@ -298,8 +298,11 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
     private async Task<int> PromoteForCapacityIncreaseAsync(BingoEvent item, int? previousCapacity, CancellationToken ct)
     {
         if (item.State is not (EventState.SignupOpen or EventState.SignupClosed) || item.ParticipantCap is null || item.ParticipantCap <= previousCapacity || item.DraftLocked) return 0;
-        var confirmed = await db.EventParticipants.CountAsync(x => x.EventId == item.Id && x.Source != SignupSource.AdminCreated && x.SignupStatus == SignupStatus.Confirmed, ct);
-        var waiting = await db.EventParticipants.Where(x => x.EventId == item.Id && x.SignupStatus == SignupStatus.WaitingList).OrderBy(x => x.SignedUpAt).ThenBy(x => x.SignupSequence).Take(Math.Max(0, item.ParticipantCap.Value - confirmed)).ToListAsync(ct);
+        var signupParticipants = db.EventParticipants.Where(participant => participant.EventId == item.Id &&
+            !db.TeamMemberships.Any(membership => membership.EventParticipantId == participant.Id && membership.LeftAt == null &&
+                db.Teams.Any(team => team.Id == membership.TeamId && team.EventId == item.Id && team.Active && team.FormationType == TeamFormationType.Preformed)));
+        var confirmed = await signupParticipants.CountAsync(x => x.SignupStatus == SignupStatus.Confirmed, ct);
+        var waiting = await signupParticipants.Where(x => x.SignupStatus == SignupStatus.WaitingList).OrderBy(x => x.SignedUpAt).ThenBy(x => x.SignupSequence).Take(Math.Max(0, item.ParticipantCap.Value - confirmed)).ToListAsync(ct);
         foreach (var participant in waiting) participant.Promote(time.GetUtcNow());
         return waiting.Count;
     }
@@ -328,11 +331,6 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         }
         catch (TimeZoneNotFoundException) { return $"{start:dd MMM yyyy, HH:mm} – {end:dd MMM yyyy, HH:mm} UTC"; }
         catch (InvalidTimeZoneException) { return $"{start:dd MMM yyyy, HH:mm} – {end:dd MMM yyyy, HH:mm} UTC"; }
-    }
-    private static DateTimeOffset? ProposedClose(BingoEvent item, DateTimeOffset now)
-    {
-        if (item.EventStartsAt is not { } start || start <= now) return null;
-        return item.DraftAt is { } draft && draft > now && draft <= start ? draft : start;
     }
     private static readonly Action<ILogger, Guid, Exception?> LogScheduleFailure = LoggerMessage.Define<Guid>(LogLevel.Error, new EventId(730301), "Unexpected schedule update failure for event {EventId}");
     private static readonly Action<ILogger, Guid, Exception?> LogLifecycleFailure = LoggerMessage.Define<Guid>(LogLevel.Error, new EventId(730302), "Unexpected signup lifecycle failure for event {EventId}");

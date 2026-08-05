@@ -40,6 +40,54 @@ public sealed class SignupService(
         await transaction.CommitAsync(cancellationToken);
         return new(true, null, true);
     }
+
+    public async Task<SignupAdministrationResult> UpdateSignupAdministrationAsync(
+        Guid eventId,
+        long expectedVersion,
+        int newCap,
+        bool waitingListEnabled,
+        Guid actorAccountId,
+        string actorName,
+        bool confirmWaitingListDisablement = false,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        var bingoEvent = await LockEventAsync(eventId, cancellationToken);
+        if (bingoEvent is null) return new(false, "The event could not be found.");
+        if (bingoEvent.Version != expectedVersion) return new(false, "This event changed while you were editing it. Review the latest values and try again.");
+        if (bingoEvent.DraftLocked || bingoEvent.State is not (Domain.Events.EventState.Draft or Domain.Events.EventState.SignupOpen or Domain.Events.EventState.SignupClosed))
+            return new(false, "Signup administration is read-only after the draft starts or the event has moved on.");
+        var waitingCount = await SignupParticipants(eventId).CountAsync(item => item.SignupStatus == SignupStatus.WaitingList, cancellationToken);
+        var confirmedCount = await SignupParticipants(eventId).CountAsync(item => item.SignupStatus == SignupStatus.Confirmed, cancellationToken);
+        var effectiveCap = newCap;
+        if (!waitingListEnabled && waitingCount > 0)
+        {
+            effectiveCap = Math.Max(newCap, confirmedCount + waitingCount);
+            if (!confirmWaitingListDisablement)
+            {
+                var capacityNote = effectiveCap == newCap ? $"Capacity remains {newCap}" : $"Capacity will increase to {effectiveCap}";
+                return new(false, $"Disabling the waiting list will promote all {waitingCount} queued participant(s) in signup order. {capacityNote} so no queued participant is lost. Confirm this consequence before saving.");
+            }
+        }
+
+        var before = new { bingoEvent.ParticipantCap, bingoEvent.WaitingListEnabled };
+        try
+        {
+            bingoEvent.IncreaseParticipantCap(effectiveCap);
+            bingoEvent.ConfigureSignup(waitingListEnabled, bingoEvent.RequireSignupCode, bingoEvent.SignupCodeHash);
+        }
+        catch (ArgumentOutOfRangeException) { return new(false, "Maximum players must be at least 1."); }
+        catch (InvalidOperationException ex) { return new(false, ex.Message); }
+
+        var promoted = await PromoteWithinLockedEventAsync(bingoEvent, actorAccountId, actorName, "signup administration", cancellationToken);
+        var after = new { bingoEvent.ParticipantCap, bingoEvent.WaitingListEnabled };
+        dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorAccountId, actorName, "event.signup_administration_updated", "event",
+            eventId.ToString(), System.Text.Json.JsonSerializer.Serialize(new { requestedCapacity = newCap, effectiveCapacity = effectiveCap, waitingListEnabled, promoted }), eventId,
+            System.Text.Json.JsonSerializer.Serialize(before), System.Text.Json.JsonSerializer.Serialize(after)));
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new(true, null, promoted, effectiveCap);
+    }
     public async Task<SignupResult> SignUpAuthenticatedAsync(AuthenticatedSignupRequest request, CancellationToken cancellationToken = default)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
@@ -89,7 +137,7 @@ public sealed class SignupService(
         SignupStatus status;
         if (participant is null)
         {
-            var confirmed = await dbContext.EventParticipants.CountAsync(x => x.EventId == request.EventId && x.SignupStatus == SignupStatus.Confirmed, cancellationToken);
+            var confirmed = await SignupParticipants(request.EventId).CountAsync(x => x.SignupStatus == SignupStatus.Confirmed, cancellationToken);
             status = confirmed < bingoEvent.ParticipantCap ? SignupStatus.Confirmed : SignupStatus.WaitingList;
             if (status == SignupStatus.WaitingList && !bingoEvent.WaitingListEnabled) return new(false, "This event is full and does not have a waiting list.", null, null, null);
             var sequence = (await dbContext.EventParticipants.Where(x => x.EventId == request.EventId).MaxAsync(x => (long?)x.SignupSequence, cancellationToken) ?? 0) + 1;
@@ -244,7 +292,7 @@ public sealed class SignupService(
         SignupStatus status;
         if (participant is null)
         {
-            var confirmed = await dbContext.EventParticipants.CountAsync(x => x.EventId == request.EventId && x.SignupStatus == SignupStatus.Confirmed, ct);
+            var confirmed = await SignupParticipants(request.EventId).CountAsync(x => x.SignupStatus == SignupStatus.Confirmed, ct);
             status = confirmed < bingoEvent.ParticipantCap ? SignupStatus.Confirmed : SignupStatus.WaitingList;
             if (status == SignupStatus.WaitingList && !bingoEvent.WaitingListEnabled) return new(false, "This event is full and does not have a waiting list.");
             var sequence = (await dbContext.EventParticipants.Where(x => x.EventId == request.EventId).MaxAsync(x => (long?)x.SignupSequence, ct) ?? 0) + 1;
@@ -757,14 +805,11 @@ public sealed class SignupService(
     private async Task<int> PromoteWithinLockedEventAsync(Domain.Events.BingoEvent bingoEvent, Guid? actorAccountId, string actorName, string trigger, CancellationToken cancellationToken)
     {
         if (bingoEvent.DraftLocked) return 0;
-        var confirmed = await dbContext.EventParticipants.CountAsync(
-            participant => participant.EventId == bingoEvent.Id &&
-                participant.SignupStatus == SignupStatus.Confirmed,
-            cancellationToken);
+        var confirmed = await SignupParticipants(bingoEvent.Id).CountAsync(participant => participant.SignupStatus == SignupStatus.Confirmed, cancellationToken);
         var places = Math.Max(0, (bingoEvent.ParticipantCap ?? 0) - confirmed);
         if (places == 0) return 0;
-        var waiting = await dbContext.EventParticipants
-            .Where(participant => participant.EventId == bingoEvent.Id && participant.SignupStatus == SignupStatus.WaitingList)
+        var waiting = await SignupParticipants(bingoEvent.Id)
+            .Where(participant => participant.SignupStatus == SignupStatus.WaitingList)
             .OrderBy(participant => participant.SignedUpAt)
             .ThenBy(participant => participant.SignupSequence)
             .Take(places)
@@ -781,9 +826,14 @@ public sealed class SignupService(
         return waiting.Count;
     }
 
+    private IQueryable<EventParticipant> SignupParticipants(Guid eventId) =>
+        dbContext.EventParticipants.Where(participant => participant.EventId == eventId &&
+            !dbContext.TeamMemberships.Any(membership => membership.EventParticipantId == participant.Id && membership.LeftAt == null &&
+                dbContext.Teams.Any(team => team.Id == membership.TeamId && team.EventId == eventId && team.Active && team.FormationType == TeamFormationType.Preformed)));
+
     private async Task<Domain.Events.BingoEvent?> LockEventAsync(Guid eventId, CancellationToken ct) => await dbContext.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} FOR UPDATE").SingleOrDefaultAsync(ct);
     private async Task<SignupStatus> AdmissionStatusAsync(Domain.Events.BingoEvent bingoEvent, CancellationToken ct) =>
-        await dbContext.EventParticipants.CountAsync(x => x.EventId == bingoEvent.Id && x.SignupStatus == SignupStatus.Confirmed, ct) < bingoEvent.ParticipantCap ? SignupStatus.Confirmed : SignupStatus.WaitingList;
+        await SignupParticipants(bingoEvent.Id).CountAsync(x => x.SignupStatus == SignupStatus.Confirmed, ct) < bingoEvent.ParticipantCap ? SignupStatus.Confirmed : SignupStatus.WaitingList;
     private async Task<bool> ReacquireAssignmentsAsync(EventParticipant participant, Guid? actorId, DateTimeOffset now, CancellationToken ct)
     {
         var released = await dbContext.EventParticipantCharacters.Where(x => x.EventParticipantId == participant.Id && x.ReleasedAt != null).OrderByDescending(x => x.RegistrationOrder).ToListAsync(ct);
@@ -800,8 +850,8 @@ public sealed class SignupService(
 
     private async Task<int> GetWaitingPositionAsync(Guid participantId, Guid eventId, CancellationToken cancellationToken)
     {
-        var waitingIds = await dbContext.EventParticipants.AsNoTracking()
-            .Where(participant => participant.EventId == eventId && participant.SignupStatus == SignupStatus.WaitingList)
+        var waitingIds = await SignupParticipants(eventId).AsNoTracking()
+            .Where(participant => participant.SignupStatus == SignupStatus.WaitingList)
             .OrderBy(participant => participant.SignedUpAt)
             .ThenBy(participant => participant.SignupSequence)
             .Select(participant => participant.Id)

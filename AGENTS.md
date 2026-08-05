@@ -73,6 +73,8 @@ If blocked, useful work may include focused source inspection, independent unit 
 
 ## Task roles and lean orchestration
 
+For Codex task model selection, use Luna with high reasoning for implementation, remediation, review, and verification unless the user explicitly chooses another model. Never start or continue a task on Sol with medium or high reasoning unless the orchestrator first explains why it is needed, requests that exact model/reasoning combination, and the user explicitly approves it. Do not rely on inherited or default task settings when they could select Sol medium/high; set the approved model and reasoning explicitly before dispatch.
+
 Every delegated task must declare exactly one role and remain within it:
 
 - **Orchestrator/planner:** defines bounded tasks, selects the next worker, verifies handoffs, and stops repeated failures. It does not implement production behavior or review its own work. It asks the user only for product decisions, explicit permissions, environment blockers, and manual acceptance.
@@ -136,7 +138,7 @@ After implementation review/remediation clears and before asking the user to run
 
 - Follow the applicable pass and approval gate in `UI_OVERHAUL_ROADMAP.md`.
 - Every new page and every materially changed page must follow the active shared UI system in `UI_OVERHAUL_ROADMAP.md` from its first implementation. A later whole-site UI pass is not permission to introduce interim legacy styling, page-local themes, inconsistent controls, or incomplete responsive/accessibility states.
-- Treat the **View bingo** state at `/Events/test-15-dkl-live/Board` and `UI_OVERHAUL_ROADMAP.md` section 3.6 as the visual source of truth for the site-wide overhaul. Reuse its shared tokens, spacing scale, component geometry, density, states, controls, responsive transitions, and motion rules; do not create a separate admin or page-local theme.
+- Treat the **View bingo** state at `/Events/test-15-dkl-live/Board` and `UI_OVERHAUL_ROADMAP.md` section 3.6 as the visual source of truth for public and participant surfaces. The Admin workspace is an approved distinct compact operational shell that reuses the same semantic token discipline, control hierarchy, focus treatment, responsive/accessibility rules, and motion rules; it may use its own charcoal/slate operational surfaces and denser shell geometry. Do not create page-local themes or a second navigation framework.
 - Use accent-outline controls as the normal primary action treatment. Use neutral outline for secondary actions, red outline for destructive actions, ghost/text for low-priority navigation, and green only when the action itself is explicitly a success action. Filled accent buttons are exceptional. A bare red `×` with a larger invisible circular hit target is approved only when the removable object is visually self-evident; preserve its accessible label and keyboard focus state.
 - Preserve the approved Pass 12 desktop interaction model: overall team cards open route-backed team overlays; tiles replace the left sidebar through nested real URLs; captain submission attaches a drawer to that sidebar; and submission success/failure stays in the drawer until the user acknowledges it. Realtime invalidations must not interrupt an active submission or result state.
 - Widths below `901px` deliberately use ordinary route navigation without overlay transitions. Treat the standalone team, tile, and submission routes as required responsive/no-JavaScript fallbacks, not obsolete duplicate pages.

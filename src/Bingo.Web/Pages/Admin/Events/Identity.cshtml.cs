@@ -20,14 +20,15 @@ namespace Bingo.Web.Pages.Admin.Events;
 [Authorize(Policy = AuthorizationPolicies.Admin)]
 public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage storage, TimeProvider time) : PageModel
 {
-    private static readonly IReadOnlyList<TimezoneOption> Defaults = [new("Europe/Copenhagen", "Copenhagen (Europe/Copenhagen)"), new("UTC", "UTC"), new("Europe/London", "London"), new("America/New_York", "New York"), new("America/Chicago", "Chicago"), new("America/Los_Angeles", "Los Angeles"), new("Australia/Sydney", "Sydney")];
+    private static readonly IReadOnlyList<TimezoneOption> Defaults = [new("Europe/Copenhagen", "Copenhagen (Europe/Copenhagen)"), new("UTC", "UTC")];
     [BindProperty] public InputModel Input { get; set; } = new();
+    [BindProperty] public long BannerVersion { get; set; }
     public string EventName { get; private set; } = string.Empty;
     public Guid EventId { get; private set; }
     public bool HasBanner { get; private set; }
     public bool IsSlugLocked { get; private set; }
     public bool RequiresTimezoneReason { get; private set; }
-    public IReadOnlyList<TimezoneOption> Timezones => Options(Input.Timezone);
+    public IReadOnlyList<TimezoneOption> Timezones => Options();
     public IReadOnlyList<TimePreview> TimezonePreview { get; private set; } = [];
 
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
@@ -105,11 +106,64 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
         return RedirectToPage("Manage", new { id });
     }
 
+    public async Task<IActionResult> OnPostRemoveBannerAsync(Guid id, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        var item = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (item is null) return NotFound();
+        if (BannerVersion != item.Version)
+        {
+            await transaction.RollbackAsync(ct);
+            TempData["StatusMessage"] = "This event changed while you were editing it. Review the latest values and try again.";
+            TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString();
+            return RedirectToPage(new { id });
+        }
+
+        if (item.BannerAssetId is null)
+        {
+            await transaction.RollbackAsync(ct);
+            return RedirectToPage(new { id });
+        }
+
+        try
+        {
+            var actor = User.GetAccountId()!.Value;
+            var now = time.GetUtcNow();
+            var before = AuditState(item);
+            var oldId = item.BannerAssetId.Value;
+            (await db.EventBannerAssets.SingleOrDefaultAsync(x => x.Id == oldId && x.EventId == id, ct))?.Replace(now);
+            item.SetBannerAsset(null);
+            var after = AuditState(item);
+            db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor, User.Identity!.Name!, "event.identity_updated", "event", item.Id.ToString(), JsonSerializer.Serialize(new { timezoneReason = (string?)null }), item.Id, JsonSerializer.Serialize(before), JsonSerializer.Serialize(after)));
+            await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            await transaction.RollbackAsync(ct);
+            TempData["StatusMessage"] = "This event changed while you were editing it. Review the latest values and try again.";
+            TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString();
+            return RedirectToPage(new { id });
+        }
+        catch (InvalidOperationException)
+        {
+            await transaction.RollbackAsync(ct);
+            TempData["StatusMessage"] = "The banner could not be removed in the event's current state.";
+            TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString();
+            return RedirectToPage(new { id });
+        }
+
+        TempData["StatusMessage"] = "Event banner removed.";
+        TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
+        return RedirectToPage(new { id });
+    }
+
     private void Populate(BingoEvent item, bool preserveInput = false)
     {
         EventId = item.Id;
         EventName = item.Name;
         HasBanner = item.BannerAssetId is not null;
+        BannerVersion = item.Version;
         IsSlugLocked = item.FirstPublicAt is not null;
         RequiresTimezoneReason = item.ActualStartedAt is not null;
         if (!preserveInput) Input = new InputModel { Name = item.Name, Slug = item.Slug, Description = item.Description, Timezone = item.Timezone, Version = item.Version };
@@ -126,11 +180,9 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
     private static object AuditState(BingoEvent item) => new { item.Name, item.Slug, Description = AuditDescription(item.Description), item.Timezone, item.BannerAssetId };
     private static string? AuditDescription(string? description) => description is null ? null : description.Length <= 500 ? description : $"{description[..500]}…";
     private static bool IsSlugCollision(DbUpdateException exception) => exception.InnerException?.Message.Contains("events_slug", StringComparison.OrdinalIgnoreCase) == true || exception.InnerException?.Message.Contains("slug", StringComparison.OrdinalIgnoreCase) == true;
-    private static List<TimezoneOption> Options(string? selected)
+    private static List<TimezoneOption> Options()
     {
-        var result = Defaults.Select(option => new TimezoneOption(option.Id, Label(option.Id, option.Label))).ToList();
-        if (!string.IsNullOrWhiteSpace(selected) && result.All(x => x.Id != selected) && TryFind(selected, out _)) result.Add(new(selected, Label(selected, selected)));
-        return result;
+        return Defaults.Select(option => new TimezoneOption(option.Id, Label(option.Id, option.Label))).ToList();
     }
     private static string Label(string timezoneId, string place)
     {
@@ -138,7 +190,7 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
         var offset = timezone.GetUtcOffset(DateTimeOffset.UtcNow);
         return $"{place} (UTC{(offset < TimeSpan.Zero ? "-" : "+")}{offset.Duration():hh\\:mm})";
     }
-    private static bool TryTimezone(string? timezone, out TimeZoneInfo value) { value = null!; return !string.IsNullOrWhiteSpace(timezone) && Options(timezone).Any(x => x.Id == timezone) && TryFind(timezone, out value); }
+    private static bool TryTimezone(string? timezone, out TimeZoneInfo value) { value = null!; return !string.IsNullOrWhiteSpace(timezone) && Defaults.Any(x => x.Id == timezone) && TryFind(timezone, out value); }
     private static bool TryFind(string timezone, out TimeZoneInfo value) { try { value = TimeZoneInfo.FindSystemTimeZoneById(timezone); return true; } catch (TimeZoneNotFoundException) { value = null!; return false; } catch (InvalidTimeZoneException) { value = null!; return false; } }
     public sealed record TimezoneOption(string Id, string Label); public sealed record TimePreview(string Label, string Current, string New);
     public sealed class InputModel { [Required, StringLength(200)] public string Name { get; set; } = string.Empty; [Required, StringLength(120)] public string Slug { get; set; } = string.Empty; [StringLength(4000)] public string? Description { get; set; } [Required] public string Timezone { get; set; } = "Europe/Copenhagen"; public IFormFile? Banner { get; set; } public bool RemoveBanner { get; set; } public bool ConfirmTimezoneChange { get; set; } [StringLength(2000)] public string? TimezoneReason { get; set; } public long Version { get; set; } }

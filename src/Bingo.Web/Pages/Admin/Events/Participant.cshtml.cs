@@ -36,6 +36,7 @@ public sealed class ParticipantModel(
     [BindProperty] public InternalReplacementInput InternalReplacement { get; set; } = new();
     public bool CanAdminWithdraw { get; private set; }
     public bool CanAdminLiveWithdraw { get; private set; }
+    public bool CanEditParticipant { get; private set; }
     public bool CanFillVacancy { get; private set; }
     [BindProperty] public Guid? VacancyMembershipId { get; set; }
     [BindProperty] public long? VacancyMembershipVersion { get; set; }
@@ -278,8 +279,9 @@ public sealed class ParticipantModel(
         }
 
         CanAdminLiveWithdraw = bingoEvent.State == EventState.Live && participant.SignupStatus == SignupStatus.Confirmed && await dbContext.TeamMemberships.AnyAsync(x => x.EventParticipantId == participantId && x.LeftAt == null, ct);
-        CanAdminWithdraw = (!bingoEvent.DraftLocked && bingoEvent.State is EventState.SignupOpen or EventState.SignupClosed && participant.SignupStatus is SignupStatus.Confirmed or SignupStatus.WaitingList) || CanAdminLiveWithdraw;
-        CanAdminRestore = !bingoEvent.DraftLocked && bingoEvent.State is EventState.SignupOpen or EventState.SignupClosed && participant.SignupStatus == SignupStatus.Withdrawn;
+        CanEditParticipant = !bingoEvent.DraftLocked && bingoEvent.State is (EventState.SignupOpen or EventState.SignupClosed);
+        CanAdminWithdraw = (CanEditParticipant && participant.SignupStatus is (SignupStatus.Confirmed or SignupStatus.WaitingList)) || CanAdminLiveWithdraw;
+        CanAdminRestore = CanEditParticipant && participant.SignupStatus == SignupStatus.Withdrawn;
         return true;
     }
 

@@ -25,8 +25,7 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
 {
     private static readonly IReadOnlyList<TimezoneOption> DefaultTimezones =
     [
-        new("Europe/Copenhagen", "Copenhagen (Europe/Copenhagen)"), new("UTC", "UTC"), new("Europe/London", "London"),
-        new("America/New_York", "New York"), new("America/Chicago", "Chicago"), new("America/Los_Angeles", "Los Angeles"), new("Australia/Sydney", "Sydney")
+        new("Europe/Copenhagen", "Copenhagen (Europe/Copenhagen)"), new("UTC", "UTC")
     ];
 
     [BindProperty] public CreateInput Input { get; set; } = new();
@@ -196,9 +195,7 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
     private static bool TryFind(string timezoneId, out TimeZoneInfo timezone) { try { timezone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId); return true; } catch (TimeZoneNotFoundException) { timezone = null!; return false; } catch (InvalidTimeZoneException) { timezone = null!; return false; } }
     private static List<TimezoneOption> OptionsFor(string? selected)
     {
-        var options = DefaultTimezones.Select(option => new TimezoneOption(option.Id, Label(option.Id, option.Label))).ToList();
-        if (!string.IsNullOrWhiteSpace(selected) && options.All(x => x.Id != selected) && TryFind(selected, out _)) options.Add(new(selected, Label(selected, selected)));
-        return options;
+        return DefaultTimezones.Select(option => new TimezoneOption(option.Id, Label(option.Id, option.Label))).ToList();
     }
     private static string Label(string timezoneId, string place)
     {

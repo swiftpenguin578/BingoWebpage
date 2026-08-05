@@ -16,19 +16,22 @@
 
     root.classList.add("is-guided");
     showStep(currentStep, false);
+    initializeDateTimeAdapters();
     initializeSignupCode();
     initializeQuestions();
     initializeSummary();
 
-    steps.forEach((step) => step.addEventListener("click", () => showStep(Number(step.dataset.createStep))));
+    steps.forEach((step) => step.addEventListener("click", () => {
+      const target = Number(step.dataset.createStep);
+      if (target <= currentStep) showStep(target);
+      else advanceTo(target);
+    }));
     previous?.addEventListener("click", () => showStep(currentStep - 1));
-    next?.addEventListener("click", () => showStep(currentStep + 1));
+    next?.addEventListener("click", () => advanceTo(currentStep + 1));
     form?.addEventListener("submit", (event) => {
-      if (!window.jQuery?.validator?.unobtrusive) return;
-      if (window.jQuery(form).valid()) return;
+      if (!window.jQuery?.validator?.unobtrusive || !window.bingoEventCreateValidation) return;
+      if (window.bingoEventCreateValidation.validateAndReveal(form, window.jQuery, (panelIndex) => showStep(panelIndex, false))) return;
       event.preventDefault();
-      const invalidPanel = form.querySelector(".input-validation-error")?.closest("[data-create-panel]");
-      if (invalidPanel) showStep(Number(invalidPanel.dataset.createPanel));
     });
 
     function findInitialStep() {
@@ -37,7 +40,22 @@
       return invalidPanel ? Number(invalidPanel.dataset.createPanel) : 0;
     }
 
-    function showStep(index, focus = true) {
+    function advanceTo(target) {
+      if (target >= panels.length || !window.jQuery?.validator?.unobtrusive || !window.bingoEventCreateValidation?.navigateForward) {
+        showStep(target);
+        return;
+      }
+      const reached = window.bingoEventCreateValidation.navigateForward(
+        currentStep,
+        target,
+        panels,
+        (panelIndex) => showStep(panelIndex, false, false),
+        (panel) => window.bingoEventCreateValidation.validateCurrentStep(form, panel, window.jQuery)
+      );
+      showStep(reached, reached === target, false);
+    }
+
+    function showStep(index, focus = true, scroll = true) {
       currentStep = Math.max(0, Math.min(index, panels.length - 1));
       panels.forEach((panel, panelIndex) => {
         const active = panelIndex === currentStep;
@@ -56,7 +74,12 @@
       if (progress) progress.textContent = `${root.dataset.stepWord} ${currentStep + 1} ${root.dataset.ofWord} ${panels.length}`;
       if (currentStep === panels.length - 1) updateSummary();
       if (focus) panels[currentStep]?.querySelector("h2")?.focus?.({ preventScroll: true });
-      panels[currentStep]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      if (scroll) panels[currentStep]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function initializeDateTimeAdapters() {
+      const dateTime = window.bingoEventDateTime;
+      dateTime?.initializeControls(root, window.flatpickr);
     }
 
     function initializeSignupCode() {
@@ -131,11 +154,7 @@
     function updateSummary() {
       const text = (selector) => root.querySelector(selector)?.value?.trim() || "";
       const set = (key, value) => { const target = root.querySelector(`[data-summary-value="${key}"]`); if (target) target.textContent = value; };
-      const dateTime = (selector) => {
-        const input = root.querySelector(selector);
-        if (input?._flatpickr?.selectedDates?.length) return input._flatpickr.altInput.value;
-        return input?.value?.trim() || "—";
-      };
+      const dateTime = selector => window.bingoEventDateTime.format(root.querySelector(selector)?.value?.trim());
 
       set("name", text("[data-summary-source='name']") || root.dataset.unnamedText);
       set("description", text("[data-summary-source='description']") || root.dataset.noDescriptionText);

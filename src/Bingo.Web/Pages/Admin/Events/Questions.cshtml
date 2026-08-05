@@ -1,24 +1,26 @@
 @page "{id:guid}"
 @model Bingo.Web.Pages.Admin.Events.QuestionsModel
 @using Bingo.Domain.Signups
+@using Bingo.Web.UI
 @{
     ViewData["Title"] = T["Signup form"];
-    ViewData["CompactNavigation"] = true;
+    if (Model.IsOverlay) { Layout = "_AdminOverlayLayout"; }
     var eventId = RouteData.Values["id"];
     var customQuestions = Model.Questions.Where(question => question.SystemField == SignupSystemField.None).ToList();
 }
 
-<section class="signup-question-page">
-    <header class="signup-question-heading">
+<section class="event-create-page signup-question-page" data-signup-questions-editor="true" data-overlay="@(Model.IsOverlay ? "true" : "false")">
+    <header class="event-create-heading admin-events-heading">
         <div>
-            <p class="eyebrow">@T["Event setup"]</p>
+            <p class="admin-module-eyebrow">@T["Signup administration"]</p>
             <h1>@T["Signup form"]</h1>
             <p>@T["Choose what players are asked when they sign up for {0}.", Model.EventName]</p>
         </div>
-        <a class="btn btn-outline-light" asp-page="Manage" asp-route-id="@eventId">← @T["Back to event"]</a>
+        @if (!Model.IsOverlay) { <a class="admin-button-secondary event-create-cancel" asp-page="Participants" asp-route-id="@eventId">@T["Back to participants"]</a> }
+        else { <button type="button" class="admin-button-secondary event-create-cancel" data-overlay-close>@T["Close"]</button> }
     </header>
 
-    <div class="panel signup-question-workspace">
+    <div class="event-create-workspace panel signup-question-workspace">
         <section class="signup-question-section">
             <div class="signup-question-section-heading">
                 <div><p class="step-kicker">@T["Included automatically"]</p><h2>@T["Standard signup fields"]</h2></div>
@@ -50,14 +52,11 @@
         </section>
 
         <section class="signup-question-section">
-            <div class="signup-question-section-heading"><div><p class="step-kicker">Signup settings</p><h2>Waiting list</h2></div><p>Keep the queue available when the participant cap is reached.</p></div>
+            <div class="signup-question-section-heading"><div><p class="step-kicker">Signup access</p><h2>@T["Signup code"]</h2></div><p>@T["Optional protection for the public signup form. Capacity and waiting-list settings are managed in Participants."]</p></div>
             @if (Model.CanEditSettings)
             {
-                <form method="post" asp-page-handler="WaitingList" class="event-admin-inline-form" data-update-targets="#app-notice-region, .signup-question-workspace">
-                    <label class="check-row"><input asp-for="Settings.WaitingListEnabled" data-auto-submit /> <span>Enable waiting list</span></label>
-                    <noscript><button class="btn btn-outline-light" type="submit">Save waiting list</button></noscript>
-                </form>
                 <form method="post" asp-page-handler="SignupCode" class="event-admin-inline-form">
+                    <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
                     <label class="check-row"><input asp-for="Settings.RequireSignupCode" /> <span>Require signup code</span></label>
                     <label asp-for="Settings.NewSignupCode">New signup code</label><input asp-for="Settings.NewSignupCode" class="form-control" autocomplete="off" />
                     <small>Enter a new code when enabling or replacing code protection. The current code is never shown.</small>
@@ -91,14 +90,30 @@
                             </div>
                             @if (Model.CanEdit)
                             {
-                                <form method="post" asp-page-handler="Move"><input type="hidden" name="questionId" value="@question.Id" /><input type="hidden" name="up" value="true" /><button class="btn btn-sm btn-outline-light" type="submit">↑</button></form>
-                                <form method="post" asp-page-handler="Move"><input type="hidden" name="questionId" value="@question.Id" /><input type="hidden" name="up" value="false" /><button class="btn btn-sm btn-outline-light" type="submit">↓</button></form>
-                                <form method="post" asp-page-handler="Deactivate" data-update-targets="#app-notice-region, .signup-question-workspace" onsubmit="return confirm('@T["Remove this question?"]');">
+                                <form method="post" asp-page-handler="Move"><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@question.Id" /><input type="hidden" name="up" value="true" /><button class="btn btn-sm btn-outline-light" type="submit">↑</button></form>
+                                <form method="post" asp-page-handler="Move"><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@question.Id" /><input type="hidden" name="up" value="false" /><button class="btn btn-sm btn-outline-light" type="submit">↓</button></form>
+                                <form method="post" asp-page-handler="Deactivate" onsubmit="return confirm('@T["Remove this question?"]');">
+                                    <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
                                     <input type="hidden" name="questionId" value="@question.Id" />
                                     <button class="btn btn-sm btn-outline-light" type="submit">@T["Remove"]</button>
                                 </form>
-                                <details><summary>Edit</summary><form method="post" asp-page-handler="Edit" class="form-stack"><input type="hidden" name="questionId" value="@question.Id" /><input name="Edit.Label" value="@question.Label" class="form-control" /><input name="Edit.HelpText" value="@question.HelpText" class="form-control" />@if (!Model.HasFirstResponse) { <select name="Edit.Type" class="form-select"><option value="Text" selected="@(question.Type == SignupQuestionType.Text ? "selected" : null)">Text</option><option value="Number" selected="@(question.Type == SignupQuestionType.Number ? "selected" : null)">Number</option><option value="YesNo" selected="@(question.Type == SignupQuestionType.YesNo ? "selected" : null)">Yes/No</option><option value="SingleChoice" selected="@(question.Type == SignupQuestionType.SingleChoice ? "selected" : null)">Single choice</option><option value="Account" selected="@(question.Type == SignupQuestionType.Account ? "selected" : null)">Account</option></select><input name="Edit.Options" value="@question.Options" class="form-control" /><select name="Edit.AccountRole" class="form-select"><option value="">Not an account</option><option value="Playing" selected="@(question.AccountAnswerRole == EventCharacterRole.Playing ? "selected" : null)">Regular account</option><option value="Informational" selected="@(question.AccountAnswerRole == EventCharacterRole.Informational ? "selected" : null)">Alt account</option></select><label><input name="Edit.Required" type="checkbox" value="true" checked="@(question.Required ? "checked" : null)" /> Required</label> } else { <p>Answer format, role, choices, and required status are locked after the first response.</p> }<button class="btn btn-outline-light" type="submit">Save question</button></form></details>
-                                @if (Model.HasFirstResponse) { <details><summary>Replace answer format</summary><form method="post" asp-page-handler="Replace" class="form-stack"><input type="hidden" name="questionId" value="@question.Id" /><p>The old question and its answers are retained. The replacement is always optional.</p><input name="Replacement.Label" class="form-control" placeholder="New question" required /><input name="Replacement.HelpText" class="form-control" placeholder="Help text (optional)" /><select name="Replacement.Type" class="form-select"><option value="Text">Text</option><option value="Number">Number</option><option value="YesNo">Yes/No</option><option value="SingleChoice">Single choice</option><option value="Account">Account</option></select><textarea name="Replacement.Options" class="form-control" placeholder="Choices, one per line"></textarea><select name="Replacement.AccountRole" class="form-select"><option value="">Account role (only for Account)</option><option value="Playing">Regular account</option><option value="Informational">Alt account</option></select><button class="btn btn-outline-light" type="submit">Replace question</button></form></details> }
+                                <details><summary>Edit</summary><form method="post" asp-page-handler="Edit" class="form-stack"><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><input type="hidden" name="questionId" value="@question.Id" /><input name="Edit.Label" value="@question.Label" class="form-control" /><input name="Edit.HelpText" value="@question.HelpText" class="form-control" />@if (!Model.HasFirstResponse) { <select name="Edit.Type" class="form-select"><option value="Text" selected="@(question.Type == SignupQuestionType.Text ? "selected" : null)">@T["Short text answer"]</option><option value="Number" selected="@(question.Type == SignupQuestionType.Number ? "selected" : null)">@T["Number"]</option><option value="YesNo" selected="@(question.Type == SignupQuestionType.YesNo ? "selected" : null)">@T["Yes or no"]</option><option value="SingleChoice" selected="@(question.Type == SignupQuestionType.SingleChoice ? "selected" : null)">@T["Choose one answer"]</option><option value="Account" selected="@(question.Type == SignupQuestionType.Account ? "selected" : null)">@T["OSRS account"]</option></select><input name="Edit.Options" value="@question.Options" class="form-control" /><select name="Edit.AccountRole" class="form-select"><option value="">@T["Not an account"]</option><option value="Playing" selected="@(question.AccountAnswerRole == EventCharacterRole.Playing ? "selected" : null)">@T["Playing account"]</option><option value="Informational" selected="@(question.AccountAnswerRole == EventCharacterRole.Informational ? "selected" : null)">@T["Informational account"]</option></select><label><input name="Edit.Required" type="checkbox" value="true" checked="@(question.Required ? "checked" : null)" /> @T["Answer required"]</label> } else { <p>@T["Answer format, account role, choices, and required status are locked after the first response."]</p> }<button class="admin-button-secondary" type="submit">@T["Save question"]</button></form></details>
+                                @if (Model.HasFirstResponse)
+                                {
+                                    <details><summary>@T["Replace answer format"]</summary>
+                                        <form method="post" asp-page-handler="Replace" class="form-stack">
+                                            <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+                                            <input type="hidden" name="questionId" value="@question.Id" />
+                                            <p>@T["The old question and its answers are retained. The replacement is always optional."]</p>
+                                            <input name="Replacement.Label" class="form-control" placeholder="@T["New question"]" required />
+                                            <input name="Replacement.HelpText" class="form-control" placeholder="@T["Help text (optional)"]" />
+                                            <select name="Replacement.Type" class="form-select"><option value="Text">@T["Short text answer"]</option><option value="Number">@T["Number"]</option><option value="YesNo">@T["Yes or no"]</option><option value="SingleChoice">@T["Choose one answer"]</option><option value="Account">@T["OSRS account"]</option></select>
+                                            <textarea name="Replacement.Options" class="form-control" placeholder="@T["One choice per line"]"></textarea>
+                                            <select name="Replacement.AccountRole" class="form-select"><option value="">@T["Account role (only for an OSRS account)"]</option><option value="Playing">@T["Playing account"]</option><option value="Informational">@T["Informational account"]</option></select>
+                                            <button class="admin-button-secondary" type="submit">@T["Replace question"]</button>
+                                        </form>
+                                    </details>
+                                }
                             }
                         </article>
                     }
@@ -107,7 +122,8 @@
 
             @if (Model.CanEdit)
             {
-                <form method="post" class="signup-question-add-form" data-update-targets="#app-notice-region, .signup-question-workspace">
+                <form method="post" class="signup-question-add-form">
+                    <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
                     <div class="custom-question-heading">
                         <div><h3>@T["Add a custom question"]</h3><p>@T["The question is added immediately and can be removed while signups are closed."]</p></div>
                     </div>
@@ -121,11 +137,11 @@
                         <div class="event-create-field">
                             <label asp-for="Input.Type">@T["How players answer"]</label>
                             <select asp-for="Input.Type" class="form-select" data-question-type>
-                                <option value="Text">@T["Text"]</option>
+                                <option value="Text">@T["Short text answer"]</option>
                                 <option value="Number">@T["Number"]</option>
                                 <option value="YesNo">@T["Yes or no"]</option>
                                 <option value="SingleChoice">@T["Choose one answer"]</option>
-                                <option value="Account">@T["Account"]</option>
+                                <option value="Account">@T["OSRS account"]</option>
                             </select>
                         </div>
                         <div class="event-create-field"><label asp-for="Input.HelpText">Help text</label><input asp-for="Input.HelpText" class="form-control" /></div>
@@ -143,8 +159,8 @@
                         }
                         <div class="event-create-field full-field choice-options" data-choice-options hidden="@(Model.Input.Type != SignupQuestionType.SingleChoice)">
                             <label asp-for="Input.Options">@T["Available answers"]</label>
-                            <textarea asp-for="Input.Options" class="form-control" rows="3" placeholder="@T["One answer per line"]"></textarea>
-                            <small>@T["Players choose one of the answers entered here."]</small>
+                            <textarea asp-for="Input.Options" class="form-control" rows="3" placeholder="@T["One choice per line"]"></textarea>
+                            <small>@T["Enter one choice per line, for example: Yes, No, Maybe. Players choose one answer."]</small>
                             <span asp-validation-for="Input.Options" class="field-error"></span>
                         </div>
                     </div>
@@ -164,6 +180,14 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/event-manage.js" asp-append-version="true"></script>
+    @if (Model.IsOverlay)
+    {
+        <script>document.querySelector("[data-overlay-close]")?.addEventListener("click", () => window.parent.postMessage({ type: "signup-questions-close" }, window.location.origin));</script>
+    }
+    @if (Model.IsOverlay && TempData["StatusMessage"] is string statusMessage && UiMessage.Resolve(statusMessage, TempData[UiMessage.TypeKey]?.ToString()) == UiMessageType.Success)
+    {
+        <script>window.parent !== window && window.parent.postMessage({ type: "signup-questions-saved", message: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(T[statusMessage].Value ?? statusMessage)) }, window.location.origin);</script>
+    }
     <script>
         (() => {
             const initialize = () => {

@@ -1,30 +1,255 @@
 @page
-@using Bingo.Application.Integrations.WiseOldMan
-@inject IWiseOldManStatus WiseOldManStatus
+@model Bingo.Web.Pages.Admin.IndexModel
 @{
     ViewData["Title"] = T["Administration"];
 }
 
-<section class="content-page admin-home">
-    <p class="eyebrow">@T["Administration"]</p>
-    <h1>@T["Admin tools"]</h1>
-    <div class="foundation-grid admin-links">
-        <a class="foundation-card" asp-page="/Admin/Events/Index">
-            <div><h2>@T["Events"]</h2><p>@T["Set up events, open signups and manage players."]</p></div>
-        </a>
-        <a class="foundation-card" asp-page="/Admin/Catalogue/Index"><div><h2>@T["OSRS catalogue"]</h2><p>@T["Manage bosses, activities, drops, drop rates and EHB."]</p></div></a>
-        <a class="foundation-card" asp-page="/Admin/Review/Index"><div><h2>@T["Evidence review"]</h2><p>@T["Review tile submissions from captains."]</p></div></a>
-        <a class="foundation-card" asp-page="/Admin/Accounts/Index">
-            <div><h2>@T["Accounts"]</h2><p>@T["Manage admins and captain accounts."]</p></div>
-        </a>
-        <a class="foundation-card" asp-page="/Admin/Audit/Index">
-            <div><h2>@T["Audit log"]</h2><p>@T["See sign-ins and changes made by admins."]</p></div>
-        </a>
+<section class="admin-dashboard-page">
+    <header class="admin-module-heading admin-dashboard-heading">
+        <div>
+            <div class="admin-module-title-row">
+                <svg class="admin-module-title-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" /></svg>
+                <h1>@T["Operations Overview"]</h1>
+            </div>
+            <p class="admin-module-description">@T["Global operational state, event lifecycle management, and active evidence validation queue."]</p>
+        </div>
+        <div class="admin-module-actions">
+            @if (Model.PendingReviewCount > 0)
+            {
+                <a class="admin-secondary-action" asp-page="/Admin/Review/Index">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="m9 15 2 2 4-4" /></svg>
+                    <span>@T["Review Evidence"]</span>
+                </a>
+            }
+            else
+            {
+                <a class="admin-secondary-action" asp-page="/Admin/Events/Index">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg>
+                    <span>@T["Open Events Directory"]</span>
+                </a>
+            }
+            <a class="admin-primary-action" asp-page="/Admin/Events/Create">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+                <span>@T["Create New Event"]</span>
+            </a>
+        </div>
+    </header>
+
+    <div class="admin-dashboard-main-grid">
+        <section class="admin-dashboard-panel admin-dashboard-attention-panel" aria-labelledby="needs-attention-heading">
+            <header class="admin-dashboard-panel-heading">
+                <div>
+                    <p class="admin-module-eyebrow">@T["Prioritized queue"]</p>
+                    <h2 id="needs-attention-heading">@T["Events requiring attention"]</h2>
+                </div>
+                <a class="admin-dashboard-panel-link" asp-page="/Admin/Events/Index">@T["View all events"]</a>
+            </header>
+            @if (Model.AttentionEvents.Count == 0)
+            {
+                <p class="admin-dashboard-empty">@T["No events currently need attention."]</p>
+            }
+            else
+            {
+                <ul class="admin-dashboard-attention-list">
+                    @foreach (var item in Model.AttentionEvents)
+                    {
+                        <li>
+                            <div class="admin-dashboard-event-copy"><strong>@item.Name</strong><small>@item.Slug</small></div>
+                            <span class="admin-state admin-state-@item.State.ToString().ToLowerInvariant()">@Model.StatusLabel(item)</span>
+                            <span class="admin-dashboard-attention-reason">@Model.AttentionLabel(item)</span>
+                            @if (item.PendingReviews > 0)
+                            {
+                                <a class="admin-dashboard-row-action" asp-page="/Admin/Review/Index" asp-route-eventId="@item.Id">@T["Review"]</a>
+                            }
+                            else
+                            {
+                                <a class="admin-dashboard-row-action" asp-page="/Admin/Events/Manage" asp-route-id="@item.Id">@T["Open workspace"]</a>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section class="admin-dashboard-panel admin-dashboard-milestones-panel" aria-labelledby="upcoming-milestones-heading">
+            <header class="admin-dashboard-panel-heading">
+                <div>
+                    <p class="admin-module-eyebrow">@T["Next on the calendar"]</p>
+                    <h2 id="upcoming-milestones-heading">@T["Upcoming milestones"]</h2>
+                </div>
+            </header>
+            @if (Model.UpcomingMilestones.Count == 0)
+            {
+                <p class="admin-dashboard-empty">@T["No upcoming milestones for active events."]</p>
+            }
+            else
+            {
+                <ol class="admin-dashboard-milestone-list">
+                    @foreach (var milestone in Model.UpcomingMilestones)
+                    {
+                        <li>
+                            <div class="admin-dashboard-event-copy"><strong>@milestone.EventName</strong><small>@milestone.EventSlug</small></div>
+                            <div class="admin-dashboard-milestone-copy"><span>@milestone.Label</span><time datetime="@milestone.At.ToString("O")">@Model.FormatDateTime(milestone.At, milestone.Timezone)</time></div>
+                        </li>
+                    }
+                </ol>
+            }
+        </section>
     </div>
-    @{ var wiseOldMan = WiseOldManStatus.GetStatus(); }
-    <section class="panel" aria-labelledby="wise-old-man-status">
-        <h2 id="wise-old-man-status">@T["Wise Old Man request status"]</h2>
-        <p class="form-hint">@T["Observed limit"]: @(wiseOldMan.ObservedLimit?.ToString() ?? T["Not observed"]), @T["remaining"]: @(wiseOldMan.ObservedRemaining?.ToString() ?? T["Not observed"]), @T["reset"]: @(wiseOldMan.ResetAt?.ToLocalTime().ToString("g") ?? T["Not observed"])</p>
-        <p class="form-hint">@T["Last request"]: @(wiseOldMan.LastRequestAt?.ToLocalTime().ToString("g") ?? T["Never"]) · @T["last success"]: @(wiseOldMan.LastSuccessAt?.ToLocalTime().ToString("g") ?? T["Never"]) · @T["last error"]: @(wiseOldMan.LastErrorAt?.ToLocalTime().ToString("g") ?? T["Never"]) · @T["last 429"]: @(wiseOldMan.LastRateLimitedAt?.ToLocalTime().ToString("g") ?? T["Never"])</p>
+
+    <section class="admin-dashboard-panel" aria-labelledby="active-events-heading">
+        <header class="admin-dashboard-panel-heading">
+            <div>
+                <p class="admin-module-eyebrow">@T["Event operations"]</p>
+                <h2 id="active-events-heading">@T["Active and upcoming events"]</h2>
+            </div>
+            <a class="admin-dashboard-panel-link" asp-page="/Admin/Events/Index">@T["Open Events Directory"]</a>
+        </header>
+        @if (Model.ActiveEvents.Count == 0)
+        {
+            <p class="admin-dashboard-empty">@T["No active or upcoming events."]</p>
+        }
+        else
+        {
+            <div class="admin-active-events-grid">
+                @foreach (var item in Model.ActiveEvents)
+                {
+                    <article class="admin-active-event">
+                        <div class="admin-active-event-heading">
+                            <div class="admin-dashboard-event-copy"><strong>@item.Name</strong><small>@item.Slug</small></div>
+                            <span class="admin-state admin-state-@item.State.ToString().ToLowerInvariant()">@Model.StatusLabel(item)</span>
+                        </div>
+                        <div class="admin-active-event-details">
+                            <p><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>@Model.SignupSummary(item)</p>
+                            <p><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg>@Model.FormatDate(item.EventStartsAt, item.Timezone)</p>
+                            <p><span>@T["Players"]</span> @item.Confirmed / @item.ParticipantCap@if (item.Waiting > 0) { <span> · @item.Waiting @T["waiting"]</span> }</p>
+                        </div>
+                        <div class="admin-active-event-footer">
+                            @if (item.PendingReviews > 0)
+                            {
+                                <span class="admin-dashboard-attention-count">@T["{0} pending", item.PendingReviews]</span>
+                            }
+                            else
+                            {
+                                <span class="admin-dashboard-muted-status">@T["No pending evidence"]</span>
+                            }
+                            <a class="admin-dashboard-row-action" asp-page="/Admin/Events/Manage" asp-route-id="@item.Id">@T["Open workspace"] <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M7 7h10v10" /><path d="M7 17 17 7" /></svg></a>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
     </section>
+
+    <div class="admin-dashboard-detail-grid">
+        <section class="admin-dashboard-panel" aria-labelledby="pending-evidence-heading">
+            <header class="admin-dashboard-panel-heading">
+                <div>
+                    <p class="admin-module-eyebrow">@T["Evidence queue"]</p>
+                    <h2 id="pending-evidence-heading">@T["Pending evidence"]</h2>
+                </div>
+                <strong class="admin-dashboard-panel-count">@Model.PendingReviewCount</strong>
+            </header>
+            @if (Model.PendingEvidence.Count == 0)
+            {
+                <p class="admin-dashboard-empty">@T["No evidence is waiting for review."]</p>
+            }
+            else
+            {
+                <ul class="admin-dashboard-evidence-list">
+                    @foreach (var item in Model.PendingEvidence)
+                    {
+                        <li>
+                            <div class="admin-dashboard-event-copy"><strong>@item.EventName</strong><small>@item.EventSlug</small></div>
+                            <div><span>@T["{0} pending", item.Count]</span><small>@T["Oldest {0}", Model.FormatDate(item.OldestSubmittedAt, item.Timezone)]</small></div>
+                            <a class="admin-dashboard-row-action" asp-page="/Admin/Review/Index" asp-route-eventId="@item.EventId">@T["Review"]</a>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section class="admin-dashboard-panel" aria-labelledby="lifecycle-readiness-heading">
+            <header class="admin-dashboard-panel-heading">
+                <div>
+                    <p class="admin-module-eyebrow">@T["Lifecycle"]</p>
+                    <h2 id="lifecycle-readiness-heading">@T["Lifecycle readiness"]</h2>
+                </div>
+            </header>
+            @if (Model.LifecycleReadiness.Count == 0)
+            {
+                <p class="admin-dashboard-empty">@T["No active lifecycle work."]</p>
+            }
+            else
+            {
+                <ul class="admin-dashboard-readiness-list">
+                    @foreach (var item in Model.LifecycleReadiness)
+                    {
+                        <li>
+                            <div class="admin-dashboard-event-copy"><strong>@item.Name</strong><small>@item.Slug</small></div>
+                            <div class="admin-dashboard-readiness-copy"><span class="admin-state admin-state-@item.State.ToString().ToLowerInvariant()">@Model.StatusLabel(item)</span><small>@Model.ReadinessSummary(item)</small></div>
+                            @if (item.StartBlockers.Count > 0)
+                            {
+                                <ul class="admin-dashboard-blocker-list">
+                                    @foreach (var blocker in item.StartBlockers.Take(2))
+                                    {
+                                        <li>@blocker.Description</li>
+                                    }
+                                </ul>
+                            }
+                            <a class="admin-dashboard-row-action" asp-page="/Admin/Events/Manage" asp-route-id="@item.Id">@T["Open workspace"]</a>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    </div>
+
+    @if (Model.WiseOldManSynchronizations.Count > 0)
+    {
+        <section class="admin-dashboard-panel" aria-labelledby="wise-old-man-heading">
+            <header class="admin-dashboard-panel-heading">
+                <div>
+                    <p class="admin-module-eyebrow">@T["External synchronization"]</p>
+                    <h2 id="wise-old-man-heading">@T["Wise Old Man synchronization"]</h2>
+                </div>
+            </header>
+            <div class="admin-dashboard-sync-list">
+                @foreach (var item in Model.WiseOldManSynchronizations)
+                {
+                    <article>
+                        <div class="admin-dashboard-event-copy"><strong>@item.EventName</strong><small>Competition @item.CompetitionId</small></div>
+                        <div class="admin-dashboard-sync-facts"><span>@T["Last success"]: @(item.LastSuccessfulAt is { } last ? last.ToLocalTime().ToString("g") : T["Not yet"])</span><span>@T["Next due"]: @Model.SynchronizationDueLabel(item)</span></div>
+                        @if (!string.IsNullOrWhiteSpace(item.LastError) || item.MissingAccounts.Count > 0 || item.Complete == false)
+                        {
+                            <p class="admin-dashboard-warning">@Model.SynchronizationWarning(item)</p>
+                        }
+                    </article>
+                }
+            </div>
+        </section>
+    }
+
+    @if (Model.RecentAudits.Count > 0)
+    {
+        <section class="admin-dashboard-panel" aria-labelledby="recent-audit-heading">
+            <header class="admin-dashboard-panel-heading">
+                <div>
+                    <p class="admin-module-eyebrow">@T["Traceability"]</p>
+                    <h2 id="recent-audit-heading">@T["Recent Admin activity"]</h2>
+                </div>
+                <a class="admin-dashboard-panel-link" asp-page="/Admin/Audit/Index">@T["Full audit"] <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M7 7h10v10" /><path d="M7 17 17 7" /></svg></a>
+            </header>
+            <ul class="admin-dashboard-audit-list">
+                @foreach (var audit in Model.RecentAudits)
+                {
+                    <li>
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M20 13c0 5-3.5 7.5-8 8.5-4.5-1-8-3.5-8-8.5V6a1 1 0 0 1 1-1c2 0 4.5-1.2 7-3 2.5 1.8 5 3 7 3a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>
+                        <div class="admin-dashboard-audit-copy"><strong>@audit.Action</strong><span>@(string.IsNullOrWhiteSpace(audit.Details) ? audit.ActorUsername : audit.Details)</span><small>@(audit.EventName ?? T["Global administration"]) · @audit.ActorUsername</small></div>
+                        <time datetime="@audit.OccurredAt.ToString("O")">@audit.OccurredAt.ToLocalTime().ToString("g")</time>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
 </section>

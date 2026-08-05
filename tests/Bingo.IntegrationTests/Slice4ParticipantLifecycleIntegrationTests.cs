@@ -63,6 +63,88 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SignupAdministrationOwnsCapacityAndWaitingListWithVersionedPromotionFeedback()
+    {
+        var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 1);
+        long version;
+        await using (var read = new ApplicationDbContext(options))
+            version = await read.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync();
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var result = await Service(db).UpdateSignupAdministrationAsync(setup.EventId, version, 2, true, setup.EnabledAdminId, "admin");
+            Assert.True(result.Succeeded);
+            Assert.Equal(1, result.PromotedParticipants);
+        }
+
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            Assert.Equal(2, await verify.Events.Where(x => x.Id == setup.EventId).Select(x => x.ParticipantCap).SingleAsync());
+            Assert.Equal(SignupStatus.Confirmed, await verify.EventParticipants.Where(x => x.AccountId == setup.WaitingOwnerIds[0]).Select(x => x.SignupStatus).SingleAsync());
+            Assert.Single(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.Action == "event.signup_administration_updated" && x.ActorAccountId == setup.EnabledAdminId).ToListAsync());
+            var stale = await Service(verify).UpdateSignupAdministrationAsync(setup.EventId, version, 3, true, setup.EnabledAdminId, "admin");
+            Assert.False(stale.Succeeded);
+            Assert.Contains("changed", stale.Error, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public async Task PreformedRosterMembersStayOutOfSignupCountsAndPromotionWithoutExcludingAdminSignups()
+    {
+        var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 1);
+        var now = DateTimeOffset.UtcNow;
+        Guid externalId;
+        Guid adminCreatedId;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var team = new Team(Guid.NewGuid(), setup.EventId, "External", "external", TeamFormationType.Preformed, null, false, now);
+            var external = new EventParticipant(Guid.NewGuid(), setup.EventId, SignupStatus.Confirmed, 10, now, SignupSource.AdminCreated, null);
+            var externalCharacter = new OsrsCharacter(Guid.NewGuid(), "External roster", $"EXTERNAL ROSTER {Guid.NewGuid():N}", now);
+            var externalAssignment = new EventParticipantCharacter(Guid.NewGuid(), setup.EventId, external.Id, externalCharacter.Id, 0, now, null, null, EventCharacterRole.Playing, 1, EhbSource.AdminCorrection, null);
+            var membership = new TeamMembership(Guid.NewGuid(), team.Id, external.Id, TeamMembershipRole.Participant, now, null, "Pre-formed roster");
+            membership.SetSource(TeamMembershipSource.PreformedManual);
+            var adminCreated = new EventParticipant(Guid.NewGuid(), setup.EventId, SignupStatus.Confirmed, 11, now, SignupSource.AdminCreated, null);
+            var adminCharacter = new OsrsCharacter(Guid.NewGuid(), "Admin signup", $"ADMIN SIGNUP {Guid.NewGuid():N}", now);
+            var adminAssignment = new EventParticipantCharacter(Guid.NewGuid(), setup.EventId, adminCreated.Id, adminCharacter.Id, 0, now, setup.EnabledAdminId, null, EventCharacterRole.Playing, 2, EhbSource.AdminCorrection, null);
+            db.AddRange(team, external, externalCharacter, externalAssignment, membership, adminCreated, adminCharacter, adminAssignment);
+            await db.SaveChangesAsync();
+            externalId = external.Id;
+            adminCreatedId = adminCreated.Id;
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var version = await db.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync();
+            var result = await Service(db).UpdateSignupAdministrationAsync(setup.EventId, version, 2, true, setup.EnabledAdminId, "admin");
+            Assert.True(result.Succeeded);
+            Assert.Equal(0, result.PromotedParticipants);
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var version = await db.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync();
+            var result = await Service(db).UpdateSignupAdministrationAsync(setup.EventId, version, 3, true, setup.EnabledAdminId, "admin");
+            Assert.True(result.Succeeded);
+            Assert.Equal(1, result.PromotedParticipants);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(SignupStatus.Confirmed, await verify.EventParticipants.Where(x => x.AccountId == setup.WaitingOwnerIds[0]).Select(x => x.SignupStatus).SingleAsync());
+        Assert.Equal(SignupStatus.Confirmed, await verify.EventParticipants.Where(x => x.Id == externalId).Select(x => x.SignupStatus).SingleAsync());
+        Assert.Equal(SignupStatus.Confirmed, await verify.EventParticipants.Where(x => x.Id == adminCreatedId).Select(x => x.SignupStatus).SingleAsync());
+        var promotedId = await verify.EventParticipants.Where(p => p.AccountId == setup.WaitingOwnerIds[0]).Select(p => p.Id).SingleAsync();
+        Assert.Single(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.Action == "participant.promoted" && x.TargetId == promotedId.ToString()).ToListAsync());
+
+        var model = new Bingo.Web.Pages.Admin.Events.ParticipantsModel(verify, Service(verify))
+        {
+            PageContext = new PageContext(new ActionContext(AdminContext(setup.EnabledAdminId), new RouteData(), new PageActionDescriptor()))
+        };
+        Assert.True((await model.OnGetAsync(setup.EventId, CancellationToken.None)) is PageResult);
+        Assert.DoesNotContain(model.Participants, row => row.Id == externalId);
+        Assert.Equal(3, model.Event!.Confirmed);
+    }
+
+    [Fact]
     public async Task ConfirmedAndWaitingWithdrawalsAreIdempotentAndPreserveAssignmentHistory()
     {
         var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 2);
@@ -151,12 +233,12 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         await using (var db = new ApplicationDbContext(options))
         {
             var context = AdminContext(manageSetup.EnabledAdminId);
-            var manage = new Bingo.Web.Pages.Admin.Events.ManageModel(db, Service(db), new EventParticipantCharacterService(db, TimeProvider.System), null!, null!, null!, null!, null!, TimeProvider.System)
+            var participants = new Bingo.Web.Pages.Admin.Events.ParticipantsModel(db, Service(db))
             {
                 PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
                 TempData = new TempDataDictionary(context, new DictionaryTempDataProvider())
             };
-            Assert.IsType<RedirectToPageResult>(await manage.OnPostWithdrawAsync(manageSetup.EventId, manageSetup.ConfirmedParticipantId, CancellationToken.None));
+            Assert.IsType<RedirectToPageResult>(await participants.OnPostWithdrawAsync(manageSetup.EventId, manageSetup.ConfirmedParticipantId, CancellationToken.None));
         }
         await using (var verify = new ApplicationDbContext(options))
         {

@@ -40,6 +40,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Localization;
 using Testcontainers.PostgreSql;
 
@@ -851,6 +852,67 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var result = await seeder.ResetAndSeedAsync();
         await AssertSlice6FixtureInvariantsAsync(db, clock.GetUtcNow());
 
+        var initialCurrentPublicEvent = await db.Events.SingleAsync(item => item.Slug == "test-90-current-public-event");
+        var initialScheduledEvent = await db.Events.SingleAsync(item => item.Slug == "test-05-scheduled-lifecycle-blockers");
+        var initialEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+        try
+        {
+            var readiness = await new EventLifecycleService(db, null!, clock).GetStartReadinessAsync(initialScheduledEvent.Id);
+            Assert.Contains(readiness!.Blockers, blocker => blocker.Code == "CURRENT_EVENT_EXISTS" && blocker.Description.Contains("TEST 90", StringComparison.Ordinal));
+            var signupLifecycle = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, new ConfigurationBuilder().Build()), clock);
+            await signupLifecycle.ProcessDueSignupAsync();
+            var overlapEvent = await db.Events.SingleAsync(item => item.Slug == "test-91-overlapping-scheduled-opening");
+            var overlapAttempt = await db.ScheduledSignupOpeningAttempts.SingleAsync(item => item.EventId == overlapEvent.Id);
+            Assert.Contains("EVENT_WINDOW_OVERLAP", overlapAttempt.Blockers);
+            var readinessEvaluator = new EventReadinessEvaluator(db, new ConfigurationBuilder().Build());
+            var missingFormReadiness = await readinessEvaluator.GetSignupReadinessAsync(
+                (await db.Events.SingleAsync(item => item.Slug == "test-92-missing-signup-form")).Id,
+                SignupOpeningMode.OpenNow, clock.GetUtcNow());
+            Assert.Contains(missingFormReadiness!.Blockers, blocker => blocker.Code == "SIGNUP_FORM_MISSING");
+            var malformedQuestionsReadiness = await readinessEvaluator.GetSignupReadinessAsync(
+                (await db.Events.SingleAsync(item => item.Slug == "test-93-malformed-signup-questions")).Id,
+                SignupOpeningMode.OpenNow, clock.GetUtcNow());
+            Assert.Contains(malformedQuestionsReadiness!.Blockers, blocker => blocker.Code == "SIGNUP_QUESTIONS_INVALID");
+            var unusableCodeReadiness = await readinessEvaluator.GetSignupReadinessAsync(
+                (await db.Events.SingleAsync(item => item.Slug == "test-94-unusable-signup-code")).Id,
+                SignupOpeningMode.OpenNow, clock.GetUtcNow());
+            Assert.Contains(unusableCodeReadiness!.Blockers, blocker => blocker.Code == "SIGNUP_CODE_UNUSABLE");
+            var missingCloseReadiness = await readinessEvaluator.GetSignupReadinessAsync(
+                (await db.Events.SingleAsync(item => item.Slug == "test-95-missing-scheduled-window")).Id,
+                SignupOpeningMode.ScheduleOpening, clock.GetUtcNow());
+            Assert.Contains(missingCloseReadiness!.Blockers, blocker => blocker.Code == "SIGNUP_CLOSE_REQUIRED");
+            Assert.Contains(missingCloseReadiness.Blockers, blocker => blocker.Code == "SCHEDULED_OPENING_INVALID");
+            var invalidWindowReadiness = await readinessEvaluator.GetSignupReadinessAsync(
+                (await db.Events.SingleAsync(item => item.Slug == "test-96-invalid-scheduled-window")).Id,
+                SignupOpeningMode.ScheduleOpening, clock.GetUtcNow());
+            Assert.Contains(invalidWindowReadiness!.Blockers, blocker => blocker.Code == "SIGNUP_CLOSE_NOT_FUTURE");
+            Assert.Contains(invalidWindowReadiness.Blockers, blocker => blocker.Code == "SCHEDULED_WINDOW_INVALID");
+            var afterStartReadiness = await readinessEvaluator.GetSignupReadinessAsync(
+                (await db.Events.SingleAsync(item => item.Slug == "test-97-signup-closes-after-event")).Id,
+                SignupOpeningMode.ScheduleOpening, clock.GetUtcNow());
+            Assert.Contains(afterStartReadiness!.Blockers, blocker => blocker.Code == "SIGNUP_CLOSE_AFTER_EVENT_START");
+            var startLifecycle = new EventLifecycleService(db, null!, clock);
+            var missingPlayingReadiness = await startLifecycle.GetStartReadinessAsync(
+                (await db.Events.SingleAsync(item => item.Slug == "test-98-missing-playing-assignment")).Id);
+            Assert.Contains(missingPlayingReadiness!.Blockers, blocker => blocker.Code == "PARTICIPANT_PLAYING_ASSIGNMENT_INVALID");
+            var discardEventId = (await db.Events.SingleAsync(item => item.Slug == "test-03-draft-discard-candidate")).Id;
+            var discardModel = new Bingo.Web.Pages.Admin.Events.ManageModel(
+                db, new NoopSignupService(), new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, clock),
+                new AuditWriter(db, clock), readinessEvaluator,
+                new EventSignupLifecycleService(db, readinessEvaluator, clock), startLifecycle, null!, clock);
+            Assert.IsType<PageResult>(await discardModel.OnGetAsync(discardEventId, CancellationToken.None));
+            Assert.True(discardModel.CanDiscard);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", initialEnvironment);
+        }
+        initialCurrentPublicEvent.EndEvent(clock.GetUtcNow());
+        initialCurrentPublicEvent.FinalizeResults(clock.GetUtcNow());
+        initialCurrentPublicEvent.Archive(clock.GetUtcNow());
+        await db.SaveChangesAsync();
+
         db.ChangeTracker.Clear();
         var test84ForReopen = await db.Events.SingleAsync(item => item.Slug == "test-84-evidence-history");
         var versionOneMetrics = await db.OfficialPlacements.AsNoTracking()
@@ -1009,8 +1071,8 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal(ownerUsername, result.AdminUsername);
         Assert.Equal(ownerUsername, repeated.AdminUsername);
         Assert.Equal(DevelopmentScenarioSeeder.SecondaryAdminUsername, result.SecondaryAdminUsername);
-        Assert.Equal(5, result.Scenarios.Count);
-        Assert.Equal(["TEST 13 — DKL Board", "TEST 15 — DKL Live", "TEST 16 — Signup lookup", "TEST 62 — Board publication setup", "TEST 84 — Evidence history"], result.Scenarios.Select(scenario => scenario.EventName).OrderBy(name => name).ToArray());
+        Assert.Equal(22, result.Scenarios.Count);
+        Assert.Equal(["TEST 03 — Draft discard candidate", "TEST 04 — Readiness blockers", "TEST 05 — Scheduled lifecycle blockers", "TEST 13 — DKL Board", "TEST 15 — DKL Live", "TEST 16 — Signup lookup", "TEST 21 — Final review", "TEST 62 — Board publication setup", "TEST 84 — Evidence history", "TEST 85 — Archived results", "TEST 86 — Cancelled event", "TEST 87 — Discarded empty draft", "TEST 88 — Live access blocker", "TEST 90 — Current public event", "TEST 91 — Overlapping scheduled opening", "TEST 92 — Missing signup form", "TEST 93 — Malformed signup questions", "TEST 94 — Unusable signup code", "TEST 95 — Missing scheduled window", "TEST 96 — Invalid scheduled window", "TEST 97 — Signup closes after event", "TEST 98 — Missing Playing assignment"], result.Scenarios.Select(scenario => scenario.EventName).OrderBy(name => name).ToArray());
         db.ChangeTracker.Clear();
         var owner = await db.Accounts.SingleAsync(account => account.Id == admin.Id);
         Assert.Equal(GlobalRole.SuperAdmin, owner.GlobalRole);
@@ -1020,8 +1082,47 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal(GlobalRole.Admin, secondaryAdmin.GlobalRole);
         Assert.True(secondaryAdmin.Active);
         var seededEvents = await db.Events.OrderBy(item => item.Slug).ToListAsync();
-        Assert.Equal(["test-13-dkl-board", "test-15-dkl-live", "test-16-signup-lookup", "test-62-board-publication-setup", "test-84-evidence-history"], seededEvents.Select(item => item.Slug).OrderBy(slug => slug).ToArray());
-        Assert.All(seededEvents, item => Assert.True(item.IsDevelopmentFixture));
+        Assert.Equal(["test-03-draft-discard-candidate", "test-04-readiness-blockers", "test-05-scheduled-lifecycle-blockers", "test-13-dkl-board", "test-15-dkl-live", "test-16-signup-lookup", "test-21-final-review", "test-62-board-publication-setup", "test-84-evidence-history", "test-85-archived-results", "test-86-cancelled-event", "test-87-discarded-empty-draft", "test-88-live-access-blocker", "test-90-current-public-event", "test-91-overlapping-scheduled-opening", "test-92-missing-signup-form", "test-93-malformed-signup-questions", "test-94-unusable-signup-code", "test-95-missing-scheduled-window", "test-96-invalid-scheduled-window", "test-97-signup-closes-after-event", "test-98-missing-playing-assignment"], seededEvents.Select(item => item.Slug).OrderBy(slug => slug).ToArray());
+        Assert.All(seededEvents.Where(item => item.Slug != "test-90-current-public-event"), item => Assert.True(item.IsDevelopmentFixture));
+        var currentPublicEvent = Assert.Single(seededEvents, item => item.Slug == "test-90-current-public-event");
+        Assert.Equal(EventState.Live, currentPublicEvent.State);
+        Assert.False(currentPublicEvent.IsDevelopmentFixture);
+        Assert.Equal(
+            new Dictionary<string, EventState>
+            {
+                ["test-03-draft-discard-candidate"] = EventState.Draft,
+                ["test-04-readiness-blockers"] = EventState.Draft,
+                ["test-05-scheduled-lifecycle-blockers"] = EventState.SignupClosed,
+                ["test-13-dkl-board"] = EventState.SignupClosed,
+                ["test-15-dkl-live"] = EventState.Live,
+                ["test-16-signup-lookup"] = EventState.SignupOpen,
+                ["test-21-final-review"] = EventState.AwaitingFinalReview,
+                ["test-62-board-publication-setup"] = EventState.SignupClosed,
+                ["test-84-evidence-history"] = EventState.Finalized,
+                ["test-85-archived-results"] = EventState.Archived,
+                ["test-86-cancelled-event"] = EventState.Cancelled,
+                ["test-87-discarded-empty-draft"] = EventState.Discarded,
+                ["test-88-live-access-blocker"] = EventState.Live,
+                ["test-90-current-public-event"] = EventState.Live,
+                ["test-91-overlapping-scheduled-opening"] = EventState.Draft,
+                ["test-92-missing-signup-form"] = EventState.Draft,
+                ["test-93-malformed-signup-questions"] = EventState.Draft,
+                ["test-94-unusable-signup-code"] = EventState.Draft,
+                ["test-95-missing-scheduled-window"] = EventState.Draft,
+                ["test-96-invalid-scheduled-window"] = EventState.Draft,
+                ["test-97-signup-closes-after-event"] = EventState.Draft,
+                ["test-98-missing-playing-assignment"] = EventState.SignupClosed
+            },
+            seededEvents.ToDictionary(item => item.Slug, item => item.State));
+        var draftCandidateEventId = seededEvents.Single(value => value.Slug == "test-03-draft-discard-candidate").Id;
+        Assert.Empty(await db.EventParticipants.Where(item => item.EventId == draftCandidateEventId).ToListAsync());
+        var scheduledEventId = seededEvents.Single(value => value.Slug == "test-05-scheduled-lifecycle-blockers").Id;
+        var scheduledStart = await db.ScheduledEventStartAttempts.SingleAsync(item => item.EventId == scheduledEventId);
+        Assert.Equal(["BOARD_NOT_PUBLISHED", "DRAFT_NOT_FINALIZED"], scheduledStart.Blockers);
+        var scheduledOpening = await db.ScheduledSignupOpeningAttempts.SingleAsync(item => item.EventId == scheduledEventId);
+        Assert.Equal(["LIFECYCLE_STATE_INVALID"], scheduledOpening.Blockers);
+        var accessBlockerEventId = seededEvents.Single(value => value.Slug == "test-88-live-access-blocker").Id;
+        Assert.Empty(await db.AccountEventAccesses.Where(item => item.EventId == accessBlockerEventId).ToListAsync());
         var signupLookupEvent = Assert.Single(seededEvents, item => item.Slug == "test-16-signup-lookup");
         Assert.Equal(EventState.SignupOpen, signupLookupEvent.State);
         Assert.Empty(await db.EventParticipants.Where(item => item.EventId == signupLookupEvent.Id).ToListAsync());
@@ -1442,7 +1543,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
     {
         db.ChangeTracker.Clear();
         var events = await db.Events.OrderBy(item => item.Slug).ToListAsync();
-        Assert.Equal(["test-13-dkl-board", "test-15-dkl-live", "test-16-signup-lookup", "test-62-board-publication-setup", "test-84-evidence-history"], events.Select(item => item.Slug).ToArray());
+        Assert.Equal(["test-03-draft-discard-candidate", "test-04-readiness-blockers", "test-05-scheduled-lifecycle-blockers", "test-13-dkl-board", "test-15-dkl-live", "test-16-signup-lookup", "test-21-final-review", "test-62-board-publication-setup", "test-84-evidence-history", "test-85-archived-results", "test-86-cancelled-event", "test-87-discarded-empty-draft", "test-88-live-access-blocker", "test-90-current-public-event", "test-91-overlapping-scheduled-opening", "test-92-missing-signup-form", "test-93-malformed-signup-questions", "test-94-unusable-signup-code", "test-95-missing-scheduled-window", "test-96-invalid-scheduled-window", "test-97-signup-closes-after-event", "test-98-missing-playing-assignment"], events.Select(item => item.Slug).ToArray());
         var test13 = Assert.Single(events, item => item.Slug == "test-13-dkl-board");
         var test15 = Assert.Single(events, item => item.Slug == "test-15-dkl-live");
         var test84 = Assert.Single(events, item => item.Slug == "test-84-evidence-history");

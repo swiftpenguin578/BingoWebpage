@@ -19,6 +19,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     [BindProperty] public InputModel Input { get; set; } = new();
     public Guid EventId { get; private set; }
     public string EventName { get; private set; } = string.Empty;
+    public string EventTimezone { get; private set; } = string.Empty;
     public EventState EventState { get; private set; }
     public string? ActualSignupOpened { get; private set; }
     public string? ActualSignupClosed { get; private set; }
@@ -46,8 +47,9 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         SetDisplay(item);
         if (Input.Version != item.Version) { ModelState.AddModelError(string.Empty, "This event changed while you were editing it. Review the latest values and try again."); return await Reload(item, ct); }
         if (!TryTimezone(item.Timezone, out var timezone)) { ModelState.AddModelError(string.Empty, "The event timezone is unavailable."); return await Reload(item, ct); }
-        var values = Parse(timezone);
+        var values = Parse(timezone, item.ParticipantCap);
         if (!ModelState.IsValid) return await Reload(item, ct);
+        values = ApplyLifecycleScheduleRules(item, values);
         if (item.State == EventState.Draft && values.SignupOpensAt is not null)
         {
             var now = time.GetUtcNow();
@@ -69,7 +71,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         return RedirectToPage("Manage", new { id });
     }
 
-    private EventScheduleValues Parse(TimeZoneInfo timezone) => new(Parse("Input.SignupOpensLocal", Input.SignupOpensLocal, timezone), Parse("Input.SignupClosesLocal", Input.SignupClosesLocal, timezone), Parse("Input.DraftLocal", Input.DraftLocal, timezone), Parse("Input.EventStartsLocal", Input.EventStartsLocal, timezone), Parse("Input.EventEndsLocal", Input.EventEndsLocal, timezone), Input.ParticipantCap);
+    private EventScheduleValues Parse(TimeZoneInfo timezone, int? participantCap) => new(Parse("Input.SignupOpensLocal", Input.SignupOpensLocal, timezone), Parse("Input.SignupClosesLocal", Input.SignupClosesLocal, timezone), Parse("Input.DraftLocal", Input.DraftLocal, timezone), Parse("Input.EventStartsLocal", Input.EventStartsLocal, timezone), Parse("Input.EventEndsLocal", Input.EventEndsLocal, timezone), participantCap);
     private DateTimeOffset? Parse(string field, string? text, TimeZoneInfo timezone)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
@@ -97,6 +99,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     {
         EventId = item.Id;
         EventName = item.Name;
+        EventTimezone = item.Timezone;
         EventState = item.State;
         if (!TryTimezone(item.Timezone, out var timezone)) return;
         ActualSignupOpened = Display(item.ActualSignupOpenedAt, timezone);
@@ -105,6 +108,10 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         ScheduledSignupOpeningEnabled = item.ScheduledSignupOpeningEnabled;
     }
     private static bool Changed(BingoEvent item, EventScheduleValues values) => item.SignupOpensAt != values.SignupOpensAt || item.SignupClosesAt != values.SignupClosesAt || item.DraftAt != values.DraftAt || item.EventStartsAt != values.EventStartsAt || item.EventEndsAt != values.EventEndsAt || item.ParticipantCap != values.ParticipantCap;
+    private static EventScheduleValues ApplyLifecycleScheduleRules(BingoEvent item, EventScheduleValues values)
+        => item.State is EventState.SignupOpen or EventState.SignupClosed
+            ? values with { SignupOpensAt = item.SignupOpensAt }
+            : values;
     private static TimePreview[] Preview(BingoEvent item, EventScheduleValues values, TimeZoneInfo timezone) => [new TimePreview("Signup opens", Display(item.SignupOpensAt, timezone), Display(values.SignupOpensAt, timezone)), new TimePreview("Signup closes", Display(item.SignupClosesAt, timezone), Display(values.SignupClosesAt, timezone)), new TimePreview("Draft time", Display(item.DraftAt, timezone), Display(values.DraftAt, timezone)), new TimePreview("Event starts", Display(item.EventStartsAt, timezone), Display(values.EventStartsAt, timezone)), new TimePreview("Event ends", Display(item.EventEndsAt, timezone), Display(values.EventEndsAt, timezone))];
     private static string? FormValue(DateTimeOffset? value, TimeZoneInfo timezone) => value is null ? null : TimeZoneInfo.ConvertTime(value.Value, timezone).ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture);
     private static string Display(DateTimeOffset? value, TimeZoneInfo timezone) => value is null ? "Not set" : TimeZoneInfo.ConvertTime(value.Value, timezone).ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);

@@ -1,0 +1,29 @@
+@using System.Globalization
+<!DOCTYPE html>
+<html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - OSRS Community Bingo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/Bingo.Web.styles.css" asp-append-version="true" />
+</head>
+<body class="admin-shell-body admin-overlay-body">
+    <main id="main-content" tabindex="-1">
+        <div id="app-notice-region" aria-live="polite">
+            @if (TempData["StatusMessage"] is string statusMessage)
+            {
+                var messageType = Bingo.Web.UI.UiMessage.Resolve(statusMessage, TempData[Bingo.Web.UI.UiMessage.TypeKey]?.ToString());
+                <div class="app-notice notice-@messageType.ToString().ToLowerInvariant()" role="@(messageType == Bingo.Web.UI.UiMessageType.Error ? "alert" : "status")" tabindex="-1" data-feedback-target><strong>@messageType</strong><span>@T[statusMessage]</span></div>
+            }
+        </div>
+        @RenderBody()
+    </main>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

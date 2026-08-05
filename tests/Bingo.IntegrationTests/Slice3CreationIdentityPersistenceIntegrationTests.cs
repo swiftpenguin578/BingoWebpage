@@ -7,6 +7,7 @@ using Bingo.Infrastructure.Auditing;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Security;
+using Bingo.Infrastructure.Signups;
 using Bingo.Web.Pages.Admin.Events;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -95,6 +96,34 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         }).Build();
         await new EventLifecycleService(db, new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), due), due).ProcessDueAsync();
         Assert.Equal(EventState.SignupOpen, (await db.Events.SingleAsync(x => x.Id == fallbackEvent.Id)).State);
+    }
+
+    [Fact]
+    public async Task CreationAllowsOnlyCopenhagenAndUtcTimezones()
+    {
+        var actor = Guid.NewGuid();
+        await using var db = new ApplicationDbContext(options);
+
+        foreach (var timezone in new[] { "Europe/Copenhagen", "UTC" })
+        {
+            var creation = Creation(db, new MemoryStorage(), actor, new CreateModel.CreateInput
+            {
+                Name = $"Supported {timezone}",
+                Timezone = timezone
+            });
+
+            Assert.IsType<RedirectToPageResult>(await creation.OnPostAsync(CancellationToken.None));
+        }
+
+        var invalid = Creation(db, new MemoryStorage(), actor, new CreateModel.CreateInput
+        {
+            Name = "Unsupported timezone",
+            Timezone = "Europe/London"
+        });
+
+        Assert.IsType<PageResult>(await invalid.OnPostAsync(CancellationToken.None));
+        Assert.True(invalid.ModelState.ContainsKey("Input.Timezone"));
+        Assert.Equal(2, await db.Events.CountAsync());
     }
 
     [Fact]
@@ -363,24 +392,68 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
     }
 
     [Fact]
-    public async Task SignupSettingsHandlerEnablesWaitingListAndRefusesToDiscardQueuedParticipants()
+    public async Task PublicSchedulePreviewPreservesLockedSignupOpeningWhenPostOmitsIt()
+    {
+        var actor = Guid.NewGuid();
+        var eventId = await SeedEventAsync("public-schedule-preview", actor);
+        var signupOpens = now.AddDays(-2);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var item = await db.Events.SingleAsync(x => x.Id == eventId);
+            item.UpdateIdentity(item.Name, item.Slug, "Public description", item.Timezone);
+            item.ConfigureSchedule(signupOpens, now.AddDays(-1), null, now.AddDays(1), now.AddDays(3), 20);
+            item.MarkFirstPublic(now.AddDays(-2));
+            item.OpenSignups(now.AddDays(-2));
+            item.CloseSignups(now.AddDays(-1));
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var model = Schedule(db, actor);
+            Assert.IsType<PageResult>(await model.OnGetAsync(eventId, CancellationToken.None));
+            model.Input.SignupOpensLocal = null;
+            model.Input.EventEndsLocal = "2026-07-31T14:00";
+
+            Assert.IsType<PageResult>(await model.OnPostAsync(eventId, CancellationToken.None));
+
+            var opening = Assert.Single(model.PublicPreview, value => value.Label == "Signup opens");
+            Assert.Equal(opening.Current, opening.New);
+            Assert.NotEqual("Not set", opening.New);
+            Assert.True(model.ModelState.ContainsKey("Input.ConfirmPublicScheduleChange"));
+        }
+    }
+
+    [Fact]
+    public async Task SignupSettingsHandlerDisablesWaitingListOnlyAfterConfirmingQueuedPromotion()
     {
         var actor = Guid.NewGuid();
         var eventId = await SeedEventAsync("waiting-list-settings", actor);
         await using var db = new ApplicationDbContext(options);
         var item = await db.Events.SingleAsync(x => x.Id == eventId);
+        item.ConfigureSchedule(null, null, null, null, null, 10);
         item.ConfigureSignup(false, false, null);
         await db.SaveChangesAsync();
-        var settings = new QuestionsModel(db, new AuditWriter(db, new FixedTimeProvider(now)), new SecretHasher(), new FixedTimeProvider(now)) { Settings = new QuestionsModel.SignupSettingsInput { WaitingListEnabled = true } };
+        var settings = new ParticipantsModel(db, new SignupService(db, new SecretHasher(), new FixedTimeProvider(now))) { SignupAdministration = new ParticipantsModel.SignupAdministrationInput { ParticipantCap = 10, WaitingListEnabled = true, Version = item.Version } };
         SetAdmin(settings, actor);
-        Assert.IsType<RedirectToPageResult>(await settings.OnPostWaitingListAsync(eventId, settings.Settings, CancellationToken.None));
+        Assert.IsType<RedirectToPageResult>(await settings.OnPostSignupAdministrationAsync(eventId, CancellationToken.None));
         Assert.True((await db.Events.SingleAsync(x => x.Id == eventId)).WaitingListEnabled);
         db.EventParticipants.Add(new Bingo.Domain.Signups.EventParticipant(Guid.NewGuid(), eventId, Bingo.Domain.Signups.SignupStatus.WaitingList, 1, now, Bingo.Domain.Signups.SignupSource.Website, null));
         await db.SaveChangesAsync();
-        settings = new QuestionsModel(db, new AuditWriter(db, new FixedTimeProvider(now)), new SecretHasher(), new FixedTimeProvider(now)) { Settings = new QuestionsModel.SignupSettingsInput { WaitingListEnabled = false } };
+        item = await db.Events.SingleAsync(x => x.Id == eventId);
+        settings = new ParticipantsModel(db, new SignupService(db, new SecretHasher(), new FixedTimeProvider(now))) { SignupAdministration = new ParticipantsModel.SignupAdministrationInput { ParticipantCap = item.ParticipantCap!.Value, WaitingListEnabled = false, Version = item.Version } };
         SetAdmin(settings, actor);
-        Assert.IsType<RedirectToPageResult>(await settings.OnPostWaitingListAsync(eventId, settings.Settings, CancellationToken.None));
+        Assert.IsType<RedirectToPageResult>(await settings.OnPostSignupAdministrationAsync(eventId, CancellationToken.None));
         Assert.True((await db.Events.SingleAsync(x => x.Id == eventId)).WaitingListEnabled);
+
+        item = await db.Events.SingleAsync(x => x.Id == eventId);
+        settings = new ParticipantsModel(db, new SignupService(db, new SecretHasher(), new FixedTimeProvider(now))) { SignupAdministration = new ParticipantsModel.SignupAdministrationInput { ParticipantCap = item.ParticipantCap!.Value, WaitingListEnabled = false, Version = item.Version, ConfirmWaitingListDisablement = true } };
+        SetAdmin(settings, actor);
+        Assert.IsType<RedirectToPageResult>(await settings.OnPostSignupAdministrationAsync(eventId, CancellationToken.None));
+        Assert.False((await db.Events.SingleAsync(x => x.Id == eventId)).WaitingListEnabled);
+        Assert.Equal(SignupStatus.Confirmed, await db.EventParticipants.Where(x => x.EventId == eventId).Select(x => x.SignupStatus).SingleAsync());
+        Assert.Single(await db.AuditEntries.Where(x => x.EventId == eventId && x.Action == "participant.promoted").ToListAsync());
+        Assert.Equal(2, await db.AuditEntries.CountAsync(x => x.EventId == eventId && x.Action == "event.signup_administration_updated"));
     }
 
     private async Task<Guid> SeedEventAsync(string slug, Guid actor)

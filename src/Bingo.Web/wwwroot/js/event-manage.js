@@ -10,6 +10,7 @@
   });
 
   function initialize(root) {
+    initializeCopyLinks(root);
     initializeDatePickers(root);
     initializeDraftSizeConfirmation(root);
     synchronizeRosterRoleDisplays(root);
@@ -88,6 +89,23 @@
         if (type === "number" || type === "date") return Number(left) - Number(right);
         return left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
       }
+    });
+  }
+
+  function initializeCopyLinks(root) {
+    root.querySelectorAll("[data-copy-url]").forEach((button) => {
+      if (button.dataset.copyReady === "true") return;
+      button.dataset.copyReady = "true";
+      button.addEventListener("click", async () => {
+        const url = button.dataset.copyUrl;
+        if (!url) return;
+        try {
+          await navigator.clipboard.writeText(url);
+          window.showBingoToast?.("Link copied.");
+        } catch {
+          window.showBingoToast?.("The link could not be copied.", "error");
+        }
+      });
     });
   }
 
