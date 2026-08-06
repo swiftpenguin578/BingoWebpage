@@ -19,6 +19,21 @@
         "/Admin/Events/Finalize" => "finalization",
         _ => string.Empty
     };
+    var pageHeading = eventSection switch
+    {
+        "overview" => T["Overview"],
+        "identity" => T["Identity"],
+        "schedule" => T["Schedule"],
+        "participants" => T["Participants"],
+        "board" => T["Board editor"],
+        "draft" => T["Teams / Draft"],
+        "evidence" => T["Review"],
+        "finalization" => T["Finalize"],
+        _ => ViewData["Title"]?.ToString() ?? T["Admin"].Value
+    };
+    var pageDescription = eventSection == "overview" ? T["Event lifecycle and readiness"] : null;
+    var headerBlockerCount = eventContext?.BlockerCount ?? 0;
+    var blockerHref = eventSection == "overview" ? "#readiness" : eventContext is null ? "#readiness" : $"/Admin/Events/Manage/{eventContext.Id}#readiness";
     var signedInName = User.Identity?.Name?.Trim();
     var accountInitials = string.IsNullOrWhiteSpace(signedInName)
         ? string.Empty
@@ -45,30 +60,29 @@
     <a class="skip-link" href="#main-content">@T["Skip to main content"]</a>
     <header class="admin-header">
         <nav class="admin-header-nav" aria-label="@T["Admin navigation"]">
-            <a class="admin-brand" asp-page="/Admin" aria-label="OSRS Bingo Admin">
-                <span class="admin-brand-mark" aria-hidden="true">OB</span>
-                <span class="admin-brand-copy">
-                    <span class="admin-brand-line"><span class="admin-brand-product">OSRS BINGO</span><span class="admin-brand-badge">ADMIN</span></span>
-                    <span class="admin-brand-subtitle">@T["Community Operations"]</span>
-                </span>
+            <a class="admin-brand" asp-page="/Admin" aria-label="DKL Bingo Admin">
+                <span class="admin-brand-mark" aria-hidden="true"></span>
+                <span class="admin-brand-product">DKL Bingo</span>
             </a>
+            <div class="admin-page-context">
+                <span class="admin-page-title">@pageHeading</span>
+                @if (pageDescription is not null)
+                {
+                    <span class="admin-page-description">@pageDescription</span>
+                }
+            </div>
             <div class="admin-event-selector nav-popover" data-admin-event-selector>
                 <details>
                     <summary class="admin-selected-event @(eventContext is null ? "admin-selected-event-empty" : null)" aria-label="@(eventContext is null ? T["Select an event"] : T["Selected event"])" aria-haspopup="listbox">
-                        <span class="admin-selected-event-label">@T["Event:"]</span>
                         @if (eventContext is not null)
                         {
-                            <span class="admin-selected-event-name">@eventContext.Name (@eventContext.StatusLabel)</span>
+                            <span class="admin-selected-event-name">@eventContext.Name</span>
                         }
                         else
                         {
                             <span class="admin-selected-event-name">@T["Select an event"]</span>
                         }
-                        <svg class="admin-event-selector-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m7 15 3 3 3-3" /><path d="m7 9 3-3 3 3" /></svg>
-                        @if (eventContext is not null)
-                        {
-                            <small class="admin-state admin-state-@eventContext.State.ToString().ToLowerInvariant()">@eventContext.StatusLabel</small>
-                        }
+                        <svg class="admin-event-selector-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
                     </summary>
                     <div class="admin-event-selector-menu" role="listbox" aria-label="@T["Available events"]">
                         @foreach (var option in shell.AdminEvents)
@@ -88,6 +102,13 @@
                     </div>
                 </details>
             </div>
+            @if (headerBlockerCount > 0)
+            {
+                <a class="admin-header-blockers" href="@blockerHref" aria-label="@T["{0} blockers", headerBlockerCount]">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4m0 4h.01" /></svg>
+                    <span>@T["{0} blockers", headerBlockerCount]</span>
+                </a>
+            }
             <div class="admin-header-actions">
                 @if (User.Identity?.IsAuthenticated == true)
                 {
@@ -170,7 +191,6 @@
         <button class="admin-menu-scrim" type="button" data-admin-menu-scrim hidden aria-label="@T["Close Admin navigation"]"></button>
         <aside class="admin-sidebar" id="admin-sidebar" aria-label="@T["Admin workspace"]">
             <nav class="admin-sidebar-nav">
-                <p class="admin-nav-label">@T["Workspace"]</p>
                 <a class="admin-nav-link @(isCurrent("/Admin") ? "is-active" : null)" href="/Admin" aria-current="@(isCurrent("/Admin") ? "page" : null)"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" /></svg>@T["Dashboard"]</a>
                 <a class="admin-nav-link @(isCurrent("/Admin/Events/Index") ? "is-active" : null)" asp-page="/Admin/Events/Index" aria-current="@(isCurrent("/Admin/Events/Index") ? "page" : null)"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg>@T["Events"]</a>
                 <a class="admin-nav-link @(currentPage.StartsWith("/Admin/Catalogue/", StringComparison.Ordinal) ? "is-active" : null)" asp-page="/Admin/Catalogue/Index" aria-current="@(currentPage.StartsWith("/Admin/Catalogue/", StringComparison.Ordinal) ? "page" : null)"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5V19A9 3 0 0 0 21 19V5" /><path d="M3 12A9 3 0 0 0 21 12" /></svg>@T["OSRS Catalogue"]</a>

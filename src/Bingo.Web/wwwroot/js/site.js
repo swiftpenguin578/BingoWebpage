@@ -135,6 +135,19 @@ function initializeAdminMenu() {
 
   document.documentElement.classList.add("admin-menu-enhanced");
   let open = false;
+  let previouslyFocused = null;
+
+  const focusableSelector = [
+    "a[href]",
+    "button:not([disabled])",
+    "input:not([disabled])",
+    "select:not([disabled])",
+    "textarea:not([disabled])",
+    "[tabindex]:not([tabindex=\"-1\"])"
+  ].join(",");
+
+  const focusableItems = () => [...sidebar.querySelectorAll(focusableSelector)]
+    .filter(element => element instanceof HTMLElement && element.offsetParent !== null);
 
   const setOpen = (next, restoreFocus = false) => {
     open = next;
@@ -144,10 +157,12 @@ function initializeAdminMenu() {
     scrim.hidden = !open;
     document.body.classList.toggle("admin-menu-open", open);
     if (open) {
-      sidebar.querySelector("a")?.focus({ preventScroll: true });
+      previouslyFocused = document.activeElement;
+      focusableItems()[0]?.focus({ preventScroll: true });
     } else if (restoreFocus) {
-      toggle.focus({ preventScroll: true });
+      (previouslyFocused instanceof HTMLElement ? previouslyFocused : toggle).focus({ preventScroll: true });
     }
+    if (!open) previouslyFocused = null;
   };
 
   const syncDesktopState = () => {
@@ -169,7 +184,22 @@ function initializeAdminMenu() {
     if (event.target.closest("a") && window.innerWidth <= 900) setOpen(false);
   });
   document.addEventListener("keydown", event => {
-    if (event.key === "Escape" && open) {
+    if (!open) return;
+    if (event.key === "Tab") {
+      const items = focusableItems();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && (!sidebar.contains(document.activeElement) || document.activeElement === first)) {
+        event.preventDefault();
+        last.focus({ preventScroll: true });
+      } else if (!event.shiftKey && (!sidebar.contains(document.activeElement) || document.activeElement === last)) {
+        event.preventDefault();
+        first.focus({ preventScroll: true });
+      }
+      return;
+    }
+    if (event.key === "Escape") {
       event.preventDefault();
       setOpen(false, true);
     }

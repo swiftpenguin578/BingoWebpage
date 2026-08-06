@@ -156,8 +156,8 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("data-manage-overview", manage);
         Assert.DoesNotContain("event-participants-section", manage);
         Assert.DoesNotContain("event-manage-links", manage);
-        Assert.DoesNotContain("event-information", manage);
-        Assert.DoesNotContain("@T[\"Event information\"]", manage);
+        Assert.Contains("event-information", manage);
+        Assert.Contains("@T[\"Event information\"]", manage);
         Assert.DoesNotContain("ParticipantSearch", manageHandler);
         Assert.Contains("@page \"{id:guid}\"", participants);
         Assert.Contains("asp-page=\"Questions\"", participants);
@@ -170,7 +170,11 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.DoesNotContain("Lifecycle status", manage);
         Assert.DoesNotContain("Next decision", manage);
         Assert.DoesNotContain("event-overview-decision", manage);
-        Assert.Contains("Important information", manage);
+        Assert.DoesNotContain("Important information", manage);
+        Assert.Contains("event-overview-information-summary", manage);
+        Assert.Contains("event-overview-information-name", manage);
+        Assert.Contains("event-overview-information-status", manage);
+        Assert.Contains("event-overview-status-pill", manage);
         Assert.Contains("href=\"/Admin/Events/Participants/@eventContext.Id\"", adminLayout);
         Assert.Contains("Public pages", manage);
         Assert.Contains("data-copy-url=\"@signupUrl\"", manage);
@@ -186,15 +190,15 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.DoesNotContain("Actual event end", manage);
         Assert.Contains("event-overview-summary", manage);
         Assert.Contains("event-overview-row-blocked", manage);
-        Assert.Contains("event-overview-slug", manage);
+        Assert.DoesNotContain("event-overview-slug", manage);
         Assert.DoesNotContain("admin-state admin-state-@statusClass", manage);
         Assert.DoesNotContain("statusLabel", manage);
         Assert.DoesNotContain("event-overview-public", manage);
-        Assert.Contains("event-overview-meta", manage);
-        Assert.Contains("event-overview-hero", manage);
+        Assert.DoesNotContain("event-overview-meta", manage);
+        Assert.DoesNotContain("event-overview-hero", manage);
         Assert.Contains("event-overview-metric", manage);
-        Assert.Contains("SignupProgressPercent", manageHandler);
-        Assert.Contains("event-overview-progress", manage);
+        Assert.DoesNotContain("SignupProgressPercent", manageHandler);
+        Assert.DoesNotContain("event-overview-progress", manage);
         Assert.DoesNotContain("asp-page-handler=\"Capacity\"", manage);
         Assert.DoesNotContain("Input.ParticipantCap", schedule);
         Assert.Contains("SignupAdministration.ParticipantCap", participants);
@@ -213,7 +217,8 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.DoesNotContain("@foreach (var item in Model.SignupReadiness.LaterTasks)", manage);
         Assert.Contains("event-control-status", manage);
         Assert.Contains("action-danger-outline", manage);
-        Assert.Contains("event-overview-header-action-warning", manage);
+        Assert.DoesNotContain("event-overview-header-action-warning", manage);
+        Assert.Contains("partialUpdateTargets = \"#app-notice-region, .event-overview, .event-overview-dates-panel, .event-control-workspace\"", manage);
         Assert.Contains("event-danger-zone", manage);
         Assert.Equal(1, Count(manage, "event-danger-zone-container"));
         Assert.Contains("event-confirmation-box", manage);
@@ -251,21 +256,33 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("event-wom-form", manage);
         Assert.Contains("event-wom-header", manage);
         Assert.Contains("event-wom-schedule-field", manage);
-        Assert.Contains("Link a competition to sync EHB activity. Wise Old Man remains read-only.", manage);
-        Assert.Contains("Validate and link competition", manage);
+        Assert.Contains("Link a competition to sync EHB activity.", manage);
+        Assert.DoesNotContain("Wise Old Man remains read-only.", manage);
+        Assert.Contains(">Link competition</button>", manage);
         Assert.DoesNotContain("Configure synchronization", manage);
         Assert.DoesNotContain("unknown remaining of unknown", manage);
         Assert.Contains("hasRequestBudget", manage);
         Assert.Contains("event-wom-budget", manage);
-        Assert.Contains(".event-manage-page .event-wom-form { display: grid;", siteCss);
-        Assert.Contains("grid-template-columns: 8rem 12rem auto", siteCss);
+        Assert.Contains(".event-manage-page .event-wom-form { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end; justify-content: flex-end;", siteCss);
+        Assert.Contains(".event-manage-page .event-wom-form > .event-create-field { width: 7rem; flex: 0 0 7rem; }", siteCss);
+        Assert.Contains("width: 100%; max-width: 100%; min-width: 0;", siteCss);
+        Assert.Contains(".event-manage-page .event-wom-form .event-create-field label { color: var(--admin-muted); font-size: 0.625rem;", siteCss);
         Assert.Contains(".event-manage-page .event-wom-form > .event-create-field input { width: 100%;", siteCss);
-        Assert.Contains(".event-manage-page .event-wom-schedule-field small", siteCss);
-        Assert.Contains(".event-manage-page .event-wom-section { grid-template-columns: minmax(0, 1fr) auto;", siteCss);
-        Assert.Contains(".event-manage-page .event-wom-section > .event-control-static { grid-column: 2;", siteCss);
+        Assert.Contains(".event-manage-page .event-wom-form input[type=\"number\"] { appearance: textfield;", siteCss);
+        Assert.Contains(".event-manage-page .event-wom-select-chevron", siteCss);
+        Assert.Contains(".event-manage-page .event-wom-select-wrap .form-select { width: 100%; overflow: hidden; padding-right: 1.9rem; appearance: none;", siteCss);
+        Assert.Contains("text-overflow: ellipsis; white-space: nowrap;", siteCss);
+        Assert.Contains(".event-manage-page .event-wom-form .event-wom-schedule-field { width: 11rem; max-width: 11rem; flex: 0 0 11rem; }", siteCss);
+        Assert.Contains(".event-manage-page .event-wom-form > button { flex: 0 0 auto; align-self: end; width: fit-content; min-width: 0; max-width: 100%;", siteCss);
+        Assert.DoesNotContain("Without this option, both event instants must already be within five minutes.", manage);
+        Assert.Contains(".event-control-status a { display: inline-flex; align-items: center; gap: 0.3rem; color: #aaa9a5;", siteCss);
+        Assert.Contains(".event-manage-page .event-wom-section { grid-template-columns: minmax(9rem, 0.7fr) minmax(15rem, 1.3fr);", siteCss);
+        Assert.Contains(".event-manage-page .event-wom-section > .event-control-static { grid-column: 2; width: 100%;", siteCss);
+        Assert.Contains("justify-content: flex-end; width: 100%; max-width: 100%; min-width: 0;", siteCss);
         Assert.Contains(".event-manage-page .event-wom-status-value.event-wom-status-danger", siteCss);
-        Assert.Contains(".event-manage-page .event-wom-form { grid-template-columns: 1fr; }", siteCss);
-        Assert.Contains(".event-manage-page .event-admin-lower { padding-top: 0; border-top: 0; }", siteCss);
+        Assert.Contains(".event-manage-page .event-wom-form { align-items: stretch; flex-direction: column; width: 100%; }", siteCss);
+        Assert.DoesNotContain(".event-control-status::before", siteCss);
+        Assert.Contains(".event-manage-page .event-admin-lower { grid-area: operations; min-width: 0; margin-top: 0; padding-top: 0; border-top: 0; }", siteCss);
         Assert.Contains(".event-manage-page .event-danger-zone .action-danger-outline svg", siteCss);
         Assert.True(manage.IndexOf("competition-integration-heading", StringComparison.Ordinal) < manage.IndexOf("event-danger-zone-container", StringComparison.Ordinal));
         Assert.Contains("class=\"event-create-field\"", manage);
@@ -273,8 +290,11 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("admin-section-heading event-overview-section-heading", manage);
         Assert.Contains("event-create-cancel action-danger-outline", manage);
         Assert.Contains(".event-manage-page .event-admin-controls > .event-admin-control-group", siteCss);
-        Assert.Contains("border-top: 1px solid var(--admin-border)", siteCss);
+        Assert.Contains(".event-manage-page .event-admin-control-group { margin-top: 0.65rem; padding: 0.9rem 1rem;", siteCss);
+        Assert.Contains(".event-manage-page .event-admin-control-group.event-control-group-warning", siteCss);
         Assert.Contains(".event-manage-page .event-admin-controls > .event-admin-control-group:first-of-type", siteCss);
+        Assert.Contains(".event-manage-page .event-signup-group { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }", siteCss);
+        Assert.Contains(".event-control-status a::after { content: \"↗\"", siteCss);
         Assert.Contains(".event-manage-page .event-control-workspace {", siteCss);
         Assert.Contains(".event-manage-page .event-admin-controls > .admin-section-heading", siteCss);
         Assert.Contains(".event-admin-event-actions { display: flex;", siteCss);
@@ -306,7 +326,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("Shared Admin fields use `.admin-shell-body .event-create-field .form-control`", roadmap);
         Assert.Contains("Button roles reuse the exact Create-page `event-create-cancel` treatment", roadmap);
         Assert.Contains("event-admin-controls { padding: 1.25rem; }", siteCss);
-        Assert.Contains(".event-manage-page .event-control-workspace > .panel { background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 0.75rem; }", siteCss);
+        Assert.Contains(".event-manage-page .event-control-workspace > .panel { background: var(--admin-surface); border: 0; border-radius: 0.75rem; }", siteCss);
         Assert.Contains("Action acknowledgement/confirmation checkboxes are not used", roadmap);
         Assert.Equal(1, Count(manage, "asp-page-handler=\"StartEvent\""));
         Assert.Equal(1, Count(manage, "asp-page-handler=\"EndEvent\""));
@@ -318,13 +338,27 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("AddResolutionRoute", manageHandler);
         Assert.Contains("SIGNUP_FORM_MISSING", manageHandler);
         Assert.Contains("DistinctBy(x => (x.Code, x.Description, x.Route))", manageHandler);
-        Assert.Contains("event-overview-heading-action", siteCss);
-        Assert.Contains("event-overview { display: grid; grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr); grid-template-areas: \"summary dates\" \"readiness dates\"; gap: 1.25rem;", siteCss);
+        Assert.DoesNotContain("event-overview-heading-action", siteCss);
+        Assert.DoesNotContain("event-overview-hero", siteCss);
+        Assert.Contains(".event-overview-metric-header { display: flex;", siteCss);
+        Assert.Contains(".event-overview-metric-value-row > strong {", siteCss);
+        Assert.Contains(".event-overview-metric-context {", siteCss);
+        Assert.Contains(".event-overview-metric-dot {", siteCss);
+        Assert.Contains("event-manage-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr); grid-template-areas: \"summary summary\" \"readiness dates\" \"operations dates\";", siteCss);
+        Assert.Contains(".event-manage-main,\n.event-overview { display: contents;", siteCss);
         Assert.Contains("background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 0.75rem", siteCss);
-        Assert.Contains("event-overview-meta { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem", siteCss);
-        Assert.Contains("event-overview-summary { display: grid; grid-area: summary; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem;", siteCss);
-        Assert.Contains("event-overview-readiness-panel { grid-area: readiness; }", siteCss);
-        Assert.Contains("grid-template-areas: \"summary\" \"readiness\" \"dates\";", siteCss);
+        Assert.DoesNotContain("event-overview-meta", siteCss);
+        Assert.Contains("event-overview-summary { display: grid; grid-area: summary; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.25rem;", siteCss);
+        Assert.Contains("event-overview-readiness-panel { grid-area: readiness; align-self: start; }", siteCss);
+        Assert.Contains("@media (max-width: 1100px)", siteCss);
+        Assert.Contains(".event-manage-layout { grid-template-columns: 1fr; grid-template-areas: \"summary\" \"readiness\" \"operations\"; }", siteCss);
+        Assert.Contains(".event-overview-dates-panel { display: none; }", siteCss);
+        Assert.Contains(".event-overview-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }", siteCss);
+        Assert.DoesNotContain("grid-template-areas: \"summary\" \"readiness\" \"operations\" \"dates\";", siteCss);
+        Assert.Contains("@media (max-width: 600px)", siteCss);
+        Assert.Contains(".event-manage-page .event-admin-event-actions,\n  .event-manage-page .event-code-toggle-form { width: 100%; max-width: 100%; justify-self: stretch; }", siteCss);
+        Assert.Contains(".event-manage-page .event-wom-form { align-items: stretch; flex-direction: column; width: 100%; }", siteCss);
+        Assert.Contains(".event-danger-zone-container { align-items: stretch; flex-direction: column; }", siteCss);
         Assert.DoesNotContain("admin-operational-status", siteCss);
         Assert.DoesNotContain(".admin-state::before", siteCss);
         Assert.DoesNotContain(".admin-state::after", siteCss);
@@ -333,10 +367,23 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.DoesNotContain("AdminEventStatusPresenter", manageHandler);
         Assert.Contains("admin-state admin-state-@item.State.ToString().ToLowerInvariant()", eventIndex);
         Assert.Contains("admin-state admin-state-@item.State.ToString().ToLowerInvariant()", dashboard);
-        Assert.Contains("admin-state admin-state-@eventContext.State.ToString().ToLowerInvariant()", adminLayout);
+        Assert.DoesNotContain("admin-state admin-state-@eventContext.State.ToString().ToLowerInvariant()", adminLayout);
         Assert.Contains("admin-state admin-state-@option.State.ToString().ToLowerInvariant()", adminLayout);
-        Assert.Contains("event-overview-dates-panel { grid-area: dates; align-self: start; }", siteCss);
-        Assert.Contains(".event-public-pages h3 { margin: 0 0 0.6rem; padding: 0.75rem 0 0;", siteCss);
+        Assert.Contains("event-overview-dates-panel { position: sticky; top: calc(var(--admin-header-height) + 1rem); grid-area: dates; align-self: start;", siteCss);
+        Assert.Contains("event-overview-date-row", manage);
+        Assert.DoesNotContain("event-overview-date-marker", manage);
+        Assert.DoesNotContain("event-overview-dates::before", siteCss);
+        Assert.DoesNotContain("event-overview-icon", manage);
+        Assert.Contains("event-overview-blocker-link", siteCss);
+        Assert.Contains("text-decoration: none", siteCss);
+        Assert.Contains("--admin-chart-yellow", siteCss);
+        Assert.Contains("--admin-chart-green", siteCss);
+        Assert.Contains("--event-status-yellow: var(--admin-warning);", siteCss);
+        Assert.Contains("event-overview-status-pill.is-cyan", siteCss);
+        Assert.Contains("text-transform: none", siteCss);
+        Assert.Contains("border: 0; border-radius: 999px", siteCss);
+        Assert.Contains(".event-public-pages { margin-top: 0.75rem; padding-top: 0.2rem;", siteCss);
+        Assert.Contains(".event-public-pages h3 { margin: 0 0 0.6rem; padding: 0.35rem 0 0;", siteCss);
         Assert.Contains("@media (min-width: 901px)", siteCss);
         Assert.Contains("event-overview-row", siteCss);
         Assert.Contains("m21.73 18-8-14", manage);
@@ -346,7 +393,11 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("asp-page-handler=\"Cancel\"", manage);
         Assert.Contains("ConfirmDestructiveAction", manage);
         Assert.Contains("CancellationReason", manage);
-        Assert.Contains("var showStartControl = eventView.State == EventState.SignupClosed", manage);
+        Assert.Contains("var showStartControl = showAllControlStages || eventView.State == EventState.SignupClosed", manage);
+        Assert.Contains("ShowAllControlStages", manageHandler);
+        Assert.Contains("preview-all-controls", manageHandler);
+        Assert.Contains("@T[\"{0} blockers\", signupBlockerCount]", manage);
+        Assert.DoesNotContain("@T[\"{0} blockers · {1} warnings\"", manage);
         Assert.Contains("Automatic start postponed", manageHandler);
         Assert.Contains("StartReadiness?.Blockers ?? []", manageHandler);
         Assert.Contains("item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed", manageHandler);
@@ -511,7 +562,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
     }
 
     [Theory]
-    [InlineData("scheduled action", "Model.ScheduledAction.Blockers.Count == 0", "event-control-status", ".event-manage-page .event-admin-controls > .event-admin-control-group > .event-control-status")]
+    [InlineData("scheduled action", "scheduledBlockerCount == 0", "event-control-status", ".event-manage-page .event-admin-controls > .event-admin-control-group > .event-control-status")]
     [InlineData("pre-live signup", "showSignupControls", "event-signup-group", ".event-manage-page .event-signup-group { display: grid; grid-template-columns: minmax(0, 1fr) auto;")]
     [InlineData("signup-open schedule", "Automatic signup opening scheduled for:", "event-control-supporting", ".event-manage-page .event-signup-group")]
     [InlineData("signup-closed start", "showStartControl", "PrepareStartConfirmation", ".event-manage-page .event-admin-event-actions")]
@@ -535,7 +586,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("class=\"event-control-status event-control-supporting\"", manage);
         Assert.DoesNotContain("event-signup-primary", manage);
         Assert.Contains(".event-manage-page .event-admin-controls .event-create-cancel { grid-column: auto; grid-row: auto;", siteCss);
-        Assert.Contains(".event-manage-page .event-admin-event-actions { width: fit-content; max-width: 100%; justify-self: end; }", siteCss);
+        Assert.Contains(".event-manage-page .event-admin-event-actions { width: fit-content; max-width: 100%; justify-self: end; align-self: center; align-items: center; }", siteCss);
         Assert.Contains(".event-manage-page .event-evidence-actions { align-items: flex-start; }", siteCss);
         Assert.Contains("                        </div>\n                    </section>\n\n                    @if (Model.SignupReadiness", manage);
         Assert.DoesNotContain("                        }\n                    </section>\n\n                    @if (Model.SignupReadiness", manage);
@@ -552,7 +603,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         var manageHandler = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Manage.cshtml.cs"));
         var siteCss = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "css", "site.css"));
 
-        Assert.Contains("<p class=\"event-control-status event-control-supporting\">@T[\"Confirmation required\"]</p>", manage);
+        Assert.Contains("<p class=\"event-control-status event-control-supporting is-yellow\">@T[\"Confirmation required\"]</p>", manage);
         Assert.Contains("@foreach (var warning in Model.SignupReadiness.Warnings)", manage);
         Assert.True(manage.IndexOf("@warning.Description", StringComparison.Ordinal) < manage.IndexOf("@T[\"Confirm warnings\"]", StringComparison.Ordinal));
         Assert.Contains("@if (Model.SignupCloseRequiresAcceptance)", manage);
@@ -583,33 +634,40 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Null(unavailable.ProposedClose);
     }
 
-    [Theory]
-    [InlineData(EventState.Draft, ManageModel.OverviewMetricProfile.DraftOrSignupOpen)]
-    [InlineData(EventState.SignupOpen, ManageModel.OverviewMetricProfile.DraftOrSignupOpen)]
-    [InlineData(EventState.SignupClosed, ManageModel.OverviewMetricProfile.SignupClosed)]
-    [InlineData(EventState.Live, ManageModel.OverviewMetricProfile.Live)]
-    [InlineData(EventState.AwaitingFinalReview, ManageModel.OverviewMetricProfile.FinalReview)]
-    [InlineData(EventState.Finalized, ManageModel.OverviewMetricProfile.Terminal)]
-    [InlineData(EventState.Archived, ManageModel.OverviewMetricProfile.Terminal)]
-    [InlineData(EventState.Cancelled, ManageModel.OverviewMetricProfile.Terminal)]
-    public void ManageOverviewUsesTheStateAwareMetricProfile(EventState state, ManageModel.OverviewMetricProfile expected)
-    {
-        Assert.Equal(expected, ManageModel.MetricsFor(state));
-    }
-
-    [Theory]
-    [InlineData(18, 24, 75)]
-    [InlineData(30, 24, 100)]
-    [InlineData(-1, 24, 0)]
-    public void ManageSignupProgressIsClampedToConfiguredCapacity(int confirmed, int capacity, int expected)
-    {
-        Assert.Equal(expected, ManageModel.SignupProgressPercent(confirmed, capacity));
-    }
-
     [Fact]
-    public void ManageSignupProgressOmitsUnavailableCapacity()
+    public void ManageOverviewUsesFourStableLifecycleAwareMetrics()
     {
-        Assert.Null(ManageModel.SignupProgressPercent(1, 0));
+        var repositoryRoot = FindRepositoryRoot();
+        var manage = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Manage.cshtml"));
+        var manageHandler = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Manage.cshtml.cs"));
+
+        Assert.Equal(4, Count(manage, "class=\"event-overview-metric\""));
+        Assert.Equal(4, Count(manage, "class=\"event-overview-metric-header\""));
+        Assert.Equal(4, Count(manage, "class=\"event-overview-metric-body\""));
+        Assert.Equal(4, Count(manage, "class=\"event-overview-metric-value-row\""));
+        Assert.Contains("participantPhase ? T[\"Participants\"] : T[\"Teams & roster\"]", manage);
+        Assert.Contains("T[nextMilestone.Label]", manage);
+        Assert.Contains("T[\"Submissions\"]", manage);
+        Assert.Contains("event-overview-metric-context", manage);
+        Assert.Contains("event-overview-metric-dot", manage);
+        Assert.Contains("event-overview-metric-arrow", manage);
+        Assert.Contains("EventDateOnly(nextMilestone.At", manage);
+        Assert.DoesNotContain("EventTime(nextMilestone.At", manage);
+        Assert.Contains("milestoneDotClass", manage);
+        Assert.Contains("milestoneContext", manage);
+        Assert.Contains("reviewedSubmissionCount", manage);
+        Assert.Contains("peopleDotClass", manage);
+        Assert.Contains("boardDotClass", manage);
+        Assert.Contains("submissionDotClass", manage);
+        Assert.Contains("M7 17 17 7M7 7h10v10", manage);
+        Assert.DoesNotContain("event-overview-progress", manage);
+        Assert.Contains("NextMilestoneFor(eventView)", manage);
+        Assert.Contains("EventState.Draft => new(\"Signup opens\"", manageHandler);
+        Assert.Contains("EventState.SignupOpen => new(\"Signup closes\"", manageHandler);
+        Assert.Contains("EventState.SignupClosed => new(\"Event starts\"", manageHandler);
+        Assert.Contains("EventState.Live => new(\"Event ends\"", manageHandler);
+        Assert.Contains("EventState.AwaitingFinalReview => new(\"Submission cutoff\"", manageHandler);
+        Assert.DoesNotContain("OverviewMetricProfile", manageHandler);
     }
 
     [Fact]

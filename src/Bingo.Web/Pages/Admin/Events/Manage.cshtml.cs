@@ -36,8 +36,10 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public IReadOnlyList<TimelineRow> EffectiveTimeline { get; private set; } = [];
     public ScheduledActionView? ScheduledAction { get; private set; }
     public int PendingReviewCount { get; private set; }
+    public int SubmissionCount { get; private set; }
     public bool CanDiscard { get; private set; }
     public bool ShowDevelopmentCompetitionControl { get; private set; }
+    public bool ShowAllControlStages { get; private set; }
     public EventCompetitionView? CompetitionIntegration { get; private set; }
     public string? PrivateCancellationReason { get; private set; }
     public bool SignupWarningAcknowledged => EventView is not null && TempData.Peek(SignupConfirmationKey(EventView.Id, "warnings")) is not null;
@@ -68,16 +70,18 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     [BindProperty, StringLength(2000)] public string? CancellationReason { get; set; }
     [BindProperty(SupportsGet = true, Name = "confirm")] public string? ConfirmationAction { get; set; }
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct) { _ = characterService; return await LoadAsync(id, ct) ? Page() : NotFound(); }
-    public static OverviewMetricProfile MetricsFor(EventState state) => state switch
+    public static OverviewMilestone NextMilestoneFor(EventDetails eventView) => eventView.State switch
     {
-        EventState.Draft or EventState.SignupOpen => OverviewMetricProfile.DraftOrSignupOpen,
-        EventState.SignupClosed => OverviewMetricProfile.SignupClosed,
-        EventState.Live => OverviewMetricProfile.Live,
-        EventState.AwaitingFinalReview => OverviewMetricProfile.FinalReview,
-        _ => OverviewMetricProfile.Terminal
+        EventState.Draft => new("Signup opens", eventView.SignupOpensAt),
+        EventState.SignupOpen => new("Signup closes", eventView.SignupClosesAt),
+        EventState.SignupClosed => new("Event starts", eventView.StartsAt),
+        EventState.Live => new("Event ends", eventView.EndsAt),
+        EventState.AwaitingFinalReview => new("Submission cutoff", eventView.SubmissionCutoffAt),
+        EventState.Finalized => new("Finalized", eventView.FinalizedAt),
+        EventState.Archived => new("Archived", eventView.ArchivedAt),
+        EventState.Cancelled => new("Cancelled", eventView.CancelledAt),
+        _ => new("Event ends", eventView.EndsAt)
     };
-    public static int? SignupProgressPercent(int confirmed, int capacity)
-        => capacity <= 0 ? null : Math.Clamp((int)Math.Round(confirmed * 100d / capacity, MidpointRounding.AwayFromZero), 0, 100);
     public async Task<IActionResult> OnPostStateAsync(Guid id, EventState target, CancellationToken ct)
     {
         if (target == EventState.SignupClosed) return await OnPostCloseSignupAsync(id, ct);
@@ -243,6 +247,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var postponed = await dbContext.ScheduledEventStartAttempts.AsNoTracking().Where(x => x.EventId == id && x.ScheduledFor <= timeProvider.GetUtcNow() && !x.Started && x.ResolvedAt == null).OrderByDescending(x => x.AttemptedAt).FirstOrDefaultAsync(ct);
         StartReadiness = await eventLifecycle.GetStartReadinessAsync(id, ct);
         EvidenceCodes = await dbContext.EvidenceCodes.AsNoTracking().Where(x => x.EventId == id).OrderByDescending(x => x.ActivatesAt).Select(x => new EvidenceCodeRow(x.Id, x.Code, x.ActivatesAt, x.RetiresAt, x.Note)).ToListAsync(ct);
+        SubmissionCount = await dbContext.Submissions.CountAsync(x => x.EventId == id, ct);
         PendingReviewCount = await dbContext.Submissions.CountAsync(x => x.EventId == id && x.Status == SubmissionStatus.Pending, ct);
         FinalReviewReadiness = item.State == EventState.AwaitingFinalReview && finalizationService is not null ? await finalizationService.GetReadinessAsync(id, ct) : null;
         EventView = new EventDetails(item.Id, item.Name, item.Slug, item.Description, item.Timezone, item.State, item.FirstPublicAt, item.BoardPublished, item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ActualSignupOpenedAt, item.ActualSignupClosedAt, item.ActualStartedAt, item.ActualEndedAt, item.ActualEndedAt ?? item.EventEndsAt, item.SubmissionCutoffAt, item.SubmissionsClosedAt, item.ScheduledSignupOpeningEnabled, item.ReopenedSubmissionCutoffAt, item.ParticipantCap ?? 0, allParticipants.Count(p => p.SignupStatus == SignupStatus.Confirmed), allParticipants.Count(p => p.SignupStatus == SignupStatus.WaitingList), item.DraftLocked, item.EvidenceCodeEnabled, activeTeamIds.Count, actualTeamSize, boardSize, boardRows, boardColumns, configuredBoardTileCount, expectedBoardCellCount, item.ExpectedTeamCount, item.ExpectedTeamSize, item.ExpectedBoardRows is not null && item.ExpectedBoardColumns is not null ? $"{item.ExpectedBoardRows} × {item.ExpectedBoardColumns}" : null, canStartEvent, item.FinalizedAt, item.ArchivedAt, item.CancelledAt);
@@ -267,6 +272,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             && !await dbContext.Submissions.AnyAsync(x => x.EventId == id, ct);
         PrivateCancellationReason = item.State == EventState.Cancelled ? item.CancellationReason : null;
         CompetitionIntegration = competitionSynchronization is null ? null : await competitionSynchronization.GetAsync(id, ct);
+        ShowAllControlStages = environment?.IsDevelopment() == true && Request.Query.ContainsKey("preview-all-controls");
         ShowDevelopmentCompetitionControl = environment?.IsDevelopment() == true && item.IsDevelopmentFixture && item.Slug == "test-15-dkl-live" && item.State == EventState.Live && CompetitionIntegration?.Configured == true;
         var failedOpening = await dbContext.ScheduledSignupOpeningAttempts.AsNoTracking().Where(x => x.EventId == id && !x.Opened && x.ResolvedAt == null).OrderByDescending(x => x.AttemptedAt).FirstOrDefaultAsync(ct);
         ScheduledAction = postponed is not null && item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed
@@ -317,9 +323,14 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     private bool HasBindingErrors(params string[] fields) => fields.Any(field => ModelState.TryGetValue(field, out var entry) && entry.Errors.Count > 0);
     public string EventDate(DateTimeOffset? value, string missing = "Not set")
     {
+        return FormatEventDate(value, "dd MMM yyyy, HH:mm", missing);
+    }
+    public string EventDateOnly(DateTimeOffset? value, string missing = "Not set") => FormatEventDate(value, "dd MMM yyyy", missing);
+    private string FormatEventDate(DateTimeOffset? value, string format, string missing)
+    {
         if (value is null) return missing;
         var timezone = TimeZoneInfo.FindSystemTimeZoneById(EventView?.Timezone ?? "UTC");
-        return TimeZoneInfo.ConvertTime(value.Value, timezone).ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
+        return TimeZoneInfo.ConvertTime(value.Value, timezone).ToString(format, CultureInfo.CurrentCulture);
     }
     public static IReadOnlyList<TimelineRow> EffectiveTimelineFor(EffectiveTimelineInput input)
     {
@@ -345,7 +356,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public sealed record EventDetails(Guid Id, string Name, string Slug, string? Description, string Timezone, EventState State, DateTimeOffset? FirstPublicAt, bool BoardPublished, DateTimeOffset? SignupOpensAt, DateTimeOffset? SignupClosesAt, DateTimeOffset? DraftAt, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, DateTimeOffset? ActualSignupOpenedAt, DateTimeOffset? ActualSignupClosedAt, DateTimeOffset? ActualStartedAt, DateTimeOffset? ActualEndedAt, DateTimeOffset? EffectiveEndsAt, DateTimeOffset? SubmissionCutoffAt, DateTimeOffset? SubmissionsClosedAt, bool ScheduledSignupOpeningEnabled, DateTimeOffset? ReopenedCutoff, int ParticipantCap, int Confirmed, int Waiting, bool DraftLocked, bool EvidenceCodeEnabled, int ActualTeamCount, string? ActualTeamSize, string? ActualBoardSize, int? BoardRows, int? BoardColumns, int? ConfiguredBoardTileCount, int? ExpectedBoardCellCount, int? ExpectedTeamCount, int? ExpectedTeamSize, string? ExpectedBoardSize, bool CanStartEvent, DateTimeOffset? FinalizedAt, DateTimeOffset? ArchivedAt, DateTimeOffset? CancelledAt);
     public sealed record EffectiveTimelineInput(DateTimeOffset? SignupOpensAt, DateTimeOffset? SignupClosesAt, DateTimeOffset? DraftAt, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, DateTimeOffset? ActualSignupOpenedAt, DateTimeOffset? ActualSignupClosedAt, DateTimeOffset? ActualStartedAt, DateTimeOffset? ActualEndedAt, DateTimeOffset? SubmissionCutoffAt, DateTimeOffset? SubmissionsClosedAt, DateTimeOffset? CancelledAt);
     public sealed record TimelineRow(string Label, DateTimeOffset At);
-    public enum OverviewMetricProfile { DraftOrSignupOpen, SignupClosed, Live, FinalReview, Terminal }
+    public sealed record OverviewMilestone(string Label, DateTimeOffset? At);
     public static ReadinessItem ResolveBlocker(ReadinessItem item, Guid eventId, EventState eventState) => AddResolutionRoute(item, eventId, eventState);
     public static string BlockerActionLabel(ReadinessItem item) => item.Code switch
     {

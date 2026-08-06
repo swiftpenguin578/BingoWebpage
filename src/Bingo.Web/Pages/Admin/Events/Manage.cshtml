@@ -7,158 +7,129 @@
     ViewData["CompactNavigation"] = true;
 
     var eventView = Model.EventView!;
-    var metricProfile = ManageModel.MetricsFor(eventView.State);
+    var showAllControlStages = Model.ShowAllControlStages;
     var signupAndPlayersLocked = eventView.DraftLocked || eventView.State is EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived;
-    var showSignupControls = !signupAndPlayersLocked && eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
-    var showStartControl = eventView.State == EventState.SignupClosed;
-    var showLiveControls = eventView.State == EventState.Live;
-    var showFinalReviewControls = eventView.State == EventState.AwaitingFinalReview;
-    var showResultsControl = eventView.State is EventState.Finalized or EventState.Archived;
-    var showDestructivePreLiveControl = eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
-    var partialUpdateTargets = "#app-notice-region, .event-manage-heading, .event-control-workspace";
-    var teamSizeLabel = eventView.ActualTeamSize ?? (eventView.ExpectedTeamSize is { } expectedTeamSize ? $"{expectedTeamSize} players/team" : null);
-    var boardSizeLabel = eventView.ActualBoardSize ?? eventView.ExpectedBoardSize;
+    var showSignupControls = showAllControlStages || (!signupAndPlayersLocked && eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed);
+    var showStartControl = showAllControlStages || eventView.State == EventState.SignupClosed;
+    var showLiveControls = showAllControlStages || eventView.State == EventState.Live;
+    var showFinalReviewControls = showAllControlStages || eventView.State == EventState.AwaitingFinalReview;
+    var showResultsControl = showAllControlStages || eventView.State is EventState.Finalized or EventState.Archived;
+    var showDestructivePreLiveControl = showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
+    var partialUpdateTargets = "#app-notice-region, .event-overview, .event-overview-dates-panel, .event-control-workspace";
     var signupUrl = Url.Page("/Events/Signup", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
     var signupTableUrl = Url.Page("/Events/Signups", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
     var publicBoardUrl = Url.Page("/Events/Board", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
     var showPublicBoard = eventView.FirstPublicAt is not null && eventView.BoardPublished;
-    var signupProgress = ManageModel.SignupProgressPercent(eventView.Confirmed, eventView.ParticipantCap);
-    var boardGridLabel = eventView.BoardRows is { } boardRows && eventView.BoardColumns is { } boardColumns
-        ? $"{boardRows} × {boardColumns} {T["Board grid"]}"
-        : T["Board grid"].Value;
     var boardTileSummary = eventView.ConfiguredBoardTileCount is { } configuredTiles && eventView.ExpectedBoardCellCount is { } expectedTiles
         ? $"{configuredTiles} / {expectedTiles}"
         : null;
+    var nextMilestone = ManageModel.NextMilestoneFor(eventView);
+    var participantPhase = eventView.State is EventState.Draft or EventState.SignupOpen or EventState.Cancelled;
+    var peopleContext = participantPhase ? $"{eventView.Waiting} {T["waiting"]}" : $"{eventView.Confirmed} {T["players"]}";
+    var peopleDotClass = participantPhase ? eventView.Waiting > 0 ? "is-orange" : "is-purple" : eventView.ActualTeamCount > 0 ? "is-green" : "is-purple";
+    var boardValue = boardTileSummary ?? "— / —";
+    var boardContext = eventView.BoardPublished
+        ? T["Published"].Value
+        : boardTileSummary is null
+            ? T["Not configured"].Value
+            : T["In progress"].Value;
+    var reviewedSubmissionCount = Math.Max(0, Model.SubmissionCount - Model.PendingReviewCount);
+    var milestoneDotClass = nextMilestone.At is null ? "is-orange" : "is-green";
+    var milestoneContext = nextMilestone.At is null ? T["Not configured"].Value : T["Scheduled"].Value;
+    var boardDotClass = boardTileSummary is null ? "is-orange" : "is-green";
+    var submissionDotClass = Model.PendingReviewCount > 0 ? "is-pink" : reviewedSubmissionCount > 0 ? "is-green" : "is-purple";
+    var eventStatusLabel = eventView.State switch
+    {
+        EventState.Draft => T["Setup"],
+        EventState.SignupOpen => T["Signups open"],
+        EventState.SignupClosed => T["Signups closed"],
+        EventState.Live => T["Live"],
+        EventState.AwaitingFinalReview => T["Final review"],
+        EventState.Finalized => T["Finished"],
+        EventState.Archived => T["Archived"],
+        EventState.Cancelled => T["Cancelled"],
+        EventState.Discarded => T["Discarded"],
+        _ => T[eventView.State.ToString()]
+    };
+    var eventStatusTone = eventView.State switch
+    {
+        EventState.Draft => "is-yellow",
+        EventState.SignupOpen => "is-cyan",
+        EventState.SignupClosed => "is-orange",
+        EventState.Live => "is-green",
+        EventState.AwaitingFinalReview => "is-purple",
+        EventState.Finalized => "is-blue",
+        EventState.Archived => "is-muted",
+        EventState.Cancelled or EventState.Discarded => "is-pink",
+        _ => "is-muted"
+    };
 }
 
 <section class="table-page event-manage-page">
-    <header class="event-manage-heading event-overview-hero">
-        <div class="event-overview-heading-copy">
-            <div class="event-overview-badges">
-                <span class="event-overview-slug">@eventView.Slug</span>
-            </div>
-            <h1>@eventView.Name</h1>
-            @if (!string.IsNullOrWhiteSpace(eventView.Description))
-            {
-                <p class="event-overview-context">@eventView.Description</p>
-            }
-            <div class="event-overview-meta" aria-label="@T["Event context"]">
-                @if (eventView.StartsAt is not null || eventView.EndsAt is not null)
-                {
-                    <span class="event-overview-meta-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg>@Model.EventDate(eventView.StartsAt, T["Not set"]) — @Model.EventDate(eventView.EndsAt, T["Not set"])</span>
-                }
-                @if (teamSizeLabel is not null)
-                {
-                    <span class="event-overview-meta-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m7-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm9 10v-2a4 4 0 0 0-3-3.87m-1-11.13a4 4 0 0 1 0 7.75" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg>@teamSizeLabel</span>
-                }
-                @if (boardSizeLabel is not null)
-                {
-                    <span class="event-overview-meta-item"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.7" /><rect x="14" y="3" width="7" height="7" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.7" /><rect x="3" y="14" width="7" height="7" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.7" /><rect x="14" y="14" width="7" height="7" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.7" /></svg>@boardSizeLabel @T["board"]</span>
-                }
-                <span class="event-overview-meta-item">@eventView.Timezone</span>
-            </div>
-        </div>
-        <div class="event-overview-heading-action">
-            @if (Model.OverviewBlockers.Count > 0)
-            {
-                <a class="btn event-overview-header-action event-overview-header-action-warning" href="#readiness">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M12 9v4m0 4h.01" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg>
-                    @T["Blockers ({0})", Model.OverviewBlockers.Count]
-                </a>
-            }
-            else if (eventView.State == EventState.Draft)
-            {
-                <a class="btn event-overview-header-action" asp-page="Schedule" asp-route-id="@eventView.Id">@T["Review setup"]</a>
-            }
-            else if (eventView.State == EventState.SignupOpen)
-            {
-                <a class="btn event-overview-header-action" asp-page="Participants" asp-route-id="@eventView.Id">@T["Review signups"]</a>
-            }
-            else if (eventView.State == EventState.SignupClosed)
-            {
-                <a class="btn event-overview-header-action" asp-page="Draft" asp-route-id="@eventView.Id">@T["Review teams and draft"]</a>
-            }
-            else if (eventView.State == EventState.Live)
-            {
-                <a class="btn event-overview-header-action" asp-page="/Admin/Review/Index" asp-route-eventId="@eventView.Id">@T["Review submissions"]</a>
-            }
-            else if (eventView.State == EventState.AwaitingFinalReview)
-            {
-                <a class="btn event-overview-header-action" asp-page="Finalize" asp-route-id="@eventView.Id">@T["Open final review"]</a>
-            }
-            else if (eventView.State is EventState.Finalized or EventState.Archived)
-            {
-                <a class="btn event-overview-header-action" asp-page="Finalize" asp-route-id="@eventView.Id">@T["View results"]</a>
-            }
-            else
-            {
-                <a class="btn event-overview-header-action" asp-page="Index">@T["All events"]</a>
-            }
-        </div>
-    </header>
-
+    <section class="event-manage-layout">
+        <div class="event-manage-main">
     <section class="event-overview" aria-label="@T["Operational overview"]" data-manage-overview>
         <div class="event-overview-summary" aria-label="@T["Event summary"]">
-            @if (metricProfile == ManageModel.OverviewMetricProfile.DraftOrSignupOpen)
-            {
-                <article class="event-overview-metric"><span>@T["Signups / capacity"]</span><strong>@eventView.Confirmed <small>/ @eventView.ParticipantCap @T["max"]</small></strong>@if (signupProgress is { } percent) { <div class="event-overview-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@percent" aria-label="@T["Signup capacity used"]"><span style="width: @percent%"></span></div> }</article>
-                <article class="event-overview-metric"><span>@T["Waiting list"]</span><strong>@eventView.Waiting</strong><small>@T["Queued participants"]</small></article>
-                <article class="event-overview-metric"><span>@T["Signup closes"]</span><strong>@Model.EventDate(eventView.SignupClosesAt, T["Not set"])</strong><small>@eventView.Timezone</small></article>
-                <article class="event-overview-metric"><span>@boardGridLabel</span>@if (boardTileSummary is { } tileSummary) { <strong>@tileSummary <small>@T["Tiles"]</small></strong><small>@T["Configured tiles / expected cells"]</small> } else { <strong>@T["Not configured"]</strong><small>@T["Board dimensions are not configured"]</small> }</article>
-            }
-            else if (metricProfile == ManageModel.OverviewMetricProfile.SignupClosed)
-            {
-                <article class="event-overview-metric"><span>@T["Confirmed players"]</span><strong>@eventView.Confirmed <small>/ @eventView.ParticipantCap @T["max"]</small></strong><small>@T["Roster candidates"]</small></article>
-                <article class="event-overview-metric"><span>@T["Teams & roster"]</span><strong>@(eventView.ActualTeamCount > 0 ? eventView.ActualTeamCount : eventView.ExpectedTeamCount ?? 0) <small>@T["teams"]</small></strong><small>@T["Current draft structure"]</small></article>
-                <article class="event-overview-metric"><span>@T["Start readiness"]</span><strong>@(Model.StartReadiness?.Blockers.Count ?? 0) <small>@T["blockers"]</small></strong><small>@T["Playing, access and setup checks"]</small></article>
-                <article class="event-overview-metric"><span>@boardGridLabel</span>@if (boardTileSummary is { } tileSummary) { <strong>@tileSummary <small>@T["Tiles"]</small></strong> } else { <strong>@T["Not configured"]</strong> }<small>@T["Published board"]</small></article>
-            }
-            else if (metricProfile == ManageModel.OverviewMetricProfile.Live)
-            {
-                var syncLabel = Model.CompetitionIntegration is not { Configured: true }
-                    ? T["Not configured"]
-                    : Model.CompetitionIntegration.Complete == true
-                        ? T["Complete"]
-                        : Model.CompetitionIntegration.MissingAccounts.Count > 0 ? T["Missing accounts"] : T["Needs attention"];
-                <article class="event-overview-metric"><span>@T["Teams & roster"]</span><strong>@eventView.ActualTeamCount <small>@T["teams"]</small></strong><small>@T["Active competition"]</small></article>
-                <article class="event-overview-metric"><span>@boardGridLabel</span>@if (boardTileSummary is { } tileSummary) { <strong>@tileSummary <small>@T["Tiles"]</small></strong> } else { <strong>@T["Not configured"]</strong> }<small>@T["Live board"]</small></article>
-                <article class="event-overview-metric"><span>@T["Evidence queue"]</span><strong>@Model.PendingReviewCount <small>@T["pending"]</small></strong><small>@T["Awaiting review"]</small></article>
-                <article class="event-overview-metric"><span>@T["Competition sync"]</span><strong>@syncLabel</strong><small>@T["Wise Old Man status"]</small></article>
-            }
-            else if (metricProfile == ManageModel.OverviewMetricProfile.FinalReview)
-            {
-                <article class="event-overview-metric"><span>@T["Evidence queue"]</span><strong>@Model.PendingReviewCount <small>@T["pending"]</small></strong><small>@T["Awaiting review"]</small></article>
-                <article class="event-overview-metric"><span>@T["Submission cutoff"]</span><strong>@Model.EventDate(eventView.SubmissionCutoffAt, T["Not set"])</strong><small>@eventView.Timezone</small></article>
-                <article class="event-overview-metric"><span>@T["Approved placements"]</span><strong>@(Model.FinalReviewReadiness?.Placements.Count ?? 0)</strong><small>@T["Calculated result"]</small></article>
-                <article class="event-overview-metric"><span>@T["Finalization blockers"]</span><strong>@(Model.FinalReviewReadiness?.Blockers.Count(x => !x.Resolved) ?? 0)</strong><small>@T["Official result readiness"]</small></article>
-            }
-            else if (eventView.State == EventState.Cancelled)
-            {
-                <article class="event-overview-metric"><span>@T["Confirmed players"]</span><strong>@eventView.Confirmed</strong><small>@T["Affected participants"]</small></article>
-                <article class="event-overview-metric"><span>@T["Waiting list"]</span><strong>@eventView.Waiting</strong><small>@T["Affected participants"]</small></article>
-                <article class="event-overview-metric"><span>@T["Teams"]</span><strong>@eventView.ActualTeamCount</strong><small>@T["Recorded roster"]</small></article>
-                <article class="event-overview-metric"><span>@T["Cancelled"]</span><strong>@Model.EventDate(eventView.CancelledAt, T["Not set"])</strong><small>@eventView.Timezone</small></article>
-            }
-            else
-            {
-                <article class="event-overview-metric"><span>@T["Confirmed players"]</span><strong>@eventView.Confirmed</strong><small>@T["Recorded roster"]</small></article>
-                <article class="event-overview-metric"><span>@T["Teams & roster"]</span><strong>@eventView.ActualTeamCount <small>@T["teams"]</small></strong><small>@T["Final roster"]</small></article>
-                <article class="event-overview-metric"><span>@boardGridLabel</span>@if (boardTileSummary is { } tileSummary) { <strong>@tileSummary <small>@T["Tiles"]</small></strong> } else { <strong>@T["Not configured"]</strong> }<small>@T["Recorded board"]</small></article>
-                <article class="event-overview-metric"><span>@(eventView.State == EventState.Archived ? T["Archived"] : T["Finalized"])</span><strong>@Model.EventDate(eventView.State == EventState.Archived ? eventView.ArchivedAt : eventView.FinalizedAt, T["Not set"])</strong><small>@eventView.Timezone</small></article>
-            }
+            <article class="event-overview-metric">
+                <header class="event-overview-metric-header">
+                    <span class="event-overview-metric-label"><svg class="event-overview-metric-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87m-1-11.13a4 4 0 0 1 0 7.75" /></svg><span>@(participantPhase ? T["Participants"] : T["Teams & roster"])</span></span>
+                    <svg class="event-overview-metric-arrow" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M7 17 17 7M7 7h10v10" /></svg>
+                </header>
+                <div class="event-overview-metric-body">
+                    <div class="event-overview-metric-value-row">
+                        @if (participantPhase)
+                        {
+                            <strong>@eventView.Confirmed / @eventView.ParticipantCap</strong>
+                        }
+                        else
+                        {
+                            <strong>@(eventView.ActualTeamCount > 0 ? eventView.ActualTeamCount : eventView.ExpectedTeamCount ?? 0) <small>@T["teams"]</small></strong>
+                        }
+                        <span class="event-overview-metric-context @peopleDotClass"><span class="event-overview-metric-dot" aria-hidden="true"></span>@peopleContext</span>
+                    </div>
+                </div>
+            </article>
+            <article class="event-overview-metric">
+                <header class="event-overview-metric-header">
+                    <span class="event-overview-metric-label"><svg class="event-overview-metric-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18M9 21V9" /></svg><span>@T[nextMilestone.Label]</span></span>
+                    <svg class="event-overview-metric-arrow" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M7 17 17 7M7 7h10v10" /></svg>
+                </header>
+                <div class="event-overview-metric-body">
+                    <div class="event-overview-metric-value-row">
+                        <strong>@Model.EventDateOnly(nextMilestone.At, T["Not set"])</strong>
+                        <span class="event-overview-metric-context @milestoneDotClass"><span class="event-overview-metric-dot" aria-hidden="true"></span>@milestoneContext</span>
+                    </div>
+                </div>
+            </article>
+            <article class="event-overview-metric">
+                <header class="event-overview-metric-header">
+                    <span class="event-overview-metric-label"><svg class="event-overview-metric-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18M3 15h18M9 3v18M15 3v18" /></svg><span>@T["Board"]</span></span>
+                    <svg class="event-overview-metric-arrow" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M7 17 17 7M7 7h10v10" /></svg>
+                </header>
+                <div class="event-overview-metric-body">
+                    <div class="event-overview-metric-value-row">
+                        <strong>@boardValue</strong>
+                        <span class="event-overview-metric-context @boardDotClass"><span class="event-overview-metric-dot" aria-hidden="true"></span>@boardContext</span>
+                    </div>
+                </div>
+            </article>
+            <article class="event-overview-metric">
+                <header class="event-overview-metric-header">
+                    <span class="event-overview-metric-label"><svg class="event-overview-metric-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 13h8M8 17h6" /></svg><span>@T["Submissions"]</span></span>
+                    <svg class="event-overview-metric-arrow" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M7 17 17 7M7 7h10v10" /></svg>
+                </header>
+                <div class="event-overview-metric-body">
+                    <div class="event-overview-metric-value-row">
+                        <strong>@Model.PendingReviewCount</strong>
+                        <span class="event-overview-metric-context @submissionDotClass"><span class="event-overview-metric-dot" aria-hidden="true"></span>@reviewedSubmissionCount @T["reviewed"]</span>
+                    </div>
+                </div>
+            </article>
         </div>
 
         <section id="readiness" class="event-overview-section event-overview-readiness-panel" aria-labelledby="event-readiness-heading">
             <div class="event-overview-section-heading">
                 <div class="event-overview-heading-label">
-                    @if (Model.OverviewBlockers.Count > 0)
-                    {
-                        <svg class="event-overview-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M12 9v4m0 4h.01" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg>
-                    }
-                    else
-                    {
-                        <svg class="event-overview-icon is-healthy" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="m9 12 2 2 4-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg>
-                    }
                     <h2 id="event-readiness-heading">@T["Readiness checks"]</h2>
                 </div>
                 @if (Model.OverviewBlockers.Count > 0) { <a class="event-overview-blocker-link" href="#event-next-step-heading">@T["{0} blockers", Model.OverviewBlockers.Count]</a> }
@@ -166,7 +137,7 @@
             @if (Model.OverviewBlockers.Count == 0)
             {
                 <div class="event-overview-row event-overview-row-healthy">
-                    <svg class="event-overview-row-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="m9 12 2 2 4-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg>
+                    <span class="event-overview-row-icon-badge"><svg class="event-overview-row-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="m9 12 2 2 4-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg></span>
                     <div><strong>@T["No unresolved lifecycle blockers"]</strong><p>@T["The current state can use its available next action."]</p></div>
                 </div>
             }
@@ -175,27 +146,41 @@
                 @foreach (var blocker in Model.OverviewBlockers)
                 {
                     <div class="event-overview-row event-overview-row-blocked">
-                        <svg class="event-overview-row-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M12 9v4m0 4h.01" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg>
+                        <span class="event-overview-row-icon-badge"><svg class="event-overview-row-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /><path d="M12 9v4m0 4h.01" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg></span>
                         <div><strong>@blocker.Description</strong><p>@T["This is reported by the lifecycle readiness check."]</p></div>
-                        @if (blocker.Route is not null) { <a href="@blocker.Route" data-signup-questions-trigger="@(blocker.Route.Contains("/Admin/Events/Questions/", StringComparison.OrdinalIgnoreCase) ? "true" : null)">@T[ManageModel.BlockerActionLabel(blocker)]</a> }
+                        @if (blocker.Route is not null) { <a class="event-overview-row-action" href="@blocker.Route" data-signup-questions-trigger="@(blocker.Route.Contains("/Admin/Events/Questions/", StringComparison.OrdinalIgnoreCase) ? "true" : null)">@T[ManageModel.BlockerActionLabel(blocker)]</a> }
                     </div>
                 }
             }
         </section>
 
-        <section class="event-overview-section event-overview-dates-panel" aria-labelledby="event-dates-heading">
+        <section class="event-overview-section event-overview-dates-panel" aria-labelledby="event-information-heading">
             <div class="event-overview-section-heading">
                 <div class="event-overview-heading-label">
-                    <svg class="event-overview-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" /></svg>
-                    <h2 id="event-dates-heading">@T["Important information"]</h2>
+                    <h2 id="event-information-heading">@T["Event information"]</h2>
                 </div>
             </div>
             <dl class="event-overview-dates">
+                <div class="event-overview-date-row event-overview-information-summary">
+                    <div class="event-overview-information-name"><dt class="visually-hidden">@T["Event name"]</dt><dd>@eventView.Name</dd></div>
+                    <div class="event-overview-information-status"><dt class="visually-hidden">@T["Status"]</dt><dd><span class="event-overview-status-pill @eventStatusTone">@eventStatusLabel</span></dd></div>
+                </div>
                 @foreach (var row in Model.EffectiveTimeline)
                 {
-                    <div><dt>@T[row.Label]</dt><dd>@Model.EventDate(row.At)</dd></div>
+                    var timelineTone = row.Label switch
+                    {
+                        "Signup opens" or "Signup closes" => "is-cyan",
+                        "Submission cutoff" => "is-yellow",
+                        "Signups opened" or "Signups closed" or "Event starts" or "Event started" or "Event ends" or "Event ended" or "Submissions closed" => "is-green",
+                        _ => "is-muted"
+                    };
+                    <div class="event-overview-date-row @timelineTone">
+                        <div class="event-overview-date-copy"><dt>@T[row.Label]</dt><dd>@Model.EventDate(row.At)</dd></div>
+                    </div>
                 }
-                <div><dt>@T["Wise Old Man sync"]</dt><dd>@(Model.CompetitionIntegration?.Configured == true ? T["Enabled"] : T["Not configured"])</dd></div>
+                <div class="event-overview-date-row @(Model.CompetitionIntegration?.Configured == true ? "is-green" : "is-yellow")">
+                    <div class="event-overview-date-copy"><dt>@T["Wise Old Man sync"]</dt><dd><span class="event-overview-status-text @(Model.CompetitionIntegration?.Configured == true ? "is-green" : "is-yellow")">@(Model.CompetitionIntegration?.Configured == true ? T["Enabled"] : T["Not configured"])</span></dd></div>
+                </div>
             </dl>
             <div class="event-public-pages" aria-labelledby="event-public-pages-heading">
                 <h3 id="event-public-pages-heading">@T["Public pages"]</h3>
@@ -212,19 +197,24 @@
     <section id="operations" class="event-manage-section event-admin-lower">
         <div class="event-control-workspace">
             <article class="panel event-admin-controls">
-                <header class="admin-section-heading event-overview-section-heading"><h2>@T["Event controls"]</h2><p>@T["Only actions available at this stage are shown."]</p></header>
+                <header class="admin-section-heading event-overview-section-heading"><h2>@T["Event controls"]</h2><p>@(showAllControlStages ? T["Visual preview — all lifecycle stages are shown."] : T["Only actions available at this stage are shown."])</p></header>
 
-                @if (Model.ScheduledAction is not null)
+                @if (Model.ScheduledAction is not null || showAllControlStages)
                 {
-                    <section class="event-admin-control-group">
-                        <div><h3>@Model.ScheduledAction.Title</h3><p>@T["Scheduled for"] @Model.ScheduledAction.ScheduledFor.ToLocalTime().ToString("dd MMM yyyy, HH:mm"); @T["attempted"] @Model.ScheduledAction.AttemptedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm").</p></div>
-                        @if (Model.ScheduledAction.Blockers.Count == 0)
+                    var scheduledBlockerCount = Model.ScheduledAction?.Blockers.Count ?? 0;
+                    <section class="event-admin-control-group @(scheduledBlockerCount == 0 ? "event-control-group-success" : "event-control-group-warning")">
+                        <div><h3>@(Model.ScheduledAction?.Title ?? T["Scheduled lifecycle action"].Value)</h3><p>@(Model.ScheduledAction is null ? T["Visual preview of the scheduled lifecycle action."].Value : $"{T["Scheduled for"]} {Model.ScheduledAction.ScheduledFor.ToLocalTime():dd MMM yyyy, HH:mm}; {T["attempted"]} {Model.ScheduledAction.AttemptedAt.ToLocalTime():dd MMM yyyy, HH:mm}.")</p></div>
+                        @if (Model.ScheduledAction is null)
                         {
-                            <p class="event-control-status">@T["All start blockers are resolved. Confirm to start the event now."]</p>
+                            <p class="event-control-status is-green">@T["Scheduled action preview"]</p>
+                        }
+                        else if (scheduledBlockerCount == 0)
+                        {
+                            <p class="event-control-status is-green">@T["All start blockers are resolved. Confirm to start the event now."]</p>
                         }
                         else
                         {
-                            <p class="event-control-status">@T["{0} blockers remain.", Model.ScheduledAction.Blockers.Count] <a href="#readiness">@T["Review readiness"]</a></p>
+                            <p class="event-control-status is-yellow">@T["{0} blockers remain.", scheduledBlockerCount] <a href="#readiness">@T["Review readiness"]</a></p>
                         }
                     </section>
                 }
@@ -236,14 +226,14 @@
                             <h3>@T["Manual signup control"]</h3>
                             <p>@(eventView.State == EventState.SignupOpen ? T["Close signups now. Players already on the list are not affected."] : T["Open signups now after completing the schedule and readiness checks."])</p>
                             <p class="event-control-status event-control-supporting"><a asp-page="Schedule" asp-route-id="@eventView.Id">@T["Edit the event schedule and review signup readiness"]</a></p>
-                            @if (eventView.ActualSignupOpenedAt is { } actualOpening) { <p class="event-control-status event-control-supporting"><strong>Actual signup opening:</strong> @actualOpening.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</p> }
-                            else if (eventView.ScheduledSignupOpeningEnabled && eventView.SignupOpensAt is { } scheduledOpening) { <p class="event-control-status event-control-supporting"><strong>Automatic signup opening scheduled for:</strong> @scheduledOpening.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</p> }
-                            else { <p class="event-control-status event-control-supporting"><strong>No automatic signup opening scheduled.</strong></p> }
+                            @if (eventView.ActualSignupOpenedAt is { } actualOpening) { <p class="event-control-status event-control-supporting is-green"><strong>Actual signup opening:</strong> @actualOpening.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</p> }
+                            else if (eventView.ScheduledSignupOpeningEnabled && eventView.SignupOpensAt is { } scheduledOpening) { <p class="event-control-status event-control-supporting is-cyan"><strong>Automatic signup opening scheduled for:</strong> @scheduledOpening.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</p> }
+                            else { <p class="event-control-status event-control-supporting is-yellow"><strong>No automatic signup opening scheduled.</strong></p> }
                         </div>
                         <div class="event-admin-event-actions">
                             @if (Model.ConfirmationAction == "signup")
                             {
-                                <p class="event-control-status event-control-supporting">@T["Confirmation required"]</p>
+                                <p class="event-control-status event-control-supporting is-yellow">@T["Confirmation required"]</p>
                             }
                             else
                             {
@@ -280,9 +270,10 @@
                         </div>
                     </section>
 
-                    @if (Model.SignupReadiness is not null)
+                    @if (Model.SignupReadiness is not null || showAllControlStages)
                     {
-                        <section class="event-admin-control-group"><div><h3>@T["Signup readiness"]</h3><p>@T["Resolve setup issues before changing signup state."]</p></div><p class="event-control-status">@T["{0} blockers · {1} warnings", Model.SignupReadiness.Blockers.Count, Model.SignupReadiness.Warnings.Count] <a href="#readiness">@T["Review readiness"]</a></p></section>
+                        var signupBlockerCount = Model.SignupReadiness?.Blockers.Count ?? 0;
+                        <section class="event-admin-control-group @(signupBlockerCount > 0 ? "event-control-group-warning" : "event-control-group-success")"><div><h3>@T["Signup readiness"]</h3><p>@T["Resolve setup issues before changing signup state."]</p></div><p class="event-control-status @(signupBlockerCount > 0 ? "is-yellow" : "is-green")">@T["{0} blockers", signupBlockerCount] <a href="#readiness">@T["Review readiness"]</a></p></section>
                     }
 
                 }
@@ -302,7 +293,7 @@
                     <div class="event-admin-event-actions">
                         @if (showStartControl)
                         {
-                            @if (Model.StartReadiness?.Blockers.Count > 0) { <p class="event-control-status">@T["{0} blockers remain.", Model.StartReadiness.Blockers.Count] <a href="#readiness">@T["Review readiness"]</a></p> }
+                            @if (Model.StartReadiness?.Blockers.Count > 0) { <p class="event-control-status is-yellow">@T["{0} blockers remain.", Model.StartReadiness.Blockers.Count] <a href="#readiness">@T["Review readiness"]</a></p> }
                             @if (Model.ConfirmationAction == "start")
                             {
                                 <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["Starting now changes the event to Live and preserves the configured schedule."]</p><form method="post" asp-page-handler="StartEvent" class="event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="StartReason">@T["Reason (required before the configured start)"]</label><input asp-for="StartReason" class="form-control" /></div><div class="event-confirmation-actions"><button class="btn event-create-cancel" type="submit" name="ConfirmStartEvent" value="true">@T["Confirm start"]</button><a class="btn event-create-cancel" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a></div></form></div>
@@ -362,15 +353,15 @@
                     </section>
                 }
 
-                @if (eventView.State == EventState.Live && Model.StartReadiness?.Blockers.Any(item => item.Code == "TEAM_ACCESS_MISSING") == true)
+                @if (showAllControlStages || eventView.State == EventState.Live && Model.StartReadiness?.Blockers.Any(item => item.Code == "TEAM_ACCESS_MISSING") == true)
                 {
                     <section class="event-admin-control-group">
                         <div><h3>Captain access needs attention</h3><p>The event remains Live. Assign a usable Captain or explicitly enable team-scoped emergency access.</p></div>
-                        <p class="event-control-status">@T["{0} access checks need attention.", Model.StartReadiness.Blockers.Count(item => item.Code == "TEAM_ACCESS_MISSING")] <a asp-page="Draft" asp-route-id="@eventView.Id">@T["Review teams and draft"]</a></p>
+                        <p class="event-control-status">@T["{0} access checks need attention.", Math.Max(1, Model.StartReadiness?.Blockers.Count(item => item.Code == "TEAM_ACCESS_MISSING") ?? 0)] <a asp-page="Draft" asp-route-id="@eventView.Id">@T["Review teams and draft"]</a></p>
                     </section>
                 }
 
-                @if (eventView.State is EventState.Draft or EventState.SignupClosed or EventState.Live)
+                @if (showAllControlStages || eventView.State is EventState.Draft or EventState.SignupClosed or EventState.Live)
                 {
                 <section class="event-admin-control-group event-admin-code-group">
                     <div>
@@ -403,15 +394,15 @@
                 </section>
                 }
 
-                @if (eventView.State == EventState.Cancelled)
+                @if (showAllControlStages || eventView.State == EventState.Cancelled)
                 {
-                    <section class="event-admin-control-group"><div><h3>@T["Event cancelled"]</h3><p>@T["This event is terminal and no scheduled or ordinary event action can reactivate it."]</p></div><p class="event-control-status"><strong>@T["Private Admin reason:"]</strong> @Model.PrivateCancellationReason</p></section>
+                    <section class="event-admin-control-group"><div><h3>@T["Event cancelled"]</h3><p>@T["This event is terminal and no scheduled or ordinary event action can reactivate it."]</p></div><p class="event-control-status"><strong>@T["Private Admin reason:"]</strong> @(Model.PrivateCancellationReason ?? T["Visual preview cancellation reason."].Value)</p></section>
                 }
-                @{ var integration = Model.CompetitionIntegration; var integrationEditable = eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live; var integrationStatusClass = integration is null || !integration.Configured || !string.IsNullOrWhiteSpace(integration.LastError) ? "event-wom-status-danger" : integration.Complete == true ? "event-wom-status-success" : integration.RetryDueAt is not null ? "event-wom-status-warning" : "event-wom-status-info"; var hasRequestBudget = integration?.RequestStatus.ObservedRemaining is not null || integration?.RequestStatus.ObservedLimit is not null || integration?.RequestStatus.ResetAt is not null; }
+                @{ var integration = Model.CompetitionIntegration; var integrationEditable = showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live; var integrationStatusClass = integration is null || !integration.Configured || !string.IsNullOrWhiteSpace(integration.LastError) ? "event-wom-status-danger" : integration.Complete == true ? "event-wom-status-success" : integration.RetryDueAt is not null ? "event-wom-status-warning" : "event-wom-status-info"; var hasRequestBudget = integration?.RequestStatus.ObservedRemaining is not null || integration?.RequestStatus.ObservedLimit is not null || integration?.RequestStatus.ResetAt is not null; }
                 <section class="event-admin-control-group event-wom-section" aria-labelledby="competition-integration-heading">
                     <div class="event-wom-header">
                         <h3 id="competition-integration-heading">Wise Old Man competition</h3>
-                        <p>Link a competition to sync EHB activity. Wise Old Man remains read-only.</p>
+                        <p>Link a competition to sync EHB activity.</p>
                     @if (integration is null || !integration.Configured)
                     {
                         <p class="event-control-status event-wom-status"><strong>Status:</strong> <span class="event-wom-status-value @integrationStatusClass">Not configured.</span></p>
@@ -427,17 +418,17 @@
                         <form method="post" asp-page-handler="Competition" class="form-stack event-wom-form">
                             <input asp-for="EventVersion" type="hidden" />
                             <div class="event-create-field"><label asp-for="CompetitionId">Competition ID</label><input asp-for="CompetitionId" class="form-control" inputmode="numeric" /></div>
-                            @if (eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed)
+                            @if (showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed)
                             {
-                                <div class="event-wom-schedule-field"><div class="event-create-field"><label asp-for="SynchronizeCompetitionSchedule">Schedule handling</label><select asp-for="SynchronizeCompetitionSchedule" class="form-select"><option value="false">Keep current schedule</option><option value="true">Use competition dates</option></select></div><small>Without this option, both event instants must already be within five minutes.</small></div>
+                                <div class="event-wom-schedule-field"><div class="event-create-field"><label asp-for="SynchronizeCompetitionSchedule">Schedule handling</label><div class="event-wom-select-wrap"><select asp-for="SynchronizeCompetitionSchedule" class="form-select"><option value="false">Keep current schedule</option><option value="true">Use competition dates</option></select><svg class="event-wom-select-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></div></div></div>
                             }
-                            <button class="btn admin-button-secondary" type="submit">@(integration?.Configured == true ? eventView.State == EventState.Live ? "Replace and validate competition" : "Change and validate competition" : "Validate and link competition")</button>
+                            <button class="btn admin-button-secondary" type="submit">Link competition</button>
                         </form>
                         @if (integration?.Configured == true && eventView.State is not EventState.Live)
                         {
                             <form method="post" asp-page-handler="ClearCompetition" class="form-stack"><input asp-for="EventVersion" type="hidden" /><button class="btn event-create-cancel" type="submit">Clear competition</button></form>
                         }
-                        @if (eventView.State == EventState.Live && integration?.Configured == true)
+                        @if ((showAllControlStages || eventView.State == EventState.Live) && integration?.Configured == true)
                         {
                             <form method="post" asp-page-handler="RefreshCompetition"><button class="btn event-create-cancel" type="submit">Refresh cached activity</button></form>
                             @if (Model.ShowDevelopmentCompetitionControl)
@@ -475,6 +466,8 @@
         </div>
     </section>
 
+        </div>
+    </section>
 </section>
 
 @section Scripts {

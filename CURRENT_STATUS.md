@@ -1,5 +1,7 @@
 # Current Project Status
 
+**Active handoff — Admin UI regression/reset (2026-08-06):** Package the current WIP as the integration baseline `codex/admin-ui-overhaul-v2`. The only currently approved UI overhaul surfaces are the shared Admin shell, including the accepted responsive/drawer behavior, and Admin Events Manage/Overview, including its responsive behavior and Event information rail contract. Event creation, the Admin Events directory, Identity, Schedule, Participants/Questions overlay, and every later Admin route remain WIP/regression candidates requiring page-by-page re-review and manual re-approval; Pass 4/Participants remains not accepted. Prior page-level UI approval statements below are historical and superseded for this active regression. `UI_OVERHAUL_ROADMAP.md` is the first-draft rules baseline, not evidence that existing pages comply with or are approved under it. Main is unchanged; after packaging, continue the remaining re-approval process one page at a time.
+
 **Verified:** 2026-08-03
 **Base:** requested `main` commit `ef05f9d60d0c93e978a3c458420ec6d8ddb40484`; implementation worktree is clean before edits and remains detached at that exact commit.
 **Planning decision:** 2026-08-03
