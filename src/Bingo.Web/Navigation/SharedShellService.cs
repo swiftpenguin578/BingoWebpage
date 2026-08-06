@@ -10,6 +10,7 @@ using Bingo.Web.Security;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
+using Bingo.Web.UI;
 
 namespace Bingo.Web.Navigation;
 
@@ -188,7 +189,8 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
 
         if (eventView is null) return null;
         var blockerCount = await GetAdminEventBlockerCountAsync(eventView.Id, eventView.State, cancellationToken);
-        return new AdminEventContext(eventView.Id, eventView.Name, eventView.State, StatusLabel(eventView.State), blockerCount);
+        var presentation = AdminEventStatePresentation.For(eventView.State, text);
+        return new AdminEventContext(eventView.Id, eventView.Name, eventView.State, presentation.Label, blockerCount);
     }
 
     private async Task<int> GetAdminEventBlockerCountAsync(Guid eventId, EventState state, CancellationToken cancellationToken)
@@ -229,7 +231,11 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             .OrderBy(item => item.Name)
             .Select(item => new { item.Id, item.Name, item.State })
             .ToListAsync(cancellationToken);
-        return events.Select(item => new AdminEventOption(item.Id, item.Name, item.State, StatusLabel(item.State))).ToList();
+        return events.Select(item =>
+        {
+            var presentation = AdminEventStatePresentation.For(item.State, text);
+            return new AdminEventOption(item.Id, item.Name, item.State, presentation.Label, presentation.Modifier);
+        }).ToList();
     }
 
     private async Task<IReadOnlyList<BreadcrumbItem>> BuildCaptainBreadcrumbs(string page, RouteValueDictionary values, CancellationToken cancellationToken)
@@ -277,17 +283,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         return items;
     }
 
-    private string StatusLabel(EventState state) => state switch
-    {
-        EventState.Draft => text["Setup"],
-        EventState.SignupOpen => text["Signups open"],
-        EventState.SignupClosed => text["Signups closed"],
-        EventState.Live => text["Live"],
-        EventState.AwaitingFinalReview => text["Final review"],
-        EventState.Finalized => text["Finished"],
-        EventState.Archived => text["Archived"],
-        _ => state.ToString()
-    };
+    private string StatusLabel(EventState state) => AdminEventStatePresentation.For(state, text).Label;
 
     private static string FormatDate(DateTimeOffset value, string timezoneId)
     {
@@ -312,7 +308,7 @@ public sealed record SharedShellData(IReadOnlyList<BreadcrumbItem> Breadcrumbs, 
 public sealed record BreadcrumbItem(string Label, string? Url, string? Status = null, string? StatusClass = null);
 public sealed record ShellNotification(Guid Id, string Title, string Detail, string Url);
 public sealed record AdminEventContext(Guid Id, string Name, EventState State, string StatusLabel, int BlockerCount = 0);
-public sealed record AdminEventOption(Guid Id, string Name, EventState State, string StatusLabel);
+public sealed record AdminEventOption(Guid Id, string Name, EventState State, string StatusLabel, string StatusModifier);
 public sealed record NotificationInbox(IReadOnlyList<Guid> EventIds, int Count, string Heading, string EmptyText, string OverviewLabel, string OverviewUrl, IReadOnlyList<ShellNotification> Items, int PersonalCount, int AdminActionCount, string AdminHeading, string AdminEmptyText, string AdminOverviewLabel, string AdminOverviewUrl, IReadOnlyList<ShellNotification> AdminItems)
 {
     public static NotificationInbox Empty { get; } = new([], 0, string.Empty, string.Empty, string.Empty, string.Empty, [], 0, 0, string.Empty, string.Empty, string.Empty, string.Empty, []);

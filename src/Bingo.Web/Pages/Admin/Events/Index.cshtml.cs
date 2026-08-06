@@ -92,27 +92,6 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
         ];
     }
 
-    public string StatusLabel(EventRow item) => item.DisplayPhase switch
-    {
-        EventDisplayPhase.SignupsClosed => localizer["Signups closed"],
-        EventDisplayPhase.DraftFinalized => localizer["Draft finalized"],
-        EventDisplayPhase.EventReady => localizer["Event ready · Starts {0}", FormatDate(item.EventStartsAt, item.Timezone)],
-        EventDisplayPhase.BoardPublished => localizer["Board published · Not ready"],
-        EventDisplayPhase.StartPostponed => localizer["Start postponed"],
-        EventDisplayPhase.Live => localizer["Live"],
-        _ => item.State switch
-        {
-            EventState.Draft => localizer["Setup"],
-            EventState.SignupOpen => localizer["Signups open"],
-            EventState.SignupClosed => localizer["Signups closed"],
-            EventState.AwaitingFinalReview => localizer["Final review"],
-            EventState.Finalized => localizer["Finished"],
-            EventState.Archived => localizer["Archived"],
-            EventState.Cancelled => localizer["Cancelled"],
-            _ => localizer["Unknown"]
-        }
-    };
-
     public string FormatDate(DateTimeOffset? value, string timezoneId)
     {
         if (value is null) return localizer["Not set"];

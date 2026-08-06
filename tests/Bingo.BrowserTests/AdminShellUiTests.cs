@@ -164,8 +164,8 @@ public sealed class AdminShellUiTests
         Assert.Contains("Model.Events", events);
         Assert.Contains("asp-page=\"Create\"", events);
         Assert.Contains("asp-page=\"Manage\"", events);
-        Assert.Contains("Model.StatusLabel(item)", events);
-        Assert.Contains("admin-state admin-state-@item.State.ToString().ToLowerInvariant()", events);
+        Assert.Contains("AdminEventStatePresentation.For(item.State, T)", events);
+        Assert.Contains("admin-status-pill @statePill.Modifier", events);
         Assert.Contains("@T[\"Actions\"]", events);
         Assert.Contains("@T[\"Workspace\"]", events);
         Assert.Contains("@item.Slug", events);
@@ -183,7 +183,7 @@ public sealed class AdminShellUiTests
         Assert.Contains("line-height: 1.25rem", siteCss);
         Assert.Contains("height: 2.25rem", siteCss);
         Assert.Contains("appearance: none", siteCss);
-        Assert.Contains(".admin-state { display: inline-flex; width: fit-content;", siteCss);
+        Assert.Contains(".admin-status-pill { display: inline-flex; width: fit-content;", siteCss);
         Assert.Contains("white-space: nowrap; overflow-wrap: normal", siteCss);
         Assert.Contains("align-content: start; align-items: flex-start; flex-direction: column; gap: 0.75rem; min-height: 0", siteCss);
         Assert.Contains("adjacent or stacked dividers are prohibited globally", roadmap);
@@ -211,6 +211,36 @@ public sealed class AdminShellUiTests
         Assert.DoesNotContain("requestSubmit", directoryJs);
         Assert.DoesNotContain("350", directoryJs);
         Assert.Equal(1, siteCss.Split("/* Admin Events directory:", StringSplitOptions.None).Length - 1);
+    }
+
+    [Fact]
+    public void AdminLifecycleStatePillHasOneCompleteMappingAndSharedGeometry()
+    {
+        var root = FindRepositoryRoot();
+        var presentation = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "UI", "AdminEventStatePresentation.cs"));
+        var styles = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "site.css"));
+
+        foreach (var (state, label, modifier) in new[]
+        {
+            ("Draft", "Setup", "is-yellow"),
+            ("SignupOpen", "Signups open", "is-cyan"),
+            ("SignupClosed", "Signups closed", "is-orange"),
+            ("Live", "Live", "is-green"),
+            ("AwaitingFinalReview", "Final review", "is-purple"),
+            ("Finalized", "Finished", "is-blue"),
+            ("Archived", "Archived", "is-muted"),
+            ("Cancelled", "Cancelled", "is-danger"),
+            ("Discarded", "Discarded", "is-pink")
+        })
+            Assert.Contains($"EventState.{state} => new(text[\"{label}\"], \"{modifier}\")", presentation);
+
+        Assert.Contains(".admin-status-pill { display: inline-flex; width: fit-content; min-height: 1.6rem;", styles);
+        Assert.Contains("padding: 0.25rem 0.65rem", styles);
+        Assert.Contains("font-weight: 400", styles);
+        Assert.Contains("border: 0; border-radius: 999px", styles);
+        Assert.Contains(".admin-status-pill.is-danger", styles);
+        Assert.DoesNotContain(".event-overview-status-pill", styles);
+        Assert.DoesNotContain(".admin-state", styles);
     }
 
     private static string FindRepositoryRoot()

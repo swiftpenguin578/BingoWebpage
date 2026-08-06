@@ -1,5 +1,6 @@
 @page
 @model Bingo.Web.Pages.Admin.Events.IndexModel
+@using Bingo.Web.UI
 @{
     ViewData["Title"] = T["Events"];
     ViewData["CompactNavigation"] = true;
@@ -67,12 +68,13 @@
                     <tbody>
                         @foreach (var item in Model.Events)
                         {
+                            var statePill = AdminEventStatePresentation.For(item.State, T);
                             var playerSummary = item.Waiting > 0
                                 ? T["{0} / {1} players · {2} waiting", item.Confirmed, item.ParticipantCap, item.Waiting]
                                 : T["{0} / {1} players", item.Confirmed, item.ParticipantCap];
                             <tr data-admin-event-row data-event-name="@item.Name" data-event-slug="@item.Slug" data-event-state="@item.State.ToString().ToLowerInvariant()">
                                 <td data-label="@T["Event"]"><strong>@item.Name</strong><small>@item.Slug</small></td>
-                                <td class="event-state-cell" data-label="@T["State"]"><span class="admin-state admin-state-@item.State.ToString().ToLowerInvariant()">@Model.StatusLabel(item)</span></td>
+                                <td class="event-state-cell" data-label="@T["State"]"><span class="admin-status-pill @statePill.Modifier">@statePill.Label</span></td>
                                 <td data-label="@T["Event dates"]" class="event-date-cell"><strong>@Model.FormatDate(item.EventStartsAt, item.Timezone)</strong><small>@T["to"] @Model.FormatDate(item.EventEndsAt, item.Timezone)</small></td>
                                 <td data-label="@T["Signups"]" class="event-signup-cell"><strong>@Model.SignupSummary(item)</strong><small>@playerSummary</small></td>
                                 <td data-label="@T["Needs attention"]">

@@ -24,7 +24,7 @@
             <p class="admin-module-description">@T["Manage signup records, capacity, and the waiting list for {0}.", eventView.Name]</p>
         </div>
         <div class="admin-header-actions-inline">
-            <span class="admin-state admin-state-signupopen">@T["{0} confirmed · {1} waiting", eventView.Confirmed, eventView.Waiting]</span>
+            <span class="admin-badge admin-badge-signup-open">@T["{0} confirmed · {1} waiting", eventView.Confirmed, eventView.Waiting]</span>
             <a class="admin-button-secondary signup-questions-trigger" asp-page="Questions" asp-route-id="@eventView.Id" data-signup-questions-trigger="true">@T["Signup questions"]</a>
         </div>
     </header>
@@ -105,7 +105,7 @@
         @foreach (var group in participantGroups)
         {
             <details class="participant-group" open="@group.Open" data-participant-group data-no-matches="@T["No matching participants."]">
-                <summary><span><strong>@group.Title</strong><small>@group.Description</small></span><span class="admin-state">@group.Rows.Count</span></summary>
+                <summary><span><strong>@group.Title</strong><small>@group.Description</small></span><span class="admin-badge">@group.Rows.Count</span></summary>
                 <div class="participant-group-tools"><label class="admin-search-field"><span class="visually-hidden">@T["Search {0}", group.Title]</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg><input type="search" class="admin-search-field-input form-control" placeholder="@T["Search this section"]" aria-label="@T["Search {0}", group.Title]" data-participant-search /></label></div>
                 <div class="admin-events-table-wrap participant-table-wrap"><div class="admin-events-table-scroll">
                     <table class="event-table participant-table"><thead><tr><th>#</th><th>@T["Participant"]</th><th>@T["EHB"]</th><th>@T["Status"]</th><th>@T["Payment"]</th><th>@T["Signed up"]</th><th>@T["Signup source / ownership"]</th><th><span class="visually-hidden">@T["Actions"]</span></th></tr></thead><tbody>
@@ -117,7 +117,7 @@
                             <td data-label="#" data-sort-value="@participant.Sequence">@participant.Sequence</td>
                             <td data-label="@T["Participant"]" data-sort-value="@participant.Name"><a asp-page="Participant" asp-route-id="@eventView.Id" asp-route-participantId="@participant.Id"><strong>@participant.Name</strong></a>@if (participant.CaptainVolunteer) { <small class="participant-captain">@T["Captain volunteer"]</small> }</td>
                             <td data-label="@T["EHB"]" data-sort-value="@participant.Ehb.ToString(System.Globalization.CultureInfo.InvariantCulture)">@participant.Ehb.ToString("0.##")</td>
-                            <td data-label="@T["Status"]" data-sort-value="@participantStatus"><span class="admin-state participant-status">@participantStatus</span>@if (participant.WaitingPosition is not null) { <small>#@participant.WaitingPosition</small> }</td>
+                            <td data-label="@T["Status"]" data-sort-value="@participantStatus"><span class="admin-badge participant-status">@participantStatus</span>@if (participant.WaitingPosition is not null) { <small>#@participant.WaitingPosition</small> }</td>
                             <td data-label="@T["Payment"]" data-sort-value="@participant.Payment">@if (eventView.CanEditParticipant) { <form method="post" asp-page-handler="Payment" class="participant-payment-form" data-update-targets="#app-notice-region, #participant-row-@participant.Id"><input type="hidden" name="participantId" value="@participant.Id" /><input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="ParticipantPayment" value="@Model.ParticipantPayment" /><input type="hidden" name="ParticipantDiscord" value="@Model.ParticipantDiscord" /><input type="hidden" name="ParticipantCaptain" value="@Model.ParticipantCaptain" /><input type="hidden" name="ParticipantSource" value="@Model.ParticipantSource" /><input type="hidden" name="ParticipantTeamId" value="@Model.ParticipantTeamId" /><select name="payment" aria-label="@T["Payment for {0}", participant.Name]" data-auto-submit data-payment-save><option value="Unpaid" selected="@(participant.Payment != PaymentStatus.Paid)">@T["Unpaid"]</option><option value="Paid" selected="@(participant.Payment == PaymentStatus.Paid)">@T["Paid"]</option></select><span class="save-state" aria-live="polite" data-save-state>@T["Saved"]</span></form> } else { <span>@(participant.Payment == PaymentStatus.Paid ? T["Paid"] : T["Unpaid"])</span> }</td>
                             <td data-label="@T["Signed up"]" data-sort-value="@participant.SignedUpAt.ToUnixTimeMilliseconds()">@participant.SignedUpAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</td>
                             <td data-label="@T["Signup source / ownership"]"><span>@T[participant.Source.ToString()]</span><small>@(participant.WebsiteUsername ?? T["Unowned"]) · @(participant.TeamName ?? T["No external roster"])</small></td>

@@ -91,7 +91,7 @@
                             <a class="admin-event-option @(isSelectedEvent ? "is-current" : null)" asp-page="/Admin/Events/Manage" asp-route-id="@option.Id" aria-current="@(isSelectedEvent ? "page" : null)" role="option" aria-selected="@isSelectedEvent">
                                 <span class="admin-event-option-copy">
                                     <span>@option.Name</span>
-                                    <small class="admin-state admin-state-@option.State.ToString().ToLowerInvariant()">@option.StatusLabel</small>
+                                    <small class="admin-status-pill @option.StatusModifier">@option.StatusLabel</small>
                                 </span>
                                 @if (isSelectedEvent)
                                 {

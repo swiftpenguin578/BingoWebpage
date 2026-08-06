@@ -174,7 +174,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("event-overview-information-summary", manage);
         Assert.Contains("event-overview-information-name", manage);
         Assert.Contains("event-overview-information-status", manage);
-        Assert.Contains("event-overview-status-pill", manage);
+        Assert.Contains("admin-status-pill", manage);
         Assert.Contains("href=\"/Admin/Events/Participants/@eventContext.Id\"", adminLayout);
         Assert.Contains("Public pages", manage);
         Assert.Contains("data-copy-url=\"@signupUrl\"", manage);
@@ -362,13 +362,13 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.DoesNotContain("admin-operational-status", siteCss);
         Assert.DoesNotContain(".admin-state::before", siteCss);
         Assert.DoesNotContain(".admin-state::after", siteCss);
-        Assert.Contains(".admin-state { display: inline-flex; width: fit-content; min-height: 0;", siteCss);
+        Assert.Contains(".admin-status-pill { display: inline-flex; width: fit-content; min-height: 1.6rem;", siteCss);
         Assert.Contains("padding: 0.125rem 0.5rem", siteCss);
         Assert.DoesNotContain("AdminEventStatusPresenter", manageHandler);
-        Assert.Contains("admin-state admin-state-@item.State.ToString().ToLowerInvariant()", eventIndex);
-        Assert.Contains("admin-state admin-state-@item.State.ToString().ToLowerInvariant()", dashboard);
+        Assert.Contains("admin-status-pill @statePill.Modifier", eventIndex);
+        Assert.Contains("admin-status-pill @statePill.Modifier", dashboard);
         Assert.DoesNotContain("admin-state admin-state-@eventContext.State.ToString().ToLowerInvariant()", adminLayout);
-        Assert.Contains("admin-state admin-state-@option.State.ToString().ToLowerInvariant()", adminLayout);
+        Assert.Contains("admin-status-pill @option.StatusModifier", adminLayout);
         Assert.Contains("event-overview-dates-panel { position: sticky; top: calc(var(--admin-header-height) + 1rem); grid-area: dates; align-self: start;", siteCss);
         Assert.Contains("event-overview-date-row", manage);
         Assert.DoesNotContain("event-overview-date-marker", manage);
@@ -378,8 +378,8 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("text-decoration: none", siteCss);
         Assert.Contains("--admin-chart-yellow", siteCss);
         Assert.Contains("--admin-chart-green", siteCss);
-        Assert.Contains("--event-status-yellow: var(--admin-warning);", siteCss);
-        Assert.Contains("event-overview-status-pill.is-cyan", siteCss);
+        Assert.Contains("--admin-status-yellow: var(--admin-warning);", siteCss);
+        Assert.Contains(".admin-status-pill.is-cyan", siteCss);
         Assert.Contains("text-transform: none", siteCss);
         Assert.Contains("border: 0; border-radius: 999px", siteCss);
         Assert.Contains(".event-public-pages { margin-top: 0.75rem; padding-top: 0.2rem;", siteCss);

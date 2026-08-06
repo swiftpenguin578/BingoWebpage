@@ -2,6 +2,7 @@
 @model Bingo.Web.Pages.Admin.Events.ManageModel
 @using Bingo.Domain.Events
 @using Bingo.Domain.Signups
+@using Bingo.Web.UI
 @{
     ViewData["Title"] = Model.EventView?.Name ?? T["Event"];
     ViewData["CompactNavigation"] = true;
@@ -38,31 +39,7 @@
     var milestoneContext = nextMilestone.At is null ? T["Not configured"].Value : T["Scheduled"].Value;
     var boardDotClass = boardTileSummary is null ? "is-orange" : "is-green";
     var submissionDotClass = Model.PendingReviewCount > 0 ? "is-pink" : reviewedSubmissionCount > 0 ? "is-green" : "is-purple";
-    var eventStatusLabel = eventView.State switch
-    {
-        EventState.Draft => T["Setup"],
-        EventState.SignupOpen => T["Signups open"],
-        EventState.SignupClosed => T["Signups closed"],
-        EventState.Live => T["Live"],
-        EventState.AwaitingFinalReview => T["Final review"],
-        EventState.Finalized => T["Finished"],
-        EventState.Archived => T["Archived"],
-        EventState.Cancelled => T["Cancelled"],
-        EventState.Discarded => T["Discarded"],
-        _ => T[eventView.State.ToString()]
-    };
-    var eventStatusTone = eventView.State switch
-    {
-        EventState.Draft => "is-yellow",
-        EventState.SignupOpen => "is-cyan",
-        EventState.SignupClosed => "is-orange",
-        EventState.Live => "is-green",
-        EventState.AwaitingFinalReview => "is-purple",
-        EventState.Finalized => "is-blue",
-        EventState.Archived => "is-muted",
-        EventState.Cancelled or EventState.Discarded => "is-pink",
-        _ => "is-muted"
-    };
+    var eventStatus = AdminEventStatePresentation.For(eventView.State, T);
 }
 
 <section class="table-page event-manage-page">
@@ -163,7 +140,7 @@
             <dl class="event-overview-dates">
                 <div class="event-overview-date-row event-overview-information-summary">
                     <div class="event-overview-information-name"><dt class="visually-hidden">@T["Event name"]</dt><dd>@eventView.Name</dd></div>
-                    <div class="event-overview-information-status"><dt class="visually-hidden">@T["Status"]</dt><dd><span class="event-overview-status-pill @eventStatusTone">@eventStatusLabel</span></dd></div>
+                    <div class="event-overview-information-status"><dt class="visually-hidden">@T["Status"]</dt><dd><span class="admin-status-pill @eventStatus.Modifier">@eventStatus.Label</span></dd></div>
                 </div>
                 @foreach (var row in Model.EffectiveTimeline)
                 {
