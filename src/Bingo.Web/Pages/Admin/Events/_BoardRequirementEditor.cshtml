@@ -1,17 +1,18 @@
 @model Bingo.Web.Pages.Admin.Events.BoardRequirementEditorViewModel
 @{ var prefix = Model.Index < 0 ? "Requirements[-1]" : $"Requirements[{Model.Index}]"; var id = $"requirement-{Model.Index}"; }
 <fieldset class="requirement-editor" id="@id" data-index="@Model.Index">
-    <div class="objective-heading"><legend>Objective <span class="objective-number">@(Model.Index < 0 ? string.Empty : Model.Index + 1)</span></legend>@if (Model.Index != 0) { <button type="button" class="objective-remove remove-requirement" aria-label="Remove objective" title="Remove objective">×</button> }</div>
+    <div class="objective-heading"><legend>@T["Objective"] <span class="objective-number">@(Model.Index < 0 ? string.Empty : Model.Index + 1)</span></legend>@if (Model.Index != 0) { <button type="button" class="objective-remove remove-requirement" aria-label="@T["Remove objective"]" title="@T["Remove objective"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button> }</div>
     <div class="objective-core-grid">
-        <label for="@id-kind"><span class="objective-field-label">Objective type</span><select id="@id-kind" name="@($"TileDraft.{prefix}.Kind")" class="form-select requirement-kind"><option value="drops">Collect drops</option><option value="challenge">Complete an activity or challenge</option></select></label>
-        <div class="objective-source-field"><strong>Bosses or activities</strong><details class="checkbox-dropdown boss-picker"><summary>Choose bosses or activities</summary><div class="checkbox-dropdown-menu">@foreach (var boss in Model.Bosses) { <label><input type="checkbox" name="@($"TileDraft.{prefix}.BossIds")" value="@boss.Id" class="boss-checkbox" data-boss-id="@boss.Id" data-boss-name="@boss.Name" /> <span>@boss.Name</span></label> }</div></details></div>
-        <label for="@id-target"><span class="objective-field-label">Quantity</span><input id="@id-target" name="@($"TileDraft.{prefix}.Target")" class="form-control" type="number" min="1" value="1" required /></label>
+        <div class="admin-field"><label for="@id-kind"><span class="objective-field-label">@T["Objective type"]</span></label><div class="board-select-wrap"><select id="@id-kind" name="@($"TileDraft.{prefix}.Kind")" class="form-select requirement-kind"><option value="drops">@T["Collect drops"]</option><option value="challenge">@T["Complete an activity or challenge"]</option></select><svg class="board-dialog-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m6 9 6 6 6-6" /></svg></div></div>
+        <div class="admin-field objective-source-field"><span class="field-label"><span>@T["Bosses or activities"]</span><small>@T["— choose one or more"]</small></span><details class="checkbox-dropdown boss-picker"><summary class="admin-button-secondary boss-picker-control"><span class="boss-picker-label">@T["Choose bosses or activities"]</span><svg class="board-dialog-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m6 9 6 6 6-6" /></svg></summary><div class="checkbox-dropdown-menu">@foreach (var boss in Model.Bosses) { <label><input type="checkbox" name="@($"TileDraft.{prefix}.BossIds")" value="@boss.Id" class="boss-checkbox" data-boss-id="@boss.Id" data-boss-name="@boss.Name" /> <span>@boss.Name</span></label> }</div></details></div>
+        <div class="admin-field"><label for="@id-target"><span class="objective-field-label">@T["Total drops"]</span></label><input id="@id-target" name="@($"TileDraft.{prefix}.Target")" class="form-control" type="number" min="1" value="1" required /></div>
     </div>
-    <div class="challenge-only-fields" hidden><label for="@id-description">What must be completed?<input id="@id-description" name="@($"TileDraft.{prefix}.Description")" class="form-control challenge-description" placeholder="For example: Complete Theatre of Blood in a four-player team under 25 minutes" /></label></div>
+    <div class="challenge-only-fields" hidden><div class="admin-field"><label for="@id-description">@T["What must be completed?"]</label><input id="@id-description" name="@($"TileDraft.{prefix}.Description")" class="form-control challenge-description" placeholder="@T["For example: Complete Theatre of Blood in a four-player team under 25 minutes"]" /></div></div>
     <div class="drop-only-fields">
-        <div class="eligible-drop-heading"><strong>Eligible drops</strong><div class="eligible-drop-actions" hidden><button type="button" class="btn btn-sm catalogue-compact-action neutral-outline-action select-all-drops">Select all</button><button type="button" class="btn btn-sm catalogue-compact-action neutral-outline-action deselect-all-drops" aria-label="Deselect all drops">Clear</button></div></div>
-        <p class="drop-picker-empty">Choose a boss or activity first.</p>
-        <div class="eligible-drop-list">
+        <section class="eligible-drops-section">
+            <div class="eligible-drop-heading"><strong>@T["Eligible drops"]</strong><div class="eligible-drop-actions" hidden><button type="button" class="btn admin-button-secondary select-all-drops">@T["Select all"]</button><button type="button" class="btn admin-button-secondary deselect-all-drops" aria-label="@T["Deselect all drops"]">@T["Clear"]</button></div></div>
+            <p class="drop-picker-empty">@T["Choose a boss or activity first."]</p>
+            <div class="eligible-drop-list">
             @foreach (var boss in Model.Bosses)
             {
                 var bossDrops = Model.Drops.Where(drop => drop.BossId == boss.Id).ToList();
@@ -21,12 +22,13 @@
                     {
                         var dropIdsName = $"TileDraft.{prefix}.DropIds";
                         var dropWeightName = $"TileDraft.{prefix}.DropWeights[{drop.Id}]";
-                        <div class="eligible-drop-option"><label><input type="checkbox" name="@dropIdsName" value="@drop.Id" class="eligible-drop-checkbox" /> <span>@drop.ItemName <small>@drop.Rate</small></span></label><label class="drop-weight-field" hidden><span class="visually-hidden">@drop.ItemName contribution weight</span><input type="number" name="@dropWeightName" value="1" min="1" max="10000" class="form-control" aria-label="@drop.ItemName contribution weight" /></label></div>
+                        <div class="eligible-drop-option"><label><input type="checkbox" name="@dropIdsName" value="@drop.Id" class="eligible-drop-checkbox" /> <span><span>@drop.ItemName</span><small>@drop.Rate</small></span></label><label class="drop-weight-field" hidden><span class="visually-hidden">@drop.ItemName contribution weight</span><input type="number" name="@dropWeightName" value="1" min="1" max="10000" class="form-control" aria-label="@drop.ItemName contribution weight" /></label></div>
                     }
                 </section>
             }
-        </div>
-        <small class="missing-drop-help">Missing a drop? <a href="/Admin/Catalogue" target="_blank">Add it to the OSRS catalogue</a>, then reopen this tile.</small>
-        <details class="objective-counting-options"><summary>Counting options</summary><div><label class="check-row"><input type="checkbox" name="@($"TileDraft.{prefix}.DuplicatesAllowed")" value="true" checked /> Allow repeated copies of the same eligible drop</label><label class="check-row"><input type="checkbox" class="individual-drop-weights-toggle" /> Configure individual drop weights</label></div></details>
+            </div>
+            <small class="missing-drop-help">@T["Missing a drop?"] <a href="/Admin/Catalogue" target="_blank">@T["Add it to the OSRS catalogue"]</a>, @T["then reopen this tile."]</small>
+            <div class="objective-counting-options"><div class="counting-options-heading">@T["Counting options"]</div><div class="counting-options-fields"><label class="check-row"><input type="checkbox" name="@($"TileDraft.{prefix}.DuplicatesAllowed")" value="true" checked /> @T["Allow repeated copies of the same eligible drop"]</label><label class="check-row"><input type="checkbox" class="individual-drop-weights-toggle" /> @T["Configure individual drop weights"]</label></div></div>
+        </section>
     </div>
 </fieldset>

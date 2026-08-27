@@ -1,13 +1,158 @@
 @page
 @model Bingo.Web.Pages.Admin.Accounts.IndexModel
 @using Bingo.Domain.Access
-@{ ViewData["Title"] = "Accounts"; }
-<section class="table-page">
-    <div class="page-heading"><div><p class="eyebrow">Administration</p><h1>Accounts</h1><p>Website accounts and emergency credentials have separate filters and pagination.</p></div><div class="button-row"><a class="btn action-accent-outline" asp-page="Create">Create emergency credential</a>@if(User.IsInRole(nameof(GlobalRole.SuperAdmin))){<a class="btn btn-outline-light" asp-page="Transfer">Transfer ownership</a>}</div></div>
-    <section class="panel"><h2>Website accounts</h2><form method="get" class="filter-row"><label>Search public username<input name="WebsiteSearch" value="@Model.WebsiteSearch" class="form-control" /></label><label>Role<select name="WebsiteRole" class="form-control"><option value="">Any role</option>@foreach(var role in Enum.GetValues<GlobalRole>()){<option value="@role" selected="@(Model.WebsiteRole == role)">@role</option>}</select></label><label>State<select name="WebsiteState" class="form-control"><option value="">Any state</option><option value="active" selected="@(Model.WebsiteState == "active")">Active</option><option value="disabled" selected="@(Model.WebsiteState == "disabled")">Disabled</option></select></label><label>Discord<select name="WebsiteDiscord" class="form-control"><option value="">Any link state</option><option value="linked" selected="@(Model.WebsiteDiscord == "linked")">Linked</option><option value="unlinked" selected="@(Model.WebsiteDiscord == "unlinked")">Unlinked</option></select></label><label>Event<select name="WebsiteEventId" class="form-control"><option value="">Any event</option>@foreach(var item in Model.Events){<option value="@item.Id" selected="@(Model.WebsiteEventId == item.Id)">@item.Name</option>}</select></label><input type="hidden" name="EmergencySearch" value="@Model.EmergencySearch"/><input type="hidden" name="EmergencyEventId" value="@Model.EmergencyEventId"/><input type="hidden" name="EmergencyTeamId" value="@Model.EmergencyTeamId"/><input type="hidden" name="EmergencySetup" value="@Model.EmergencySetup"/><input type="hidden" name="EmergencyState" value="@Model.EmergencyState"/><input type="hidden" name="EmergencyCutoff" value="@Model.EmergencyCutoff"/><input type="hidden" name="EmergencyPage" value="@Model.EmergencyPage"/><button class="btn btn-outline-light">Apply</button></form>
-    <div class="table-wrap"><table><thead><tr><th>Username</th><th>Role</th><th>State</th><th>Discord</th><th>Last login</th><th>Current event roles</th><th></th></tr></thead><tbody>@foreach(var account in Model.WebsiteAccounts){<tr><td>@account.Username</td><td>@account.Role</td><td>@(account.Active ? "Active" : "Disabled")</td><td>@(account.DiscordLinked ? "Linked" : "Unlinked")</td><td>@(account.LastLoginAt?.ToLocalTime().ToString("g") ?? "Never")</td><td>@account.EventRoleSummary</td><td><a asp-page="Manage" asp-route-id="@account.Id">Details</a></td></tr>}@if(!Model.WebsiteAccounts.Any()){<tr><td colspan="7">No website accounts match these filters.</td></tr>}</tbody></table></div>
-    <div class="button-row">@if(Model.WebsitePage>1){<a class="btn btn-outline-light" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsiteState="@Model.WebsiteState" asp-route-WebsiteDiscord="@Model.WebsiteDiscord" asp-route-WebsiteEventId="@Model.WebsiteEventId" asp-route-WebsitePage="@(Model.WebsitePage-1)" asp-route-EmergencySearch="@Model.EmergencySearch" asp-route-EmergencyEventId="@Model.EmergencyEventId" asp-route-EmergencyTeamId="@Model.EmergencyTeamId" asp-route-EmergencySetup="@Model.EmergencySetup" asp-route-EmergencyState="@Model.EmergencyState" asp-route-EmergencyCutoff="@Model.EmergencyCutoff" asp-route-EmergencyPage="@Model.EmergencyPage">Previous website accounts</a>}@if(Model.WebsiteHasNextPage){<a class="btn btn-outline-light" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsiteState="@Model.WebsiteState" asp-route-WebsiteDiscord="@Model.WebsiteDiscord" asp-route-WebsiteEventId="@Model.WebsiteEventId" asp-route-WebsitePage="@(Model.WebsitePage+1)" asp-route-EmergencySearch="@Model.EmergencySearch" asp-route-EmergencyEventId="@Model.EmergencyEventId" asp-route-EmergencyTeamId="@Model.EmergencyTeamId" asp-route-EmergencySetup="@Model.EmergencySetup" asp-route-EmergencyState="@Model.EmergencyState" asp-route-EmergencyCutoff="@Model.EmergencyCutoff" asp-route-EmergencyPage="@Model.EmergencyPage">Next website accounts</a>}</div></section>
-    <section class="panel"><h2>Emergency credentials</h2><form method="get" class="filter-row"><label>Search login username<input name="EmergencySearch" value="@Model.EmergencySearch" class="form-control"/></label><label>Event<select name="EmergencyEventId" class="form-control"><option value="">Any event</option>@foreach(var item in Model.Events){<option value="@item.Id" selected="@(Model.EmergencyEventId == item.Id)">@item.Name</option>}</select></label><label>Team ID<input name="EmergencyTeamId" value="@Model.EmergencyTeamId" class="form-control"/></label><label>Setup<select name="EmergencySetup" class="form-control"><option value="">Any</option><option value="complete" selected="@(Model.EmergencySetup == "complete")">Complete</option><option value="pending" selected="@(Model.EmergencySetup == "pending")">Pending</option></select></label><label>State<select name="EmergencyState" class="form-control"><option value="">Any</option><option value="enabled" selected="@(Model.EmergencyState == "enabled")">Enabled</option><option value="disabled" selected="@(Model.EmergencyState == "disabled")">Disabled</option></select></label><label>Cutoff<select name="EmergencyCutoff" class="form-control"><option value="">Any</option><option value="open" selected="@(Model.EmergencyCutoff == "open")">Not cutoff</option><option value="cutoff" selected="@(Model.EmergencyCutoff == "cutoff")">Cutoff disabled</option></select></label><input type="hidden" name="WebsiteSearch" value="@Model.WebsiteSearch"/><input type="hidden" name="WebsiteRole" value="@Model.WebsiteRole"/><input type="hidden" name="WebsiteState" value="@Model.WebsiteState"/><input type="hidden" name="WebsiteDiscord" value="@Model.WebsiteDiscord"/><input type="hidden" name="WebsiteEventId" value="@Model.WebsiteEventId"/><input type="hidden" name="WebsitePage" value="@Model.WebsitePage"/><button class="btn btn-outline-light">Apply</button></form>
-    <div class="table-wrap"><table><thead><tr><th>Login username</th><th>Event</th><th>Team</th><th>Setup</th><th>Enabled</th><th>Cutoff</th><th>Last login</th><th></th></tr></thead><tbody>@foreach(var account in Model.EmergencyCredentials){<tr><td>@account.Username</td><td>@account.EventName</td><td>@account.TeamName</td><td>@(account.SetupComplete ? "Complete" : "Pending")</td><td>@(account.Enabled ? "Enabled" : "Disabled")</td><td>@(account.CutoffDisabled ? "Disabled at cutoff" : "Open")</td><td>@(account.LastLoginAt?.ToLocalTime().ToString("g") ?? "Never")</td><td><a asp-page="Manage" asp-route-id="@account.Id">Details</a></td></tr>}@if(!Model.EmergencyCredentials.Any()){<tr><td colspan="8">No emergency credentials match these filters.</td></tr>}</tbody></table></div>
-    <div class="button-row">@if(Model.EmergencyPage>1){<a class="btn btn-outline-light" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsiteState="@Model.WebsiteState" asp-route-WebsiteDiscord="@Model.WebsiteDiscord" asp-route-WebsiteEventId="@Model.WebsiteEventId" asp-route-WebsitePage="@Model.WebsitePage" asp-route-EmergencySearch="@Model.EmergencySearch" asp-route-EmergencyEventId="@Model.EmergencyEventId" asp-route-EmergencyTeamId="@Model.EmergencyTeamId" asp-route-EmergencySetup="@Model.EmergencySetup" asp-route-EmergencyState="@Model.EmergencyState" asp-route-EmergencyCutoff="@Model.EmergencyCutoff" asp-route-EmergencyPage="@(Model.EmergencyPage-1)">Previous emergency credentials</a>}@if(Model.EmergencyHasNextPage){<a class="btn btn-outline-light" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsiteState="@Model.WebsiteState" asp-route-WebsiteDiscord="@Model.WebsiteDiscord" asp-route-WebsiteEventId="@Model.WebsiteEventId" asp-route-WebsitePage="@Model.WebsitePage" asp-route-EmergencySearch="@Model.EmergencySearch" asp-route-EmergencyEventId="@Model.EmergencyEventId" asp-route-EmergencyTeamId="@Model.EmergencyTeamId" asp-route-EmergencySetup="@Model.EmergencySetup" asp-route-EmergencyState="@Model.EmergencyState" asp-route-EmergencyCutoff="@Model.EmergencyCutoff" asp-route-EmergencyPage="@(Model.EmergencyPage+1)">Next emergency credentials</a>}</div></section>
+@{
+    ViewData["Title"] = T["Accounts / Roles"];
+    ViewData["AdminPageDescription"] = T["Manage website roles and team-scoped emergency access."];
+    string RoleLabel(GlobalRole role) => role switch
+    {
+        GlobalRole.SuperAdmin => T["Super Admin"].Value,
+        GlobalRole.Admin => T["Admin"].Value,
+        _ => T["User"].Value
+    };
+}
+
+<section class="admin-accounts-page">
+    <section class="admin-accounts-section" data-admin-account-section="website" aria-labelledby="website-accounts-heading">
+        <div class="admin-events-directory-controls">
+            <form class="admin-events-toolbar" method="get" asp-page="./Index" data-admin-account-filter="website">
+                <div class="admin-search-field">
+                    <label class="visually-hidden" for="website-account-search">@T["Search accounts"]</label>
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                    <input id="website-account-search" class="admin-search-field-input form-control" type="search" name="WebsiteSearch" value="@Model.WebsiteSearch" placeholder="@T["Search accounts…"]" />
+                    <button class="admin-search-clear" type="button" data-admin-search-clear aria-label="@T["Clear account search"]" hidden="@(string.IsNullOrWhiteSpace(Model.WebsiteSearch) ? "hidden" : null)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
+                </div>
+                <div class="admin-events-state-filter admin-field">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
+                    <label for="website-account-role">@T["Role:"]</label>
+                    <div class="admin-events-state-select">
+                        <select id="website-account-role" class="admin-filter-select form-select" name="WebsiteRole" data-admin-account-role>
+                            <option value="">@T["Any role"]</option>
+                            @foreach (var role in Enum.GetValues<GlobalRole>())
+                            {
+                                <option value="@role" selected="@(Model.WebsiteRole == role ? "selected" : null)">@RoleLabel(role)</option>
+                            }
+                        </select>
+                        <svg class="admin-events-state-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
+                    </div>
+                </div>
+                <button class="visually-hidden" type="submit">@T["Search accounts"]</button>
+                <input type="hidden" name="EmergencySearch" value="@Model.EmergencySearch" />
+                <input type="hidden" name="EmergencyPage" value="@Model.EmergencyPage" />
+            </form>
+            <div class="admin-accounts-actions">
+                @if (User.IsInRole(nameof(GlobalRole.SuperAdmin)))
+                {
+                    <a class="admin-button-secondary" asp-page="Transfer">@T["Transfer ownership"]</a>
+                }
+                <a class="admin-button-create" data-account-create-trigger="true" asp-page="Create"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M5 12h14" /><path d="M12 5v14" /></svg><span>@T["Create emergency credential"]</span></a>
+            </div>
+        </div>
+        <div class="admin-accounts-table-wrap">
+            <header class="admin-accounts-section-heading">
+                <div><h2 id="website-accounts-heading">@T["Website accounts"]</h2><p>@T["Normal website identities and their global roles."]</p></div>
+            </header>
+            <div class="admin-events-table-scroll">
+                <table class="event-table admin-accounts-table admin-accounts-website-table">
+                    <colgroup>
+                        <col class="admin-accounts-col-account" />
+                        <col class="admin-accounts-col-role" />
+                        <col class="admin-accounts-col-state" />
+                        <col class="admin-accounts-col-discord" />
+                        <col class="admin-accounts-col-last-login" />
+                        <col class="admin-accounts-col-event-roles" />
+                        <col class="admin-accounts-col-actions" />
+                    </colgroup>
+                    <thead><tr><th><span class="admin-accounts-table-header-label">@T["Account"]</span></th><th><span class="admin-accounts-table-header-label">@T["Role"]</span></th><th><span class="admin-accounts-table-header-label">@T["State"]</span></th><th><span class="admin-accounts-table-header-label">@T["Discord"]</span></th><th><span class="admin-accounts-table-header-label">@T["Last login"]</span></th><th><span class="admin-accounts-table-header-label">@T["Current event roles"]</span></th><th><span class="admin-accounts-table-header-label">@T["Actions"]</span></th></tr></thead>
+                    <tbody>
+                    @foreach (var account in Model.WebsiteAccounts)
+                    {
+                        var roleModifier = account.Role switch { GlobalRole.SuperAdmin => "is-purple", GlobalRole.Admin => "is-blue", _ => "is-muted" };
+                        <tr>
+                            <td data-label="Account">
+                                <strong>@account.Username</strong>
+                                @if (account.DiscordLinked && !string.IsNullOrWhiteSpace(account.DiscordDisplayName))
+                                {
+                                    <small class="admin-account-discord-name">@account.DiscordDisplayName</small>
+                                }
+                            </td>
+                            <td data-label="Role"><span class="admin-status-pill @roleModifier">@RoleLabel(account.Role)</span></td>
+                            <td data-label="State"><span class="admin-status-pill @(account.Active ? "is-green" : "is-muted")">@(account.Active ? T["Active"] : T["Disabled"])</span></td>
+                            <td data-label="Discord"><span class="admin-account-discord-status @(account.DiscordLinked ? "is-linked" : "is-unlinked")">@(account.DiscordLinked ? T["Linked"] : T["Not linked"])</span></td>
+                            <td data-label="Last login"><span class="admin-account-support">@(account.LastLoginAt?.ToLocalTime().ToString("g") ?? T["Never"].Value)</span></td>
+                            <td data-label="Current event roles"><span class="admin-account-support admin-account-ellipsis" title="@account.EventRoleSummary">@account.EventRoleSummary</span></td>
+                            <td class="event-row-action" data-label="Actions"><a class="event-overview-row-action" data-account-manage-trigger="true" asp-page="Manage" asp-route-id="@account.Id">@T["Manage"]</a></td>
+                        </tr>
+                    }
+                    @if (!Model.WebsiteAccounts.Any()) { <tr><td class="admin-accounts-empty" colspan="7">@T["No website accounts match this search or role."]</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="admin-accounts-pager">
+            @if (Model.WebsitePage > 1) { <a class="admin-button-secondary" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsitePage="@(Model.WebsitePage - 1)" asp-route-EmergencySearch="@Model.EmergencySearch" asp-route-EmergencyPage="@Model.EmergencyPage">@T["Previous website accounts"]</a> }
+            @if (Model.WebsiteHasNextPage) { <a class="admin-button-secondary" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsitePage="@(Model.WebsitePage + 1)" asp-route-EmergencySearch="@Model.EmergencySearch" asp-route-EmergencyPage="@Model.EmergencyPage">@T["Next website accounts"]</a> }
+        </div>
+    </section>
+
+    <section class="admin-accounts-section" data-admin-account-section="emergency" aria-labelledby="emergency-credentials-heading">
+        <div class="admin-events-directory-controls">
+            <form class="admin-events-toolbar" method="get" asp-page="./Index" data-admin-account-filter="emergency">
+                <div class="admin-search-field">
+                    <label class="visually-hidden" for="emergency-account-search">@T["Search login username"]</label>
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                    <input id="emergency-account-search" class="admin-search-field-input form-control" type="search" name="EmergencySearch" value="@Model.EmergencySearch" placeholder="@T["Search login username…"]" />
+                    <button class="admin-search-clear" type="button" data-admin-search-clear aria-label="@T["Clear emergency credential search"]" hidden="@(string.IsNullOrWhiteSpace(Model.EmergencySearch) ? "hidden" : null)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
+                </div>
+                <button class="visually-hidden" type="submit">@T["Search emergency credentials"]</button>
+                <input type="hidden" name="WebsiteSearch" value="@Model.WebsiteSearch" />
+                <input type="hidden" name="WebsiteRole" value="@Model.WebsiteRole" />
+                <input type="hidden" name="WebsitePage" value="@Model.WebsitePage" />
+            </form>
+        </div>
+        <div class="admin-accounts-table-wrap">
+            <header class="admin-accounts-section-heading">
+                <div><h2 id="emergency-credentials-heading">@T["Emergency credentials"]</h2><p>@T["Team-scoped fallback logins, distinct from normal website roles."]</p></div>
+            </header>
+            <div class="admin-events-table-scroll">
+                <table class="event-table admin-accounts-table admin-accounts-emergency-table">
+                    <colgroup>
+                        <col class="admin-accounts-col-login-username" />
+                        <col class="admin-accounts-col-event" />
+                        <col class="admin-accounts-col-team" />
+                        <col class="admin-accounts-col-setup" />
+                        <col class="admin-accounts-col-state" />
+                        <col class="admin-accounts-col-cutoff" />
+                        <col class="admin-accounts-col-last-login" />
+                        <col class="admin-accounts-col-actions" />
+                    </colgroup>
+                    <thead><tr><th><span class="admin-accounts-table-header-label">@T["Login username"]</span></th><th><span class="admin-accounts-table-header-label">@T["Event"]</span></th><th><span class="admin-accounts-table-header-label">@T["Team"]</span></th><th><span class="admin-accounts-table-header-label">@T["Setup"]</span></th><th><span class="admin-accounts-table-header-label">@T["State"]</span></th><th><span class="admin-accounts-table-header-label">@T["Cutoff"]</span></th><th><span class="admin-accounts-table-header-label">@T["Last login"]</span></th><th><span class="admin-accounts-table-header-label">@T["Actions"]</span></th></tr></thead>
+                    <tbody>
+                    @foreach (var account in Model.EmergencyCredentials)
+                    {
+                        <tr>
+                            <td data-label="Login username"><strong>@account.Username</strong></td>
+                            <td data-label="Event"><span class="admin-account-value admin-account-ellipsis" title="@account.EventName">@account.EventName</span></td>
+                            <td data-label="Team"><span class="admin-account-value">@account.TeamName</span></td>
+                            <td data-label="Setup"><span class="admin-status-pill @(account.SetupComplete ? "is-green" : "is-yellow")">@(account.SetupComplete ? T["Complete"] : T["Pending"])</span></td>
+                            <td data-label="State"><span class="admin-status-pill @(account.Enabled ? "is-green" : "is-muted")">@(account.Enabled ? T["Enabled"] : T["Disabled"])</span></td>
+                            <td data-label="Cutoff"><span class="admin-status-pill @(account.CutoffDisabled ? "is-muted" : "is-green")">@(account.CutoffDisabled ? T["Disabled at cutoff"] : T["Open"])</span></td>
+                            <td data-label="Last login"><span class="admin-account-support">@(account.LastLoginAt?.ToLocalTime().ToString("g") ?? T["Never"].Value)</span></td>
+                            <td class="event-row-action" data-label="Actions"><a class="event-overview-row-action" data-account-manage-trigger="true" asp-page="Manage" asp-route-id="@account.Id">@T["Manage"]</a></td>
+                        </tr>
+                    }
+                    @if (!Model.EmergencyCredentials.Any()) { <tr><td class="admin-accounts-empty" colspan="8">@T["No emergency credentials match this search."]</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="admin-accounts-pager">
+            @if (Model.EmergencyPage > 1) { <a class="admin-button-secondary" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsitePage="@Model.WebsitePage" asp-route-EmergencySearch="@Model.EmergencySearch" asp-route-EmergencyPage="@(Model.EmergencyPage - 1)">@T["Previous emergency credentials"]</a> }
+            @if (Model.EmergencyHasNextPage) { <a class="admin-button-secondary" asp-route-WebsiteSearch="@Model.WebsiteSearch" asp-route-WebsiteRole="@Model.WebsiteRole" asp-route-WebsitePage="@Model.WebsitePage" asp-route-EmergencySearch="@Model.EmergencySearch" asp-route-EmergencyPage="@(Model.EmergencyPage + 1)">@T["Next emergency credentials"]</a> }
+        </div>
+    </section>
 </section>
+
+@section Scripts {
+    <script src="~/js/account-manage-dialog.js" asp-append-version="true"></script>
+}

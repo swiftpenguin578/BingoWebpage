@@ -2,14 +2,17 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using Bingo.Application.Boards;
 using Bingo.Application.Events;
 using Bingo.Application.Evidence;
 using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
+using Bingo.Domain.Evidence;
 using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
+using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.WiseOldMan;
@@ -47,6 +50,30 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Fact]
+    public async Task DevelopmentResetSeedsCaptainOperationsInventory()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        await using var db = new ApplicationDbContext(options);
+        const string owner = "captain-fixture-reset-owner";
+        await new OperatorRecoveryService(db, clock, new Microsoft.AspNetCore.Identity.PasswordHasher<Account>())
+            .BootstrapOwnerAsync(owner, "captain-fixture-reset-password", owner, CancellationToken.None);
+        await new CatalogueSnapshotService(db, clock).ApplyAsync(Path.Combine(AppContext.BaseDirectory, "data", "osrs-catalogue.json"));
+
+        var seeder = new DevelopmentScenarioSeeder(db, new DevelopmentEnvironment(), new Microsoft.AspNetCore.Identity.PasswordHasher<Account>(), new SeedEvidenceStorage(), clock);
+        await seeder.ResetAndSeedAsync();
+        var live = await db.Events.SingleAsync(value => value.Slug == "test-15-dkl-live");
+        var firstTeam = await db.Teams.Where(value => value.EventId == live.Id).OrderBy(value => value.DraftPosition).FirstAsync();
+        var focusKinds = await db.TeamFocusMarkers.Where(value => value.EventId == live.Id && value.TeamId == firstTeam.Id && value.Focused).Select(value => value.TargetKind).ToListAsync();
+        Assert.Contains(TeamFocusTargetKind.Tile, focusKinds);
+        Assert.Contains(TeamFocusTargetKind.Row, focusKinds);
+        Assert.Contains(TeamFocusTargetKind.Column, focusKinds);
+        var submissions = await db.Submissions.Where(value => value.EventId == live.Id && value.TeamId == firstTeam.Id).ToListAsync();
+        Assert.Contains(submissions, value => value.Status == SubmissionStatus.Withdrawn);
+        Assert.Contains(submissions, value => value.ResubmissionOfSubmissionId is not null);
+        Assert.Contains(submissions, source => source.Status == SubmissionStatus.Rejected && submissions.Any(child => child.ResubmissionOfSubmissionId == source.Id));
+    }
+
+    [Fact]
     public async Task CompleteAndPartialProjectionsUseMatchedCurrentRowsWithoutCarryForward()
     {
         var clock = new TestClock(DateTimeOffset.UtcNow);
@@ -74,6 +101,7 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             Assert.Equal(12m, team.AverageGainedEhb);
             Assert.Equal(["Alice", "Bob"], team.MvpNames);
             var alice = Assert.Single(team.Participants, value => value.ParticipantName == "Alice");
+            Assert.Equal(["Alice", "Alice second"], alice.PlayingAccountNames);
             Assert.Equal(12m, alice.TotalGainedEhb);
             Assert.Equal([5m, 7m], alice.Accounts.Select(value => value.GainedEhb).ToArray());
         }
@@ -242,20 +270,74 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
         var board = await client.GetStringAsync("/Events/test-15-dkl-live/Board?view=leaderboards&ranking=activity");
+        Assert.Contains("aria-label=\"Leaderboards\"", board, StringComparison.Ordinal);
+        Assert.True(board.IndexOf(">EHB</a>", StringComparison.Ordinal) < board.IndexOf(">Drop EHB</a>", StringComparison.Ordinal));
+        Assert.Contains("public-ui-view-switcher public-ui-view-switcher--two", board, StringComparison.Ordinal);
+        Assert.Contains("public-ui-view-switcher-item is-current", board, StringComparison.Ordinal);
+        Assert.Contains("view=leaderboards&amp;ranking=activity", board, StringComparison.Ordinal);
+        Assert.Contains("view=leaderboards&amp;ranking=drops", board, StringComparison.Ordinal);
+        Assert.DoesNotContain("public-ui-table-nav", board, StringComparison.Ordinal);
+        Assert.DoesNotContain("leaderboards-heading", board, StringComparison.Ordinal);
+        Assert.DoesNotContain("Performance", board, StringComparison.Ordinal);
+        Assert.DoesNotContain("Official bingo position stays visible while you explore player performance.", board, StringComparison.Ordinal);
+        Assert.Contains("aria-label=\"EHB leaderboard\"", board, StringComparison.Ordinal);
+        Assert.Contains(">Wise Old Man</span>", board, StringComparison.Ordinal);
+        Assert.DoesNotContain("Wise Old Man integration", board, StringComparison.Ordinal);
+        Assert.DoesNotContain(">EHB</strong>", board, StringComparison.Ordinal);
+        Assert.DoesNotContain("Activity EHB", board, StringComparison.Ordinal);
         Assert.Contains("Fetched from Wise Old Man", board, StringComparison.Ordinal);
         Assert.Contains("Rasmus Zebak", board, StringComparison.Ordinal);
         Assert.Contains("Provisional coverage", board, StringComparison.Ordinal);
         Assert.Contains("Wise Old Man is temporarily unavailable. Showing the last available cache.", board, StringComparison.Ordinal);
-        Assert.DoesNotContain("Rasmus Activity Main", board, StringComparison.Ordinal);
-        Assert.Contains("Average / participant", board, StringComparison.Ordinal);
+        Assert.Contains("Rasmus Activity Main", board, StringComparison.Ordinal);
+        Assert.Contains("public-ui-leaderboard-detail-row", board, StringComparison.Ordinal);
+        Assert.Contains("public-ui-table--nested", board, StringComparison.Ordinal);
+        Assert.Contains("Start EHB", board, StringComparison.Ordinal);
+        Assert.Contains("End EHB", board, StringComparison.Ordinal);
+        Assert.Contains("—", board, StringComparison.Ordinal);
+        Assert.Contains("wiseoldman.net/players/Rasmus%20Zebak", board, StringComparison.Ordinal);
+        Assert.DoesNotContain("wiseoldman.net/players/Rasmus%20Activity%20Main", board, StringComparison.Ordinal);
+        Assert.Contains("Avg. gained", board, StringComparison.Ordinal);
         Assert.Contains("MVP", board, StringComparison.Ordinal);
+        Assert.Contains("class=\"public-ui-table\"", board, StringComparison.Ordinal);
+        Assert.Contains("public-ui-section-heading public-ui-positive-delta--success\">+", board, StringComparison.Ordinal);
+        Assert.Contains("public-ui-leaderboard-detail-summary", board, StringComparison.Ordinal);
+        Assert.Contains("<td><strong class=\"public-ui-section-heading\">", board, StringComparison.Ordinal);
+        Assert.DoesNotContain("<summary><strong class=\"public-ui-section-heading\">", board, StringComparison.Ordinal);
+        Assert.Contains("data-public-leaderboard-expand-control", board, StringComparison.Ordinal);
+        Assert.Contains("<path d=\"m6 9 6 6 6-6\" />", board, StringComparison.Ordinal);
+        Assert.Contains("<details ", board, StringComparison.Ordinal);
+        Assert.Contains("public-ui-standings", board, StringComparison.Ordinal);
+        var dropBoard = await client.GetStringAsync("/Events/test-15-dkl-live/Board?view=leaderboards&ranking=drops");
+        Assert.Contains("public-ui-view-switcher public-ui-view-switcher--two", dropBoard, StringComparison.Ordinal);
+        Assert.Contains("public-ui-view-switcher-item is-current", dropBoard, StringComparison.Ordinal);
+        Assert.Contains(">Approved contributions</span>", dropBoard, StringComparison.Ordinal);
+        Assert.Contains("Private players excluded", dropBoard, StringComparison.Ordinal);
+        Assert.Contains("Players means public roster players", dropBoard, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Drop EHB</strong>", dropBoard, StringComparison.Ordinal);
+        Assert.DoesNotContain("public-ui-table-nav", dropBoard, StringComparison.Ordinal);
+        Assert.Contains("class=\"public-ui-table\"", dropBoard, StringComparison.Ordinal);
+        Assert.Contains("public-ui-leaderboard-detail-row", dropBoard, StringComparison.Ordinal);
+        Assert.Contains("public-ui-table--nested", dropBoard, StringComparison.Ordinal);
+        Assert.Contains("Total drops", dropBoard, StringComparison.Ordinal);
+        Assert.Contains("Drop EHB", dropBoard, StringComparison.Ordinal);
+        Assert.Contains("public-ui-section-heading public-ui-positive-delta--success\">+", dropBoard, StringComparison.Ordinal);
+        Assert.Contains("<td><strong class=\"public-ui-section-heading\">", dropBoard, StringComparison.Ordinal);
+        Assert.DoesNotContain("<summary><strong class=\"public-ui-section-heading\">", dropBoard, StringComparison.Ordinal);
+        Assert.Contains("data-public-leaderboard-expand-control", dropBoard, StringComparison.Ordinal);
+        Assert.Contains("public-ui-standings", dropBoard, StringComparison.Ordinal);
         var team = await client.GetStringAsync("/Events/test-15-dkl-live/Board/touch-kids-not-grass");
+        Assert.Contains("<header class=\"public-ui-component-header\"><span class=\"public-ui-overline\">EHB</span></header>", team, StringComparison.Ordinal);
+        Assert.Contains("public-ui-data-group", team, StringComparison.Ordinal);
+        Assert.Contains("public-ui-disclosure", team, StringComparison.Ordinal);
+        Assert.Contains("aria-label=\"EHB\"", team, StringComparison.Ordinal);
+        Assert.DoesNotContain("Activity EHB", team, StringComparison.Ordinal);
         Assert.Contains("Team total", team, StringComparison.Ordinal);
         Assert.Contains("Rasmus Zebak", team, StringComparison.Ordinal);
         Assert.Contains("Provisional coverage", team, StringComparison.Ordinal);
         Assert.Contains("Wise Old Man is temporarily unavailable. Showing the last available cache.", team, StringComparison.Ordinal);
         Assert.DoesNotContain("Rasmus Activity Main", team, StringComparison.Ordinal);
-        Assert.Contains("Fetched from Wise Old Man", team, StringComparison.Ordinal);
+        Assert.DoesNotContain("Fetched from Wise Old Man", team, StringComparison.Ordinal);
         var login = await client.GetStringAsync("/Account/Login");
         using (var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -396,9 +478,124 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             var lookup = await reset.Events.SingleAsync(value => value.Slug == "test-16-signup-lookup");
             Assert.Equal(EventState.SignupOpen, lookup.State);
             Assert.Empty(await reset.EventParticipants.Where(value => value.EventId == lookup.Id).ToListAsync());
-            Assert.Equal(5, await reset.Events.CountAsync());
+            Assert.Equal(6, await reset.Events.CountAsync());
         }
         Assert.Equal(1, fake.Calls);
+    }
+
+    [Fact]
+    public async Task HistoricalSummerFixturePublishesCompleteWiseOldManRowsAndEndsInFinalReview()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        const string owner = "slice10-pass103-historical-owner";
+        await using (var db = new ApplicationDbContext(options))
+        {
+            await new OperatorRecoveryService(db, clock, new Microsoft.AspNetCore.Identity.PasswordHasher<Account>())
+                .BootstrapOwnerAsync(owner, "slice10-pass103-historical-password", owner, CancellationToken.None);
+            await new CatalogueSnapshotService(db, clock).ApplyAsync(Path.Combine(AppContext.BaseDirectory, "data", "osrs-catalogue.json"));
+            var seeder = new DevelopmentScenarioSeeder(db, new DevelopmentEnvironment(), new Microsoft.AspNetCore.Identity.PasswordHasher<Account>(), new SeedEvidenceStorage(), clock);
+            await seeder.ResetAndSeedAsync();
+
+            var historical = await db.Events.SingleAsync(value => value.Slug == DevelopmentScenarioSeeder.HistoricalFixtureSlug);
+            Assert.Equal("Det Store Danske Sommerbingo 2026", historical.Name);
+            Assert.Equal(new DateTimeOffset(2026, 7, 14, 16, 0, 0, TimeSpan.Zero), historical.EventStartsAt);
+            Assert.Equal(new DateTimeOffset(2026, 7, 19, 16, 0, 0, TimeSpan.Zero), historical.EventEndsAt);
+            Assert.Equal(EventState.Live, historical.State);
+            Assert.Equal(6, await db.Teams.CountAsync(value => value.EventId == historical.Id));
+            Assert.Equal(72, await db.EventParticipants.CountAsync(value => value.EventId == historical.Id && value.SignupStatus == SignupStatus.Confirmed));
+            Assert.Equal(93, await db.EventParticipantCharacters.CountAsync(value => value.EventId == historical.Id && value.EventRole == EventCharacterRole.Playing && value.ReleasedAt == null));
+            var rosterFirstBoard = await new PublicBoardService(db).GetEventBoardAsync(DevelopmentScenarioSeeder.HistoricalFixtureSlug);
+            Assert.NotNull(rosterFirstBoard);
+            Assert.Equal(72, rosterFirstBoard.RosterPlayers!.Count);
+            Assert.NotEmpty(rosterFirstBoard.PlayerLeaderboard);
+            Assert.Contains(rosterFirstBoard.RosterPlayers, value => value.PlayerName == "Mathias_Jr" && value.TeamName == "Xen0%_d_rops");
+            Assert.True(rosterFirstBoard.DropEhbTeams!.Sum(value => value.TotalDrops) > 0);
+
+            var rosterCounts = await (from assignment in db.EventParticipantCharacters
+                                      join membership in db.TeamMemberships on assignment.EventParticipantId equals membership.EventParticipantId
+                                      where assignment.EventId == historical.Id && assignment.EventRole == EventCharacterRole.Playing && assignment.ReleasedAt == null && membership.LeftAt == null
+                                      group assignment by membership.TeamId into grouped
+                                      select grouped.Count()).ToListAsync();
+            Assert.Equal([15, 15, 15, 15, 16, 17], rosterCounts.OrderBy(value => value).ToArray());
+            var expectedRosterByTeam = new Dictionary<string, string[]>(StringComparer.Ordinal)
+            {
+                ["Touch Kids, not grass"] = ["Rasmus Zebak", "ZemaFios", "Raffineret", "Frette", "Crunch7O4", "Detoned", "spacecreator", "Thuebob", "GIMGonduth", "Kongherodes", "zop1", "i use x22", "NoobNicoline", "CorgisIron", "itsmkn"],
+                ["Såeh cs?"] = ["thylegend", "wolles", "zakk0", "Calm Chris", "IM Latry", "Maxzen", "Mikkel IT", "IM Iftic", "zanshock", "Stoltze", "Ezzi", "Bubber", "freakingpand", "Also Ezzi", "Myrupz", "Compleetius", "w olles"],
+                ["Morytania Monkeys"] = ["3lite men x", "siswet19", "MrTopFresh", "N l C K O", "BackShotBoby", "200iq p2W", "MindMySnipe", "gim wemox", "aegget", "Sunny Boy110", "RiceBarrage", "Maxe2968", "Macdroppet", "karl knast", "rallemester"],
+                ["The Agency"] = ["Agent Slidt", "MesterMudder", "Agent Groth", "User IM", "R33c0NN", "Skade", "PapPresseren", "Jern Jakob", "MrDryhard", "Tanzania Tim", "p5a", "kenya kaj", "Uganda Ulrik", "Sanddrage", "Grump Dane"],
+                ["Xen0%_d_rops"] = ["J3ssen", "Mathias_Jr", "Helium bob", "gimdragons", "release d", "olympisk", "SkovHuggerDK", "Tast My Fart", "maldonlyjust", "Xen0phyte", "Ordblin", "YoIronManBtw", "Moq puW", "jernwicked", "Dariolious", "Coxophobia"],
+                ["Zalamalikum"] = ["Iron Yakub", "zalazane", "Kuss IM", "Speedwork", "Dudepet", "bodyplate", "GIM Zimmo", "yankiebarz", "GIM CsBaNaNa", "Flyve Flemse", "NoClueOnGlue", "imlilithbtw", "tissetanten", "Mad Jad Lad", "511alotaibi"]
+            };
+            var actualRosterByTeam = await (from team in db.Teams.AsNoTracking()
+                                            join membership in db.TeamMemberships.AsNoTracking() on team.Id equals membership.TeamId
+                                            join assignment in db.EventParticipantCharacters.AsNoTracking() on membership.EventParticipantId equals assignment.EventParticipantId
+                                            join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
+                                            where team.EventId == historical.Id && team.Active && membership.LeftAt == null && assignment.EventId == historical.Id &&
+                                                  assignment.EventRole == EventCharacterRole.Playing && assignment.ReleasedAt == null
+                                            select new { team.Name, character.NormalizedName }).ToListAsync();
+            foreach (var (teamName, expectedNames) in expectedRosterByTeam)
+            {
+                Assert.Equal(
+                    expectedNames.Select(value => value.Trim().ToUpperInvariant()).OrderBy(value => value, StringComparer.Ordinal).ToArray(),
+                    actualRosterByTeam.Where(value => value.Name == teamName).Select(value => value.NormalizedName).OrderBy(value => value, StringComparer.Ordinal).ToArray());
+            }
+            var historicalParticipantIds = await db.EventParticipants
+                .Where(value => value.EventId == historical.Id && value.SignupStatus == SignupStatus.Confirmed)
+                .Select(value => value.Id)
+                .ToListAsync();
+            var signupAnswerKeys = await db.SignupAnswers
+                .Where(value => historicalParticipantIds.Contains(value.EventParticipantId))
+                .Select(value => new { value.EventParticipantId, value.SignupQuestionId })
+                .ToListAsync();
+            Assert.Equal(signupAnswerKeys.Count, signupAnswerKeys.Distinct().Count());
+
+            var activeAssignments = await (from assignment in db.EventParticipantCharacters.AsNoTracking()
+                                           join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
+                                           where assignment.EventId == historical.Id && assignment.EventRole == EventCharacterRole.Playing && assignment.ReleasedAt == null
+                                           orderby assignment.Id
+                                           select new { assignment.OsrsCharacterId, character.DisplayName }).ToListAsync();
+            var fake = new CountingCompetitionClient(new WiseOldManCompetitionResult(
+                WiseOldManCompetitionStatus.Success,
+                new WiseOldManCompetition(
+                    DevelopmentScenarioSeeder.HistoricalFixtureCompetitionId,
+                    historical.Name,
+                    historical.EventStartsAt!.Value,
+                    historical.EventEndsAt!.Value,
+                    clock.GetUtcNow(),
+                    activeAssignments.Select(value => new WiseOldManCompetitionParticipant(value.DisplayName, "REGULAR", 1m)).ToArray())));
+            var admin = await db.Accounts.SingleAsync(value => value.LoginName == owner);
+            var actor = new LifecycleActor(admin.Id, admin.LoginName);
+            var synchronization = new EventCompetitionSynchronizationService(db, fake, new FixedStatus(), clock);
+            var refreshed = await synchronization.RefreshAsync(historical.Id, actor);
+            Assert.True(refreshed.Succeeded, refreshed.Message);
+            Assert.False(refreshed.Skipped);
+            Assert.Equal(1, fake.Calls);
+            var state = await db.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == historical.Id);
+            Assert.True(state.LatestComplete);
+            Assert.Equal(93, await db.EventCompetitionCharacterActivities.CountAsync(value => value.EventId == historical.Id && value.Generation == state.Generation));
+
+            var publicBoard = await new PublicBoardService(db).GetEventBoardAsync(DevelopmentScenarioSeeder.HistoricalFixtureSlug);
+            Assert.NotNull(publicBoard);
+            Assert.Equal([25, 22, 19, 16, 13, 10], publicBoard.Teams.OrderBy(value => value.TeamName).Select(value => value.Progress.CompletedTiles).OrderByDescending(value => value).ToArray());
+            var secondaryCharacterIds = await db.EventParticipantCharacters
+                .Where(value => value.EventId == historical.Id && value.EventRole == EventCharacterRole.Playing && value.RegistrationOrder > 0 && value.ReleasedAt == null)
+                .Select(value => value.OsrsCharacterId)
+                .ToListAsync();
+            Assert.NotEmpty(await db.Submissions.Where(value => value.EventId == historical.Id && secondaryCharacterIds.Contains(value.CreditedOsrsCharacterId)).ToListAsync());
+
+            var ended = await new EventLifecycleService(db, null!, clock)
+                .EndNowAsync(historical.Id, historical.Version, true, "End seeded historical fixture.", actor);
+            Assert.True(ended.Succeeded, ended.Error);
+            db.ChangeTracker.Clear();
+            Assert.Equal(EventState.AwaitingFinalReview, await db.Events.Where(value => value.Id == historical.Id).Select(value => value.State).SingleAsync());
+            var rejectedRefresh = await new EventCompetitionSynchronizationService(db, fake, new FixedStatus(), clock).RefreshAsync(historical.Id, actor);
+            Assert.True(rejectedRefresh.Skipped);
+            Assert.Equal(1, fake.Calls);
+            var test15 = await db.Events.SingleAsync(value => value.Slug == "test-15-dkl-live");
+            Assert.Equal("Vinterbingo 2026", test15.Name);
+            Assert.Equal(EventState.Live, test15.State);
+            Assert.Equal(1515, await db.EventCompetitionSynchronizations.Where(value => value.EventId == test15.Id).Select(value => value.CompetitionId).SingleAsync());
+        }
     }
 
     private async Task<Seed> SeedAsync(DateTimeOffset now)

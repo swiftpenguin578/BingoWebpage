@@ -21,7 +21,7 @@ public sealed class HomePageTests : IClassFixture<WebApplicationFactory<Program>
         var content = await response.Content.ReadAsStringAsync();
 
         response.EnsureSuccessStatusCode();
-        Assert.Contains("Follow every team, tile and drop.", content);
+        Assert.Contains("Every team. Every tile. Live.", content);
     }
 
     [Fact]
@@ -44,16 +44,43 @@ public sealed class HomePageTests : IClassFixture<WebApplicationFactory<Program>
     }
 
     [Fact]
-    public void PublicCardsHaveExplicitRosterAndBoardDestinations()
+    public void PublicLandingHasExplicitRosterAndBoardDestinations()
     {
         var markup = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "Pages", "Index.cshtml"));
-        Assert.Contains("Roster available · Board not published", markup);
+        Assert.Contains("Roster available", markup);
         Assert.Contains("Draft finalized", markup);
         Assert.Contains("Board published", markup);
         Assert.Contains("Start postponed", markup);
         Assert.Contains("View roster", markup);
         Assert.Contains("View board", markup);
         Assert.Contains("/Events/Teams", markup);
+        Assert.Contains("/Events/Signup", markup);
+        Assert.Contains("EventDestination.Signup", markup);
+        Assert.Contains("landing-page", markup);
+        Assert.Contains("landing-hero", markup);
+        Assert.Contains("landing-event", markup);
+        Assert.Contains("landing-ledger", markup);
+        Assert.Contains("landing-features", markup);
+        Assert.Contains("login-artwork.svg", markup);
+        Assert.Contains("login-artwork-dark.svg", markup);
+        Assert.Contains("DK Legacy Bingo", markup);
+        Assert.Contains("Every team. Every tile. Live.", markup);
+        Assert.Contains("Follow live boards, reviewed submissions and rankings from one place.", markup);
+        Assert.Contains("View live event", markup);
+        Assert.Contains("How it works", markup);
+        Assert.Contains("scrollIntoView({ block: \"start\" })", markup);
+        Assert.Contains("Live boards", markup);
+        Assert.Contains("Reviewed drops", markup);
+        Assert.Contains("Rankings & stats", markup);
+        Assert.Contains("Current events", markup);
+        Assert.Contains("Previous events", markup);
+        Assert.DoesNotContain("public-ui-event-directory-row", markup);
+        Assert.DoesNotContain("public-ui-component-header", markup);
+        Assert.DoesNotContain("public-ui-surface", markup);
+        Assert.DoesNotContain("data-public-ui-dialog", markup);
+        Assert.Contains("var anonymousSignup = User.Identity?.IsAuthenticated != true && bingoEvent.Destination == Bingo.Web.Events.EventDestination.Signup;", markup);
+        Assert.Contains("Url.Page(\"/Account/Login\", new { ReturnUrl = signupUrl })", markup);
+        Assert.DoesNotContain("class=\"public-home\"", markup);
     }
 
     private static string FindRepositoryRoot()

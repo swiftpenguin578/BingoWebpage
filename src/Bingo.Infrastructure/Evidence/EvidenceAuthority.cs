@@ -13,9 +13,6 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
     {
         var account = await db.Accounts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == actorAccountId && x.Active, cancellationToken)
             ?? throw new InvalidOperationException("The submitting account is not active.");
-        if (account.AccountType == AccountType.WebsiteAccount && account.GlobalRole is GlobalRole.Admin or GlobalRole.SuperAdmin)
-            return new(EvidenceActorKind.Administrator, actorAccountId, eventId ?? Guid.Empty, teamId ?? Guid.Empty, Guid.Empty);
-
         if (account.AccountType == AccountType.EmergencyCaptain)
         {
             if (eventId is not Guid emergencyEventId || teamId is not Guid emergencyTeamId)
@@ -34,6 +31,15 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         if (eventId is Guid selectedEvent) memberships = memberships.Where(x => x.EventId == selectedEvent);
         if (teamId is Guid selectedTeam) memberships = memberships.Where(x => x.TeamId == selectedTeam);
         var rows = await memberships.ToListAsync(cancellationToken);
+        if (rows.Count == 1 && rows[0].Role is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain)
+        {
+            var captain = rows[0];
+            return new(EvidenceActorKind.Captain, actorAccountId, captain.EventId, captain.TeamId, captain.ParticipantId);
+        }
+
+        if (account.GlobalRole is GlobalRole.Admin or GlobalRole.SuperAdmin)
+            return new(EvidenceActorKind.Administrator, actorAccountId, eventId ?? Guid.Empty, teamId ?? Guid.Empty, Guid.Empty);
+
         if (rows.Count != 1) throw new InvalidOperationException(rows.Count == 0 ? "The account is not an active event participant." : "Choose one event and team before submitting evidence.");
         var row = rows[0];
         return new(row.Role is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain ? EvidenceActorKind.Captain : EvidenceActorKind.Participant,
@@ -52,11 +58,19 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         return scope with { CreditedParticipantId = creditedParticipantId };
     }
 
+    public async Task<EvidenceActorScope> AuthorizeOwnerAsync(Guid actorAccountId, Guid eventId, Guid teamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default)
+    {
+        var scope = await ResolveActorAsync(actorAccountId, eventId, teamId, now, cancellationToken);
+        if (scope.Kind is EvidenceActorKind.Participant or EvidenceActorKind.Captain && scope.CreditedParticipantId == creditedParticipantId)
+            return scope with { CreditedParticipantId = creditedParticipantId };
+        throw new InvalidOperationException("Only the credited participant may mutate this submission.");
+    }
+
     public async Task<bool> CanViewPrivateEvidenceAsync(Guid actorAccountId, Guid eventId, Guid teamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         try
         {
-            _ = await AuthorizeAsync(actorAccountId, eventId, teamId, creditedParticipantId, now, cancellationToken);
+            _ = await ResolveActorAsync(actorAccountId, eventId, teamId, now, cancellationToken);
             return true;
         }
         catch (InvalidOperationException)

@@ -1,7 +1,69 @@
 @page "/notifications"
 @model Bingo.Web.Pages.NotificationsModel
-@{ ViewData["Title"] = T["Notifications"]; }
-<section class="form-page wide-form"><p class="eyebrow">@T["Notifications"]</p><h1>@T["Notifications"]</h1>
-@if(!Model.Notifications.Any()){<div class="panel"><p>@T["No notifications."]</p></div>}else{<div class="panel"><ul class="details-list">@foreach(var notification in Model.Notifications){<li><a href="/notifications?read=@notification.Id"><strong>@Model.Title(notification.Type)</strong><span>@Model.Detail(notification.Type, notification.Detail)</span><small>@notification.CreatedAt.ToLocalTime().ToString("g") · @(notification.ReadAt is null ? T["Unread"] : T["Read"])</small></a></li>}</ul></div>}
-@if(User.IsInRole("Admin") || User.IsInRole("SuperAdmin")){<div class="panel"><h2>Admin actions (@Model.AdminActions.Count)</h2>@if(Model.AdminActions.Items.Count==0){<p>No unresolved Admin actions.</p>}else{<ul class="details-list">@foreach(var action in Model.AdminActions.Items){<li><a href="@action.Url"><strong>@action.Title</strong><span>@action.Detail</span></a></li>}</ul>}<a class="btn btn-outline-light" href="/Admin">Open Admin tools</a></div>}
+@{
+    ViewData["Title"] = T["Notifications"];
+    ViewData["BodyClass"] = "public-ui-pass2";
+    var unreadCount = Model.Notifications.Count(notification => notification.ReadAt is null);
+}
+
+<section class="public-pass2-page public-pass2-notifications-page" aria-labelledby="notifications-heading">
+    <header class="public-pass2-masthead">
+        <span class="public-pass2-kicker">@T["Account"]</span>
+        <h1 id="notifications-heading">@T["Notifications"]</h1>
+        <p>@T["Updates sent directly to your account."]</p>
+    </header>
+
+    <section class="public-pass2-inbox" aria-labelledby="inbox-heading">
+        <header class="public-pass2-ledger-heading public-pass2-ledger-heading--inbox">
+            <h2 id="inbox-heading">@T["Inbox"]</h2>
+            <span class="public-pass2-notifications-heading__metadata">@T["{0} notifications · {1} unread", Model.Notifications.Count, unreadCount]</span>
+            <span class="public-pass2-notifications-heading__rule" aria-hidden="true"></span>
+            @if (unreadCount > 0)
+            {
+                <form class="public-pass2-notifications-heading__action" method="post" asp-page-handler="MarkAllAsRead"><button type="submit" class="public-pass2-text-link">@T["Mark all as read"]</button></form>
+            }
+        </header>
+        @if (!Model.Notifications.Any())
+        {
+            <div class="public-pass2-empty-state"><h2>@T["No notifications"]</h2><p>@T["Updates about your account, signups and evidence will appear here."]</p></div>
+        }
+        else
+        {
+            <div class="public-pass2-notification-list">
+                @foreach (var notification in Model.Notifications)
+                {
+                    <a class="public-pass2-notification-row @(notification.ReadAt is null ? "is-unread" : null)" data-public-ui-notification-row data-unread="@(notification.ReadAt is null ? "true" : "false")" data-kind="@notification.Type" href="/notifications?read=@notification.Id"><strong>@Model.Title(notification.Type)</strong>
+                        <span class="public-pass2-notification-mark" aria-hidden="true"></span>
+                        <span class="public-pass2-notification-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5v5M12 16.5h.01" /></svg></span>
+                        <span class="public-pass2-notification-copy">@Model.Detail(notification.Type, notification.Detail)</span>
+                        <time datetime="@notification.CreatedAt.ToUniversalTime().ToString("O")" title="@notification.CreatedAt.ToLocalTime().ToString("g")">@Model.RelativeAge(notification.CreatedAt)</time>
+                        <span class="public-pass2-notification-arrow" aria-hidden="true">→</span>
+                    </a>
+                }
+            </div>
+        }
+    </section>
+
+    @if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+    {
+        <section class="public-pass2-inbox public-pass2-admin-inbox" data-public-ui-admin-actions aria-labelledby="admin-actions-heading">
+            <header class="public-pass2-ledger-heading public-pass2-ledger-heading--inbox"><h2 id="admin-actions-heading">@T["Admin actions"]</h2><span class="public-pass2-notifications-heading__metadata">@Model.AdminActions.Count</span><span class="public-pass2-notifications-heading__rule" aria-hidden="true"></span><a class="public-pass2-text-link public-pass2-notifications-heading__action" href="/Admin">@T["Open Admin tools"]</a></header>
+            @if (Model.AdminActions.Items.Count == 0)
+            {
+                <div class="public-pass2-empty-state"><p>@T["No unresolved Admin actions."]</p></div>
+            }
+            else
+            {
+                <div class="public-pass2-admin-list">
+                    @foreach (var action in Model.AdminActions.Items)
+                    {
+                        <a class="public-pass2-admin-row" href="@action.Url"><span class="public-pass2-admin-row__title"><strong>@(action.TitleLabel ?? action.Title)</strong>@if (action.TitleMetadata is not null)
+                            {
+                                <span class="public-pass2-admin-row__metadata"> · @action.TitleMetadata</span>
+                        }</span><span class="public-pass2-admin-row__detail">@action.Detail</span><span class="public-pass2-admin-row__open" aria-hidden="true">@T["Open"] →</span></a>
+                    }
+                </div>
+            }
+        </section>
+    }
 </section>

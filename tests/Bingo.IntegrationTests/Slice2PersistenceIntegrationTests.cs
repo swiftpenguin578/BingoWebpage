@@ -152,20 +152,39 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         var service = new MyAccountsService(db, TimeProvider.System);
 
         await service.AddOrReactivateAsync(first.Id, "Shared Account", "Main", 11m, CancellationToken.None);
-        var original = await db.AccountOsrsCharacters.SingleAsync(item => item.AccountId == first.Id);
+        var original = await db.AccountOsrsCharacters.AsNoTracking().SingleAsync(item => item.AccountId == first.Id);
         await service.UnlinkAsync(first.Id, original.Id, true, CancellationToken.None);
+        Assert.Empty(await db.AccountOsrsCharacters.AsNoTracking().Where(item => item.AccountId == first.Id && item.Active).ToListAsync());
         await service.AddOrReactivateAsync(first.Id, " shared account ", "Relinked", 12m, CancellationToken.None);
-        await service.AddOrReactivateAsync(first.Id, "Second Account", null, null, CancellationToken.None);
-        await service.SetPreferredAsync(first.Id, (await db.AccountOsrsCharacters.SingleAsync(item => item.AccountId == first.Id && item.Position == 1)).Id, CancellationToken.None);
-        await service.MoveAsync(first.Id, original.Id, 1, CancellationToken.None);
+        var afterReactivate = await db.AccountOsrsCharacters.AsNoTracking().Where(item => item.AccountId == first.Id && item.Active).ToListAsync();
+        Assert.Single(afterReactivate);
+        Assert.True(afterReactivate[0].Preferred);
+        await service.AddOrReactivateAsync(first.Id, "Second Account", null, 3000.09582m, CancellationToken.None);
+        var beforeMove = await db.AccountOsrsCharacters.AsNoTracking().Where(item => item.AccountId == first.Id && item.Active).OrderBy(item => item.Position).ToListAsync();
+        Assert.Equal(0, beforeMove[0].Position);
+        Assert.Equal(1, beforeMove[1].Position);
+        Assert.Equal(1, beforeMove.Count(item => item.Preferred));
+        Assert.Equal(3000.10m, beforeMove[1].SavedEhb);
+        Assert.True(beforeMove[0].Preferred);
+        Assert.False(beforeMove[1].Preferred);
+        await service.MoveAsync(first.Id, beforeMove[1].Id, -1, CancellationToken.None);
         await service.AddOrReactivateAsync(second.Id, "SHARED ACCOUNT", "Borrowed", 99m, CancellationToken.None);
 
-        var firstLinks = await db.AccountOsrsCharacters.Where(item => item.AccountId == first.Id).OrderBy(item => item.Position).ToListAsync();
+        var firstLinks = await db.AccountOsrsCharacters.AsNoTracking().Where(item => item.AccountId == first.Id && item.Active).OrderBy(item => item.Position).ToListAsync();
         Assert.Equal(2, firstLinks.Count);
         Assert.Equal(original.Id, firstLinks.Single(item => item.OsrsCharacterId == original.OsrsCharacterId).Id);
         Assert.Equal("Relinked", firstLinks.Single(item => item.Id == original.Id).PersonalLabel);
         Assert.Equal(12m, firstLinks.Single(item => item.Id == original.Id).SavedEhb);
-        Assert.Single(firstLinks, item => item.Preferred);
+        Assert.NotEqual(original.Id, firstLinks[0].Id);
+        Assert.Equal(0, firstLinks[0].Position);
+        Assert.Equal(1, firstLinks.Count(item => item.Preferred));
+        Assert.True(firstLinks[0].Preferred);
+        Assert.False(firstLinks[1].Preferred);
+        await service.UnlinkAsync(first.Id, firstLinks[0].Id, true, CancellationToken.None);
+        var afterUnlink = await db.AccountOsrsCharacters.AsNoTracking().Where(item => item.AccountId == first.Id && item.Active).OrderBy(item => item.Position).ToListAsync();
+        Assert.Single(afterUnlink);
+        Assert.Equal(0, afterUnlink[0].Position);
+        Assert.True(afterUnlink[0].Preferred);
         Assert.Equal(99m, await db.AccountOsrsCharacters.Where(item => item.AccountId == second.Id).Select(item => item.SavedEhb).SingleAsync());
     }
 
@@ -182,7 +201,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         await service.AddOrReactivateAsync(owner.Id, "Scoped Character", "Owner", 10m, CancellationToken.None);
         var link = await db.AccountOsrsCharacters.SingleAsync(item => item.AccountId == owner.Id);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdateAsync(other.Id, link.Id, "Attempted", 20m, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdateAsync(other.Id, link.Id, "Scoped Character", "Attempted", 20m, CancellationToken.None));
 
         var unchanged = await db.AccountOsrsCharacters.AsNoTracking().SingleAsync(item => item.Id == link.Id);
         Assert.Equal("Owner", unchanged.PersonalLabel);
@@ -206,15 +225,15 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         db.AddRange(owner, oldCharacter, link, open, closed, openParticipant, closedParticipant, openAssignment, closedAssignment);
         await db.SaveChangesAsync();
 
-        await new MyAccountsService(db, TimeProvider.System).CorrectAsync(owner.Id, link.Id, "Misspelled", CancellationToken.None);
+        await new MyAccountsService(db, TimeProvider.System).UpdateAsync(owner.Id, link.Id, "Misspelled", link.PersonalLabel, 77m, CancellationToken.None);
 
         var corrected = await db.OsrsCharacters.SingleAsync(item => item.NormalizedName == "MISSPELLED");
         var persistedLink = await db.AccountOsrsCharacters.SingleAsync(item => item.Id == link.Id);
         Assert.Equal(corrected.Id, persistedLink.OsrsCharacterId);
         Assert.Equal("Borrowed", persistedLink.PersonalLabel);
-        Assert.Equal(4, persistedLink.Position);
+        Assert.Equal(0, persistedLink.Position);
         Assert.True(persistedLink.Preferred);
-        Assert.Equal(66m, persistedLink.SavedEhb);
+        Assert.Equal(77m, persistedLink.SavedEhb);
         Assert.Equal(corrected.Id, await db.EventParticipantCharacters.Where(item => item.Id == openAssignment.Id).Select(item => item.OsrsCharacterId).SingleAsync());
         Assert.Equal(oldCharacter.Id, await db.EventParticipantCharacters.Where(item => item.Id == closedAssignment.Id).Select(item => item.OsrsCharacterId).SingleAsync());
     }

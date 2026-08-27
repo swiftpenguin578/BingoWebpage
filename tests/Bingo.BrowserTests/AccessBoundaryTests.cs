@@ -33,9 +33,15 @@ public sealed class AccessBoundaryTests : IClassFixture<WebApplicationFactory<Pr
     public async Task AnonymousVisitorIsRedirectedFromAdminPages()
     {
         using var response = await _client.GetAsync("/Admin");
+        using var references = await _client.GetAsync("/Admin/UiReferences");
+        using var referenceImage = await _client.GetAsync("/Admin/UiReferences?handler=Image&key=pub-ref-01");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal("/Account/Login", response.Headers.Location?.AbsolutePath);
+        Assert.Equal(HttpStatusCode.Redirect, references.StatusCode);
+        Assert.Equal("/Account/Login", references.Headers.Location?.AbsolutePath);
+        Assert.Equal(HttpStatusCode.Redirect, referenceImage.StatusCode);
+        Assert.Equal("/Account/Login", referenceImage.Headers.Location?.AbsolutePath);
     }
 
     [Fact]
@@ -46,6 +52,39 @@ public sealed class AccessBoundaryTests : IClassFixture<WebApplicationFactory<Pr
 
         response.EnsureSuccessStatusCode();
         Assert.Contains("Use your public username and password", content);
+    }
+
+    [Fact]
+    public async Task InvalidLoginRendersTheStandalonePageAndPreservesLocalReturnUrl()
+    {
+        using var response = await _client.GetAsync("/Account/Login?ReturnUrl=%2FEvents%2Ftest-15-dkl-live%2FSignup");
+        var content = await response.Content.ReadAsStringAsync();
+        response.EnsureSuccessStatusCode();
+        Assert.Contains("<html", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("login-sheet", content, StringComparison.Ordinal);
+        Assert.Contains("identity-input", content, StringComparison.Ordinal);
+        Assert.Contains("name=\"ReturnUrl\"", content, StringComparison.Ordinal);
+        Assert.Contains("value=\"/Events/test-15-dkl-live/Signup\"", content, StringComparison.Ordinal);
+        var token = Regex.Match(content, "name=\\\"__RequestVerificationToken\\\" type=\\\"hidden\\\" value=\\\"([^\\\"]+)\\\"").Groups[1].Value;
+        Assert.NotEmpty(token);
+
+        using var post = new HttpRequestMessage(HttpMethod.Post, "/Account/Login")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["Input.Username"] = "invalid-user",
+                ["Input.Password"] = "invalid-password",
+                ["Input.RememberMe"] = "false",
+                ["ReturnUrl"] = "/Events/test-15-dkl-live/Signup",
+                ["__RequestVerificationToken"] = token
+            })
+        };
+        using var invalid = await _client.SendAsync(post);
+        var invalidContent = await invalid.Content.ReadAsStringAsync();
+        invalid.EnsureSuccessStatusCode();
+        Assert.Contains("<html", invalidContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("login-sheet", invalidContent, StringComparison.Ordinal);
+        Assert.Contains("identity-validation", invalidContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -117,6 +156,45 @@ public sealed class AccessBoundaryTests : IClassFixture<WebApplicationFactory<Pr
         Assert.Equal("/Account/Login", completion.Headers.Location?.ToString());
         Assert.NotEqual("/Account/DiscordComplete", configured.Services.GetRequiredService<IOptionsMonitor<OAuthOptions>>().Get("Discord").CallbackPath.Value);
         Assert.Equal("/Account/DiscordCallback", configured.Services.GetRequiredService<IOptionsMonitor<OAuthOptions>>().Get("Discord").CallbackPath.Value);
+    }
+
+    [Fact]
+    public async Task DiscordCancellationAtOAuthMiddlewareRedirectsSafelyToLogin()
+    {
+        using var configured = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("DiscordAuthentication:ClientId", "test-client");
+            builder.UseSetting("DiscordAuthentication:ClientSecret", "test-secret");
+        });
+        using var client = configured.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var challenge = await client.GetAsync("/Account/DiscordLogin");
+        Assert.Equal(HttpStatusCode.Redirect, challenge.StatusCode);
+        var authorize = challenge.Headers.Location!;
+        var state = authorize.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .Select(value => value.Split('=', 2))
+            .Where(value => value.Length == 2)
+            .Where(value => value[0] == "state")
+            .Select(value => Uri.UnescapeDataString(value[1]))
+            .Single();
+        var cookies = challenge.Headers.TryGetValues("Set-Cookie", out var setCookies)
+            ? string.Join("; ", setCookies.Select(value => value.Split(';', 2)[0]))
+            : string.Empty;
+
+        using var callback = new HttpRequestMessage(HttpMethod.Get, $"/Account/DiscordCallback?error=access_denied&state={Uri.EscapeDataString(state)}");
+        if (!string.IsNullOrWhiteSpace(cookies)) callback.Headers.Add("Cookie", cookies);
+        using var response = await client.SendAsync(callback);
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Account/Login", response.Headers.Location?.ToString());
+        var responseCookies = response.Headers.TryGetValues("Set-Cookie", out var callbackCookies)
+            ? string.Join("; ", callbackCookies.Select(value => value.Split(';', 2)[0]))
+            : cookies;
+        using var login = new HttpRequestMessage(HttpMethod.Get, "/Account/Login");
+        if (!string.IsNullOrWhiteSpace(responseCookies)) login.Headers.Add("Cookie", responseCookies);
+        var loginResponse = await client.SendAsync(login);
+        var loginContent = await loginResponse.Content.ReadAsStringAsync();
+        loginResponse.EnsureSuccessStatusCode();
+        Assert.Contains("Discord sign-in was cancelled or failed. Please try again.", loginContent, StringComparison.Ordinal);
     }
 
     [Fact]

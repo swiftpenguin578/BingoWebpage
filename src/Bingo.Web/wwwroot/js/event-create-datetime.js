@@ -51,6 +51,7 @@
           altFormat: "d/m/Y",
           disableMobile: true,
           allowInput: false,
+          onReady: (_dates, _value, instance) => instance.calendarContainer.classList.add("event-calendar-picker"),
           onChange: () => sync(control)
         });
       }

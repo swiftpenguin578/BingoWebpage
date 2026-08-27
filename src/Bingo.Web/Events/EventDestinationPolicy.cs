@@ -27,7 +27,7 @@ public static class EventDestinationPolicy
         item.SignupPublished && (administrator || Decide(item, false) == EventDestination.SignupTable);
 
     public static EventDestination PublicOverview(EventRouteState item) =>
-        !item.RosterAvailable && !item.BoardAvailable ? EventDestination.Unavailable : item.BoardAvailable ? EventDestination.Board : EventDestination.Roster;
+        item.BoardAvailable ? EventDestination.Board : item.RosterAvailable ? EventDestination.Roster : item.State == EventState.SignupOpen && item.FirstPublicAt is not null ? EventDestination.Signup : EventDestination.Unavailable;
 
     public static EventRouteState From(BingoEvent item, bool rosterExists = false, bool boardPublished = false) => new(
         item.State, item.FirstPublicAt, item.ActualSignupOpenedAt is not null || item.State is EventState.SignupOpen or EventState.SignupClosed || item.DraftLocked,
@@ -37,7 +37,7 @@ public static class EventDestinationPolicy
 }
 
 public sealed record EventRouteState(EventState State, DateTimeOffset? FirstPublicAt, bool SignupPublished, bool RosterAvailable, bool BoardAvailable, bool ResultsAvailable);
-public enum EventDestination { Unavailable, SignupTable, Roster, Board }
+public enum EventDestination { Unavailable, SignupTable, Signup, Roster, Board }
 
 /// <summary>
 /// A presentation-only phase derived from publication and lifecycle facts. It never authorizes a route or transition.

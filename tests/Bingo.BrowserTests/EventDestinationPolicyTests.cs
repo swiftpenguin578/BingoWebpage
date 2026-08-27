@@ -54,6 +54,14 @@ public sealed class EventDestinationPolicyTests
         Assert.Equal(EventDestination.Board, EventDestinationPolicy.PublicOverview(boardOnly));
     }
 
+    [Fact]
+    public void PublicOverviewUsesSignupForAVisibleOpenEventWithoutPublishedSurfaces()
+    {
+        var signupOnly = new EventRouteState(EventState.SignupOpen, DateTimeOffset.UtcNow, true, false, false, false);
+
+        Assert.Equal(EventDestination.Signup, EventDestinationPolicy.PublicOverview(signupOnly));
+    }
+
     [Theory]
     [InlineData(EventState.SignupClosed, false, false, false, null, EventDisplayPhase.SignupsClosed)]
     [InlineData(EventState.SignupClosed, true, false, false, null, EventDisplayPhase.DraftFinalized)]

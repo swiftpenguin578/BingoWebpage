@@ -1,7 +1,6 @@
 using Bingo.Application.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
-using Bingo.Infrastructure.Signups;
 using Bingo.Web.Security;
 using Bingo.Web.Teams;
 using Microsoft.AspNetCore.Mvc;
@@ -10,9 +9,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Web.Pages.Events;
 
-public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, PublicTeamImageService images, IParticipantLiveService? live = null) : PageModel
+public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, IParticipantLiveService? live = null) : PageModel
 {
     public string EventName { get; private set; } = string.Empty;
+    public DateTimeOffset? EventStartsAt { get; private set; }
+    public DateTimeOffset? EventEndsAt { get; private set; }
+    public int PlayerCount { get; private set; }
     public string? CurrentEvidenceCode { get; private set; }
     public IReadOnlyList<TeamView> Teams { get; private set; } = [];
     public IReadOnlyList<PickView> Picks { get; private set; } = [];
@@ -44,22 +46,23 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, Publi
             .Where(x => teamIds.Contains(x.Id))
             .OrderBy(x => x.DraftPosition).ThenBy(x => x.Name).ToListAsync(ct);
         if (teams.Count == 0) return NotFound();
-        var imageTeamIds = await images.CurrentTeamIdsAsync(ev.Id, teamIds, ct);
-        var currentRoster = await (from membership in db.TeamMemberships.AsNoTracking()
-                                   join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
-                                   join primary in db.AdminPrimaryCharacters().AsNoTracking() on participant.Id equals primary.ParticipantId
-                                   where teamIds.Contains(membership.TeamId) && membership.LeftAt == null && participant.EventId == ev.Id
-                                   select new { membership.TeamId, primary.Name, membership.Role }).ToListAsync(ct);
+        var displayedTeamIds = teams.Select(x => x.Id).ToHashSet();
 
         EventName = ev.Name;
+        EventStartsAt = ev.EventStartsAt;
+        EventEndsAt = ev.EventEndsAt;
+        PlayerCount = rosterEntries.Count(x => displayedTeamIds.Contains(x.TeamId));
         Teams = teams.Select(t => new TeamView(
                 t.Name,
                 t.AffiliationName,
-                imageTeamIds.Contains(t.Id) ? $"/Events/{ev.Slug}/Teams/{t.Id}/Image" : null,
+                t.DraftPosition,
                 t.FormationType,
-                currentRoster.Where(m => m.TeamId == t.Id)
-                    .Select(m => new MemberView(m.Name, m.Role))
-                    .OrderBy(x => x.Role).ThenBy(x => x.Name).ToList()))
+                rosterEntries.Where(m => m.TeamId == t.Id)
+                    .OrderBy(m => m.Role switch { TeamMembershipRole.Captain => 0, TeamMembershipRole.CoCaptain => 1, _ => 2 })
+                    .ThenBy(m => m.EffectivePickNumber.HasValue ? 0 : 1)
+                    .ThenBy(m => m.EffectivePickNumber)
+                    .ThenBy(m => m.PublicCharacterName, StringComparer.Ordinal)
+                    .Select(m => new MemberView(m.PublicCharacterName, m.Role)).ToList()))
             .ToList();
 
         var teamNames = teams.ToDictionary(x => x.Id, x => x.Name);
@@ -81,7 +84,7 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, Publi
     [NonHandler]
     public Task<IActionResult> OnGetAsync(string slug, CancellationToken ct) => OnGetAsync(slug, null, ct);
 
-    public sealed record TeamView(string Name, string? Affiliation, string? ImageUrl, TeamFormationType FormationType, IReadOnlyList<MemberView> Members);
+    public sealed record TeamView(string Name, string? Affiliation, int? DraftPosition, TeamFormationType FormationType, IReadOnlyList<MemberView> Members);
 
     public sealed record MemberView(string Name, TeamMembershipRole Role);
     public sealed record PickView(int PickNumber, string PlayerName, string TeamName);

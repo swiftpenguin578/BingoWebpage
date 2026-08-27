@@ -50,9 +50,9 @@ public static class PublicProgressCalculator
             .ToList();
         var boardComplete = tileResults.Count == rows * columns && tileResults.All(value => value.Complete);
         var playerContributions = contributions
-            .GroupBy(value => new { value.PlayerId, value.PlayerName })
+            .GroupBy(value => value.PlayerId)
             .Select(group => new CalculatedPlayerContribution(
-                group.Key.PlayerId, group.Key.PlayerName,
+                group.Key, group.First().PlayerName,
                 group.Sum(value => value.EstimatedEhb), group.Sum(value => value.Amount), group.Count()))
             .OrderByDescending(value => value.EstimatedEhb)
             .ThenByDescending(value => value.ApprovedContribution)

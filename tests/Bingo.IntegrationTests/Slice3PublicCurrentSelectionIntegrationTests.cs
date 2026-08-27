@@ -4,6 +4,8 @@ using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Events;
 using Bingo.Web.Pages;
+using Bingo.Web.Pages.Events;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
@@ -91,6 +93,23 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
         Assert.Equal(EventDestination.Board, Assert.Single(model.Events, item => item.Slug == "board-published").Destination);
     }
 
+    [Fact]
+    public async Task PublicSignupOpenDiscoveryRoutesToSignupAndPrivateSlugFailsClosed()
+    {
+        await using var db = new ApplicationDbContext(options);
+        await AddSignupOnlyEventAsync(db, "public-signup", publicEvent: true);
+        await AddSignupOnlyEventAsync(db, "private-signup", publicEvent: false);
+
+        var model = new IndexModel(db, new TestEnvironment(Environments.Development));
+        await model.OnGetAsync(CancellationToken.None);
+
+        Assert.Equal(EventDestination.Signup, Assert.Single(model.Events, item => item.Slug == "public-signup").Destination);
+        Assert.DoesNotContain(model.Events, item => item.Slug == "private-signup");
+
+        var signup = new SignupModel(db, null!, TimeProvider.System);
+        Assert.IsType<NotFoundResult>(await signup.GetForTestAsync("private-signup", CancellationToken.None));
+    }
+
     private async Task AddCurrentEventAsync(ApplicationDbContext db, string slug, bool fixture, bool publishBoard = true)
     {
         var eventId = Guid.NewGuid();
@@ -143,6 +162,19 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
             await BoardApprovalFixture.PublishAsync(db, board, now);
         }
 
+        await db.SaveChangesAsync();
+    }
+
+    private async Task AddSignupOnlyEventAsync(ApplicationDbContext db, string slug, bool publicEvent)
+    {
+        var eventId = Guid.NewGuid();
+        var item = new BingoEvent(eventId, slug, slug, "UTC", Guid.NewGuid(), now);
+        item.UpdateIdentity(slug, slug, "Public signup event", "UTC");
+        item.ConfigureSchedule(now.AddDays(-2), now.AddDays(5), null, now.AddDays(7), now.AddDays(12), 6);
+        item.ConfigureSignup(true, false, null);
+        item.OpenSignups(now.AddDays(-2));
+        if (publicEvent) item.MarkFirstPublic(now.AddDays(-2));
+        db.Events.Add(item);
         await db.SaveChangesAsync();
     }
 

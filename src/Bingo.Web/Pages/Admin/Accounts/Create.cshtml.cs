@@ -10,30 +10,34 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Admin.Accounts;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class CreateModel(
-    ApplicationDbContext dbContext,
-    EmergencyCredentialService credentials) : PageModel
+public sealed class CreateModel(ApplicationDbContext dbContext, EmergencyCredentialService credentials, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     [BindProperty]
     public CreateInput Input { get; set; } = new();
+    [BindProperty]
+    public bool Overlay { get; set; }
     public IReadOnlyList<SelectListItem> Events { get; private set; } = [];
     public IReadOnlyList<TeamOption> Teams { get; private set; } = [];
+    public bool IsOverlay => Overlay || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
 
     public async Task OnGetAsync(Guid? eventId, Guid? teamId, CancellationToken cancellationToken)
     {
+        Overlay = string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
         Input.EventId = eventId; Input.TeamId = teamId;
         await LoadOptions(cancellationToken);
     }
 
-    public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
+    public async Task<IActionResult> OnPostAsync([FromForm] bool overlay, CancellationToken cancellationToken)
     {
+        Overlay = ResolveSubmittedOverlay(overlay);
         ValidateCaptainScope();
-        if (Input.EventId is { } eventId && !await dbContext.Events.AnyAsync(bingoEvent => bingoEvent.Id == eventId, cancellationToken)) ModelState.AddModelError("Input.EventId", "Choose an available event.");
-        if (Input.EventId is not null && Input.TeamId is not null && !await dbContext.Teams.AnyAsync(team => team.Id == Input.TeamId && team.EventId == Input.EventId && team.Active, cancellationToken)) ModelState.AddModelError("Input.TeamId", "Choose a team belonging to the selected event.");
+        if (Input.EventId is { } eventId && !await dbContext.Events.AnyAsync(bingoEvent => bingoEvent.Id == eventId, cancellationToken)) ModelState.AddModelError("Input.EventId", Localize("Choose an available event."));
+        if (Input.EventId is not null && Input.TeamId is not null && !await dbContext.Teams.AnyAsync(team => team.Id == Input.TeamId && team.EventId == Input.EventId && team.Active, cancellationToken)) ModelState.AddModelError("Input.TeamId", Localize("Choose a team belonging to the selected event."));
         if (!ModelState.IsValid)
         {
             await LoadOptions(cancellationToken);
@@ -42,8 +46,8 @@ public sealed class CreateModel(
 
         Bingo.Domain.Access.Account account;
         try { account = await credentials.CreateAsync(User.GetAccountId()!.Value, Input.Username, Input.EventId!.Value, Input.TeamId!.Value, cancellationToken); }
-        catch (InvalidOperationException) { ModelState.AddModelError(string.Empty, "This action is not available for this account."); await LoadOptions(cancellationToken); return Page(); }
-        TempData["StatusMessage"] = $"Created disabled emergency credential {account.LoginName}. Create a setup link before enabling it.";
+        catch (InvalidOperationException) { ModelState.AddModelError(string.Empty, Localize("The emergency credential could not be created.")); await LoadOptions(cancellationToken); return Page(); }
+        TempData["StatusMessage"] = Localize("Created disabled emergency credential {0}. Create a setup link before enabling it.", account.LoginName);
         TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();
         return RedirectToPage("Index");
     }
@@ -60,15 +64,25 @@ public sealed class CreateModel(
     {
         if (Input.EventId is null)
         {
-            ModelState.AddModelError("Input.EventId", "An event is required for a captain.");
+            ModelState.AddModelError("Input.EventId", Localize("An event is required for a Captain."));
         }
 
         if (Input.TeamId is null)
         {
-            ModelState.AddModelError("Input.TeamId", "A team is required for a captain.");
+            ModelState.AddModelError("Input.TeamId", Localize("A team is required for a Captain."));
         }
 
     }
+
+    private bool ResolveSubmittedOverlay(bool overlay)
+    {
+        if (!Request.HasFormContentType) return overlay || IsOverlay;
+        var submitted = Request.Form["overlay"].ToString();
+        ModelState.Remove("overlay");
+        return overlay || string.Equals(submitted, "1", StringComparison.Ordinal) || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
+    }
+
+    private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(System.Globalization.CultureInfo.CurrentCulture, key, arguments);
 
     public sealed class CreateInput
     {

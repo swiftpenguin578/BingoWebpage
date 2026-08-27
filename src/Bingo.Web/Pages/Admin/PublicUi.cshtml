@@ -1,0 +1,1487 @@
+@page
+@model Bingo.Web.Pages.Admin.PublicUiModel
+@{
+    Layout = null;
+    ViewData["Title"] = T["Public UI Catalogue"];
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - OSRS Community Bingo</title>
+    <link rel="stylesheet" href="~/css/site.transitional.foundation.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.public-ui.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.transitional.application.css" asp-append-version="true" />
+</head>
+<body class="public-ui-catalogue-document">
+    <main class="public-ui-catalogue-page">
+        <header class="public-ui-header" aria-label="@T["Public header specimen"]">
+            <a class="public-ui-header-brand" href="/Admin/PublicUi" aria-label="@T["DK Legacy home"]">
+                <img class="public-ui-header-brand-mark" src="/images/branding/dk-legacy-public-mark.png" alt="" />
+                <span>DK Legacy</span>
+            </a>
+            <nav class="public-ui-header-nav" aria-label="@T["Public navigation"]">
+                <a class="public-ui-header-nav-link is-current" href="/Admin/PublicUi" aria-current="page">@T["Events"]</a>
+                <a class="public-ui-header-nav-link" href="/Admin/PublicUi">@T["Account"]</a>
+                <a class="public-ui-header-nav-link" href="/Admin/PublicUi">@T["How to"]</a>
+                <a class="public-ui-header-nav-link" href="/Admin/PublicUi">@T["Admin"]</a>
+            </nav>
+            <div class="public-ui-header-actions" aria-label="@T["Header utilities"]">
+                <span class="public-ui-header-icon" role="img" aria-label="@T["7 notifications"]">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M10.268 21a2 2 0 0 0 3.464 0" /><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /></svg>
+                    <span class="public-ui-header-notification">7</span>
+                </span>
+                <span class="public-ui-header-icon" role="img" aria-label="@T["Settings"]">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /><circle cx="12" cy="12" r="3" /></svg>
+                </span>
+            </div>
+        </header>
+        <section class="public-ui-header-catalogue-state">
+            <span class="public-ui-header-catalogue-label">@T["Integrated event header"]</span>
+            <header class="public-ui-header public-ui-header--integrated" aria-label="@T["Integrated public event header specimen"]">
+                <div class="public-ui-header-primary">
+                    <a class="public-ui-header-brand" href="/Admin/PublicUi" aria-label="@T["OSRS Community Bingo home"]">
+                        <img class="public-ui-header-brand-mark" src="/images/branding/dk-legacy-public-mark.png" alt="" />
+                    </a>
+                    <nav class="public-ui-header-nav" aria-label="@T["Public navigation"]">
+                        <a class="public-ui-header-nav-link is-current" href="/Admin/PublicUi" aria-current="page">@T["Events"]</a>
+                        <a class="public-ui-header-nav-link" href="/Admin/PublicUi">@T["Account"]</a>
+                        <a class="public-ui-header-nav-link" href="/Admin/PublicUi">@T["How to"]</a>
+                        <a class="public-ui-header-nav-link" href="/Admin/PublicUi">@T["Admin"]</a>
+                    </nav>
+                    <div class="public-ui-header-actions" aria-label="@T["Header utilities"]">
+                        <details class="public-ui-header-menu" data-public-ui-popover>
+                            <summary class="public-ui-header-icon public-ui-header-menu-trigger" aria-label="@T["Open navigation"]">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+                            </summary>
+                            <div class="public-ui-header-menu-panel">
+                                <a class="public-ui-header-nav-link" href="/Admin/PublicUi" aria-current="page">@T["Events"]</a>
+                                <a class="public-ui-header-nav-link" href="/Admin/PublicUi">@T["Account"]</a>
+                                <a class="public-ui-header-nav-link" href="/Admin/PublicUi">@T["How to"]</a>
+                                <a class="public-ui-header-nav-link" href="/Admin/PublicUi">@T["Admin"]</a>
+                            </div>
+                        </details>
+                        <div class="public-ui-header-popover">
+                            <details open data-public-ui-popover>
+                                <summary class="public-ui-header-icon" aria-label="@T["Notifications"]">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M10.268 21a2 2 0 0 0 3.464 0" /><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /></svg>
+                                    <span class="public-ui-header-notification">7</span>
+                                </summary>
+                                <div class="public-ui-header-popover__panel public-ui-header-popover__panel--notifications">
+                                    <div class="public-ui-header-popover__heading"><strong class="public-ui-section-heading">@T["Notifications"]</strong><span class="public-ui-supporting-text">@T["Personal {0}", 3]</span></div>
+                                    <div class="public-ui-header-popover__list">
+                                        <a class="public-ui-header-popover__item" href="/Admin/PublicUi"><strong class="public-ui-section-heading">@T["Drop approved"]</strong><span class="public-ui-supporting-text">@T["Your screenshot was approved."]</span></a>
+                                        <a class="public-ui-header-popover__item" href="/Admin/PublicUi"><strong class="public-ui-section-heading">@T["New event"]</strong><span class="public-ui-supporting-text">@T["A new bingo event is ready."]</span></a>
+                                    </div>
+                                    <a class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" href="/Admin/PublicUi">@T["View all notifications"]</a>
+                                </div>
+                            </details>
+                        </div>
+                        <div class="public-ui-header-popover">
+                            <details open data-public-ui-popover>
+                                <summary class="public-ui-header-icon" aria-label="@T["Settings"]">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /><circle cx="12" cy="12" r="3" /></svg>
+                                </summary>
+                                <div class="public-ui-header-popover__panel public-ui-header-popover__panel--settings">
+                                    <strong class="public-ui-header-popover__heading public-ui-section-heading">@T["Settings"]</strong>
+                                    <label class="public-ui-header-popover__field"><span class="public-ui-role-label">@T["Language"]</span><span class="public-ui-header-popover__select"><select class="public-ui-control-visual public-ui-control-visual--select" aria-label="@T["Language"]"><option>@T["English"]</option><option>@T["Dansk"]</option></select><span class="public-ui-select-chevron" aria-hidden="true"></span></span></label>
+                                    <div class="public-ui-header-popover__account"><span class="public-ui-supporting-text">@T["Signed in as"]</span><strong class="public-ui-section-heading">RuneWarden</strong></div>
+                                    <a class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" href="/Admin/PublicUi">@T["Account settings"]</a>
+                                    <a class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--compact" href="/Admin/PublicUi">@T["Sign out"]</a>
+                                </div>
+                            </details>
+                        </div>
+                    </div>
+                </div>
+                <nav class="public-ui-header-context-nav" aria-label="@T["Event navigation"]">
+                    <a class="public-ui-header-context-link is-current" href="/Admin/PublicUi" aria-current="page">@T["View bingo"]</a>
+                    <a class="public-ui-header-context-link" href="/Admin/PublicUi">@T["Recent drops"]</a>
+                    <a class="public-ui-header-context-link" href="/Admin/PublicUi">@T["Leaderboards"]</a>
+                </nav>
+            </header>
+        </section>
+        <section class="public-ui-page-width--compact" aria-labelledby="compact-page-masthead-title">
+            <span class="public-ui-catalogue-specimen-label">@T["Public page masthead · compact 38rem"]</span>
+            <div class="public-ui-page-masthead public-ui-page-masthead--borderless">
+                <header class="public-ui-component-header">
+                    <div class="public-ui-component-header__copy">
+                        <span class="public-ui-overline">@T["Account security"]</span>
+                        <h2 id="compact-page-masthead-title" class="public-ui-component-title">@T["Change password"]</h2>
+                        <p class="public-ui-supporting-text">@T["Keep your account secure with a new password."]</p>
+                    </div>
+                </header>
+            </div>
+        </section>
+        <section class="public-ui-page-width--signup" aria-labelledby="signup-page-masthead-title">
+            <span class="public-ui-catalogue-specimen-label">@T["Public page masthead · signup 48rem"]</span>
+            <div class="public-ui-page-masthead">
+                <header class="public-ui-component-header">
+                    <div class="public-ui-component-header__copy">
+                        <span class="public-ui-overline">@T["Event signup"]</span>
+                        <h2 id="signup-page-masthead-title" class="public-ui-component-title">TEST 16 — Signup lookup</h2>
+                        <p class="public-ui-supporting-text">@T["Choose an account and continue your event signup."]</p>
+                    </div>
+                </header>
+                <aside aria-label="@T["Signup metadata"]">
+                    <span class="public-ui-state public-ui-state--information">@T["Signups open"]</span>
+                    <span class="public-ui-supporting-text">@T["Closes 6 Sep 2026"]</span>
+                </aside>
+            </div>
+        </section>
+        <section class="public-ui-page-width--wide" aria-labelledby="wide-page-masthead-title">
+            <span class="public-ui-catalogue-specimen-label">@T["Public page masthead · wide 80rem"]</span>
+            <div class="public-ui-page-masthead">
+                <header class="public-ui-component-header">
+                    <div class="public-ui-component-header__copy">
+                        <h2 id="wide-page-masthead-title" class="public-ui-component-title">@T["Follow every team, tile and drop."]</h2>
+                        <p class="public-ui-supporting-text">@T["Open an event to see how every team is doing, then choose a team to view their board and completed tiles."]</p>
+                    </div>
+                </header>
+                <aside aria-label="@T["Event actions"]">
+                    <span class="public-ui-state public-ui-state--success">@T["Live now"]</span>
+                    <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" href="/Admin/PublicUi">@T["View event"]</a>
+                </aside>
+            </div>
+        </section>
+        <section class="public-ui-page-width--wide" aria-labelledby="home-hero-specimen-title">
+            <span class="public-ui-catalogue-specimen-label">@T["Homepage landing hero"]</span>
+            <div class="public-ui-home-hero">
+                <div class="public-ui-page-width--wide">
+                    <header class="public-ui-component-header">
+                        <div class="public-ui-component-header__copy">
+                            <img class="public-ui-header-brand-mark" src="/images/branding/dk-legacy-public-mark.png" alt="" />
+                            <h2 id="home-hero-specimen-title" class="public-ui-component-title">DK Legacy Bingo</h2>
+                            <p class="public-ui-supporting-text">@T["The dedicated home for DK Legacy bingo events—follow live boards, reviewed submissions, and rankings from one place."]</p>
+                        </div>
+                        <div class="public-ui-action-list">
+                            <a class="public-ui-action public-ui-action--commit" href="#public-event-directory-heading">@T["View events"]</a>
+                            <a class="public-ui-action public-ui-action--standard" href="/Account/Login">@T["Sign in"]</a>
+                        </div>
+                    </header>
+                    <div class="public-ui-data-group">
+                        <article><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M3 15h18M9 3v18M15 3v18" /></svg><h3 class="public-ui-section-heading">@T["Live boards"]</h3><p class="public-ui-supporting-text">@T["Follow every team's tile progress as the event unfolds."]</p></article>
+                        <article><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18H6z" /><path d="m9 13 2 2 4-5" /><path d="M9 7h6" /></svg><h3 class="public-ui-section-heading">@T["Reviewed submissions"]</h3><p class="public-ui-supporting-text">@T["Browse approved drops and the evidence behind completed tiles."]</p></article>
+                        <article><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M4 19h16" /><path d="M8 16v-5M12 16V8M16 16v-8" /></svg><h3 class="public-ui-section-heading">@T["Rankings and stats"]</h3><p class="public-ui-supporting-text">@T["Compare teams and players through progress, Drop EHB, and EHB."]</p></article>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="public-ui-catalogue-specimen public-ui-page-width--wide" aria-labelledby="three-column-data-group-heading">
+            <span class="public-ui-catalogue-specimen-label">@T["Three-column data group"]</span>
+            <h2 id="three-column-data-group-heading" class="public-ui-section-heading">@T["Responsive nested items"]</h2>
+            <div class="public-ui-data-group public-ui-data-group--three-column">
+                <article class="public-ui-nested-container"><h3 class="public-ui-section-heading">@T["Captain"]</h3><p class="public-ui-supporting-text">RuneWarden</p></article>
+                <article class="public-ui-nested-container"><h3 class="public-ui-section-heading">@T["CoCaptain"]</h3><p class="public-ui-supporting-text">MapleRune</p></article>
+                <article class="public-ui-nested-container"><h3 class="public-ui-section-heading">@T["Participant"]</h3><p class="public-ui-supporting-text">Oakfire</p></article>
+            </div>
+        </section>
+        <section class="public-ui-catalogue-specimen public-ui-page-width--compact" aria-labelledby="static-dialog-heading">
+            <span class="public-ui-catalogue-specimen-label">@T["Static route counterpart"]</span>
+            <section class="public-ui-dialog-page public-ui-dialog-page--inset" aria-labelledby="static-dialog-heading">
+                <header class="public-ui-dialog__header public-ui-component-header">
+                    <div class="public-ui-component-header__copy">
+                        <h2 id="static-dialog-heading" class="public-ui-component-title">@T["Standalone password form"]</h2>
+                    </div>
+                </header>
+                <div class="public-ui-dialog__content">
+                    <form class="public-ui-page-form">
+                        <label><span class="public-ui-role-label">@T["Current password"]</span><input class="public-ui-control-visual" type="password" autocomplete="current-password" /></label>
+                        <div class="public-ui-divider" role="separator"></div>
+                        <label><span class="public-ui-role-label">@T["New password"]</span><input class="public-ui-control-visual" type="password" autocomplete="new-password" /></label>
+                        <label><span class="public-ui-role-label">@T["Confirm password"]</span><input class="public-ui-control-visual" type="password" autocomplete="new-password" /></label>
+                        <div class="public-ui-dialog__actions"><button type="button" class="public-ui-action public-ui-action--commit">@T["Update password"]</button></div>
+                    </form>
+                </div>
+            </section>
+        </section>
+        <section class="public-ui-catalogue-specimen public-ui-page-width--wide" aria-labelledby="public-discovery-heading">
+            <span class="public-ui-catalogue-specimen-label">@T["Public discovery and signup page widths"]</span>
+            <header class="public-ui-component-header"><div class="public-ui-component-header__copy"><span class="public-ui-overline">@T["Event discovery"]</span><h2 id="public-discovery-heading" class="public-ui-component-title">@T["Follow every team, tile and drop."]</h2><p class="public-ui-supporting-text">@T["Wide discovery uses the shared public surface hierarchy."]</p></div></header>
+            <div class="public-ui-surface public-ui-surface--flat public-ui-sectioned-surface"><div class="public-ui-sectioned-surface__section"><strong class="public-ui-component-title">@T["Signup-open event"]</strong><span class="public-ui-supporting-text">@T["The same shared form shell narrows to 48rem."]</span><a class="public-ui-action public-ui-action--commit" href="/Admin/PublicUi">@T["Sign up"]</a></div></div>
+        </section>
+        <section class="public-ui-catalogue-specimen public-ui-catalogue-specimen--wide public-ui-page-width--wide" aria-labelledby="public-event-directory-heading">
+            <span class="public-ui-catalogue-specimen-label">@T["Homepage event directory rows"]</span>
+            <h2 id="public-event-directory-heading" class="public-ui-section-heading">@T["Lifecycle entries"]</h2>
+            <div class="public-ui-surface public-ui-surface--flat public-ui-sectioned-surface" aria-label="@T["Event directory examples"]">
+                <a class="public-ui-event-directory-row" href="/Admin/PublicUi"><span class="public-ui-state public-ui-state--success">@T["Live now"]</span><span class="public-ui-component-header__copy"><strong class="public-ui-component-title">TEST 15 — DKL Live</strong><span class="public-ui-supporting-text">@T["6 teams · Ends 3 Aug 2026, 18:00"]</span></span><span class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact">@T["View board"]</span></a>
+                <a class="public-ui-event-directory-row" href="/Admin/PublicUi"><span class="public-ui-state public-ui-state--information">@T["Signups open"]</span><span class="public-ui-component-header__copy"><strong class="public-ui-component-title">TEST 16 — Signup lookup</strong><span class="public-ui-supporting-text">@T["24 confirmed of 30 · 3 waiting · Closes 25 Aug 2026, 18:00"]</span></span><span class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact">@T["Sign up"]</span></a>
+                <a class="public-ui-event-directory-row" href="/Admin/PublicUi"><span class="public-ui-state public-ui-state--neutral">@T["Board published"]</span><span class="public-ui-component-header__copy"><strong class="public-ui-component-title">TEST 17 — Upcoming board</strong><span class="public-ui-supporting-text">@T["5 × 5 board · 4 teams · Starts 1 Sep 2026, 18:00"]</span></span><span class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact">@T["View board"]</span></a>
+                <a class="public-ui-event-directory-row" href="/Admin/PublicUi"><span class="public-ui-state public-ui-state--neutral">@T["Archived"]</span><span class="public-ui-component-header__copy"><strong class="public-ui-component-title">TEST 14 — Previous event</strong><span class="public-ui-supporting-text">@T["Ended 18 Jul 2026, 18:00"]</span></span><span class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact">@T["View history"]</span></a>
+            </div>
+        </section>
+        <section class="public-ui-catalogue-specimen public-ui-page-width--signup" aria-labelledby="signup-width-heading">
+            <span class="public-ui-catalogue-specimen-label">@T["Signup form width and page form composition"]</span>
+            <form class="public-ui-surface public-ui-surface--flat public-ui-sectioned-surface public-ui-page-form"><div class="public-ui-sectioned-surface__section"><h2 id="signup-width-heading" class="public-ui-section-heading">@T["Signup form"]</h2><div class="public-ui-page-form__grid"><div class="public-ui-page-form__field"><label><span class="public-ui-role-label">@T["Account"]</span><select class="public-ui-control-visual public-ui-control-visual--select"><option>@T["Choose an account"]</option></select></label><p class="public-ui-supporting-text"><a class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" href="/Admin/PublicUi">@T["Don't see your account? Add it to My accounts"]</a></p></div><div class="public-ui-page-form__field"><label><span class="public-ui-role-label">@T["EHB (Wise Old Man)"]</span></label><div class="public-ui-page-form__inline-control public-ui-page-form__inline-control--inset-action"><input class="public-ui-control-visual" type="number" /><button type="button" class="public-ui-action public-ui-action--text public-ui-action--compact"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M13 6a5 5 0 0 0-8.5-1L3 6.5M3 3v3.5h3.5M3 10a5 5 0 0 0 8.5 1l1.5-1.5M13 13v-3.5H9.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" /></svg>@T["Fetch from WOM"]</button></div></div><div class="public-ui-page-form__field"><label class="public-ui-checkbox"><input type="checkbox" checked aria-label="@T["I am willing to be a captain"]" /><span class="public-ui-checkbox-mark" aria-hidden="true"></span><span class="public-ui-supporting-text">@T["I am willing to be a captain"]</span></label></div><div class="public-ui-divider public-ui-page-form__field--wide" role="separator"></div><div class="public-ui-page-form__field"><label><span class="public-ui-role-label">@T["Note"]</span><textarea class="public-ui-control-visual" rows="1"></textarea></label></div></div><div class="public-ui-action-list"><button type="button" class="public-ui-action public-ui-action--commit">@T["Sign up"]</button></div></div></form>
+        </section>
+        <section class="public-ui-catalogue-specimen public-ui-page-width--compact" aria-labelledby="account-character-row-heading">
+            <span class="public-ui-catalogue-specimen-label">@T["Account character management row"]</span>
+            <section class="public-ui-surface public-ui-surface--flat public-ui-sectioned-surface">
+                <div class="public-ui-sectioned-surface__section public-ui-sectioned-surface__section--account-character public-ui-nested-container">
+                    <header class="public-ui-component-header">
+                        <span class="public-ui-overline">#1 <span class="public-ui-state public-ui-state--success">@T["Preferred"]</span></span>
+                        <div class="public-ui-action-list" aria-label="@T["Change list order"]"><form><button type="button" class="public-ui-action public-ui-action--text public-ui-action--compact" disabled>↑</button></form><form><button type="button" class="public-ui-action public-ui-action--text public-ui-action--compact">↓</button></form></div>
+                    </header>
+                    <form id="catalogue-character-edit" class="public-ui-page-form">
+                        <div class="public-ui-page-form__grid">
+                            <div class="public-ui-page-form__field"><label class="public-ui-role-label" for="catalogue-character-name">@T["OSRS character"]</label><input id="catalogue-character-name" class="public-ui-control-visual" value="RuneWarden" /></div>
+                            <div class="public-ui-page-form__field"><label class="public-ui-role-label" for="catalogue-character-ehb">@T["Saved EHB"]</label><div class="public-ui-page-form__inline-control public-ui-page-form__inline-control--inset-action"><input id="catalogue-character-ehb" class="public-ui-control-visual" value="186.00" /><button type="button" class="public-ui-action public-ui-action--text public-ui-action--compact"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M13 6a5 5 0 0 0-8.5-1L3 6.5M3 3v3.5h3.5M3 10a5 5 0 0 0 8.5 1l1.5-1.5M13 13v-3.5H9.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" /></svg>@T["Fetch from WOM"]</button></div></div>
+                        </div>
+                    </form>
+                    <div class="public-ui-action-list"><button type="submit" form="catalogue-character-edit" class="public-ui-action public-ui-action--standard public-ui-action--compact">@T["Save details"]</button><form><button type="button" class="public-ui-action public-ui-action--destructive public-ui-action--compact">@T["Unlink"]</button></form></div>
+                    <p class="public-ui-supporting-text">@T["This character is registered for an upcoming event. Unlinking will not change that registration."]</p>
+                </div>
+            </section>
+        </section>
+        <section class="public-ui-catalogue-specimen public-ui-catalogue-specimen--wide" aria-labelledby="sectioned-surface-heading">
+            <span class="public-ui-catalogue-specimen-label">@T["Sectioned surface"]</span>
+            <div class="public-ui-surface public-ui-surface--charcoal public-ui-sectioned-surface">
+                <section class="public-ui-sectioned-surface__section public-ui-sectioned-surface__section--content-sized">
+                    <span class="public-ui-overline">@T["Team progress"]</span>
+                    <strong id="sectioned-surface-heading" class="public-ui-component-title">@T["Compact sidebar section"]</strong>
+                </section>
+                <section class="public-ui-sectioned-surface__section">
+                    <span class="public-ui-overline">@T["Activity"]</span>
+                    <small class="public-ui-supporting-text">@T["Shared divider and section padding"]</small>
+                </section>
+                <section class="public-ui-sectioned-surface__section">
+                    <span class="public-ui-overline">@T["Actions"]</span>
+                    <footer class="public-ui-section-footer public-ui-sectioned-surface__section--compact">
+                        <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" href="/Admin/PublicUi">@T["Team submission history"]</a>
+                    </footer>
+                </section>
+                <section class="public-ui-sectioned-surface__section">
+                    <span class="public-ui-overline">@T["Compact metrics"]</span>
+                    <div class="public-ui-catalogue-source-row"><span class="public-ui-info-affordance public-ui-info-affordance--source" aria-hidden="true"><img class="public-ui-source-icon" src="/images/branding/collection-log.png" alt="" aria-hidden="true" /></span><span class="public-ui-supporting-text">@T["Approved bingo progress"]</span></div>
+                    <div class="public-ui-catalogue-source-row"><span class="public-ui-info-affordance public-ui-info-affordance--source" aria-hidden="true"><img class="public-ui-source-icon public-ui-source-icon--wise-old-man" src="/images/branding/wise-old-man.png" alt="" aria-hidden="true" /></span><span class="public-ui-supporting-text">Wise Old Man</span></div>
+                    <div class="public-ui-progress-meter" aria-label="@T["80 percent complete"]"><span style="width:80%"></span></div>
+                    <div class="public-ui-data-group public-ui-data-group--progress-summary">
+                        <div class="public-ui-data-row"><strong class="public-ui-data-value">20/25</strong><span class="public-ui-data-label">@T["approved"]</span></div>
+                    </div>
+                    <div class="public-ui-data-group public-ui-data-group--summary">
+                        <div class="public-ui-data-row public-ui-nested-container"><span class="public-ui-data-label">@T["Tiles"]</span><strong class="public-ui-data-value">5/25</strong></div>
+                        <div class="public-ui-data-row public-ui-nested-container"><span class="public-ui-data-label">@T["rows"]</span><strong class="public-ui-data-value">2</strong></div>
+                    </div>
+                    <div class="public-ui-data-group public-ui-data-group--metric-summary">
+                        <div class="public-ui-data-row"><span class="public-ui-data-label">@T["Team total"]</span><strong class="public-ui-section-heading public-ui-positive-delta--success">+186.00</strong></div>
+                        <div class="public-ui-data-row"><div><span class="public-ui-data-label">@T["Team MVP"]</span><strong class="public-ui-section-heading">RuneWarden</strong></div><strong class="public-ui-section-heading public-ui-positive-delta--success">+42.00</strong></div>
+                    </div>
+                    <div class="public-ui-data-group public-ui-data-group--metric-summary" aria-label="@T["Unavailable metric values"]">
+                        <div class="public-ui-data-row"><span class="public-ui-data-label">@T["Team total"]</span><strong class="public-ui-section-heading">-</strong></div>
+                        <div class="public-ui-data-row"><div><span class="public-ui-data-label">@T["Team MVP"]</span></div><strong class="public-ui-section-heading">-</strong></div>
+                    </div>
+                    <details class="public-ui-disclosure public-ui-disclosure--contribution public-ui-nested-container public-ui-nested-container--outline public-ui-standings" open name="public-ui-contributions-specimen">
+                        <summary class="public-ui-disclosure__summary public-ui-section-heading"><span>@T["Team contributions"]</span><span class="public-ui-disclosure__meta"><span class="public-ui-supporting-text">EHB</span><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></span></summary>
+                        <ol class="public-ui-data-group public-ui-data-group--stacked public-ui-data-group--compact-table public-ui-eligible-drop-table__body">
+                            <li class="public-ui-data-row"><strong class="public-ui-data-value">#1</strong><div><strong class="public-ui-section-heading">RuneWarden</strong></div><strong class="public-ui-section-heading public-ui-positive-delta--success">+742.00</strong></li>
+                        </ol>
+                    </details>
+                    <details class="public-ui-disclosure public-ui-disclosure--contribution public-ui-nested-container public-ui-nested-container--outline public-ui-standings" name="public-ui-contributions-specimen">
+                        <summary class="public-ui-disclosure__summary public-ui-section-heading"><span>@T["Team contributions"]</span><span class="public-ui-disclosure__meta"><span class="public-ui-supporting-text">DEHB</span><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></span></summary>
+                        <ol class="public-ui-data-group public-ui-data-group--stacked public-ui-data-group--compact-table public-ui-eligible-drop-table__body">
+                            <li class="public-ui-data-row"><strong class="public-ui-data-value">#1</strong><div><strong class="public-ui-section-heading">RuneWarden</strong></div><strong class="public-ui-section-heading public-ui-positive-delta--success">+186.00</strong></li>
+                        </ol>
+                    </details>
+                    <span class="public-ui-overline">@T["Eligible drop sources"]</span>
+                    <details class="public-ui-disclosure public-ui-disclosure--contribution public-ui-nested-container public-ui-nested-container--outline public-ui-eligible-drop-table">
+                        <summary class="public-ui-disclosure__summary public-ui-section-heading"><span>Vorkath</span><span class="public-ui-disclosure__meta"><span class="public-ui-supporting-text">@T["3 drops"]</span><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></span></summary>
+                        <div class="public-ui-data-group public-ui-data-group--stacked public-ui-data-group--compact-table public-ui-eligible-drop-table__body">
+                            <div class="public-ui-data-row"><strong class="public-ui-section-heading">Vorkath's head</strong><small class="public-ui-supporting-text">1/50</small></div>
+                            <div class="public-ui-data-row"><strong class="public-ui-section-heading">Dragonbone necklace</strong><small class="public-ui-supporting-text">1/1,000</small></div>
+                        </div>
+                    </details>
+                    <div class="public-ui-eligible-drop-table public-ui-nested-container public-ui-nested-container--outline">
+                        <span class="public-ui-section-heading public-ui-eligible-drop-table__heading">@T["Static source list"]</span>
+                        <div class="public-ui-data-group public-ui-data-group--stacked public-ui-data-group--sparse public-ui-data-group--compact-table public-ui-eligible-drop-table__body">
+                            <div class="public-ui-data-row"><strong class="public-ui-section-heading">Blue dragon</strong><small class="public-ui-supporting-text">1/128</small></div>
+                        </div>
+                    </div>
+                    <div class="public-ui-eligible-drop-table public-ui-eligible-drop-table--headerless public-ui-nested-container public-ui-nested-container--outline">
+                        <div class="public-ui-data-group public-ui-data-group--stacked public-ui-data-group--sparse public-ui-data-group--compact-table public-ui-eligible-drop-table__body">
+                            <div class="public-ui-data-row"><strong class="public-ui-section-heading">Adamant dragon</strong><small class="public-ui-supporting-text">1/128</small></div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </section>
+        <section class="public-ui-catalogue-specimen public-ui-catalogue-specimen--wide" aria-labelledby="nested-container-heading">
+            <span class="public-ui-catalogue-specimen-label">@T["Nested containers"]</span>
+            <div class="public-ui-surface public-ui-surface--charcoal public-ui-catalogue-nested-host">
+                <div class="public-ui-catalogue-nested-grid">
+                    <section class="public-ui-surface public-ui-nested-container" aria-labelledby="nested-team-totals-heading">
+                        <span class="public-ui-overline">@T["Distinct concern"]</span>
+                        <h2 id="nested-team-totals-heading" class="public-ui-section-heading">@T["Team totals"]</h2>
+                        <div class="public-ui-data-row"><strong class="public-ui-data-label">@T["Tiles complete"]</strong><strong class="public-ui-data-value">18/25</strong></div>
+                    </section>
+                    <section class="public-ui-surface public-ui-nested-container" aria-labelledby="nested-participants-heading">
+                        <span class="public-ui-overline">@T["Distinct concern"]</span>
+                        <h2 id="nested-participants-heading" class="public-ui-section-heading">@T["Participant breakdown"]</h2>
+                        <div class="public-ui-data-row"><strong class="public-ui-data-label">@T["Accounts matched"]</strong><strong class="public-ui-data-value">6/6</strong></div>
+                    </section>
+                </div>
+            </div>
+        </section>
+        <div class="public-ui-catalogue-pair">
+                <div class="public-ui-surface public-ui-surface--flat" aria-hidden="true">
+                    <div class="public-ui-surface-content">
+                        <header class="public-ui-component-header">
+                            <div class="public-ui-component-header__copy">
+                                <span class="public-ui-overline">@T["Component label"]</span>
+                                <strong class="public-ui-component-title">@T["Component header"]</strong>
+                                <small class="public-ui-supporting-text">@T["Supporting description"]</small>
+                            </div>
+                            <span class="public-ui-info-affordance">i</span>
+                        </header>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Typography hierarchy"]</h3>
+                            <div class="public-ui-catalogue-typography-grid">
+                                <div class="public-ui-catalogue-type-sample">
+                                    <span class="public-ui-role-label">@T["Section header"]</span>
+                                    <strong>@T["Section header"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--secondary">
+                                    <span class="public-ui-role-label">@T["Primary text"]</span>
+                                    <strong>@T["Primary text"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--supporting">
+                                    <span class="public-ui-role-label">@T["Secondary text"]</span>
+                                    <strong>@T["Secondary text"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--supporting">
+                                    <span class="public-ui-role-label">@T["Supporting text"]</span>
+                                    <strong>@T["Supporting text"]</strong>
+                                </div>
+                            </div>
+                            <div class="public-ui-data-example">
+                                <span class="public-ui-data-label">@T["Data label"]</span>
+                                <strong class="public-ui-primary-value">@T["Primary value"]</strong>
+                            </div>
+                        </section>
+                        <section class="public-ui-visualization-accent">
+                            <h3 class="public-ui-section-heading">@T["Visualization accent"]</h3>
+                            <div class="public-ui-visualization-accent-items">
+                                <div class="public-ui-visualization-accent-item">
+                                    <span class="public-ui-role-label">@T["Chart/data line"]</span>
+                                    <span class="public-ui-data-line" aria-hidden="true"></span>
+                                </div>
+                                <div class="public-ui-visualization-accent-item">
+                                    <span class="public-ui-role-label">@T["Positive delta"]</span>
+                                    <strong class="public-ui-positive-delta">+ 12.83%</strong>
+                                </div>
+                            </div>
+                        </section>
+                        <div class="public-ui-divider"><span>@T["Divider"]</span></div>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Actions"]</h3>
+                            <div class="public-ui-action-list">
+                                <button type="button" class="public-ui-action public-ui-action--standard">@T["Standard action"] <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="m3 13 10-10M6 3h7v7" /></svg></button>
+                                <button type="button" class="public-ui-action public-ui-action--commit">@T["Commit action"] <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="m3 13 10-10M6 3h7v7" /></svg></button>
+                                <span class="public-ui-action public-ui-action--text">@T["Text action"]</span>
+                                <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink" href="/Admin/PublicUi">@T["Hyperlink action"]</a>
+                                <span class="public-ui-action public-ui-action--destructive">@T["Destructive action"]</span>
+                            </div>
+                            <div class="public-ui-action-list public-ui-action-list--split">
+                                <span class="public-ui-action public-ui-action--text public-ui-action--compact public-ui-action--directional"><span class="public-ui-action__directional-glyph" aria-hidden="true">←</span><span>@T["Team overview"]</span></span>
+                                <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--forward public-ui-action--compact public-ui-action--directional" href="/Admin/PublicUi"><span>@T["Submit drop"]</span><span class="public-ui-action__directional-glyph public-ui-action__directional-glyph--accent" aria-hidden="true">→</span></a>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Controls"]</h3>
+                            <div class="public-ui-catalogue-control-grid">
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Text input"]</span>
+                                    <input class="public-ui-control-visual" type="text" value="Text input" aria-label="@T["Text input"]" />
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Select control"]</span>
+                                    <select class="public-ui-control-visual public-ui-control-visual--select" aria-label="@T["Select control"]"><option selected>@T["Select control"]</option><option>@T["Another option"]</option></select><span class="public-ui-select-chevron" aria-hidden="true"></span>
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Checkbox"]</span>
+                                    <label class="public-ui-checkbox"><input type="checkbox" checked /><span class="public-ui-checkbox-mark" aria-hidden="true"></span><span>@T["Checkbox"]</span></label>
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Textarea"]</span>
+                                    <textarea class="public-ui-control-visual" rows="2" aria-label="@T["Textarea"]">@T["Textarea"]</textarea>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["States and semantic color"]</h3>
+                            <div class="public-ui-state-list">
+                                <span class="public-ui-state public-ui-state--neutral">@T["Neutral"]</span>
+                                <span class="public-ui-state public-ui-state--information">@T["Information"]</span>
+                                <span class="public-ui-state public-ui-state--success">@T["Success"]</span>
+                                <span class="public-ui-state public-ui-state--warning">@T["Warning"]</span>
+                                <span class="public-ui-state public-ui-state--error">@T["Error"]</span>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Data row"]</h3>
+                            <div class="public-ui-data-row">
+                                <div>
+                                    <strong class="public-ui-data-label">@T["Row label"]</strong>
+                                    <small class="public-ui-supporting-text">@T["Row supporting text"]</small>
+                                </div>
+                                <strong class="public-ui-data-value">@T["Row value"]</strong>
+                                <span class="public-ui-state public-ui-state--success">@T["Status"]</span>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+                <div class="public-ui-surface public-ui-surface--accent" aria-hidden="true">
+                    <div class="public-ui-surface-content">
+                        <header class="public-ui-component-header">
+                            <div class="public-ui-component-header__copy">
+                                <span class="public-ui-overline">@T["Component label"]</span>
+                                <strong class="public-ui-component-title">@T["Component header"]</strong>
+                                <small class="public-ui-supporting-text">@T["Supporting description"]</small>
+                            </div>
+                            <span class="public-ui-info-affordance">i</span>
+                        </header>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Typography hierarchy"]</h3>
+                            <div class="public-ui-catalogue-typography-grid">
+                                <div class="public-ui-catalogue-type-sample">
+                                    <span class="public-ui-role-label">@T["Section header"]</span>
+                                    <strong>@T["Section header"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--secondary">
+                                    <span class="public-ui-role-label">@T["Primary text"]</span>
+                                    <strong>@T["Primary text"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--supporting">
+                                    <span class="public-ui-role-label">@T["Secondary text"]</span>
+                                    <strong>@T["Secondary text"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--supporting">
+                                    <span class="public-ui-role-label">@T["Supporting text"]</span>
+                                    <strong>@T["Supporting text"]</strong>
+                                </div>
+                            </div>
+                            <div class="public-ui-data-example">
+                                <span class="public-ui-data-label">@T["Data label"]</span>
+                                <strong class="public-ui-primary-value">@T["Primary value"]</strong>
+                            </div>
+                        </section>
+                        <section class="public-ui-visualization-accent">
+                            <h3 class="public-ui-section-heading">@T["Visualization accent"]</h3>
+                            <div class="public-ui-visualization-accent-items">
+                                <div class="public-ui-visualization-accent-item">
+                                    <span class="public-ui-role-label">@T["Chart/data line"]</span>
+                                    <span class="public-ui-data-line" aria-hidden="true"></span>
+                                </div>
+                                <div class="public-ui-visualization-accent-item">
+                                    <span class="public-ui-role-label">@T["Positive delta"]</span>
+                                    <strong class="public-ui-positive-delta">+ 12.83%</strong>
+                                </div>
+                            </div>
+                        </section>
+                        <div class="public-ui-divider"><span>@T["Divider"]</span></div>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Actions"]</h3>
+                            <div class="public-ui-action-list">
+                                <button type="button" class="public-ui-action public-ui-action--standard">@T["Standard action"] <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="m3 13 10-10M6 3h7v7" /></svg></button>
+                                <button type="button" class="public-ui-action public-ui-action--commit">@T["Commit action"] <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="m3 13 10-10M6 3h7v7" /></svg></button>
+                                <span class="public-ui-action public-ui-action--text">@T["Text action"]</span>
+                                <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink" href="/Admin/PublicUi">@T["Hyperlink action"]</a>
+                                <span class="public-ui-action public-ui-action--destructive">@T["Destructive action"]</span>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Controls"]</h3>
+                            <div class="public-ui-catalogue-control-grid">
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Text input"]</span>
+                                    <input class="public-ui-control-visual" type="text" value="Text input" aria-label="@T["Text input"]" />
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Select control"]</span>
+                                    <select class="public-ui-control-visual public-ui-control-visual--select" aria-label="@T["Select control"]"><option selected>@T["Select control"]</option><option>@T["Another option"]</option></select><span class="public-ui-select-chevron" aria-hidden="true"></span>
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Checkbox"]</span>
+                                    <label class="public-ui-checkbox"><input type="checkbox" checked /><span class="public-ui-checkbox-mark" aria-hidden="true"></span><span>@T["Checkbox"]</span></label>
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Textarea"]</span>
+                                    <textarea class="public-ui-control-visual" rows="2" aria-label="@T["Textarea"]">@T["Textarea"]</textarea>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["States and semantic color"]</h3>
+                            <div class="public-ui-state-list">
+                                <span class="public-ui-state public-ui-state--neutral">@T["Neutral"]</span>
+                                <span class="public-ui-state public-ui-state--information">@T["Information"]</span>
+                                <span class="public-ui-state public-ui-state--success">@T["Success"]</span>
+                                <span class="public-ui-state public-ui-state--warning">@T["Warning"]</span>
+                                <span class="public-ui-state public-ui-state--error">@T["Error"]</span>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Data row"]</h3>
+                            <div class="public-ui-data-row">
+                                <div>
+                                    <strong class="public-ui-data-label">@T["Row label"]</strong>
+                                    <small class="public-ui-supporting-text">@T["Row supporting text"]</small>
+                                </div>
+                                <strong class="public-ui-data-value">@T["Row value"]</strong>
+                                <span class="public-ui-state public-ui-state--success">@T["Status"]</span>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+                <div class="public-ui-surface public-ui-surface--neutral" aria-hidden="true">
+                    <div class="public-ui-surface-content">
+                        <header class="public-ui-component-header">
+                            <div class="public-ui-component-header__copy">
+                                <span class="public-ui-overline">@T["Component label"]</span>
+                                <strong class="public-ui-component-title">@T["Component header"]</strong>
+                                <small class="public-ui-supporting-text">@T["Supporting description"]</small>
+                            </div>
+                            <span class="public-ui-info-affordance">i</span>
+                        </header>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Typography hierarchy"]</h3>
+                            <div class="public-ui-catalogue-typography-grid">
+                                <div class="public-ui-catalogue-type-sample">
+                                    <span class="public-ui-role-label">@T["Section header"]</span>
+                                    <strong>@T["Section header"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--secondary">
+                                    <span class="public-ui-role-label">@T["Primary text"]</span>
+                                    <strong>@T["Primary text"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--supporting">
+                                    <span class="public-ui-role-label">@T["Secondary text"]</span>
+                                    <strong>@T["Secondary text"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--supporting">
+                                    <span class="public-ui-role-label">@T["Supporting text"]</span>
+                                    <strong>@T["Supporting text"]</strong>
+                                </div>
+                            </div>
+                            <div class="public-ui-data-example">
+                                <span class="public-ui-data-label">@T["Data label"]</span>
+                                <strong class="public-ui-primary-value">@T["Primary value"]</strong>
+                            </div>
+                        </section>
+                        <section class="public-ui-visualization-accent">
+                            <h3 class="public-ui-section-heading">@T["Visualization accent"]</h3>
+                            <div class="public-ui-visualization-accent-items">
+                                <div class="public-ui-visualization-accent-item">
+                                    <span class="public-ui-role-label">@T["Chart/data line"]</span>
+                                    <span class="public-ui-data-line" aria-hidden="true"></span>
+                                </div>
+                                <div class="public-ui-visualization-accent-item">
+                                    <span class="public-ui-role-label">@T["Positive delta"]</span>
+                                    <strong class="public-ui-positive-delta">+ 12.83%</strong>
+                                </div>
+                            </div>
+                        </section>
+                        <div class="public-ui-divider"><span>@T["Divider"]</span></div>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Actions"]</h3>
+                            <div class="public-ui-action-list">
+                                <button type="button" class="public-ui-action public-ui-action--standard">@T["Standard action"] <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="m3 13 10-10M6 3h7v7" /></svg></button>
+                                <button type="button" class="public-ui-action public-ui-action--commit">@T["Commit action"] <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="m3 13 10-10M6 3h7v7" /></svg></button>
+                                <span class="public-ui-action public-ui-action--text">@T["Text action"]</span>
+                                <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink" href="/Admin/PublicUi">@T["Hyperlink action"]</a>
+                                <span class="public-ui-action public-ui-action--destructive">@T["Destructive action"]</span>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Controls"]</h3>
+                            <div class="public-ui-catalogue-control-grid">
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Text input"]</span>
+                                    <input class="public-ui-control-visual" type="text" value="Text input" aria-label="@T["Text input"]" />
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Select control"]</span>
+                                    <select class="public-ui-control-visual public-ui-control-visual--select" aria-label="@T["Select control"]"><option selected>@T["Select control"]</option><option>@T["Another option"]</option></select><span class="public-ui-select-chevron" aria-hidden="true"></span>
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Checkbox"]</span>
+                                    <label class="public-ui-checkbox"><input type="checkbox" checked /><span class="public-ui-checkbox-mark" aria-hidden="true"></span><span>@T["Checkbox"]</span></label>
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Textarea"]</span>
+                                    <textarea class="public-ui-control-visual" rows="2" aria-label="@T["Textarea"]">@T["Textarea"]</textarea>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["States and semantic color"]</h3>
+                            <div class="public-ui-state-list">
+                                <span class="public-ui-state public-ui-state--neutral">@T["Neutral"]</span>
+                                <span class="public-ui-state public-ui-state--information">@T["Information"]</span>
+                                <span class="public-ui-state public-ui-state--success">@T["Success"]</span>
+                                <span class="public-ui-state public-ui-state--warning">@T["Warning"]</span>
+                                <span class="public-ui-state public-ui-state--error">@T["Error"]</span>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Data row"]</h3>
+                            <div class="public-ui-data-row">
+                                <div>
+                                    <strong class="public-ui-data-label">@T["Row label"]</strong>
+                                    <small class="public-ui-supporting-text">@T["Row supporting text"]</small>
+                                </div>
+                                <strong class="public-ui-data-value">@T["Row value"]</strong>
+                                <span class="public-ui-state public-ui-state--success">@T["Status"]</span>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+                <div class="public-ui-surface public-ui-surface--neutral public-ui-surface--subtle-accent" aria-hidden="true">
+                    <div class="public-ui-surface-content">
+                        <header class="public-ui-component-header">
+                            <div class="public-ui-component-header__copy">
+                                <span class="public-ui-overline">@T["Component label"]</span>
+                                <strong class="public-ui-component-title">@T["Component header"]</strong>
+                                <small class="public-ui-supporting-text">@T["Supporting description"]</small>
+                            </div>
+                            <span class="public-ui-info-affordance">i</span>
+                        </header>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Typography hierarchy"]</h3>
+                            <div class="public-ui-catalogue-typography-grid">
+                                <div class="public-ui-catalogue-type-sample">
+                                    <span class="public-ui-role-label">@T["Section header"]</span>
+                                    <strong>@T["Section header"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--secondary">
+                                    <span class="public-ui-role-label">@T["Primary text"]</span>
+                                    <strong>@T["Primary text"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--supporting">
+                                    <span class="public-ui-role-label">@T["Secondary text"]</span>
+                                    <strong>@T["Secondary text"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--supporting">
+                                    <span class="public-ui-role-label">@T["Supporting text"]</span>
+                                    <strong>@T["Supporting text"]</strong>
+                                </div>
+                            </div>
+                            <div class="public-ui-data-example">
+                                <span class="public-ui-data-label">@T["Data label"]</span>
+                                <strong class="public-ui-primary-value">@T["Primary value"]</strong>
+                            </div>
+                        </section>
+                        <section class="public-ui-visualization-accent">
+                            <h3 class="public-ui-section-heading">@T["Visualization accent"]</h3>
+                            <div class="public-ui-visualization-accent-items">
+                                <div class="public-ui-visualization-accent-item">
+                                    <span class="public-ui-role-label">@T["Chart/data line"]</span>
+                                    <span class="public-ui-data-line" aria-hidden="true"></span>
+                                </div>
+                                <div class="public-ui-visualization-accent-item">
+                                    <span class="public-ui-role-label">@T["Positive delta"]</span>
+                                    <strong class="public-ui-positive-delta">+ 12.83%</strong>
+                                </div>
+                            </div>
+                        </section>
+                        <div class="public-ui-divider"><span>@T["Divider"]</span></div>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Actions"]</h3>
+                            <div class="public-ui-action-list">
+                                <button type="button" class="public-ui-action public-ui-action--standard">@T["Standard action"] <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="m3 13 10-10M6 3h7v7" /></svg></button>
+                                <button type="button" class="public-ui-action public-ui-action--commit">@T["Commit action"] <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="m3 13 10-10M6 3h7v7" /></svg></button>
+                                <span class="public-ui-action public-ui-action--text">@T["Text action"]</span>
+                                <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink" href="/Admin/PublicUi">@T["Hyperlink action"]</a>
+                                <span class="public-ui-action public-ui-action--destructive">@T["Destructive action"]</span>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Controls"]</h3>
+                            <div class="public-ui-catalogue-control-grid">
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Text input"]</span>
+                                    <input class="public-ui-control-visual" type="text" value="Text input" aria-label="@T["Text input"]" />
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Select control"]</span>
+                                    <select class="public-ui-control-visual public-ui-control-visual--select" aria-label="@T["Select control"]"><option selected>@T["Select control"]</option><option>@T["Another option"]</option></select><span class="public-ui-select-chevron" aria-hidden="true"></span>
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Checkbox"]</span>
+                                    <label class="public-ui-checkbox"><input type="checkbox" checked /><span class="public-ui-checkbox-mark" aria-hidden="true"></span><span>@T["Checkbox"]</span></label>
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Textarea"]</span>
+                                    <textarea class="public-ui-control-visual" rows="2" aria-label="@T["Textarea"]">@T["Textarea"]</textarea>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["States and semantic color"]</h3>
+                            <div class="public-ui-state-list">
+                                <span class="public-ui-state public-ui-state--neutral">@T["Neutral"]</span>
+                                <span class="public-ui-state public-ui-state--information">@T["Information"]</span>
+                                <span class="public-ui-state public-ui-state--success">@T["Success"]</span>
+                                <span class="public-ui-state public-ui-state--warning">@T["Warning"]</span>
+                                <span class="public-ui-state public-ui-state--error">@T["Error"]</span>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Data row"]</h3>
+                            <div class="public-ui-data-row">
+                                <div>
+                                    <strong class="public-ui-data-label">@T["Row label"]</strong>
+                                    <small class="public-ui-supporting-text">@T["Row supporting text"]</small>
+                                </div>
+                                <strong class="public-ui-data-value">@T["Row value"]</strong>
+                                <span class="public-ui-state public-ui-state--success">@T["Status"]</span>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+                <div class="public-ui-surface public-ui-surface--charcoal" aria-hidden="true">
+                    <div class="public-ui-surface-content">
+                        <header class="public-ui-component-header">
+                            <div class="public-ui-component-header__copy">
+                                <span class="public-ui-overline">@T["Component label"]</span>
+                                <strong class="public-ui-component-title">@T["Component header"]</strong>
+                                <small class="public-ui-supporting-text">@T["Supporting description"]</small>
+                            </div>
+                            <span class="public-ui-info-affordance">i</span>
+                        </header>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Typography hierarchy"]</h3>
+                            <div class="public-ui-catalogue-typography-grid">
+                                <div class="public-ui-catalogue-type-sample">
+                                    <span class="public-ui-role-label">@T["Section header"]</span>
+                                    <strong>@T["Section header"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--secondary">
+                                    <span class="public-ui-role-label">@T["Primary text"]</span>
+                                    <strong>@T["Primary text"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--supporting">
+                                    <span class="public-ui-role-label">@T["Secondary text"]</span>
+                                    <strong>@T["Secondary text"]</strong>
+                                </div>
+                                <div class="public-ui-catalogue-type-sample public-ui-catalogue-type-sample--supporting">
+                                    <span class="public-ui-role-label">@T["Supporting text"]</span>
+                                    <strong>@T["Supporting text"]</strong>
+                                </div>
+                            </div>
+                            <div class="public-ui-data-example">
+                                <span class="public-ui-data-label">@T["Data label"]</span>
+                                <strong class="public-ui-primary-value">@T["Primary value"]</strong>
+                            </div>
+                        </section>
+                        <section class="public-ui-visualization-accent">
+                            <h3 class="public-ui-section-heading">@T["Visualization accent"]</h3>
+                            <div class="public-ui-visualization-accent-items">
+                                <div class="public-ui-visualization-accent-item">
+                                    <span class="public-ui-role-label">@T["Chart/data line"]</span>
+                                    <span class="public-ui-data-line" aria-hidden="true"></span>
+                                </div>
+                                <div class="public-ui-visualization-accent-item">
+                                    <span class="public-ui-role-label">@T["Positive delta"]</span>
+                                    <strong class="public-ui-positive-delta">+ 12.83%</strong>
+                                </div>
+                            </div>
+                        </section>
+                        <div class="public-ui-divider"><span>@T["Divider"]</span></div>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Actions"]</h3>
+                            <div class="public-ui-action-list">
+                                <button type="button" class="public-ui-action public-ui-action--standard">@T["Standard action"] <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="m3 13 10-10M6 3h7v7" /></svg></button>
+                                <button type="button" class="public-ui-action public-ui-action--commit">@T["Commit action"] <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="m3 13 10-10M6 3h7v7" /></svg></button>
+                                <span class="public-ui-action public-ui-action--text">@T["Text action"]</span>
+                                <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink" href="/Admin/PublicUi">@T["Hyperlink action"]</a>
+                                <span class="public-ui-action public-ui-action--destructive">@T["Destructive action"]</span>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Controls"]</h3>
+                            <div class="public-ui-catalogue-control-grid">
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Text input"]</span>
+                                    <input class="public-ui-control-visual" type="text" value="Text input" aria-label="@T["Text input"]" />
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Select control"]</span>
+                                    <select class="public-ui-control-visual public-ui-control-visual--select" aria-label="@T["Select control"]"><option selected>@T["Select control"]</option><option>@T["Another option"]</option></select><span class="public-ui-select-chevron" aria-hidden="true"></span>
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Checkbox"]</span>
+                                    <label class="public-ui-checkbox"><input type="checkbox" checked /><span class="public-ui-checkbox-mark" aria-hidden="true"></span><span>@T["Checkbox"]</span></label>
+                                </div>
+                                <div class="public-ui-catalogue-control">
+                                    <span class="public-ui-role-label">@T["Textarea"]</span>
+                                    <textarea class="public-ui-control-visual" rows="2" aria-label="@T["Textarea"]">@T["Textarea"]</textarea>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["States and semantic color"]</h3>
+                            <div class="public-ui-state-list">
+                                <span class="public-ui-state public-ui-state--neutral">@T["Neutral"]</span>
+                                <span class="public-ui-state public-ui-state--information">@T["Information"]</span>
+                                <span class="public-ui-state public-ui-state--success">@T["Success"]</span>
+                                <span class="public-ui-state public-ui-state--warning">@T["Warning"]</span>
+                                <span class="public-ui-state public-ui-state--error">@T["Error"]</span>
+                            </div>
+                        </section>
+                        <section class="public-ui-section">
+                            <h3 class="public-ui-section-heading">@T["Data row"]</h3>
+                            <div class="public-ui-data-row">
+                                <div>
+                                    <strong class="public-ui-data-label">@T["Row label"]</strong>
+                                    <small class="public-ui-supporting-text">@T["Row supporting text"]</small>
+                                </div>
+                                <strong class="public-ui-data-value">@T["Row value"]</strong>
+                                <span class="public-ui-state public-ui-state--success">@T["Status"]</span>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+        </div>
+        <div class="public-ui-masthead-row">
+            <section class="public-ui-surface public-ui-surface--accent public-ui-masthead-card" aria-hidden="true">
+                <div class="public-ui-surface-content">
+                    <span class="public-ui-overline">@T["Event overview"]</span>
+                    <div class="public-ui-component-header">
+                        <strong class="public-ui-component-title">TEST 15 — DKL Live</strong>
+                    </div>
+                    <span class="public-ui-supporting-text">@T["Live · Bingo · 6 teams"]</span>
+                </div>
+            </section>
+            <section class="public-ui-surface public-ui-surface--accent public-ui-countdown" role="group" aria-label="@T["Ends in 04 days, 21 hours, 50 minutes, 33 seconds"]">
+                <div class="public-ui-surface-content">
+                    <span class="public-ui-overline" aria-hidden="true">@T["Ends in"]</span>
+                    <div class="public-ui-countdown-values" aria-hidden="true">
+                        <div class="public-ui-countdown-unit">
+                            <strong class="public-ui-data-value public-ui-countdown-value">04</strong>
+                            <span class="public-ui-supporting-text">@T["DAYS"]</span>
+                        </div>
+                        <div class="public-ui-countdown-unit">
+                            <strong class="public-ui-data-value public-ui-countdown-value">21</strong>
+                            <span class="public-ui-supporting-text">@T["hours"]</span>
+                        </div>
+                        <div class="public-ui-countdown-unit">
+                            <strong class="public-ui-data-value public-ui-countdown-value">50</strong>
+                            <span class="public-ui-supporting-text">@T["mins"]</span>
+                        </div>
+                        <div class="public-ui-countdown-unit">
+                            <strong class="public-ui-data-value public-ui-countdown-value">33</strong>
+                            <span class="public-ui-supporting-text">@T["secs"]</span>
+                        </div>
+                    </div>
+                    <div class="public-ui-countdown-progress" aria-hidden="true">
+                        <span class="public-ui-data-line"></span>
+                    </div>
+                </div>
+            </section>
+            <section class="public-ui-surface public-ui-surface--accent public-ui-masthead-card public-ui-masthead-result" aria-hidden="true">
+                <div class="public-ui-surface-content">
+                    <span class="public-ui-overline">@T["In the lead"]</span>
+                    <div class="public-ui-component-header">
+                        <strong class="public-ui-component-title">Dragon Knights</strong>
+                        <strong class="public-ui-positive-delta public-ui-data-value public-ui-countdown-value public-ui-masthead-rank">#1</strong>
+                    </div>
+                    <span class="public-ui-supporting-text">@T["Provisional result"]</span>
+                </div>
+            </section>
+            <section class="public-ui-surface public-ui-surface--accent public-ui-masthead-card" aria-hidden="true" aria-label="@T["Player ranking metric"]">
+                <div class="public-ui-surface-content">
+                    <details class="public-ui-masthead-metric-selector" data-public-ui-compact-dropdown data-public-masthead-metric-selector data-public-masthead-event="public-ui-specimen">
+                        <summary class="public-ui-overline public-ui-compact-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="public-masthead-metric-options-specimen">
+                            <span data-public-ui-dropdown-label>@T["Most spooned"]</span>
+                            <svg class="public-ui-masthead-metric-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
+                        </summary>
+                        <div id="public-masthead-metric-options-specimen" class="public-ui-compact-dropdown-menu" role="listbox" aria-label="@T["Player ranking metric"]" tabindex="-1">
+                            <button type="button" class="public-ui-compact-dropdown-option" role="option" data-public-ui-dropdown-option="spooned" data-public-ui-dropdown-label="@T["Most spooned"]" aria-selected="true"><span>@T["Most spooned"]</span><svg data-public-ui-dropdown-check aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" hidden><path d="m5 12 4 4L19 6" /></svg></button>
+                            <button type="button" class="public-ui-compact-dropdown-option" role="option" data-public-ui-dropdown-option="drops" data-public-ui-dropdown-label="@T["Highest DEHB"]" aria-selected="false"><span>@T["Highest DEHB"]</span><svg data-public-ui-dropdown-check aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" hidden><path d="m5 12 4 4L19 6" /></svg></button>
+                            <button type="button" class="public-ui-compact-dropdown-option" role="option" data-public-ui-dropdown-option="ehb" data-public-ui-dropdown-label="@T["Highest EHB"]" aria-selected="false"><span>@T["Highest EHB"]</span><svg data-public-ui-dropdown-check aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" hidden><path d="m5 12 4 4L19 6" /></svg></button>
+                        </div>
+                    </details>
+                    <div class="public-ui-masthead-metric" data-public-masthead-metric="spooned">
+                            <div class="public-ui-component-header">
+                                <strong class="public-ui-component-title">RuneWarden</strong>
+                                <strong class="public-ui-positive-delta public-ui-data-value public-ui-countdown-value">+20</strong>
+                            </div>
+                            <span class="public-ui-supporting-text">Dragon Knights</span>
+                        </div>
+                    <div class="public-ui-masthead-metric" data-public-masthead-metric="drops" hidden>
+                            <div class="public-ui-component-header">
+                                <strong class="public-ui-component-title">RuneWarden</strong>
+                                <strong class="public-ui-positive-delta public-ui-data-value public-ui-countdown-value">+842.70</strong>
+                            </div>
+                            <span class="public-ui-supporting-text">Dragon Knights</span>
+                        </div>
+                    <div class="public-ui-masthead-metric" data-public-masthead-metric="ehb" hidden>
+                            <div class="public-ui-component-header">
+                                <strong class="public-ui-component-title">RuneWarden</strong>
+                                <strong class="public-ui-positive-delta public-ui-data-value public-ui-countdown-value">+2487.00</strong>
+                            </div>
+                            <span class="public-ui-supporting-text">Dragon Knights</span>
+                        </div>
+                    <div data-public-masthead-static-fallback hidden><span class="public-ui-overline">@T["Highest DEHB"]</span></div>
+                </div>
+            </section>
+            <section class="public-ui-surface public-ui-surface--accent public-ui-masthead-card public-dashboard-masthead-actions public-dashboard-masthead-actions--dual" aria-label="@T["Actions"]">
+                <div class="public-ui-surface-content">
+                    <span class="public-ui-overline">@T["Actions"]</span>
+                    <div class="public-ui-action-list public-dashboard-masthead-action-list">
+                        <button type="button" class="public-ui-action public-ui-action--commit">@T["Submit drop"]</button>
+                        <a class="public-ui-action public-ui-action--standard public-ui-action--hyperlink" href="https://wiseoldman.net/competitions/145197" target="_blank" rel="noopener noreferrer" aria-label="@T["View Wise Old Man competition"]" title="@T["View Wise Old Man competition"]">WOM</a>
+                    </div>
+                </div>
+            </section>
+        </div>
+        <section class="public-ui-catalogue-specimen public-ui-catalogue-specimen--wide" aria-labelledby="recent-drops-specimen-heading">
+            <h2 id="recent-drops-specimen-heading" class="public-ui-catalogue-specimen-label">@T["Recent drops"]</h2>
+            <div class="public-ui-recent-drops-layout">
+                <div class="public-ui-recent-drops-main">
+                <div id="recent-drops-specimen-latest" class="public-ui-recent-drop-feed">
+                    <section class="public-ui-recent-drop-group" aria-labelledby="recent-drops-last-hour-heading">
+                        <h3 id="recent-drops-last-hour-heading" class="public-ui-recent-drop-divider"><span>@T["Last hour"]</span></h3>
+                        <div class="public-ui-recent-drop-grid">
+                <article class="public-ui-surface public-ui-surface--charcoal public-ui-recent-drop-card">
+                    <button type="button" class="public-ui-recent-drop-thumbnail" popovertarget="recent-drop-preview-twisted-bow" aria-label="@T["Enlarge Twisted bow evidence"]">
+                        <span class="public-ui-recent-drop-art public-ui-recent-drop-art--bow" aria-hidden="true">TB</span>
+                    </button>
+                    <div class="public-ui-recent-drop-copy">
+                        <strong class="public-ui-component-title public-ui-recent-drop-title">Twisted bow · Olm</strong>
+                        <span class="public-ui-supporting-text">RuneWarden · <time datetime="2026-08-17T10:18:00+02:00">@T["2 min ago"]</time></span>
+                    </div>
+                    <strong class="public-ui-recent-drop-progression">8/25</strong>
+                    <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-recent-drop-team-link" href="/Admin/PublicUi">Dragon Knights</a>
+                    <div id="recent-drop-preview-twisted-bow" class="public-ui-recent-drop-preview" popover role="dialog" aria-label="@T["Twisted bow evidence preview"]">
+                        <span class="public-ui-recent-drop-art public-ui-recent-drop-art--bow" aria-hidden="true">TB</span>
+                        <button type="button" class="public-ui-viewport-close" popovertarget="recent-drop-preview-twisted-bow" popovertargetaction="hide" aria-label="@T["Close preview"]"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+                    </div>
+                </article>
+                <article class="public-ui-surface public-ui-surface--charcoal public-ui-recent-drop-card">
+                    <button type="button" class="public-ui-recent-drop-thumbnail" popovertarget="recent-drop-preview-visage" aria-label="@T["Enlarge Draconic visage evidence"]">
+                        <span class="public-ui-recent-drop-art public-ui-recent-drop-art--visage" aria-hidden="true">DV</span>
+                    </button>
+                    <div class="public-ui-recent-drop-copy">
+                        <strong class="public-ui-component-title public-ui-recent-drop-title">Draconic visage · Vorkath</strong>
+                        <span class="public-ui-supporting-text">IronMoth · <time datetime="2026-08-17T09:41:00+02:00">@T["39 min ago"]</time></span>
+                    </div>
+                    <strong class="public-ui-recent-drop-progression">5/18</strong>
+                    <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-recent-drop-team-link" href="/Admin/PublicUi">Loot Goblins</a>
+                    <div id="recent-drop-preview-visage" class="public-ui-recent-drop-preview" popover role="dialog" aria-label="@T["Draconic visage evidence preview"]">
+                        <span class="public-ui-recent-drop-art public-ui-recent-drop-art--visage" aria-hidden="true">DV</span>
+                        <button type="button" class="public-ui-viewport-close" popovertarget="recent-drop-preview-visage" popovertargetaction="hide" aria-label="@T["Close preview"]"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+                    </div>
+                </article>
+                        </div>
+                    </section>
+                    <section class="public-ui-recent-drop-group" aria-labelledby="recent-drops-last-24-hours-heading">
+                        <h3 id="recent-drops-last-24-hours-heading" class="public-ui-recent-drop-divider"><span>@T["Last 24 hours"]</span></h3>
+                        <div class="public-ui-recent-drop-grid">
+                <article class="public-ui-surface public-ui-surface--charcoal public-ui-recent-drop-card">
+                    <button type="button" class="public-ui-recent-drop-thumbnail" popovertarget="recent-drop-preview-tassets" aria-label="@T["Enlarge Tassets evidence"]">
+                        <span class="public-ui-recent-drop-art public-ui-recent-drop-art--tassets" aria-hidden="true">BT</span>
+                    </button>
+                    <div class="public-ui-recent-drop-copy">
+                        <strong class="public-ui-component-title public-ui-recent-drop-title">Bandos tassets · General Graardor</strong>
+                        <span class="public-ui-supporting-text">SpoonDealer · <time datetime="2026-08-17T07:20:00+02:00">@T["3 hrs ago"]</time></span>
+                    </div>
+                    <strong class="public-ui-recent-drop-progression">11/30</strong>
+                    <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-recent-drop-team-link" href="/Admin/PublicUi">Wise Old Men</a>
+                    <div id="recent-drop-preview-tassets" class="public-ui-recent-drop-preview" popover role="dialog" aria-label="@T["Bandos tassets evidence preview"]">
+                        <span class="public-ui-recent-drop-art public-ui-recent-drop-art--tassets" aria-hidden="true">BT</span>
+                        <button type="button" class="public-ui-viewport-close" popovertarget="recent-drop-preview-tassets" popovertargetaction="hide" aria-label="@T["Close preview"]"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+                    </div>
+                </article>
+                        </div>
+                    </section>
+                    <section class="public-ui-recent-drop-group" aria-labelledby="recent-drops-older-heading">
+                        <h3 id="recent-drops-older-heading" class="public-ui-recent-drop-divider"><span>@T["Older drops"]</span></h3>
+                        <div class="public-ui-recent-drop-grid">
+                <article class="public-ui-surface public-ui-surface--charcoal public-ui-recent-drop-card">
+                    <button type="button" class="public-ui-recent-drop-thumbnail" popovertarget="recent-drop-preview-crystal" aria-label="@T["Enlarge Enhanced crystal weapon seed evidence"]">
+                        <span class="public-ui-recent-drop-art public-ui-recent-drop-art--crystal" aria-hidden="true">EC</span>
+                    </button>
+                    <div class="public-ui-recent-drop-copy">
+                        <strong class="public-ui-component-title public-ui-recent-drop-title">Enhanced crystal weapon seed · The Gauntlet</strong>
+                        <span class="public-ui-supporting-text">LeafBlower · <time datetime="2026-08-15T11:20:00+02:00">@T["2 days ago"]</time></span>
+                    </div>
+                    <strong class="public-ui-recent-drop-progression">14/20</strong>
+                    <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-recent-drop-team-link" href="/Admin/PublicUi">Crystal Crew</a>
+                    <div id="recent-drop-preview-crystal" class="public-ui-recent-drop-preview" popover role="dialog" aria-label="@T["Enhanced crystal weapon seed evidence preview"]">
+                        <span class="public-ui-recent-drop-art public-ui-recent-drop-art--crystal" aria-hidden="true">EC</span>
+                        <button type="button" class="public-ui-viewport-close" popovertarget="recent-drop-preview-crystal" popovertargetaction="hide" aria-label="@T["Close preview"]"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+                    </div>
+                </article>
+                </div>
+                    </section>
+                    <footer class="public-ui-recent-drop-footer" aria-label="@T["Recent drops pagination specimen"]">
+                        <span class="public-ui-recent-drop-footer-summary">@T["Showing 25 of 128 drops"]</span>
+                        <div class="public-ui-recent-drop-footer-actions">
+                            <a class="public-ui-action public-ui-recent-drop-load" href="/Admin/PublicUi?view=drops&amp;dropCount=50">@T["Load 25 more ↓"]</a>
+                        </div>
+                    </footer>
+                    <footer class="public-ui-recent-drop-footer" aria-label="@T["Expanded recent drops pagination specimen"]">
+                        <span class="public-ui-recent-drop-footer-summary">@T["Showing 50 of 128 drops"]</span>
+                        <div class="public-ui-recent-drop-footer-actions">
+                            <a class="public-ui-action public-ui-action--text public-ui-recent-drop-back" href="#recent-drops-specimen-latest">@T["Back to latest"]</a>
+                        </div>
+                    </footer>
+                </div>
+                </div>
+                <div class="public-ui-recent-drops-sidebar">
+                <aside class="public-ui-surface public-ui-surface--charcoal public-ui-recent-drop-stats" aria-labelledby="recent-drop-stats-heading">
+                    <header class="public-ui-component-header">
+                        <div class="public-ui-component-header__copy">
+                            <span class="public-ui-overline">@T["Drop overview"]</span>
+                            <strong id="recent-drop-stats-heading" class="public-ui-component-title">@T["Drop statistics"]</strong>
+                        </div>
+                    </header>
+                    <dl class="public-ui-recent-drop-stats-list">
+                        <div><dt class="public-ui-supporting-text">@T["Total drops"]</dt><dd class="public-ui-recent-drop-stats-value">128</dd></div>
+                        <div><dt class="public-ui-supporting-text">@T["Drops last 24 hours"]</dt><dd class="public-ui-recent-drop-stats-value">12</dd></div>
+                        <div><dt class="public-ui-supporting-text">@T["Total Drop EHB"]</dt><dd class="public-ui-recent-drop-stats-value">2487</dd></div>
+                        <div><dt class="public-ui-supporting-text">@T["Unique players with a drop"]</dt><dd class="public-ui-recent-drop-stats-value">4/24</dd></div>
+                        <div><dt class="public-ui-supporting-text">@T["Highest Drop EHB team"]</dt><dd class="public-ui-recent-drop-stats-value">Dragon Knights</dd></div>
+                        <div><dt class="public-ui-supporting-text">@T["Most individual drops team"]</dt><dd class="public-ui-recent-drop-stats-value">Loot Goblins</dd></div>
+                    </dl>
+                </aside>
+                <div class="public-ui-surface public-ui-surface--charcoal public-ui-recent-drops-toolbar" data-public-ui-recent-drops-toolbar>
+                    <label class="visually-hidden" for="public-ui-recent-drops-search">@T["Search drops"]</label>
+                    <div class="public-ui-recent-drops-search">
+                        <svg class="public-ui-recent-drops-search-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.6"><circle cx="8.5" cy="8.5" r="5.25" /><path d="m12.5 12.5 4 4" /></svg>
+                        <input id="public-ui-recent-drops-search" class="public-ui-recent-drops-search-input" type="search" value="twisted" placeholder="@T["Search drops, players, teams or tiles…"]" autocomplete="off" />
+                        <button type="button" class="public-ui-recent-drops-search-clear" data-public-ui-recent-drops-clear aria-label="@T["Clear search"]">
+                            <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.6"><path d="m4 4 8 8M12 4l-8 8" /></svg>
+                        </button>
+                    </div>
+                    <span class="public-ui-recent-drops-result-count visually-hidden" aria-live="polite">@T["28 matches"]</span>
+                    <div class="public-ui-recent-drops-filter-group">
+                        <svg class="public-ui-recent-drops-filter-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M3 4.5h14l-5.25 6v4.25L8.25 16v-5.5L3 4.5Z" /></svg>
+                        <label class="public-ui-recent-drops-filter-label" for="public-ui-recent-drops-team">@T["Team:"]</label>
+                        <span class="public-ui-recent-drops-filter-wrap">
+                            <select id="public-ui-recent-drops-team" class="public-ui-select public-ui-select--accent">
+                                <option selected>@T["All teams"]</option>
+                                <option>Dragon Knights</option>
+                                <option>Loot Goblins</option>
+                            </select>
+                            <span class="public-ui-select-chevron" aria-hidden="true"></span>
+                        </span>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </section>
+        <div class="public-ui-recent-drops-layout public-ui-leaderboard-overview-layout">
+            <div class="public-ui-section">
+        <section class="public-ui-surface public-ui-surface--charcoal public-ui-catalogue-specimen public-ui-catalogue-specimen--wide" aria-labelledby="leaderboard-catalogue-heading">
+            <header class="public-ui-component-header">
+                <div class="public-ui-component-header__copy">
+                    <span class="public-ui-overline">@T["Leaderboard catalogue"]</span>
+                    <strong id="leaderboard-catalogue-heading" class="public-ui-component-title">@T["EHB and Drop EHB"]</strong>
+                    <small class="public-ui-supporting-text">@T["Shared table structure for public team rankings."]</small>
+                </div>
+            </header>
+            <div class="public-ui-surface-content">
+            <nav class="public-ui-view-switcher" aria-label="@T["Leaderboard table views"]" data-public-leaderboard-switcher>
+                <a class="public-ui-view-switcher-item is-current" href="#ehb-table-heading" aria-current="page" aria-controls="public-ui-leaderboard-activity" data-public-leaderboard-view="activity">@T["EHB"]</a>
+                <a class="public-ui-view-switcher-item" href="#drop-ehb-table-heading" aria-controls="public-ui-leaderboard-drops" data-public-leaderboard-view="drops">@T["Drop EHB"]</a>
+                <a class="public-ui-view-switcher-item" href="#public-ui-players-table-heading" aria-controls="public-ui-leaderboard-players" data-public-leaderboard-view="players">@T["players"]</a>
+            </nav>
+                <section id="public-ui-leaderboard-activity" data-public-leaderboard-panel="activity" aria-labelledby="ehb-table-heading">
+                        <div class="public-ui-section">
+                        <header class="public-ui-component-header">
+                            <div class="public-ui-component-header__copy">
+                                <span class="public-ui-overline">@T["Primary ranking"]</span>
+                            <strong id="ehb-table-heading" class="public-ui-component-title">@T["EHB"]</strong>
+                                <small class="public-ui-supporting-text"><span>Wise Old Man</span> <span aria-hidden="true">·</span> <span>@T["Cached activity is current"]</span> <span aria-hidden="true">·</span> <span>@T["Fetched 18 Aug 2026, 14:30"]</span> <span aria-hidden="true">·</span> <span>@T["Provisional coverage: 18/24 current accounts matched"]</span></small>
+                            </div>
+                        </header>
+                            <table class="public-ui-table" data-public-leaderboard-table>
+                                <thead>
+                                    <tr>
+                                        <th class="public-ui-supporting-text" scope="col">@T["Rank"]</th>
+                                        <th class="public-ui-supporting-text" scope="col">@T["Team"]</th>
+                                        <th class="public-ui-supporting-text" scope="col">@T["players"]</th>
+                                        <th class="public-ui-supporting-text" scope="col">@T["Total gained"]</th>
+                                        <th class="public-ui-supporting-text" scope="col">@T["Avg. gained"]</th>
+                                        <th class="public-ui-supporting-text" scope="col">@T["MVP"]</th>
+                                        <th class="public-ui-leaderboard-expand-heading" data-public-leaderboard-expand-heading hidden scope="col"><span class="visually-hidden">@T["Expand"]</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong class="public-ui-section-heading">1</strong></td>
+                                        <td><strong class="public-ui-section-heading">Dragon Knights</strong></td>
+                                        <td><strong class="public-ui-section-heading">6</strong></td>
+                                        <td><strong class="public-ui-section-heading public-ui-positive-delta--success">+2487.0</strong></td>
+                                        <td><strong class="public-ui-section-heading public-ui-positive-delta--success">+414.5</strong></td>
+                                        <td><strong class="public-ui-section-heading">RuneWarden</strong></td>
+                                        <td class="public-ui-leaderboard-expand-cell" data-public-leaderboard-expand-cell hidden><button type="button" class="public-ui-leaderboard-expand-control" data-public-leaderboard-expand-control aria-controls="public-ui-ehb-details-1" aria-expanded="false" aria-label="@T["Toggle Dragon Knights details"]" hidden><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></td>
+                                    </tr>
+                                    <tr class="public-ui-leaderboard-detail-row">
+                                        <td colspan="7">
+                                            <details id="public-ui-ehb-details-1" data-public-leaderboard-details>
+                                                <summary class="public-ui-leaderboard-detail-summary"><span class="public-ui-supporting-text">@T["Show Dragon Knights details"]</span></summary>
+                                                <table class="public-ui-table public-ui-table--nested public-ui-table--nested-ehb" data-public-leaderboard-sort-table aria-label="@T["Dragon Knights player details"]">
+                                                    <thead><tr><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="rank" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Rank"]" aria-label="@T["Sort by Rank"]"><span>@T["Rank"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="player" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Player"]" aria-label="@T["Sort by Player"]"><span>@T["Player"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="ehb-gained" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["EHB gained"]" aria-label="@T["Sort by EHB gained"]"><span>@T["EHB gained"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="start-ehb" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Start EHB"]" aria-label="@T["Sort by Start EHB"]"><span>@T["Start EHB"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="end-ehb" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["End EHB"]" aria-label="@T["Sort by End EHB"]"><span>@T["End EHB"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col">WOM</th></tr></thead>
+                                                            <tbody><tr data-public-leaderboard-sort-row data-sort-rank="1" data-sort-player="RuneWarden" data-sort-ehb-gained="1243.5" data-sort-start-ehb="800" data-sort-end-ehb="2043.5"><td><strong class="public-ui-section-heading">#1</strong></td><td><strong class="public-ui-section-heading">RuneWarden</strong><small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">SpoonDealer</small></td><td><strong class="public-ui-section-heading public-ui-positive-delta--success">+742.00</strong><small class="public-ui-supporting-text public-ui-positive-delta--success public-ui-leaderboard-detail-secondary">+501.50</small></td><td><strong class="public-ui-section-heading">500.00</strong><small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">300.00</small></td><td><strong class="public-ui-section-heading">1242.00</strong><small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">801.50</small></td><td><small class="public-ui-supporting-text"><a class="public-ui-action public-ui-action--text public-ui-action--hyperlink" href="https://wiseoldman.net/players/RuneWarden/gained?metric=ehb&amp;startDate=2026-08-01T00%3A00%3A00.0000000Z&amp;endDate=2026-08-03T00%3A00%3A00.0000000Z" target="_blank" rel="noopener noreferrer">RuneWarden</a></small><small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary"><a class="public-ui-action public-ui-action--text public-ui-action--hyperlink" href="https://wiseoldman.net/players/SpoonDealer/gained?metric=ehb&amp;startDate=2026-08-01T00%3A00%3A00.0000000Z&amp;endDate=2026-08-03T00%3A00%3A00.0000000Z" target="_blank" rel="noopener noreferrer">SpoonDealer</a></small></td></tr></tbody>
+                                                </table>
+                                            </details>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong class="public-ui-section-heading">2</strong></td>
+                                        <td><strong class="public-ui-section-heading">Loot Goblins</strong></td>
+                                        <td><strong class="public-ui-section-heading">5</strong></td>
+                                        <td><strong class="public-ui-section-heading public-ui-positive-delta--success">+2310.4</strong></td>
+                                        <td><strong class="public-ui-section-heading public-ui-positive-delta--success">+462.1</strong></td>
+                                        <td><strong class="public-ui-section-heading">IronMoth</strong></td>
+                                        <td class="public-ui-leaderboard-expand-cell" data-public-leaderboard-expand-cell hidden><button type="button" class="public-ui-leaderboard-expand-control" data-public-leaderboard-expand-control aria-controls="public-ui-ehb-details-2" aria-expanded="false" aria-label="@T["Toggle Loot Goblins details"]" hidden><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></td>
+                                    </tr>
+                                    <tr class="public-ui-leaderboard-detail-row">
+                                        <td colspan="7">
+                                            <details id="public-ui-ehb-details-2" data-public-leaderboard-details>
+                                                <summary class="public-ui-leaderboard-detail-summary"><span class="public-ui-supporting-text">@T["Show Loot Goblins details"]</span></summary>
+                                                <table class="public-ui-table public-ui-table--nested public-ui-table--nested-ehb" data-public-leaderboard-sort-table aria-label="@T["Loot Goblins player details"]">
+                                                    <thead><tr><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="rank" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Rank"]" aria-label="@T["Sort by Rank"]"><span>@T["Rank"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="player" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Player"]" aria-label="@T["Sort by Player"]"><span>@T["Player"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="ehb-gained" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["EHB gained"]" aria-label="@T["Sort by EHB gained"]"><span>@T["EHB gained"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="start-ehb" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Start EHB"]" aria-label="@T["Sort by Start EHB"]"><span>@T["Start EHB"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="end-ehb" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["End EHB"]" aria-label="@T["Sort by End EHB"]"><span>@T["End EHB"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col">WOM</th></tr></thead>
+                                                    <tbody><tr data-public-leaderboard-sort-row data-sort-rank="1" data-sort-player="IronMoth" data-sort-ehb-gained="1155.2" data-sort-start-ehb="950" data-sort-end-ehb="2105.2"><td><strong class="public-ui-section-heading">#1</strong></td><td><strong class="public-ui-section-heading">IronMoth</strong><small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">Ashfall</small></td><td><strong class="public-ui-section-heading public-ui-positive-delta--success">+680.00</strong><small class="public-ui-supporting-text public-ui-positive-delta--success public-ui-leaderboard-detail-secondary">+475.20</small></td><td><strong class="public-ui-section-heading">740.00</strong><small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">210.00</small></td><td><strong class="public-ui-section-heading">1420.00</strong><small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">685.20</small></td><td><small class="public-ui-supporting-text"><a class="public-ui-action public-ui-action--text public-ui-action--hyperlink" href="https://wiseoldman.net/players/IronMoth/gained?metric=ehb&amp;startDate=2026-08-01T00%3A00%3A00.0000000Z&amp;endDate=2026-08-03T00%3A00%3A00.0000000Z" target="_blank" rel="noopener noreferrer">IronMoth</a> · <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink" href="https://wiseoldman.net/players/Ashfall/gained?metric=ehb&amp;startDate=2026-08-01T00%3A00%3A00.0000000Z&amp;endDate=2026-08-03T00%3A00%3A00.0000000Z" target="_blank" rel="noopener noreferrer">Ashfall</a></small></td></tr></tbody>
+                                                </table>
+                                            </details>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                </section>
+                <section id="public-ui-leaderboard-drops" data-public-leaderboard-panel="drops" aria-labelledby="drop-ehb-table-heading" hidden>
+                        <div class="public-ui-section">
+                        <header class="public-ui-component-header">
+                            <div class="public-ui-component-header__copy">
+                                <span class="public-ui-overline">@T["Secondary ranking"]</span>
+                                <strong id="drop-ehb-table-heading" class="public-ui-component-title">@T["Drop EHB"]</strong>
+                                <small class="public-ui-supporting-text">@T["Calculated from approved drops"]</small>
+                            </div>
+                        </header>
+                            <table class="public-ui-table" data-public-leaderboard-table>
+                                <thead>
+                                    <tr>
+                                        <th class="public-ui-supporting-text" scope="col">@T["Rank"]</th>
+                                        <th class="public-ui-supporting-text" scope="col">@T["Team"]</th>
+                                        <th class="public-ui-supporting-text" scope="col">@T["players"]</th>
+                                        <th class="public-ui-supporting-text" scope="col">@T["Total drops"]</th>
+                                        <th class="public-ui-supporting-text" scope="col">@T["Drop EHB"]</th>
+                                        <th class="public-ui-supporting-text" scope="col">@T["MVP"]</th>
+                                        <th class="public-ui-leaderboard-expand-heading" data-public-leaderboard-expand-heading hidden scope="col"><span class="visually-hidden">@T["Expand"]</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong class="public-ui-section-heading">1</strong></td>
+                                        <td><strong class="public-ui-section-heading">Dragon Knights</strong></td>
+                                        <td><strong class="public-ui-section-heading">6</strong></td>
+                                        <td><strong class="public-ui-section-heading">128</strong></td>
+                                        <td><strong class="public-ui-section-heading public-ui-positive-delta--success">+842.7</strong></td>
+                                        <td><strong class="public-ui-section-heading">RuneWarden</strong></td>
+                                        <td class="public-ui-leaderboard-expand-cell" data-public-leaderboard-expand-cell hidden><button type="button" class="public-ui-leaderboard-expand-control" data-public-leaderboard-expand-control aria-controls="public-ui-drop-details-1" aria-expanded="false" aria-label="@T["Toggle Dragon Knights details"]" hidden><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></td>
+                                    </tr>
+                                    <tr class="public-ui-leaderboard-detail-row">
+                                        <td colspan="7">
+                                            <details id="public-ui-drop-details-1" data-public-leaderboard-details>
+                                                <summary class="public-ui-leaderboard-detail-summary"><span class="public-ui-supporting-text">@T["Show Dragon Knights details"]</span></summary>
+                                                <table class="public-ui-table public-ui-table--nested public-ui-table--nested-drop-ehb" data-public-leaderboard-sort-table aria-label="@T["Dragon Knights player details"]">
+                                                    <thead><tr><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="rank" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Rank"]" aria-label="@T["Sort by Rank"]"><span>@T["Rank"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="player" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Player"]" aria-label="@T["Sort by Player"]"><span>@T["Player"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="drop-ehb" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Drop EHB"]" aria-label="@T["Sort by Drop EHB"]"><span>@T["Drop EHB"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="total-drops" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Total drops"]" aria-label="@T["Sort by Total drops"]"><span>@T["Total drops"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="team-share" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Team share"]" aria-label="@T["Sort by Team share"]"><span>@T["Team share"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col">@T["Drops"]</th></tr></thead>
+                                                    <tbody><tr data-public-leaderboard-sort-row data-sort-rank="1" data-sort-player="RuneWarden" data-sort-drop-ehb="421.2" data-sort-total-drops="64" data-sort-team-share="50"><td><strong class="public-ui-section-heading">#1</strong></td><td><strong class="public-ui-section-heading">RuneWarden</strong><small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">SpoonDealer · IronMoth</small></td><td><strong class="public-ui-section-heading public-ui-positive-delta--success">+421.2</strong></td><td><strong class="public-ui-section-heading">64</strong></td><td><strong class="public-ui-section-heading">50%</strong></td><td><a class="public-ui-action public-ui-action--text public-ui-action--hyperlink" href="/Events/test-15-dkl-live/Board?view=drops&amp;dropSearch=RuneWarden%20%2B%20SpoonDealer%20%2B%20IronMoth">@T["Drops"]</a></td></tr></tbody>
+                                                </table>
+                                            </details>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong class="public-ui-section-heading">2</strong></td>
+                                        <td><strong class="public-ui-section-heading">Loot Goblins</strong></td>
+                                        <td><strong class="public-ui-section-heading">5</strong></td>
+                                        <td><strong class="public-ui-section-heading">0</strong></td>
+                                        <td><strong class="public-ui-section-heading">—</strong></td>
+                                        <td><strong class="public-ui-section-heading">—</strong></td>
+                                        <td class="public-ui-leaderboard-expand-cell" data-public-leaderboard-expand-cell hidden><button type="button" class="public-ui-leaderboard-expand-control" data-public-leaderboard-expand-control aria-controls="public-ui-drop-details-2" aria-expanded="false" aria-label="@T["Toggle Loot Goblins details"]" hidden><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></td>
+                                    </tr>
+                                    <tr class="public-ui-leaderboard-detail-row">
+                                        <td colspan="7">
+                                            <details id="public-ui-drop-details-2" data-public-leaderboard-details>
+                                                <summary class="public-ui-leaderboard-detail-summary"><span class="public-ui-supporting-text">@T["Show Loot Goblins details"]</span></summary>
+                                                <table class="public-ui-table public-ui-table--nested public-ui-table--nested-drop-ehb" data-public-leaderboard-sort-table aria-label="@T["Loot Goblins player details"]">
+                                                    <thead><tr><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="rank" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Rank"]" aria-label="@T["Sort by Rank"]"><span>@T["Rank"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="player" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Player"]" aria-label="@T["Sort by Player"]"><span>@T["Player"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="drop-ehb" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Drop EHB"]" aria-label="@T["Sort by Drop EHB"]"><span>@T["Drop EHB"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="total-drops" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Total drops"]" aria-label="@T["Sort by Total drops"]"><span>@T["Total drops"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="team-share" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Team share"]" aria-label="@T["Sort by Team share"]"><span>@T["Team share"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col">@T["Drops"]</th></tr></thead>
+                                                    <tbody><tr data-public-leaderboard-sort-row data-sort-player="IronMoth" data-sort-drop-ehb="" data-sort-total-drops="0" data-sort-team-share="0"><td><strong class="public-ui-section-heading">—</strong></td><td><strong class="public-ui-section-heading">IronMoth</strong><small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">Ashfall · Kree</small></td><td><strong class="public-ui-section-heading">—</strong></td><td><strong class="public-ui-section-heading">0</strong></td><td><strong class="public-ui-section-heading">—</strong></td><td><a class="public-ui-action public-ui-action--text public-ui-action--hyperlink" href="/Events/test-15-dkl-live/Board?view=drops&amp;dropSearch=IronMoth%20%2B%20Ashfall%20%2B%20Kree">@T["Drops"]</a></td></tr></tbody>
+                                                </table>
+                                            </details>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                </section>
+                <section id="public-ui-leaderboard-players" data-public-leaderboard-panel="players" aria-labelledby="public-ui-players-table-heading" hidden>
+                <div class="public-ui-section">
+                    <header class="public-ui-component-header">
+                        <div class="public-ui-component-header__copy">
+                            <small id="public-ui-players-table-heading" class="public-ui-supporting-text"><span>Wise Old Man</span> <span aria-hidden="true">·</span> <span>@T["Player activity across all teams"]</span></small>
+                        </div>
+                    </header>
+                    <table class="public-ui-table public-ui-table--players" data-public-leaderboard-table data-public-leaderboard-sort-table data-public-leaderboard-players-table aria-label="@T["Players leaderboard"]">
+                        <thead><tr>
+                            <th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="rank" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Rank"]" aria-label="@T["Sort by Rank"]"><span>@T["Rank"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th>
+                            <th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="player" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Player"]" aria-label="@T["Sort by Player"]"><span>@T["Player"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th>
+                            <th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="team" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Team"]" aria-label="@T["Sort by Team"]"><span>@T["Team"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th>
+                            <th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="ehb-gained" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["EHB gained"]" aria-label="@T["Sort by EHB gained"]"><span>@T["EHB gained"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th>
+                            <th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="drop-ehb" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Drop EHB"]" aria-label="@T["Sort by Drop EHB"]"><span>@T["Drop EHB"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th>
+                            <th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="total-drops" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Total drops"]" aria-label="@T["Sort by Total drops"]"><span>@T["Total drops"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th>
+                            <th class="public-ui-supporting-text" scope="col">@T["WOM"]</th>
+                        </tr></thead>
+                        <tbody>
+                            @for (var playerIndex = 1; playerIndex <= 21; playerIndex++)
+                            {
+                                var playerName = playerIndex == 1 ? "RuneWarden" : $"Player{playerIndex:00}";
+                                var secondaryName = playerIndex == 1 ? "SpoonDealer" : null;
+                                var teamName = playerIndex % 2 == 0 ? "Loot Goblins" : "Dragon Knights";
+                                var gained = 1243.5m - playerIndex * 31.2m;
+                                var hasActivity = playerIndex < 21;
+                                var dropEhb = hasActivity ? 680m - playerIndex * 17.5m : 0m;
+                                var totalDrops = hasActivity ? 72 - playerIndex : 0;
+                                <tr data-public-leaderboard-sort-row data-sort-rank="@(hasActivity ? playerIndex.ToString() : null)" data-sort-player="@playerName" data-sort-team="@teamName" data-sort-ehb-gained="@(hasActivity ? gained.ToString(System.Globalization.CultureInfo.InvariantCulture) : null)" data-sort-drop-ehb="@(totalDrops > 0 ? dropEhb.ToString(System.Globalization.CultureInfo.InvariantCulture) : null)" data-sort-total-drops="@totalDrops">
+                                    <td><strong class="public-ui-section-heading">@(hasActivity ? $"#{playerIndex}" : "—")</strong></td>
+                                    <td><strong class="public-ui-section-heading">@playerName</strong>@if (secondaryName is not null) { <small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">@secondaryName</small> }</td>
+                                    <td><strong class="public-ui-section-heading">@teamName</strong></td>
+                                    <td><strong class="public-ui-section-heading @(hasActivity ? "public-ui-positive-delta--success" : null)">@(hasActivity ? $"+{gained:0.00}" : "—")</strong>@if (secondaryName is not null) { <small class="public-ui-supporting-text @(hasActivity ? "public-ui-positive-delta--success" : null) public-ui-leaderboard-detail-secondary">+501.50</small> }</td>
+                                    <td><strong class="public-ui-section-heading @(totalDrops > 0 ? "public-ui-positive-delta--success" : null)">@(totalDrops > 0 ? $"+{dropEhb:0.00}" : "—")</strong></td>
+                                    <td><strong class="public-ui-section-heading">@totalDrops</strong></td>
+                                    <td><small class="public-ui-supporting-text"><a class="public-ui-action public-ui-action--text public-ui-action--hyperlink" href="https://wiseoldman.net/players/@playerName/gained?metric=ehb&amp;startDate=2026-08-01T00%3A00%3A00.0000000Z&amp;endDate=2026-08-03T00%3A00%3A00.0000000Z" target="_blank" rel="noopener noreferrer">@playerName</a>@if (secondaryName is not null) { <span aria-hidden="true"> · </span><a class="public-ui-action public-ui-action--text public-ui-action--hyperlink" href="https://wiseoldman.net/players/@secondaryName/gained?metric=ehb&amp;startDate=2026-08-01T00%3A00%3A00.0000000Z&amp;endDate=2026-08-03T00%3A00%3A00.0000000Z" target="_blank" rel="noopener noreferrer">@secondaryName</a> }</small></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <nav class="public-ui-leaderboard-pagination" data-public-leaderboard-pagination hidden aria-label="@T["Players pages"]">
+                        <span class="public-ui-supporting-text" data-public-leaderboard-page-label>@T["Page 1 of 2"]</span>
+                        <span class="public-ui-leaderboard-pagination-controls">
+                            <button type="button" class="public-ui-leaderboard-pagination-control" data-public-leaderboard-page-control="first" aria-label="@T["First page"]" aria-disabled="true" disabled><svg class="public-ui-leaderboard-pagination-icon public-ui-leaderboard-pagination-icon--first" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 6v12" /><path d="m15 6-6 6 6 6" /></svg></button>
+                            <button type="button" class="public-ui-leaderboard-pagination-control" data-public-leaderboard-page-control="previous" aria-label="@T["Previous page"]" aria-disabled="true" disabled><svg class="public-ui-leaderboard-pagination-icon public-ui-leaderboard-pagination-icon--previous" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m15 6-6 6 6 6" /></svg></button>
+                            <button type="button" class="public-ui-leaderboard-pagination-control" data-public-leaderboard-page-control="next" aria-label="@T["Next page"]" aria-disabled="false"><svg class="public-ui-leaderboard-pagination-icon public-ui-leaderboard-pagination-icon--next" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m9 6 6 6-6 6" /></svg></button>
+                            <button type="button" class="public-ui-leaderboard-pagination-control" data-public-leaderboard-page-control="last" aria-label="@T["Last page"]" aria-disabled="false"><svg class="public-ui-leaderboard-pagination-icon public-ui-leaderboard-pagination-icon--last" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m9 6 6 6-6 6" /><path d="M20 6v12" /></svg></button>
+                        </span>
+                    </nav>
+                </div>
+                </section>
+            </div>
+        </section>
+            </div>
+            <div class="public-ui-recent-drops-sidebar public-ui-recent-drops-sidebar--flush">
+        <section class="public-ui-standings public-ui-surface public-ui-surface--charcoal public-ui-catalogue-specimen public-ui-catalogue-specimen--wide" aria-labelledby="public-standings-specimen-heading">
+            <div class="public-ui-surface-content">
+                <header class="public-ui-component-header">
+                    <div class="public-ui-component-header__copy">
+                        <span class="public-ui-overline">@T["Team progress"]</span>
+                        <strong id="public-standings-specimen-heading" class="public-ui-component-title">@T["Bingo standings"]</strong>
+                    </div>
+                </header>
+                <div class="public-ui-divider"><span>@T["Team progress"]</span></div>
+                <ol>
+                    <li>
+                        <strong class="public-ui-data-value">1</strong>
+                        <div>
+                            <strong class="public-ui-section-heading">Dragon Knights</strong>
+                            <small class="public-ui-supporting-text">@T["24 of 30 tiles · 128 drops"]</small>
+                        </div>
+                        <strong data-public-leaderboard-standings-metric="activity" class="public-ui-section-heading public-ui-positive-delta--success">+2487.00 EHB</strong>
+                        <strong data-public-leaderboard-standings-metric="drops" class="public-ui-section-heading public-ui-positive-delta--success" hidden>+842.70 DEHB</strong>
+                    </li>
+                    <li>
+                        <strong class="public-ui-data-value">2</strong>
+                        <div>
+                            <strong class="public-ui-section-heading">Loot Goblins</strong>
+                            <small class="public-ui-supporting-text">@T["21 of 30 tiles · 117 drops"]</small>
+                        </div>
+                        <strong data-public-leaderboard-standings-metric="activity" class="public-ui-section-heading public-ui-positive-delta--success">+2310.00 EHB</strong>
+                        <strong data-public-leaderboard-standings-metric="drops" class="public-ui-section-heading public-ui-positive-delta--success" hidden>+790.20 DEHB</strong>
+                    </li>
+                    <li>
+                        <strong class="public-ui-data-value">3</strong>
+                        <div>
+                            <strong class="public-ui-section-heading">Wise Old Men</strong>
+                            <small class="public-ui-supporting-text">@T["18 of 30 tiles · 101 drops"]</small>
+                        </div>
+                        <strong data-public-leaderboard-standings-metric="activity" class="public-ui-section-heading public-ui-positive-delta--success">+2144.00 EHB</strong>
+                        <strong data-public-leaderboard-standings-metric="drops" class="public-ui-section-heading public-ui-positive-delta--success" hidden>+721.10 DEHB</strong>
+                    </li>
+                </ol>
+            </div>
+        </section>
+            </div>
+        </div>
+        <section class="public-ui-catalogue-specimen">
+            <span class="public-ui-catalogue-specimen-label">@T["Board tile states"]</span>
+            <div class="public-ui-board-tile-grid">
+                <div class="public-ui-board-tile is-not-started" role="img" aria-label="@T["Board tile: not started"]">
+                    <span class="public-ui-overline" aria-hidden="true">@T["Not started"]</span>
+                </div>
+                <div class="public-ui-board-tile is-in-progress" role="img" aria-label="@T["Board tile: in progress"]">
+                    <span class="public-ui-overline" aria-hidden="true">@T["In progress"]</span>
+                </div>
+                <div class="public-ui-board-tile is-finished" role="img" aria-label="@T["Board tile: finished"]">
+                    <span class="public-ui-overline" aria-hidden="true">@T["Finished"]</span>
+                </div>
+            </div>
+        </section>
+        <section class="public-ui-catalogue-specimen">
+            <span class="public-ui-catalogue-specimen-label">@T["Team board workspace"]</span>
+            <div class="public-ui-team-board-tile-grid">
+                <div class="public-ui-nested-container public-ui-team-board-tile public-ui-team-board-tile--not-started" role="img" aria-label="@T["Team board tile: not started"]">
+                    <span class="public-ui-team-board-tile__art" aria-hidden="true"><span class="public-ui-team-board-tile__placeholder">▦</span></span>
+                    <span class="public-ui-team-board-tile__shade" aria-hidden="true"></span>
+                    <span class="public-ui-team-board-tile__copy">
+                        <span class="public-ui-team-board-tile__position">R1 · C1</span>
+                        <strong class="public-ui-team-board-tile__title">Ancient relic</strong>
+                        <span class="public-ui-team-board-tile__progress-row"><span class="public-ui-team-board-tile__progress" aria-hidden="true"><span style="width:0%"></span></span><span>0/1</span></span>
+                    </span>
+                </div>
+                <div class="public-ui-nested-container public-ui-team-board-tile public-ui-team-board-tile--in-progress" role="img" aria-label="@T["Team board tile: in progress"]">
+                    <span class="public-ui-team-board-tile__art" aria-hidden="true"><span class="public-ui-team-board-tile__placeholder">▦</span></span>
+                    <span class="public-ui-team-board-tile__shade" aria-hidden="true"></span>
+                    <span class="public-ui-team-board-tile__copy">
+                        <span class="public-ui-team-board-tile__position">R1 · C2</span>
+                        <strong class="public-ui-team-board-tile__title">Rune essence</strong>
+                        <span class="public-ui-team-board-tile__progress-row"><span class="public-ui-team-board-tile__progress" aria-hidden="true"><span style="width:50%"></span></span><span>2/4</span></span>
+                    </span>
+                </div>
+                <div class="public-ui-nested-container public-ui-team-board-tile public-ui-team-board-tile--complete" role="img" aria-label="@T["Team board tile: complete"]">
+                    <span class="public-ui-team-board-tile__art" aria-hidden="true"><span class="public-ui-team-board-tile__placeholder">▦</span></span>
+                    <span class="public-ui-team-board-tile__shade" aria-hidden="true"></span>
+                    <span class="public-ui-team-board-tile__copy">
+                        <span class="public-ui-team-board-tile__position">R1 · C3</span>
+                        <strong class="public-ui-team-board-tile__title">Dragon task</strong>
+                        <span class="public-ui-team-board-tile__progress-row"><span class="public-ui-team-board-tile__progress" aria-hidden="true"><span style="width:100%"></span></span><span>3/3</span></span>
+                    </span>
+                </div>
+                <div class="public-ui-nested-container public-ui-team-board-tile public-ui-team-board-tile--in-progress" role="img" aria-label="@T["Team board tile: image-backed"]">
+                    <span class="public-ui-team-board-tile__art" aria-hidden="true"><img class="public-ui-team-board-tile__art-image" src="/images/branding/collection-log.png" alt="" loading="lazy" /></span>
+                    <span class="public-ui-team-board-tile__shade" aria-hidden="true"></span>
+                    <span class="public-ui-team-board-tile__copy">
+                        <span class="public-ui-team-board-tile__position">R2 · C1</span>
+                        <strong class="public-ui-team-board-tile__title">@T["Image-backed objective"]</strong>
+                        <span class="public-ui-team-board-tile__progress-row"><span class="public-ui-team-board-tile__progress" aria-hidden="true"><span style="width:50%"></span></span><span>1/2</span></span>
+                    </span>
+                </div>
+            </div>
+            <div class="public-ui-data-group public-ui-data-group--stacked public-ui-data-group--completion-breakdown" aria-label="@T["Completion breakdown"]">
+                <div class="public-ui-data-row public-ui-completion-breakdown__row"><div><strong class="public-ui-section-heading">@T["Collect the relic"]</strong><small class="public-ui-supporting-text">@T["1 of 1 approved"]</small></div><strong class="public-ui-data-value public-ui-completion-breakdown__status public-ui-completion-breakdown__status--complete" aria-label="@T["Complete"]">✓</strong></div>
+                <div class="public-ui-data-row public-ui-completion-breakdown__row"><div><strong class="public-ui-section-heading">@T["Complete the boss task"]</strong><small class="public-ui-supporting-text">@T["2 of 5 approved"]</small></div><strong class="public-ui-data-value public-ui-completion-breakdown__status public-ui-completion-breakdown__status--in-progress" aria-label="@T["In progress"]">2/5</strong></div>
+            </div>
+        </section>
+        <section class="public-ui-catalogue-specimen public-ui-catalogue-specimen--wide">
+            <span class="public-ui-catalogue-specimen-label">@T["Approved submissions gallery"]</span>
+            <div class="public-ui-catalogue-evidence-states">
+                <div>
+                    <span class="public-ui-overline">@T["Empty"]</span>
+                    <div class="public-ui-evidence-gallery" aria-label="@T["Empty approved evidence"]">
+                        <p class="public-ui-supporting-text">@T["No approved evidence yet."]</p>
+                    </div>
+                </div>
+                <div>
+                    <span class="public-ui-overline">@T["Few items"]</span>
+                    <div class="public-ui-evidence-gallery" aria-label="@T["A few approved evidence items"]">
+                        <button type="button" class="public-ui-evidence-gallery__cell public-ui-nested-container public-ui-nested-container--outline" aria-label="@T["View approved evidence from RuneWarden"]">
+                            <img src="/images/branding/collection-log.png" alt="" loading="lazy" />
+                            <span><strong class="public-ui-section-heading">RuneWarden</strong><small class="public-ui-supporting-text">Ancient relic</small></span>
+                        </button>
+                        <article class="public-ui-evidence-gallery__cell public-ui-evidence-gallery__cell--manual public-ui-nested-container public-ui-nested-container--outline">
+                            <span class="public-ui-state public-ui-state--success" aria-hidden="true">✓</span>
+                            <div><strong class="public-ui-section-heading">LootGoblin</strong><small class="public-ui-supporting-text">@T["Manual completion"]</small></div>
+                        </article>
+                    </div>
+                </div>
+                <div>
+                    <span class="public-ui-overline">@T["Many items (scroll)"]</span>
+                    <div class="public-ui-evidence-gallery public-ui-auto-hide-scrollbar" aria-label="@T["Many approved evidence items"]">
+                        @for (var evidenceIndex = 1; evidenceIndex <= 6; evidenceIndex++)
+                        {
+                            <article class="public-ui-evidence-gallery__cell public-ui-evidence-gallery__cell--manual public-ui-nested-container public-ui-nested-container--outline">
+                                <span class="public-ui-state public-ui-state--success" aria-hidden="true">✓</span>
+                                <div><strong class="public-ui-section-heading">@T["Player"] @evidenceIndex</strong><small class="public-ui-supporting-text">@T["Approved submissions"]</small></div>
+                            </article>
+                        }
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="public-ui-catalogue-specimen public-ui-catalogue-specimen--wide">
+            <span class="public-ui-catalogue-specimen-label">@T["Evidence upload"]</span>
+            <div class="public-ui-catalogue-evidence-upload-states">
+                <div>
+                    <span class="public-ui-overline">@T["Empty / file-entry"]</span>
+                    <div class="public-ui-evidence-drop">
+                        <div class="public-ui-evidence-drop__empty">
+                            <div class="public-ui-evidence-drop__copy"><strong>@T["Paste or drag screenshot"]</strong><small>@T["PNG, JPEG or WebP · 10 MB maximum"]</small></div>
+                            <div class="public-ui-evidence-drop__actions"><button type="button" class="public-ui-action public-ui-action--standard">@T["Paste"]</button><input type="file" accept="image/png,image/jpeg,image/webp" /></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <span class="public-ui-overline">@T["Preview / ready"]</span>
+                    <div class="public-ui-evidence-drop has-preview">
+                        <div class="public-ui-evidence-drop__preview">
+                            <button type="button" class="public-ui-evidence-drop__preview-button" aria-label="@T["Preview screenshot"]"><img src="/images/branding/collection-log.png" alt="@T["Screenshot ready for submission"]" /></button>
+                            <button type="button" class="public-ui-action public-ui-action--destructive public-ui-evidence-drop__remove" aria-label="@T["Remove screenshot"]">×</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="public-ui-catalogue-specimen public-ui-catalogue-specimen--wide">
+            <span class="public-ui-catalogue-specimen-label">@T["Submission drawer and result states"]</span>
+            <div class="public-ui-catalogue-submission-states">
+                <section class="public-ui-surface public-ui-surface--charcoal public-ui-catalogue-submission-drawer" aria-label="@T["Submission drawer form specimen"]">
+                    <header class="public-ui-component-header">
+                        <div class="public-ui-component-header__copy"><span class="public-ui-overline">@T["Submit drop"]</span><strong class="public-ui-component-title">Ancient relic</strong><p class="public-ui-supporting-text">@T["Choose the evidence contribution for this tile."]</p></div>
+                    </header>
+                    <div class="public-ui-submission-drawer__body">
+                        <form class="public-ui-nested-container public-ui-submission-form">
+                            <div class="public-ui-submission-row">
+                                <label><span class="public-ui-role-label">@T["Tile"]</span><select class="public-ui-control-visual public-ui-control-visual--select" aria-label="@T["Tile"]"><option selected>Ancient relic</option><option>Dragon task</option></select><span class="public-ui-select-chevron" aria-hidden="true"></span></label>
+                                <label><span class="public-ui-role-label">@T["Eligible drop"]</span><select class="public-ui-control-visual public-ui-control-visual--select" aria-label="@T["Eligible drop"]"><option selected>@T["Choose a drop"]</option><option>@T["Relic shard (1/50)"]</option></select><span class="public-ui-select-chevron" aria-hidden="true"></span></label>
+                            </div>
+                            <div class="public-ui-submission-row public-ui-submission-row--secondary">
+                                <label><span class="public-ui-role-label">@T["Player"]</span><select class="public-ui-control-visual public-ui-control-visual--select" aria-label="@T["Player"]"><option selected>RuneWarden</option><option>LootGoblin</option></select><span class="public-ui-select-chevron" aria-hidden="true"></span></label>
+                                <label><span class="public-ui-role-label">@T["Note"] <small class="public-ui-supporting-text">@T["Optional"]</small></span><textarea class="public-ui-control-visual" rows="1" aria-label="@T["Note"]"></textarea></label>
+                            </div>
+                            <label><span class="public-ui-role-label">@T["Player (participant)"]</span><input type="text" class="public-ui-control-visual" value="RuneWarden" readonly aria-label="@T["Player (participant)"]" /></label>
+                            <label class="public-ui-submission-upload-field"><span class="public-ui-role-label">@T["Screenshot"]</span><div class="public-ui-evidence-drop"><div class="public-ui-evidence-drop__empty"><div class="public-ui-evidence-drop__copy"><strong>@T["Paste or drag screenshot"]</strong><small>@T["PNG, JPEG or WebP · 10 MB maximum"]</small></div><div class="public-ui-evidence-drop__actions"><button type="button" class="public-ui-action public-ui-action--standard">@T["Paste"]</button><input type="file" accept="image/png,image/jpeg,image/webp" /></div></div></div></label>
+                            <button type="button" class="public-ui-action public-ui-action--commit public-ui-submission-confirm">@T["Submit drop"]</button>
+                        </form>
+                    </div>
+                </section>
+                <div class="public-ui-catalogue-submission-results">
+                    <div class="public-ui-catalogue-submission-result-host public-ui-surface public-ui-surface--charcoal">
+                        <div class="public-ui-submission-result public-ui-submission-result--success"><span class="public-ui-state public-ui-state--success">✓</span><strong class="public-ui-component-title">@T["Drop submitted"]</strong><p class="public-ui-supporting-text">@T["Your evidence is queued for review."]</p><button type="button" class="public-ui-action public-ui-action--standard">@T["Okay"]</button></div>
+                    </div>
+                    <div class="public-ui-catalogue-submission-result-host public-ui-surface public-ui-surface--charcoal">
+                        <div class="public-ui-submission-result public-ui-submission-result--failure"><span class="public-ui-state public-ui-state--error">!</span><strong class="public-ui-component-title">@T["Submission failed"]</strong><p class="public-ui-supporting-text">@T["Try again after checking the selected target."]</p><button type="button" class="public-ui-action public-ui-action--standard">@T["Okay"]</button></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <script src="~/js/public-leaderboards.js" asp-append-version="true"></script>
+    <script>
+        (() => {
+            const toolbar = document.querySelector("[data-public-ui-recent-drops-toolbar]");
+            if (!toolbar) return;
+            const input = toolbar.querySelector("input[type='search']");
+            const clearButton = toolbar.querySelector("[data-public-ui-recent-drops-clear]");
+            if (!input || !clearButton) return;
+            const syncClearButton = () => { clearButton.hidden = input.value.length === 0; };
+            input.addEventListener("input", syncClearButton);
+            clearButton.addEventListener("click", () => { input.value = ""; syncClearButton(); input.focus(); });
+            syncClearButton();
+        })();
+    </script>
+</body>
+</html>

@@ -55,7 +55,21 @@ public sealed class MyEventsModel(ApplicationDbContext db, IStringLocalizer<Shar
         EventDisplayPhase.BoardPublished or EventDisplayPhase.EventReady => localizer["Board published"],
         EventDisplayPhase.StartPostponed => localizer["Start postponed"],
         EventDisplayPhase.Live => localizer["Live"],
-        _ => localizer[item.Status.ToString()]
+        _ => item.Status == SignupStatus.WaitingList ? localizer["Waiting list"] : localizer[item.Status.ToString()]
+    };
+
+    public string DisplayStateModifier(EventRow item) => item.DisplayPhase switch
+    {
+        EventDisplayPhase.Live => "public-ui-state--success",
+        EventDisplayPhase.StartPostponed => "public-ui-state--warning",
+        EventDisplayPhase.BoardPublished or EventDisplayPhase.EventReady => "public-ui-state--information",
+        EventDisplayPhase.SignupsClosed or EventDisplayPhase.DraftFinalized => "public-ui-state--neutral",
+        _ => item.Status switch
+        {
+            SignupStatus.WaitingList => "public-ui-state--warning",
+            SignupStatus.Withdrawn => "public-ui-state--neutral",
+            _ => "public-ui-state--success"
+        }
     };
 
     public sealed record EventRow(Guid EventId, string Name, string Slug, EventState State, DateTimeOffset? FirstPublicAt, DateTimeOffset? ActualSignupOpenedAt, bool DraftLocked, bool TeamRostersPublished, bool DraftResultsPublished, bool BoardPublished, bool ResultsPublished, bool RosterExists, bool PublishedBoardExists, Guid ParticipantId, SignupStatus Status, DateTimeOffset SignedUpAt, string? TeamSlug)

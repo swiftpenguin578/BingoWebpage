@@ -59,7 +59,7 @@ public sealed class CachedEventCompetitionActivityProjection(
         var cached = await db.EventCompetitionCharacterActivities.AsNoTracking()
             .Where(value => value.EventId == eventId && value.Generation == state.Generation && value.AssignmentFingerprint == state.AssignmentFingerprint)
             .ToListAsync(cancellationToken);
-        var cachedByCharacter = cached.ToDictionary(value => value.OsrsCharacterId, value => value.GainedEhb);
+        var cachedByCharacter = cached.ToDictionary(value => value.OsrsCharacterId);
         var matchedAssignments = currentAssignments.Where(value => cachedByCharacter.ContainsKey(value.OsrsCharacterId)).ToList();
         if (state.LatestComplete == true && matchedAssignments.Count != currentAssignments.Count)
             return new(EventCompetitionActivityState.Incomplete, state.Generation, state.LastSuccessfulAt, state.LastUpstreamUpdatedAt, [], currentAssignments.Count, matchedAssignments.Count);
@@ -107,17 +107,21 @@ public sealed class CachedEventCompetitionActivityProjection(
                         .Select(value => new EventCompetitionAccountActivity(
                             value.OsrsCharacterId,
                             value.CharacterName,
-                            cachedByCharacter[value.OsrsCharacterId]))
+                            cachedByCharacter[value.OsrsCharacterId].GainedEhb,
+                            cachedByCharacter[value.OsrsCharacterId].StartEhb,
+                            cachedByCharacter[value.OsrsCharacterId].EndEhb))
                         .ToList();
                     if (participantAssignments.Count == 0) return null;
-                    var participantName = participantAssignments.FirstOrDefault()?.CharacterName ?? "Participant";
+                    var playingAccountNames = expectedAssignments.Select(value => value.CharacterName).ToList();
+                    var participantName = playingAccountNames.FirstOrDefault() ?? "Participant";
                     return new EventCompetitionParticipantActivity(
                         participantId,
                         participantName,
                         participantAssignments.Sum(value => value.GainedEhb),
                         participantAssignments,
                         expectedAssignments.Count,
-                        participantAssignments.Count);
+                        participantAssignments.Count,
+                        playingAccountNames);
                 })
                 .Where(value => value is not null)
                 .Select(value => value!)

@@ -3,96 +3,87 @@
 @model Bingo.Web.Pages.Account.MyAccountsModel
 @{
     ViewData["Title"] = T["My accounts"];
+    ViewData["BodyClass"] = "public-ui-pass2";
 }
 
-<section class="form-page wide-form my-accounts-page">
-    <p class="eyebrow">@T["My accounts"]</p>
-    <h1>@T["Your OSRS characters"]</h1>
-    <p class="form-intro">@T["Keep a personal ordered list of OSRS characters for future signups."]</p>
-    <div asp-validation-summary="ModelOnly" class="validation-summary" tabindex="-1"></div>
+<section class="public-pass2-page public-pass2-overview-page" aria-labelledby="my-accounts-heading">
+    <header class="public-pass2-masthead">
+        <span class="public-pass2-kicker">@T["My accounts"]</span>
+        <h1 id="my-accounts-heading">@T["Your OSRS characters"]</h1>
+        <p>@T["Keep a personal ordered list of OSRS characters for future signups."]</p>
+    </header>
+    <div asp-validation-summary="ModelOnly" class="public-pass2-validation" tabindex="-1"></div>
 
-    <section class="panel form-stack" aria-labelledby="add-character-heading">
-        <h2 id="add-character-heading">@T["Add OSRS character"]</h2>
-        <p class="form-hint">@T["Use the exact OSRS character spelling. We do not validate ownership, availability, or existence."]</p>
-        <form method="post" asp-page-handler="Add" class="account-entry-form"><input type="hidden" asp-for="ReturnUrl" />
-            <label asp-for="Add.CharacterName"></label>
-            <input asp-for="Add.CharacterName" class="form-control" />
-            <span asp-validation-for="Add.CharacterName" class="field-error"></span>
-            <label asp-for="Add.PersonalLabel"></label>
-            <input asp-for="Add.PersonalLabel" class="form-control" />
-            <span asp-validation-for="Add.PersonalLabel" class="field-error"></span>
-            <label asp-for="Add.SavedEhb"></label>
-            <input asp-for="Add.SavedEhb" class="form-control" inputmode="decimal" />
-            <span asp-validation-for="Add.SavedEhb" class="field-error"></span>
-            <button class="btn action-accent-outline">@T["Add character"]</button>
+    <section class="public-pass2-overview-section" aria-labelledby="add-character-heading">
+        <header class="public-pass2-section-heading public-pass2-ledger-heading"><h2 id="add-character-heading">@T["Add OSRS character"]</h2><span aria-hidden="true"></span></header>
+        <p class="public-pass2-note">@T["Use the exact OSRS character spelling. We do not validate ownership, availability, or existence."]</p>
+        <form method="post" asp-page-handler="Add" class="public-pass2-character-form">
+            <input type="hidden" asp-for="ReturnUrl" />
+            <div class="public-pass2-field"><label asp-for="Add.CharacterName">@T["OSRS character"] <span asp-validation-for="Add.CharacterName" class="public-pass2-inline-validation" id="add-character-name-validation"></span></label><input asp-for="Add.CharacterName" aria-describedby="add-character-name-validation" /></div>
+            <div class="public-pass2-field"><label asp-for="Add.PersonalLabel">@T["Personal label"]</label><input asp-for="Add.PersonalLabel" /><span asp-validation-for="Add.PersonalLabel" class="public-pass2-field-error"></span></div>
+            <div class="public-pass2-field public-pass2-field--ehb">
+                <label asp-for="Add.SavedEhb">@T["EHB"] <span asp-validation-for="Add.SavedEhb" class="public-pass2-inline-validation" id="add-saved-ehb-validation"></span></label>
+                <div class="public-pass2-inline-field"><input asp-for="Add.SavedEhb" aria-describedby="add-saved-ehb-validation" inputmode="decimal" /><button type="submit" formaction="?handler=FetchAdd" class="public-pass2-text-link"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M13 6a5 5 0 0 0-8.5-1L3 6.5M3 3v3.5h3.5M3 10a5 5 0 0 0 8.5 1l1.5-1.5M13 13v-3.5H9.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" /></svg>@T["Fetch from WOM"]</button></div>
+            </div>
+            <button type="submit" class="public-pass2-action public-pass2-action--outline">@T["Add character"] <span aria-hidden="true">→</span></button>
         </form>
     </section>
 
-    @if (Model.PendingUnlinkLinkId is { } pendingId && Model.Links.FirstOrDefault(link => link.Id == pendingId) is { } pending)
-    {
-        <section class="panel account-warning" aria-labelledby="unlink-warning-heading">
-            <h2 id="unlink-warning-heading">@T["Event registration remains"]</h2>
-            <p>@T["Unlinking {0} only hides it from future My Accounts selectors. Its upcoming or live event registration remains unchanged.", pending.CharacterName]</p>
-            <form method="post" asp-page-handler="Unlink" class="button-row"><input asp-for="ReturnUrl" type="hidden" />
-                <input asp-for="Unlink.LinkId" type="hidden" value="@pending.Id" />
-                <input asp-for="Unlink.ConfirmRegistrationWarning" type="hidden" value="true" />
-                <button class="btn btn-outline-danger">@T["Unlink character"]</button>
-                <a class="btn neutral-outline-action" asp-page="MyAccounts" asp-route-returnUrl="@Model.ReturnUrl">@T["Cancel"]</a>
-            </form>
-        </section>
-    }
-
-    <section class="panel my-accounts-list" aria-labelledby="linked-characters-heading">
-        <div class="page-heading">
-            <div><h2 id="linked-characters-heading">@T["Linked characters"]</h2><p>@T["Your list order is used for future selectors. Saved EHB never changes an existing event registration."]</p></div>
-        </div>
+    <section class="public-pass2-overview-section" aria-labelledby="linked-characters-heading">
+        <header class="public-pass2-section-heading public-pass2-ledger-heading"><h2 id="linked-characters-heading">@T["Linked characters"]</h2><span aria-hidden="true"></span></header>
+        <p class="public-pass2-note">@T["Your list order is used for future selectors. EHB never changes an existing event registration."]</p>
         @if (!Model.Links.Any())
         {
-            <div class="empty-drop-list"><strong>@T["No OSRS characters yet"]</strong><span>@T["Add an OSRS character to start your list."]</span></div>
+            <div class="public-pass2-empty-state">
+                <span class="public-pass2-kicker">@T["My accounts"] · @T["Empty"]</span>
+                <h3>@T["No OSRS characters yet"]</h3>
+                <p>@T["Add an OSRS character to start your list."]</p>
+                <a class="public-pass2-action public-pass2-action--outline" href="#add-character-heading">@T["Add first character"] <span aria-hidden="true">→</span></a>
+            </div>
         }
         else
         {
-            <ol class="my-accounts-list-items">
-            @foreach (var link in Model.Links)
-            {
-                <li class="my-account-card" id="character-@link.Id">
-                    <header>
-                        <div><span class="my-account-position">@T["#{0}", link.Position + 1]</span><strong>@link.CharacterName</strong>@if (link.Preferred) { <span class="account-state">@T["Preferred"]</span> }</div>
-                        <div class="my-account-order" aria-label="@T["Change list order"]">
-                            <form method="post" asp-page-handler="MoveUp"><input asp-for="ReturnUrl" type="hidden" /><input asp-for="Action.LinkId" type="hidden" value="@link.Id" /><button class="btn neutral-outline-action" aria-label="@T["Move {0} up", link.CharacterName]" disabled="@(link == Model.Links.First())">↑</button></form>
-                            <form method="post" asp-page-handler="MoveDown"><input asp-for="ReturnUrl" type="hidden" /><input asp-for="Action.LinkId" type="hidden" value="@link.Id" /><button class="btn neutral-outline-action" aria-label="@T["Move {0} down", link.CharacterName]" disabled="@(link == Model.Links.Last())">↓</button></form>
+            <div class="public-pass2-character-list" role="list">
+                @foreach (var link in Model.Links)
+                {
+                    var editCharacterName = Model.Edit.LinkId == link.Id && ModelState.ContainsKey("Edit.CharacterName") ? ModelState["Edit.CharacterName"]?.AttemptedValue ?? Model.Edit.CharacterName : link.CharacterName;
+                    var editPersonalLabel = Model.Edit.LinkId == link.Id && ModelState.ContainsKey("Edit.PersonalLabel") ? ModelState["Edit.PersonalLabel"]?.AttemptedValue ?? Model.Edit.PersonalLabel : Model.FetchFailureLinkId == link.Id ? Model.FetchFailureLabel : link.PersonalLabel;
+                    var editSavedEhb = Model.Edit.LinkId == link.Id && ModelState.ContainsKey("Edit.SavedEhb") ? ModelState["Edit.SavedEhb"]?.AttemptedValue ?? Model.Edit.SavedEhb?.ToString("0.00", CultureInfo.InvariantCulture) : Model.FetchFailureLinkId == link.Id ? Model.FetchFailureEhb : link.SavedEhb?.ToString("0.00", CultureInfo.InvariantCulture);
+                    <article class="public-pass2-character-row" role="listitem" id="character-@link.Id">
+                        <div class="public-pass2-character-order" aria-hidden="true">@((link.Position + 1).ToString("00"))</div>
+                        <div class="public-pass2-character-identity">
+                            <strong>@(link.PersonalLabel ?? link.CharacterName)</strong>
+                            @if (link.PersonalLabel is not null) { <span class="public-pass2-character-name">@link.CharacterName</span> }
+                            @if (link.Preferred)
+                            {
+                                <span class="public-pass2-status public-pass2-status--success">@T["Preferred"]</span>
+                            }
                         </div>
-                    </header>
-                    <form method="post" asp-page-handler="Update" class="account-entry-form compact"><input asp-for="ReturnUrl" type="hidden" />
-                        <input asp-for="Edit.LinkId" type="hidden" value="@link.Id" />
-                        <label for="label-@link.Id">@T["Personal label"]</label>
-                        <input id="label-@link.Id" name="Edit.PersonalLabel" value="@(Model.FetchFailureLinkId == link.Id ? Model.FetchFailureLabel : link.PersonalLabel)" class="form-control" />
-                        <label for="ehb-@link.Id">@T["Saved EHB"]</label>
-                        <input id="ehb-@link.Id" name="Edit.SavedEhb" value="@(Model.FetchFailureLinkId == link.Id ? Model.FetchFailureEhb : link.SavedEhb?.ToString(CultureInfo.InvariantCulture))" class="form-control" inputmode="decimal" />
-                        <button class="btn neutral-outline-action" type="submit" formaction="?handler=Fetch" name="Fetch.LinkId" value="@link.Id">@T["Fetch from Wise Old Man"]</button>
-                        <button class="btn neutral-outline-action">@T["Save details"]</button>
-                    </form>
-                    <div class="my-account-actions">
-                        @if (!link.Preferred)
-                        {
-                            <form method="post" asp-page-handler="SetPreferred"><input asp-for="ReturnUrl" type="hidden" /><input asp-for="Action.LinkId" type="hidden" value="@link.Id" /><button class="btn action-accent-outline">@T["Make preferred"]</button></form>
-                        }
-                        <form method="post" asp-page-handler="Unlink"><input asp-for="ReturnUrl" type="hidden" /><input asp-for="Unlink.LinkId" type="hidden" value="@link.Id" /><button class="btn btn-outline-danger">@T["Unlink"]</button></form>
-                    </div>
-                    @if (link.HasUpcomingOrLiveRegistration) { <p class="form-hint">@T["This character is registered for an upcoming or live event. Unlinking will not change that registration."]</p> }
-                    <details class="my-account-correction" data-state-key="correct-@link.Id">
-                        <summary>@T["Correct spelling"]</summary>
-                        <form method="post" asp-page-handler="Correct" class="account-entry-form compact"><input asp-for="ReturnUrl" type="hidden" />
-                            <input asp-for="Correct.LinkId" type="hidden" value="@link.Id" />
-                            <label for="correct-@link.Id">@T["Correct OSRS character spelling"]</label>
-                            <input id="correct-@link.Id" name="Correct.CharacterName" value="@link.CharacterName" class="form-control" />
-                            <p class="form-hint">@T["This updates your link and any currently editable registrations that use this character. Closed and live history stays unchanged."]</p>
-                            <button class="btn btn-outline-danger">@T["Correct character"]</button>
-                        </form>
-                    </details>
-                </li>
-            }
-            </ol>
+                        <div class="public-pass2-character-control-band">
+                            <div class="public-pass2-character-controls">
+                                <form id="edit-@link.Id" method="post" asp-page-handler="Update" class="public-pass2-character-edit">
+                                    <input asp-for="ReturnUrl" type="hidden" />
+                                    <input asp-for="Edit.LinkId" type="hidden" value="@link.Id" />
+                                    <div class="public-pass2-field"><label for="character-name-@link.Id">@T["OSRS character"]</label><input id="character-name-@link.Id" name="Edit.CharacterName" value="@editCharacterName" /><span asp-validation-for="Edit.CharacterName" class="public-pass2-field-error"></span></div>
+                                    <div class="public-pass2-field"><label for="personal-label-@link.Id">@T["Personal label"]</label><input id="personal-label-@link.Id" name="Edit.PersonalLabel" value="@editPersonalLabel" /><span asp-validation-for="Edit.PersonalLabel" class="public-pass2-field-error"></span></div>
+                                    <div class="public-pass2-field public-pass2-field--ehb"><label for="ehb-@link.Id">@T["EHB"]</label><div class="public-pass2-inline-field"><input id="ehb-@link.Id" name="Edit.SavedEhb" value="@editSavedEhb" inputmode="decimal" /><button type="submit" formaction="?handler=Fetch" class="public-pass2-text-link"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M13 6a5 5 0 0 0-8.5-1L3 6.5M3 3v3.5h3.5M3 10a5 5 0 0 0 8.5 1l1.5-1.5M13 13v-3.5H9.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" /></svg>@T["Fetch"]</button></div><span asp-validation-for="Edit.SavedEhb" class="public-pass2-field-error"></span></div>
+                                </form>
+                                <div class="public-pass2-character-actions">
+                                    <span class="public-pass2-warning @(link.HasUpcomingOrLiveRegistration ? null : "public-pass2-warning--empty")" aria-hidden="@(!link.HasUpcomingOrLiveRegistration)">@if (link.HasUpcomingOrLiveRegistration) { @T["Registered for an event"] }</span>
+                                    <div class="public-pass2-character-action-buttons">
+                                        <div class="public-pass2-character-order-controls">
+                                        <form method="post" asp-page-handler="MoveUp"><input asp-for="ReturnUrl" type="hidden" /><input asp-for="Action.LinkId" type="hidden" value="@link.Id" /><button type="submit" class="public-pass2-order-button" aria-label="@T["Move {0} up", link.CharacterName]" disabled="@(link == Model.Links.First())">↑</button></form>
+                                        <form method="post" asp-page-handler="MoveDown"><input asp-for="ReturnUrl" type="hidden" /><input asp-for="Action.LinkId" type="hidden" value="@link.Id" /><button type="submit" class="public-pass2-order-button" aria-label="@T["Move {0} down", link.CharacterName]" disabled="@(link == Model.Links.Last())">↓</button></form>
+                                        </div>
+                                        <button type="submit" form="edit-@link.Id" class="public-pass2-action public-pass2-action--outline">@T["Save details"]</button>
+                                        <form method="post" asp-page-handler="Unlink" class="public-pass2-unlink-form" data-confirm-message="@(link.HasUpcomingOrLiveRegistration ? T["This character is registered for an upcoming or live event. Unlinking will not change that registration. Are you sure you want to unlink it?"] : T["Unlink {0} from My Accounts?", link.CharacterName])" onsubmit="if (!window.confirm(this.dataset.confirmMessage)) return false; this.elements['Unlink.ConfirmRegistrationWarning'].value = '@(link.HasUpcomingOrLiveRegistration ? "true" : "false")';"><input asp-for="ReturnUrl" type="hidden" /><input asp-for="Unlink.LinkId" type="hidden" value="@link.Id" /><input type="hidden" name="Unlink.ConfirmRegistrationWarning" value="false" /><button type="submit" class="public-pass2-action public-pass2-action--danger">@T["Unlink"]</button></form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
         }
     </section>
 </section>

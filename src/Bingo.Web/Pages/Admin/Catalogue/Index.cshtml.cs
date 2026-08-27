@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Data;
+using System.Globalization;
 using System.Text.Json;
 using Bingo.Application.Access;
 using Bingo.Application.Catalogue;
@@ -13,15 +14,27 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 using Npgsql;
 
 namespace Bingo.Web.Pages.Admin.Catalogue;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider timeProvider) : PageModel
+public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider timeProvider, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     [BindProperty] public BossInput Boss { get; set; } = new(); [BindProperty] public BossDropInput BossDrop { get; set; } = new();
     [BindProperty(SupportsGet = true)] public Guid? BossId { get; set; }
+    [BindProperty(SupportsGet = true)] public Guid? DropId { get; set; }
+    [BindProperty(SupportsGet = true)] public bool Overlay { get; set; }
+    [BindProperty(SupportsGet = true)] public bool AddBoss { get; set; }
+    public bool IsOverlay => Overlay || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
+    public bool IsEditorRoute => BossId.HasValue || AddBoss;
+    public static string RateLabel(string category) => string.Equals(category, "Minigame", StringComparison.Ordinal) ? "Runs per hour" : "Kills per hour";
+    public static string RateUnit(string category, decimal? rate)
+    {
+        var unit = string.Equals(category, "Minigame", StringComparison.Ordinal) ? "run" : "kill";
+        return rate == 1m ? unit : $"{unit}s";
+    }
     public IReadOnlyList<BossRow> Bosses { get; private set; } = []; public IReadOnlyList<DropRow> Drops { get; private set; } = [];
     public Task OnGetAsync(CancellationToken ct) => LoadAsync(ct);
     public async Task<IActionResult> OnPostBossAsync(CancellationToken ct)
@@ -37,7 +50,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
         var existingNames = await dbContext.BossActivities.Select(x => x.Name).ToListAsync(ct);
         if (existingNames.Any(x => string.Equals(x, name, StringComparison.OrdinalIgnoreCase)))
         {
-            SetStatus($"A boss or activity named {name} already exists.", UiMessageType.Warning);
+            SetStatus(Localize("A boss or activity named {0} already exists.", name), UiMessageType.Warning);
             return CataloguePage();
         }
 
@@ -45,6 +58,8 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
         var entity = new BossActivity(Guid.NewGuid(), name, slug, Boss.Category, Boss.EfficientRate, timeProvider.GetUtcNow());
         entity.Update(name, Boss.Category, Boss.EfficientRate, null, Clean(Boss.DataSource), Clean(Boss.Notes), timeProvider.GetUtcNow(), OsrsWikiImageUrl.Normalize(Boss.ImageUrl));
         dbContext.BossActivities.Add(entity);
+        BossId = entity.Id;
+        AddBoss = false;
         return await SaveAsync("catalogue.boss_created", "boss_activity", entity.Id, entity.Name, "{}", State(entity), $"{entity.Name} added to the catalogue.", ct);
     }
     public async Task<IActionResult> OnPostBossDropAsync(CancellationToken ct)
@@ -56,22 +71,23 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
         if (item is null) { item = new CatalogueItem(Guid.NewGuid(), itemName, normalizedName); item.Update(itemName, normalizedName, null, null, OsrsWikiImageUrl.Normalize(BossDrop.ImageUrl)); dbContext.CatalogueItems.Add(item); }
         else { item.SetActive(true); if (!string.IsNullOrWhiteSpace(BossDrop.ImageUrl)) item.Update(item.Name, item.NormalizedName, item.ExternalIdentifier, item.Notes, OsrsWikiImageUrl.Normalize(BossDrop.ImageUrl)); }
         var existing = await dbContext.SourceDrops.SingleOrDefaultAsync(x => x.BossActivityId == boss.Id && x.ItemId == item.Id, ct);
-        if (existing?.Active == true) { SetStatus($"{item.Name} is already listed for {boss.Name}.", UiMessageType.Warning); return CataloguePage(); }
+        if (existing?.Active == true) { SetStatus(Localize("{0} is already listed for {1}.", item.Name, boss.Name), UiMessageType.Warning); return CataloguePage(); }
         var parsedRate = DropRateParser.TryParse(BossDrop.DisplayRate); var rolls = parsedRate?.ExplicitMultipleRolls == true && BossDrop.RollsPerCompletion == 1 ? parsedRate.RollsPerCompletion : BossDrop.RollsPerCompletion; var probability = BossDrop.NumericProbability ?? parsedRate?.ProbabilityPerRoll; var effectiveProbability = SourceDrop.CalculateProbabilityPerCompletion(probability, rolls); var now = timeProvider.GetUtcNow(); decimal? calculatedEhb = boss.EfficientCompletionsPerHour is > 0 && effectiveProbability is > 0 ? 1 / (boss.EfficientCompletionsPerHour.Value * effectiveProbability.Value) : null;
         if (existing is null) { existing = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, BossDrop.DisplayRate.Trim(), probability, calculatedEhb, now); dbContext.SourceDrops.Add(existing); }
         existing.Update(BossDrop.DisplayRate.Trim(), probability, Clean(BossDrop.Condition), calculatedEhb, Clean(BossDrop.DataSource), now); existing.SetActive(true);
         existing.SetRateMechanics(DropProbabilityScope.Participant, false, null, 1, rolls, BossDrop.RollGroup);
+        BossId = boss.Id;
         return await SaveAsync("catalogue.drop_created", "source_drop", existing.Id, $"{boss.Name}: {item.Name}", "{}", State(existing), $"Added {item.Name} to {boss.Name}.", ct);
     }
     public async Task<IActionResult> OnPostToggleBossAsync(Guid recordId, long expectedVersion, CancellationToken ct) { var entity = await dbContext.BossActivities.SingleAsync(x => x.Id == recordId, ct); if (entity.Version != expectedVersion) return Stale(); var before = State(entity); entity.SetActive(!entity.Active); return await SaveAsync("catalogue.boss_toggled", "boss_activity", entity.Id, entity.Name, before, State(entity), $"{entity.Name} {(entity.Active ? "reactivated" : "deactivated")}.", ct); }
-    public async Task<IActionResult> OnPostToggleDropAsync(Guid recordId, long expectedVersion, CancellationToken ct) { var entity = await dbContext.SourceDrops.SingleAsync(x => x.Id == recordId, ct); if (entity.Version != expectedVersion) return Stale(); var itemName = await dbContext.CatalogueItems.Where(x => x.Id == entity.ItemId).Select(x => x.Name).SingleAsync(ct); var before = State(entity); entity.SetActive(!entity.Active); return await SaveAsync("catalogue.drop_toggled", "source_drop", entity.Id, itemName, before, State(entity), $"{itemName} {(entity.Active ? "reactivated" : "deactivated")}.", ct); }
+    public async Task<IActionResult> OnPostToggleDropAsync(Guid recordId, long expectedVersion, CancellationToken ct) { DropId = recordId; var entity = await dbContext.SourceDrops.SingleAsync(x => x.Id == recordId, ct); if (entity.Version != expectedVersion) return Stale(); var itemName = await dbContext.CatalogueItems.Where(x => x.Id == entity.ItemId).Select(x => x.Name).SingleAsync(ct); var before = State(entity); entity.SetActive(!entity.Active); return await SaveAsync("catalogue.drop_toggled", "source_drop", entity.Id, itemName, before, State(entity), $"{itemName} {(entity.Active ? "reactivated" : "deactivated")}.", ct); }
     public async Task<IActionResult> OnPostUpdateBossAsync(Guid recordId, long expectedVersion, string name, string category, decimal? efficientRate, string? dataSource, string? imageUrl, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(category)) return BadRequest();
         var entity = await dbContext.BossActivities.SingleAsync(x => x.Id == recordId, ct);
         if (entity.Version != expectedVersion) return Stale(); var before = State(entity); var cleanName = name.Trim();
         var otherNames = await dbContext.BossActivities.Where(x => x.Id != recordId).Select(x => x.Name).ToListAsync(ct);
-        if (otherNames.Any(x => string.Equals(x, cleanName, StringComparison.OrdinalIgnoreCase))) { SetStatus($"A boss or activity named {cleanName} already exists.", UiMessageType.Warning); return CataloguePage(); }
+        if (otherNames.Any(x => string.Equals(x, cleanName, StringComparison.OrdinalIgnoreCase))) { SetStatus(Localize("A boss or activity named {0} already exists.", cleanName), UiMessageType.Warning); return CataloguePage(); }
         entity.Update(cleanName, category.Trim(), efficientRate, entity.ExternalIdentifier, Clean(dataSource), entity.Notes, timeProvider.GetUtcNow(), OsrsWikiImageUrl.Normalize(imageUrl));
         var drops = await dbContext.SourceDrops.Where(x => x.BossActivityId == recordId).ToListAsync(ct);
         foreach (var drop in drops)
@@ -83,6 +99,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
     }
     public async Task<IActionResult> OnPostUpdateDropAsync(Guid recordId, long expectedVersion, string itemName, string displayRate, string originalDisplayRate, decimal? numericProbability, decimal? originalNumericProbability, DropProbabilityScope probabilityScope, bool conditionalOnParent, decimal? parentProbability, int assumedParticipants, int rollsPerCompletion, string? rollGroup, string? dataSource, string? imageUrl, bool useExistingItem, CancellationToken ct)
     {
+        DropId = recordId;
         if (string.IsNullOrWhiteSpace(itemName) || string.IsNullOrWhiteSpace(displayRate) || numericProbability is <= 0 or > 1) return BadRequest();
         var entity = await dbContext.SourceDrops.SingleAsync(x => x.Id == recordId, ct);
         if (entity.Version != expectedVersion) return Stale(); var before = State(entity); var item = await dbContext.CatalogueItems.SingleAsync(x => x.Id == entity.ItemId, ct);
@@ -91,12 +108,12 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
         var matchingItem = await dbContext.CatalogueItems.SingleOrDefaultAsync(x => x.Id != item.Id && x.NormalizedName == normalizedItemName, ct);
         if (matchingItem is not null && !useExistingItem)
         {
-            SetStatus($"An item named {cleanItemName} already exists. Confirm that you want to use the shared item.", UiMessageType.Warning);
+            SetStatus(Localize("An item named {0} already exists. Confirm that you want to use the shared item.", cleanItemName), UiMessageType.Warning);
             return CataloguePage();
         }
         if (matchingItem is not null && await dbContext.SourceDrops.AnyAsync(x => x.Id != entity.Id && x.BossActivityId == entity.BossActivityId && x.ItemId == matchingItem.Id, ct))
         {
-            SetStatus($"This boss already has a drop named {cleanItemName}.", UiMessageType.Warning);
+            SetStatus(Localize("This boss already has a drop named {0}.", cleanItemName), UiMessageType.Warning);
             return CataloguePage();
         }
         var cleanDisplayRate = displayRate.Trim();
@@ -130,7 +147,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
     public async Task<IActionResult> OnPostDeleteAsync(string recordType, Guid recordId, long expectedVersion, string confirmation, CancellationToken ct)
     {
         if (!User.IsInRole("SuperAdmin")) return Forbid();
-        if (!string.Equals(confirmation, "DELETE", StringComparison.Ordinal)) { SetStatus("Type DELETE to permanently remove an unused catalogue record.", UiMessageType.Warning); return CataloguePage(); }
+        if (!string.Equals(confirmation, "DELETE", StringComparison.Ordinal)) { SetStatus(Localize("Type DELETE to permanently remove an unused catalogue record."), UiMessageType.Warning); return CataloguePage(); }
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
@@ -144,8 +161,8 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
             {
                 await transaction.RollbackAsync(ct);
                 SetStatus(prepared?.Status == DeletePreparationStatus.Referenced
-                    ? "This record is referenced and cannot be permanently deleted. Deactivate it instead."
-                    : "This record was changed by another administrator. Current values are shown; review them before trying again.", UiMessageType.Warning);
+                    ? Localize("This record is referenced and cannot be permanently deleted. Deactivate it instead.")
+                    : Localize("This record was changed by another administrator. Current values are shown; review them before trying again."), UiMessageType.Warning);
                 return CataloguePage();
             }
             var candidate = prepared.Candidate!;
@@ -153,12 +170,12 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
             dbContext.AuditEntries.Add(CreateAudit(candidate.Action, candidate.Type, candidate.Id, candidate.Details, candidate.Before, "{}"));
             await dbContext.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
-            SetStatus("Unused catalogue record permanently deleted.", UiMessageType.Success);
+            SetStatus(Localize("Unused catalogue record permanently deleted."), UiMessageType.Success);
         }
         catch (Exception exception) when (IsExpectedCatalogueRace(exception))
         {
             await transaction.RollbackAsync(ct);
-            SetStatus("This record was changed by another administrator or became referenced. It was not deleted; review the current catalogue and deactivate it instead if needed.", UiMessageType.Warning);
+            SetStatus(Localize("This record was changed by another administrator or became referenced. It was not deleted; review the current catalogue and deactivate it instead if needed."), UiMessageType.Warning);
         }
         return CataloguePage();
     }
@@ -217,12 +234,13 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
             return Stale();
         }
     }
-    private RedirectToPageResult Stale() { SetStatus("This record was changed by another administrator. Current values are shown; review them before saving.", UiMessageType.Warning); return CataloguePage(); }
-    private RedirectToPageResult CataloguePage() => RedirectToPage(null, new { bossId = BossId });
+    private RedirectToPageResult Stale() { SetStatus(Localize("This record was changed by another administrator. Current values are shown; review them before saving."), UiMessageType.Warning); return CataloguePage(); }
+    private RedirectToPageResult CataloguePage() => RedirectToPage(null, new { bossId = BossId, dropId = DropId, addBoss = AddBoss ? "true" : null, overlay = IsOverlay ? "1" : null });
     private static string State(object entity) => JsonSerializer.Serialize(entity);
     private AuditEntry CreateAudit(string action, string type, Guid id, string details, string before, string after) => new(Guid.NewGuid(), timeProvider.GetUtcNow(), User.GetAccountId(), User.Identity!.Name!, action, type, id.ToString(), details, beforeState: before, afterState: after);
     private static bool IsExpectedCatalogueRace(Exception exception) => exception is DbUpdateConcurrencyException || exception is DbUpdateException { InnerException: PostgresException { SqlState: "23503" or "23505" or "40001" or "40P01" } } || exception is PostgresException { SqlState: "23503" or "23505" or "40001" or "40P01" };
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     public sealed class BossInput { [Required, StringLength(200)] public string Name { get; set; } = string.Empty; [Required] public string Category { get; set; } = "Boss"; [Range(0.0001, 100000), Display(Name = "Efficient completions per hour")] public decimal? EfficientRate { get; set; } [Display(Name = "Data source")] public string? DataSource { get; set; } [Url, Display(Name = "Image URL")] public string? ImageUrl { get; set; } public string? Notes { get; set; } }
     public sealed class BossDropInput { [Required] public Guid BossActivityId { get; set; } [Required, StringLength(200), Display(Name = "Item name")] public string ItemName { get; set; } = string.Empty; [Required, StringLength(200), Display(Name = "Displayed drop rate")] public string DisplayRate { get; set; } = string.Empty; [Range(0.000000000001, 1), Display(Name = "Numeric probability")] public decimal? NumericProbability { get; set; } public DropProbabilityScope ProbabilityScope { get; set; } = DropProbabilityScope.Participant; public bool ConditionalOnParent { get; set; } [Range(0.000000000001, 1)] public decimal? ParentProbability { get; set; } [Range(1, 100)] public int AssumedParticipants { get; set; } = 1; [Range(1, 100)] public int RollsPerCompletion { get; set; } = 1; [StringLength(120)] public string RollGroup { get; set; } = "default"; [StringLength(2000), Display(Name = "Condition or note")] public string? Condition { get; set; } [StringLength(300), Display(Name = "Data source")] public string? DataSource { get; set; } [Url, Display(Name = "Item image URL")] public string? ImageUrl { get; set; } }

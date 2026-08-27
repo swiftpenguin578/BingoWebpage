@@ -1,0 +1,78 @@
+@model Bingo.Web.Pages.Admin.Events.ParticipantsModel
+@using Bingo.Domain.Events
+@using Bingo.Domain.Signups
+@using Bingo.Domain.Teams
+@{
+    var requiredSignupQuestions = Model.ActiveSignupQuestions.Where(question => question.Required).ToList();
+    var optionalSignupQuestions = Model.ActiveSignupQuestions.Where(question => !question.Required).ToList();
+    const string updateTargets = "#app-notice-region, .event-participants-page";
+}
+
+<div class="admin-dialog-page participant-add-dialog-page event-overview-section" aria-labelledby="participant-add-dialog-title" aria-describedby="participant-add-dialog-description">
+    <div class="event-overview-section-heading admin-dialog-component-heading">
+        <div><h2 id="participant-add-dialog-title">@T["Add participant"]</h2><p id="participant-add-dialog-description">@T["Use the active signup form. An owner is optional; external roster members are managed in Teams / Draft, not here."]</p></div>
+        <button type="button" class="admin-route-dialog-close" data-participant-add-close aria-label="@T["Close add participant"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
+    </div>
+    <form method="post" asp-page-handler="CreateInternalParticipant" class="admin-dialog-form" data-update-targets="@updateTargets">
+        <input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="ParticipantPayment" value="@Model.ParticipantPayment" /><input type="hidden" name="ParticipantDiscord" value="@Model.ParticipantDiscord" /><input type="hidden" name="ParticipantCaptain" value="@Model.ParticipantCaptain" /><input type="hidden" name="ParticipantSource" value="@Model.ParticipantSource" /><input type="hidden" name="ParticipantTeamId" value="@Model.ParticipantTeamId" /><input type="hidden" name="sort" value="@Model.Sort" /><input type="hidden" name="direction" value="@Model.Direction" />
+        <section class="event-overview-row admin-dialog-form-section" aria-labelledby="participant-owner-heading">
+            <div class="admin-dialog-section-heading"><div><h4 id="participant-owner-heading">@T["Owner and identity"]</h4><p>@T["Link the signup to an existing website account when one is known."]</p></div></div>
+            <div class="admin-field event-create-field" data-owner-account-picker>
+                <label for="internal-owner-account-search">@T["Website owner account (optional)"]</label>
+                <input id="internal-owner-account-search" class="form-control" type="search" autocomplete="off" maxlength="100" role="combobox" aria-autocomplete="list" aria-controls="internal-owner-account-results" aria-expanded="false" data-owner-account-search />
+                <input asp-for="InternalParticipant.OwnerAccountId" type="hidden" data-owner-account-id />
+                <div id="internal-owner-account-results" role="listbox" data-owner-account-results hidden></div>
+            </div>
+        </section>
+        <section class="event-overview-row admin-dialog-form-section" aria-labelledby="participant-required-heading">
+            <div class="admin-dialog-section-heading"><div><h4 id="participant-required-heading">@T["Required signup fields"]</h4><p>@T["Complete the fields required by the active signup form."]</p></div></div>
+            <div class="participant-field-grid">
+                @foreach (var question in requiredSignupQuestions)
+                {
+                    var account = Model.InternalParticipant.AccountAnswers.GetValueOrDefault(question.Id) ?? new ParticipantModel.AccountInput();
+                    var answer = Model.InternalParticipant.Answers.GetValueOrDefault(question.Id);
+                    <div class="admin-field event-create-field"><label for="internal-@question.Id">@question.Label <small>@T["Required"]</small></label>
+                        @if (question.Type == SignupQuestionType.Account)
+                        {
+                            <div class="participant-account-controls@(question.AccountRole == EventCharacterRole.Playing ? "" : " is-single")">
+                                <input id="internal-@question.Id" name="InternalParticipant.AccountAnswers[@question.Id].CharacterName" value="@account.CharacterName" class="form-control" maxlength="100" placeholder="@T["OSRS character"]" />
+                                @if (question.AccountRole == EventCharacterRole.Playing) { <input name="InternalParticipant.AccountAnswers[@question.Id].Ehb" value="@account.Ehb" class="form-control" type="number" min="0" step="0.01" placeholder="@T["EHB"]" aria-label="@T["EHB"]" /> }
+                            </div>
+                        }
+                        else if (question.Type == SignupQuestionType.Text) { <textarea id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-control" rows="3">@answer</textarea> }
+                        else if (question.Type == SignupQuestionType.YesNo) { <select id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option><option value="true">@T["Yes"]</option><option value="false">@T["No"]</option></select> }
+                        else if (question.Type == SignupQuestionType.SingleChoice) { <select id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option>@foreach (var option in question.Options) { <option value="@option">@option</option> }</select> }
+                        else { <input id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" value="@answer" class="form-control" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" /> }
+                    </div>
+                }
+            </div>
+        </section>
+        @if (optionalSignupQuestions.Count > 0)
+        {
+            <section class="event-overview-row admin-dialog-form-section" aria-labelledby="participant-optional-heading">
+                <div class="admin-dialog-section-heading"><div><h4 id="participant-optional-heading">@T["Optional questions"]</h4><p>@T["Add any extra context available for this participant."]</p></div></div>
+                <div class="participant-field-grid">
+                    @foreach (var question in optionalSignupQuestions)
+                    {
+                        var account = Model.InternalParticipant.AccountAnswers.GetValueOrDefault(question.Id) ?? new ParticipantModel.AccountInput();
+                        var answer = Model.InternalParticipant.Answers.GetValueOrDefault(question.Id);
+                        <div class="admin-field event-create-field"><label for="internal-@question.Id">@question.Label <small>@T["Optional"]</small></label>
+                            @if (question.Type == SignupQuestionType.Account)
+                            {
+                                <div class="participant-account-controls@(question.AccountRole == EventCharacterRole.Playing ? "" : " is-single")">
+                                    <input id="internal-@question.Id" name="InternalParticipant.AccountAnswers[@question.Id].CharacterName" value="@account.CharacterName" class="form-control" maxlength="100" placeholder="@T["OSRS character"]" />
+                                    @if (question.AccountRole == EventCharacterRole.Playing) { <input name="InternalParticipant.AccountAnswers[@question.Id].Ehb" value="@account.Ehb" class="form-control" type="number" min="0" step="0.01" placeholder="@T["EHB"]" aria-label="@T["EHB"]" /> }
+                                </div>
+                            }
+                            else if (question.Type == SignupQuestionType.Text) { <input id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" value="@answer" class="form-control" type="text" /> }
+                            else if (question.Type == SignupQuestionType.YesNo) { <select id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option><option value="true">@T["Yes"]</option><option value="false">@T["No"]</option></select> }
+                            else if (question.Type == SignupQuestionType.SingleChoice) { <select id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option>@foreach (var option in question.Options) { <option value="@option">@option</option> }</select> }
+                            else { <input id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" value="@answer" class="form-control" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" /> }
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+        <div class="admin-dialog-page-actions"><button class="btn admin-button-create" type="submit">+ @T["Create participant"]</button></div>
+    </form>
+</div>

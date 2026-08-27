@@ -7,10 +7,11 @@ using Bingo.Web.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Events;
 
-public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider timeProvider, ISignupService signupService) : PageModel
+public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider timeProvider, ISignupService signupService, IStringLocalizer<SharedResource> text) : PageModel
 {
     public string EventName { get; private set; } = string.Empty;
     public string EventSlug { get; private set; } = string.Empty;
@@ -20,6 +21,7 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
     public bool CanWithdraw { get; private set; }
     public bool CanRejoin { get; private set; }
     public bool CanViewTable { get; private set; }
+    public bool IsReadOnly { get; private set; }
     public string StatusDetail { get; private set; } = string.Empty;
     [BindProperty] public bool ConfirmLifecycleAction { get; set; }
     public IReadOnlyList<AccountView> Accounts { get; private set; } = [];
@@ -56,10 +58,11 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
             EventName = row.Event.Name;
             EventSlug = row.Event.Slug;
             CanViewTable = EventDestinationPolicy.MayUseSignupTable(EventDestinationPolicy.From(row.Event, rosterExists), User.IsInRole("Admin"));
-            Status = row.Participant.SignupStatus.ToString();
+            Status = DisplayStatus(row.Participant.SignupStatus.ToString());
             CanEdit = row.Event.State == EventState.SignupOpen && row.Event.AcceptsSignups(timeProvider.GetUtcNow());
             CanWithdraw = !row.Event.DraftLocked && row.Event.State is EventState.SignupOpen or EventState.SignupClosed && row.Participant.SignupStatus is SignupStatus.Confirmed or SignupStatus.WaitingList;
             CanRejoin = !row.Event.DraftLocked && row.Event.AcceptsSignups(timeProvider.GetUtcNow()) && row.Participant.SignupStatus == SignupStatus.Withdrawn;
+            IsReadOnly = !CanEdit && !CanWithdraw && !CanRejoin && (row.Participant.SignupStatus is SignupStatus.Confirmed or SignupStatus.WaitingList);
             if (row.Participant.SignupStatus == SignupStatus.WaitingList)
                 WaitingPosition = await db.EventParticipants.AsNoTracking().Where(x => x.EventId == row.Participant.EventId && x.SignupStatus == SignupStatus.WaitingList && (x.SignedUpAt < row.Participant.SignedUpAt || x.SignedUpAt == row.Participant.SignedUpAt && x.SignupSequence <= row.Participant.SignupSequence)).CountAsync(ct);
             StatusDetail = row.Participant.SignupStatus switch
@@ -94,32 +97,32 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
         if (TempData["SignupEventName"] is not string name) return RedirectToPage("/Index");
         EventName = name;
         EventSlug = slug;
-        Status = TempData["SignupStatus"]?.ToString() ?? "Received";
+        Status = DisplayStatus(TempData["SignupStatus"]?.ToString() ?? "Received");
         WaitingPosition = TempData["WaitingPosition"] as int?;
         return Page();
     }
 
     public async Task<IActionResult> OnPostWithdrawAsync(string slug, CancellationToken ct)
     {
-        if (!ConfirmLifecycleAction) { SetStatus("Confirm that you want to withdraw before continuing.", false); return RedirectToPage(new { slug }); }
         var accountId = User.GetAccountId();
         if (accountId is null) return Challenge();
         var participant = await OwnedParticipantAsync(slug, accountId.Value, ct);
         if (participant is null) return Forbid();
+        if (!ConfirmLifecycleAction) { SetStatus(text["Confirm that you want to withdraw before continuing."].Value, false); return RedirectToPage(new { slug, participantId = participant.ParticipantId }); }
         var result = await signupService.WithdrawAsync(participant.EventId, participant.ParticipantId, accountId, User.Identity?.Name ?? "participant", false, cancellationToken: ct);
-        SetStatus(result.Succeeded ? "Your signup has been withdrawn." : result.Error ?? "Your signup could not be withdrawn.", result.Succeeded);
+        SetStatus(result.Succeeded ? text["Your signup has been withdrawn."].Value : text[result.Error ?? "Your signup could not be withdrawn."].Value, result.Succeeded);
         return RedirectToPage(new { slug, participantId = participant.ParticipantId });
     }
 
     public async Task<IActionResult> OnPostRejoinAsync(string slug, CancellationToken ct)
     {
-        if (!ConfirmLifecycleAction) { SetStatus("Confirm that you want to rejoin before continuing.", false); return RedirectToPage(new { slug }); }
         var accountId = User.GetAccountId();
         if (accountId is null) return Challenge();
         var participant = await OwnedParticipantAsync(slug, accountId.Value, ct);
         if (participant is null) return Forbid();
+        if (!ConfirmLifecycleAction) { SetStatus(text["Confirm that you want to rejoin before continuing."].Value, false); return RedirectToPage(new { slug, participantId = participant.ParticipantId }); }
         var result = await signupService.RejoinAsync(participant.EventId, participant.ParticipantId, accountId.Value, User.Identity?.Name ?? "participant", ct);
-        SetStatus(result.Succeeded ? result.Status == SignupStatus.WaitingList ? $"You rejoined at waiting-list position {result.WaitingPosition}." : "Your signup has been restored." : result.Error ?? "Your signup could not be restored.", result.Succeeded);
+        SetStatus(result.Succeeded ? result.Status == SignupStatus.WaitingList ? text["You rejoined at waiting-list position {0}.", result.WaitingPosition.GetValueOrDefault()].Value : text["Your signup has been restored."].Value : text[result.Error ?? "Your signup could not be restored."].Value, result.Succeeded);
         return RedirectToPage(new { slug, participantId = participant.ParticipantId });
     }
 
@@ -128,6 +131,7 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
                join bingoEvent in db.Events on participant.EventId equals bingoEvent.Id
                where bingoEvent.Slug == slug && participant.AccountId == accountId
                select new OwnedParticipant(participant.EventId, participant.Id)).SingleOrDefaultAsync(ct);
+    private static string DisplayStatus(string status) => status == nameof(SignupStatus.WaitingList) ? "Waiting list" : status;
     private void SetStatus(string message, bool success) { TempData["StatusMessage"] = message; TempData[Bingo.Web.UI.UiMessage.TypeKey] = (success ? Bingo.Web.UI.UiMessageType.Success : Bingo.Web.UI.UiMessageType.Error).ToString(); }
 
     private sealed record OwnedParticipant(Guid EventId, Guid ParticipantId);

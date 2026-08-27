@@ -2663,6 +2663,11 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("competition_id");
 
+                    b.Property<decimal?>("EndEhb")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)")
+                        .HasColumnName("end_ehb");
+
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid")
                         .HasColumnName("event_id");
@@ -2683,6 +2688,11 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("OsrsCharacterId")
                         .HasColumnType("uuid")
                         .HasColumnName("osrs_character_id");
+
+                    b.Property<decimal?>("StartEhb")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)")
+                        .HasColumnName("start_ehb");
 
                     b.Property<DateTimeOffset?>("UpstreamUpdatedAt")
                         .HasColumnType("timestamp with time zone")

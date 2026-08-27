@@ -28,6 +28,9 @@ public sealed class ChangePasswordModel(
     [BindProperty]
     public PasswordInput Input { get; set; } = new();
 
+    [BindProperty(SupportsGet = true)]
+    public string? ReturnUrl { get; set; }
+
     public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -63,7 +66,7 @@ public sealed class ChangePasswordModel(
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, authentication.CreatePrincipal(account, "password"), CreatePasswordSessionProperties(false, time.GetUtcNow()));
         TempData["StatusMessage"] = text["Your password was changed."].Value;
         TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();
-        return RedirectToPage("Settings");
+        return LocalRedirect(Url.IsLocalUrl(ReturnUrl) ? ReturnUrl : "/Account/Settings");
     }
 
     public static AuthenticationProperties CreatePasswordSessionProperties(bool rememberMe, DateTimeOffset issuedAt) => new()

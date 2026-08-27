@@ -4,23 +4,43 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - OSRS Community Bingo</title>
+    <title>@T[ViewData["Title"]?.ToString() ?? "Admin"] - OSRS Community Bingo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.transitional.foundation.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.public-ui.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.transitional.application.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Bingo.Web.styles.css" asp-append-version="true" />
 </head>
-<body class="admin-shell-body admin-overlay-body">
+<body class="admin-shell-body admin-overlay-body"
+      data-admin-close-confirmation="@T["Close confirmation"]"
+      data-admin-cancel="@T["Cancel"]"
+      data-admin-confirm="@T["Confirm"]"
+      data-admin-reason="@T["Reason"]"
+      data-admin-account-confirm-title="@T["Confirm this account action"]"
+      data-admin-account-confirm-support="@T["This account action will change emergency access."]"
+      data-admin-account-load-error="@T["The account management view could not be loaded."]"
+      data-admin-account-create-error="@T["Could not create the emergency credential. Please try again."]"
+      data-admin-account-created="@T["Emergency credential created."]"
+      data-admin-account-created-disabled="@T["Created disabled emergency credential {0}. Create a setup link before enabling it."]"
+      data-admin-account-teams-error="@T["Could not load the active teams. Please try again."]"
+      data-admin-account-action-error="@T["Could not complete the account action. Please try again."]"
+      data-admin-catalogue-load-error="@T["The catalogue editor could not be loaded."]"
+      data-admin-catalogue-kills-per-hour="@T["Kills per hour"]"
+      data-admin-catalogue-runs-per-hour="@T["Runs per hour"]"
+      data-admin-draft-creating="@T["Creating a random order…"]"
+      data-admin-draft-drawing="@T["Drawing the team order…"]"
+      data-admin-draft-ready="@T["Order ready."]"
+      data-admin-saving="@T["Saving"]"
+      data-admin-participant-load-error="@T["The participant details could not be loaded."]"
+      data-admin-participant-form-error="@T["The participant form could not be loaded."]"
+      data-admin-copy-success="@T["Link copied."]"
+      data-admin-copy-error="@T["The link could not be copied."]"
+      data-admin-time="@T["Time"]">
     <main id="main-content" tabindex="-1">
-        <div id="app-notice-region" aria-live="polite">
-            @if (TempData["StatusMessage"] is string statusMessage)
-            {
-                var messageType = Bingo.Web.UI.UiMessage.Resolve(statusMessage, TempData[Bingo.Web.UI.UiMessage.TypeKey]?.ToString());
-                <div class="app-notice notice-@messageType.ToString().ToLowerInvariant()" role="@(messageType == Bingo.Web.UI.UiMessageType.Error ? "alert" : "status")" tabindex="-1" data-feedback-target><strong>@messageType</strong><span>@T[statusMessage]</span></div>
-            }
-        </div>
+        @await Html.PartialAsync("_TransientToast")
         @RenderBody()
     </main>
     <script src="~/js/site.js" asp-append-version="true"></script>

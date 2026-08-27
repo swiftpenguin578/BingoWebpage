@@ -3,25 +3,17 @@
 @using Bingo.Domain.Signups
 @{
     ViewData["Title"] = T["Create event"];
+    ViewData["AdminPageDescription"] = T["Start a private event draft and complete setup when ready."];
 }
 
 <section class="event-create-page" data-event-create
          data-step-word="@T["Step"]" data-of-word="@T["of"]"
          data-question-word="@T["Question"]" data-players-word="@T["players"]"
          data-waiting-list-text="@T["waiting list enabled"]"
-         data-teams-word="@T["Teams"]" data-per-team-text="@T["players per team"]"
+         data-teams-word="@T["Teams"]" data-per-team-text="@T["Players per team"]"
          data-board-word="@T["board"]" data-unnamed-text="@T["Unnamed event"]"
          data-no-description-text="@T["No description yet"]" data-not-set-text="@T["Not set"]"
          data-time-word="@T["Time"]">
-    <header class="event-create-heading admin-events-heading">
-        <div class="event-create-title-row">
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /><path d="M8 14h.01" /><path d="M12 14h.01" /><path d="M16 14h.01" /><path d="M8 18h.01" /><path d="M12 18h.01" /><path d="M16 18h.01" /></svg>
-            <h1>@T["Create event"]</h1>
-        </div>
-        <p class="admin-module-description">@T["Set up the event as a private draft. Nothing becomes public until you open signups later."]</p>
-        <a class="admin-button-secondary event-create-cancel" asp-page="/Admin/Events/Index">@T["Cancel & Return"]</a>
-    </header>
-
     <form method="post" enctype="multipart/form-data" class="event-create-form" novalidate>
         <div asp-validation-summary="ModelOnly" class="validation-summary app-notice notice-error"></div>
 
@@ -50,7 +42,9 @@
                         <div><p class="step-kicker">@T["Step 1 of 5"]</p><h2>@T["Event details"]</h2></div>
                         <p>@T["These details appear on the public signup page after signups open."]</p>
                     </div>
-                    <div class="event-create-fields">
+                    <fieldset class="event-create-group">
+                        <legend>@T["Event basics"]</legend>
+                        <div class="event-create-fields">
                         <div class="admin-field event-create-field event-create-name-field">
                             <div class="event-create-label-row">
                                 <label asp-for="Input.Name">@T["Event name"]</label>
@@ -65,6 +59,11 @@
                             <span asp-validation-for="Input.Timezone" class="field-error"></span>
                             <small>@T["All event times use this timezone."]</small>
                         </div>
+                        </div>
+                    </fieldset>
+                    <fieldset class="event-create-group">
+                        <legend>@T["Public presentation"]</legend>
+                        <div class="event-create-fields">
                         <div class="admin-field event-create-field">
                             <label asp-for="Input.Slug">@T["Event link"]</label>
                             <input asp-for="Input.Slug" class="form-control" autocomplete="off" placeholder="generated-from-event-name" />
@@ -83,16 +82,17 @@
                             <span asp-validation-for="Input.Description" class="field-error"></span>
                             <small>@T["A short explanation for players considering the event."]</small>
                         </div>
-                    </div>
+                        </div>
+                    </fieldset>
                     <details class="event-wom-link" open>
                         <summary>
-                            <span class="event-wom-link-label"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="8" r="6" /><path d="m15.477 12.89 1.523 9-5-3-5 3 1.523-9" /></svg><strong>Wise Old Man competition</strong><small>@T["Optional"]</small></span>
+                            <span class="event-wom-link-label"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="8" r="6" /><path d="m15.477 12.89 1.523 9-5-3-5 3 1.523-9" /></svg><strong>@T["Wise Old Man competition"]</strong><small>@T["Optional"]</small></span>
                             <svg class="event-wom-link-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m6 9 6 6 6-6" /></svg>
                         </summary>
                         <div class="event-wom-link-body">
-                            <p>Linking an existing competition validates it and can prefill the exact competition window during creation. While Live, its cached activity, EHB, and team leaderboard synchronization can use this link.</p>
+                            <p>@T["Linking an existing competition validates it and can prefill the exact competition window during creation. While Live, its cached activity, EHB, and team leaderboard synchronization can use this link."]</p>
                             <div class="admin-field event-create-field">
-                                <label asp-for="Input.CompetitionId">Wise Old Man competition ID</label>
+                                <label asp-for="Input.CompetitionId">@T["Wise Old Man competition ID"]</label>
                                 <input asp-for="Input.CompetitionId" class="form-control" inputmode="numeric" />
                                 <span asp-validation-for="Input.CompetitionId" class="field-error"></span>
                                 <small>@T["Optional. A validated competition fills the exact UTC event window during creation."]</small>
@@ -107,8 +107,8 @@
                         <p>@T["Set the dates and player cap. You can change them after creating the event."]</p>
                     </div>
                     <div class="event-schedule-groups">
-                        <section class="event-schedule-group" aria-labelledby="signup-window-heading">
-                            <div class="event-schedule-group-heading"><h3 id="signup-window-heading">@T["Signup window"]</h3><span>@T["Optional until signups are ready"]</span></div>
+                        <fieldset class="event-schedule-group event-create-group">
+                            <legend>@T["Signup window"]</legend>
                             <div class="event-create-fields">
                                 <div class="admin-field event-create-field event-datetime-field" data-datetime-control>
                                     <label asp-for="Input.SignupOpensLocal">@T["Signup opens"]</label>
@@ -129,9 +129,9 @@
                                     <span asp-validation-for="Input.SignupClosesLocal" class="field-error"></span>
                                 </div>
                             </div>
-                        </section>
-                        <section class="event-schedule-group" aria-labelledby="event-window-heading">
-                            <div class="event-schedule-group-heading"><h3 id="event-window-heading">@T["Event window"]</h3><span>@T["Optional until the event is ready"]</span></div>
+                        </fieldset>
+                        <fieldset class="event-schedule-group event-create-group">
+                            <legend>@T["Event schedule"]</legend>
                             <div class="event-create-fields">
                                 <div class="admin-field event-create-field event-datetime-field" data-datetime-control>
                                     <label asp-for="Input.EventStartsLocal">@T["Event starts"]</label>
@@ -151,32 +151,34 @@
                                     <input asp-for="Input.EventEndsLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical />
                                     <span asp-validation-for="Input.EventEndsLocal" class="field-error"></span>
                                 </div>
+                                <div class="admin-field event-create-field event-draft-field event-datetime-field" data-datetime-control>
+                                    <label asp-for="Input.DraftLocal">@T["Draft time"]</label>
+                                    <div class="event-datetime-visual" aria-label="@T["Draft time"]">
+                                        <label class="event-datetime-part"><span>@T["Date"]</span><span class="event-datetime-input"><input type="date" data-datetime-date aria-label="@T["Draft date"]" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg></span></label>
+                                        <label class="event-datetime-part"><span>@T["Time"]</span><span class="event-datetime-input"><input type="time" step="300" data-datetime-time aria-label="@T["Draft time"]" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span></label>
+                                    </div>
+                                    <input asp-for="Input.DraftLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical />
+                                    <span asp-validation-for="Input.DraftLocal" class="field-error"></span>
+                                    <small>@T["Optional planning information; it does not start the draft automatically."]</small>
+                                </div>
                             </div>
-                        </section>
-                    </div>
-                    <div class="event-create-fields schedule-secondary-fields">
-                        <div class="admin-field event-create-field">
-                            <label asp-for="Input.ParticipantCap">@T["Maximum players"]</label>
-                            <input asp-for="Input.ParticipantCap" class="form-control" data-summary-source="capacity" />
-                            <span asp-validation-for="Input.ParticipantCap" class="field-error"></span>
-                        </div>
-                        <div class="admin-field event-create-field event-datetime-field" data-datetime-control>
-                            <label asp-for="Input.DraftLocal">@T["Draft time"]</label>
-                            <div class="event-datetime-visual" aria-label="@T["Draft time"]">
-                                <label class="event-datetime-part"><span>@T["Date"]</span><span class="event-datetime-input"><input type="date" data-datetime-date aria-label="@T["Draft date"]" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg></span></label>
-                                <label class="event-datetime-part"><span>@T["Time"]</span><span class="event-datetime-input"><input type="time" step="300" data-datetime-time aria-label="@T["Draft time"]" /><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span></label>
+                        </fieldset>
+                        <fieldset class="event-schedule-group event-create-group">
+                            <legend>@T["Registration capacity"]</legend>
+                            <div class="event-create-fields">
+                                <div class="admin-field event-create-field">
+                                    <label asp-for="Input.ParticipantCap">@T["Maximum players"]</label>
+                                    <input asp-for="Input.ParticipantCap" class="form-control" data-summary-source="capacity" />
+                                    <span asp-validation-for="Input.ParticipantCap" class="field-error"></span>
+                                </div>
+                                <div class="schedule-waiting-list">
+                                    <label class="setting-card schedule-option-card">
+                                        <input asp-for="Input.WaitingListEnabled" />
+                                        <span><strong>@T["Use a waiting list"]</strong><small>@T["Players who sign up after the cap are kept in signup order."]</small></span>
+                                    </label>
+                                </div>
                             </div>
-                            <input asp-for="Input.DraftLocal" type="datetime-local" step="300" class="form-control event-datetime-canonical" data-datetime-canonical />
-                            <span asp-validation-for="Input.DraftLocal" class="field-error"></span>
-                            <small>@T["Optional planning information; it does not start the draft automatically."]</small>
-                        </div>
-                    </div>
-                    <div class="schedule-waiting-list">
-                        <div class="event-schedule-group-heading"><h3 id="waiting-list-heading">@T["Waiting list"]</h3></div>
-                        <label class="setting-card schedule-option-card">
-                            <input asp-for="Input.WaitingListEnabled" />
-                            <span><strong>@T["Use a waiting list"]</strong><small>@T["Players who sign up after the cap are kept in signup order."]</small></span>
-                        </label>
+                        </fieldset>
                     </div>
                 </section>
 
@@ -186,17 +188,21 @@
                         <p>@T["Standard fields are already included. Add any extra questions needed for this bingo."]</p>
                     </div>
 
-                    <div class="signup-field-list" aria-label="@T["Standard signup fields"]">
-                        <div><span><strong>@T["Account"]</strong><small>@T["Required Regular account selector. EHB belongs to this account answer."]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
-                        <div><span><strong>@T["Captain volunteer"]</strong><small>@T["Optional yes or no"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
-                    </div>
+                    <fieldset class="event-create-group standard-signup-fields-group">
+                        <legend>@T["Standard signup fields"]</legend>
+                        <div class="signup-field-list" aria-label="@T["Standard signup fields"]">
+                            <div><span><strong>@T["Account"]</strong><small>@T["Required Regular account selector. EHB belongs to this account answer."]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
+                            <div><span><strong>@T["Captain volunteer"]</strong><small>@T["Optional yes or no"]</small></span><span class="system-field-badge">@T["Standard"]</span></div>
+                        </div>
+                    </fieldset>
 
-                    <div class="custom-question-heading">
-                        <div><h3>@T["Custom questions"]</h3><p>@T["Ask only for information specific to this bingo."]</p></div>
-                                <button type="button" class="btn admin-button-secondary" data-add-question>+ @T["Add question"]</button>
-                    </div>
-                    <p class="custom-question-empty" data-question-empty hidden="@(Model.Input.CustomQuestions.Count > 0)">@T["No custom questions added."]</p>
-                    <div class="custom-question-list" data-question-list>
+                    <section class="custom-question-section" aria-labelledby="custom-questions-heading">
+                        <div class="custom-question-heading">
+                            <div><h3 id="custom-questions-heading">@T["Custom questions"]</h3><p>@T["Ask only for information specific to this bingo."]</p></div>
+                            <button type="button" class="btn admin-button-secondary" data-add-question>+ @T["Add question"]</button>
+                        </div>
+                        <p class="custom-question-empty" data-question-empty hidden="@(Model.Input.CustomQuestions.Count > 0)">@T["No custom questions added."]</p>
+                        <div class="custom-question-list" data-question-list>
                         @for (var index = 0; index < Model.Input.CustomQuestions.Count; index++)
                         {
                             <div class="custom-question-card" data-custom-question>
@@ -225,20 +231,24 @@
                                 </div>
                             </div>
                         }
-                    </div>
+                        </div>
+                    </section>
 
-                    <div class="signup-settings-grid">
-                        <label class="setting-card">
-                            <input asp-for="Input.RequireSignupCode" data-signup-code-toggle />
-                            <span><strong>@T["Require an event code"]</strong><small>@T["Players must enter the shared code when signing up."]</small></span>
-                        </label>
-                    </div>
-                    <div class="information-callout"><strong>@T["Private signup editing"]</strong><span>@T["This draft stays private, so you can revise the signup form before opening signups. Opening later exposes only the event information and signup form."]</span></div>
-                    <div class="admin-field event-create-field signup-code-field" data-signup-code-field hidden="@(!Model.Input.RequireSignupCode)">
-                        <label asp-for="Input.SignupCode">@T["Event code"]</label>
-                        <input asp-for="Input.SignupCode" class="form-control" autocomplete="off" disabled="@(!Model.Input.RequireSignupCode)" />
-                        <span asp-validation-for="Input.SignupCode" class="field-error"></span>
-                    </div>
+                    <fieldset class="event-create-group signup-access-group">
+                        <legend>@T["Signup access"]</legend>
+                        <div class="signup-settings-grid">
+                            <label class="setting-card">
+                                <input asp-for="Input.RequireSignupCode" data-signup-code-toggle />
+                                <span><strong>@T["Require an event code"]</strong><small>@T["Players must enter the shared code when signing up."]</small></span>
+                            </label>
+                        </div>
+                        <div class="admin-field event-create-field signup-code-field" data-signup-code-field hidden="@(!Model.Input.RequireSignupCode)">
+                            <label asp-for="Input.SignupCode">@T["Event code"]</label>
+                            <input asp-for="Input.SignupCode" class="form-control" autocomplete="off" disabled="@(!Model.Input.RequireSignupCode)" />
+                            <span asp-validation-for="Input.SignupCode" class="field-error"></span>
+                        </div>
+                    </fieldset>
+                    <div class="information-callout"><div class="information-callout-heading"><svg class="information-callout-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 7.5h.01" /></svg><strong>@T["Private signup editing"]</strong></div><span>@T["This draft stays private, so you can revise the signup form before opening signups. Opening later exposes only the event information and signup form."]</span></div>
                 </section>
 
                 <section id="planning-panel" class="event-create-panel" data-create-panel="3">
@@ -251,7 +261,7 @@
                         <div class="admin-field event-create-field"><label asp-for="Input.ExpectedBoardRows">@T["Expected board rows"]</label><input asp-for="Input.ExpectedBoardRows" class="form-control" min="1" max="8" data-summary-source="rows" /><span asp-validation-for="Input.ExpectedBoardRows" class="field-error"></span></div>
                         <div class="admin-field event-create-field"><label asp-for="Input.ExpectedBoardColumns">@T["Expected board columns"]</label><input asp-for="Input.ExpectedBoardColumns" class="form-control" min="1" max="8" data-summary-source="columns" /><span asp-validation-for="Input.ExpectedBoardColumns" class="field-error"></span></div>
                     </div>
-                    <div class="information-callout"><strong>@T["These are estimates"]</strong><span>@T["This does not lock in the number of teams or the board size."]</span></div>
+                    <div class="information-callout"><div class="information-callout-heading"><svg class="information-callout-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 7.5h.01" /></svg><strong>@T["These are estimates"]</strong></div><span>@T["This does not lock in the number of teams or the board size."]</span></div>
                 </section>
 
                 <section id="review-panel" class="event-create-panel" data-create-panel="4">
@@ -265,18 +275,18 @@
                         <div><span>@T["Event dates"]</span><strong data-summary-value="event-window">@T["Leave blank to plan later"]</strong><small>@T["Any entered schedule is saved as a private draft setting."]</small></div>
                         <div><span>@T["Planning"]</span><strong>@T["Optional setup only"]</strong><small data-summary-value="board">@T["Board dimensions can be left for later."]</small></div>
                     </div>
-                    <div class="information-callout important-callout"><strong>@T["The event stays private"]</strong><span>@T["Creating it does not open signups, publish the board, publish teams or start the draft. Opening signups later exposes only the event information and signup form."]</span></div>
+                    <div class="information-callout important-callout"><div class="information-callout-heading"><svg class="information-callout-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 7.5h.01" /></svg><strong>@T["The event stays private"]</strong></div><span>@T["Creating it does not open signups, publish the board, publish teams or start the draft. Opening signups later exposes only the event information and signup form."]</span></div>
                 </section>
 
                 <footer class="event-create-guided-actions">
                     <button type="button" class="btn admin-button-secondary" data-create-previous>@T["Previous"]</button>
                     <span data-step-progress>@T["Step 1 of 5"]</span>
-                    <button type="button" class="btn admin-button-primary" data-create-next>@T["Next"]</button>
-                    <button class="btn admin-button-primary create-event-submit" type="submit" data-create-submit hidden>@T["Create private event"]</button>
+                    <button type="button" class="btn admin-button-secondary" data-create-next>@T["Next"]</button>
+                    <button class="btn admin-button-create create-event-submit" type="submit" data-create-submit hidden>@T["Create private event"]</button>
                 </footer>
             </div>
         </div>
-        <noscript><button class="btn admin-button-primary create-event-noscript-submit" type="submit">@T["Create private event"]</button></noscript>
+        <noscript><button class="btn admin-button-create create-event-noscript-submit" type="submit">@T["Create private event"]</button></noscript>
     </form>
 </section>
 

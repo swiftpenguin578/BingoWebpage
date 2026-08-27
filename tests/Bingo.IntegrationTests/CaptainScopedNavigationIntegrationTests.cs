@@ -32,6 +32,42 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Fact]
+    public async Task NamedSubmissionGetRedirectsToCanonicalDetailsRoute()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var owner = Website("submission-handler-get", now);
+        owner.SetPassword(new PasswordHasher<Account>().HashPassword(owner, "password"), false, now, false);
+        var live = LiveEvent(owner.Id, "Submission handler get", "submission-handler-get", now);
+        var team = new Team(Guid.NewGuid(), live.Id, "Submission handler team", "submission-handler-team", TeamFormationType.Drafted, null, true);
+        var participant = new EventParticipant(Guid.NewGuid(), live.Id, SignupStatus.Confirmed, 1, now.AddDays(-1), SignupSource.Website);
+        participant.AssignOwner(owner);
+        var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now.AddDays(-1), null, "test");
+        var character = new OsrsCharacter(Guid.NewGuid(), "Submission handler player", "SUBMISSION HANDLER PLAYER", now);
+        var assignment = new EventParticipantCharacter(Guid.NewGuid(), live.Id, participant.Id, character.Id, 0, now, null, null, EventCharacterRole.Playing, 10m, EhbSource.Manual, null);
+        var board = new Board(Guid.NewGuid(), live.Id, "Submission handler board", 1, 1);
+        var tile = new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 0, 0, "Submission handler tile", "Description", "", 1m);
+        var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 0, 1, true, false, "Requirement", true);
+        var submission = new Submission(Guid.NewGuid(), live.Id, team.Id, tile.Id, requirement.Id, null, participant.Id, character.Id, character.DisplayName, owner.Id, 1, now, null, null);
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(owner, live, team, participant, membership, character, assignment, board, tile, requirement, submission);
+            await db.SaveChangesAsync();
+            await BoardApprovalFixture.PublishAsync(db, board, now, [tile], [requirement]);
+        }
+
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, owner.LoginName);
+
+        var canonicalRoute = $"/Captain/Submissions/{submission.Id}?eventId={live.Id}&teamId={team.Id}";
+        using var response = await client.GetAsync($"/Captain/Submissions/{submission.Id}?handler=Correct&eventId={live.Id}&teamId={team.Id}");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal(canonicalRoute, response.Headers.Location?.OriginalString);
+    }
+
+    [Fact]
     public async Task ParticipantHistoryDetailsAndWithdrawalPreserveSelectedEventAndTeamScope()
     {
         var now = DateTimeOffset.UtcNow;
@@ -75,20 +111,14 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         await LoginAsync(client, owner.LoginName);
 
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/Captain")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/Captain?handler=Ledger&eventId={first.Id}&teamId={firstTeam.Id}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/Captain?eventId={second.Id}&teamId={firstTeam.Id}")).StatusCode);
-
-        var scopedIndexRoute = $"/Captain?eventId={first.Id}&teamId={firstTeam.Id}";
-        using var index = await client.GetAsync(scopedIndexRoute);
-        Assert.Equal(HttpStatusCode.OK, index.StatusCode);
-        var indexHtml = await index.Content.ReadAsStringAsync();
-        Assert.Contains($"/Captain/Submissions/{submission.Id}?eventId={first.Id}&amp;teamId={firstTeam.Id}", indexHtml, StringComparison.Ordinal);
-        Assert.Contains($"/Captain/Submit/{firstTile.Id}?eventId={first.Id}&amp;teamId={firstTeam.Id}", indexHtml, StringComparison.Ordinal);
 
         var detailsRoute = $"/Captain/Submissions/{submission.Id}?eventId={first.Id}&teamId={firstTeam.Id}";
         using var details = await client.GetAsync(detailsRoute);
         Assert.Equal(HttpStatusCode.OK, details.StatusCode);
         var detailsHtml = await details.Content.ReadAsStringAsync();
-        Assert.Contains($"href=\"/Captain?eventId={first.Id}&amp;teamId={firstTeam.Id}\"", detailsHtml, StringComparison.Ordinal);
+        Assert.Contains($"href=\"/Events/{first.Slug}/Board/{firstTeam.Slug}\"", detailsHtml, StringComparison.Ordinal);
         var withdrawAction = Regex.Matches(detailsHtml, $"action=\\\"([^\\\"]*{submission.Id}[^\\\"]*)\\\"").Select(x => x.Value).Single(x => x.Contains("handler=Withdraw", StringComparison.Ordinal));
         Assert.Contains($"eventId={first.Id}", withdrawAction, StringComparison.Ordinal);
         Assert.Contains($"teamId={firstTeam.Id}", withdrawAction, StringComparison.Ordinal);
@@ -101,11 +131,275 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
             ["__RequestVerificationToken"] = token
         }));
         Assert.Equal(HttpStatusCode.Redirect, withdrawn.StatusCode);
-        Assert.Equal(scopedIndexRoute, withdrawn.Headers.Location?.OriginalString);
+        Assert.Equal(detailsRoute, withdrawn.Headers.Location?.OriginalString);
 
         await using var verification = new ApplicationDbContext(options);
         Assert.Equal(SubmissionStatus.Withdrawn, await verification.Submissions.Where(x => x.Id == submission.Id).Select(x => x.Status).SingleAsync());
         Assert.Equal(SubmissionStatus.Pending, await verification.Submissions.Where(x => x.Id == secondSubmission.Id).Select(x => x.Status).SingleAsync());
+    }
+
+    [Fact]
+    public async Task LiveCaptainRouteRendersLedgerPlayerFilterAgainstPostgreSql()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var captain = Website("captain-ledger-route", now);
+        captain.SetPassword(new PasswordHasher<Account>().HashPassword(captain, "password"), false, now, false);
+        var live = LiveEvent(captain.Id, "Captain ledger live", "captain-ledger-live", now);
+        var team = new Team(Guid.NewGuid(), live.Id, "Captain ledger team", "captain-ledger-team", TeamFormationType.Drafted, null, true);
+        var participant = new EventParticipant(Guid.NewGuid(), live.Id, SignupStatus.Confirmed, 1, now.AddDays(-1), SignupSource.Website);
+        var secondParticipant = new EventParticipant(Guid.NewGuid(), live.Id, SignupStatus.Confirmed, 2, now.AddDays(-1), SignupSource.Website);
+        participant.AssignOwner(captain);
+        var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Captain, now.AddDays(-1), null, "test");
+        var secondMembership = new TeamMembership(Guid.NewGuid(), team.Id, secondParticipant.Id, TeamMembershipRole.Participant, now.AddDays(-1), null, "test");
+        var character = new OsrsCharacter(Guid.NewGuid(), "Captain ledger player", "CAPTAIN LEDGER PLAYER", now);
+        var secondCharacter = new OsrsCharacter(Guid.NewGuid(), "Second ledger player", "SECOND LEDGER PLAYER", now);
+        var assignment = new EventParticipantCharacter(Guid.NewGuid(), live.Id, participant.Id, character.Id, 0, now, null, null, EventCharacterRole.Playing, 10m, EhbSource.Manual, null);
+        var secondAssignment = new EventParticipantCharacter(Guid.NewGuid(), live.Id, secondParticipant.Id, secondCharacter.Id, 0, now, null, null, EventCharacterRole.Playing, 10m, EhbSource.Manual, null);
+        var board = new Board(Guid.NewGuid(), live.Id, "Captain ledger board", 1, 2);
+        var tile = new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 0, 0, "Captain ledger tile", "Description", "", 1m);
+        var secondTile = new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 0, 1, "Second ledger tile", "Description", "", 1m);
+        var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 0, 1, true, false, "Requirement", true);
+        var secondRequirement = new BoardRequirementSnapshot(Guid.NewGuid(), secondTile.Id, 0, 1, true, false, "Requirement", true);
+        var drop = new BoardRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, Guid.NewGuid(), "Captain ledger boss", "Captain ledger drop", "1/10", 0.1m, null, 1m);
+        var secondDrop = new BoardRequirementDropSnapshot(Guid.NewGuid(), secondRequirement.Id, Guid.NewGuid(), "Second ledger boss", "Second ledger drop", "1/10", 0.1m, null, 1m);
+        var submissions = Enumerable.Range(0, 26)
+            .Select(index => new Submission(Guid.NewGuid(), live.Id, team.Id, tile.Id, requirement.Id, drop.Id, participant.Id, character.Id,
+                "Captain ledger player", captain.Id, 1, now.AddMinutes(-index), null, null))
+            .ToList();
+        var secondSubmission = new Submission(Guid.NewGuid(), live.Id, team.Id, secondTile.Id, secondRequirement.Id, secondDrop.Id, secondParticipant.Id, secondCharacter.Id,
+                "Second ledger player", captain.Id, 1, now.AddMinutes(1), null, null);
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(captain, live, team, participant, secondParticipant, membership, secondMembership, character, secondCharacter, assignment, secondAssignment, board, tile, secondTile, requirement, secondRequirement, drop, secondDrop);
+            db.Submissions.AddRange(submissions);
+            db.Submissions.Add(secondSubmission);
+            await db.SaveChangesAsync();
+            await BoardApprovalFixture.PublishAsync(db, board, now, [tile, secondTile], [requirement, secondRequirement], [drop, secondDrop]);
+        }
+
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, captain.LoginName);
+
+        using var response = await client.GetAsync($"/Captain?eventId={live.Id}&teamId={team.Id}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("name=\"search\"", html, StringComparison.Ordinal);
+        Assert.Contains("SEARCH SUBMISSIONS", html, StringComparison.Ordinal);
+        Assert.Contains($"href=\"/Events/{live.Slug}/Board/{team.Slug}\"", html, StringComparison.Ordinal);
+        Assert.Contains("Second ledger player", html, StringComparison.Ordinal);
+        Assert.Contains("Captain ledger drop", html, StringComparison.Ordinal);
+        Assert.Contains("Search drops, players or tiles…", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("name=\"status\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("name=\"tile\"", html, StringComparison.Ordinal);
+        Assert.Contains("ledgerPage=2", html, StringComparison.Ordinal);
+
+        using var pageTwo = await client.GetAsync($"/Captain?eventId={live.Id}&teamId={team.Id}&ledgerPage=2");
+        Assert.Equal(HttpStatusCode.OK, pageTwo.StatusCode);
+        var pageTwoHtml = await pageTwo.Content.ReadAsStringAsync();
+        Assert.Contains("Page 2 of 2", pageTwoHtml, StringComparison.Ordinal);
+        Assert.Contains("<td>Captain ledger player</td>", pageTwoHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("<td>Second ledger player</td>", pageTwoHtml, StringComparison.Ordinal);
+
+        using var dropSearch = await client.GetAsync($"/Captain?eventId={live.Id}&teamId={team.Id}&search={Uri.EscapeDataString("CAPTAIN LEDGER DROP")}");
+        Assert.Equal(HttpStatusCode.OK, dropSearch.StatusCode);
+        var dropSearchHtml = await dropSearch.Content.ReadAsStringAsync();
+        Assert.Contains("Captain ledger drop", dropSearchHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("<td>Second ledger player</td>", dropSearchHtml, StringComparison.Ordinal);
+
+        using var tileSearch = await client.GetAsync($"/Captain?eventId={live.Id}&teamId={team.Id}&search={Uri.EscapeDataString("CAPTAIN LEDGER TILE")}");
+        Assert.Equal(HttpStatusCode.OK, tileSearch.StatusCode);
+        var tileSearchHtml = await tileSearch.Content.ReadAsStringAsync();
+        Assert.Contains("Captain ledger player", tileSearchHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Second ledger player", tileSearchHtml, StringComparison.Ordinal);
+
+        using var search = await client.GetAsync($"/Captain?eventId={live.Id}&teamId={team.Id}&search={Uri.EscapeDataString("SECOND LEDGER PLAYER")}");
+        Assert.Equal(HttpStatusCode.OK, search.StatusCode);
+        var searchHtml = await search.Content.ReadAsStringAsync();
+        Assert.Contains("Second ledger player", searchHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("<td>Captain ledger player</td>", searchHtml, StringComparison.Ordinal);
+
+        using var combined = await client.GetAsync($"/Captain?eventId={live.Id}&teamId={team.Id}&search=LEDGER&player={secondParticipant.Id}");
+        Assert.Equal(HttpStatusCode.OK, combined.StatusCode);
+        var combinedHtml = await combined.Content.ReadAsStringAsync();
+        Assert.Contains("Second ledger player", combinedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("<td>Captain ledger player</td>", combinedHtml, StringComparison.Ordinal);
+        Assert.Contains($"player={secondParticipant.Id}", combinedHtml, StringComparison.Ordinal);
+
+        using var partial = await client.GetAsync($"/Captain?handler=Ledger&eventId={live.Id}&teamId={team.Id}&search=ledger&player={secondParticipant.Id}&ledgerPage=1");
+        Assert.Equal(HttpStatusCode.OK, partial.StatusCode);
+        var partialHtml = await partial.Content.ReadAsStringAsync();
+        Assert.Contains("data-captain-ledger-results", partialHtml, StringComparison.Ordinal);
+        Assert.Contains("Second ledger player", partialHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("captain-workspace-heading", partialHtml, StringComparison.Ordinal);
+
+        async Task<string> PartialSearch(string value, Guid? playerId = null)
+        {
+            var query = $"/Captain?handler=Ledger&eventId={live.Id}&teamId={team.Id}&search={Uri.EscapeDataString(value)}";
+            if (playerId is { } id) query += $"&player={id}";
+            using var result = await client.GetAsync(query);
+            Assert.Equal(HttpStatusCode.OK, result.StatusCode);
+            return await result.Content.ReadAsStringAsync();
+        }
+
+        var partialDropSearchHtml = await PartialSearch("SECOND LEDGER DROP");
+        Assert.Contains("Second ledger player", partialDropSearchHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Captain ledger player", partialDropSearchHtml, StringComparison.Ordinal);
+        var partialTileSearchHtml = await PartialSearch("CAPTAIN LEDGER TILE");
+        Assert.Contains("Captain ledger player", partialTileSearchHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Second ledger player", partialTileSearchHtml, StringComparison.Ordinal);
+        var partialPlayerSearchHtml = await PartialSearch("SECOND LEDGER PLAYER");
+        Assert.Contains("Second ledger player", partialPlayerSearchHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Captain ledger player", partialPlayerSearchHtml, StringComparison.Ordinal);
+        var partialNonMatchHtml = await PartialSearch("NO SUCH LEDGER VALUE");
+        Assert.DoesNotContain("Captain ledger player", partialNonMatchHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Second ledger player", partialNonMatchHtml, StringComparison.Ordinal);
+        var partialCombinedHtml = await PartialSearch("LEDGER", secondParticipant.Id);
+        Assert.Contains("Second ledger player", partialCombinedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Captain ledger player", partialCombinedHtml, StringComparison.Ordinal);
+
+        using var filteredPageTwo = await client.GetAsync($"/Captain?eventId={live.Id}&teamId={team.Id}&search=LEDGER&player={participant.Id}&ledgerPage=2");
+        Assert.Equal(HttpStatusCode.OK, filteredPageTwo.StatusCode);
+        var filteredPageTwoHtml = await filteredPageTwo.Content.ReadAsStringAsync();
+        Assert.Contains("Page 2 of 2", filteredPageTwoHtml, StringComparison.Ordinal);
+        Assert.Contains($"search=LEDGER", filteredPageTwoHtml, StringComparison.Ordinal);
+        Assert.Contains($"player={participant.Id}", filteredPageTwoHtml, StringComparison.Ordinal);
+
+    }
+
+    [Fact]
+    public async Task LiveCaptainHeaderNavigationIsScopedAndSharedByDesktopAndMobile()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var captain = Website("header-captain", now);
+        var coCaptain = Website("header-co-captain", now);
+        var participant = Website("header-participant", now);
+        var admin = Website("header-admin", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var emergency = Account.CreateEmergency(Guid.NewGuid(), "header-emergency", "HEADER-EMERGENCY", now);
+        foreach (var account in new[] { captain, coCaptain, participant, admin, emergency })
+            account.SetPassword(new PasswordHasher<Account>().HashPassword(account, "password"), false, now, false);
+        emergency.Enable();
+
+        var live = LiveEvent(captain.Id, "Header live", "header-live", now);
+        var liveTeam = new Team(Guid.NewGuid(), live.Id, "Header live team", "header-live-team", TeamFormationType.Drafted, null, true);
+        var captainParticipant = new EventParticipant(Guid.NewGuid(), live.Id, SignupStatus.Confirmed, 1, now.AddDays(-1), SignupSource.Website);
+        var coCaptainParticipant = new EventParticipant(Guid.NewGuid(), live.Id, SignupStatus.Confirmed, 2, now.AddDays(-1), SignupSource.Website);
+        var ordinaryParticipant = new EventParticipant(Guid.NewGuid(), live.Id, SignupStatus.Confirmed, 3, now.AddDays(-1), SignupSource.Website);
+        captainParticipant.AssignOwner(captain);
+        coCaptainParticipant.AssignOwner(coCaptain);
+        ordinaryParticipant.AssignOwner(participant);
+        var liveMemberships = new[]
+        {
+            new TeamMembership(Guid.NewGuid(), liveTeam.Id, captainParticipant.Id, TeamMembershipRole.Captain, now.AddDays(-1), null, "test"),
+            new TeamMembership(Guid.NewGuid(), liveTeam.Id, coCaptainParticipant.Id, TeamMembershipRole.CoCaptain, now.AddDays(-1), null, "test"),
+            new TeamMembership(Guid.NewGuid(), liveTeam.Id, ordinaryParticipant.Id, TeamMembershipRole.Participant, now.AddDays(-1), null, "test")
+        };
+        var emergencyAccess = new AccountEventAccess(Guid.NewGuid(), emergency.Id, live.Id, liveTeam.Id, null, now.AddHours(-1), null, null);
+        emergencyAccess.Enable();
+
+        var draftCaptain = Website("header-draft-captain", now);
+        draftCaptain.SetPassword(new PasswordHasher<Account>().HashPassword(draftCaptain, "password"), false, now, false);
+        var draft = new BingoEvent(Guid.NewGuid(), "Header draft", "header-draft", "", "UTC", now.AddDays(-1), now.AddDays(1), null, now.AddDays(2), now.AddDays(7), 20, captain.Id, now);
+        var draftTeam = new Team(Guid.NewGuid(), draft.Id, "Header draft team", "header-draft-team", TeamFormationType.Drafted, null, true);
+        var draftParticipant = new EventParticipant(Guid.NewGuid(), draft.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        draftParticipant.AssignOwner(draftCaptain);
+        var draftMembership = new TeamMembership(Guid.NewGuid(), draftTeam.Id, draftParticipant.Id, TeamMembershipRole.Captain, now, null, "test");
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(captain, coCaptain, participant, admin, emergency, draftCaptain, live, liveTeam, captainParticipant,
+                coCaptainParticipant, ordinaryParticipant, liveMemberships[0], liveMemberships[1], liveMemberships[2], emergencyAccess,
+                draft, draftTeam, draftParticipant, draftMembership);
+            await db.SaveChangesAsync();
+        }
+
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        async Task<string> LoggedInHtml(Account account)
+        {
+            using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+            await LoginAsync(client, account.LoginName);
+            return await client.GetStringAsync("/");
+        }
+
+        var expectedHref = $"/Captain?eventId={live.Id}&amp;teamId={liveTeam.Id}";
+        foreach (var account in new[] { captain, coCaptain, emergency })
+        {
+            var html = await LoggedInHtml(account);
+            Assert.Equal(2, Regex.Count(html, Regex.Escape($"href=\"{expectedHref}\"")));
+            Assert.Equal(2, Regex.Count(html, Regex.Escape(">Captain</a>")));
+        }
+
+        var expectedSubmissionHref = $"/Submissions?eventId={live.Id}&amp;teamId={liveTeam.Id}";
+        foreach (var account in new[] { captain, coCaptain, participant })
+        {
+            var html = await LoggedInHtml(account);
+            Assert.Equal(2, Regex.Count(html, Regex.Escape($"href=\"{expectedSubmissionHref}\"")));
+            Assert.Equal(2, Regex.Count(html, Regex.Escape(">Submissions</a>")));
+        }
+
+        foreach (var account in new[] { draftCaptain, participant, admin })
+        {
+            var html = await LoggedInHtml(account);
+            Assert.DoesNotContain($"href=\"{expectedHref}\"", html, StringComparison.Ordinal);
+        }
+
+        var layout = await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "Pages", "Shared", "_Layout.cshtml"));
+        Assert.Contains("currentPage?.StartsWith(\"/Captain\", StringComparison.OrdinalIgnoreCase)", layout, StringComparison.Ordinal);
+        Assert.Equal(2, Regex.Count(layout, Regex.Escape("aria-current=\"@(isCaptainPage ? \"page\" : null)\"")));
+        var teamBoard = await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "Pages", "Events", "TeamBoard.cshtml"));
+        Assert.Contains("Url.Page(\"/Captain/Index\"", teamBoard, StringComparison.Ordinal);
+        Assert.Contains("Url.Page(\"/Submissions\"", teamBoard, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SubmissionDetailsExposeLinkedHistoryAndOnlyUnlinkedRejectionsCanResubmit()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var owner = Website("submission-chain-participant", now);
+        owner.SetPassword(new PasswordHasher<Account>().HashPassword(owner, "password"), false, now, false);
+        var live = LiveEvent(owner.Id, "Submission chain live", "submission-chain-live", now);
+        var team = new Team(Guid.NewGuid(), live.Id, "Submission chain team", "submission-chain-team", TeamFormationType.Drafted, null, true);
+        var participant = new EventParticipant(Guid.NewGuid(), live.Id, SignupStatus.Confirmed, 1, now.AddDays(-1), SignupSource.Website);
+        participant.AssignOwner(owner);
+        var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now.AddDays(-1), null, "test");
+        var character = new OsrsCharacter(Guid.NewGuid(), "Submission chain player", "SUBMISSION CHAIN PLAYER", now);
+        var assignment = new EventParticipantCharacter(Guid.NewGuid(), live.Id, participant.Id, character.Id, 0, now, null, null, EventCharacterRole.Playing, 10m, EhbSource.Manual, null);
+        var board = new Board(Guid.NewGuid(), live.Id, "Submission chain board", 1, 1);
+        var tile = new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 0, 0, "Submission chain tile", "Description", "", 1m);
+        var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 0, 1, true, false, "Requirement", true);
+        var parent = new Submission(Guid.NewGuid(), live.Id, team.Id, tile.Id, requirement.Id, null, participant.Id, character.Id, character.DisplayName, owner.Id, 1, now.AddMinutes(-3), null, null);
+        parent.Reject("Use a clearer screenshot.", now.AddMinutes(-2));
+        var child = new Submission(Guid.NewGuid(), live.Id, team.Id, tile.Id, requirement.Id, null, participant.Id, character.Id, character.DisplayName, owner.Id, 1, now.AddMinutes(-1), null, null, parent.Id);
+        var unlinkedRejected = new Submission(Guid.NewGuid(), live.Id, team.Id, tile.Id, requirement.Id, null, participant.Id, character.Id, character.DisplayName, owner.Id, 1, now, null, null);
+        unlinkedRejected.Reject("Use a clearer screenshot.", now);
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(owner, live, team, participant, membership, character, assignment, board, tile, requirement, parent, child, unlinkedRejected);
+            await db.SaveChangesAsync();
+            await BoardApprovalFixture.PublishAsync(db, board, now, [tile], [requirement]);
+        }
+
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, owner.LoginName);
+        var query = $"?eventId={live.Id}&teamId={team.Id}";
+
+        var parentHtml = await client.GetStringAsync($"/Captain/Submissions/{parent.Id}{query}");
+        Assert.Contains("captain-ledger-status--replaced", parentHtml, StringComparison.Ordinal);
+        Assert.Contains($"/Captain/Submissions/{child.Id}", parentHtml, StringComparison.Ordinal);
+        Assert.Contains("View replacement submission", parentHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("handler=Resubmit", parentHtml, StringComparison.Ordinal);
+
+        var childHtml = await client.GetStringAsync($"/Captain/Submissions/{child.Id}{query}");
+        Assert.Contains($"/Captain/Submissions/{parent.Id}", childHtml, StringComparison.Ordinal);
+        Assert.Contains("View prior submission", childHtml, StringComparison.Ordinal);
+
+        var unlinkedRejectedHtml = await client.GetStringAsync($"/Captain/Submissions/{unlinkedRejected.Id}{query}");
+        Assert.Contains("captain-ledger-status--rejected", unlinkedRejectedHtml, StringComparison.Ordinal);
+        Assert.Contains("handler=Resubmit", unlinkedRejectedHtml, StringComparison.Ordinal);
     }
 
     private static BingoEvent LiveEvent(Guid ownerId, string name, string slug, DateTimeOffset now)
@@ -119,6 +413,13 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
     }
 
     private static Account Website(string name, DateTimeOffset now) => Account.CreateWebsite(Guid.NewGuid(), name, name.ToUpperInvariant(), now);
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Bingo.slnx"))) directory = directory.Parent;
+        return directory?.FullName ?? throw new DirectoryNotFoundException("Repository root not found.");
+    }
 
     private static async Task LoginAsync(HttpClient client, string username)
     {

@@ -1,444 +1,847 @@
-# Current Project Status
-
-**Active handoff — Admin UI regression/reset (2026-08-06):** Package the current WIP as the integration baseline `codex/admin-ui-overhaul-v2`. The only currently approved UI overhaul surfaces are the shared Admin shell, including the accepted responsive/drawer behavior, and Admin Events Manage/Overview, including its responsive behavior and Event information rail contract. Event creation, the Admin Events directory, Identity, Schedule, Participants/Questions overlay, and every later Admin route remain WIP/regression candidates requiring page-by-page re-review and manual re-approval; Pass 4/Participants remains not accepted. Prior page-level UI approval statements below are historical and superseded for this active regression. `UI_OVERHAUL_ROADMAP.md` is the first-draft rules baseline, not evidence that existing pages comply with or are approved under it. Main is unchanged; after packaging, continue the remaining re-approval process one page at a time.
-
-**Verified:** 2026-08-03
-**Base:** requested `main` commit `ef05f9d60d0c93e978a3c458420ec6d8ddb40484`; implementation worktree is clean before edits and remains detached at that exact commit.
-**Planning decision:** 2026-08-03
-
-**Admin UI-overhaul Pass 4 implementation handoff (2026-08-04):** Participants now owns post-creation capacity and waiting-list settings through the existing SignupService boundary, with row locking, event-version checks, audit, capacity-increase promotion, and precise feedback. The Participants workspace separates confirmed, waiting-list, and signup-history records, reuses the shared Admin search primitive, keeps internal website participants distinct from external rosters, and routes individual participant administration back through the workspace. Signup questions remain authoritative on the existing Questions page and direct route, while normal Admin entry points progressively enhance into one native responsive dialog with history-aware URLs, focus restoration, background scroll protection, and the same editor/handlers in the overlay. Schedule no longer presents post-creation capacity; creation wizard ownership remains unchanged. Focused Browser UI contracts passed `41/41`; focused PostgreSQL signup administration and participant lifecycle tests passed `2/2` and `6/6`; Debug Web build passed with `0` warnings/errors; `git diff --check` passed. Manual desktop/mobile/keyboard visual acceptance, Release build, formatting sweep, full suite, staging, commit, merge, and push remain unrun. No Pass 5 work was started.
-
-**Pass 4 review remediation (2026-08-04):** Questions overlay requests now select `_AdminOverlayLayout` through Razor's authoritative `Layout` property, while the standalone route remains under the Admin view-start shell. Participants use the full Admin canvas and Events-directory table/card primitives; active pre-formed team members are excluded from website signup lists, counts, and promotion without excluding genuine admin-created signups. Disabling a non-empty waiting list requires explicit confirmation, raises capacity when needed, promotes queued participants in signup order, and records the requested/effective settings in audit. Locked participant pages render disabled/read-only controls and one lifecycle explanation. Focused Browser contracts passed `41/41`; focused PostgreSQL tests passed `8/8`; Debug Web build passed with `0` warnings/errors; `git diff --check` passed. Manual visual acceptance, Release build, formatting sweep, full suite, and Git packaging remain unrun.
-
-**Pass 4 current UI handoff (2026-08-05):** Automated remediation and its focused gates remain as recorded above, but manual visual acceptance failed. Participants still misses the approved Admin/Events composition: confirmed, waiting-list, and history are split across multiple large boxed tables; capacity/settings are oversized; filters form a loose oversized multi-filter row with duplicate per-section searches; table-section headings use inconsistent serif styling; and empty tables reserve excessive space. The Questions nested-shell runtime defect was separately identified after review: `_AdminOverlayLayout` existed, but the actual Razor `Layout` override was initially wrong; remediation corrected it and manual retest remains pending. `UI_OVERHAUL_ROADMAP.md` now makes Admin/Events the explicit canonical Admin data-table reference. Pass 4 is not accepted and Pass 5 must not start. After the user's external Gemini UI exploration, the next Codex action is to agree a precise Participants recomposition brief copying the actual Admin/Events toolbar/table/responsive structure, then run implementation, read-only review, remediation, and manual acceptance. The Gemini dashboard exploration is exploratory only and has not changed repository behavior.
-
-**Admin Events filter baseline correction (2026-08-04):** Removed ineffective `vertical-align` reliance from the shared `admin-filter-select`; native selected text now uses `box-sizing: border-box`, fixed `2.25rem` height, balanced `0.4375rem` block padding, and `1.25rem` line-height while preserving arrow space and all interaction states. Focused Events contract passed `1/1`; `git diff --check` passed. Styled WebKit baseline verification remains blocked by the known preview asset/certificate environment limitation.
-
-**Admin Events directory urgent regression correction (2026-08-04):** Removed the broken sticky-table experiment and all State/date/Signups width overrides, restoring automatic table column distribution and the existing mobile card transition. Retained only the shared intrinsic, single-line `.admin-state` pill rule. The focused contract and `git diff --check` remain the next bounded gates; no Release build or visual completion is claimed.
-
-**Admin Events directory final table/mobile polish (2026-08-04):** Added opt-in `admin-table-sticky-header` behavior below the 64px Admin header with mobile card-layout opt-out; widened desktop State and Signups minimums to `14rem`; corrected the native filter-select baseline with fixed height, zero vertical padding, explicit line-height, preserved arrow background, and WebKit appearance handling; compacted mobile toolbar flow with Create-sourced `0.75rem` related-control spacing; and made shared `.admin-state` pills intrinsic-width with a safe `14rem` maximum. Focused Events UI contract passed `1/1`; `git diff --check` passed. Browser styled verification was attempted at 1440×1000 but stalled in the known missing hashed-asset preview environment; mobile/focus/scroll states remain unverified and no visual completion is claimed. No Release build was run.
-
-**Admin Events directory final acceptance correction (2026-08-04):** Kept the recessed dark `admin-search-field` variant and formalized the compact outlined `admin-filter-select form-select` State variant with middle alignment, focus/hover/disabled states, and responsive ownership. Preserved the approved desktop State/date column rebalance and added the final single-divider/spacing contract. Focused Events UI contract passed `1/1`; `git diff --check` passed. The only available live listener redirects to HTTPS with an untrusted certificate, while the HTTP preview lacks hashed CSS assets, so styled focus and narrow/mobile browser acceptance remains unverified; no Release build was run.
-
-**Admin Events directory search correction (2026-08-04):** Restored the dark search and State controls through the explicit shared `admin-search-field` / `admin-search-field-input form-control` primitive, kept width/filter behavior page-local, and narrowed the desktop State column to give Event dates a `14rem` minimum while leaving mobile card layout unchanged. The roadmap now records search markup ownership plus Create-sourced spacing and single-divider ownership. Focused Events UI contract passed `1/1`; `git diff --check` passed. Browser verification reached the directory at 1440px but the temporary app served missing hashed CSS assets, so styled desktop/mobile acceptance remains pending; no Release build was run.
-
-**Shared Admin UI foundation (2026-08-04):** Consolidated executable Admin token, typography, field, button, heading, row, confirmation, Danger, toast, and header-alignment mappings in `UI_OVERHAUL_ROADMAP.md`. Added shared `admin-header-create-action`, `admin-button-primary`, `admin-button-secondary`, `admin-field`, and `admin-section-heading` ownership in `site.css`, and switched only `/Admin/Events` and `/Admin/Events/Create` to those primitives without changing handlers or routes. Focused `EventCreationUiTests` passed `25/25`; the Bingo.Web Release build passed with 0 warnings/errors; `git diff --check` passed. Browser visual verification reached the seeded Events page but the temporary server served missing hashed static assets (unstyled HTML), then stopped binding after the build; Create desktop/mobile states therefore remain unverified pending manual acceptance. Manage-local conflicts were intentionally not changed.
-
-**Admin Event controls field/button typography remediation (2026-08-04):** Normalized every Manage control branch to the Create-page `event-create-cancel` treatment for ordinary actions, retained red-outline destructive actions, removed the Operations kicker and local control sizing/font/field overrides, and reused the Create field wrapper/tokens for confirmation, reason, verification-code, and WoM fields. Wise Old Man remains compact by default with detail inside its existing disclosure; signup progress replaces the duplicate participant subtitle. The roadmap now records typography ownership, shared Admin field semantics, and the button-role distinction. Focused `EventCreationUiTests` passed `25/25`; `git diff --check` is clean. No build, browser/render pass, full suite, formatting sweep, staging, commit, merge, or push was run.
-
-**Admin Event controls confirmation remediation (2026-08-04):** Event controls now use one bordered Overview card with the shared section heading/buttons and line-divided lifecycle rows across the rendered Manage branches. Lifecycle acknowledgements no longer use checkboxes: server-backed preparation routes lead to compact confirmation boxes with explicit Confirm/Cancel actions, preserving version/reason/antiforgery and the existing boolean bindings; Danger zone is direct and red-outline without a disclosure. WoM schedule handling uses a labeled select rather than radio/checkbox controls. The roadmap now records the shared confirmation rule. Focused `EventCreationUiTests` passed `25/25`; `git diff --check` passed. No browser/render pass, Release build, full suite, formatting sweep, staging, commit, merge, or push was run; manual visual acceptance remains required.
-
-**Admin Overview metrics and controls remediation (2026-08-04):** Added truthful signup-capacity progress with a zero-capacity guard, configured board dimensions plus configured/expected tile counts, and a compact Wise Old Man sync status row. Removed the duplicate Overview capacity form because Schedule owns the authoritative capacity handler; Identity does not currently expose a Wise Old Man configuration route, so its existing authoritative Manage forms remain inside a compact disclosure and this ownership limitation is deliberate. Event controls now use concise readiness/status rows and shared outline actions; destructive discard/cancel actions use the reference-shaped red Danger zone disclosure while preserving required POST fields and no-JavaScript fallbacks. Focused `EventCreationUiTests` passed `25/25` with `UseSharedCompilation=false`; `git diff --check` passed. No Release build, browser/render pass, full suite, formatting sweep, staging, commit, merge, or push was performed; manual visual acceptance remains required.
-
-**Admin Overview visual correction (2026-08-04):** Made Important information natural-height at the desktop grid boundary, matched Public pages heading spacing to the existing `0.6rem` Admin subsection rhythm, removed the hero lifecycle/visibility labels while retaining the slug badge, and added a conditional Public board row using the existing `/Events/{slug}/Board` route plus absolute copy behavior. No Public results row was added because no public results route exists. Focused `EventCreationUiTests` passed `21/21`; `git diff --check` passed. Release build, browser/render pass, formatting sweep, staging, commit, merge, and push were not run; manual visual acceptance remains required.
-
-**Admin Overview duplicate-removal correction (2026-08-04):** Removed the duplicated Manage event-tools grid and Event information sidebar; the shared event tree remains the navigation owner. Important information now renders one compact effective timeline where actual milestones replace scheduled rows, configured Draft time is conditional, cancellation hides future scheduled milestones and exposes its timestamp, and Public pages/copy actions remain. Focused `EventCreationUiTests` passed `21/21`; `git diff --check` passed. No cancellation-timestamp limitation applies because the existing event projection exposes `CancelledAt`. Manual visual acceptance remains required; no build, browser/render pass, formatting sweep, staging, commit, merge, or push was performed.
-
-**Admin event information-architecture continuation (2026-08-04):** Added the event-scoped `/Admin/Events/Participants/{id}` workspace and moved the Manage participant list, filtering, internal-participant creation, payment, withdrawal, and individual-management links into it. The event tree now exposes Identity, Schedule, Participants, event-scoped Review, Teams/Draft, Board, and Finalize; Identity links to Schedule. Manage retains the approved overview, now labels Important information, exposes compact public signup links with absolute copy targets, and separates Event controls from the destructive Danger zone. Focused Browser tests (`23/23`) and the two affected PostgreSQL integration tests (`2/2`) pass; the Web Release build passes with zero warnings/errors and `git diff --check` is clean. Questions overlay work remains deferred; manual visual acceptance is still required.
-
-**Next-session Pass 3 seed requirement (2026-08-04):** Before reviewing the Event overview and operations UI, create development seed events covering every event lifecycle stage. Each seeded event must expose all blockers and actions relevant to that stage so the complete operational surface can be inspected clearly without manually constructing state during visual review.
-
-**Pass 3 development seed foundation (2026-08-04):** Extended the existing reset-based DevelopmentScenarioSeeder with deterministic fixtures for Draft (`TEST 03`, `TEST 04`, `TEST 91`, `TEST 92`, `TEST 93`, `TEST 94`, `TEST 95`, `TEST 96`, `TEST 97`), SignupOpen (`TEST 16`), SignupClosed (`TEST 05`, `TEST 13`, `TEST 62`, `TEST 98`), Live (`TEST 15`, `TEST 88`, `TEST 90`), AwaitingFinalReview (`TEST 21`), Finalized (`TEST 84`), Archived (`TEST 85`), Cancelled (`TEST 86`), and Discarded (`TEST 87`). `TEST 90` is the deliberate Development-only non-fixture current/public event; the existing lifecycle projection therefore exposes `CURRENT_EVENT_EXISTS` without changing production rules or the fixture exemption. `TEST 91` is a separate Draft with a due scheduled opening whose persisted event window overlaps TEST 90; the real scheduled-opening lifecycle path therefore exposes `EVENT_WINDOW_OVERLAP`. TEST 92–98 cover missing/malformed signup configuration, unusable signup-code protection, invalid scheduled close/open combinations, and a released Playing assignment. TEST 03 is also verified through the real Manage projection as discard-eligible. The catalogue includes real scheduled-operation/readiness blockers, an empty discard candidate, and missing live access projection; terminal combinations remain separate where domain transitions require it. Focused `DevelopmentSeededEmergencyCredentialFollowsCutoffLifecycle` passed `1/1`; Release Web build passed with `0` warnings and `0` errors; `git diff --check` passed. No Manage/Overview UI, migration, staging, commit, merge, push, or full suite work was performed.
-
-**Admin UI-overhaul Pass 3 — Event Overview (2026-08-04):** Implemented the `/Admin/Events/Manage/{id}` operational overview using the existing lifecycle/readiness and final-review projections. The page now leads with state, timezone, description, one bottom-aligned state-appropriate workspace action, a prominent next step, a four-value stage summary, flattened operational-health blocker rows with real resolution routes, and friendly configured/effective/actual end plus submission-cutoff dates. Existing route-backed operations, participant management, authorization, antiforgery, TempData feedback, and no-JavaScript fallbacks remain in place; no new dashboard service or UI-only lifecycle rule was added. Focused `EventCreationUiTests` passed `2/2` and `Slice3ScheduledLifecycleIntegrationTests` passed `8/8`; the Release Web build, formatting verification, and `git diff --check` remain the final handoff gates for this task. The page awaits manual visual approval; Pass 4 was not started and nothing is staged, committed, merged, or pushed.
-
-**Pass 3 visual remediation (2026-08-04):** Applied the selective `bingowebpage-3` correction to Manage only: real slug badge and event-local metadata row; separate top-level Admin-token surfaces for the real next step, four-value summary, readiness, dates, and isolated danger zone; compact divider-row interiors. Prototype lifecycle switching, fake metrics/actions, submodule navigation, and all lifecycle/projection behavior were left unchanged. Focused `EventCreationUiTests` passed `2/2`, `Slice3ScheduledLifecycleIntegrationTests` passed `8/8`, the Release Web build passed with `0` warnings and `0` errors, formatting verification passed, and `git diff --check` passed. Manual visual approval remains required; nothing is staged, committed, merged, or pushed.
-
-**Pass 3 structural reference-port remediation (2026-08-04):** The preceding token/metadata-only remediation failed manual review and is superseded. Manage now structurally follows the allowed `bingowebpage-3` composition: contained operational hero with one real bottom-aligned action, five real state-aware metric cards, compact Recommended Next Lifecycle Decision with readiness badge and route-backed resolutions, and a 2:1 Operational Health/Important Dates grid with every real blocker visible. The lifecycle preview, event submodule, fake metrics/dates/actions/WoM behavior, state mutation callbacks, and Inter font remain excluded. Authenticated Development rendering of TEST 98 at 1920×1280 confirmed the intended order and no horizontal overflow; screenshot: `/private/tmp/bingo-pass3-test98-reference-port-final.png`. Focused `EventCreationUiTests` passed `2/2`, `Slice3ScheduledLifecycleIntegrationTests` passed `8/8`, Release Web build passed with `0` warnings and `0` errors, formatting verification passed, and `git diff --check` passed. Manual visual approval remains required; nothing is staged, committed, merged, or pushed.
-
-**Admin shell breadcrumb simplification (2026-08-04):** Removed the redundant Admin breadcrumb row at the shared `_AdminLayout.cshtml` ownership point. Persistent Admin sidebar/event context and page headings remain the accessible location/navigation cues; public `_Layout.cshtml` breadcrumbs are unchanged. Dead Admin-only breadcrumb builders and page `ViewData` plumbing were removed without changing public/Captain breadcrumb consumers. Focused `AdminShellUiTests`, Release Web build, formatting verification, and `git diff --check` are the required gates; nothing is staged, committed, merged, or pushed.
-
-**Admin UI-overhaul Pass 1 approval (2026-08-03):** Implemented only the shared production Admin shell and its global design tokens. Every `/Admin` Razor page now inherits `Pages/Shared/_AdminLayout.cshtml` through `Pages/Admin/_ViewStart.cshtml`; the shell has a full-width sticky header, sticky desktop sidebar, route-backed global/event navigation, selected event context from existing event routes, real notification/settings/account actions, Exit Admin, and an accessible progressive-enhancement mobile drawer. Existing Admin module bodies, authorization, routes, forms, TempData feedback, localization, scripts, anti-forgery behavior, and public layout remain intact. The user manually approved Pass 1; its Admin boundary and sequence are recorded in `AGENTS.md` and `UI_OVERHAUL_ROADMAP.md`. Pass 2 was not started.
-
-Focused verification passed: `AdminShellUiTests` `3/3`; Release Web build passed with `0` warnings and `0` errors; `dotnet format Bingo.slnx --no-restore --verify-no-changes` passed; and `git diff --check` passed. `dotnet restore Bingo.slnx` was required because this clean worktree had no assets file. The complete suite, PostgreSQL/integration/browser runtime journeys, independent review, staging, commit, merge, and push remain unrun; nothing is staged, committed, merged, or pushed.
-
-**Admin UI-overhaul Pass 1B remediation (2026-08-03):** Corrected only the Admin dashboard and Events directory within the approved shell. `/Admin` now uses a page-local authoritative projection for live/upcoming, pending-review, and attention facts, real event attention/workspace routes, active/upcoming event summaries, Wise Old Man status, and directly available recent audit activity. `/Admin/Events` now uses route-backed GET search by event name/slug plus one lifecycle-state dropdown, preserves existing lifecycle/readiness projections, shows slugs and shared semantic state pills, removes the misleading Visibility column, and exposes a visible Actions/Workspace route. No shared service, table, route family, authorization, migration, dependency, or later-pass module change was added. Focused `AdminShellUiTests` passed `3/3`; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed. Pass 2 was not started; both pages await user visual/manual approval.
-
-**Admin dashboard refinement (2026-08-04):** Refined only `/Admin` against the approved AdminDashboard reference: attention queue, active/upcoming event cards, chronological milestones, grouped pending evidence with oldest submission, lifecycle readiness using existing start blockers, configured-event Wise Old Man synchronization, and bounded event-named audit activity now use real projections and routes. Vanity totals and unavailable data were omitted; the approved shell, Events Directory, other modules, and Pass 2 remain unchanged. Focused `AdminShellUiTests` passed `3/3`; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed. The dashboard is ready for user visual/manual approval.
-
-**Admin Events directory parity remediation (2026-08-04):** Corrected only `/Admin/Events` against the supplied AdminEventsList reference: one inline Lucide Search icon remains, Enter retains the native GET fallback, input changes debounce for 350ms before `requestSubmit()`, and state changes submit immediately. The toolbar, Create New Event action, typography, table density/surfaces, slug hierarchy, and Workspace action now use the reference geometry through scoped Admin tokens; the approved shell and dashboard remain unchanged. Focused `AdminShellUiTests` passed `3/3`; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed. The page remains awaiting user visual/manual approval; Pass 2 was not started.
-
-**Admin Events directory local-filter remediation (2026-08-04):** Replaced the prior JavaScript GET reload/debounce with immediate in-place filtering of rendered rows by combined title/slug and lifecycle-state predicates; no navigation, history, scroll, or submit occurs while JavaScript is active, while Enter and query-string GET URLs remain the no-JavaScript fallback. Added the concise local empty state and final reference-scale heading, control, and table corrections, scoped to `/Admin/Events`. Focused `AdminShellUiTests` passed `3/3`; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed. The dashboard, shell, other modules, and Pass 2 remain untouched.
-
-**Admin Events directory root-cause remediation (2026-08-04):** Corrected the page-scope lookup so local filtering can reach the table outside the GET form, and consolidated the conflicting Events-directory CSS into one authoritative scoped block while preserving the dashboard and generic legacy rules. The focused test now discriminates the corrected lookup and single CSS block. Focused `AdminShellUiTests` passed `3/3`; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed. No authenticated rendered smoke test was run because the focused harness does not start the full app/database runtime; the dashboard, shell, other modules, and Pass 2 remain untouched.
-
-**Admin Events directory parity correction (2026-08-04):** Applied only the verified reference-parity fixes: Admin loads Cinzel 500/700/900, Events controls use the reference system stack, the heading uses explicit 18px/20px title sizes with the 640px row breakpoint, generic panel padding was removed from the table wrapper, desktop horizontal scrolling and automatic table layout were restored, legacy date/signup minimum widths were cleared, and Workspace/Actions geometry was aligned to the shared 1rem surface inset. Instant local filtering, GET fallback, mobile cards, the dashboard, shell, other modules, and Pass 2 remain unchanged. Focused `AdminShellUiTests` passed `3/3`; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed. Nothing is staged, committed, merged, or pushed.
-
-**Admin UI-overhaul Pass 2 — Event creation (2026-08-04):** Restyled only `/Admin/Events/Create` within the existing five-step flow, preserving its route-backed private-draft form, validation, antiforgery, authorization, native/Flatpickr date-time controls, optional setup fields, signup-code reveal, banner upload, and transaction behavior. Step 2 now groups signup/event windows with timezone and submission-grace context; the compact Admin-token treatment applies across the five-step rail, panels, fields, actions, responsive states, and shared input/textarea placeholders. Focused `EventCreationUiTests` passed `2/2`; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed. Pass 3 was not started; manual visual review remains required.
-
-**Pass 2 stepper remediation (2026-08-04):** Restored the existing horizontal five-step stepper above the creation form after the Pass 2 styling override incorrectly introduced a narrow left rail. Desktop/tablet use the full-width connected step row; the established compact narrow treatment remains. Focused `EventCreationUiTests` passed `2/2`; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed.
-
-**Pass 2 creation reference-parity continuation (2026-08-04):** Refined only `/Admin/Events/Create` with a centered compact content width, reference-scale horizontal step rail and grouped panels, native-details optional Wise Old Man link, and separate calendar/time presentation backed by the existing canonical five-minute `datetime-local` fields and Flatpickr/native fallback. Existing five-step navigation, validation, antiforgery, authorization, private-draft behavior, upload, signup-code reveal, and route-backed submission remain unchanged; the prototype toast system and fake behavior were not ported. Focused `EventCreationUiTests` passed `2/2`; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed. Pass 3 was not started; manual visual approval remains required.
-
-**Pass 2 creation flattening remediation (2026-08-04):** Flattened only the unapproved creation-form hierarchy using the supplied `AdminEventCreate` divider patterns: the active step is the sole primary surface, Step 2 uses a wrapping timezone row and vertically stacked full-width schedule sections, and WoM, waiting-list, toggles, information notices, and review summaries use line dividers instead of decorative nested boxes. The rail now uses the reference short titles with full accessible stage labels. Focused `EventCreationUiTests` passed `2/2`; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed. Pass 3 was not started; manual visual approval remains required.
-
-**Pass 2 creation final reference/function remediation (2026-08-04):** Applied the verified `AdminEventCreate` font loading and spacing values, completed-step checkmarks, centered `48rem` creation geometry, compact file/WoM/Planning treatments, Copenhagen/UTC-only creation validation, and Planning label correction. The datetime adapter now keeps visible time and canonical values synchronized, clears stale canonical values when either half is empty, and formats Review values deterministically as `dd/MM/yyyy HH:mm` without timezone conversion. Focused `EventCreationUiTests` passed `2/2`; focused PostgreSQL timezone-policy integration test passed `1/1`; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed. Pass 3/toasts were not started; manual visual approval remains required.
-
-**Pass 2 creation defect remediation (2026-08-04):** Corrected the Create header by reusing the existing Events subtitle class/selector, removed the duplicate generic completed-step pseudo-marker, restored the reference `1.25rem` active-panel inset and `1rem` flattened WoM disclosure body inset, and opened WoM by default. The dependency-free datetime adapter now uses real `12:30` defaults, synchronizes canonical values and Review formatting, and preserves clear/override semantics. Guided client validation now includes named controls in hidden panels, reveals the first invalid panel, preserves the inline/summary feedback path, and focuses the invalid control; server/no-JavaScript validation remains authoritative. Focused `EventCreationUiTests` passed `2/2`; bundled-Node runtime coverage passed for datetime synchronization/Review formatting and empty guided validation; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed. No full suite, staging, commit, merge, push, or manual visual approval was performed.
-
-**Shared toast decision (2026-08-04):** Enhanced page-level outcomes will use one shared bottom-right stack above drawers and dialogs, with approximately five-second success/information dismissal, longer warning/error timing, manual dismissal, pause on hover/focus, upward stacking, mobile-safe width, and semantic announcements. Field validation remains inline and no-JavaScript responses retain in-page feedback. This is approved later UI-overhaul work and was deliberately not implemented during the Pass 2 creation-form port.
-
-**Admin shell visual remediation (2026-08-03):** Applied only shell-level visual corrections using the exact approved Gemini Admin palette and Lucide SVG geometry: quieter shared near-black palette, compact event context, semantic active styling, continuous event-tree connector, accurate Evidence Review and `#players` active state, and no-JavaScript/mobile drawer behavior retained. JavaScript syntax verification passed. No Admin module body, route, authorization, public layout, or later-pass behavior changed.
-
-**Admin shell final visual correction (2026-08-03):** Applied only the reviewed shell corrections: header/sidebar/main now share the exact `#0b1018` canvas, the event selector begins at the 250px workspace boundary, authenticated name/role context uses existing identity data, tree connector spacing keeps branches/endpoints outside active pills, global active styling remains a slim accent over `#151e2b`, and desktop content gutters are 18px/1.25rem. Focused `AdminShellUiTests` passed `2/2`; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed. Full suite and manual visual review remain unrun; nothing is staged, committed, merged, or pushed.
-
-**Admin shell typography/geometry correction (2026-08-03):** Applied only the cumulative visual feedback: prototype-scale 10/12px shell typography and muted hierarchy, rightward event-tree elbows with tiny endpoint dots, detached far-left global active indicator, sidebar-bottom Exit Admin with mobile-drawer reachability, and compact semantic lifecycle badges using the approved tokens. Admin module bodies, routes, authorization, persistence, public layout, and later passes remain unchanged. Focused `AdminShellUiTests` passed `2/2`; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed. Nothing is staged, committed, merged, or pushed.
-
-**Admin shell connector/header remediation (2026-08-03):** Event-tree connector pseudos now belong to stable `.admin-event-item` containers; the active-link rule no longer changes border/padding geometry, so selected and unselected child rows share connector coordinates. Added the compact real-data Admin header composition: OB mark, OSRS BINGO/Admin identity, Community Operations subtitle, and signed-in username/effective role with initials avatar; notifications, settings, event context, routes, and mobile behavior remain unchanged. Focused `AdminShellUiTests` passed `2/2`; Release Web build passed with `0` warnings and `0` errors; formatting verification and `git diff --check` passed. Full suite, PostgreSQL/integration/browser runtime journeys, manual visual review, independent review, staging, commit, merge, and push remain unrun; nothing is staged, committed, merged, or pushed.
-
-**Bounded lifecycle/documentation remediation (2026-08-03):** Ordinary event identity and schedule edits are domain-rejected once an event is Live; explicit lifecycle and published-board correction paths remain separate. The permanent public Rules page and source-controlled **How to submit drops** page are sequenced after the site-wide UI overhaul, so no route, placeholder, or workflow link should be added during that overhaul.
-
-**Application Atlas F-01 remediation (2026-08-03):** Corrected only the missing-Captain readiness destination in `EventLifecycleService` and Manage’s blocker mapping from the nonexistent `/Admin/Events/Teams/{eventId}` to the existing `/Admin/Events/Draft/{eventId}` team/authority workspace. Focused tests prove both independent producers and reject the obsolete route. `APPLICATION_ATLAS.md` and `APPLICATION_ATLAS.html` retain F-01 as resolved historical evidence. No UI overhaul or Ponytail cleanup was started.
-
-**Slice 10 consolidated manual acceptance (2026-08-03):** The user approved S10-01 through S10-06. S10-01 passed with one note: the successful action at checklist step 8 had no visible feedback; cached/team Activity EHB is functionally correct, while its current presentation is visually broken and deferred to the UI overhaul. S10-02 passed; the Development fake accepting arbitrary non-missing names in Success mode is deterministic test behavior, while production remains authoritative to real WoM. S10-03 passed after the Live competition-synchronization capability correction, S10-04 passed, and S10-05 passed with screenshots confirming stale cached activity, timestamp, totals/ranks/coverage after event end; its visual table layout is deferred to the UI overhaul. S10-06 passed and the Development fake prevented real WoM calls. The user explicitly approved the Admin manual “Refresh cached activity” feature. Manual Slice 10 acceptance is complete; the visual notes are deferred presentation work, not functional blockers.
-
-**Slice 10 final acceptance and packaging handoff (2026-08-03):** The complete final automated gate passed Domain `162/162`, Application `83/83`, Browser `67/67`, and Integration `263/263`, combined `575/575`, with zero failures/skips. Release build passed with 0 warnings/errors; formatting, EF pending-model, `git diff --check`, migration/reset, artifact/secret, and staged-state gates passed. Durable evidence is retained in `/private/tmp/slice10-final-domain-remediation-q0X7Mm/domain-remediation.trx` and `/private/tmp/slice10-final-automated-gates-pHOcQX/`. Final restricted review and manual S10-01–S10-06 acceptance are complete. The accepted Slice 10 delta is ready for packaging from base `85a17bae`; nothing is staged, committed, merged, or pushed yet.
-
-**Slice 10 restricted residual remediation (2026-08-03):** A matching partial/provisional competition generation now remains the last available cached projection across retryable unavailable/rate-limited refresh failures; its current-generation matched rows, coverage, totals, and rankings remain visible with a temporary-unavailable state, while fingerprint/generation fencing and permanent configuration failures remain fail-closed. Board and TeamBoard wording now says “last available cache,” and the S10-03 checklist states that the Development due control prepares the authoritative due/manual-cooldown admission state.
-
-**Slice 10 approved partial-generation correction (2026-08-03):** Replaced the earlier all-or-nothing missing-account projection rule with successful partial generations: fresh matched current-generation rows remain visible, missing accounts have no zero/carry-forward row, provisional totals/ranks use only matched participants, coverage is explicit, zero matches have no rankings, Admin Manage retains exact missing names, and public Board/TeamBoard expose only privacy-safe coverage. Assignment fingerprint fencing and production scheduling/cooldown/retry behavior are unchanged. The Development TEST 15 make-due action now prepares `LastSuccessfulAt` and `NormalDueAt` consistently so the real manual refresh is immediately admissible, with no WoM call from the action.
-
-Focused verification passed: the corrected make-due/real-refresh test `1/1`; complete Slice 10.1–10.3 integration filter `18/18`; Release solution build `0` warnings/`0` errors; formatting verification; and `git diff --check`. No EF check, full suite, real WoM call, staging, commit, merge, push, manual acceptance, or independent review was performed.
-
-**Slice 10 final restricted remediation (2026-08-03):** The competition mapper and Development fake now use the official nested `participations[].player`, `deltas[].metric`, `deltas[].values.gained`, and top-level `updatedAt` shape; the focused fixture would fail with the old flattened mapper. Performed manual refreshes now return `Succeeded=false` for upstream rate-limit, unavailable/transport, not-found, invalid/malformed, and other failures while retaining authoritative retry/cooldown state and exposing localized known retry/reset feedback in Manage. Development reset remains no-call/idempotent, seeds due TEST 15 cache state, the accepting empty `TEST 16 — Signup lookup` event, and a deterministic `SeedAdminTwo` lookup link; a Development-only worker pause control removes the due-state race from manual checks. The existing TEST 15 Manage page now has a fixture-scoped Development-only, idempotent make-due action for the next fake response. The explicitly authorized scheduling correction defers the initial automatic Live fetch by two hours, preserves the schedule across stop/resume, and allows an overdue return-to-Live fetch to re-anchor normally. The explicit competition create/edit/delete, participant/team mutation, and `update-all` operations remain deferred and unimplemented.
-
-Remediation import gate passed before edits: required HEAD equality, complete status/path equality, and SHA-256 equality for 52 changed/untracked regular files. Final focused verification passed: the new scheduling and Development control/reset tests `2/2`; official client/fixture coverage `7/7`; performed-refresh feedback `1/1`; cached-only public/reset reachability `1/1`; reset lifecycle regression `1/1`; and the complete Slice 10.1–10.3 filter `18/18`, all with zero failures/skips. Release solution build passed with 0 warnings/errors; formatting verification and `git diff --check` passed. No EF check was needed because no model changed. No full suite, manual acceptance, staging, commit, merge, or push was performed.
-
-## Active handoff
-
-**Slice 10 planning/readiness (2026-08-03):** The user approved the bounded Wise Old Man contract recorded in `SLICE_10_IMPLEMENTATION_PLAN.md`: explicit manual account-EHB lookup in My accounts and signup/edit only; one read-only existing competition link with exact schedule prefill/synchronization or five-minute matching; one cached competition-details request per due Live event at most every two hours; local participant/team aggregation from every current `PLAYING` assignment; newest-incomplete rankings withheld; participant-based averages and tied MVPs; no page-view/per-player/per-team requests; and no lifecycle dependency. My accounts stores only the numeric default; only a fresh signed signup lookup can persist WoM event provenance. Manual and automatic calls share a monitored limiter that reserves the final three observed requests. Each automatic cycle has one initial attempt plus at most three scheduled transient retries honoring `Retry-After` or approximately 1-, 2-, and 4-minute delays, with a separately anchored next normal cycle. The official Wise Old Man v2 API contract was reviewed on 2026-08-03. The independent readiness review's four blockers, two product decisions, implementation risks, compatibility tasks, and data-model ownership are resolved in the plan/source-of-truth documents.
-
-**Slice 10 Pass 10.1 implementation handoff (2026-08-03):** Implemented only explicit account EHB lookup. One singleton typed `GET /players/{username}` client uses configured v2 base URL, contactable User-Agent, optional `X-API-Key`, bounded timeout, structured logs, serialized process-local limiter, final-three reserve, bootstrap/fail-closed recovery, observed rate headers/`Retry-After`, and a normalized-character five-minute success cache retaining the original fetch time. My Accounts has an explicit linked-character fetch that updates only the numeric saved EHB default; signup/edit has explicit regular-account fetch buttons only. Alt/informational accounts and ordinary GET, selection, save, Admin correction/internal creation, CSV, catalogue, and public paths do not call WoM. A short-lived ASP.NET Data Protection token binds purpose, persisted normalized character, exact EHB, fetch, issue, and expiry facts and is verified inside `SignupService`; only a fresh matching token stores `WiseOldMan`/`EhbFetchedAt`, otherwise the existing valid manual signup remains Manual. No schema migration or EF model change was made.
-
-Focused verification passed: fake transport/cache/limiter/token scenarios `5/5`; authenticated PostgreSQL signup/provenance and existing workflow class `16/16`; rendered authenticated My Accounts/signup explicit-fetch/no-page-load-or-normal-save scenario `1/1`; Release Web build `0` warnings/`0` errors; solution formatting verification; and `git diff --check`. No real WoM request was made. The complete solution suite, EF pending-model check, manual acceptance, and independent review remain unrun; Pass 10.2 and Pass 10.3 were not started. Nothing is staged, committed, merged, or pushed.
-
-**Slice 9 final acceptance (2026-08-03):** Slice 9 is accepted after the independent implementation review and restricted residual review cleared and consolidated manual acceptance S9-01 through S9-07 passed. Final automated totals are Domain `162/162`, Application `83/83`, Browser `67/67`, Integration `242/242`, combined `554/554`, with zero failed/skipped; durable results are in `/private/tmp/slice9-final-automated-gates-20260803`. The Release solution build completed with 0 warnings/errors, and repository formatting, EF pending-model, `git diff --check`, clean/retained migration, Development double-reset, parity, migration-pair/snapshot, artifact/secret, and staged-state gates passed. No required gate remains unverified; Slice 10 was not started.
-
-**Slice 10 Pass 10.2 implementation handoff (2026-08-03):** Added the existing Admin event-management competition section and creation-time optional competition validation/prefill; service-bound enabled Admin/Super Admin reauthorization; audited link/change/clear; typed competition-details `metric=ehb` parsing through the Pass 10.1 singleton limiter; generation-bound event synchronization state and per-event-character activity cache; fenced DB lease acquisition/finalization; current `PLAYING` aggregation with missing-account incomplete gating; shared manual/automatic cooldown/retry/error semantics; lifecycle stop/resume eligibility; and one lightweight due worker. Forward migration `20260803085202_AddWiseOldManCompetitionSynchronization` creates only the two approved tables. No event versions or assignment rows are mutated by refresh, no notifications/ranking UI/Pass 10.3 work was added, and the real WoM API was never called.
-
-Pass 10.2 focused verification passed: typed competition-client fake transport `1/1`; PostgreSQL fake-client workflow `3/3` covering current Playing-only aggregation, Alt/released exclusion, incomplete diagnostics, cooldown, assignment-change generation replacement, atomic cache replacement, clean migration application, and four-attempt retry exhaustion with a two-hour anchor; retained migration rehearsal `Slice1MigrationRehearsalTests` `6/6`; combined focused Slice 10.1/10.2 filter `9/9`; Release Web build `0` warnings/`0` errors; solution formatting verification; EF pending-model check reported no pending model changes; and `git diff --check`. Remaining uncertainty is limited to the complete solution gate, manual acceptance, and independent review; responsive/manual projection acceptance and Pass 10.3 remain intentionally unrun. Nothing is staged, committed, merged, or pushed.
-
-**Slice 10 Pass 10.3 implementation handoff (2026-08-03):** Replaced the Board Activity EHB placeholder and TeamBoard activity placeholder with a cached-only application projection. The projection reads only the newest `EventCompetitionSynchronization` generation and its local per-character cache, aggregates every current confirmed, non-released `PLAYING` assignment into one participant total, shows each regular account, computes team total and participant-count average, and deterministically includes every tied MVP. Complete and retained complete caches expose `Fetched from Wise Old Man`; not configured, waiting, incomplete, stale, and temporary-unavailable states are explicit. A newest incomplete generation returns no rankings while older cache rows remain retained internally. Public projections never receive missing-account diagnostics and render requests do not depend on the WoM client. Development reset clears the two existing Slice 10 tables, seeds due local TEST 15 activity, and provides the separate minimal TEST 16 signup-lookup journey; no real WoM request is made.
-
-Focused verification passed: `Slice10Pass103ActivityProjectionTests` `3/3` and the complete Slice 10 integration filter `15/15` (PostgreSQL aggregation/state/privacy, rendered public Board/TeamBoard cached-only workflow with zero competition-client calls, and preserved Pass 10.1/10.2 coverage); focused Release solution build `0` warnings/`0` errors; solution formatting; EF pending-model check; and `git diff --check`. The complete solution suite, manual acceptance, and independent review remain unrun. Nothing is staged, committed, merged, or pushed.
-
-**Final-gate Integration inventory remediation (2026-08-03):** Corrected only the three historical Slice 5/Slice 7 retained fixtures to insert `events` with schema-bound SQL, updated the published-roster regression to assert frozen publication names remain persisted while released members disappear from the current public roster, updated the SuperAdmin notification overview expectation to `/notifications`, and accepted either safe stale loss or idempotent success for the identical concurrent final-review retry while retaining the one-mutation/version/audit invariants. The six named failures passed `6/6`; touched-file formatting verification and `git diff --check` passed. No production code, migration, model snapshot, approved behavior, or genuine production defect changed; nothing is staged or committed.
-
-**Final-gate migration rehearsal correction (2026-08-03):** `Slice3ReviewRemediationMigrationTests.CleanupOutboxMigrationPreservesRepresentativeRetainedEvent` now seeds its representative retained event with the bounded historical SQL `events` INSERT pattern after migrating only to `20260727134959_AddScheduledLifecycleExecution`; it no longer applies the current EF model before the forward migration chain. The test preserves its purpose of migrating the retained row through the complete chain and validating the cleanup outbox. The original test passed `1/1`; the affected `Slice3ReviewRemediationMigrationTests` class passed `2/2`, with no genuine production defect surfaced. Touched-file formatting verification and `git diff --check` passed. No production code, migration, model snapshot, behavior, or unrelated test changed; nothing is staged or committed.
-
-**Slice 9 consolidated manual acceptance (2026-08-03):** The user confirmed S9-03, S9-04, S9-05, S9-06, and S9-07 passed. S9-05 passed after the TEST 84 authoritative-progress fixture correction: unchanged re-finalization preserved placements, metrics, and Version 1 history. S9-06 passed when the owner followed the rendered archived evidence link successfully; direct raw-image display is accepted current behavior and viewer presentation is deferred to the UI overhaul, while unrelated/anonymous privacy boundaries passed. Consolidated Slice 9 manual acceptance is approved. The next gate is final automated verification only. No production or test behavior changed in this documentation-only update; nothing is staged or committed.
-
-**Slice 9 Participant-route preflight remediation (2026-08-03):** Corrected stale Participant-route emitters to the actual `/Admin/Events/Participant/{eventId}/Participants/{participantId}` contract: Waiting-list follow-up and Open vacancy Admin actions, `participant.live_withdrawn` personal notifications, and the invalid-Playing-assignment start-readiness resolution now include both identifiers. Corrected both Slice 9 Participant route templates in `MANUAL_TEST_CHECKLIST.md`. Extended the focused authenticated PostgreSQL/HTTP journey to withdraw a Live participant, follow the rendered personal-notification read redirect and rendered Open vacancy action to Participant details, fill the vacancy with the waiting participant, follow the rendered Waiting-list follow-up action, render and complete its form, then retain the repeat/idempotent assertion; the existing AwaitingFinalReview no-residue rejection remains covered. The existing missing-Playing-authority readiness test now directly asserts the corrected route. Focused tests `LiveParticipantRouteWithdrawsAndManageLinksLifecycleActionsWhileAwaitingFinalReviewRemainsRejected` and `EventStartFailsClosedWhenAConfirmedParticipantLacksPlayingAuthority` passed `2/2`; Release Web build passed with `0` warnings/errors; affected-scope formatting verification passed. No migration, service, abstraction, lifecycle-rule change, staging, commit, merge, or push was performed. Manual acceptance and independent review remain pending.
-
-**Slice 9 S9-03 external participant fallback remediation (2026-08-03):** Admin Participant details now uses an optional `AdminPrimaryCharacters` lookup and the existing safe `External roster member` identity fallback when a valid participant has no primary assignment; account questions, assignments, and lifecycle controls remain unchanged, and stricter authority queries elsewhere were not modified. Extended the focused authenticated PostgreSQL route regression with an unowned `AdminCreated` Live participant having no primary character: details loaded, the real Live Withdraw handler succeeded, and the existing AwaitingFinalReview rejection left status and membership unchanged. Focused test `LiveParticipantRouteWithdrawsAndManageLinksLifecycleActionsWhileAwaitingFinalReviewRemainsRejected` passed `1/1`; Release Web build passed with `0` warnings/errors; affected-scope formatting verification and `git diff --check` passed. The intended `SeedEvidenceParticipant` journey remains unchanged and continues through its primary-character identity path; this correction covers the external-participant fallback. No migration, persistence model, service, abstraction, route, staging, commit, merge, or push was performed. Manual S9-03/S9-04 retest remains the next handoff.
-
-**Slice 9 S9-03/S9-04 route/UI remediation (2026-08-03):** `EventMutationCapabilityPageFilter` now exempts only `Withdraw`, `FillVacancy`, and `CompletePromotionFollowUp` on the Admin Participant page so their existing lifecycle services remain authoritative; all other Participant mutations retain the generic signup classification. Live Manage participant rows now link to their Participant details route with “Manage live participant,” while non-Live locked rows retain “Locked for draft.” Focused authenticated PostgreSQL test `LiveParticipantRouteWithdrawsAndManageLinksLifecycleActionsWhileAwaitingFinalReviewRemainsRejected` passed `1/1`, proving Live Withdraw success, service-level AwaitingFinalReview rejection without mutation, and the Live Manage projection. Release Web build passed with `0` warnings/errors; affected-scope formatting verification and `git diff --check` passed. No migration/model change, staging, commit, merge, or push was performed. Manual S9-03/S9-04 retest remains the next handoff.
-
-**Slice 9 S9-01 route-boundary remediation (2026-08-02):** `EventMutationCapabilityPageFilter` now classifies `Manage.OnPostResumeEventAsync` explicitly as `EventCapability.ResumeEvent`; all other Manage mutation classifications are unchanged. Added one authenticated PostgreSQL route/PageModel regression proving the real Resume POST reaches the lifecycle service from `AwaitingFinalReview` and that an `Archived` Resume POST remains read-only with no resume transition or audit residue. Focused test `ResumeEventPostReachesLifecycleBoundaryOnlyFromAwaitingFinalReview` passed `1/1`; Release Web build passed with `0` warnings/errors; affected-scope formatting verification and `git diff --check` passed. No migration, service, UI, staging, commit, merge, or push was performed. Manual S9-01 retest remains the next handoff.
-
-**Slice 9 final-review stale/concurrency remediation (2026-08-02):** Acknowledgement, correction, and exceptional-override forms now post required event-version and current review-cycle tokens; missing/zero values fail closed. The locked serializable service transaction verifies the current cycle/state, advances the event version exactly once for each actual review mutation, permits only identical persisted retries to resolve idempotently, protects newer corrections from stale overwrite, and maps PostgreSQL serialization/unique/concurrency conflicts to localized reload feedback with rollback-preserved audit/mutation atomicity. Focused `Slice3FinalizationAtomicityIntegrationTests` passed `4/4`; the Release solution build passed with `0` warnings/errors; formatting and `git diff --check` passed. No model changed, so the EF check was not rerun. Manual acceptance, independent review, complete solution suite, staging, commit, merge, and push remain unrun.
-
-**Slice 9 independent-review remediation (2026-08-02):** Imported the authoritative Slice 9 state after matching `df6ff7d`, complete status paths/statuses, and all changed/untracked regular-file SHA-256 hashes. Remediation is limited to the ten concrete review findings and the approved `waiting_list_promotion_follow_ups` complexity-budget record: whole-minute withdrawal/replacement evidence authority, reachable follow-up completion, closed Archived private-evidence access, resumed-cycle lifecycle-gap review context, server-side finalization confirmation, atomic final-review mutation/audit with stale/idempotent handling, composite review-cycle database integrity and fail-closed diagnostics, corrected Admin-action predicates, retained future-cutoff backfill, and corrected finalization copy. A forward migration `20260802204708_EnforceSlice9FinalReviewIntegrity` adds the required cycle/event/team constraints and retained-data preflight. Focused verification passed: Domain `98/98`, Application `83/83`, PostgreSQL integration `10/10` for migration/finalization/lifecycle regressions, Slice 9 boundary coverage `2/2`, archived-evidence privacy `1/1`, and final-review audit atomicity `3/3`, Browser `2/2`, Release solution build with `0` warnings/errors, formatting verification, EF pending-model check, and `git diff --check`. The complete solution suite, manual acceptance, independent review, Slice 10, staging, commit, merge, and push remain unauthorized/unrun in this handoff.
-
-**Slice 8 final acceptance (2026-08-02):** Slice 8 is accepted after the independent implementation review, all restricted re-reviews, final scope-delta review, and consolidated manual acceptance passed. Final automated results passed with zero failures/skips: Domain `156/156`, Application `83/83`, Browser `67/67`, Integration `230/230`, combined `536/536`. Durable final Integration TRX: `/private/tmp/slice8-final-automated-gates-20260801/integration-rerun.trx`. The Release solution build completed with 0 warnings/errors; formatting, EF pending-model, `git diff --check`, clean/retained Slice 8 migration/preflight, Development double-reset, parity, artifact/secret scan, and staged-state checks passed. No required gate remains unverified. Slice 8 is packaged and integrated into `origin/main`, and local `main` has been reconciled and fast-forwarded to that accepted state. Slice 9 Passes 9.1–9.3 are now implemented and handed off below; independent review, manual acceptance, and final Slice 9 gates remain pending.
-
-**Slice 9 planning/readiness (2026-08-02):** The user-approved three-pass plan in `SLICE_9_IMPLEMENTATION_PLAN.md` includes the completed independent read-only readiness review. All product decisions are resolved; Passes 9.1–9.3 are implemented and handed off below. The approved baseline covers cycle-scoped final review, completion-time acknowledgements only for completed teams, authoritative end/cutoff recovery, live withdrawal/replacement with immediate authority revocation and next-minute eligibility closure, separate notification/action projections, immutable snapshots/history, archived-owner evidence access, `EffectiveAt`, `SubmissionsClosedAt`, and unique replacement linkage. Vacancies and missing Captains remain Admin actions rather than finalization blockers; the finalization-cycle/snapshot metadata added in Pass 9.3 is recorded in the plan’s updated complexity budget.
-
-**Slice 9 Pass 9.1 implementation handoff (2026-08-02):** Implemented only authoritative event ending and reasoned premature-end recovery. The new migration `20260802000213_AddAuthoritativeEventEndPersistence` adds `EventStateTransition.EffectiveAt` with deterministic retained backfill from `PerformedAt`, adds `BingoEvent.SubmissionsClosedAt` with deterministic ended-event cutoff backfill, and leaves no recovery table or lifecycle framework. Scheduled transitions preserve the configured effective instant while recording later worker processing time; manual and scheduled ending share the serializable lifecycle boundary, durable cutoff catch-up, stale/version checks, and idempotent transition behavior. Admin Manage now exposes the ordinary route-backed, strongly confirmed recovery form with required reason and future replacement end. Recovery rejects stale, repeated, unsupported, singleton, overlap, and official-history cases without residue; it clears the prior current end/closure/reopened cutoff and re-derives the normal cutoff. Existing explicit emergency-credential re-enable behavior was not changed, so resume does not silently re-enable credentials.
-
-Focused verification passed: Domain `EventLifecycleFoundationTests` `94/94`; Application `83/83`; Browser `EventCreationUiTests` `2/2`; PostgreSQL `Slice3ScheduledLifecycleIntegrationTests` `6/6`, `Slice3ScheduleLifecycleIntegrationTests` `2/2`, and `Slice3LifecyclePersistenceIntegrationTests` `2/2` (including clean/retained migration and deterministic backfill); Release solution build `0` warnings/`0` errors; EF pending-model check clean; formatting verification clean; `git diff --check` clean. The first parallel persistence invocation hit only shared `MvcTestingAppManifest.json` file contention; its serial rerun passed `2/2`. Manual acceptance and independent review were not run. The complete solution suite was not run. Pass 9.2 and Pass 9.3 were not started. Nothing is staged or committed.
-
-**Slice 9 Pass 9.2 implementation handoff (2026-08-02):** Implemented only live Admin withdrawal and replacement on top of Pass 9.1. Live withdrawal uses the existing serializable participant/team lifecycle boundary, revokes website mutation authority immediately, stores eligibility through the next full UTC minute, ends the active membership and Captain/Co-captain role transition, preserves reservations, draft picks, publication history, evidence, contributions, and audit history, and leaves the derived vacancy open without pre-draft waiting-list promotion. Enabled Admins and remaining linked team leadership receive one deterministic private-safe notification. The existing `TeamMembership.ReplacesMembershipId` linkage now has a filtered unique database index.
-
-Waiting-list and validated internal replacements are transactional and revalidate Live state, Admin authorization, vacancy/version, waiting status, frozen assignments/reservations, participant ownership/uniqueness, active Playing authority, and concurrency. A replacement gets one prospective `Replacement` membership linked to the ended membership and one initial activation at the next full UTC minute, with no inherited progress, evidence, contribution, role, character authority, membership history, or draft pick. Waiting-list promotion creates one purpose-specific `WaitingListPromotionFollowUp`; only the explicit Mark follow-up complete action stores actor/time, while notification read state does not resolve it. Current public/private team roster projection uses active memberships while immutable draft/publication projections remain unchanged. Existing TeamBoard, Teams, Manage, Participant, and Draft interaction models remain route-backed; the Participant page adds only the required withdrawal, vacancy, replacement, and follow-up controls.
-
-Persistence migration `20260802002639_AddLiveWithdrawalReplacementPersistence` adds the follow-up record and filtered unique replacement linkage. Focused verification passed: Domain `Slice9LiveWithdrawalDomainTests` `2/2`; PostgreSQL `Slice9Pass92LiveWithdrawalIntegrationTests` `2/2`; retained/clean migration plus lifecycle regression `Slice1MigrationRehearsalTests` and `Slice4ParticipantLifecycleIntegrationTests` combined `8/8`; Browser markup/route boundary `EventCreationUiTests` `2/2`; Release solution build `0` warnings/`0` errors; EF pending-model check clean; formatting verification clean; `git diff --check` clean. Manual acceptance and independent review were not run; no authenticated end-to-end browser mutation test or complete solution suite was run. Pass 9.3 was not started. Nothing is staged or committed.
-
-**Slice 9 Pass 9.3 implementation handoff (2026-08-02):** Implemented final-review cycles, official history, archive access, and the operational handoff on top of Passes 9.1 and 9.2. Every transition into `AwaitingFinalReview` is a distinct cycle; completion acknowledgements, corrections, exceptional overrides, and finalization snapshots are cycle-scoped, while prior resolutions and official snapshots remain retained. Completion inspection is required only for completed teams, corrections remain reasoned, and exceptional overrides require confirmation plus a reason. Finalization is a serializable, advisory-locked, expected-version-aware transaction that rechecks readiness, recalculates authoritative results, stores consumed resolution IDs and calculation inputs/results, appends immutable official placements/statistics, audits, and creates deterministic result notifications. Unfinalization and archive preserve history, recheck singleton-current boundaries, and never reopen uploads.
-
-Migration `20260802005536_AddFinalReviewCyclesAndSnapshotInputs` adds retained cycle/snapshot metadata and fail-closed backfill/preflight for ambiguous historical final-review state. Archived former participants can reach only their own rejected/withdrawn evidence through My Events/history navigation, read-only. The shared shell separates personal notification read state from authoritative Admin actions for pending review, waiting-list follow-up, postponed start, vacancies, and missing Captains. Development reset remains idempotent with the approved minimal fixtures and adds only `SeedReplacement` / `SeedReplacement!1234` for the linked waiting-list journey; TEST 15, TEST 13, and TEST 84 provide the due/premature-end, replacement, and archived-evidence journeys.
-
-Focused verification passed: `EventLifecycleFoundationTests` `96/96`; `Slice3FinalizationAtomicityIntegrationTests` `1/1`; Browser `EventCreationUiTests` `2/2`; the real-PostgreSQL Development double-reset regression `1/1`; and `Slice1MigrationRehearsalTests` `6/6`, including clean, deterministic retained, and fail-closed ambiguous-cycle rehearsals. The user externally completed two post-correction resets through the Release `--no-build` path with exit code `0` for both, and the Release Web build succeeded. Direct read-only verification of the configured local `bingo` database now confirms exactly TEST 13, TEST 15, TEST 62, and TEST 84 with no unrelated events; complete TEST 13/15 DKL identity, schedule/lifecycle, 5x5 board/25 tiles/29 requirements/138 drop snapshots, TEST 15 six-team/60-confirmed roster, linked SeedReplacement waiting participant with Playing character, seven scoped authority rows (six enabled across six teams and one disabled), publication approval, evidence statuses/assets, and TEST 84’s unique Live→AwaitingFinalReview transition linked to finalization version 1 and three official placements. Bootstrap SuperAdmin/Admin and all named Slice 9 fixture accounts are present, and migration `20260802005536_AddFinalReviewCyclesAndSnapshotInputs` is applied. The Docker volume remains preserved. Release build/formatting/EF pending-model checks were not rerun in this thread after the documentation update; `git diff --check` was run clean. Independent review, manual acceptance, final automated acceptance, packaging, staging, commit, merge, and push were not run. Slice 10 was not started. Nothing is staged or committed.
-
-**Post-Slice-10 consolidation decision (2026-08-02):** Before the UI overhaul, create a read-only Application Atlas with `APPLICATION_ATLAS.md` as durable source, an interactive HTML review surface, and an optional PDF summary. It will map roles, routes, lifecycle, workflows, authority, automation, history, notifications, redundant/rare/unreachable behavior, and missing navigation so the user can approve simplification or workflow changes before visual redesign. The UI overhaul must also present all current lifecycle blockers as readable Admin progression guidance with direct resolution destinations.
-
-**Slice 7 integration (2026-07-31):** Accepted Slice 7 was packaged, pushed, fast-forward merged to `main`, and pushed to `origin/main` at `50535f8d20937726c9ef0bd89e0574e7c286cbc8`. Its final accepted evidence remains Domain `157/157`, Application `83/83`, Browser `66/66`, Integration `216/216` (`522/522` combined), with the remaining Release, formatting, EF, migration/reset, diff, and artifact gates passed.
-
-**Slice 8 planning readiness (2026-07-31):** The user approved the evidence workflow and the independent read-only readiness corrections recorded in `SLICE_8_IMPLEMENTATION_PLAN.md`. Admin evidence creation/upload will be removed while Admin review, reversal, and reasoned metadata correction remain. Retained `ChangesRequested` submissions convert to `Rejected` with notes/timestamps/audit preserved, and legacy duplicate classification remains historical audit metadata rather than an active workflow. The corrected Pass 8.1 includes deterministic retained-data preflight/backfill, all credited-character identity consumers, one authority boundary, database cardinality constraints, and every existing optimistic-concurrency caller so it is independently deployable. Slice 9 has since completed its corresponding readiness review; Slice 10 still requires the same single independent read-only review after its product behavior is approved and before implementation begins.
-
-**Slice 8 Pass 8.1 implementation (2026-07-31):** Implemented only the persistence, migration, authority, and compatibility foundation. The new migration adds immutable credited OSRS-character ID/name snapshots, `Version` (initialized to 1 and concurrency-token backed), nullable `ResubmissionOfSubmissionId`, required participant/character/predecessor/review/asset/contribution foreign keys, one unique filtered active-asset index, and one unique filtered direct-predecessor index. Its transactional preflight reports stable IDs for orphan assets/contributions/reviews, duplicate active assets, invalid participant/event relationships, missing or ambiguous attribution, missing character rows, and approved-hidden evidence; it fails closed without publishing or reversing hidden evidence. Backfill chooses the latest authoritative PLAYING swap at or before `SubmittedAt` ordered by effective/recorded time and ID, otherwise exactly one valid active PLAYING assignment, and copies the character display name.
-
-The shared evidence authority now supports participant self, current Captain/Co-captain, enabled scoped emergency access, and retained Admin compatibility; ordinary Website accounts receive no emergency-style claim. Submission ownership and all existing evidence identity projections use the stored credited-character snapshot, while candidate lists and current roster-management projections retain their current-primary purpose. Existing Admin/Captain mutation commands, PageModels/forms, review paths, audit snapshots, notifications, contribution calculation, and finalization compatibility carry expected versions and reject stale updates safely. Deprecated Admin creation/upload and existing deprecated behavior remain intentionally retained for Pass 8.3; no participant/Captain workflow UI, linked resubmission behavior, retained-state conversion, or cleanup was started.
-
-Focused verification passed: Slice 8 PostgreSQL migration/backfill/preflight/cardinality coverage `2/2`; Slice 7 PostgreSQL swap/approval/stale-version boundary `14/14`; Release solution build `0` warnings/`0` errors; EF pending-model check clean; formatting verification clean; `git diff --check` clean. The full solution test suite, independent review, manual acceptance, and Passes 8.2/8.3 were not run/started. Pass 8.1 is independently deployable and ready for its next gate. Nothing is staged, committed, merged, or pushed.
-
-**Slice 8 Pass 8.2 implementation (2026-08-01):** Implemented only participant, Captain/Co-captain, enabled scoped emergency, linked-resubmission, and private-history workflow integration on the Pass 8.1 foundation. Website accounts now resolve a unique persisted event/team membership inside the evidence authority; participant submissions expose no account selector and resolve the active PLAYING character server-side at submission time. Current Captains/Co-captains can act only for current teammates; emergency access requires the exact enabled event/team scope and is additionally checked against current membership. Participant history is credited-owner scoped; current leadership/emergency history is current-team scoped. Public board projections remain unchanged.
-
-Ordinary create/edit/withdraw/resubmit mutations use the inclusive active cutoff; emergency mutations retain the stricter emergency window. Pending edits validate only structured target fields while preserving credited participant/character, submitted time, claimed weight, and active asset. Withdrawal remains versioned, audited, and history-preserving. Linked resubmission locks a `Rejected` predecessor, rejects `Approved` and all other statuses, copies its credited participant/character snapshots, creates a new submission and new active asset, and is database-restricted to one direct child. Replays and stale predecessor versions fail safely. Existing ChangesRequested same-record compatibility remains retained for Pass 8.3 cleanup, while replacement-image controls are routed through linked resubmission.
-
-The existing Tile/TeamBoard drawer now carries event/team context to the protected evidence route, and the standalone route remains the no-JavaScript fallback. Realtime invalidations do not alter the drawer result state. English source strings and Danish participant/resubmission strings are present. Focused verification passed SubmissionWorkflow/PostgreSQL `16/16` (including linked child, replay, immutable snapshots, asset preservation, and participant/emergency candidate scope), Domain EvidenceRules `6/6`, and the Release solution build `0` warnings/`0` errors. EF pending-model check was not rerun because Pass 8.2 added no model/migration changes; formatting verification and `git diff --check` both pass. No complete solution suite, consolidated manual acceptance, independent review, packaging, staging, commit, merge, or push was run. Pass 8.3 was not started. Pass 8.2 is independently deployable; no unresolved material authorization, privacy, concurrency, or data-integrity risk remains from the focused implementation checks.
-
-**Slice 8 Pass 8.3 implementation (2026-08-01):** Completed the approved Admin review/public evidence/retained cleanup scope. Migration `20260801160152_RemoveDeprecatedEvidenceCompatibility` runs a fail-closed retained preflight for unsupported statuses, orphan assets/contributions/reviews, and approved-hidden submission IDs; it reports stable IDs and aborts before destructive work. Clean retained `ChangesRequested` rows convert to `Rejected` while retaining reviewer note/timestamp, review actions, assets, snapshots, audit, and contributions; pending privacy/visibility/duplicate columns are then removed. Approved-hidden evidence is never published or reversed automatically. Pending Admin review now has only reasonless Approve or reasoned Reject; rejection uses the existing serializable transaction and deterministic existing PersonalNotification records for the linked credited participant and current linked Captain/Co-captains, with retry-safe recipient idempotency. Reasoned pending metadata correction accepts only board requirement/drop/credited Playing character targets, derives participant from the selected event character, and preserves submission time, weight, contribution, and active asset.
-
-**Slice 8 independent-review remediation (2026-08-01):** Addressed exactly the ten named findings without changing the approved Slice 8 scope or complexity budget. (1) `/Evidence` now uses `IEvidenceAuthority` for credited owner, current same-team Captain/Co-captain, exact enabled/unexpired emergency scope, and Admin; unauthorized/anonymous requests fail closed before storage access. (2) Admin creation is denied in `SubmissionService` and the protected submit loader; normal website-owned Captains/Co-captains remain reachable through server-derived authority. (3) Pass 8.1 preflight/backfill now rejects future-only swaps, invalid/non-Playing/inconsistent selected targets, unsupported submission statuses, and unsupported review actions with stable IDs; Pass 8.3 repeats the review-action check. (4) Create/resubmit cleanup is pre-commit only and uses `CancellationToken.None`; committed assets survive notifier cancellation/failure. (5) Admin correction service and selector require current (`ReleasedAt == null`) same-event/team Playing assignments. (6) Admin Review Details conditionally shows minutes after event end and the authoritative latest clan event time in UTC. (7) Rejection notifications retain deterministic idempotency, persist event/tile/drop/reason context, and localize the title/detail in English/Danish rather than rendering the semantic key. (8) Development reset adds only `SeedEvidenceCaptain` / `SeedEvidence!1234`, one disabled/expired scoped emergency credential, and one Pending plus one Rejected TEST 15 record; the exact manual ordering/routes are in `MANUAL_TEST_CHECKLIST.md`. (9) `SLICE_8_IMPLEMENTATION_PLAN.md` now contains executable diagnosis, backup, correction, retry, and verification steps for every fail-closed category, including the prior-app reasoned reversal path for Approved-hidden evidence. (10) roadmap/workflow wording now describes scoped private non-Approved evidence and Approved-only public projections, while historical explanations remain.
-
-Focused remediation verification passed: retained migration/preflight plus affected SubmissionWorkflow scenarios `24/24` (TRX `/tmp/slice8-remed-final-focused2.trx`), Development reset/idempotency regression `1/1` (TRX `/tmp/slice8-remed-reset2.trx`), Release solution build `0` warnings/`0` errors, EF pending-model check clean, formatting verification clean, and `git diff --check` clean. The complete solution suite, consolidated manual acceptance, and restricted independent re-review were not run; those belong to the next gate. Pass 8.1–8.3 remain preserved, no Slice 9/10 behavior was started, and nothing is staged, committed, merged, or pushed.
-
-Deprecated active commands, fields, controls, shell/finalization projections, public hidden placeholders, seed cases, and tests were removed; legacy review/asset enum values remain readable historical metadata only. Public and Archived evidence now expose only active Approved evidence and stored credited-character snapshots. No new tables, jobs, policies, routes, or generalized frameworks were added; the only new boundary remains the approved `IEvidenceAuthority`/`EvidenceAuthority`, and rejection uses the existing notification entity.
-
-Final focused verification passed: Domain EvidenceRules `5/5`; Application PublicProgress `6/6`; PostgreSQL/VSTest `34/34` across SubmissionWorkflow, Slice 7 boundary compatibility, and retained Slice 8 migration/conversion/preflight; Release solution build `0` warnings/`0` errors; EF pending-model check clean; formatting verification clean; `git diff --check` clean. The ordinary in-sandbox test host was blocked by its named-pipe/socket restriction; the same focused Release assemblies passed through the permitted escalated VSTest path. The complete solution suite, consolidated manual acceptance, independent review, packaging, staging, commit, merge, and push remain intentionally unrun. Passes 8.1–8.3 are implemented and independently deployable after clean retained preflight; the next gate is bounded independent review/manual acceptance. Nothing is staged, committed, merged, or pushed.
-
-**Slice 8 restricted re-review residual remediation (2026-08-01):** Corrected only the four residual findings. `Events/Tile` now projects `CanSubmit = false` for Administrator while preserving Participant/Captain/Co-captain/enabled emergency projection and the existing service/direct-route denial; the focused projection/route regression passed. Admin Review Details now derives the grace comparison from `ActualEndedAt ?? EventEndsAt`, preserving scheduled-end behavior and covering scheduled plus early-ended uploads; the focused projection scenario passed. Development TEST 15 now has exactly three distinct first-team website-owned identities—`SeedEvidenceCaptain` / `SeedEvidence!1234` as Captain, `SeedEvidenceCoCaptain` / `SeedEvidenceCoCaptain!1234` as Co-captain, and `SeedEvidenceParticipant` / `SeedEvidenceParticipant!1234` as ordinary Participant—while retaining enabled and disabled/expired emergency cases; the existing double-reset regression now verifies exact ownership/roles and passed. `MANUAL_TEST_CHECKLIST.md` records the exact Admin credentials, routes, starting state, action order, and immediate End event → Finalize → Archive sequence through existing lifecycle controls. The Slice 8 plan now contains bounded copy/paste backup, migration, ID diagnostics, correction boundaries, retry, and zero-row verification for every migration category; its complexity inventory counts both plan-mapped forward migrations. Focused Release VSTest passed `3/3` (TRX `/tmp/slice8-residual-focused2.trx`), Release build passed with `0` warnings/`0` errors, formatting verification passed, and `git diff --check` passed. No EF check was rerun because no model/migration changed. The complete suite, manual acceptance, and restricted re-review remain unrun; the next action is restricted re-review of these four residuals only. Nothing is staged, committed, merged, or pushed.
-
-**Slice 8 latest restricted re-review residual remediation (2026-08-01):** Corrected only deterministic manual reachability and runbook schema safety. The Development reset now adds one compact `TEST 84 — Evidence history` fixture in `Finalized` with an authoritative past `ActualEndedAt`/submission cutoff and one Rejected evidence history row owned by `SeedEvidenceParticipant`; the existing Admin `/Admin/Events/Finalize/{id}` route archives it without waiting or bypassing `EventFinalizationService`. TEST 15 remains the Live, future-cutoff journey for Participant and Co-captain create/edit/withdraw/resubmit/team-scope checks. The reset regression verifies four exact fixture slugs, TEST 84 Finalized/past-cutoff/results state, its ordinary Participant ownership and Rejected history, and double-reset idempotency. The checklist explicitly states that TEST 15 End event now enters `AwaitingFinalReview` without closing its active cutoff, and gives ordered exact-login/action sequences for live Participant, Co-captain, Admin review, deterministic post-cutoff read-only, Finalized, and Archived checks. The recovery runbook now begins with `__EFMigrationsHistory` and splits copy/paste zsh commands into pre-8.1/failed-8.1, 8.1-installed/8.3-pending, and post-8.3 branches, using separate EF/Npgsql and libpq connection placeholders; the Approved-hidden reasoned reversal boundary remains unchanged. No production source, migration, route, authority rule, scope, non-goal, or complexity budget changed; the fixture adds no table/service/policy/job/abstraction. Focused affected integration test build passed with `0` warnings/`0` errors; the existing Development reset regression passed `1/1` (TRX `/tmp/slice8-latest-residual-reset2.trx`); formatting verification and `git diff --check` passed. The complete suite, manual acceptance, and restricted re-review remain unrun; the next action is restricted re-review of these two residuals only. Nothing is staged, committed, merged, or pushed.
-
-**Slice 8 consolidated manual acceptance handoff (2026-08-01):** Consolidated manual acceptance is approved for the implemented Slice 8 behavior. Team submission history navigation, shared upload/resubmission feedback, UTC review time, and Admin correction-drop scoping passed; the final Safari runtime correction replaced `optgroup.options` with `group.querySelectorAll("option")`, after which the requirement-change retest passed. S8-04, S8-07, and S8-09 were already passed; S8-08 mutation steps remain intentionally dropped as unreasonable with public privacy checks retained; Danish manual inspection remains deferred to the approved UI overhaul boundary. This is not final Slice 8 acceptance: the next gate is a narrow independent re-review of only the post-review/manual corrections and final scope delta, followed by final automated gates. Nothing is staged, committed, merged, or pushed.
-
-**Slice 8 final post-review scoped-navigation correction (2026-08-02):** Captain history now exposes the resolved event/team scope and preserves it through history → submission details → edit/resubmit/withdraw forms and redirects; existing authority and fail-closed checks remain unchanged. One focused PostgreSQL/HTTP scenario passed (`1/1`) with one website participant in two events, proving selected-scope history/details/withdrawal and rejecting unscoped/cross-event requests. The Release Web build passed with `0` warnings/errors; formatting verification and `git diff --check` passed. Manual acceptance remains approved; the next gate is the narrow independent re-review of only post-review/manual corrections and final scope delta, followed by final automated gates. Nothing is staged, committed, merged, or pushed.
-
-**Slice 8 final-gate Integration remediation (2026-08-02):** The two `EveryProtectedCategoryBlocksDiscardWithoutCleanup` failures were stale test-message expectations, not a production regression: current valid submissions necessarily include participant/team prerequisites, which the discard boundary reports before submission/evidence. The test now asserts the authoritative protected-history rejection while retaining event/board/no-discard-audit assertions. The focused parameterized method passed `5/5`; formatting verification and `git diff --check` passed. No production change was made; the complete suite and other final gates remain unrun.
-
-**Slice 7 final acceptance (2026-07-31):** Manual acceptance S7-01 through S7-07 is approved, including the final overlapping-focus, independent-unfocus, completed-tile exclusion/clearing, and Clear all retests. Independent review and the restricted retained-focus re-review cleared all concrete findings. Final automated results passed with zero failures/skips: Domain `157/157`, Application `83/83`, Browser `66/66`, Integration `216/216`, combined `522/522`. The Release solution build completed with 0 warnings/errors; repository formatting, EF pending-model, migration/reset coverage, `git diff --check`, exact verifier parity, staging, and bounded secret/runtime-artifact checks passed. Durable final Integration TRX: `/private/tmp/slice7-final-integration-external-20260731/integration-final.trx`. Slice 7 is accepted and its subsequent packaging, merge, and push are recorded above.
-
-**Slice 6 final acceptance (2026-07-30):** Manual acceptance S6-01 through S6-06 is approved, including the final mixed same-boss single-roll/multiplied-roll Zulrah-style EHB retest. The board preview is functionally accepted; its exact visual match to the established **View bingo** Board belongs to the UI overhaul and is not a functional blocker. Final automated results passed with zero failures/skips: Application `83/83`, Domain `157/157`, Browser `66/66`, Integration `203/203`, combined `509/509`. Release build completed with 0 warnings/errors; formatting, EF pending-model, migration rehearsal, Development reset, and `git diff --check` passed. Durable final Integration TRX: `/private/tmp/slice6-final-integration-rerun-20260730/integration-final.trx`. Accepted code/test commits include `deaec56b` and test-only gate stabilization `a3da933d`. Slice 6 is accepted and ready for packaging/integration; subsequent Slice 7 checkpoints are recorded below.
-
-**Slice 7 Pass 7.1 implementation (2026-07-30):** Implemented only the live-account and team-focus persistence/authority foundation. Migration `20260730212304_AddSlice7LiveAccountAndTeamFocusFoundation` adds append-only `EventParticipantCharacterSwap`, private `TeamFocusMarker`, their constraints/indexes/foreign keys, and the consistent designer/model snapshot. The authoritative event-start transaction validates confirmed participants through the existing primary Playing authority, appends exactly one initial activation at `ActualStartedAt`, excludes informational assignments, remains retry-safe, and fails closed without lifecycle mutation when a participant lacks valid Playing authority. The shared UTC as-of active-character query passes before/at/after transition evidence. Focused PostgreSQL tests passed `5/5`; the Release solution build passed with 0 warnings/errors; EF reports no pending model changes; formatting verification and `git diff --check` passed. No complete solution suite was run. Manual acceptance and independent review are intentionally deferred until after Pass 7.3, when the complete Slice 7 behavior exists.
-
-**Slice 7 Pass 7.2 implementation (2026-07-30):** Added the shared participant live-context/swap boundary, participant-aware My Events and confirmation navigation, planned/current account and event-end context on the existing roster/team-board routes, self-swaps, and captain/co-captain swaps for unlinked members of their own pre-formed team. The server enforces LIVE-only current Playing targets, expected-current validation, next-whole-UTC-minute effectiveness, participant-scoped transaction locking, pending-transition blocking, and no delegation for linked teammates or informational accounts. No migration was required. The focused PostgreSQL Slice 7 filter passed `6/6`; the Release solution build passed with 0 warnings/errors; formatting verification and `git diff --check` passed. No complete solution suite, manual acceptance, or independent review was run. Pass 7.3 was not started; no staging, commit, merge, or push occurred.
-
-**Slice 7 Pass 7.3 implementation (2026-07-30):** Completed the approved private team-focus and final Slice 7 integration scope on the existing TeamBoard route. Current team members can see their own markers; captain/co-captain mutation is server-authoritative, optimistic-versioned, serializable/team-scoped, and read-only after event end. Other viewers receive no marker data; Super Admin cross-team inspection is explicit, read-only, page-scoped, and omitted from the default projection. Team-scoped SignalR invalidation refreshes visible focus projections without exposing cross-team data. No migration was required. The focused PostgreSQL Slice 7 filter passed `7/7`; the Release solution build passed with 0 warnings/errors; EF reports no pending model changes; formatting verification and `git diff --check` passed. No complete solution suite was run. Combined Slice 7 manual acceptance and independent review are now the remaining gate. No staging, commit, merge, or push occurred.
-
-**Slice 7 independent-review P1 remediation (2026-07-31):** Normal participant swaps now require both `EventState.Live` and an authoritative current time strictly before configured `EventEndsAt` in projection and mutation; exact-end and post-end direct POSTs leave the event Live and append no swap residue. Ordinary Website participants now resolve initial activation only through the active form's unique built-in primary Account system question and its current Playing assignment; missing/ambiguous authority fails closed before lifecycle, transition, audit, or activation mutation. External/pre-formed/Admin-created participants retain only the explicit primary-question-linked or null-question/registration-order compatibility paths, with Informational assignments excluded. No migration was required. After importing the authoritative Slice 7 source with matching HEAD, status paths/statuses, and 35 changed/untracked regular-file hashes, the focused PostgreSQL Slice 7 class passed `10/10` (TRX: `/private/tmp/slice7-p1-remediation-final-trx/slice7-p1-remediation-final.trx`); the Release solution build passed with 0 warnings/errors; EF reported no pending model changes; formatting verification and `git diff --check` passed. No complete suite, manual testing, or re-review was run. The restricted independent re-review remains pending; no staging, commit, merge, or push occurred.
-
-**Slice 7 focus-visibility correction (2026-07-31):** The shared TeamBoard tile anchors already emit `team-focus-tile`, `team-focus-row`, and `team-focus-column` only from the authorized focus projection. The prior low-specificity borders were overridden by the completed/in-progress tile-state rules. Focused tiles, rows, and columns now receive a high-contrast frame and explicit type badge, including on completed/in-progress tiles, so the same shared markup is legible on both the standalone route and desktop overlay. Participant context, account/event-time panels, focus controls, Super Admin inspection controls, and focus-realtime presentation remain deliberately standalone-route UI until the planned desktop overhaul; no authority, privacy, persistence, route, or overlay-composition behavior changed. The focused Slice 7 PostgreSQL class passed `10/10`; the Release Web build passed with 0 warnings/errors; formatting verification and `git diff --check` passed. No complete suite, staging, commit, merge, or push occurred.
-
-**Slice 7 final Integration targeted remediation (2026-07-31):** The captain HTTP 500 was a genuine production defect: `TeamsModel` exposed two eligible `OnGetAsync` handlers, so Razor Pages rejected `/Events/{slug}/Teams` with `Multiple handlers matched`; the legacy direct-call overload is now marked `[NonHandler]`, preserving the route and direct test helper. The draft-start assertion was a stale Slice 3 fixture: website participants had unlinked Playing assignments and no built-in `PrimaryRegularAccount` Account question, so the reviewed authoritative primary query correctly blocked draft start. The fixture now creates one valid built-in primary question and links both assignments to it; production lifecycle/authority rules were unchanged. Originally failing tests passed individually `1/1` each; the affected Integration classes passed `6/6`; the Release Web build passed with 0 warnings/errors; formatting verification and `git diff --check` passed. Changed files: `src/Bingo.Web/Pages/Events/Teams.cshtml.cs`, `tests/Bingo.IntegrationTests/Slice3DraftStartIntegrationTests.cs`, and this status entry. No complete Integration rerun, staging, commit, merge, or push occurred. Next action is a fresh complete Integration rerun followed by the remaining final gates.
-
-**Slice 7 rebuilt Integration fixture/reset remediation (2026-07-31):** Corrected the three named legacy Website-participant fixture builders to create an active built-in `PrimaryRegularAccount` Account question and link each current Playing assignment: `DraftOperationsIntegrationTests`, `SubmissionWorkflowTests`, and `Slice3EvidenceReviewLifecycleIntegrationTests`. `DevelopmentScenarioSeeder.ClearWorkflowDataAsync` now truncates `team_focus_markers` and `event_participant_character_swaps` before their referenced parents. Focused results passed: DraftOperations `14/14`, SubmissionWorkflow `14/14`, Slice3 evidence review `1/1`, and the named Development reset scenario `1/1`. The Release Web build passed with 0 warnings/errors; formatting verification and `git diff --check` passed. No authority fallback or production UI/service masking was added, no complete Integration rerun was run, and no staging, commit, merge, or push occurred. Next action is one fresh complete Integration rerun followed by remaining final gates.
-
-**Superseded Slice 6 Pass 6.3 wording (2026-07-30):** The protected Draft editor, live catalogue derivation, readiness validation, managed tile-image boundary, and resize behavior remain. Its active rate-variant wording is superseded: Draft derives each selected source drop's authoritative rate, probability, and EHB directly.
-
-**Superseded Slice 6 Pass 6.2 wording (2026-07-30):** Catalogue concurrency/audit, deletion safeguards, and the removed Wiki Razor route remain. Its independent Items and rate-variant lifecycle claims are superseded: item identities are managed through source drops, and no rate-variant lifecycle exists.
-
-**Slice 6 Pass 6.1 historical foundation (2026-07-30):** Added the immutable approval-snapshot persistence tree, explicit active-approval pointer, catalogue concurrency tokens, and migration `20260729223403_AddSlice6BoardApprovalSnapshotFoundation`. Published retained boards backfill deterministically into one active v1 tree while preserving board/tile/requirement identities, wording/artwork, and EHB/calculation values; legacy publication actor remains explicitly unknown rather than invented. The initial variant-snapshot storage is retired by the catalogue product correction above while source-drop and approval snapshots remain preserved.
-
-**Slice 5 merged (2026-07-30):** Slice 5 was accepted, packaged into logical implementation/documentation commits, merged to `main`, and pushed. Its final accepted automated evidence remains Domain `153/153`, Application `82/82`, Browser `66/66`, Integration `188/188` (`489/489`), with clean Release build, formatting, `git diff --check`, EF pending-model check, and migration/reset coverage. Earlier Slice 5 handoff entries below are historical detail.
-
-**Slice 5 accepted (2026-07-29):** Manual acceptance S5-01 through S5-10 and the final TEST 52 Public boards/Board-route retests are approved. Final automated acceptance is complete: Domain `153/153`, Application `82/82`, Browser `66/66` (TRX `/private/tmp/slice5-final-gates-20260729/browser-final/Bingo.BrowserTests-final.trx`), Integration `188/188` (TRX `/private/tmp/slice5-integration-inventory-20260729/retry/Bingo.IntegrationTests-inventory-retry.trx`), combined `489/489`, Release solution build clean, formatting and `git diff --check` passed, EF pending-model check clean, and 21 relevant migration/reset tests passed with 35 migrations, no missing designers, and one snapshot. Audit found no staged files, secrets, generated runtime artifacts, or unrelated modified paths. Packaging/merge/push are recorded above.
-
-**Slice 5 Public boards follow-up (2026-07-29):** Removed the stale `FirstPublicAt` candidate gate. The focused PostgreSQL regression now proves an event with no published fact is absent, roster-only publication routes to Teams, and board publication routes to Board, all with `FirstPublicAt == null`; it passed `2/2`. Drafted-team feedback was unchanged. The affected Release Web build passed with 0 warnings/errors; formatting verification and `git diff --check` passed. No migration, staging, commit, push, or Slice 6 work occurred.
-
-**Slice 5 bounded remediation (2026-07-29):** Public boards now discover events with either an active roster publication or a published board, derives roster/board destinations from the actual publication facts, and returns the exact `Drafted teams cannot be added after the draft has been completed.` feedback without mutation. Focused policy coverage passed `17/17`; focused PostgreSQL integration coverage passed `22/22`; Release Web build passed with 0 warnings/errors; formatting verification and `git diff --check` passed. Manual retests: TEST 52 roster-only then board-published overview destinations; finalized draft then attempted Drafted-team addition and verified exact feedback/no mutation. No migration, staging, commit, push, or Slice 6 work occurred.
-
-**Slice 5 final-acceptance correction (2026-07-29):** Pre-formed team and roster corrections no longer require typed reasons before publication or after publication before event start; published corrections still require explicit confirmation and retain transactional publication supersession. System-generated correction descriptions preserve audit/history. S5-08 through S5-10 are manually approved. No migration, staging, commit, push, or Slice 6 work occurred.
-
-**Slice 5 private-draft cancellation correction (2026-07-29):** Publication, not the first pick, is the ordinary irreversible boundary. The current controller can cancel a Running/Paused unpublished draft: one transaction undoes active picks and only their pick-linked memberships, clears order/controller/event lock, returns to Setup, preserves preassigned memberships and history, and records one audit entry. Published drafts reject Cancel and retain the confirmed/reasoned Reopen workflow. This behavior is included in the final acceptance above.
-
-**Slice 5 S5-08 Setup-controller/start remediation (2026-07-29):** Manual S5-08 reached the point where every Drafted team had an actual Captain, then failed at Start because Setup required a controller lease but exposed no normal lease action. In Setup, an uncontested Start now atomically acquires or renews the current Admin's lease and starts the ready draft; an active controller held by another Admin still blocks Start and exposes the named-controller/confirmed-takeover path. Release remains available to the current controller. S5-08 controller/start is manually approved.
-
-**Slice 5 S5-08 drafted-team Captain setup remediation (2026-07-29):** Manual S5-08 step 1 passed; step 2 then failed because the visible Drafted-team Add participant form still reached the Pre-formed-only handler guard. The handler now permits only a confirmed, unassigned Website participant to join a Drafted team while the event remains pre-start and the draft is Setup or Running with no first-ever pick. It always creates an ordinary Participant membership; the existing Captain authority service remains the separate promotion path. It rejects after a first-ever pick and after event start without membership, role-history, audit, or notification residue. S5-08 is manually approved.
-
-**Final Slice 5 restricted remediation (2026-07-29):** The finalization check now consumes the same derived included Drafted-participant IDs that exclude confirmed Pre-formed members, checks exactly one active Drafted membership per included participant, and rejects incomplete/balanced failures before any cycle, transition, audit, notification, or membership mutation. The public `Teams?handler=Image` path is removed; one `PublicTeamImageService` validates active managed asset pointer and matching team/event ownership before either public URL emission or byte serving. Authenticated Razor POST coverage proves the protected mutations are unchanged across terminal states. These results are included in the final acceptance above.
-
-**Slice 5 implementation handoff (2026-07-29):** Finalization/reopening use immutable publication cycles; public roster projections preserve the approved privacy boundary; and the focused implementation evidence is superseded by the consolidated final acceptance above.
-
-**Slice 5 Pass 5.3:** The user accepted Pass 5.2A/5.2B and its manual-remediation/upload-once journey; S5-01–S5-06 passed, while S5-07 is Automated/covered by the existing canonical comma, multi-row, and optional additional-`Account` CSV tests. Pass 5.3 adds one transactional Admin Captain/Co-captain service boundary: current operational memberships can move among Participant/Captain/Co-captain with exactly one transition, private-safe structured audit, and a generic notification only to an explicitly owned active website account. Authority is active membership plus `EventParticipant.AccountId` ownership only—never OSRS/website/Discord names, Discord link state, volunteer answers, or emergency credentials. Draft start now requires a Captain on every Drafted team; event start requires a usable owned Captain or explicit enabled scoped emergency credential on every team. The Draft roster shows role controls/readiness/emergency route, and a linked Captain/Co-captain of a Drafted team gets the expanded confirmed signup table only before finalization. Withdrawal/move append revocation transitions. Focused Testcontainers PostgreSQL/authenticated HTTP coverage passed `4/4`: role history/audit/notification and disabled-owner authority; shared event and draft readiness (including Co-captain/emergency distinctions and Live loss/remediation); a two-context serialization loser with no residue; and authenticated Captain/Co-captain table access plus finalization redirect/Admin history. The service now maps EF's wrapped serialization failure to the same safe stale result. No migration was needed. Its manual acceptance is deliberately deferred for consolidated Pass 5.3–5.5 testing.
-
-**Slice 5 Pass 5.4:** Derived draft sizing, controller lease, snake turns, pause/resume, undo history, and structural-lock behavior were implemented and are covered by the final acceptance.
-
-**Slice 5 Pass 5.2A/5.2B:** Automated gate ready for manual acceptance. The authoritative 5.2A source state was imported after matching HEAD, status paths, and per-file content hashes. The Draft management surface supports individual Drafted/Pre-formed teams, derived distribution, managed images, manual pre-formed rosters, and a Preformed-only CSV template/preview/apply flow. The CSV accepts only positional `Account,EHB[,Account...]`, previews without writes, binds a ten-minute single-use state to actor/event/team/exact content, and atomically creates unowned external participants with Playing/EHB and Informational/no-EHB assignments. The external PostgreSQL result is `PreformedRosterCsvImportIntegrationTests` `11/11` passed, covering preview non-mutation, valid apply semantics/audit, invalid values, token binding/expiry/replay, reservation rollback, bounded CSV surface/template, and concurrent apply. The affected build succeeded. Earlier Release build, formatting, migration, and diff evidence remains verified; no persistence migration was needed for preview state. Captain/Co-captain authority and every Pass 5.3+ workflow remain excluded.
-
-**Slice 5 Pass 5.2A/5.2B Development seed/reset handoff (2026-07-29):** `--reset-test-data` now explicitly clears the Slice 5 publication-roster/cycle, managed-image, membership-role-transition, and legacy-image-reference tables before their parents, and leaves exactly TEST 13, TEST 15, and TEST 52. TEST 52 (`test-52-team-csv-setup`) is a far-future, SignupClosed Development fixture with a published board, draft Setup/no first pick, no teams/memberships, five confirmed unassigned eligible participants, valid Playing/EHB assignments, and both owned and unowned website-signup records. The real PostgreSQL double-reset regression injects representative new child rows before the second reset and passed `1/1`; the affected Release build passed with 0 warnings/errors, formatting verification and `git diff --check` passed. No EF pending-model check or migration was needed for this seed-only change. Manual testers use TEST 52 for combined Pass 5.2A/5.2B and TEST 15 only for event-start metadata locking.
-
-**Slice 5 Pass 5.1:** Implemented the persistence foundation only: managed team-image assets with an active reference; stable team metadata/concurrency fields; membership source/replacement and role-transition history; permanent first-pick structural lock; and draft publication/reopen history. Migration `20260729132140_AddSlice5PersistenceFoundation` converts valid retained data deterministically, archives legacy arbitrary image URLs as non-serving references, and fails closed on cross-event memberships/picks, invalid active picks, and ambiguous finalized projections. Focused domain rules, the existing clean/retained PostgreSQL migration rehearsal, and the three-case `Slice5MigrationRejectionTests` PostgreSQL rejection rehearsal passed; each rejection left no partial new tables. Release build, EF pending-model check, formatting verification, and diff check passed. The Pass 5.1 persistence gate is met; later-pass status is recorded in the current 5.2A/5.2B handoff above.
-
-**Slice 1 checkpoint:** Slice 1 passed independent review, manual acceptance, formatting, Release build, and the complete automated suite. It is committed and pushed on `codex/milestone-8a`; the checkpoint working tree was clean before Slice 2 planning began.
-
-**Slice 2 planning:** Planning Pass 2 approved the five bounded implementation passes in `SLICE_2_IMPLEMENTATION_PLAN.md`. Slice 2 covers My Accounts, optional per-link saved EHB defaults, event character assignments and uniqueness, deterministic legacy-field migration, compatibility conversion, and independent website-username rename. It deliberately excludes participant claim links, final authenticated signup/dropdowns, Wise Old Man fetching, live swaps, evidence changes, and broader participant administration.
-
-**Slice 2 Pass 2.1:** The persistence foundation is implemented and its gate is met. `AccountOsrsCharacter` now retains link/unlink history, actor, label, ordering, preferred state, per-link saved EHB, timestamps, and optimistic concurrency. `EventParticipant` has nullable website-account ownership with one owned participant per account/event. `EventParticipantCharacter` now provides playing/informational event assignments, EHB metadata rules, release history, event-consistent participant relationships, and current event-character uniqueness. Migration `20260726195230_AddSlice2PersistenceFoundation` deterministically preserves Slice 1 links and backfills retained primary/secondary participant accounts without guessing ownership or My Accounts links.
-
-**Pass 2.1 approval:** The user approved the completed Pass 2.1 gate without a separate pass-level independent review. The approved Slice 2 process keeps the independent review for the complete slice after Pass 2.5.
-
-**Slice 2 Pass 2.2:** Existing workflows now use `EventParticipantCharacter` as their sole event-facing character and EHB authority. The unchanged fixed signup form maps its primary value to one current `Playing` assignment with the event EHB snapshot and its optional second value to one current `Informational` assignment without EHB. Private-link editing, Admin correction, CSV import, signup/roster views, live draft, evidence/public-board views, captain/review views, and account participation projections have transitioned. Account participation uses explicit `EventParticipant.AccountId` and never infers ownership from names or Discord identity. Migration `20260726201926_TransitionParticipantCharacterAuthority` releases retained inactive assignments, drops the four superseded participant columns, and preserves all earlier migration history. Private edit links and the Slice 1 account-character compatibility model remain for Slice 4.
-
-**Pass 2.2 gate:** Met. The protected public board, board editor, live draft, responsive routes, and no-JavaScript interaction models were not redesigned; only authority queries and server-side workflow persistence changed.
-
-**Slice 2 Pass 2.3:** Complete. Discord onboarding now collects a separate website username and first exact-spelling OSRS character, then creates the preferred retained link transactionally. Authenticated website accounts have `/Account/MyAccounts` with account-scoped add/reactivate, unlink with registration warning, personal-label and saved-EHB editing, ordered move controls, preferred selection, and atomic spelling correction. Correction relinks only the website account's link and currently editable account-owned assignments; it preflights conflicts, preserves link metadata, leaves closed/live history unchanged, and rolls back on conflicts. Emergency credentials have no My Accounts navigation or access. The My Accounts introduction and empty state now use the approved OSRS-character wording in English and Danish, without the superseded trusted/betroet resource text.
-
-**Shared enhanced-post history:** Successful same-page enhanced POST redirects now return a shared navigation response before `fetch` follows them. The shared client performs `location.replace` for the same logical page and `location.assign` for a genuine route change; validation HTML restores its state and applies replacement history after the replacement document loads. This keeps feedback, validation, focus, scroll, and query-string updates intact while one Back returns to the prior route. Ordinary no-JavaScript forms remain native PRG forms, whose browser-managed POST/redirect history cannot be controlled in the same way.
-
-**Pass 2.3 gate:** Met. The user approved the remaining desktop/intermediate/narrow, keyboard/focus, empty, unlink-warning, and correction-conflict visual/manual states. Safari skipping buttons under ordinary Tab is its browser accessibility preference, not a product focus-order defect; no tabindex or keyboard behavior was changed.
-
-**Slice 2 Pass 2.4:** Complete. Normal website accounts can change their independent website username on Account settings after confirming the current password. The transaction updates public/login and normalized username fields together, uses the existing account concurrency token and normalized-login unique index, maps expected uniqueness/concurrency outcomes to localized feedback, and records structured before/after `account.username_changed` audit state without the password. Emergency credentials cannot use the command. Successful changes reissue the current cookie with its authentication method and properties intact, preserving the 12-hour/Remember-me absolute expiry without changing authorization/password versions or invalidating unrelated sessions. The username form clearly distinguishes website identity from OSRS characters and Discord. No migration was needed. `DATA_MODEL.md` now corrects the obsolete active-link/participant-snapshot statement without altering migration history.
-
-**Pass 2.4 gate:** Met. The user approved all six requested manual checks after restarting the application from the correct Pass 2.4 worktree; the initially missing form was a stale Pass 2.3 process, not an implementation defect.
-
-**Slice 2 Pass 2.5 remediation:** Independent review returned Slice 2 to remediation on 2026-07-27. The four implementation defects are repaired: Admin management/detail pages use a dedicated deterministic released-history projection while all event-facing paths retain current-only authority; the initial Slice 2 migration releases inactive rows, resolves Playing/informational and informational-only collisions deterministically, and fails closed for duplicate current Playing rows; global character creation is transaction-locked for onboarding, My Accounts, and fixed-form creation; and private/admin fixed-form mutations are transactional and map the reservation-index race to the primary-account field while preserving the submitted form. The external preformed-team creation handler now owns one transaction from participant creation through character resolution, assignment, membership, and required audit persistence. A real two-context PostgreSQL regression verifies two events can concurrently add the same newly seen character without partial persistence. The prior endpoint username-race test remains test-only and uses distinct character names to avoid deadlocking its artificial barrier.
-
-**Pass 2.5 gate and Slice 2 acceptance:** Met. The independent review and both restricted re-reviews cleared every Slice 2 finding. Focused PostgreSQL repairs, migration rehearsals, EF model check, diff/format/Release checks, durable Domain/Application/Browser/Integration results, and the route-specific private-edit success-feedback HTTP regression are complete. The user approved the corrected private-edit feedback and protected draft/public-board smoke test. S2-19 is recorded as automated: Discord's external authorization page requires JavaScript, while existing native-form coverage verifies the application's local onboarding, My accounts, settings, and login fallbacks.
-
-**Slice 3 planning:** The bounded plan in `SLICE_3_IMPLEMENTATION_PLAN.md` was approved by the user on 2026-07-27. It preserves the existing five-step creation interaction while making optional sections genuinely optional; adds route-backed identity/schedule editors, readiness and scheduled-start behavior, production current-event enforcement, discard/cancellation/archive, and five bounded implementation passes. Step 4 contains optional buy-in and preliminary board dimensions only—no prize, expected team count, or roster-size input. Its authoritative nine-state capability matrix defines allowed and forbidden actions, transitions, visibility, and independent substate gates so later slices cannot silently add or omit state-specific functionality.
-
-**Slice 3 Pass 3.1:** Complete. `BingoEvent` now supports incomplete private drafts and persists optional description/schedule/capacity/banner values, first-public and actual lifecycle timestamps, cancellation/discard attribution, and a concurrency version. The explicit nine-state transition policy prevents shortcuts such as Draft → Live and keeps Cancelled/Discarded terminal. `EventStateTransition` now supports nullable system actors and scheduled attribution; `ScheduledEventStartAttempt` provides a unique event/scheduled-for retry boundary and stable blocker-code persistence. Migration `20260727090952_AddSlice3LifecyclePersistenceFoundation` preserves retained values, backfills first-public and historical effective lifecycle instants deterministically for public retained states, and leaves Draft rows without public history. Existing routes and Development scenarios retain their prior compatibility behavior; no creation or lifecycle UI was redesigned.
-
-**Slice 3 Pass 3.2:** Approved. The no-JavaScript creation journey passed; unset schedules render “Not set”; board dimensions accept 1–8 and reject values outside that range; and visual restyling is intentionally deferred to the full UI overhaul. Submission cutoff remains authoritative internal lifecycle data, automatically derived as event end plus 30 minutes and unset without an end; separately approved reopening preserves its own cutoff.
-
-**Slice 3 Pass 3.3:** Approved. Private/open/closed schedule editing, proposed Open-now and Reopen closing behavior, capacity/waiting-list behavior, multiple non-overlapping signup windows, overlapping-window rejection, exact back-to-back boundaries, and exact-link/unlisted signup behavior passed manual acceptance. Calendar appearance remains deferred to the full UI overhaul.
-
-**Slice 3 Pass 3.4:** Implementation and focused automated verification are complete; manual acceptance remains open. All event date-time controls now share 24-hour, five-minute selection with five-minute no-JavaScript submission. Scheduled opening/closing/start/end run through transactional lifecycle services; warning acknowledgement and scheduled-opening attempts are durable; overlap failures retain readable blocking-event/window detail, one audit and one notification per enabled Admin, and later successful retries resolve rather than erase failed history. The missing-notification report was reproduced as a before-due timing boundary: nothing is created before the configured instant, while the exact due instant creates the attempt, audit, bell preview, and notification history once under repeated/concurrent workers. Development-only automatic public current-event selection excludes marked fixtures; non-Development selection never honors that marker, and zero or multiple qualifying rows fail closed.
-
-**Slice 3 Pass 3.4 calendar correction:** A future Draft signup-opening instant now schedules automatic opening; clearing it disables the pending opening, and the Schedule checkbox is removed. All current date/time fields use the shared calendar with separate 24-hour hour and five-minute minute selectors plus native fallback. Development reset retains only TEST 13 and TEST 15 as Development fixtures.
-
-**Slice 3 Pass 3.4 Development-reset correction:** Real manual reset initially failed on the global OSRS-character normalized-name constraint and rolled back, leaving old workflow events visible. The seeder now reloads retained global characters by normalized name after transactional workflow cleanup and reuses them for fresh TEST 13/15 assignment snapshots, including duplicate names requested within one seed. Website-account ownership and My Accounts links are unchanged. The focused PostgreSQL regression passes two consecutive resets while retaining catalogue, owner, secondary Admin, account links, and characters.
-
-**Slice 3 Pass 3.4 date-time form correction:** Create and Schedule now render one named `Input.*Local` `datetime-local` control per value; the shared enhancement keeps `yyyy-MM-ddTHH:mm` as the submitted value while showing `dd/MM/yyyy HH:mm`. Create validation and its review summary use those same canonical controls. S3-11 and S3-12 passed manual retest.
-
-**Slice 3 Pass 3.4 overdue pre-live start correction:** The approved SignupClosed postponed-start behavior and Admin notification passed manually, and the configured start correctly remains unchanged as historical schedule information. The worker now also evaluates overdue Draft and SignupOpen events once, persists a postponed diagnostic with readable state-specific lifecycle blockers, audit, and one notification per enabled Admin, and leaves the event state and configured start untouched. It does not progress signup or automatically retry that scheduled occurrence. These diagnostics and the final S3-13 postponed-action path passed.
-
-**Slice 3 Pass 3.4 draft-start compatibility correction:** The real draft Start handler now requires the event to already be SignupClosed before any draft validation or mutation. It no longer calls `CloseSignups`, so successful draft start preserves the actual signup-closing timestamp, event state, and lifecycle transition history while starting and locking the draft exactly once. Draft, SignupOpen, and later lifecycle states fail with readable feedback before draft/control/team-position/lock/audit/notification changes. This correction and S3-13 passed.
-
-**Slice 3 Pass 3.4 approval:** S3-11, S3-12, S3-13, S3-14A, and S3-14B passed. The unresolved scheduled-start attempt remains immutable historical evidence, while its active pre-live Manage panel projects current start readiness. Resolved blockers disappear and an all-clear prompt replaces them when the event is ready. Manual Start resolves applicable attempts while recording the separate actual start; Live and later states render neither the active postponed panel nor Start form. Pass 3.4 is approved.
-
-**Slice 3 acceptance (2026-07-27):** Independent review and manual acceptance passed. The final automated gate passed: `git diff --check`, formatting, Release build (0 warnings/errors), and EF's pending-model check. Durable final results are Domain `140/140`, Application `81/81`, Browser `47/47`, and Integration `135/135` (`403/403` total); the Integration rerun used PostgreSQL/Testcontainers and passed the clean and retained Slice 3 migration rehearsals. Slice 3 was committed and pushed on `codex/milestone-8a-slice-3`.
-
-**Slice 4 planning:** The signup replacement plan in `SLICE_4_IMPLEMENTATION_PLAN.md` is approved. It covers versioned questions, authenticated My Accounts-based signup, My events, capacity/waiting lifecycle, an unlisted public signup table, Admin participant management/transfer, compatibility cleanup, and TEST 13/15 fixture updates. CSV is not an ordinary-participant Slice 4 workflow: external/pre-formed roster CSV belongs to Slice 5, while retained compatibility code remains untouched until Pass 4.7. Participant-facing question types are Text, Number, Yes/No, Single choice, and Account. Account roles are labelled Regular account and Alt account. Every participant-facing answer is public on the exact-link table; website username, Discord identity, payment, and Admin notes remain excluded.
-
-**Slice 5 planning:** Approved on 2026-07-29 in `SLICE_5_IMPLEMENTATION_PLAN.md`. Five bounded passes cover team/draft persistence, team and pre-formed roster management, Captain/Co-captain authority, the derived private snake draft, and finalization/reopening/cleanup. External-team CSV is scoped to one pre-formed team: each data row is one member, with primary account and EHB in the first two columns and optional additional accounts in later columns. Roles are assigned manually. Live replacements remain Slice 9; board publication remains Slice 6.
-
-**Slice 4 Pass 4.1:** Implemented, pending review/acceptance. `SignupForm` is one-per-event with version/concurrency, publication/closure/first-response markers and signup-code configuration. Questions now retain a stable form key, system identity, role, help/options, forced-public flag, disabling/replacement history, and concurrency. Account answers reference `OsrsCharacter`; event assignments use an event-consistent Account-question link; payment is boolean and legacy Removed maps to Withdrawn. Migration `20260727223107_AddSlice4SignupPersistenceFoundation` creates deterministic form/system identifiers, converts short/long text to Text, preserves legacy secondary assignments and typed Discord/comments through disabled historical questions/answers, maps only Paid to true, never infers account ownership, and fails closed through constraints/triggers on corrupt answer/assignment shapes.
-
-**Slice 4 Pass 4.2:** Approved. `/Events/{slug}/Signup` requires a normal website account and sends an existing owner to the authoritative confirmation/edit journey. Create/edit uses persisted questions, active My Accounts links, per-Regular EHB defaults/snapshots, current event-character reservations, and one transaction; changing a Regular account replaces its displayed EHB with that selected account's Saved EHB (or clears it), while initial/edit/failed-post values remain server-authoritative. Edit preserves ownership, status, signup order/timestamps, payment, and Admin fields. Current assignments remain selectable after unlinking without restoring their My Accounts link; replacements require a current active link. My Accounts preserves safe local return routes. Confirmation excludes account identity and Admin/private data, and My events uses explicit ownership only. S4-01 through S4-05, including the account-change/EHB retest and event overview, passed manual acceptance. Live/review/finalized/archive destination coverage remains deferred to later lifecycle/visibility acceptance. The complete Slice 4 independent review remains after the later passes; it is not repeated for Pass 4.2.
-
-**Slice 4 Pass 4.3:** Approved. The Admin Questions workflow provides persisted system/custom presentation, a non-mutating preview, normalized choice and Account-role input, signup-code settings without hash disclosure, generated headings, and readiness checks. Definition mutations use one transaction, one form-version increment, and one structured audit entry. Before first response, custom definitions/order/deactivation remain editable; after it, direct edits are restricted to label/help/order, additions are forced optional, and structural changes use a replacement that disables/links the original without deleting answers and creates a new optional question/key. System questions remain immutable. S4-06 and S4-07 passed manual acceptance.
-
-**Slice 4 Pass 4.3 verification:** The initial bounded filter exposed two stale Slice 3 direct-fixture assumptions, not production regressions. `ScheduleHandlerLoadsMachineValuesAndPreservesUntouchedInstants` and `SignupSettingsHandlerEnablesWaitingListAndRefusesToDiscardQueuedParticipants` seeded an event without the required persisted `SignupForm` and standard questions. That conflicts with the approved Slice 4 form/readiness invariant, so schedule readiness and the Questions settings handler correctly refused the invalid fixture. The shared seed now creates the same valid form/system definitions as event creation. Each corrected test passed individually as a pair (`2/2`), and the bounded lifecycle/readiness/authenticated-HTTP filter passed `10/10`. Pass 4.3 is ready for manual acceptance; Pass 4.4 has not started.
-
-**Slice 4 Pass 4.3 manual remediation:** S4-06 passed. The waiting-list enhanced save/fallback, separated signup-code settings, native Add question mutation, and rendered participant signup—including optional empty Account selectors and code validation—are verified. The final S4-07 defect was the Edit form posting stale hidden structural fields after first response while `OnPostEditAsync` treated every ModelState error as a missing label. Post-response Edit now posts only ID/label/help, loads shape from the persisted question, validates only relevant Edit fields, and rejects crafted structural fields with the replacement instruction. A real authenticated PostgreSQL/HTTP regression verifies one presentation mutation/version/audit with answers and assignments unchanged, rejected crafted shape change, blank-label feedback, and false boolean attributes absent before first response. Only the limited manual label/help retest remains; Pass 4.3 is not accepted and Pass 4.4 has not started.
-
-**Slice 4 Pass 4.4:** Approved; S4-08 passed. Capacity and lifecycle operations serialize on the PostgreSQL event row. Confirmed records consume capacity; waiting positions are deterministic by original/current signup time then sequence. Capacity growth and confirmed withdrawal promote earliest waiters atomically, preserving answers/assignment history and issuing one promotion audit plus participant/Admin notifications.
-
-**Slice 4 Pass 4.5:** All earlier S4-09 manual sections passed; the final compact retest now also includes the Public boards roster-first/board-first entry behavior. The stable unlisted `/Events/{slug}/Signups` table keeps confirmed and waiting sections, deterministic positions, generated account headings, frozen regular EHB, captain volunteer, answer history, and `Not answered` values server-side while excluding inactive participants and private identity/administration/security data. One state-aware policy supplies the table, signup/confirmation, My events, and Public boards handoffs; normal users move to an existing finalized-team roster boundary while enabled Admin/Super Admin accounts retain the operational table. Public boards excludes pre-finalized signup/draft events, shows finalized rosters before board publication, and moves to the deliberately published read-only pre-live board without changing event lifecycle. A shared derived display phase preserves the real lifecycle while showing Signups closed before finalization, Draft finalized before board publication, safe public/participant Board published wording after publication, and Admin-only Event ready / Board published · Not ready / Start postponed labels from the full readiness evaluator and overdue scheduler-attempt fact. The focused Release policy/markup filter passed 21/21 and the representative PostgreSQL/authenticated HTTP scenario passed 1/1; Release build, formatting verification, and `git diff --check` passed.
-
-**Slice 4 Pass 4.5:** Approved; S4-09 passed.
-
-**Slice 4 Pass 4.6A:** Approved. Manual S4-10 and S4-11 passed, including repeated participant-details payment changes. Smooth anchor returns are accepted; an instant-jump review remains deferred to the whole-site UI overhaul.
-
-**Slice 4 Pass 4.6B:** Approved. `ISignupService` owns serializable, event-locked Admin correction/internal-creation/ownership-transfer operations. Active signup questions and Account Regular/Alt assignments are used for corrections and internal creation; operations preserve queue state, enforce capacity/reservations, record private structured audits, and reject post-draft mutation. Internal creation remains explicitly owned or unowned. Ownership transfer requires exact repeated destination username confirmation, keeps participant history intact, changes only `AccountId`, and creates generic old/new owner notifications. Focused PostgreSQL/authenticated HTTP and concurrency coverage proves correction rollback on reservation conflict, closed-signup internal creation, transfer access revocation/grant, duplicate/stale-destination rejection, private audit/notification boundaries, and preserved participant history. The user approved the consolidated correction, owned/unowned creation, transfer, draft-lock, and privacy journeys.
-
-**Slice 4 Pass 4.6B final automated gate:** Passed. The dedicated PostgreSQL concurrency test passed `1/1` with two independent stale transfer contexts and eligible destinations. It found and corrected one safe-failure defect: a PostgreSQL serializable `40001` escaped from the transfer operation; that specific conflict now returns the same reload/stale ownership feedback and writes no loser residue. The shared transfer request carries the page’s expected owner ID, so only one stale request can win. The test proves one final owner/access grant, original-owner revocation, preserved participant/team/My Accounts/answer/assignment/EHB/payment/note state, and exactly one ownership audit plus the winner’s two generic notifications. The automated 4.6B gate is complete; manual acceptance remains required. No 4.6C exists; 4.7 has not started.
-
-**Slice 4 independent-review remediation (2026-07-28):** The independent review blocked Slice 4. Pass 4.7 and Slice 4 are not accepted. Required remediation is: retained legacy-Discord public-table privacy; atomic Manage/Draft withdrawal and Admin/Super-Admin promotion notifications; canonical Yes/No correction values; My Events destination precedence; persisted stale-response protection for authenticated/Admin corrections; final TEST 13/15 final-form fixture semantics; and removal of ShortText/LongText runtime aliases. The original reviewer must perform a restricted re-review after focused verification.
-
-**Slice 4 independent-review remediation progress (2026-07-28):** A forward migration adds `EventParticipant.ResponseVersion` (default 1) and marks retained `LegacyDiscordIdentity` questions non-public; the public table also filters every question by `PublicOnSignupBoard`, while Admin history remains unchanged. Authenticated signup edit and Admin correction now post/check the response version under their existing serializable event lock and increment it once on a successful existing-response change. Manage and Draft withdrawal handlers now call the shared locked lifecycle operation, which reauthorizes Admin actors, rejects active team members, releases assignments, promotes deterministically, audits, and sends generic notifications atomically. Promotion now notifies enabled Admin and Super Admin accounts. The final runtime question type is `Text`; retired ShortText/LongText aliases and UI options are gone. My Events policy now selects roster only until a board/results destination exists. TEST 13/15 seeding uses a final-form question set and question-linked Regular/Alt assignments. Focused PostgreSQL lifecycle/stale-response coverage passed `5/5`; destination/markup passed `16/16`; retained/clean migration rehearsal passed `3/3`; the double-reset fixture regression passed `1/1`; Release build passed. The retained-Discord public route and the Admin-correction real HTTP stale-form regression remain the restricted reviewer’s direct verification targets. Slice 4 remains blocked pending that restricted re-review.
-
-**Slice 4 second restricted re-review (2026-07-28): Blocked.** Promotion notifications and the prior implementation changes were rechecked, but Slice 4 remains unaccepted pending: normalization of retained unsupported legacy-Discord system-field data; direct Manage/Draft withdrawal coverage; Captain volunteer correction projection; rendered My Events destinations; mandatory (not optional) response-revision tokens plus localized stale feedback; explicit TEST 13/15 owned/unowned semantics and stronger reset assertions; and a compact Text-only creation/Questions markup assertion. Resolve only these bounded items, then request another restricted re-review.
-
-**Slice 4 final restricted evidence pass (2026-07-28): Pending.** The latest restricted review found no new production defect: restricted clearance is blocked only on direct proof in the existing retained-route, rendered finalized/archived My Events, stale-edit no-residue, double-reset fixture-semantic, and Draft withdrawal scenarios. This pass extends those focused scenarios only; Slice 4 remains unaccepted.
-
-**Slice 4 final restricted evidence result (2026-07-28):** Existing focused scenarios were extended for archived Board destination rendering, stale-response no-residue state, TEST 13/15 form/ownership/assignment answer integrity, and Draft withdrawal release/audit/owner-notice effects. The focused authenticated/PostgreSQL set passed `20/20`; no production defect surfaced. `git diff --check` passed. Formatting verification is temporarily unverified in this sandbox: `dotnet format` could not start its Roslyn named-pipe build host (`SocketException: Permission denied`); the unsupported `--disable-build-servers` fallback was rejected by the formatter. Slice 4 remains blocked pending final restricted evidence review, not manual or full-Slice acceptance.
-
-**Slice 4 final retained-route evidence (2026-07-28):** `RepresentativeRetainedAndCleanMigrationsSucceedDeterministically` now starts a host on its retained PostgreSQL database, signs in the retained Admin, and proves the Admin participant-details history renders `RETAINED-LEGACY-DISCORD-SENTINEL` while anonymous `/Events/{slug}/Signups` is available but excludes it. The route exposed one genuine retained-data defect: the earlier forward migration normalized only legacy Discord, while retained legacy secondary-account/comments system-field strings still could not materialize. Migration `20260728145446_NormalizeRetainedLegacyDiscordSystemField` now normalizes all three retained-only system fields to private custom history and leaves their keys, labels/help, order, answers, and FK links intact. The focused test passed `1/1`; formatting verification and `git diff --check` passed. Slice 4 is ready for final restricted evidence review only, not accepted.
-
-**Slice 4 final-review evidence completion (2026-07-28):** Test-only extensions now prove rendered My Events Board destinations before and after archive; complete no-residue snapshots for rejected authenticated-signup and Admin-correction edits; and double-reset TEST 13/15 form/assignment/answer FK integrity, owned/unowned semantics, protected TEST 15 board/tile/requirement baseline, and removed-compatibility model absence. The four narrow authenticated/PostgreSQL scenarios passed `4/4`; touched-file formatting verification and `git diff --check` passed. No production code changed. Slice 4 remains unaccepted pending restricted re-review of these three evidence areas, then consolidated manual acceptance.
-
-**Slice 4 final assignment/answer-chain evidence (2026-07-28):** The existing double-reset regression now explicitly verifies every final assignment and answer follows participant → question → `SignupForm` → matching event, in addition to direct question-event equality. `DevelopmentSeededEmergencyCredentialFollowsCutoffLifecycle` passed `1/1`; touched-file formatting verification and `git diff --check` passed. No production code changed. Slice 4 remains unaccepted pending restricted re-review.
-
-**Slice 4 second restricted-re-review remediation progress (2026-07-28):** Forward migration `20260728145446_NormalizeRetainedLegacyDiscordSystemField` changes retained legacy-Discord questions to disabled custom (`SystemField.None`) history while preserving key/answer/order and forcing them private. Existing signup/Admin corrections now require a response revision and map conflict feedback through the shared localized reload message. The Admin participant form projects captain volunteer as canonical `true`/`false`; TEST 13/15 now have one explicit active website owner each while retaining unowned records. Direct PageModel PostgreSQL coverage now exercises both Manage and Draft withdrawal handlers without a reason. Rendered My Events coverage found one production defect: it used only the event flag and missed a published Board row; it now includes a published-board existence fact and routes to Board. The retained rehearsal verifies normalized question/answer materialization and anonymous public projection rules; the compact manual retest remains the final retained-admin/anonymous route confirmation. Focused retained/clean, response/correction/lifecycle/reset HTTP coverage passed `23/23`; destination/creation markup coverage passed `18/18`. Slice 4 remains blocked and unaccepted pending another restricted re-review.
-
-**Slice 4 Pass 4.7:** The completed compatibility removal remains in place. The active runtime private-edit route/service/issuance/replacement UI, `AllowPrivateSignupEditing`, typed participant Discord/comments fields, Removed alias/handler, fixed ordinary signup request/service, and ordinary CSV page route are removed. Migration `20260728135529_RemoveSignupCompatibility` drops only the now-non-authoritative private-edit, typed-field, and Removed columns/index; historical migrations, answers, assignments/EHB, payment/Admin notes, ownership/history, and account Discord identity/history remain. The separate pre-formed roster assignment boundary remains pending Slice 5; no CSV behavior was added.
-
-**Slice 4 acceptance (2026-07-29):** Complete. Independent review and its restricted evidence re-reviews cleared every concrete finding. The user approved the consolidated manual acceptance, including active-form correction and rollback, explicitly owned/unowned internal creation, ownership-transfer access changes, draft-lock rejection, private-data boundaries, and removal of obsolete ordinary signup compatibility. The final gate first exposed stale pre-Slice-4 fixtures and one genuine discard-cleanup omission: discarded empty events deleted their signup questions but not the owning `SignupForm`. The cleanup transaction now deletes both, and focused affected Integration coverage passed `43/43`. Final durable results are Application `81/81`, Domain `142/142`, Browser `65/65`, and Integration `144/144` (`432/432` total) under `/private/tmp/slice4-final-20260729-rerun`; failed and skipped counts are zero. Release build passed with 0 warnings/errors; formatting, EF pending-model, `git diff --check`, clean/retained PostgreSQL rehearsals, and Development reset coverage passed.
-
-**Next action:** Package the accepted Slice 4 delta into logical commits and push only when explicitly requested. Then plan Slice 5; external/pre-formed roster CSV remains a Slice 5 boundary.
-
-## Verification
-
-2026-07-28 Slice 4 Pass 4.4 verification: the retained authenticated-signup PostgreSQL `7/7` proves authenticated create/edit, EHB snapshots, account selection, and existing route/form-builder behavior; it does not prove lifecycle mutation. The focused domain `3/3` proves status/rejoin invariants only. New real PostgreSQL `Slice4ParticipantLifecycleIntegrationTests` passed `4/4`, covering serialized capacity promotion, enabled-Admin/participant-only notification fan-out, confirmed/waiting withdrawal idempotency and release history, promotion after flush within the same transaction, rejoin/restore reservation-conflict rollback, and closed-signup/Admin generic notification boundaries. The failure found and fixed was that promotion queried before the withdrawal had been flushed, causing PostgreSQL to count a withdrawn participant as confirmed; the flush remains inside the transaction. Release solution build passed with 0 warnings/errors; formatting verification and `git diff --check` passed. No migration, EF model check, or complete suite was run. Pass 4.4 is ready for S4-08 manual acceptance, but is not accepted.
-
-2026-07-28 Slice 4 Pass 4.4 confirmation-withdrawal remediation: the rendered confirmation route has only `{slug}`; its native form did not post the GET-only `participantId`, so the POST handler bound `Guid.Empty` and reported “Participant could not be found.” The handler now resolves the owned participant exclusively from the authenticated website account and event slug before calling the lifecycle service, ignoring tampered client participant values. The focused real HTTP/PostgreSQL regression proves owner withdrawal, released assignment history, earliest-waiter promotion, success feedback after PRG, and rejection/no mutation for a different authenticated account. Combined focused `Slice4AuthenticatedSignupIntegrationTests` plus `Slice4ParticipantLifecycleIntegrationTests` passed `12/12`; Release build, formatting, and `git diff --check` passed. No migration or complete suite was run. S4-08 remains unaccepted but is ready for the same manual lifecycle checks.
-
-2026-07-28 Slice 4 Pass 4.4 confirmation-state remediation: a withdrawn participant fell through the confirmation page’s generic non-waiting copy, which incorrectly claimed the place was confirmed and retained a vague Signup link. The page now projects confirmed, waiting, withdrawn-open, withdrawn-closed, and draft-locked read-only states explicitly; it only renders a labelled Rejoin signup action when open. Closed/direct rejoin now returns “Signup is closed. Contact an Admin if you need to be restored.” with no mutation. The expanded rendered HTTP/PostgreSQL regression covers withdrawal feedback, withdrawn copy without confirmed-place text, open rejoin, closed read-only state, and stale closed rejoin feedback. The focused Slice 4 HTTP/lifecycle set passed `12/12`; Release build, formatting, and `git diff --check` passed. All other S4-08 behavior passed manually; only this state-presentation/feedback retest remains before acceptance.
-
-2026-07-28 Slice 4 Pass 4.1 verification: focused domain invariants passed `2/2` (`Slice4SignupPersistenceDomainTests`); retained and clean PostgreSQL migration rehearsal passed `3/3` through `Slice2MigrationRehearsalTests`, exercising the newly appended migration from the representative retained Slice-2 boundary and a clean database. `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers` passed with 0 warnings/errors; EF pending-model check, `git diff --check`, and restore passed. Full-suite and later-pass UI/workflow checks were intentionally not run.
-
-2026-07-28 Slice 4 Pass 4.2 verification: focused PostgreSQL `Slice4AuthenticatedSignupIntegrationTests` passed `1/1`, covering authenticated create/edit ownership, no private token, EHB default/snapshot persistence, retained historical assignment selection after unlink, and rejected replacement rollback. Release solution build passed with 0 warnings/errors. Full-suite, HTTP/browser, EF pending-model, formatting, and manual responsive/no-JavaScript checks remain open.
-
-2026-07-28 Slice 4 Pass 4.2 Development-reset remediation: `ClearWorkflowDataAsync` now truncates `signup_forms` with its dependent signup workflow tables, so the retained form-to-event foreign key cannot block the transactional cleanup. The focused real `ResetAndSeedAsync` PostgreSQL regression passed `1/1` with a manual form-backed event and cancelled/discarded tombstones, then a second reset; each run leaves exactly TEST 13 — DKL Board and TEST 15 — DKL Live while preserving the website owner/password, My Accounts link/global characters, Admin accounts, and catalogue. Pass 4.3 remains unstarted.
-
-2026-07-28 Slice 4 Pass 4.2 signup-route remediation: `/Events/{slug}/Signup` now has one discoverable Razor GET handler; its direct-model compatibility helper is not a handler. Focused real HTTP/PostgreSQL coverage passed for anonymous safe Login return, authenticated create rendering, owned confirmation redirect, and `?edit=true` rendering. The combined route, authenticated-signup, and Development-reset regression passed `3/3`. Pass 4.3 remains unstarted.
-
-2026-07-28 Slice 4 Pass 4.2 signup-readiness remediation: generated and migrated standard questions use the authoritative zero-based positions `Account` = `0` and `Captain volunteer` = `1`; readiness now accepts position zero while retaining blank key/label, undefined type, negative-position, and invalid single-choice blockers. The creation wizard now presents only those defaults, explaining that EHB belongs to the required Regular Account answer rather than as a separate question. Focused PostgreSQL real creation/lifecycle plus retained-migration coverage passed `2/2`, and focused creation-page markup passed `1/1`. Release solution build passed with `0` warnings/errors; formatting verification and `git diff --check` passed. Pass 4.3 remains unstarted.
-
-2026-07-28 Slice 4 Pass 4.2 signup-account EHB remediation: Account options now expose invariant Saved EHB metadata; changing a Regular-account selector replaces its EHB input with that newly selected active link's saved value, or clears it when absent. Initial preferred rendering, edit snapshots (including historical unlinked assignments), and invalid POST values remain server-authoritative until a real selector change. Successful native create/edit snapshots the submitted EHB and updates only the selected active My Accounts link. Focused authenticated-signup PostgreSQL/HTTP coverage passed `4/4`; focused markup/interaction coverage passed `1/1`; Release build, formatting verification, and `git diff --check` passed. S4-02–S4-05 are manually passed; only S4-01's account-change/EHB retest remains, and later lifecycle destination coverage remains untested/deferred. Pass 4.3 remains unstarted.
-
-2026-07-26 final remediation verification: `git diff --check` passed. `dotnet format Bingo.slnx --no-restore --verify-no-changes` passed. `dotnet build Bingo.slnx --configuration Release --no-restore` passed with 0 warnings and 0 errors. One complete `dotnet test Bingo.slnx --no-restore --results-directory /private/tmp/slice1-final-remediation-trx-20260726-final2 --logger trx` run completed with durable TRX counters: Domain `total=44, passed=44, failed=0, skipped/notExecuted=0`; Application `total=81, passed=81, failed=0, skipped/notExecuted=0`; Browser `total=45, passed=45, failed=0, skipped/notExecuted=0`; and Integration `total=72, passed=72, failed=0, skipped/notExecuted=0`. The integration run used Testcontainers PostgreSQL successfully.
-
-2026-07-26 Slice 2 Pass 2.1 verification: focused new domain tests passed `2/2`; focused new PostgreSQL persistence/migration tests passed `5/5`; affected existing `AccountAccessTests` plus new domain tests passed `3/3`; affected existing `AccountOverviewTests` passed `2/2`. Clean and retained PostgreSQL migrations both succeeded. `dotnet ef migrations has-pending-model-changes` reported none. `dotnet format Bingo.slnx --no-restore --verify-no-changes` passed. Release builds for the affected Domain-test and Integration-test project graphs passed with 0 warnings and 0 errors. `git diff --check` passed.
-
-2026-07-26 Slice 2 Pass 2.2 verification: focused PostgreSQL regressions passed `33/33`, covering signup creation/capacity, CSV-source assignment mapping, private-edit authority replacement/history, Admin-correction EHB source, account participation, clean and representative retained migrations, assignment constraints, live-draft name/EHB projection, submission/evidence flows, and public-board projections. Domain tests passed `46/46`. `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers` passed with 0 warnings and 0 errors. `dotnet ef migrations has-pending-model-changes` reported none. Final formatting, diff, and bounded legacy-authority searches passed.
-
-2026-07-26 Slice 2 Pass 2.3 initial verification: focused `Slice2PersistenceIntegrationTests` passed `9/9` against Testcontainers PostgreSQL, covering add/reactivate/unlink history, ordering/preferred state, saved-EHB link isolation, account scoping, correction propagation, correction conflict rollback, and a native-form onboarding/My Accounts journey. Focused onboarding regressions passed `3/3`; affected domain tests passed `4/4`. No migration was added because Pass 2.1 already established the required persistence model.
-
-2026-07-26 Slice 2 Pass 2.3 final remediation: added one focused browser-level enhanced-history regression covering route entry, two same-page My Accounts additions, returned feedback/content, and the shared replacement-navigation contract. Added Danish localization assertions for the approved introduction and empty state. The focused enhanced-history regression passed `1/1` against Testcontainers PostgreSQL; the affected Danish localization test passed `1/1`; `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers` passed with 0 warnings and 0 errors; formatting verification and `git diff --check` passed. No complete suite was run, as not authorized.
-
-2026-07-26 Slice 2 Pass 2.4 verification: focused `Slice2PersistenceIntegrationTests` passed `14/14` against Testcontainers PostgreSQL. The coverage includes successful trimmed/case-only display changes, wrong-password/no-audit behavior, normalized collision and emergency reservation/rejection, a real PostgreSQL unique-index race with exactly one winner, audit before/after state, My Accounts/Discord/participant/assignment/EHB preservation, refreshed password/Discord principal names, continuity of existing sessions without authorization/password-version invalidation, a native Settings form/login journey, and unchanged Remember-me absolute cookie expiry after reissue. `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers` passed with 0 warnings and 0 errors. Formatting verification and `git diff --check` passed. No complete suite was run, as reserved for Pass 2.5.
-
-2026-07-27 Slice 2 Pass 2.5 verification: the focused Testcontainers PostgreSQL migration rehearsal passed `1/1`, covering a clean database and a representative retained Slice 1 → Slice 2 database in the same test. `dotnet ef migrations has-pending-model-changes --project src/Bingo.Infrastructure/Bingo.Infrastructure.csproj --startup-project src/Bingo.Web/Bingo.Web.csproj --no-build` reported no model changes. The first complete suite run passed Domain `47/47`, Application `81/81`, Browser `45/45`, and failed Integration `88/89` only on the obsolete Development reset table list. After the one-line cleanup, the exact focused regression passed `1/1`; the justified complete-suite rerun produced durable TRX results in `/private/tmp/slice2-pass25-final-trx-20260727-rerun`: Domain `total=47, passed=47, failed=0, skipped/notExecuted=0`; Application `total=81, passed=81, failed=0, skipped/notExecuted=0`; Browser `total=45, passed=45, failed=0, skipped/notExecuted=0`; Integration `total=89, passed=89, failed=0, skipped/notExecuted=0`. `git diff --check`, formatting verification, and the Release build passed with 0 warnings and 0 errors.
-
-2026-07-27 Slice 2 Pass 2.5 independent-review remediation: focused Testcontainers PostgreSQL regressions passed `4/4` for released Admin history, concurrent shared-character onboarding, fixed-form reservation race atomicity, and retained collision migration. The full migration rehearsal class passed `3/3`, covering clean and representative retained upgrades, inactive withdrawn/removed release history, current Playing precedence, deterministic informational retention, and the fail-closed multiple-Playing diagnostic. `dotnet ef migrations has-pending-model-changes --project src/Bingo.Infrastructure/Bingo.Infrastructure.csproj --startup-project src/Bingo.Web/Bingo.Web.csproj --no-build` reported no model changes. The initial Integration stalls were diagnosed as the pre-existing `DiscordIdentityEndpointsTranslateRelationalUniquenessRacesIntoSafeConflicts` test deadlocking its artificial username `SaveChanges` barrier against the new production OSRS-character advisory lock; the test-only correction uses distinct `Race Character A/B` values while retaining the username collision, barrier, and assertions. Its focused Release run passed `1/1`. Final restricted-review remediation then added an explicit transaction to `DraftModel.OnPostAddExternalMemberAsync`, encompassing participant, global character/assignment, membership, and audit persistence. The new real PostgreSQL regression `ConcurrentExternalMembersAcrossEventsShareOneNewCharacterWithoutPartialPersistence` passed `1/1`; no pre-existing direct external-member test existed. `git diff --check` and formatting verification passed, and the affected Release build passed with 0 warnings and 0 errors. The final Release/no-build Integration command `dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-build --no-restore --results-directory /private/tmp/slice2-pass25-external-member-final-trx-20260727 --logger "trx;LogFileName=integration-external-member-final.trx"` completed cleanly with durable `/private/tmp/slice2-pass25-external-member-final-trx-20260727/integration-external-member-final.trx`: `total=95, passed=95, failed=0, skipped/notExecuted=0`. The route-specific follow-up ran `dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-restore --filter "FullyQualifiedName~PrivateSignupEditPostRedirectRendersSuccessFeedback"` and passed `1/1` against Testcontainers PostgreSQL; the affected Release build, formatting verification, and `git diff --check` then passed with 0 warnings/errors and no diff errors. No full Integration or solution suite was rerun.
-
-2026-07-27 Slice 3 Pass 3.1 verification: focused Domain lifecycle coverage passed `133/133`, including the table-driven 81-pair transition graph and state-capability/terminal tests. Focused Testcontainers PostgreSQL coverage passed `3/3`: retained and clean migration rehearsal, nullable draft persistence, deterministic `FirstPublicAt`/actual-time backfill, nullable scheduled/system transition attribution, scheduled-attempt uniqueness, event concurrency, and Development scenario compatibility. `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers` passed with 0 warnings/errors. `dotnet ef migrations has-pending-model-changes --project src/Bingo.Infrastructure/Bingo.Infrastructure.csproj --startup-project src/Bingo.Web/Bingo.Web.csproj --configuration Release --no-build`, formatting verification, and `git diff --check` passed. No full solution suite was run for this bounded pass.
-
-2026-07-27 Slice 3 Pass 3.2 verification: Domain tests passed `135/135`. Three focused direct-handler Testcontainers PostgreSQL scenarios passed `3/3`: creation commits a minimal private draft and audit together while rejecting retained partial input; identity covers pre-public editing, locked post-public slugs, timezone confirmation/reason with UTC preservation, stale concurrency, and a forced relational slug race mapped to `Input.Slug`; banner coverage proves active-reference integrity, authorized serving, add/replace/remove/fallback, and database failure rollback. The Slice 3 lifecycle migration rehearsal passed `2/2`, including clean and retained upgrade through the new migration. Focused route/markup browser checks passed `2/2`, covering Admin-route protection (including banner serving) and the retained guided/native-form boundary. `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers`, `dotnet format Bingo.slnx --no-restore --verify-no-changes`, and `git diff --check` passed. The required desktop/narrow/keyboard/no-JavaScript manual acceptance remains unrun; no full solution suite was run for this bounded pass.
-
-2026-07-27 Slice 3 Pass 3.2 functional remediation verification: focused Domain coverage passed `102/102`, including cutoff derivation/recalculation/no-end and 1–8 board-range rejection. Focused route/markup browser checks passed `2/2`, including the ordinary no-JavaScript creation submit and nullable-schedule “Not set” surfaces. The focused real-handler Testcontainers PostgreSQL scenarios passed `3/3`, including invalid out-of-range creation dimensions with no event persisted. `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers` passed with 0 warnings and 0 errors; formatting verification and `git diff --check` passed. No complete solution suite was run.
-
-2026-07-27 Slice 3 Pass 3.3 focused verification: focused Domain lifecycle coverage passed `107/107`; focused route/markup browser checks passed `2/2`; and focused Testcontainers PostgreSQL coverage passed `5/5`, including clean and retained migration rehearsal, readiness/warning acknowledgement, proposed-close confirmation, public schedule confirmation and passed-time reason, stale schedule rejection, current-event rejection, persisted actual signup timestamps, transition/audit pairing, and audit/database rollback. `dotnet ef migrations has-pending-model-changes --project src/Bingo.Infrastructure/Bingo.Infrastructure.csproj --startup-project src/Bingo.Web/Bingo.Web.csproj --configuration Release --no-build` reported no pending model changes. The affected Release build passed with 0 warnings/errors; formatting verification and `git diff --check` passed. No complete solution suite was run. Manual schedule/local-time and signup-lifecycle acceptance remains unrun.
-
-2026-07-27 Slice 3 Pass 3.3 remediation: manual acceptance returned the pass to implementation because `datetime-local` controls received display strings, lifecycle editing did not preserve the required history boundary, proposed closing used the obsolete three-month rule, and signup states were incorrectly singleton. The remediation is in progress; prior Pass 3.3 readiness is superseded and must not be treated as approval.
-
-2026-07-27 Slice 3 Pass 3.3 remediation focused verification: Domain lifecycle tests passed `107/107`; route/markup browser checks passed `2/2`; and focused Testcontainers PostgreSQL tests passed `12/12`, including clean/retained migration rehearsal, five-field timezone-local schedule round trip, invalid-input retention, lifecycle-aware schedule edits, atomic close proposal/reopen, overlap and back-to-back boundaries, closed-signup queue promotion, waiting-list settings safety, and readable readiness projection. Migration `20260727121333_AddDevelopmentFixtureLifecycleExemption` adds the internal-only fixture marker. The prior focused gate remains superseded: manual remediation acceptance is still required and Pass 3.3 is not approved.
-
-2026-07-27 Slice 3 Pass 3.3 boundary correction and approval: `CurrentEventBoundaryErrorAsync` applies the same half-open interval-overlap test to signup, live, review, and finalized candidates instead of rejecting any live/review/finalized row. Focused PostgreSQL coverage passed, and the remaining manual open/reopen and overlap cases passed. Pass 3.3 is approved.
-
-2026-07-27 Slice 3 Pass 3.4 focused verification: focused Testcontainers PostgreSQL coverage passed `13/13`, including clean and retained migrations, exact scheduled opening/closing boundaries, catch-up/idempotency, warning-intent failure, one Admin notification/action, postponed start, real Manage-handler resolution, early-start reason, concurrent worker/manual opening and closing, concurrent singleton-current start, and persistence-failure rollback. Focused lifecycle domain coverage passed `92/92`; route/markup coverage passed `2/2`. This baseline was superseded by the remediation result below.
-
-2026-07-27 Slice 3 Pass 3.4 remediation verification: focused lifecycle Domain coverage passed `107/107`; route/markup coverage passed `2/2`; focused creation/schedule, scheduled-lifecycle, and public-current Testcontainers PostgreSQL coverage passed `12/12`; and clean/retained migration rehearsal passed `2/2`. Coverage includes the shared five-minute selector boundary, non-half-hour round trips, one-field preservation, genuinely unset optionals, five-minute no-JavaScript creation, before/exact-due worker timing, overlap failure immutability, one failed attempt/audit/notification per enabled Admin under concurrent workers, bell/history projection, corrected automatic retry with retained/resolved history, and Development-only fixture exclusion with fixture-only/one-real/multiple-real fail-closed states. Migration `20260727134959_AddScheduledLifecycleExecution` includes durable blocker details. EF reports no pending model changes. The affected Release solution build passed with 0 warnings/errors; formatting verification and `git diff --check` pass. No complete suite was run. Pass 3.4 remains pending the four bounded manual retests; Pass 3.5 has not started.
-
-2026-07-27 Slice 3 Pass 3.4 date-time form correction verification: focused Create/Schedule markup and shared-enhancement contract coverage passed `2/2`; focused real PostgreSQL creation/schedule handler coverage passed `2/2`, including canonical five-minute values, a successful `2026-07-27T18:40` Schedule POST, validation-value retention, one-field preservation, no-JavaScript handler submission, and future scheduled opening. The affected Release solution build passed with 0 warnings/errors; formatting verification and `git diff --check` passed. No complete suite was run. Pass 3.4 remains pending manual retest and is not approved.
-
-2026-07-27 Slice 3 Pass 3.4 overdue pre-live start correction verification: focused scheduled-lifecycle PostgreSQL coverage passed `7/7`, including the added concurrent/repeated overdue Draft and SignupOpen diagnostic, readable Manage projection, and the retained SignupClosed postponement/manual-resolution scenario; the added scenario also passed independently `1/1`. Focused Manage route/markup coverage passed `2/2`. The new pre-live states remain unchanged and retain their configured starts while creating one occurrence-bound attempt, audit, and notification. The affected Release solution build passed with 0 warnings/errors; formatting verification and `git diff --check` passed. No complete suite was run. Pass 3.4 remains pending manual retest and is not approved.
-
-2026-07-27 Slice 3 Pass 3.4 draft-start compatibility verification: focused real Draft-handler PostgreSQL coverage passed `2/2`, including successful SignupClosed start with preserved closing/history, rejection across every earlier/later event lifecycle state without partial mutation, and repeated/concurrent start idempotency for draft state, lock, audits, and collaboration notification. Affected draft Domain coverage passed `7/7`. The affected Release solution build passed with 0 warnings/errors; formatting verification and `git diff --check` passed. No complete suite was run. Pass 3.4 remains pending manual completion and is not approved.
-
-2026-07-27 Slice 3 Pass 3.4 postponed-action correction verification: the focused real PostgreSQL/HTTP workflow passed `1/1`, covering a due blocked start, retained original blocker history, current-readiness projection after draft finalization, authenticated enhanced Manage Start, immediate and fresh Live rendering, persisted attempt resolution, unchanged configured start, separate actual start, and repeat-start lifecycle idempotency. Focused Manage route/markup coverage passed. The affected Release build, formatting verification, and `git diff --check` passed. No complete suite was run at that remediation point; the later S3-13 retest passed and Pass 3.4 was approved.
-
-2026-07-27 Slice 3 Pass 3.5 verification: focused destructive-lifecycle Testcontainers PostgreSQL coverage passed `7/7`; the compact all-state transition/capability class passed `92/92`; focused route/markup passed `1/1`; clean/retained Slice 3 migration rehearsal passed `2/2`; EF reports no pending model changes; formatting, `git diff --check`, and the Release solution build passed with 0 warnings/errors. The first complete-suite command passed Application `81/81`, Domain `140/140`, and Browser `47/47`, then exposed three stale Integration fixtures: one null direct-Page lifecycle dependency and two Slice 1 helpers that still modeled an independently supplied cutoff. The fixtures were corrected to use real services and the approved event-end-plus-30-minute cutoff; focused rerun passed `3/3`. Final separate durable TRX results are Application `81/81`, Domain `140/140`, Browser `47/47`, and Integration `126/126` (`394/394` total) under `/private/tmp/slice3-pass35-final-20260727`. Automated Pass 3.5 is complete; Slice 3 still requires S3-15–S3-23 manual acceptance and independent review.
-
-2026-07-27 Slice 3 Pass 3.5 acceptance remediation: focused real PostgreSQL/HTTP coverage passed `2/2`. It proves enhanced and native discard reach Admin Events with localized one-time success feedback, refresh does not repeat it, account-owned confirmed/waiting participants receive one generic cancellation notification, excluded identities receive none, concurrent/repeated cancellation does not duplicate effects, private reasons do not leak, and simulated notification persistence failure rolls back notifications, state, transition, and audit together. The existing cross-route/same-page shared-navigation regression passed `1/1` with an added destination-feedback assertion, and affected browser route/markup coverage passed `2/2`. Formatting verification, `git diff --check`, and the Release solution build passed with 0 warnings/errors. The earlier `394/394` complete-suite result is retained; no complete rerun was requested at this remediation point.
-
-2026-07-27 Slice 3 Pass 3.5 manual acceptance: S3-15 passed with “Event discarded.” appearing exactly once on Admin Events. S3-16, S3-17, S3-18, S3-19, S3-20, S3-22, and S3-23 passed; S3-21 is accepted as Automated. Explicitly account-owned confirmed/waiting cancellation notifications are accepted as Automated for Slice 3 because the retained pre-Slice-4 signup UI creates unowned participants. A Slice 4 manual acceptance item remains for authenticated signup ownership; notifications must remain generic and exclude the private Admin reason. Pass 3.5 manual acceptance and all Slice 3 manual acceptance are approved. Slice 3 is ready for one bounded independent review but is not yet accepted. The earlier `394/394` result and later focused remediation results remain authoritative; the complete suite has not been rerun.
-
-2026-07-27 Slice 3 independent-review remediation verification: the focused authenticated terminal-route regression passed `1/1`, covering Manage, Identity, Schedule, Questions, CSV compatibility import, Board, Draft, Participant, and Finalize direct POSTs against a populated Cancelled event plus representative Finalized/Archived requests, with no lifecycle/history/participant/board/draft/notification mutation. The real Finalize-handler PostgreSQL workflow passed `1/1`, covering forced audit rollback, current-boundary rejection, successful snapshot/placement/transition/audit persistence, and concurrent/repeated idempotency. Focused destructive lifecycle PostgreSQL coverage passed `12/12`, including durable failed banner cleanup, concurrent retry, already-missing completion, unrelated-banner protection, and database rollback. Clean/representative-retained cleanup-outbox migration rehearsal passed `2/2`; `EventLifecycleFoundationTests` passed `92/92`; EF reports no pending model changes. `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers`, formatting verification, and `git diff --check` passed with no warnings/errors. No complete suite was rerun.
-
-2026-07-27 Slice 3 evidence-review restricted-remediation verification: the focused authenticated HTTP/Testcontainers PostgreSQL regression passed `1/1`, exercising real `/Admin/Review/Details` Reverse and visibility POSTs for Cancelled, Finalized, and Archived approved evidence with unchanged submission/contribution/visibility/review/audit/notification state, while Live visibility and AwaitingFinalReview reversal remained available. The affected existing `SubmissionWorkflowTests` suite passed `14/14`. A bounded source audit found the only Admin review mutations are fallback `Submit.CreateAsync` and Details Approve, RequestChanges, Reject, Duplicate, Reverse, Hide/RestoreVisibility, and Edit; all now reach the service-level locked capability boundary. The affected Release solution build, formatting verification, and `git diff --check` passed. No complete suite was rerun.
-
-**Slice 7 bounded focus-marker remediation (2026-07-31):** Removed the erroneous `HasAlternateKey(EventId, TeamId)` and added forward migration `20260731170051_RemoveTeamFocusEventTeamAlternateKey`, dropping the applied `AK_team_focus_markers_event_id_team_id` while retaining filtered per-target uniqueness. Team focus now allows simultaneous distinct tile/row/column markers and independent unfocus. The authenticated TeamBoard PageModel boundary proves tile forms bind `TargetKind=Tile` with the selected `BoardTileId` and null row/column targets. Completed tiles omit individual tile-focus controls and server-side tile focus rejects authoritative completion. Approval and reversal/rebalance transactions clear focused tile markers, increment versions, and notify the team after commit; reversal does not resurrect focus. Focused Slice 7 PostgreSQL/PageModel coverage passed `13/13`; the focused existing approval/reversal scenario passed within the affected workflow filter, while three unrelated public-projection cases remain stale against the prior Slice 7 Website-primary fixture shape (`11/14` workflow filter result). Remaining manual retest: multiple targets/independent unfocus, completed-tile control omission/rejection, automatic clearing, and no resurrection after reversal. No staging, commit, merge, or push occurred.
-
-**Slice 7 clarified focus rendering/Clear all correction (2026-07-31):** Completed tiles now receive no individual, row, or column focus styling or badge; active row/column markers remain and still style incomplete members. Added one authorized TeamBoard `Clear all focus` action. It validates the complete per-team marker ID/version snapshot in a serializable team-scoped transaction, clears every active marker for that team, advances each changed marker version, and sends one normal team invalidation. Stale and unauthorized requests fail without residue; individual marker unfocus remains independent. No migration was required for this correction.
-
-The affected Slice 7 class passed `13/13`; the Release Web build passed with `0` warnings/errors; formatting verification and `git diff --check` passed. Remaining manual retest: focus a row/column containing complete and incomplete tiles and verify only incomplete members style; reverse completion without restoring old tile focus; then create overlapping markers, use Clear all, verify one team clears while another team is unchanged, and verify stale/unauthorized submissions show feedback without residue.
-
-**Slice 7 restricted-review stale completed-focus remediation (2026-07-31):** Added forward migration `20260731180603_NormalizeCompletedTileFocusMarkers`. It uses the authoritative `BoardRequirementSnapshots` plus non-reversed `SubmissionContributions` completion facts to deactivate retained focused Tile markers, incrementing their versions and clearing the update actor/time consistently; row and column markers are untouched. `TeamFocusService` now defensively excludes Tile markers for currently complete tiles from private projections, so inconsistent stale data cannot enter focus summaries. No prior migration was rewritten and no unrelated authorization, concurrency, automatic-clearing, Clear all, or realtime behavior changed.
-
-The retained Slice 7 migration rehearsal and affected Slice 7 class passed `13/13`; the rehearsal proves the stale Tile marker is active before normalization, then cleared while representative row/column markers remain focused. EF reports no pending model changes; the Release Web build passed with `0` warnings/errors; formatting and `git diff --check` passed. The next step is restricted re-review, not final acceptance.
-
-## Remaining work
-
-- Review the remaining Application Atlas findings and make explicit product decisions before further functional correction, removal, cleanup, or Milestone 9 UI work. F-01 is resolved.
-- The deferred Ponytail cleanup list is non-blocking and is not an Atlas defect.
-
-## Historical summary
-
-2026-07-25 through 2026-07-26 Slice 1 remediation addressed protected Discord state, retained-owner gates, membership-verified emergency scope migration, reset concurrency, authentication lifetimes/throttles, cutoff lifecycle, audit/notifications, account datasets, Danish safe failures, and persisted access projection. The final independent review cleared all findings. Detailed Slice 1 evidence remains in `SLICE_1_IMPLEMENTATION_PLAN.md` and `SLICE_1_MANUAL_TEST_RESULTS.md`.
+# Current project status
+
+**Active handoff:** 2026-08-27. This is the concise current-state handoff;
+historical material is preserved separately and is non-authoritative.
+
+## Canonical checkout
+
+- Path: `/Users/christopher/Documents/BingoWebpage`
+- Branch: `ui-overhaul`
+- Base commit: `34bad2fee6c2f7196e4946e198e5eb186d87e36c`
+- Tracking: no upstream is configured for the experiment branch.
+- The checkout is intentionally dirty with user/planner changes. Preserve all
+  existing modifications; this documentation-only handoff update did not stage,
+  commit, push, reset, clean, or create a worktree.
+
+## Pre-commit audit and direct-to-main integration plan
+
+The user approved the following plan on 2026-08-27 for integrating the current
+overhaul. The sibling `codex/admin-ui-overhaul-v2` branch is comparison evidence,
+not a required merge step. Its later commit
+`637a92e` (`refactor(ui): centralize admin event state presentation`) must not be
+merged blindly: the current dirty branch already contains the shared state
+presentation work, and a direct branch merge avoids redundant conflict work.
+
+Before any packaging or merge:
+
+1. Run one read-only Danish-language audit over all first-party user-visible
+   copy. Classify missing translations with proposed Danish wording, existing
+   translations that should return to English, terms intentionally retained in
+   English, uncertain terms requiring user choice, and technical localization
+   defects. Include dialogs, drawers, notifications, validation, empty/error
+   states, toasts, buttons, and accessible labels; exclude logs, code, test data,
+   user-generated content, vendored assets, generated output, and `docs/archive/`.
+2. Run one read-only full Ponytail audit over the active first-party codebase.
+   Report ranked concrete opportunities to delete, shrink, or replace custom
+   machinery with native/platform behavior. Exclude generated migrations and
+   designers, vendored libraries, build output, assets, and `docs/archive/`.
+   Correctness, security, and release readiness remain outside that audit and
+   must not be conflated with simplification findings.
+3. Complete the approved localization remediation in bounded Luna High passes.
+   Non-Admin L1 and the Danish decimal-range correction are complete; Admin L2
+   is active. After L2, correct the demonstrated Landing `/` label `VIS BRÆT` to
+   retain product `Board`, and expand the bounded terminology check to include
+   `bræt` as well as `plade`/`bingoplade`.
+4. Run one fresh Terra High read-only localization-completeness review over all
+   Public, account, participant, Captain, Submissions, and Admin surfaces. It
+   checks only whether the accepted English/Danish glossary, resource coverage,
+   visible server/JavaScript copy, placeholders, and accessibility text were
+   missed; it must not reopen approved visual composition or broaden into the
+   final correctness review.
+5. Run a fresh Terra High whole-repository Ponytail audit after localization is
+   complete. Judge only current active first-party code and the same exclusions
+   as the first audit; do not treat correctness, security, or release findings as
+   simplification findings.
+6. Apply only localization or simplification corrections the user explicitly
+   accepts, using bounded Luna High remediation and the smallest risk-based
+   verification.
+7. Run a separate Terra High read-only correctness and release-gap review of the
+   complete post-remediation base-to-current implementation. It owns bugs,
+   authorization/privacy gaps, missing approved behavior, accidental scope
+   additions, migration/data risks, test discrimination, and commit blockers.
+   It must specifically compare the final semantic Admin event display behavior
+   with `637a92e`, including whether detailed display labels such as event-ready
+   and starts-in states remain available where required; enum/domain lifecycle
+   values must not be inferred from presentation labels.
+8. Apply only correctness corrections the user explicitly accepts. Repeat only
+   the review or gate whose material finding changed; do not restart all audits
+   for confidence.
+9. Inventory the final commit scope because this dirty checkout contains both UI
+   and non-UI work. Compare the final branch semantically with `637a92e` and
+   bring over only a genuinely missing desirable behavior. Do not merge the
+   sibling branch as a matter of ancestry or bookkeeping.
+10. As the last read-only readiness gate before packaging, run one final Terra
+    High whole-repository Ponytail audit against the exact candidate tree. If it
+    reports a concrete cut, the branch is not ready until the user accepts or
+    rejects it; an accepted cut receives bounded Luna High remediation and only
+    the smallest focused recheck needed for that changed area.
+11. Before the first push, rename the current branch to a concise purpose-based
+    name without the `codex/` prefix. Commit only after user authorization and
+    accepted verification. Then update local `main` from `origin/main` and merge
+    the renamed overhaul branch directly into updated `main`. Push or deploy only
+    with separate explicit authorization. The sibling branch may be retained or
+    removed after integration; it is not part of the required path. Old branch
+    cleanup requires the merged/unique/active inventory and exact user approval
+    recorded in `AGENTS.md`.
+
+The localization-completeness review and post-localization Ponytail audit run
+only after L2 and the Landing terminology correction. The final correctness
+review and final Ponytail gate use the later post-remediation candidate tree. No
+staging, commit, merge, push, branch deletion, or deployment is authorized by
+this plan update.
+
+The final Terra High correctness and release-gap review completed on 2026-08-27.
+It found no missing approved behavior, correctness, authorization, privacy,
+concurrency, data-integrity, or migration blocker. The current tree preserves
+the required detailed Admin event display phases and contains no desirable
+behavior missing from sibling commit `637a92e`; that commit still must not be
+merged. The review initially classified `/Admin/UiReferences` as unapproved
+material scope. The user explicitly approved retaining it on 2026-08-27, and
+`UI_PAGE_MATRIX.md` now records it as a direct-link internal historical-reference
+gallery that is not a product-page approval target or active authority source.
+That finding is resolved. The unimplemented production CI/deployment workflow
+remains a deployment blocker, not a commit blocker.
+
+The read-only commit-scope inventory and final Ponytail gate also completed on
+2026-08-27. The accepted candidate includes the active authority consolidation,
+archive moves, approved historical UI references and `/Admin/UiReferences`, all
+accepted application/domain/infrastructure/Web changes, complete migration/
+designer/snapshot sets, localization, assets and their license notices, and the
+proportionate tests. It excludes `tmp/**`, ignored runtime evidence/uploads/
+caches, build output, local data, and `src/Bingo.Web/Properties/launchSettings.json`;
+that tracked developer-only file remains a working-tree modification but must not
+be staged because its WOM-fake override is outside the accepted candidate. The
+missing Geist notice was resolved by adding the official OFL 1.1 text beside the
+bundled font, with no UI or runtime change. The final fresh Terra High whole-repo
+Ponytail audit reported `Lean already. Ship.` No simplification remediation or
+repeat audit is required. The user authorized renaming the branch to
+`ui-overhaul` on 2026-08-27; the rename preserved the same HEAD and dirty tree.
+The user authorized a Packager on 2026-08-27 to stage only the inventoried
+candidate, inspect its manifest, and create one commit on `ui-overhaul`. That
+authorization does not include merging, pushing, deployment, branch cleanup, or
+production release; each remains separately unauthorized.
+
+The two read-only pre-commit audits completed on 2026-08-27. The language audit
+found 31 Danish resource values that incorrectly translate `Board`, 537 of
+1,071 used literal localization keys without a Danish resource entry, 226 raw
+server-side user-message call sites, 39 raw JavaScript visible/accessibility
+copy call sites, and 202 raw Razor label/accessibility lines. The user approved
+remediating every named localization class. The accepted glossary keeps
+`Board`, `tile`/`tiles`, `drop`/`drops`, `draft`, `Live`, OSRS/EHB/DEHB, Discord,
+Wise Old Man, MVP, and product names in English; uses `Admin` for the product
+role/UI title and Danish `administrator` only for a person in prose; and requires
+uppercase `WOM` everywhere rather than `WoM`. The Ponytail audit found one
+approved simplification, applied in a bounded Luna High remediation pass; no
+audit modified production code. The bounded non-Admin L1 remediation now has
+complete scoped literal-key coverage and a passing Web Release build; Admin L2
+is active. The first-request Danish decimal-range parsing defect is also fixed
+across My Accounts and Onboarding with invariant hard-coded limit parsing and a
+passing Danish-first focused regression. The demonstrated Landing `VIS BRÆT`
+residual remains queued until L2 completes. The additional review/audit order is
+frozen in steps 4–10 above.
+
+The initial live-release policy is now recorded in
+`TECHNICAL_ARCHITECTURE.md` §12.1: merging to `main`, building a release, and
+deploying production are separate operations. The intended policy is automatic
+test/build after merge with an explicit manual production approval that triggers
+automated container replacement and health checks. This CI/deployment workflow
+is not implemented yet; it must be prepared and rehearsed before the first live
+release, and merging to `main` alone currently updates no live server.
+
+## Functional position
+
+The accepted functional foundation and active Milestone 9 UI-overhaul baseline
+remain in the dirty checkout. Business rules, persistence, authorization,
+audit, transaction, concurrency, privacy, evidence-integrity, SignalR
+invalidation, and historical-record protections remain unchanged by this
+documentation-only pass. The current dirty checkout also contains the bounded
+Recent Drops and public-board masthead implementation described below plus the
+behavior-neutral stylesheet ownership split described here; no application
+behavior or tests were changed by this handoff update.
+
+Active CSS now loads in the prior preserved order as transitional foundation,
+Public UI, then transitional application rules. `site.public-ui.css` is the
+sole destination for reusable Public UI overhaul primitives, the transitional
+files retain mixed existing rules until their owning surfaces are migrated and
+verified, and `site.css` is a compatibility marker only.
+
+The user approved a replacement Public UI identity on 2026-08-22. It replaces
+the prior charcoal/glass public appearance and the earlier visual-protection
+claim for the public Board, but it does not reopen or change Board, team, tile,
+submission, evidence, navigation, route, authorization, validation, realtime,
+or business behavior. The exact pass order, theme invariant, complexity budget,
+and approval gates are recorded in `DELIVERY_PLAN.md`, `UI_SYSTEM.md`, and
+`UI_PAGE_MATRIX.md`. Admin remains strictly out of scope for this experiment.
+
+The first Pass 1 implementation was manually rejected on 2026-08-22. The
+current rendered implementation is preserved in
+`/Users/christopher/Library/Mobile Documents/com~apple~CloudDocs/Downloads/ThisOne.pdf`;
+the approved landing contract remains the named landing reference in
+`UI_PAGE_MATRIX.md`. The rejected implementation retained legacy/generic public
+Razor composition and layered a scoped theme over it. Do not apply its narrow
+signup-select remediation and do not extend that approach to another family.
+The active correction is one atomic landing presentation rewrite: preserve
+handlers, models, routes, authentication, localization, data, and interaction
+semantics, but replace the landing markup, layout primitives, typography,
+links, actions, icon treatment, event ledger, and responsive composition.
+Static landing editorial copy is composition-flexible for this pass: it may be
+rewritten in equivalent natural English and Danish while preserving truthful
+product meaning, dynamic event facts, destinations, and action semantics.
+
+The post-review remediation is materially closer but remains manually
+unapproved as of 2026-08-22. Its current visual evidence is
+`/Users/christopher/Library/Mobile Documents/com~apple~CloudDocs/Downloads/Here.pdf`.
+No font metadata was recovered from the AI-generated reference. The active
+landing-only correction compares the current Barlow Condensed, Bebas Neue, and
+at most one genuinely closer license-safe condensed candidate with the exact
+headline/event-title/numeral specimen. A clearly closer face may be adopted only
+as an implementation approximation; otherwise the pass stops with a compact
+A/B/C specimen for user choice. The correction also normalizes major blueberry
+numerals, rebuilds feature/event rule geometry, corrects palette and DK-art
+treatment, normalizes the three feature icons, and rebalances the ledger
+columns. This is manual visual remediation within the approved direction, not a
+new design.
+
+The bounded local specimen compared Barlow Condensed and Bebas Neue and selected
+Bebas Neue Regular as the current implementation approximation; no third local
+candidate was available. This does not identify the unknown reference font or
+approve the page. Fresh evidence awaits user review at
+`tmp/public-ui-pass1a/manual-refine-light-1586x992.png`,
+`tmp/public-ui-pass1a/manual-refine-dark-1586x992.png`, and
+`tmp/public-ui-pass1a/manual-refine-mobile-390x844.png`; the specimen is
+`tmp/public-ui-pass1a/font-candidate-specimen-ABC-1200x480.png`.
+
+On 2026-08-22 the user authorized one quick typography-only reconsideration
+after identifying `https://outbid.website` as a much closer hierarchy example.
+The bounded experiment compares the current Bebas Neue 400 display roles with a
+real locally bundled Barlow Condensed 800 face at natural width. It may change
+only the landing display face/weights and the smallest font asset/license
+inventory needed for the comparison. Geist body copy, utility roles, copy,
+colors, layout, spacing, responsive geometry, behavior, and every other family
+remain frozen. No horizontal scaling or synthesized weight is allowed. This is
+an implementation approximation test, not reference-font provenance or page
+approval.
+
+The trial is now applied to the landing display selectors. The browser resolved
+`Barlow Condensed ExtraBold` at weight 800 from the bundled official static
+face, while Barlow Condensed SemiBold 600 utility roles and Geist body roles
+remain unchanged. The focused release build passed with zero warnings/errors.
+Exact rendered evidence is
+`tmp/public-ui-pass1a/barlow-800-trial/exact-app-attempt-1586x992.jpg`;
+the common-content comparison source is
+`tmp/public-ui-pass1a/barlow-800-trial/typography-ab.html`. The user later
+selected Barlow 800 and accepted the final landing.
+
+The user accepted the Barlow 800 direction, especially for numerals, and named
+one ledger/icon correction from four 2026-08-22 screenshots. Current-event names
+are optically too large and must be reduced without changing the accepted
+number/heading hierarchy. Current-event vertical date dividers should be more
+inset/shorter; neutral row hairlines should extend slightly farther left toward
+or just before the divider as in the target; and the last current-event row has
+no bottom hairline. Previous/archived events must not reuse the full
+date/status/details ledger: use a compact distinct row with event name/state at
+left and View history at right while preserving dynamic archive data/routes.
+The three feature SVGs are also materially too small and underweighted. Enlarge
+their real rendered optical box and redraw/tune them to match the target family:
+firm coral broadcast, full ink document with distinct sage badge, and fuller
+bronze four-bar chart with baseline. Keep comparable size, stroke presence, and
+alignment; do not change feature copy, colors, or overall strip composition.
+The Current events and Previous events Barlow 800 section headings also reduce
+slightly from the current render while retaining their hierarchy and rule
+alignment.
+
+Workflow clarification from the user: detailed rendered self-inspection occurs
+on the first coherent page-family pass, when explicitly requested again, or when
+a demonstrated visual uncertainty can materially change the implementation. Do
+not repeat heavy visual inspection on every small remediation. For surgical
+corrections, implement the named findings, run focused technical checks, capture
+evidence only when it is already inexpensive, and return the result for the
+user's visual inspection without iterative subjective tuning.
+
+The bounded ledger/archive/icon correction is now implemented only in
+`Pages/Index.cshtml` and `site.public-ui.css`. The focused Release Web build
+passed with zero warnings/errors and diff checks passed. Light handoff captures
+are under `tmp/public-ui-pass1a/remediation-20260822-final/`; dark/mobile
+captures were intentionally skipped under the updated small-remediation
+inspection rule. The later SVG-only correction completed before final user
+acceptance.
+
+The user accepted that correction except for one final SVG-only issue. The
+newest target crop is
+`/var/folders/w5/74mg_d917xg33ry8_4qc9g5w0000gn/T/codex-clipboard-6b6ef49d-3d5d-4675-a26c-7fe09eb622de.png`;
+the current crop is
+`/var/folders/w5/74mg_d917xg33ry8_4qc9g5w0000gn/T/codex-clipboard-bf7d3ea9-f480-4c45-889d-ad40f3ca8b30.png`.
+Reproduce the target broadcast, document/check, and four-bar chart geometry
+literally rather than drawing another approximation, and keep every stroke plus
+cap/join inside a safe 32×32 viewBox margin so no icon clips. Do not change the
+accepted icon size, feature layout/text, colors, typography, ledger, or behavior.
+
+The final SVG-only pass is implemented in `Pages/Index.cshtml` with no CSS or
+layout changes. All three paths retain safe viewBox padding, `git diff --check`
+passes, and the focused Release Web build passes with zero warnings/errors. Per
+the small-remediation workflow, no screenshot/self-review loop was run; the user
+owns visual acceptance.
+
+Public landing Pass 1A is manually accepted as complete by the user on
+2026-08-22. The accepted working-tree result uses Barlow Condensed ExtraBold 800
+display/numerals, Barlow Condensed SemiBold 600 utility roles, Geist body copy,
+target-matched feature SVGs, compact current/archive ledgers, explicit semantic
+action tones, and the corrected light/dark token split. Focused Release Web and
+diff checks pass. Landing dark/mobile coverage remains part of final regression,
+not a reason to keep Pass 1B paused or to reopen the accepted composition.
+
+On 2026-08-23 the user narrowly reopened only the Landing hero masthead artwork.
+The completed correction replaced its old PNG/clipped-container/rotated-line
+treatment with the approved Login light/dark logo SVGs and the same
+percentage-painted diagonal background idea, added the target bottom divider
+from the left content inset to the right edge, and hid the artwork when the hero
+stacks. After a final dark headline-separation correction, the user manually
+reapproved the Landing on 2026-08-23. Its approved copy, actions, feature strip,
+event ledgers, shared navigation header, behavior, and remaining composition
+stay frozen.
+
+Public UI Pass 1B was manually rejected by the user on 2026-08-22 after its
+implementation, independent review, and narrow remediation. The behavior checks
+remain useful, but the rendered Signup, Confirmation, Login, Onboarding,
+AccessDenied, Error, and StatusCode bodies retained the legacy widths,
+containers, DOM flow, and generic composition under the new identity. They are
+not a visually acceptable baseline. The next task is a fresh structural
+presentation rewrite from PUB-REF-05/06/09 with substantial scoped Razor
+replacement. The shared public header remains one `_Layout.cshtml`
+implementation, but the user has since rejected its pale/near-black
+Signup/Login treatment: those pages must use the approved blueberry light
+masthead and high-contrast dark shell without duplicating navigation or changing
+header behavior. The accepted landing composition remains frozen, except for the
+user-authorized discovery fix that must list public signup-open TEST 16 without
+requiring a roster or board. Do not begin Pass 2 before fresh review and user
+manual acceptance.
+
+The attempted fresh Pass 1B structural rewrite was also manually rejected on
+2026-08-22. The evidence roles are explicit: the TEST 16 PDF in the user's
+Downloads folder is the current failed render; PUB-REF-05 is the approved Signup
+target. The implementation still retained the old narrow/vertical form flow
+instead of the target's wide masthead/capacity/status band, three compact ruled
+rows, persistent right summary rail, and bottom action row. Broad Pass 1B work is
+stopped. Recover one atomic slice at a time: Signup and standalone Login first,
+with actual 1586×992, mobile, and dark renders returned for user inspection
+before Confirmation, Onboarding, status pages, or Pass 2. User-supplied desktop,
+dark, and mobile screenshots now block both atomic pages: Signup still lacks the
+compact full worksheet and real capacity/waiting focal projection; Login remains
+a narrow central island rather than the reference split page. The shared header
+Sign in link correctly navigates to standalone `/Account/Login`; the remaining
+header work is visual-only on Signup/Login, with explicit event/signup dialog
+launch points unchanged. Static copy may change in localized English/Danish to
+fit the references while preserving meaning, dynamic facts, and actions.
+
+The bounded Luna-high remediation is now implemented and source-verified. It
+uses the existing shared header with approved Signup/Login light/dark treatment,
+projects real confirmed/capacity/waiting values, restores confirmed/capacity as
+the Signup masthead focal metric, compacts the worksheet and action row, and
+expands Login into the reference-owned form/art split with the repository DK
+mark. Release build, focused Signup/Login/header checks, and `git diff --check`
+pass. No live visual inspection was performed by the worker. The Signup route,
+including its responsive account-row correction, was manually approved by the
+user on 2026-08-22. Confirmation was also manually approved on 2026-08-22.
+Standalone Login, including its rebuilt DK artwork and light/dark responsive
+composition, was manually approved on 2026-08-23. AccessDenied/403,
+StatusCode/404, and general Error/500 were manually approved on 2026-08-23
+after the shared code/divider geometry and ExtraBold 800 title role were
+corrected. Onboarding was manually approved on 2026-08-23 after its bounded
+responsive field-width, divider, dark-label, and WOM-control corrections. Pass
+1B is manually accepted; Pass 2 remains gated by its own user-authorized start.
+
+The user then clarified the shell root cause: the accepted Landing header is not
+a page-specific reference to imitate; it is the single header that every public
+route must render from `_Layout.cshtml`. The current conditional Landing versus
+`public-live-header-*` class tree is therefore superseded. The next bounded
+implementation must make `landing-shell-*` the global public header, preserve
+all dynamic shell behavior and subordinate event/account navigation, remove the
+new Signup/Login-only header skin, and leave the separate Admin layouts
+untouched. This shared-shell correction is now implemented: `_Layout.cshtml`
+emits one `landing-shell-*` header path for every non-overlay public route, the
+`public-live-header-*` runtime path and Signup/Login-only skin are removed, and
+the shell light/dark tokens resolve globally without applying Landing body
+geometry elsewhere. Bounded header/popover tests, Release build, and
+`git diff --check` pass; Admin layouts were not changed by this task. Replacement
+screenshots are the next gate.
+
+## Launch order and dates
+
+Production deployment is due 2026-08-31. Live production testing is planned
+for 2026-09-01 through 2026-09-05, with public signup opening 2026-09-06.
+Launch-critical work is the public signup journey and only the authentication,
+onboarding, and error states required to complete it, followed by focused
+signup-launch and deployment verification. Remaining public and participant-
+facing UI follows; Captain team operations is last in that group and requires
+functional correction before its visual reference. Resume
+remaining Admin UI only after Captain is complete. Dashboard and whole-
+application regression remain late gates. This ordering does not claim the
+whole application is production-ready.
+
+## Current UI approval snapshot (non-authoritative)
+
+This compact snapshot is derived from [`UI_PAGE_MATRIX.md`](UI_PAGE_MATRIX.md),
+which is the sole current page approval/status authority. `CURRENT_STATUS.md`
+remains authoritative for checkout state, blockers, limitations, current work,
+and immediate ownership.
+
+| Surface | State |
+| --- | --- |
+| Admin shell; Event Create; Identity; Schedule; Manage/Overview; Events directory | Approved |
+| Public UI foundation catalogue / `/Admin/PublicUi` | Historical public specimen retained; not a gate for the approved replacement identity and not in implementation scope |
+| Participants and accepted participant-detail dialog states | Approved |
+| Catalogue; Accounts/Roles Index/Create/Manage/Transfer | Approved |
+| Board | Approved — user manual approval, 2026-08-14 |
+| Signup Questions route/dialog | Approved — user manual approval as the Participants/signup-form popup, 2026-08-24; CSV is not owned by this route |
+| Teams/Draft, including advanced pre-formed-roster CSV import | Approved — user manual approval, 2026-08-16 |
+| Captain team operations / `/Captain` | Partially approved, deployment ready — user decision, 2026-08-26 |
+| Captain submission detail / `/Captain/Submissions/{id}` | Partially approved, deployment ready — user decision, 2026-08-26 |
+| Participant submissions / `/Submissions`, `/Submissions/{id}` | Partially approved, deployment ready — user decision, 2026-08-26 |
+| Admin evidence review | Deployment ready, not approved — user decision, 2026-08-26 |
+| Public board/evidence | Approved — Board overview, TeamBoard, nested Tile view, attached submission drawer, evidence lightbox, Recent Drops, Leaderboards, and final TeamBoard corrections manually approved by 2026-08-26 |
+| Finalize/closeout | Deployment ready, not approved — user decision, 2026-08-26 |
+| Audit | Deployment ready, not approved — user decision, 2026-08-26 |
+| Public landing | Approved — user manual acceptance, 2026-08-22 |
+| Public signup/confirmation | Approved — Signup and Confirmation user manual acceptance, 2026-08-22 |
+| Public Signups directory | Approved — user manual acceptance, 2026-08-24 |
+| Public Teams/roster | Approved — user manual acceptance after bounded masthead, roster, and draft-results corrections, 2026-08-24 |
+| Authentication/errors and Account Settings/My Accounts/My Events | Approved — page-specific manual acceptance by 2026-08-24 |
+| Change/Forgot/Reset Password, Notifications, and Privacy | Approved — user manual acceptance, 2026-08-24 |
+| Setup | Approved — user manual approval, 2026-08-26 |
+| How To | Deployment ready, not approved — masthead-only WIP placeholder; future F-06 content remains separate, 2026-08-26 |
+| Dashboard/action inbox | Deployment ready — intentional shell-owned WIP presentation, 2026-08-24 |
+
+The matrix records page-specific approval. The complete public Board ecosystem—
+masthead, View bingo, Recent Drops, leaderboards, team overlay/grid, main and
+tile-detail sidebars, approved submissions/lightbox, submission drawer/form, and
+responsive behavior—was manually accepted on 2026-08-20 and remains the
+protected behavior/interaction baseline. Its former visual identity is
+superseded by the approved Public UI rebuild and will be migrated only in the
+ordered Board pass. The Captain workspace and participant submission routes are
+partially approved and deployment ready; remaining manual approval is deferred
+to whole-application regression. Current unapproved
+Admin UI visual debt is non-blocking for launch because its functionality works;
+it must not be described as UI-approved or as whole-application production
+readiness. Only security, authorization, privacy/data-loss/data-integrity, or
+workflow-blocking Admin defects may interrupt launch-critical work.
+
+## Accepted Recent Drops and public-board masthead handoff
+
+The live public Board Recent Drops surface is implemented and was iteratively
+accepted against real seeded development data and screenshots on 2026-08-18.
+Its current behavior is:
+
+- The feed groups approved drops into Last hour, Last 24 hours, and Older drops;
+  each card keeps the historical progression captured by that drop
+  (`ProgressAfter/Target`) rather than rereading current tile progress.
+- Approved evidence opens in the existing lightbox. The feed starts with 25
+  items and loads 25 more incrementally, with a Back to latest fragment link
+  after expansion.
+- The right rail contains the statistics card (total drops, last-24-hour
+  drops, total Drop EHB, unique players with a drop, highest Drop EHB team, and
+  most individual drops team) and a sticky search/team-filter sidebar on wide
+  screens. Search covers drops, players, teams, and tiles.
+- The accepted responsive layout keeps the feed and right rail in two columns
+  where they fit, then moves the toolbar above the feed in the one-column
+  responsive fallback. Search and team changes reset the visible count,
+  preserve focus/scroll during enhanced navigation, and synchronize
+  `dropCount`, `dropSearch`, and `dropTeam` in the URL. Ordinary GET
+  form/navigation remains available as the ordinary route path when enhancement
+  is unavailable.
+
+The shared rightmost masthead component follows the event lifecycle: it shows
+Submit drop while submissions are open; shows the provisional In the lead
+state during `AwaitingFinalReview`; and shows the official winner from the
+official placement snapshot for `Finalized`/`Archived` when published results
+are available (otherwise Results pending). On 2026-08-18 the user manually
+confirmed that the first-place `#1` renders in the correct gold color and that
+the rightmost masthead component shows the correct information for each
+lifecycle state.
+
+The Board family approval is now formal in `UI_PAGE_MATRIX.md`. Whole-
+application regression and production release gates remain separate and do not
+claim that the whole application is production-ready.
+
+## Active authority consolidation
+
+Documentation consolidation is complete as of 2026-08-15. The UI authority
+consolidation pass and workflow authority consolidation pass are complete. The
+active documents are:
+
+- [`UI_SYSTEM.md`](UI_SYSTEM.md) — global primitives, exact ownership,
+  responsive/accessibility rules, protected baselines, and review contract.
+- [`UI_PAGE_MATRIX.md`](UI_PAGE_MATRIX.md) — page family, canonical
+  reference, protected composition, exception, approval, and next gate.
+- [`FUNCTIONAL_CONTRACTS.md`](FUNCTIONAL_CONTRACTS.md) — final end-to-end
+  journeys, actors, reachability, authority handoffs, failure/recovery
+  behavior, and acceptance outcomes.
+- [`DELIVERY_PLAN.md`](DELIVERY_PLAN.md) — remaining documentation/UI order
+  and release gates.
+
+`ADMIN_UI_CONTRACT.md` and `UI_OVERHAUL_ROADMAP.md` are retained as short
+non-authoritative tombstones. Their exact pre-consolidation bytes are archived
+at the paths indexed in [`docs/archive/INDEX.md`](docs/archive/INDEX.md).
+`FUNCTIONAL_WORKFLOWS.md` is likewise a short non-authoritative tombstone; its
+exact pre-consolidation bytes are archived and indexed there. Archived material
+is evidence only and cannot approve scope or override active documents.
+
+The archive-promotion pass is complete as of 2026-08-15. The superseded
+implementation roadmap, completed Slice 1–10 plans, and Slice 1–3 manual result
+records are preserved as exact working-tree copies under `docs/archive/` with
+their SHA-256 values in [`docs/archive/INDEX.md`](docs/archive/INDEX.md). No
+durable product, workflow, data, architecture, or UI rule was promoted from
+these historical documents. F-05 notification source-of-truth reconciliation
+was resolved by documentation-only edits on 2026-08-15. The Application Atlas
+retirement and durable-finding routing pass is also complete: the exact dirty
+Markdown and HTML bytes are preserved under `docs/archive/superseded-assessments/`
+and indexed with matching hashes. The bounded active core-document boundary
+reconciliation is complete as of 2026-08-15: authority boundaries, stale
+status framing, and active cross-routing were corrected without changing
+product/UI behavior or promoting archive material. Focused replacement-
+link/content verification is complete as of 2026-08-15: 15 active root
+Markdown files and 62 local links were checked with no broken targets or
+anchors; 20 archived files/hashes match `docs/archive/INDEX.md`; 3 root
+tombstones are short, rule-free, non-authoritative, and correctly linked; and
+the manual checklist has 24 headings and 180 checkbox items with a valid
+archive-evidence link. No stale retired-root links, stale phrases, duplicate
+authority entries, or Atlas-as-active wording remain, and documentation/archive
+`git diff --check` passed. F-03 was classified against the current dirty
+Manage baseline: its readiness rows, blocker destinations, stage-scoped
+lifecycle controls, and authoritative projections already represent the
+approved behavior, so it creates no new active requirement. Do not treat these
+passes as product or UI approval.
+
+## Verification limitations
+
+- The 2026-08-24 Development-fixture publication correction gives every
+  finalized positive fixture one active frozen roster cycle, including
+  `test-15-dkl-live` and `test-101-danish-summer-bingo-2026`; the explicit
+  `test-98-missing-playing-assignment` negative remains unpublished. Release
+  build and diff hygiene pass, and the historical Teams integration test
+  passes. A broader focused fixture test reaches the new publication
+  assertions but still fails on an unrelated pre-existing timestamp
+  expectation. The running local database must be reset before the corrected
+  Teams routes become reachable.
+
+- The complete public Board ecosystem and its responsive team-board/submission
+  interaction model are manually accepted. `/Captain`,
+  `/Captain/Submissions/{id}`, `/Submissions`, and `/Submissions/{id}` are
+  partially approved and deployment ready as of 2026-08-26; remaining manual
+  approval is deferred to whole-application regression.
+- This pass's focused Submit direct-route/drawer-contract assertions passed with
+  the bundled Node runtime. The broader team-board overlay script test stops on
+  an existing shared-layout assertion, and the focused EvidenceWorkflowUiTests
+  run has one unrelated current-checkout assertion failure in Admin Review; the
+  project builds and one test passes. The targeted current Release Web build
+  passed with 0 warnings and 0 errors. The current full-solution Release build
+  is not clean: it reaches the Web and other projects, then stops on four
+  unrelated dirty-checkout integration-test compile errors (three missing
+  `SharedShellService` constructor arguments and one invalid `Guid.Id` access).
+  No server was started here.
+- On the current Codex task host, focused `dotnet` commands invoked by recent
+  visual-only CSS workers cannot start because MSBuild's named-pipe worker is
+  denied by the sandbox (`SocketException: Permission denied`). Treat this as
+  one known unchanged environment blocker: do not repeat the same command in
+  later CSS-only remediation tasks unless the environment changes. Use bounded
+  source/cascade inspection and `git diff --check`; reserve executable .NET
+  verification for a host where MSBuild can start.
+- Full solution regression, cross-application verification, production
+  rehearsal, and release packaging remain unverified. Launch-critical work is
+  the public signup journey and only the auth/onboarding/error states it needs,
+  followed by focused signup-launch and deployment verification.
+- Archive hashes match the captured pre-consolidation sources:
+  `ADMIN_UI_CONTRACT.md` / archive `be0679c744604c0e1a75f26244e75e38631ea28b0e8462f15bb4e77f979f3360`;
+  `UI_OVERHAUL_ROADMAP.md` / archive `d3a93ee2b4e67a690820d5a2875cf20454e5483c37e250cf0613308b453ac950`;
+  `FUNCTIONAL_WORKFLOWS.md` / archive `b9a0fd439e69aebfdcc52905d6d0af51ad85039745b4bbe78a2507077fef0a45`.
+- Atlas archive hashes match the captured 2026-08-15 working-tree sources:
+  Markdown source / archive `f7b31fd1177cf2374fc5d10ec27aa767cda5c3e7f2bc40f05d3fd5010afc5101`;
+  HTML source / archive `a6ea62317a82515d395e9fde8f32328f27782bff1bce53a9790f578550cc3ab5`.
+- The active authority documents were checked for stale boundary/status
+  wording, archive-as-authority routing, unresolved decisions, links, and
+  protected source-file changes.
+- The 2026-08-15 archive promotion preserved all 14 candidate working-tree
+  files exactly; individual SHA-256 values and archive destinations are in the
+  archive index.
+
+## Explicit unresolved decisions
+
+- **F-04:** decide Live identity correction versus fail-closed alignment before
+  changing that behavior.
+- **F-06:** decide whether permanent Rules/how-to work precedes or follows
+  Milestone 9 before implementing that feature work.
+
+## Immediate ownership and stop rules
+
+1. UI planner/orchestrator: Landing, Signup, Confirmation, standalone Login,
+   Onboarding, AccessDenied, Error, and StatusCode are complete and manually approved.
+   Preserve their accepted target-owned page structures, shared Landing
+   navigation header, normal standalone Login navigation, and rebuilt DK
+   artwork. Pass 1B is complete. The user authorized Pass 2 on 2026-08-23 and
+   its bounded account/public-utilities implementation is complete. Account
+   Settings is manually approved. My Accounts has completed independent review
+   and its bounded Luna High remediation against PUB-REF-10 is complete: equal
+   Add-row fields, horizontal Saved EHB/Fetch composites, one masthead divider,
+   input-aligned actions/reorder controls, one short registered-event label, and
+   a localized native confirmation prompt now replace the visible unlink
+   checkbox while the server remains fail-closed. Focused source, responsive
+   cascade, localization XML, confirmation, and diff-hygiene checks pass; the
+   established MSBuild blocker prevented executable .NET verification. My
+   Accounts was manually approved by the user on 2026-08-24 after its responsive
+   Add-form, EHB precision, and move-to-position-01 corrections. The
+   current Fetch/Correct/account-action behavior drift remains a separate
+   functional blocker not closed by that visual approval. Remaining Pass 2
+   pages still await their own actual-route evidence/review. On 2026-08-24 the
+   user explicitly deferred that remaining manual acceptance and authorized the
+   remaining Public UI passes to proceed sequentially in this exact dirty tree.
+   Completed but unseen pages remain `implemented; manual acceptance deferred`;
+   they are not approved. Do not commit, create worktrees, package, push, or
+   deploy under this authorization.
+   The latest My Accounts manual correction makes position 01 the sole preferred
+   character and removes the separate set-preferred action; it also shortens the
+   linked Fetch label, all visible EHB labels, and the registration warning. The
+   bounded remediation and preferred-order data migration are now present. The
+   migration's namespace analyzer failure was corrected, and a focused Release
+   build passes with zero warnings and zero errors. The intermediate two-by-two
+   Add form and standard two-decimal My Accounts saved-EHB rounding are now
+   implemented. The false move-to-position-01 conflict was traced to transferring
+   the partial-unique preferred flag in one database save; the service now clears
+   the old flag before assigning the new position-01 preference inside the same
+   transaction. Focused Release builds and source/diff checks pass. The focused
+   PostgreSQL integration scenario remains unrun because the worker could not
+   access Docker. The user then supplied My Events light desktop, dark desktop,
+   and 390px narrow screenshots. The user stopped the independent reviewer after
+   its concrete PUB-REF-10 finding: replace inherited full-width semantic status
+   bands with compact dot/label status followed by a neutral vertical divider,
+   preserving association across desktop and narrow layouts. Landing is not a
+   My Events reference; only already-existing assets or selectors may be reused
+   where the similar—but not 1:1—structure genuinely matches. The bounded Razor/
+   CSS remediation and focused Release build completed, and the user manually
+   accepted My Events on 2026-08-24 despite a remaining non-blocking visual
+   imperfection. The user next authorized one bounded shared secondary-navigation
+   correction: relocate the existing event/account context links below the blue
+   masthead and style them as PUB-REF-02 content-level tabs while preserving all
+   routes, visibility, active state, localization, focus, and narrow access. The
+   approved account page bodies and Board behavior remain frozen. The bounded
+   shared-layout/CSS implementation and focused navigation test, Release Web
+   build, and diff checks pass. During manual inspection the user directly
+   reopened one My Events detail: retain dividers between rows but remove the
+   final row's bottom divider in each Current Events or History list. One fresh
+   Luna High remediator removed the terminal border, and its bounded continuation
+   removed the remaining bottom padding while preserving top/inter-row spacing.
+   The same manual check
+   named a separate shared-shell remediation: substantially reduce page top
+   padding where secondary navigation is present, thicken primary and secondary
+   active underlines, and place the primary underline beneath its text with the
+   secondary row's internal-padding geometry rather than on the masthead bottom.
+   The fresh Luna High remediator completed those shared layout/CSS corrections.
+   The focused navigation test, scoped diff check, and Release Web build pass with
+   zero warnings/errors. The user then named one shared interaction-state finding:
+   secondary tabs need the primary header's text-color-only hover cue, and dark
+   mode currently lacks a visible hover color change in the header. The fresh
+   Luna High CSS/state remediator completed that correction; the focused
+   public-dialog navigation test and scoped diff checks pass. A Release build was
+   not repeated for this CSS/test-only follow-up; the immediately preceding
+   shared-navigation Release build passed. The user rejected the hover direction:
+   all primary/secondary labels in light and dark must share the same full-strength
+   resting color whether selected or not, and only inactive hover fades the text;
+   selected labels stay full-strength and underlined. The fresh Luna High CSS/state
+   remediator completed that reversed mapping; the focused bundled-Node navigation
+   test and scoped diff checks pass. The user accepted the corrected shared
+   navigation by moving to the next-page gate. The user then authorized one
+   bounded `/Account/ChangePassword` dark-mode correction under PUB-REF-08:
+   `Account security`, `Current password`, and `New password` use cream rather
+   than violet, and resting inputs reuse the approved neutral dark border. The
+   fresh Luna High remediator completed that page-isolated correction; scoped
+   selector/isolation and diff checks pass. A Release build was not repeated due
+   the documented MSBuild sandbox limitation. Change Password light/dark user
+   acceptance is deferred under the continuous-run authorization; proceed to the
+   next remaining Public UI implementation task unless a genuine blocker appears.
+2. Verifier/reviewer: keep approval, regression, and environment limitations
+   explicit; do not promote historical evidence to current verification.
+3. UI owner: Account overview, Notifications, Guidance/editorial, public Signups,
+   Recent Drops, and Tile/Evidence references are now recorded as PUB-REF-10
+   through PUB-REF-15. The user approved the generated Public Teams/roster
+   composition as PUB-REF-16 on 2026-08-24. Its slightly uneven spacing and
+   detached-looking generated DK mark are directional artifacts: implementation
+   should integrate the existing Landing-family diagonal artwork, retain real
+   event timing, remove team images and role icons, group teams with whitespace,
+   and render two draft picks per row at large widths. Pass 3 Signups and Teams
+   implementation, current evidence, strict independent review, and bounded
+   Teams remediations are complete. Signups is manually approved. The current
+   Teams result uses `FINAL TEAMS` and `DRAFT RESULTS` label-owned rules with
+   cream dark-mode labels, plus one PICK/TEAM/PLAYER header triplet per
+   large-width draft column that collapses to one triplet when narrow. The
+   Development reset now publishes frozen roster
+   snapshots for every finalized positive fixture while preserving the explicit
+   missing-playing-assignment negative; after reset, both test-15 and test-101
+   Teams routes are valid manual-review targets. The current correction keeps the
+   masthead/logo full-bleed and the roster/draft body separately constrained. The
+   masthead owns its full-bleed bottom rule through an out-of-flow pseudo-element;
+   the content wrapper does not own or stretch for that rule, and its two
+   section-heading rules remain at body-content width. Teams now matches `/Signup`
+   exactly with `1rem` metadata top margin and the canonical `1.35rem` masthead
+   bottom padding, without duplicated space below the divider. The masthead uses the documented ordinary no-view-navigation top gap
+   (`clamp(2.25rem, 5vw, 5rem)`, `2rem` narrow). The masthead artwork itself
+   now uses a Teams-local shrink-to-fit composition: the diagonal run, accent
+   stripe, light/dark mark size, and crop follow the actual content-driven
+   masthead height but never grow beyond Landing's live viewport-clamped geometry.
+   The dark Final Rosters kicker is cream, the event H1 no longer adds `TEAMS`,
+   and Draft Results now matches Final Teams top spacing with header tracks aligned
+   to both row columns; the browser's default ordered-list inset is explicitly
+   reset. The Teams art field widens to `43%` and the mark's horizontal crop is
+   reduced to `8%`, moving the complete background and lower-height mark materially
+   left while retaining the shrink-only cap; team sublabels show formation type only rather than affiliation
+   plus formation. Landing itself remains unchanged. Historical first-round reference pictures are not active
+   worker/reviewer inputs unless the user explicitly reactivates a named picture.
+   Teams received user manual approval on 2026-08-24; preserve the accepted page
+   and do not begin another page family without explicit authorization. The shared Pass
+   1–3 width regression also
+   applied the approved 54rem Standard, 64rem Structured, 88rem Wide, and shared
+   responsive-gutter contract while preserving Landing, Login, and 403/404/405.
+   Focused source/diff checks and both Release Web builds passed with zero
+   warnings or errors. The latest CSS/Razor correction passes focused
+   source/cascade and whitespace checks. Its Release build/test was not rerun:
+   the user clarified that small visual corrections should not trigger unrelated
+   .NET gates or named-pipe escalation unless their actual risk requires one.
+   The masthead-only HowTo WIP placeholder is deployment ready but not approved; F-06 now
+   governs only a future permanent content replacement. Pass 5 Captain team operations now implements the approved
+   focus controls, status totals, complete filtered/paged ledger, scoped
+   Captain/co-captain/emergency authority, and PUB-REF-17 composition. Current
+   screenshots, strict review, and the bounded structural/paging/detail/fixture
+   remediation are complete; focused PostgreSQL, Release build, format, and diff
+   checks pass. The user marked Captain team operations and Captain submission
+   detail partially approved and deployment ready on 2026-08-26. Setup, Change
+   Password, Forgot Password, Reset Password, Notifications, and Privacy are
+   manually approved. Admin evidence
+   review now has its compact queue/detail implementation, rule-based independent
+   review, and bounded spacing/action/backdrop remediation complete; Release and
+   scoped diff checks pass, with one unrelated stale compact-drop test assertion
+   recorded separately. The user marked it deployment ready but not approved on
+   2026-08-26. Finalize now
+   uses the Admin detail/table system with protected closeout behavior intact;
+   Audit now uses the Admin full-width filter/table system with its query contract
+   intact. Both completed strict Admin-rule review and bounded remediation, pass
+   Release/scoped diff checks; the user marked both deployment ready but not
+   approved on 2026-08-26. The Admin
+   landing route now intentionally renders a shell-owned WIP surface while
+   retaining its prior dashboard markup inertly; the user marked that presentation
+   deployment ready. Pass 4 Board behavior corrections and two bounded visual
+   remediation cycles are present in the dirty tree, but the user rejected the
+   resulting visual composition on 2026-08-24 because it still reads as a legacy
+   reskin and its masthead does not match the approved reference. On 2026-08-24
+   the user authorized a fresh structural redesign, reactivated PUB-REF-02,
+   PUB-REF-03, PUB-REF-04, PUB-REF-14, and PUB-REF-15 for this family, and
+   approved replacing the team-board popup with ordinary navigation to the
+   existing TeamBoard page at every viewport. Current screenshots are rejection
+   evidence only, except that the user explicitly identified the current
+   team-overview grid beneath the masthead as already close to target. Preserve
+   that grid, integrate it with the corrected masthead, and add the missing
+   PUB-REF-02 Recent Activity footer. The structural rewrite must replace the
+   rejected masthead and team workspace rather than merely restyling them; tile routes
+   still replace the left rail, submission remains its attached drawer, and
+   evidence remains a focused modal viewer. A fresh Terra High read-only
+   readiness review cleared on 2026-08-24 with no remaining product decision.
+   Pass 4 is now bounded as 4A Board masthead plus missing Recent Activity footer,
+   4B atomic regular-TeamBoard/popup-retirement/workspace rewrite, and 4C
+   secondary Board views. The next action is one fresh Luna High implementer for
+   4A only; it must preserve the current overview grid and all team-workspace
+   behavior, then stop for current screenshots. Fresh Luna High task
+   `01a035c7-c623-7f11-ba2c-29eb38d2cb90` completed 4A on 2026-08-25: only
+   `Board.cshtml` and the Board-owned `site.public-ui.css` cascade changed; the
+   masthead now has one reference-owned event/status/countdown/leader/metric/
+   action/legend hierarchy, and a real three-item Recent Activity footer uses
+   the existing approved `RecentDrops` projection beneath the untouched mission
+   grid. Focused source/cascade and whitespace checks pass, and the focused Web
+   Release build passes with zero warnings or errors. No TeamBoard, Tile,
+   popup, drawer, evidence, or secondary-view owner changed in 4A. The user
+   rejected the rendered 4A result on 2026-08-25. Current evidence shows a giant
+   two-storey title and equal-column dashboard rather than PUB-REF-02's compact
+   balanced masthead; it also renders the team count as the reference-like giant
+   identity numeral, boxes the page inside the generic 88rem cap, and expands
+   Recent Activity into a large section instead of the compact footer strip. The
+   user then corrected the Board overview width decision to shared Wide with the
+   normal responsive gutter; Landing hero height and artwork remain out of scope.
+   Fresh Terra High task `01a035d2-a839-7a03-839b-5075bf37bf71`
+   confirmed those blocking findings and required a compact balanced masthead,
+   removal of the synthetic team-count artwork, a Board-only Landing-width
+   field, and a one-strip Recent Activity footer. Fresh Luna High task
+   `01a035d5-8c0f-7750-9181-f4ee02f9e45f` completed only that remediation: the
+   invalid team-count artwork is removed, the event/status/countdown/leader/
+   metric/action/legend hierarchy is compact, the shared Wide width uses the
+   normal responsive gutter, the fact/action rail is content-driven, and Recent
+   Activity is a short footer strip.
+   Targeted source/cascade and whitespace checks pass, and the focused Web
+   Release build passes with zero warnings or errors. After iterative manual
+   masthead, overview-grid, metric, divider, and compact Recent Activity
+  corrections, the user manually approved the Board overview/Pass 4A on
+  2026-08-25. Preserve that approved page. During the subsequent TeamBoard
+  manual review, the user found that the already-overhauled ordinary TeamBoard
+  route was still being intercepted and rendered through the superseded popup.
+  The bounded remediation now removes the Board popup host, interception,
+  popup-only restoration scripts/styles, and redirects while preserving normal
+  route navigation, the route-owned submission drawer, evidence viewer, nested
+  tile routes, and history behavior. The focused ordinary-navigation contract,
+  `git diff --check`, and the Web Release build pass with zero warnings or
+  errors. Pass 4B TeamBoard, nested Tile view, attached submission drawer, and
+  evidence lightbox received user manual approval on 2026-08-25. The temporary
+  local boss-art fallback is removed; only the three exact-name local mappings
+  remain, while ordinary bosses use their existing authoritative artwork again.
+  The current TeamBoard correction removes duplicate participant and focus-operation panels and TeamBoard focus mutation endpoints, while retaining compact active-account/swap context, read-only tile focus projection, explicit Super Admin inspection, and Captain-only focus mutation. Focused source assertions, diff checks, and the requested Web Release build pass. Recent Drops and Leaderboards received user manual approval on 2026-08-26; Leaderboards retains the final Drops-matched standings-heading spacing correction.
+  The user
+   had previously authorized proceeding to Pass 5. The user approved the Captain functional redefinition and then
+   approved PUB-REF-17 on 2026-08-24 before its functional correction. `/Captain`
+   must become a team-operations page ordered as team focus
+   controls, pending/rejected/approved counts, and a complete team submission
+   ledger with status/player/tile filters, details, and reviewer feedback. It
+   must not duplicate the board, submission experience, or Admin review controls;
+   submission stays in the shared team-board drawer. The standalone
+   `/Captain/Submit/{tileId?}` page is retired; its route remains only as drawer
+   transport/handler plus a compatibility redirect for old direct links.
+   Captain/co-captain and valid
+   emergency-captain team scope remains unchanged. Current source already has
+   focus persistence/team-board display, the shared captain-aware drawer,
+   submission detail/feedback and mutation routes, and no Captain review
+   controls. Missing work is `/Captain` focus integration, summary counts,
+   status/player/tile filters, complete-ledger paging, derived replaced-chain
+   presentation, Captain-only page authorization, and valid emergency-captain
+   focus authority. The current duplicate tile grid/submission links must be
+   removed. The reference's empty upper-right space may receive one restrained
+   existing fact such as current evidence code or cutoff. No Public UI reference
+   family remains missing; page implementation and approval gates remain.
+   The user added one bounded participant submission workspace before final
+   regression: `/Submissions` contains the authenticated current team's
+   complete retained ledger, including departed credited members, and omits
+   Captain-only focus/status sections. `/Submissions/{id}` owns current-team
+   detail reads; only the credited owner may mutate through the existing cutoff,
+   version, and linked-resubmission rules, while teammate-owned and all other
+   states are read-only. Rejection notifications route credited owners to the
+   neutral detail and current linked Captains/co-captains to the Captain detail,
+   with owner precedence. This decision is recorded in the active product,
+   workflow, UI, delivery, and manual-test authorities. The user marked both
+   participant submission routes partially approved and deployment ready on
+   2026-08-26; remaining manual approval stays in the late whole-application
+   regression gate.
+   The user may request the accumulated manual walkthrough at any time. If not,
+   perform it after the remaining Public UI implementation sequence, covering
+   light/dark desktop, narrow/mobile, shared navigation, responsive composition,
+   and cross-page CSS regressions before any approval or packaging claim. The
+   each remaining pass must still complete implementation, current screenshots,
+   independent reference/screenshot review, and focused remediation. Then mark
+   it `awaiting manual approval` and continue. The user may supply screenshots
+   and corrections during this sequence; final hands-on approval is deferred.
+4. Packager: stage, commit, push, or deploy only after acceptance and explicit
+   authorization.
+
+For later Public UI planning, reuse approved screenshots by visual family rather
+than demanding a separate reference for every route. A settings reference may
+govern related account forms and states when their composition genuinely matches.
+Before implementing a materially different page structure, hierarchy, or
+interaction geometry that existing references do not resolve, stop and request a
+new picture reference from the user instead of inventing the composition.
+
+The Board behavior approval and replacement-identity decision do not resolve
+F-04 or the future permanent-content question in F-06 and do not imply
+whole-application production readiness. The currently shipped masthead-only
+`/HowTo` WIP placeholder is deployment ready, not approved, and remains
+unchanged until F-06 is separately reopened.
+Regression and remaining deployment gates remain sequenced as above.

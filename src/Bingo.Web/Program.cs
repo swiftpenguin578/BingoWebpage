@@ -7,10 +7,12 @@ using Bingo.Application.Access;
 using Bingo.Application.Boards;
 using Bingo.Application.Catalogue;
 using Bingo.Application.Evidence;
+using Bingo.Application.Events;
 using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Signups;
 using Bingo.Application.Teams;
 using Bingo.Domain.Access;
+using Bingo.Domain.Events;
 using Bingo.Infrastructure;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.WiseOldMan;
@@ -30,10 +32,13 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Localization;
 
+var resetTestData = args.Contains("--reset-test-data", StringComparer.Ordinal);
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
@@ -81,7 +86,6 @@ builder.Services.AddScoped<CaptainAccountProvisioner>();
 builder.Services.AddScoped<AccountCookieEvents>();
 builder.Services.AddScoped<DevelopmentAdminBootstrapper>();
 builder.Services.AddScoped<OperatorRecoveryService>();
-builder.Services.AddScoped<ClanCatalogueImporter>();
 builder.Services.AddScoped<Bingo.Web.Teams.PreformedRosterCsvImportService>();
 builder.Services.Configure<WiseOldManOptions>(builder.Configuration.GetSection(WiseOldManOptions.SectionName));
 var wiseOldManHttpClient = builder.Services.AddHttpClient("WiseOldMan", (serviceProvider, client) =>
@@ -97,7 +101,7 @@ if (builder.Environment.IsDevelopment())
     wiseOldManHttpClient.ConfigurePrimaryHttpMessageHandler(serviceProvider =>
     {
         var settings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<WiseOldManOptions>>().Value;
-        return settings.DevelopmentFake.Enabled
+        return settings.DevelopmentFake.Enabled && !resetTestData
             ? new WiseOldManDevelopmentFakeHandler(settings, serviceProvider.GetRequiredService<TimeProvider>())
             : new HttpClientHandler();
     });
@@ -154,6 +158,18 @@ if (discordOptions.IsConfigured)
             options.AuthorizationEndpoint = "https://discord.com/api/oauth2/authorize"; options.TokenEndpoint = "https://discord.com/api/oauth2/token"; options.UserInformationEndpoint = "https://discord.com/api/users/@me"; options.Scope.Add("identify");
             options.ClaimActions.Add(new JsonKeyClaimAction(System.Security.Claims.ClaimTypes.NameIdentifier, System.Security.Claims.ClaimValueTypes.String, "id"));
             options.ClaimActions.Add(new JsonKeyClaimAction(System.Security.Claims.ClaimTypes.Name, System.Security.Claims.ClaimValueTypes.String, "global_name"));
+            options.Events.OnRemoteFailure = context =>
+            {
+                context.HandleResponse();
+                var tempDataFactory = context.HttpContext.RequestServices.GetRequiredService<ITempDataDictionaryFactory>();
+                var tempData = tempDataFactory.GetTempData(context.HttpContext);
+                var text = context.HttpContext.RequestServices.GetRequiredService<IStringLocalizer<Bingo.Web.SharedResource>>();
+                tempData["StatusMessage"] = text["Discord sign-in was cancelled or failed. Please try again."].Value;
+                context.HttpContext.RequestServices.GetRequiredService<ITempDataProvider>().SaveTempData(context.HttpContext, tempData);
+                var purpose = context.Properties?.Items.TryGetValue("discord-purpose", out var value) == true ? value : null;
+                context.Response.Redirect(purpose is "link" or "replace" ? "/Account/Settings" : "/Account/Login");
+                return Task.CompletedTask;
+            };
             options.Events.OnCreatingTicket = async context =>
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, context.Options.UserInformationEndpoint);
@@ -370,32 +386,74 @@ if (args.Contains("--reset-test-data", StringComparer.Ordinal))
         throw new InvalidOperationException("--reset-test-data can be used only in the Development environment.");
     }
 
-    await using var seedScope = app.Services.CreateAsyncScope();
-    var seedDb = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await seedDb.Database.MigrateAsync();
-    var seeder = seedScope.ServiceProvider.GetRequiredService<DevelopmentScenarioSeeder>();
-    var result = await seeder.ResetAndSeedAsync();
+    SeedResult result;
+    Guid historicalEventId;
+    await using (var seedScope = app.Services.CreateAsyncScope())
+    {
+        var seedDb = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await seedDb.Database.MigrateAsync();
+        var seeder = seedScope.ServiceProvider.GetRequiredService<DevelopmentScenarioSeeder>();
+        result = await seeder.ResetAndSeedAsync();
+        historicalEventId = await seedDb.Events
+            .Where(value => value.Slug == DevelopmentScenarioSeeder.HistoricalFixtureSlug)
+            .Select(value => value.Id)
+            .SingleAsync();
+    }
+
+    await using (var syncScope = app.Services.CreateAsyncScope())
+    {
+        var syncDb = syncScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var admin = await syncDb.Accounts.AsNoTracking()
+            .SingleAsync(value => value.LoginName == result.AdminUsername);
+        var actor = new LifecycleActor(admin.Id, admin.LoginName);
+        var refresh = await syncScope.ServiceProvider
+            .GetRequiredService<IEventCompetitionSynchronizationService>()
+            .RefreshAsync(historicalEventId, actor);
+        if (!refresh.Succeeded || refresh.Skipped)
+            throw new InvalidOperationException($"Historical fixture Wise Old Man refresh failed: {refresh.Message ?? refresh.ErrorKind ?? "unknown error"}.");
+
+        var synchronization = await syncDb.EventCompetitionSynchronizations.AsNoTracking()
+            .SingleAsync(value => value.EventId == historicalEventId);
+        var currentRows = await syncDb.EventCompetitionCharacterActivities
+            .CountAsync(value => value.EventId == historicalEventId && value.Generation == synchronization.Generation);
+        if (synchronization.LatestComplete != true || currentRows != 93)
+            throw new InvalidOperationException($"Historical fixture Wise Old Man refresh was incomplete: complete={synchronization.LatestComplete}, current rows={currentRows}.");
+    }
+
+    EventState historicalState;
+    await using (var lifecycleScope = app.Services.CreateAsyncScope())
+    {
+        var lifecycleDb = lifecycleScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var admin = await lifecycleDb.Accounts.AsNoTracking()
+            .SingleAsync(value => value.LoginName == result.AdminUsername);
+        var actor = new LifecycleActor(admin.Id, admin.LoginName);
+        var eventItem = await lifecycleDb.Events.SingleAsync(value => value.Id == historicalEventId);
+        var ended = await lifecycleScope.ServiceProvider
+            .GetRequiredService<IEventLifecycleService>()
+            .EndNowAsync(historicalEventId, eventItem.Version, true, "Seeded historical fixture completed after its published Wise Old Man snapshot.", actor);
+        if (!ended.Succeeded)
+            throw new InvalidOperationException($"Historical fixture lifecycle transition failed: {ended.Error ?? "unknown error"}.");
+        historicalState = await lifecycleDb.Events
+            .Where(value => value.Id == historicalEventId)
+            .Select(value => value.State)
+            .SingleAsync();
+        if (historicalState != EventState.AwaitingFinalReview)
+            throw new InvalidOperationException($"Historical fixture ended in unexpected state: {historicalState}.");
+    }
+
     Console.WriteLine($"Test database reset complete. Preserved admin: {result.AdminUsername}");
     Console.WriteLine($"Second admin for concurrency tests: {result.SecondaryAdminUsername} / {result.SecondaryAdminPassword}");
     Console.WriteLine($"Waiting-list replacement account: {result.ReplacementUsername} / {result.ReplacementPassword}");
     Console.WriteLine($"Board blueprint: {result.BoardBlueprint}");
     foreach (var scenario in result.Scenarios)
     {
-        Console.WriteLine($"- {scenario.EventName} [{scenario.EventState}; board: {scenario.BoardState?.ToString() ?? "none"}]");
+        var state = scenario.EventId == historicalEventId ? historicalState : scenario.EventState;
+        Console.WriteLine($"- {scenario.EventName} [{state}; board: {scenario.BoardState?.ToString() ?? "none"}]");
         foreach (var username in scenario.CaptainUsernames)
         {
             Console.WriteLine($"  Captain login: {username} / {result.CaptainPassword}");
         }
     }
-    return;
-}
-
-var clanCatalogueArgument = args.SkipWhile(value => !string.Equals(value, "--import-clan-catalogue", StringComparison.Ordinal)).Skip(1).FirstOrDefault();
-if (clanCatalogueArgument is not null)
-{
-    await using var importScope = app.Services.CreateAsyncScope(); var importer = importScope.ServiceProvider.GetRequiredService<ClanCatalogueImporter>(); var result = await importer.ImportAsync(clanCatalogueArgument);
-    Console.WriteLine($"Clan catalogue import complete. Bosses created: {result.BossesCreated}; drops created: {result.DropsCreated}; skipped: {result.Skipped.Count}.");
-    if (result.Skipped.Count > 0) Console.WriteLine($"Skipped rows: {string.Join("; ", result.Skipped)}");
     return;
 }
 

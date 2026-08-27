@@ -1,0 +1,15 @@
+@model Bingo.Web.Pages.Captain.SubmissionModel
+<script src="~/js/captain-evidence-input.js" asp-append-version="true"></script>
+<script src="~/js/public-evidence.js" asp-append-version="true"></script>
+<script>
+(() => {
+    document.querySelectorAll("[data-submission-detail-form]").forEach(form => {
+        const tile = form.querySelector("[data-submission-detail-tile]"), target = form.querySelector("[data-submission-detail-target]"), requirement = form.querySelector("[data-submission-detail-requirement]"), drop = form.querySelector("[data-submission-detail-drop]");
+        if (!(tile instanceof HTMLSelectElement) || !(target instanceof HTMLSelectElement) || !(requirement instanceof HTMLInputElement) || !(drop instanceof HTMLInputElement)) return;
+        const targets = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TargetOptions, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)));
+        const sync = () => { const selected = targets.find(item => item.tileId === tile.value && item.value === target.value); const tileTargets = targets.filter(item => item.tileId === tile.value); requirement.value = selected?.requirementId ?? (tileTargets.length === 1 ? tileTargets[0].requirementId : ""); drop.value = selected?.dropId ?? ""; };
+        const renderTargets = () => { const current = target.dataset.submissionDetailSelectedTarget || target.value; const eligible = targets.filter(item => item.tileId === tile.value); target.replaceChildren(new Option("@T["Choose a drop"]", "")); const groups = new Map(); eligible.forEach(item => { let group = groups.get(item.group); if (!group) { group = document.createElement("optgroup"); group.label = item.group; target.append(group); groups.set(item.group, group); } const option = new Option(item.label, item.value); option.dataset.tileId = item.tileId; option.dataset.requirementId = item.requirementId; if (item.dropId) option.dataset.dropId = item.dropId; group.append(option); }); target.value = eligible.some(item => item.value === current) ? current : eligible.length === 1 ? eligible[0].value : ""; delete target.dataset.submissionDetailSelectedTarget; sync(); };
+        tile.addEventListener("change", renderTargets); target.addEventListener("change", sync); renderTargets();
+    });
+})();
+</script>

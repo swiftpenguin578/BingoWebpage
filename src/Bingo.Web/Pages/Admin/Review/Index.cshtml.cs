@@ -9,9 +9,13 @@ namespace Bingo.Web.Pages.Admin.Review;
 public sealed class IndexModel(ApplicationDbContext db) : PageModel
 {
     public string EventName { get; private set; } = string.Empty; public Guid? EventId { get; private set; }
+    public Guid? TeamId { get; private set; }
+    public Guid? TileId { get; private set; }
+    public SubmissionStatus? Status { get; private set; }
     public IReadOnlyList<EventOption> Events { get; private set; } = []; public IReadOnlyList<TeamOption> Teams { get; private set; } = []; public IReadOnlyList<TileOption> Tiles { get; private set; } = []; public IReadOnlyList<Row> Rows { get; private set; } = [];
     public async Task OnGetAsync(Guid? eventId, Guid? teamId, Guid? tileId, SubmissionStatus? status, CancellationToken ct)
     {
+        TeamId = teamId; TileId = tileId; Status = status;
         Events = await db.Events.AsNoTracking().Where(x => x.State == EventState.Live || x.State == EventState.AwaitingFinalReview).OrderByDescending(x => x.EventStartsAt).Select(x => new EventOption(x.Id, x.Name)).ToListAsync(ct);
         var selectedId = eventId ?? (Events.Count == 1 ? Events[0].Id : null); if (selectedId is null) return;
         var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == selectedId && (x.State == EventState.Live || x.State == EventState.AwaitingFinalReview), ct); if (ev is null) return; EventId = ev.Id; EventName = ev.Name; Teams = await db.Teams.AsNoTracking().Where(x => x.EventId == ev.Id && x.Active).OrderBy(x => x.Name).Select(x => new TeamOption(x.Id, x.Name)).ToListAsync(ct); var board = await db.Boards.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == ev.Id, ct); if (board is not null) Tiles = await db.BoardTiles.AsNoTracking().Where(x => x.BoardId == board.Id).OrderBy(x => x.RowIndex).ThenBy(x => x.ColumnIndex).Select(x => new TileOption(x.Id, x.NameSnapshot)).ToListAsync(ct);

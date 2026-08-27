@@ -85,6 +85,27 @@ public sealed class PublicProgressCalculatorTests
         Assert.Equal("Secret", Assert.Single(result.Players).PlayerName);
     }
 
+    [Fact]
+    public void PlayerContributionsWithMultipleCreditedNamesAggregateByParticipant()
+    {
+        var tile = Grid(1, 1)[0];
+        var playerId = Guid.NewGuid();
+        var contributions = new[]
+        {
+            new ProgressContribution(Guid.NewGuid(), tile.Requirements[0].Id, playerId, "Main", 2, Start, 3),
+            new ProgressContribution(Guid.NewGuid(), tile.Requirements[0].Id, playerId, "Alt", 1, Start.AddMinutes(1), 2)
+        };
+
+        var result = PublicProgressCalculator.Calculate(1, 1, [tile], contributions);
+
+        var player = Assert.Single(result.Players);
+        Assert.Equal(playerId, player.PlayerId);
+        Assert.Equal("Main", player.PlayerName);
+        Assert.Equal(5, player.EstimatedEhb);
+        Assert.Equal(3, player.ApprovedContribution);
+        Assert.Equal(2, player.ApprovedSubmissions);
+    }
+
     private static List<ProgressTileDefinition> Grid(int rows, int columns) =>
         Enumerable.Range(0, rows * columns).Select(index =>
         {

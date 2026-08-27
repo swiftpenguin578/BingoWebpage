@@ -21,7 +21,8 @@ public sealed class IndexModel(ApplicationDbContext db, IHostEnvironment environ
                                 from board in boards.DefaultIfEmpty()
                                 where
                                       bingoEvent.State != EventState.Discarded && bingoEvent.State != EventState.Cancelled && bingoEvent.State != EventState.Archived &&
-                                      (db.DraftPublicationCycles.Any(cycle => cycle.SupersededAt == null && db.DraftSessions.Any(draft => draft.Id == cycle.DraftSessionId && draft.EventId == bingoEvent.Id)) ||
+                                      ((bingoEvent.State == EventState.SignupOpen && bingoEvent.FirstPublicAt != null) ||
+                                       db.DraftPublicationCycles.Any(cycle => cycle.SupersededAt == null && db.DraftSessions.Any(draft => draft.Id == cycle.DraftSessionId && draft.EventId == bingoEvent.Id)) ||
                                        db.Boards.Any(candidate => candidate.EventId == bingoEvent.Id && candidate.State == BoardState.Published))
                                 orderby bingoEvent.State == EventState.Live descending, bingoEvent.EventStartsAt descending
                                 select new

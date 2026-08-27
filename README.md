@@ -2,7 +2,7 @@
 
 An event platform for running OSRS bingo events for one Discord community.
 
-The repository contains the accepted Milestone 8A functional application through Slice 10. Review its roles, lifecycle, workflows, automation, data ownership, notifications, inventory, and open product decisions in the [Application Atlas](APPLICATION_ATLAS.md) or the [interactive Atlas](APPLICATION_ATLAS.html).
+The repository contains the current version-one functional foundation and an in-progress UI baseline; it is not release-ready. For behavior and authority, start with [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md), [FUNCTIONAL_CONTRACTS.md](FUNCTIONAL_CONTRACTS.md), [DATA_MODEL.md](DATA_MODEL.md), [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md), [UI_SYSTEM.md](UI_SYSTEM.md), and [UI_PAGE_MATRIX.md](UI_PAGE_MATRIX.md). Use [CURRENT_STATUS.md](CURRENT_STATUS.md) and [DELIVERY_PLAN.md](DELIVERY_PLAN.md) for current state and remaining order, and [MANUAL_TEST_CHECKLIST.md](MANUAL_TEST_CHECKLIST.md) for manual verification only.
 
 ## Requirements
 
@@ -84,7 +84,7 @@ After signing in as an administrator:
 
 1. Open **Admin → Events → Create event**.
 2. Save the event as a private draft.
-3. Add optional signup questions from the event workspace. External/pre-formed roster CSV, if introduced, is deferred to Slice 5.
+3. Add optional signup questions from the event workspace. External/pre-formed roster CSV is limited to the dedicated Admin team workflow and is not part of ordinary participant signup.
 4. Open signups. This publishes only the event signup page, not teams or the board.
 5. Follow the displayed public signup URL in a private browser window to test participant signup.
 
@@ -106,13 +106,13 @@ Stop the running web application, keep PostgreSQL running, and execute:
 dotnet run --project src/Bingo.Web -- --reset-test-data
 ```
 
-The command resets generated workflow data and creates exactly `TEST 13 — DKL Board`, `TEST 15 — DKL Live`, `TEST 62 — Board publication setup`, and `TEST 84 — Evidence history`. It preserves the retained OSRS catalogue, bootstrap/Super Admin, and the secondary seeded Admin. All events are internal Development fixtures rather than automatic public current events; obsolete or manually created disposable events are removed.
+The command resets generated workflow data and creates named fixtures for every workflow stage, including the retained `Vinterbingo 2026` live fixture and historical `Det Store Danske Sommerbingo 2026` fixture. Finalized fixtures intended to expose public rosters receive the same active frozen publication snapshot as normal draft finalization, so their `/Events/{slug}/Teams` routes are reachable; deliberately incomplete blocker fixtures remain unpublished. The historical fixture is seeded Live, makes one real Wise Old Man competition-details request for competition `145197`, and is moved to AwaitingFinalReview only after a complete 93-account cache is published. The reset preserves the retained OSRS catalogue, bootstrap/Super Admin, and secondary seeded Admin. All events are internal Development fixtures rather than automatic public current events; obsolete or manually created disposable events are removed.
 
-Use `TEST 13 — DKL Board` to review live catalogue derivation, private board editing, approval/unapproval, and the private demonstration preview. `TEST 62 — Board publication setup` is SignupClosed with finalized rosters and an approved but private board: it is the direct separate-publication, start-blocker, frozen-public-board, and exceptional-correction fixture. `TEST 15 — DKL Live` provides the retained full live DKL board, teams, accounts, evidence, and approved progress behavior.
+Use `Sommerbingo 2026` (`test-13-dkl-board`) to review live catalogue derivation, private board editing, approval/unapproval, and the private demonstration preview. `Det Store Danske Vinterbingo 2027` (`test-62-board-publication-setup`) is SignupClosed with finalized rosters and an approved but private board: it is the direct separate-publication, start-blocker, frozen-public-board, and exceptional-correction fixture. `Vinterbingo 2026` (`test-15-dkl-live`) provides the retained full live DKL board, published Teams directory, accounts, evidence, and approved progress behavior. `Det Store Danske Sommerbingo 2026` (`test-101-danish-summer-bingo-2026`) provides the historical six-team roster, dense approved progression, stored Wise Old Man activity, Leaderboards, and Recent Drops state after the reset-only synchronization.
 
-The command prints every seeded captain username. All seeded captain accounts use the local-only password `SeedCaptain!1234`. Your existing administrator username and password are unchanged. It also creates or refreshes the development-only administrator `SeedAdminTwo` with password `SeedAdmin!1234`, the linked waiting-list account `SeedReplacement` with password `SeedReplacement!1234`, and the TEST 15 evidence accounts documented in `MANUAL_TEST_CHECKLIST.md`.
+The command prints every seeded captain username. All seeded captain accounts use the local-only password `SeedCaptain!1234`. Your existing administrator username and password are unchanged. It also creates or refreshes the development-only administrator `SeedAdminTwo` with password `SeedAdmin!1234`, the linked waiting-list account `SeedReplacement` with password `SeedReplacement!1234`, and the `Vinterbingo 2026` evidence accounts documented in `MANUAL_TEST_CHECKLIST.md`.
 
-For public-board testing, open `TEST 15 — DKL Live` directly. Approval, reversal, and evidence-visibility changes invalidate open public pages through SignalR; a 30-second refresh remains as a fallback.
+For public-board testing, open `Vinterbingo 2026` directly. Approval, reversal, and evidence-visibility changes invalidate open public pages through SignalR; a 30-second refresh remains as a fallback.
 
 This operation is intentionally unavailable outside the Development environment.
 
@@ -194,6 +194,11 @@ Production secrets must be provided through environment variables or a secret st
 ## Planning documents
 
 - [Product requirements](PRODUCT_REQUIREMENTS.md)
+- [Functional contracts](FUNCTIONAL_CONTRACTS.md)
 - [Data model](DATA_MODEL.md)
 - [Technical architecture](TECHNICAL_ARCHITECTURE.md)
-- [Implementation roadmap](IMPLEMENTATION_ROADMAP.md)
+- [UI system](UI_SYSTEM.md)
+- [UI page matrix](UI_PAGE_MATRIX.md)
+- [Current status](CURRENT_STATUS.md)
+- [Delivery plan](DELIVERY_PLAN.md)
+- [Manual test checklist](MANUAL_TEST_CHECKLIST.md)

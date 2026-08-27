@@ -242,8 +242,6 @@ Legend: **Public** is anonymous read; **Participant** means explicit owned websi
 | Open vacancy | Withdrawn current member with no replacement membership | Correct Participant route | Leave open or fill through waiting/internal replacement. |
 | Missing Captain | Active team without linked current Captain or enabled emergency credential | Currently `/Admin/Events/Manage/{eventId}` in shell; readiness blocker routes to `/Admin/Events/Draft/{id}` | Assign current Captain in Draft workspace or explicitly enable team emergency credential. |
 
-**Document conflict:** `DATA_MODEL.md` still describes a richer `AccountNotification` shape with explicit event/participant/type/path fields and universal recipient-transition uniqueness. Accepted code uses `PersonalNotification(Id, RecipientAccountId, Title, Detail, Route, CreatedAt)` and applies deterministic IDs selectively. The code/final Slice plans are current evidence; the older data-model wording should be reconciled in a later authorized documentation pass.
-
 ## 10. Complete feature inventory and classification
 
 Classifications describe current product review, not permission to change anything.
@@ -301,7 +299,7 @@ Classifications describe current product review, not permission to change anythi
 | F-02 | Low (resolved here) | Roadmap/status discoverability summaries were materially stale at the accepted source commit. | The baseline roadmap header said implementation not started; `CURRENT_STATUS.md` “Remaining work” still said package Slice 10 although the source commit was already accepted on main; README said only Milestones 1–7. This Atlas handoff corrects those current-summary surfaces while retaining historical evidence. | No product decision remains. Keep the concise current status authoritative and consolidate historical prose only in a later authorized documentation pass. |
 | F-03 | Medium | Admin progression guidance is distributed across Manage, Schedule, Draft, Board, Finalize, `EventDisplayPhaseProjection`, the route filter, and service blocker strings. | Accepted code has several correct direct links, but no single normalized progression model; one link previously diverged (F-01). | Milestone 9 Pass 3 should render a single state/substate checklist driven by authoritative projections, retaining service guards. |
 | F-04 | Medium | Ordinary Live identity edit is blocked by policy/filter, while `BingoEvent.EnsureIdentityEditable` still permits Live. | `EventStatePolicy.ConfigureIdentityOrSchedule` permits only pre-Live states; `EventMutationCapabilityPageFilter` uses it; domain method includes Live. | Product decision: either explicitly approve a narrow Live identity correction workflow or align the domain guard with the ordinary route policy. Do not change silently. |
-| F-05 | Medium | Notification source-of-truth documentation no longer matches accepted persistence/idempotency shape. | `DATA_MODEL.md` describes `AccountNotification` with richer fields/universal idempotency; code uses `PersonalNotification` and selective deterministic IDs. | Reconcile data-model wording in an authorized docs pass; keep current privacy/idempotency behavior unchanged until reviewed. |
+| F-05 | Medium (resolved 2026-08-15) | Notification source-of-truth terminology differed from the accepted persistence/idempotency shape. | `PersonalNotification` and the `personal_notifications` mapping establish the persisted shape; active documentation now records selective deterministic IDs for retry-sensitive producers and fresh IDs for ordinary transaction-bound notifications. | Resolved by documentation reconciliation only; no implementation or notification-semantics change. |
 | F-06 | Medium | The selected permanent Rules/how-to functionality is not implemented, while event-owned `PublicRules` compatibility still exists. | Roadmap selected public-guidance slice vs route/code inventory. | Decide whether this functional slice must precede Milestone 9; do not hide it inside UI overhaul. |
 | F-07 | Low | Co-captain authority is presented through a global “Captain board” label. | Layout checks the Captain claim, while membership distinguishes Captain/Co-captain and readiness treats them differently. | Milestone 9 terminology review: use a neutral “Team workspace” label while keeping Captain-only readiness wording explicit. |
 
@@ -350,7 +348,7 @@ The approximately 82,540-line cleanup estimate is overwhelmingly vendor distribu
 ### Verified evidence
 
 - Clean accepted source commit `2301d63ae166873a750266ce5ee6a087f3039054`.
-- Complete Atlas gate in `IMPLEMENTATION_ROADMAP.md`.
+- Complete Atlas gate recorded in `DELIVERY_PLAN.md`.
 - `EventState`, `EventStatePolicy`, `BingoEvent`, route filter, lifecycle/signup/finalization/destructive services and workers.
 - Razor `@page` route inventory, shared layout, Admin/Captain/My Events navigation, breadcrumbs and direct action links.
 - Final accepted Slice 1–10 plans and Development seed identities/states.

@@ -11,6 +11,7 @@ public sealed class DiscordLoginModel(IOptions<DiscordAuthenticationOptions> opt
 {
     public IActionResult OnGet(string? returnUrl, string? purpose, Guid? accountId, string? state)
     {
+        var localReturnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null;
         if (!options.Value.IsConfigured)
         {
             TempData["StatusMessage"] = text["Discord sign-in is not configured for this environment."].Value;
@@ -19,7 +20,7 @@ public sealed class DiscordLoginModel(IOptions<DiscordAuthenticationOptions> opt
 
         var properties = new AuthenticationProperties
         {
-            RedirectUri = Url.Page("DiscordComplete", new { returnUrl })
+            RedirectUri = Url.Page("DiscordComplete", new { returnUrl = localReturnUrl })
         };
 
         if (purpose is "link" or "replace" && accountId is { } id)

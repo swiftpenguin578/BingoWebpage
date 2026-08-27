@@ -243,46 +243,9 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task TeamBoardFocusPostBindsTileTargetAtTheAuthenticatedHandlerBoundary()
+    public void TeamBoardGetFocusPresentationMarksOnlyIncompleteFocusedTargets()
     {
-        var eventId = Guid.NewGuid();
-        var teamId = Guid.NewGuid();
         var tileId = Guid.NewGuid();
-        var actorId = Guid.NewGuid();
-        var board = new PublicEventBoard(
-            eventId, "Focus board", "focus-board", EventState.Live, 1, 1, 1,
-            [new PublicTeamBoard(teamId, "Focus team", "focus-team", null, null, 1, false,
-                new([new CalculatedTileProgress(tileId, 0, 0, 0, 1, false, null, 1)], 0, [], [], false, null, 0, []),
-                [new PublicTileProgress(tileId, 0, 0, "Tile", "Description", null, [], 1, 0, 1, false, null)])],
-            [], []);
-        var focus = new CapturingFocusService();
-        var context = new DefaultHttpContext
-        {
-            User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
-                [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, actorId.ToString())], "test"))
-        };
-        var page = new TeamBoardModel(new StubBoardService(board), new StubParticipantLiveService(), focus)
-        {
-            PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
-            TempData = new TempDataDictionary(context, new DictionaryTempDataProvider()),
-            FocusInput = new TeamBoardModel.FocusInputModel
-            {
-                TargetKind = TeamFocusTargetKind.Tile,
-                BoardTileId = tileId,
-                Focused = true,
-                ExpectedVersion = 0
-            }
-        };
-
-        Assert.IsType<RedirectToPageResult>(await page.OnPostToggleFocusAsync("focus-board", "focus-team", false, CancellationToken.None));
-        Assert.NotNull(focus.Request);
-        Assert.Equal(eventId, focus.Request!.EventId);
-        Assert.Equal(teamId, focus.Request.TeamId);
-        Assert.Equal(TeamFocusTargetKind.Tile, focus.Request.TargetKind);
-        Assert.Equal(tileId, focus.Request.BoardTileId);
-        Assert.Null(focus.Request.RowIndex);
-        Assert.Null(focus.Request.ColumnIndex);
-
         var markers = new[]
         {
             new TeamFocusMarkerView(Guid.NewGuid(), TeamFocusTargetKind.Tile, tileId, null, null, true, 1),
@@ -295,14 +258,6 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         Assert.Equal(new TeamBoardModel.TeamFocusPresentation(false, false, false), TeamBoardModel.GetFocusPresentation(completedTile, markers));
         Assert.Equal(new TeamBoardModel.TeamFocusPresentation(false, true, false), TeamBoardModel.GetFocusPresentation(incompleteRowTile, markers));
         Assert.Equal(new TeamBoardModel.TeamFocusPresentation(false, false, true), TeamBoardModel.GetFocusPresentation(incompleteColumnTile, markers));
-
-        page.FocusInput.MarkerVersions = [new TeamBoardModel.FocusMarkerVersionInput { Id = markers[0].Id, Version = markers[0].Version }];
-        Assert.IsType<RedirectToPageResult>(await page.OnPostClearAllFocusAsync("focus-board", "focus-team", false, CancellationToken.None));
-        Assert.NotNull(focus.ClearAllRequest);
-        Assert.Equal("All team focus cleared.", page.TempData["StatusMessage"]);
-        focus.ClearAllResult = new(false, "This focus state changed. Reload the team board and try again.");
-        Assert.IsType<RedirectToPageResult>(await page.OnPostClearAllFocusAsync("focus-board", "focus-team", false, CancellationToken.None));
-        Assert.Equal("This focus state changed. Reload the team board and try again.", page.TempData["StatusMessage"]);
     }
 
     [Fact]
@@ -613,13 +568,18 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         var fixture = await SeedFixtureAsync(includeInformational: false, includeTeam: true);
         var outsiderId = Guid.NewGuid();
         var superAdminId = Guid.NewGuid();
+        var emergencyId = Guid.NewGuid();
         var otherTeamId = Guid.NewGuid();
         await using (var setup = new ApplicationDbContext(options))
         {
             var outsider = Account.CreateWebsite(outsiderId, "Focus outsider", "FOCUS OUTSIDER", now);
             var superAdmin = Account.CreateWebsite(superAdminId, "Focus super admin", "FOCUS SUPER ADMIN", now);
             superAdmin.SetGlobalRole(GlobalRole.SuperAdmin);
-            setup.AddRange(outsider, superAdmin);
+            var emergency = Account.CreateEmergency(emergencyId, "Focus emergency", "FOCUS EMERGENCY", now);
+            emergency.Enable();
+            var emergencyAccess = new AccountEventAccess(Guid.NewGuid(), emergencyId, fixture.EventId, fixture.TeamId, null, now.AddHours(-1), null, null);
+            emergencyAccess.Enable();
+            setup.AddRange(outsider, superAdmin, emergency, emergencyAccess);
             await setup.SaveChangesAsync();
         }
 
@@ -646,6 +606,14 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
             Assert.NotNull(ownerContext);
             Assert.True(ownerContext!.IsVisible);
             Assert.True(ownerContext.CanMutate);
+
+            var emergencyContext = await service.GetContextAsync(fixture.EventId, fixture.TeamId, emergencyId, false);
+            Assert.NotNull(emergencyContext);
+            Assert.True(emergencyContext!.IsVisible);
+            Assert.True(emergencyContext.CanMutate);
+            var emergencyFocus = await service.SetFocusAsync(new(
+                fixture.EventId, fixture.TeamId, TeamFocusTargetKind.Column, null, null, 0, true, 0, emergencyId));
+            Assert.True(emergencyFocus.Succeeded, emergencyFocus.Error);
 
             var focused = await service.SetFocusAsync(new(
                 fixture.EventId, fixture.TeamId, TeamFocusTargetKind.Row, null, 0, null, true, 0, fixture.OwnerId));
@@ -838,17 +806,6 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
         public Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
-    private sealed class CapturingFocusService : ITeamFocusService
-    {
-        public TeamFocusMutationRequest? Request { get; private set; }
-        public TeamFocusClearAllRequest? ClearAllRequest { get; private set; }
-        public TeamFocusMutationResult ClearAllResult { get; set; } = new(true, Version: 1);
-        public Task<TeamFocusContext?> GetContextAsync(Guid eventId, Guid teamId, Guid viewerAccountId, bool inspectEnabled, CancellationToken cancellationToken = default) => Task.FromResult<TeamFocusContext?>(null);
-        public Task<TeamFocusMutationResult> SetFocusAsync(TeamFocusMutationRequest request, CancellationToken cancellationToken = default) { Request = request; return Task.FromResult(new TeamFocusMutationResult(true, Version: 1)); }
-        public Task<TeamFocusMutationResult> ClearAllFocusAsync(TeamFocusClearAllRequest request, CancellationToken cancellationToken = default) { ClearAllRequest = request; return Task.FromResult(ClearAllResult); }
-        public Task<bool> ClearCompletedTileFocusAsync(Guid eventId, Guid teamId, Guid boardTileId, CancellationToken cancellationToken = default) => Task.FromResult(false);
-    }
-
     private sealed class StubBoardService(PublicEventBoard board, PublicTileDetails? tile = null) : IPublicBoardService
     {
         public Task<PublicEventBoard?> GetEventBoardAsync(string eventSlug, CancellationToken cancellationToken = default) => Task.FromResult<PublicEventBoard?>(board);
@@ -862,16 +819,10 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
                 ? new EvidenceActorScope(EvidenceActorKind.Administrator, actorAccountId, requestedEventId ?? eventId, requestedTeamId ?? teamId, Guid.Empty)
                 : new EvidenceActorScope(EvidenceActorKind.Participant, actorAccountId, eventId, teamId, Guid.NewGuid()));
         public Task<EvidenceActorScope> AuthorizeAsync(Guid actorAccountId, Guid requestedEventId, Guid requestedTeamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<EvidenceActorScope> AuthorizeOwnerAsync(Guid actorAccountId, Guid requestedEventId, Guid requestedTeamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> CanViewPrivateEvidenceAsync(Guid actorAccountId, Guid requestedEventId, Guid requestedTeamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default) => Task.FromResult(false);
         public Task<IReadOnlyList<EvidenceCandidate>> GetCurrentTeamCandidatesAsync(EvidenceActorScope scope, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<EvidenceCandidate>>([]);
         public Task<CreditedCharacterSnapshot> ResolveCreditedCharacterAsync(Guid requestedEventId, Guid requestedParticipantId, DateTimeOffset submittedAt, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-    }
-
-    private sealed class StubParticipantLiveService : IParticipantLiveService
-    {
-        public Task<ParticipantLiveContext?> GetContextAsync(Guid eventId, Guid participantId, Guid viewerAccountId, CancellationToken cancellationToken = default) => Task.FromResult<ParticipantLiveContext?>(null);
-        public Task<IReadOnlyList<ParticipantLiveContext>> GetTeamContextsAsync(Guid eventId, Guid teamId, Guid viewerAccountId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ParticipantLiveContext>>([]);
-        public Task<ParticipantCharacterSwapResult> SwapAsync(ParticipantCharacterSwapRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class DictionaryTempDataProvider : ITempDataProvider

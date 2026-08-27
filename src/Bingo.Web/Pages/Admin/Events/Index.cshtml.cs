@@ -20,6 +20,7 @@ namespace Bingo.Web.Pages.Admin.Events;
 public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleService eventLifecycle, TimeProvider timeProvider, IStringLocalizer<SharedResource> localizer) : PageModel
 {
     private static readonly string[] KnownStates = ["all", "draft", "signupopen", "signupclosed", "live", "awaitingfinalreview", "finalized", "archived", "cancelled"];
+    private static readonly string[] KnownSorts = ["identity", "state", "dates", "signups", "attention"];
 
     [BindProperty(SupportsGet = true, Name = "filter")]
     public string? Filter { get; set; }
@@ -27,8 +28,17 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
     [BindProperty(SupportsGet = true, Name = "search")]
     public string? Search { get; set; }
 
+    [BindProperty(SupportsGet = true, Name = "sort")]
+    public string? Sort { get; set; }
+
+    [BindProperty(SupportsGet = true, Name = "direction")]
+    public string? Direction { get; set; }
+
     public string ActiveFilter { get; private set; } = "all";
     public string ActiveSearch { get; private set; } = string.Empty;
+    public string ActiveSort { get; private set; } = string.Empty;
+    public string ActiveSortDirection { get; private set; } = "asc";
+    public string SortIconPath => ActiveSortDirection == "desc" ? "m6 9 6 6 6-6" : "m18 15-6-6-6 6";
     public IReadOnlyList<EventRow> Events { get; private set; } = [];
     public IReadOnlyList<StateOption> StateOptions { get; private set; } = [];
 
@@ -39,6 +49,10 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
             ? Filter!.ToLowerInvariant()
             : "all";
         ActiveSearch = Search?.Trim() ?? string.Empty;
+        ActiveSort = KnownSorts.Contains(Sort ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            ? Sort!.ToLowerInvariant()
+            : string.Empty;
+        ActiveSortDirection = string.Equals(Direction, "desc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
 
         var allEvents = await dbContext.Events.AsNoTracking().Where(item => item.State != EventState.Discarded)
             .Select(item => new EventRow(
@@ -72,12 +86,8 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
             allEvents[index] = item with { DisplayPhase = EventDisplayPhaseProjection.From(new(item.State, item.DraftFinalized, item.BoardPublished, item.StartPostponed, startReady)) };
         }
 
-        var ordered = allEvents
-            .OrderBy(item => SortGroup(item.State))
-            .ThenBy(item => SortDate(item))
-            .ThenBy(item => item.Name);
-
-        Events = ordered.Where(MatchesActiveFilter).Where(MatchesSearch).ToList();
+        var filtered = allEvents.Where(MatchesActiveFilter).Where(MatchesSearch);
+        Events = OrderEvents(filtered).ToList();
         StateOptions =
         [
             new("all", localizer["All states"]),
@@ -112,6 +122,29 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
             _ => localizer["Unknown"]
         }
     };
+
+    public bool IsActiveSort(string key) => string.Equals(ActiveSort, key, StringComparison.Ordinal);
+
+    public string NextSortDirection(string key) => NextSortDirection(key, ActiveSort, ActiveSortDirection);
+
+    public string AriaSort(string key) => AriaSort(key, ActiveSort, ActiveSortDirection);
+
+    public string SortAriaLabel(string label, string key) => SortAriaLabel(label, key, ActiveSort, ActiveSortDirection);
+
+    public static string NextSortDirection(string key, string? activeSort, string activeDirection) =>
+        string.Equals(key, activeSort, StringComparison.Ordinal) && string.Equals(activeDirection, "asc", StringComparison.Ordinal)
+            ? "desc"
+            : "asc";
+
+    public static string AriaSort(string key, string? activeSort, string activeDirection) =>
+        string.Equals(key, activeSort, StringComparison.Ordinal)
+            ? string.Equals(activeDirection, "desc", StringComparison.Ordinal) ? "descending" : "ascending"
+            : "none";
+
+    public static string SortAriaLabel(string label, string key, string? activeSort, string activeDirection) =>
+        string.Equals(key, activeSort, StringComparison.Ordinal)
+            ? $"Currently sorted by {label} {activeDirection}. Activate to sort {label} {NextSortDirection(key, activeSort, activeDirection)}."
+            : $"Sort by {label} ascending.";
 
     public string FormatDate(DateTimeOffset? value, string timezoneId)
     {
@@ -156,6 +189,29 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
     private bool MatchesSearch(EventRow item) => string.IsNullOrWhiteSpace(ActiveSearch)
         || item.Name.Contains(ActiveSearch, StringComparison.OrdinalIgnoreCase)
         || item.Slug.Contains(ActiveSearch, StringComparison.OrdinalIgnoreCase);
+
+    private IEnumerable<EventRow> OrderEvents(IEnumerable<EventRow> source)
+    {
+        if (string.IsNullOrEmpty(ActiveSort))
+            return source.OrderBy(item => SortGroup(item.State)).ThenBy(item => SortDate(item)).ThenBy(item => item.Name).ThenBy(item => item.Id);
+
+        var descending = ActiveSortDirection == "desc";
+        IOrderedEnumerable<EventRow> ordered = ActiveSort switch
+        {
+            "identity" => descending ? source.OrderByDescending(item => item.Name).ThenByDescending(item => item.Slug) : source.OrderBy(item => item.Name).ThenBy(item => item.Slug),
+            "state" => descending ? source.OrderByDescending(item => (int)item.State) : source.OrderBy(item => (int)item.State),
+            "dates" => descending
+                ? source.OrderBy(item => item.EventStartsAt is null).ThenByDescending(item => item.EventStartsAt).ThenByDescending(item => item.EventEndsAt)
+                : source.OrderBy(item => item.EventStartsAt is null).ThenBy(item => item.EventStartsAt).ThenBy(item => item.EventEndsAt),
+            "signups" => descending
+                ? source.OrderByDescending(item => item.Confirmed).ThenByDescending(item => item.Waiting).ThenByDescending(item => item.ParticipantCap)
+                : source.OrderBy(item => item.Confirmed).ThenBy(item => item.Waiting).ThenBy(item => item.ParticipantCap),
+            "attention" => descending ? source.OrderByDescending(item => item.PendingReviews) : source.OrderBy(item => item.PendingReviews),
+            _ => source.OrderBy(item => SortGroup(item.State)).ThenBy(item => SortDate(item))
+        };
+
+        return ordered.ThenBy(item => item.Name).ThenBy(item => item.Id);
+    }
 
     private static int SortGroup(EventState state) => state switch
     {

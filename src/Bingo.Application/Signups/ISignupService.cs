@@ -71,7 +71,7 @@ public sealed record AdminParticipantChangeRequest(
     IReadOnlyDictionary<Guid, string> Answers,
     int? ExpectedResponseVersion = null);
 public sealed record AdminParticipantResult(bool Succeeded, string? Error, Guid? ParticipantId = null, SignupStatus? Status = null, int? WaitingPosition = null);
-public sealed record ParticipantOwnershipTransferRequest(Guid EventId, Guid ParticipantId, Guid ActorAccountId, string ActorName, string DestinationUsername, string ConfirmationUsername, Guid? ExpectedOwnerAccountId = null);
+public sealed record ParticipantOwnershipTransferRequest(Guid EventId, Guid ParticipantId, Guid ActorAccountId, string ActorName, Guid? DestinationOwnerAccountId, Guid? ExpectedOwnerAccountId = null);
 public sealed record ParticipantOwnershipTransferResult(bool Succeeded, string? Error, bool Changed = false);
 public sealed record LiveWithdrawalRequest(Guid EventId, Guid ParticipantId, Guid ActorAccountId, string ActorName, long? ExpectedMembershipVersion = null);
 public sealed record LiveReplacementRequest(

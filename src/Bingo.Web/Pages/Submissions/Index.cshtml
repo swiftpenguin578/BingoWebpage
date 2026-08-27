@@ -1,0 +1,30 @@
+@page "/Submissions"
+@model Bingo.Web.Pages.Submissions.IndexModel
+@{
+    ViewData["Title"] = $"{Model.TeamName} · {T["submissions"]}";
+}
+
+<section class="public-pass2-page captain-operations-page participant-submissions-page" aria-labelledby="submissions-heading">
+    <header class="public-pass2-masthead captain-operations-masthead">
+        <div class="public-masthead-copy">
+            <span class="public-pass2-kicker public-masthead-kicker">@T["Submission history"]</span>
+            <h1 id="submissions-heading" class="public-masthead-title">@Model.TeamName</h1>
+            <div class="captain-operations-support-row">
+                <a class="public-pass2-back-link captain-operations-back" asp-page="/Events/TeamBoard" asp-route-slug="@Model.EventSlug" asp-route-teamSlug="@Model.TeamSlug"><span class="public-ui-action__directional-glyph" aria-hidden="true">←</span><span>@T["Return to board"]</span></a>
+                <p class="public-masthead-support">@Model.EventName</p>
+            </div>
+        </div>
+    </header>
+
+    <section class="captain-ledger" aria-labelledby="submissions-ledger-heading">
+        <header class="public-pass2-ledger-heading"><h2 id="submissions-ledger-heading">@T["All team submissions"]</h2><span aria-hidden="true"></span></header>
+        <form method="get" asp-page="/Submissions/Index" class="captain-ledger-filters" aria-label="@T["Search team submissions"]" data-captain-ledger-form data-captain-ledger-request-error="@T["Captain ledger request failed."]" data-captain-ledger-results-error="@T["Captain ledger results were missing from the response."]">
+            <input type="hidden" name="eventId" value="@Model.EventId" /><input type="hidden" name="teamId" value="@Model.TeamId" />
+            <div class="public-pass2-field captain-ledger-search-field"><label for="submissions-ledger-search">@T["SEARCH SUBMISSIONS"]</label><div class="captain-ledger-search-control"><svg class="captain-ledger-search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="m16 16 5 5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" /></svg><input id="submissions-ledger-search" class="captain-ledger-search-input" name="search" type="search" value="@Model.Search" placeholder="@T["Search drops, players or tiles…"]" data-captain-ledger-search autocomplete="off" /><button type="button" class="captain-ledger-search-clear" data-captain-ledger-clear aria-label="@T["Clear search"]" hidden="@(string.IsNullOrEmpty(Model.Search) ? "hidden" : null)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" /></svg></button></div></div>
+            <div class="public-pass2-field captain-ledger-player-field"><label for="submissions-ledger-player">@T["Player"]</label><div class="captain-ledger-select-wrap"><select id="submissions-ledger-player" class="public-ui-control-visual public-ui-control-visual--select" name="player" data-captain-ledger-player><option value="">@T["All players"]</option>@foreach (var player in Model.PlayerOptions) { <option value="@player.Id" selected="@(Model.PlayerFilter == player.Id ? "selected" : null)">@player.Name</option> }</select><span class="public-ui-select-chevron" aria-hidden="true"></span></div></div>
+        </form>
+        <partial name="/Pages/Captain/_SubmissionLedger.cshtml" model="Model.Ledger" />
+    </section>
+</section>
+
+@section Scripts { <script src="~/js/captain-ledger.js" asp-append-version="true"></script> }

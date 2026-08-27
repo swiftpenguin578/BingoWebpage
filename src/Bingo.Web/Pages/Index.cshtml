@@ -1,62 +1,135 @@
 @page
 @model IndexModel
 @using Bingo.Domain.Events
+@using System.Globalization
 @{
     ViewData["Title"] = T["Bingo events"];
     ViewData["CompactNavigation"] = true;
+    var leadEvent = Model.Events.FirstOrDefault(value => value.DisplayPhase == Bingo.Web.Events.EventDisplayPhase.Live && value.Destination == Bingo.Web.Events.EventDestination.Board)
+        ?? Model.Events.FirstOrDefault(value => value.Destination == Bingo.Web.Events.EventDestination.Board);
+    var leadEventUrl = leadEvent is null ? "#current-events" : Url.Page("/Events/Board", new { slug = leadEvent.Slug }) ?? "#current-events";
 }
 
-<section class="public-home">
-    <header class="public-hero">
-        <p class="eyebrow">@T["OSRS Community Bingo"]</p>
-        <h1>@T["Follow every team, tile and drop."]</h1>
-        <p>@T["Open an event to see how every team is doing, then choose a team to view their board and completed tiles."]</p>
-    </header>
-
-    @if (Model.Events.Count == 0)
-    {
-        <section class="panel empty-public-state">
-            <h2>@T["No public boards yet"]</h2>
-            <p>@T["The next event will appear here when its roster is available."]</p>
-        </section>
-    }
-    else
-    {
-        <div class="public-event-list" aria-label="Public bingo events">
-            @foreach (var bingoEvent in Model.Events)
-            {
-                var status = bingoEvent.DisplayPhase switch
-                {
-                    Bingo.Web.Events.EventDisplayPhase.DraftFinalized => T["Draft finalized"],
-                    Bingo.Web.Events.EventDisplayPhase.BoardPublished or Bingo.Web.Events.EventDisplayPhase.EventReady => T["Board published"],
-                    Bingo.Web.Events.EventDisplayPhase.StartPostponed => T["Start postponed"],
-                    Bingo.Web.Events.EventDisplayPhase.Live => T["Live now"],
-                    _ => bingoEvent.State switch
-                    {
-                        EventState.SignupOpen => T["Signups open"],
-                        EventState.AwaitingFinalReview => T["Final review"],
-                        EventState.Finalized => T["Finished"],
-                        EventState.Archived => T["Archived"],
-                        _ => T["Upcoming"]
-                    }
-                };
-                <a class="public-event-card panel" asp-page="@(bingoEvent.Destination == Bingo.Web.Events.EventDestination.Board ? "/Events/Board" : "/Events/Teams")" asp-route-slug="@bingoEvent.Slug">
-                    <span class="public-event-status state-@bingoEvent.State.ToString().ToLowerInvariant()">@status</span>
-                    <span class="public-event-title">@bingoEvent.Name</span>
-                    <span class="public-event-meta">@(bingoEvent.Destination == Bingo.Web.Events.EventDestination.Board ? T["{0} × {1} board", bingoEvent.Rows ?? 0, bingoEvent.Columns ?? 0] : T["Roster available · Board not published"]) · @(bingoEvent.StartsAt?.ToString("d MMM yyyy, HH:mm") ?? T["Not set"])</span>
-                    <span class="public-event-action">@T[bingoEvent.Destination == Bingo.Web.Events.EventDestination.Board ? "View board" : "View roster"] <span aria-hidden="true">→</span></span>
-                </a>
-            }
+<div class="landing-page">
+    <section class="landing-hero" aria-labelledby="landing-hero-title">
+        <div class="landing-hero__inner">
+            <div class="landing-hero__copy">
+                <p class="landing-kicker">@T["DK Legacy Bingo"]</p>
+                <h1 id="landing-hero-title">@T["Every team. Every tile. Live."]</h1>
+                <p class="landing-hero__summary">@T["Follow live boards, reviewed submissions and rankings from one place."]</p>
+                <div class="landing-hero__actions">
+                    <a class="landing-button landing-button--primary" href="@leadEventUrl">@T["View live event"]<svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6" /></svg></a>
+                    <a class="landing-button landing-button--secondary" asp-page="/HowTo">@T["How it works"]</a>
+                </div>
+            </div>
+            <div class="landing-hero__art" aria-hidden="true">
+                <div class="landing-hero__background"></div>
+                <img class="landing-hero__mark landing-hero__mark--light" src="~/images/branding/login-artwork.svg" asp-append-version="true" alt="" />
+                <img class="landing-hero__mark landing-hero__mark--dark" src="~/images/branding/login-artwork-dark.svg" asp-append-version="true" alt="" />
+            </div>
         </div>
-    }
-</section>
+    </section>
 
-@if (Model.PreviousEvents.Count > 0)
+    <div class="landing-content">
+        <section class="landing-features" aria-label="@T["Bingo features"]">
+            <article class="landing-feature">
+                <span class="landing-feature__number">01</span>
+                <svg class="landing-feature__icon landing-feature__icon--coral" aria-hidden="true" focusable="false" viewBox="0 0 32 32"><circle cx="16" cy="16" r="3.5" fill="currentColor" stroke="none" /><path d="M11.5 10.5a7.5 7.5 0 0 0 0 11M20.5 10.5a7.5 7.5 0 0 1 0 11M7.5 7a12.5 12.5 0 0 0 0 18M24.5 7a12.5 12.5 0 0 1 0 18" /></svg>
+                <div><h2>@T["Live boards"]</h2><p>@T["Follow every team's tile progress."]</p></div>
+            </article>
+            <article class="landing-feature">
+                <span class="landing-feature__number">02</span>
+                <svg class="landing-feature__icon landing-feature__icon--ink" aria-hidden="true" focusable="false" viewBox="0 0 32 32"><path d="M6 4h12l5 5v18.5H6zM18 4v5h5M9 14h9M9 18h7M9 22h5" /><circle class="landing-feature__approval landing-feature__approval--circle" cx="23.5" cy="23.5" r="4.8" /><path class="landing-feature__approval landing-feature__approval--mark" d="m20.9 23.5 1.7 1.7 3.3-3.6" /></svg>
+                <div><h2>@T["Reviewed drops"]</h2><p>@T["Open approved evidence."]</p></div>
+            </article>
+            <article class="landing-feature">
+                <span class="landing-feature__number">03</span>
+                <svg class="landing-feature__icon landing-feature__icon--bronze" aria-hidden="true" focusable="false" viewBox="0 0 32 32"><path d="M5.5 27.5h22M7.5 27.5V19H11v8.5M13 27.5V14h3.5v13.5M18.5 27.5V9H22v18.5M24 27.5V4.5h3.5v23" /></svg>
+                <div><h2>@T["Rankings & stats"]</h2><p>@T["Compare progress and Drop EHB."]</p></div>
+            </article>
+        </section>
+
+        <section class="landing-ledger" aria-labelledby="current-events">
+            <div class="landing-ledger__heading"><h2 id="current-events">@T["Current events"]</h2><span aria-hidden="true"></span></div>
+            @if (Model.Events.Count == 0)
+            {
+                <div class="landing-empty"><h3>@T["No public boards yet"]</h3><p>@T["The next event will appear here when its roster is available."]</p></div>
+            }
+            else
+            {
+                <div class="landing-event-list landing-event-list--current" aria-label="@T["Public bingo events"]">
+                    @foreach (var bingoEvent in Model.Events)
+                    {
+                        var signupUrl = Url.Page("/Events/Signup", new { slug = bingoEvent.Slug });
+                        var anonymousSignup = User.Identity?.IsAuthenticated != true && bingoEvent.Destination == Bingo.Web.Events.EventDestination.Signup;
+                        var eventUrl = bingoEvent.Destination == Bingo.Web.Events.EventDestination.Board
+                            ? Url.Page("/Events/Board", new { slug = bingoEvent.Slug })
+                            : bingoEvent.Destination == Bingo.Web.Events.EventDestination.Signup
+                                ? anonymousSignup ? Url.Page("/Account/Login", new { ReturnUrl = signupUrl }) : signupUrl
+                                : Url.Page("/Events/Teams", new { slug = bingoEvent.Slug });
+                        var status = bingoEvent.DisplayPhase switch
+                        {
+                            Bingo.Web.Events.EventDisplayPhase.DraftFinalized => T["Draft finalized"],
+                            Bingo.Web.Events.EventDisplayPhase.BoardPublished or Bingo.Web.Events.EventDisplayPhase.EventReady => T["Board published"],
+                            Bingo.Web.Events.EventDisplayPhase.StartPostponed => T["Start postponed"],
+                            Bingo.Web.Events.EventDisplayPhase.Live => T["Live now"],
+                            _ => bingoEvent.State switch
+                            {
+                                EventState.SignupOpen => T["Signups open"],
+                                EventState.AwaitingFinalReview => T["Final review"],
+                                EventState.Finalized => T["Finished"],
+                                EventState.Archived => T["Archived"],
+                                _ => T["Upcoming"]
+                            }
+                        };
+                        var statusTone = bingoEvent.DisplayPhase == Bingo.Web.Events.EventDisplayPhase.Live ? "live" : bingoEvent.Destination == Bingo.Web.Events.EventDestination.Signup ? "signup" : bingoEvent.DisplayPhase == Bingo.Web.Events.EventDisplayPhase.StartPostponed ? "postponed" : "upcoming";
+                        var eventDate = bingoEvent.StartsAt ?? bingoEvent.EndsAt;
+                        var eventDateLocal = eventDate?.ToLocalTime();
+                        var details = new List<string>();
+                        if (bingoEvent.DisplayPhase == Bingo.Web.Events.EventDisplayPhase.Live)
+                        {
+                            if (bingoEvent.EndsAt is { } liveEnd) details.Add(T["Ends {0}", liveEnd.ToLocalTime().ToString("d MMM yyyy, HH:mm")].Value);
+                        }
+                        else
+                        {
+                            if (bingoEvent.Rows is int rows && bingoEvent.Columns is int columns) details.Add(T["{0} × {1} board", rows, columns].Value);
+                            if (bingoEvent.StartsAt is { } start) details.Add(T["Starts {0}", start.ToLocalTime().ToString("d MMM yyyy, HH:mm")].Value);
+                            if (bingoEvent.Destination == Bingo.Web.Events.EventDestination.Roster) details.Insert(0, T["Roster available"].Value);
+                        }
+                        <a class="landing-event landing-event--@statusTone" href="@eventUrl">
+                            <span class="landing-event__date">@if (eventDateLocal is { }) { <strong>@eventDateLocal.Value.ToString("dd", CultureInfo.CurrentUICulture)</strong><small>@eventDateLocal.Value.ToString("MMM", CultureInfo.CurrentUICulture)</small> }</span>
+                            <span class="landing-event__rule" aria-hidden="true"></span>
+                            <span class="landing-event__status landing-event__status--@statusTone"><span class="landing-event__dot" aria-hidden="true"></span>@status</span>
+                            <span class="landing-event__name">@bingoEvent.Name</span>
+                            <span class="landing-event__details">@string.Join(" · ", details)</span>
+                            <span class="landing-event__action">@T[bingoEvent.Destination == Bingo.Web.Events.EventDestination.Board ? "View board" : bingoEvent.Destination == Bingo.Web.Events.EventDestination.Signup ? "Sign up" : "View roster"]<svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6" /></svg></span>
+                        </a>
+                    }
+                </div>
+            }
+        </section>
+
+        @if (Model.PreviousEvents.Count > 0)
+        {
+            <section class="landing-ledger landing-ledger--previous" aria-labelledby="previous-events">
+                <div class="landing-ledger__heading"><h2 id="previous-events">@T["Previous events"]</h2><span aria-hidden="true"></span></div>
+                <div class="landing-archive-list" aria-label="@T["Previous bingo events"]">
+                    @foreach (var bingoEvent in Model.PreviousEvents)
+                    {
+                        <a class="landing-archive-event" asp-page="/Events/Board" asp-route-slug="@bingoEvent.Slug">
+                            <span class="landing-archive-event__label"><span class="landing-archive-event__name">@bingoEvent.Name</span><span aria-hidden="true"> — </span><span class="landing-archive-event__state">@T["Archived"]</span></span>
+                            <span class="landing-event__action">@T["View history"]<svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6" /></svg></span>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+</div>
+
+@if (User.Identity?.IsAuthenticated == true)
 {
-    <section class="public-home"><header class="public-hero"><p class="eyebrow">@T["History"]</p><h2>@T["Previous events"]</h2></header><div class="public-event-list">
-    @foreach (var bingoEvent in Model.PreviousEvents)
-    {
-        <a class="public-event-card panel" asp-page="/Events/Board" asp-route-slug="@bingoEvent.Slug"><span class="public-event-status state-archived">@T["Archived"]</span><span class="public-event-title">@bingoEvent.Name</span><span class="public-event-meta">@T["{0} × {1} board", bingoEvent.Rows ?? 0, bingoEvent.Columns ?? 0]</span><span class="public-event-action">@T["View history"] <span aria-hidden="true">→</span></span></a>
-    }
-    </div></section>
+    <script>
+        window.addEventListener("load", () => document.getElementById("current-events")?.scrollIntoView({ block: "start" }), { once: true });
+    </script>
 }

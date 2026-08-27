@@ -12,16 +12,18 @@ using Bingo.Domain.Catalogue;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 using Npgsql;
 
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, IEvidenceStorage storage) : PageModel
+public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, IEvidenceStorage storage, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     public string EventName { get; private set; } = string.Empty;
     public BoardDetails? BoardView { get; private set; }
@@ -55,10 +57,15 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     public async Task<IActionResult> OnPostCreateAsync(Guid id, CancellationToken ct)
     {
         if (!ModelState.IsValid) return await Load(id, ct) ? Page() : NotFound();
-        if (await db.Boards.AnyAsync(x => x.EventId == id, ct)) return RedirectToPage(new { id });
+        if (await db.Boards.AnyAsync(x => x.EventId == id, ct))
+        {
+            SetStatus(Localize("A board already exists for this event."), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
         var board = new Board(Guid.NewGuid(), id, "Main board", Rows, Columns);
         board.AcquireEditing(AdminId, time.GetUtcNow(), BoardEditingLease.Duration);
         db.Boards.Add(board); await db.SaveChangesAsync(ct); await WriteAudit("board.created", board.Id, $"{Rows}x{Columns}", ct);
+        SetStatus(Localize("Board created."), UiMessageType.Success);
         return RedirectToPage(new { id });
     }
 
@@ -71,13 +78,14 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             await db.SaveChangesAsync(ct);
             await WriteAudit(previous is null ? "board.editing_acquired" : "board.editing_taken_over", board.Id,
                 previous is null ? $"Editor: {User.Identity!.Name}" : $"New editor: {User.Identity!.Name}; previous account: {previous}", ct);
+            SetStatus(previous is null ? Localize("Board editing control acquired.") : Localize("Board editing control taken over."), UiMessageType.Success);
         }
         catch (Exception exception) when (exception is InvalidOperationException or DbUpdateConcurrencyException)
         {
             db.ChangeTracker.Clear();
-            TempData["StatusMessage"] = exception is DbUpdateConcurrencyException
-                ? "Another administrator changed the board editor first. The latest board has been loaded."
-                : exception.Message;
+            SetStatus(exception is DbUpdateConcurrencyException
+                ? Localize("Another administrator changed the board editor first. The latest board has been loaded.")
+                : Localize("The board editing control could not be acquired."), UiMessageType.Warning);
         }
         return RedirectToPage(new { id });
     }
@@ -85,10 +93,10 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     public async Task<IActionResult> OnPostReleaseEditingAsync(Guid id, CancellationToken ct)
     {
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
-        try { board.ReleaseEditing(AdminId, time.GetUtcNow()); await db.SaveChangesAsync(ct); await WriteAudit("board.editing_released", board.Id, $"Released by {User.Identity!.Name}", ct); }
+        try { board.ReleaseEditing(AdminId, time.GetUtcNow()); await db.SaveChangesAsync(ct); await WriteAudit("board.editing_released", board.Id, $"Released by {User.Identity!.Name}", ct); SetStatus(Localize("Board editing control released."), UiMessageType.Success); }
         catch (Exception exception) when (exception is InvalidOperationException or DbUpdateConcurrencyException)
         {
-            db.ChangeTracker.Clear(); TempData["StatusMessage"] = exception is DbUpdateConcurrencyException ? "Editing control changed before it could be released. The latest board has been loaded." : exception.Message;
+            db.ChangeTracker.Clear(); SetStatus(exception is DbUpdateConcurrencyException ? Localize("Editing control changed before it could be released. The latest board has been loaded.") : Localize("The board editing control could not be released."), UiMessageType.Warning);
         }
         return RedirectToPage(new { id });
     }
@@ -96,20 +104,24 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     public async Task<IActionResult> OnPostCreateTileAsync(Guid id, CancellationToken ct)
     {
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
-        if (!board.IsEditable || TileDraft.Position < 0 || TileDraft.Position >= board.Rows * board.Columns) return BadRequest();
-        if (await db.BoardTiles.AnyAsync(x => x.BoardId == board.Id && x.RowIndex == TileDraft.Position / board.Columns && x.ColumnIndex == TileDraft.Position % board.Columns, ct)) { TempData["StatusMessage"] = "That board position is no longer empty."; return RedirectToPage(new { id }); }
+        if (!board.IsEditable || TileDraft.Position < 0 || TileDraft.Position >= board.Rows * board.Columns)
+        {
+            SetStatus(Localize("This board is no longer editable or that board position is invalid."), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
+        if (await db.BoardTiles.AnyAsync(x => x.BoardId == board.Id && x.RowIndex == TileDraft.Position / board.Columns && x.ColumnIndex == TileDraft.Position % board.Columns, ct)) { SetStatus(Localize("That board position is no longer empty."), UiMessageType.Warning); return RedirectToPage(new { id }); }
         TileDraft.Requirements = TileDraft.Requirements.Where(x => !string.IsNullOrWhiteSpace(x.Description) || x.BossIds.Count > 0 || x.DropIds.Count > 0).ToList();
-        if (TileDraft.Requirements.Count == 0) ModelState.AddModelError(string.Empty, "Add at least one requirement.");
+        if (TileDraft.Requirements.Count == 0) ModelState.AddModelError(string.Empty, Localize("Add at least one requirement."));
         foreach (var requirement in TileDraft.Requirements)
         {
-            if (requirement.Target < 1) ModelState.AddModelError(string.Empty, "Every requirement needs a quantity of at least 1.");
-            if (requirement.DropWeights.Any(x => x.Value < 1)) ModelState.AddModelError(string.Empty, "Every drop weight must be at least 1.");
-            if (!requirement.IsManual && requirement.BossIds.Count == 0) ModelState.AddModelError(string.Empty, "Choose at least one boss for each collect-drops requirement.");
-            if (!requirement.IsManual && requirement.DropIds.Count == 0) ModelState.AddModelError(string.Empty, "Choose at least one eligible drop for each collect-drops requirement.");
-            if (requirement.IsManual && string.IsNullOrWhiteSpace(requirement.Description)) ModelState.AddModelError(string.Empty, "Describe the challenge requirements.");
+            if (requirement.Target < 1) ModelState.AddModelError(string.Empty, Localize("Every requirement needs a quantity of at least 1."));
+            if (requirement.DropWeights.Any(x => x.Value < 1)) ModelState.AddModelError(string.Empty, Localize("Every drop weight must be at least 1."));
+            if (!requirement.IsManual && requirement.BossIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one boss for each collect-drops requirement."));
+            if (!requirement.IsManual && requirement.DropIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one eligible drop for each collect-drops requirement."));
+            if (requirement.IsManual && string.IsNullOrWhiteSpace(requirement.Description)) ModelState.AddModelError(string.Empty, Localize("Describe the challenge requirements."));
         }
-        if (TileDraft.Requirements.Any(x => x.IsManual) && TileDraft.ManualEhb is not > 0) ModelState.AddModelError(string.Empty, "A custom challenge needs an explicit manual EHB estimate.");
-        if (!ModelState.IsValid) { TempData["StatusMessage"] = string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)); return RedirectToPage(new { id }); }
+        if (TileDraft.Requirements.Any(x => x.IsManual) && TileDraft.ManualEhb is not > 0) ModelState.AddModelError(string.Empty, Localize("A custom challenge needs an explicit manual EHB estimate."));
+        if (!ModelState.IsValid) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Warning); return RedirectToPage(new { id }); }
 
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
         if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id });
@@ -135,26 +147,31 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         var tile = await PlaceTemplateAsync(board, template, requirements, TileDraft.Position, ct);
         await ReplaceTileImageAsync(id, tile, ct);
         await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct); await WriteAudit("board.tile_created", board.Id, name, ct);
+        SetSuccessIfMissing(Localize("Tile created."));
         return RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnPostEditTileAsync(Guid id, CancellationToken ct)
     {
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
-        if (!board.IsEditable || TileDraft.TileId is null) return BadRequest();
+        if (!board.IsEditable || TileDraft.TileId is null)
+        {
+            SetStatus(Localize("This board is no longer editable or the tile is invalid."), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
         var tile = await db.BoardTiles.SingleOrDefaultAsync(x => x.BoardId == board.Id && x.Id == TileDraft.TileId, ct); if (tile is null) return NotFound();
         TileDraft.Requirements = TileDraft.Requirements.Where(x => !string.IsNullOrWhiteSpace(x.Description) || x.BossIds.Count > 0 || x.DropIds.Count > 0).ToList();
-        if (TileDraft.Requirements.Count == 0) ModelState.AddModelError(string.Empty, "Add at least one requirement.");
+        if (TileDraft.Requirements.Count == 0) ModelState.AddModelError(string.Empty, Localize("Add at least one requirement."));
         foreach (var requirement in TileDraft.Requirements)
         {
-            if (requirement.Target < 1) ModelState.AddModelError(string.Empty, "Every requirement needs a quantity of at least 1.");
-            if (requirement.DropWeights.Any(x => x.Value < 1)) ModelState.AddModelError(string.Empty, "Every drop weight must be at least 1.");
-            if (!requirement.IsManual && requirement.BossIds.Count == 0) ModelState.AddModelError(string.Empty, "Choose at least one boss for each collect-drops requirement.");
-            if (!requirement.IsManual && requirement.DropIds.Count == 0) ModelState.AddModelError(string.Empty, "Choose at least one eligible drop for each collect-drops requirement.");
-            if (requirement.IsManual && string.IsNullOrWhiteSpace(requirement.Description)) ModelState.AddModelError(string.Empty, "Describe the challenge requirements.");
+            if (requirement.Target < 1) ModelState.AddModelError(string.Empty, Localize("Every requirement needs a quantity of at least 1."));
+            if (requirement.DropWeights.Any(x => x.Value < 1)) ModelState.AddModelError(string.Empty, Localize("Every drop weight must be at least 1."));
+            if (!requirement.IsManual && requirement.BossIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one boss for each collect-drops requirement."));
+            if (!requirement.IsManual && requirement.DropIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one eligible drop for each collect-drops requirement."));
+            if (requirement.IsManual && string.IsNullOrWhiteSpace(requirement.Description)) ModelState.AddModelError(string.Empty, Localize("Describe the challenge requirements."));
         }
-        if (TileDraft.Requirements.Any(x => x.IsManual) && TileDraft.ManualEhb is not > 0) ModelState.AddModelError(string.Empty, "A custom challenge needs an explicit manual EHB estimate.");
-        if (!ModelState.IsValid) { TempData["StatusMessage"] = string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)); return RedirectToPage(new { id }); }
+        if (TileDraft.Requirements.Any(x => x.IsManual) && TileDraft.ManualEhb is not > 0) ModelState.AddModelError(string.Empty, Localize("A custom challenge needs an explicit manual EHB estimate."));
+        if (!ModelState.IsValid) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Warning); return RedirectToPage(new { id }); }
 
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
         if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id });
@@ -202,6 +219,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         tile.UpdateContent(name, description, string.Empty, ehb);
         await ReplaceTileImageAsync(id, tile, ct);
         await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct); await WriteAudit("board.tile_edited", board.Id, name, ct);
+        SetSuccessIfMissing(Localize("Tile updated."));
         return RedirectToPage(new { id });
     }
 
@@ -209,20 +227,42 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     {
         var isInlineRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
-        if (!board.IsEditable || targetPosition < 0 || targetPosition >= board.Rows * board.Columns) return BadRequest();
-        if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id });
-        if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
-        var source = await db.BoardTiles.SingleOrDefaultAsync(x => x.BoardId == board.Id && x.Id == sourceId, ct); if (source is null) return NotFound();
+        var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct);
+        if (board is null) return isInlineRequest ? MoveFailure(Localize("The board could not be found."), UiMessageType.Error) : NotFound();
+        if (!board.IsEditable || targetPosition < 0 || targetPosition >= board.Rows * board.Columns)
+        {
+            var message = Localize("This board is no longer editable or the target position is invalid.");
+            if (!isInlineRequest) SetStatus(message, UiMessageType.Warning);
+            return isInlineRequest ? MoveFailure(message, UiMessageType.Warning) : RedirectToPage(new { id });
+        }
+        if (!PrepareCompetitiveEdit(board, reportStatus: !isInlineRequest))
+        {
+            var message = Localize("This board can no longer be changed here.");
+            return isInlineRequest ? MoveFailure(message, UiMessageType.Warning) : RedirectToPage(new { id });
+        }
+        if (!await TryClaimBoardAsync(board, ct, reportStatus: !isInlineRequest))
+        {
+            var message = Localize("This board changed before the move could be saved. The latest board has been loaded.");
+            return isInlineRequest ? MoveFailure(message, UiMessageType.Warning) : RedirectToPage(new { id });
+        }
+        var source = await db.BoardTiles.SingleOrDefaultAsync(x => x.BoardId == board.Id && x.Id == sourceId, ct);
+        if (source is null) return isInlineRequest ? MoveFailure(Localize("The tile could not be found on this board."), UiMessageType.Warning) : NotFound();
         var targetRow = targetPosition / board.Columns; var targetColumn = targetPosition % board.Columns;
         var target = await db.BoardTiles.SingleOrDefaultAsync(x => x.BoardId == board.Id && x.RowIndex == targetRow && x.ColumnIndex == targetColumn, ct);
-        if (target?.Id == source.Id) return isInlineRequest ? new JsonResult(new { success = true, boardVersion = board.Version }) : RedirectToPage(new { id });
+        if (target?.Id == source.Id)
+        {
+            var message = Localize("The tile is already in that position.");
+            if (!isInlineRequest) SetSuccessIfMissing(message);
+            return isInlineRequest ? MoveSuccess(board.Version, message) : RedirectToPage(new { id });
+        }
         var oldRow = source.RowIndex; var oldColumn = source.ColumnIndex;
         source.Move(-1, -1); await db.SaveChangesAsync(ct);
         if (target is not null) { target.Move(oldRow, oldColumn); await db.SaveChangesAsync(ct); }
         source.Move(targetRow, targetColumn); await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
         await WriteAudit(target is null ? "board.tile_moved" : "board.tiles_swapped", board.Id, source.NameSnapshot, ct);
-        return isInlineRequest ? new JsonResult(new { success = true, boardVersion = board.Version }) : RedirectToPage(new { id });
+        var successMessage = Localize("Tile moved.");
+        if (!isInlineRequest) SetSuccessIfMissing(successMessage);
+        return isInlineRequest ? MoveSuccess(board.Version, successMessage) : RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnPostResizeAsync(Guid id, CancellationToken ct)
@@ -236,18 +276,19 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             for (var i = 0; i < tiles.Count; i++) tiles[i].Move(i / Columns, i % Columns); await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
             await WriteAudit("board.resized", board.Id, $"{Rows}x{Columns}", ct);
         }
-        catch (InvalidOperationException exception) { TempData["StatusMessage"] = exception.Message; }
+        catch (InvalidOperationException) { SetStatus(Localize("The board change could not be saved."), UiMessageType.Warning); }
+        SetSuccessIfMissing(Localize("Board resized to {0}x{1}.", Rows, Columns));
         return RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnPostTeamSizeAsync(Guid id, int expectedTeamSize, CancellationToken ct)
     {
-        if (expectedTeamSize is < 1 or > 100) { TempData["StatusMessage"] = "Expected team size must be between 1 and 100."; return RedirectToPage(new { id }); }
+        if (expectedTeamSize is < 1 or > 100) { SetStatus(Localize("Expected team size must be between 1 and 100."), UiMessageType.Warning); return RedirectToPage(new { id }); }
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
         if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
         var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (bingoEvent is null) return NotFound();
         bingoEvent.ConfigurePlanning(bingoEvent.PublicRules, bingoEvent.BuyInDescription, bingoEvent.PrizeDescription, bingoEvent.ExpectedTeamCount, expectedTeamSize, bingoEvent.ExpectedBoardRows, bingoEvent.ExpectedBoardColumns);
-        await db.SaveChangesAsync(ct); await WriteAudit("board.expected_team_size_changed", board.Id, expectedTeamSize.ToString(CultureInfo.InvariantCulture), ct); return RedirectToPage(new { id });
+        await db.SaveChangesAsync(ct); await WriteAudit("board.expected_team_size_changed", board.Id, expectedTeamSize.ToString(CultureInfo.InvariantCulture), ct); SetStatus(Localize("Expected team size updated."), UiMessageType.Success); return RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnPostPublishAsync(Guid id, CancellationToken ct)
@@ -271,18 +312,18 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                 $"{{\"state\":\"Published\",\"activeApprovalSnapshotId\":\"{board.ActiveApprovalSnapshotId}\"}}");
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
-            TempData["StatusMessage"] = "Board published from the approved snapshot.";
+            SetStatus(Localize("Board published from the approved snapshot."), UiMessageType.Success);
             await collaboration.NotifyBoardChangedAsync(id, ct);
         }
         catch (Exception exception) when (IsApprovalConflict(exception))
         {
             db.ChangeTracker.Clear();
-            TempData["StatusMessage"] = "Another administrator changed the board first. Reload before publishing.";
+            SetStatus(Localize("Another administrator changed the board first. Reload before publishing."), UiMessageType.Warning);
         }
-        catch (InvalidOperationException exception)
+        catch (InvalidOperationException)
         {
             db.ChangeTracker.Clear();
-            TempData["StatusMessage"] = exception.Message;
+            SetStatus(Localize("The board publication could not be completed."), UiMessageType.Warning);
         }
         return RedirectToPage(new { id });
     }
@@ -291,7 +332,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     {
         if (!confirmed || string.IsNullOrWhiteSpace(reason))
         {
-            TempData["StatusMessage"] = "Confirm the exceptional board correction and provide an Admin reason.";
+            SetStatus(Localize("Confirm the exceptional board correction and provide an Admin reason."), UiMessageType.Warning);
             return RedirectToPage(new { id });
         }
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
@@ -309,18 +350,18 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                 $"{{\"activeApprovalSnapshotId\":\"{previousSnapshotId}\",\"workingCopy\":true,\"reason\":{System.Text.Json.JsonSerializer.Serialize(reason.Trim())}}}");
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
-            TempData["StatusMessage"] = "Published board correction started. The current public board remains live while you edit the private working copy.";
+            SetStatus(Localize("Published board correction started. The current public board remains live while you edit the private working copy."), UiMessageType.Success);
             await collaboration.NotifyBoardChangedAsync(id, ct);
         }
         catch (Exception exception) when (IsApprovalConflict(exception))
         {
             db.ChangeTracker.Clear();
-            TempData["StatusMessage"] = "The board changed while the correction was being prepared. No correction was saved; reload and try again.";
+            SetStatus(Localize("The board changed while the correction was being prepared. No correction was saved; reload and try again."), UiMessageType.Warning);
         }
-        catch (InvalidOperationException exception)
+        catch (InvalidOperationException)
         {
             db.ChangeTracker.Clear();
-            TempData["StatusMessage"] = exception.Message;
+            SetStatus(Localize("The board correction could not be saved."), UiMessageType.Warning);
         }
         return RedirectToPage(new { id });
     }
@@ -334,7 +375,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (board is null) return NotFound();
             if (board.Version != BoardVersion)
             {
-                TempData["StatusMessage"] = "This board changed after you opened it. Reload before approving it.";
+                SetStatus(Localize("This board changed after you opened it. Reload before approving it."), UiMessageType.Warning);
                 return RedirectToPage(new { id });
             }
             board.RequireEditing(AdminId, time.GetUtcNow());
@@ -357,19 +398,19 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             await collaboration.NotifyBoardChangedAsync(id, ct);
-            TempData["StatusMessage"] = publishingCorrection
-                ? "Corrected board published as a replacement snapshot. The prior public snapshot remains in history."
-                : "Board approved privately. Publication remains a separate later action.";
+            SetStatus(publishingCorrection
+                ? Localize("Corrected board published as a replacement snapshot. The prior public snapshot remains in history.")
+                : Localize("Board approved privately. Publication remains a separate later action."), UiMessageType.Success);
         }
         catch (Exception exception) when (IsApprovalConflict(exception))
         {
             db.ChangeTracker.Clear();
-            TempData["StatusMessage"] = "The board or catalogue changed while approval was being prepared. No approval was saved; reload and try again.";
+            SetStatus(Localize("The board or catalogue changed while approval was being prepared. No approval was saved; reload and try again."), UiMessageType.Warning);
         }
-        catch (InvalidOperationException exception)
+        catch (InvalidOperationException)
         {
             db.ChangeTracker.Clear();
-            TempData["StatusMessage"] = exception.Message;
+            SetStatus(Localize("The board approval could not be changed."), UiMessageType.Warning);
         }
         return RedirectToPage(new { id });
     }
@@ -383,7 +424,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (board is null) return NotFound();
             if (board.Version != BoardVersion)
             {
-                TempData["StatusMessage"] = "This board changed after you opened it. Reload before changing its approval.";
+                SetStatus(Localize("This board changed after you opened it. Reload before changing its approval."), UiMessageType.Warning);
                 return RedirectToPage(new { id });
             }
             board.RequireEditing(AdminId, time.GetUtcNow());
@@ -395,17 +436,17 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             await collaboration.NotifyBoardChangedAsync(id, ct);
-            TempData["StatusMessage"] = "Board approval was removed. The preserved approval remains in history.";
+            SetStatus(Localize("Board approval was removed. The preserved approval remains in history."), UiMessageType.Success);
         }
         catch (Exception exception) when (IsApprovalConflict(exception))
         {
             db.ChangeTracker.Clear();
-            TempData["StatusMessage"] = "Another administrator changed this board first. No approval change was saved; reload and try again.";
+            SetStatus(Localize("Another administrator changed this board first. No approval change was saved; reload and try again."), UiMessageType.Warning);
         }
-        catch (InvalidOperationException exception)
+        catch (InvalidOperationException)
         {
             db.ChangeTracker.Clear();
-            TempData["StatusMessage"] = exception.Message;
+            SetStatus(Localize("The board approval could not be changed."), UiMessageType.Warning);
         }
         return RedirectToPage(new { id });
     }
@@ -507,12 +548,12 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         return approval;
     }
 
-    private bool PrepareCompetitiveEdit(Board board)
+    private bool PrepareCompetitiveEdit(Board board, bool reportStatus = true)
     {
         if (board.State == BoardState.Draft || board.State == BoardState.Published && board.PublishedCorrectionInProgress) return true;
         if (board.State != BoardState.Validated)
         {
-            TempData["StatusMessage"] = "This board can no longer be changed here.";
+            if (reportStatus) SetStatus(Localize("This board can no longer be changed here."), UiMessageType.Warning);
             return false;
         }
         var priorApprovalId = board.ActiveApprovalSnapshotId;
@@ -520,7 +561,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         AddBoardAudit("board.auto_unapproved", board, "Validated", "Competitive board content changed",
             $"{{\"state\":\"Validated\",\"activeApprovalSnapshotId\":\"{priorApprovalId}\"}}",
             "{\"state\":\"Draft\",\"activeApprovalSnapshotId\":null}");
-        TempData["StatusMessage"] = "Board returned to Draft because a competitive edit was saved. The preserved approval remains in history.";
+        if (reportStatus) SetStatus(Localize("Board returned to Draft because a competitive edit was saved. The preserved approval remains in history."), UiMessageType.Success);
         return true;
     }
 
@@ -542,14 +583,14 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
 
     public async Task<IActionResult> OnPostRemoveAsync(Guid id, Guid tileId, CancellationToken ct)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct); var board = await db.Boards.SingleAsync(x => x.EventId == id, ct); if (!board.IsEditable) return BadRequest(); if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id }); if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
+        await using var transaction = await db.Database.BeginTransactionAsync(ct); var board = await db.Boards.SingleAsync(x => x.EventId == id, ct); if (!board.IsEditable) { SetStatus(Localize("This board is no longer editable."), UiMessageType.Warning); return RedirectToPage(new { id }); } if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id }); if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
         var tile = await db.BoardTiles.SingleOrDefaultAsync(x => x.BoardId == board.Id && x.Id == tileId, ct); if (tile is null) return NotFound();
         var requirements = await db.BoardRequirementSnapshots.Where(x => x.BoardTileId == tile.Id).ToListAsync(ct); var ids = requirements.Select(x => x.Id).ToList();
         var images = await db.BoardTileImageAssets.Where(x => x.BoardTileId == tile.Id).ToListAsync(ct);
         db.BoardRequirementBossSnapshots.RemoveRange(await db.BoardRequirementBossSnapshots.Where(x => ids.Contains(x.RequirementId)).ToListAsync(ct)); db.BoardRequirementDropSnapshots.RemoveRange(await db.BoardRequirementDropSnapshots.Where(x => ids.Contains(x.RequirementId)).ToListAsync(ct)); db.BoardRequirementSnapshots.RemoveRange(requirements); db.BoardTileImageAssets.RemoveRange(images); db.BoardTiles.Remove(tile);
         board.SetTotalEhb(Math.Max(0, board.TotalEhbEstimate - tile.EstimatedEhbSnapshot)); await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
         foreach (var image in images) await storage.DeleteAsync(image.StorageKey, ct);
-        await WriteAudit("board.tile_removed", board.Id, tile.NameSnapshot, ct); return RedirectToPage(new { id });
+        await WriteAudit("board.tile_removed", board.Id, tile.NameSnapshot, ct); SetSuccessIfMissing(Localize("Tile removed.")); return RedirectToPage(new { id });
     }
 
     private async Task<BoardTile> PlaceTemplateAsync(Board board, TileTemplate template, IReadOnlyList<TileTemplateRequirement> requirements, int position, CancellationToken ct)
@@ -690,20 +731,32 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         var eventId = await db.Boards.AsNoTracking().Where(x => x.Id == boardId).Select(x => x.EventId).SingleAsync(ct);
         await collaboration.NotifyBoardChangedAsync(eventId, ct);
     }
-    private async Task<bool> TryClaimBoardAsync(Board board, CancellationToken ct)
+    private async Task<bool> TryClaimBoardAsync(Board board, CancellationToken ct, bool reportStatus = true)
     {
         try { board.RenewEditing(AdminId, time.GetUtcNow(), BoardEditingLease.Duration); }
-        catch (InvalidOperationException exception) { TempData["StatusMessage"] = exception.Message; db.ChangeTracker.Clear(); return false; }
+        catch (InvalidOperationException) { if (reportStatus) SetStatus(Localize("The board change could not be saved."), UiMessageType.Warning); db.ChangeTracker.Clear(); return false; }
         db.Entry(board).Property(x => x.Version).OriginalValue = BoardVersion;
         board.MarkChanged();
         try { await db.SaveChangesAsync(ct); return true; }
         catch (DbUpdateConcurrencyException)
         {
-            TempData["StatusMessage"] = "This board changed after you opened it. Your change was not saved. The latest board has been loaded.";
+            if (reportStatus) SetStatus(Localize("This board changed after you opened it. Your change was not saved. The latest board has been loaded."), UiMessageType.Warning);
             db.ChangeTracker.Clear();
             return false;
         }
     }
+    private void SetStatus(string message, UiMessageType type)
+    {
+        TempData["StatusMessage"] = message;
+        TempData[UiMessage.TypeKey] = type.ToString();
+    }
+    private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
+    private void SetSuccessIfMissing(string message)
+    {
+        if (TempData.Peek("StatusMessage") is null) SetStatus(message, UiMessageType.Success);
+    }
+    private static JsonResult MoveSuccess(long boardVersion, string message) => new(new { success = true, boardVersion, message, type = UiMessageType.Success.ToString().ToLowerInvariant() });
+    private static JsonResult MoveFailure(string message, UiMessageType type) => new(new { success = false, message, type = type.ToString().ToLowerInvariant() });
     private static string DefaultTileName(IEnumerable<string> names) { var list = names.Distinct(StringComparer.OrdinalIgnoreCase).ToList(); return list.Count switch { 0 => "New tile", 1 => list[0], _ => string.Join(" + ", list) }; }
     private async Task ReplaceTileImageAsync(Guid eventId, BoardTile tile, CancellationToken ct)
     {

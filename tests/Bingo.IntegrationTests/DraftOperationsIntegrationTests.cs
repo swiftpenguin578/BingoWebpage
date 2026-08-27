@@ -84,9 +84,14 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         var root = Directory.GetParent(AppContext.BaseDirectory)!.Parent!.Parent!.Parent!.Parent!.Parent!.FullName;
         var markup = await File.ReadAllTextAsync(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml"));
         Assert.Contains("draft-setup-controller-control", markup, StringComparison.Ordinal);
-        Assert.Contains("Starting it will take control", markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Starting it will take control", markup, StringComparison.Ordinal);
         Assert.Contains("asp-page-handler=\"TakeControl\"", markup, StringComparison.Ordinal);
         Assert.Contains("asp-page-handler=\"ReleaseControl\"", markup, StringComparison.Ordinal);
+        Assert.Contains("name=\"rosterTeamId\"", markup, StringComparison.Ordinal);
+        Assert.Contains("asp-route-rosterTeamId", markup, StringComparison.Ordinal);
+        Assert.Contains("data-draft-roster-trigger", markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("onchange=\"this.form.requestSubmit()\"", markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("confirm(", markup, StringComparison.Ordinal);
 
         await ExecuteAsync(uncontested.EventId, uncontested.FirstAdminId, page => page.OnPostStartAsync(uncontested.EventId, CancellationToken.None));
         await using (var started = new ApplicationDbContext(options))
@@ -132,6 +137,45 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         Assert.Single(await completed.AuditEntries.Where(value => value.Action == "draft.control_acquired").ToListAsync());
         Assert.Single(await completed.AuditEntries.Where(value => value.Action == "draft.control_taken_over").ToListAsync());
         Assert.Equal(2, await completed.AuditEntries.CountAsync(value => value.Action == "draft.started"));
+    }
+
+    [Fact]
+    public async Task DraftLoadKeepsParticipantWithMissingStrictAuthorityVisibleAndReadinessBlocked()
+    {
+        var setup = await SeedAsync();
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            var participant = await seed.EventParticipants.SingleAsync(value => value.Id == setup.PlayerIds[0]);
+            var questionId = await seed.SignupQuestions.Where(value => value.EventId == setup.EventId).Select(value => value.Id).SingleAsync();
+            var firstTeamId = await seed.Teams.Where(value => value.EventId == setup.EventId && value.Name == "First").Select(value => value.Id).SingleAsync();
+            var draftId = await seed.DraftSessions.Where(value => value.EventId == setup.EventId).Select(value => value.Id).SingleAsync();
+            var character = new OsrsCharacter(Guid.NewGuid(), "Draft 0 duplicate", $"DRAFT DUPLICATE {setup.EventId:N}", now);
+            var assignment = new EventParticipantCharacter(Guid.NewGuid(), setup.EventId, participant.Id, character.Id, 10, now, null, questionId, EventCharacterRole.Playing, 99, EhbSource.Manual, null);
+            seed.AddRange(character, assignment, new DraftPick(Guid.NewGuid(), draftId, firstTeamId, participant.Id, 1, 1, now));
+            await seed.SaveChangesAsync();
+        }
+
+        foreach (var sort in new[] { "ehb", "name", "signup", "status" })
+        {
+            DraftModel? loaded = null;
+            var result = await ExecuteAsync(setup.EventId, setup.FirstAdminId, async page =>
+            {
+                loaded = page;
+                return await page.OnGetAsync(setup.EventId, sort, CancellationToken.None);
+            });
+
+            Assert.IsType<PageResult>(result);
+            Assert.NotNull(loaded);
+            var participant = Assert.Single(loaded!.Participants, value => value.Id == setup.PlayerIds[0]);
+            Assert.Equal("Draft 0", participant.Name);
+            Assert.Equal(1m, participant.Ehb);
+            Assert.Equal("Draft 0", loaded.LatestPick!.PlayerName);
+            Assert.Equal(1m, Assert.Single(loaded.Teams.Single(value => value.Name == "First").Members).Ehb);
+        }
+
+        var status = await ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+            page => page.OnPostStartAsync(setup.EventId, CancellationToken.None));
+        Assert.Contains("Every included confirmed participant must retain one valid primary-account reservation.", status);
     }
 
     [Fact]
@@ -555,7 +599,7 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         await using var read = new ApplicationDbContext(options);
         var persistedFrozenNames = await read.DraftPublicationRosters.Where(x => read.DraftPublicationCycles.Any(c => c.Id == x.DraftPublicationCycleId && c.SupersededAt == null)).Select(x => x.PublicCharacterName).ToArrayAsync();
         Assert.Equal(frozenNames.Order(), persistedFrozenNames.Order());
-        var page = new Bingo.Web.Pages.Events.TeamsModel(read, new FixedTimeProvider(now), new PublicTeamImageService(read, null!));
+        var page = new Bingo.Web.Pages.Events.TeamsModel(read, new FixedTimeProvider(now));
         Assert.IsType<PageResult>(await page.OnGetAsync(slug, CancellationToken.None));
         Assert.Empty(page.Teams.SelectMany(x => x.Members));
     }
@@ -574,6 +618,10 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         Assert.Contains("Pause", markup, StringComparison.Ordinal);
         Assert.Contains("Resume", markup, StringComparison.Ordinal);
         Assert.Contains("Undo", markup, StringComparison.Ordinal);
+        Assert.Contains("data-draft-role-form", markup, StringComparison.Ordinal);
+        Assert.Contains("data-auto-submit", markup, StringComparison.Ordinal);
+        Assert.Contains("A current Captain is required before the draft can start.", markup, StringComparison.Ordinal);
+        Assert.Contains("Emergency credential", markup, StringComparison.Ordinal);
         Assert.DoesNotContain("TargetTeamSize", markup, StringComparison.Ordinal);
         Assert.Contains("asp-page-handler=\"Finalize\"", markup, StringComparison.Ordinal);
         Assert.Contains("asp-page-handler=\"Reopen\"", markup, StringComparison.Ordinal);

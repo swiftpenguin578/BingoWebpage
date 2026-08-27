@@ -1,0 +1,69 @@
+@page
+@model Bingo.Web.Pages.Admin.UiReferencesModel
+@{
+    ViewData["Title"] = T["UI references"];
+    ViewData["AdminPageDescription"] = T["Temporary reference gallery"];
+}
+
+<style>
+    .ui-reference-page { padding: 1.5rem 0 3rem; }
+    .ui-reference-intro { margin-bottom: 1.5rem; }
+    .ui-reference-intro h1 { margin-bottom: .35rem; }
+    .ui-reference-intro p { max-width: 48rem; color: var(--admin-muted); }
+    .ui-reference-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1rem; }
+    .ui-reference-card { overflow: hidden; background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: .75rem; }
+    .ui-reference-card header { padding: 1rem 1rem .75rem; }
+    .ui-reference-card header span { color: var(--admin-accent-strong); font-size: .72rem; font-weight: 700; letter-spacing: .08em; }
+    .ui-reference-card h2 { margin: .25rem 0 .35rem; font-size: 1.15rem; }
+    .ui-reference-card p { margin: 0; color: var(--admin-muted); font-size: .85rem; }
+    .ui-reference-variants { display: grid; gap: .75rem; padding: 0 1rem 1rem; }
+    .ui-reference-variant { margin: 0; }
+    .ui-reference-variant button { display: block; width: 100%; padding: 0; overflow: hidden; background: var(--admin-surface-raised); border: 1px solid var(--admin-border-strong); border-radius: .5rem; cursor: zoom-in; }
+    .ui-reference-variant button:focus-visible { outline: 2px solid var(--admin-focus-accent-strong); outline-offset: 2px; }
+    .ui-reference-variant img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: contain; }
+    .ui-reference-variant figcaption { padding-top: .4rem; color: var(--admin-muted); font-size: .75rem; }
+    .ui-reference-lightbox { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: auto; padding: 0; overflow: visible; background: transparent; border: 0; border-radius: 0; }
+    .ui-reference-lightbox::backdrop { background: rgba(0, 0, 0, .92); }
+    .ui-reference-lightbox img { display: block; width: auto; max-width: 100vw; height: auto; max-height: 100dvh; object-fit: contain; }
+</style>
+
+<section class="ui-reference-page" aria-labelledby="ui-reference-title">
+    <header class="ui-reference-intro">
+        <p class="admin-page-eyebrow">@T["Temporary Admin utility"]</p>
+        <h1 id="ui-reference-title">@T["Public UI references"]</h1>
+        <p>@T["Every active PUB-REF reference in matrix order. Select an image to inspect it at viewport size; press Escape to close."]</p>
+    </header>
+
+    <div class="ui-reference-grid">
+        @foreach (var reference in Model.References)
+        {
+            <article class="ui-reference-card">
+                <header>
+                    <span>@reference.Id</span>
+                    <h2>@reference.Title</h2>
+                    <p>@reference.AppliesTo</p>
+                </header>
+                <div class="ui-reference-variants">
+                    @foreach (var variant in reference.Variants)
+                    {
+                        var imageUrl = Url.Page("/Admin/UiReferences", "Image", new { key = variant.Key });
+                        <figure class="ui-reference-variant">
+                            <button type="button" data-evidence-image="@imageUrl" data-evidence-alt="@reference.Id: @reference.Title — @variant.Label" aria-label="@T["View {0} {1}", reference.Id, variant.Label]">
+                                <img src="@imageUrl" alt="" loading="lazy" />
+                            </button>
+                            <figcaption>@variant.Label</figcaption>
+                        </figure>
+                    }
+                </div>
+            </article>
+        }
+    </div>
+</section>
+
+<dialog class="public-lightbox ui-reference-lightbox" data-evidence-dialog data-enlarged-evidence="Enlarged UI reference">
+    <img data-evidence-dialog-image alt="" />
+</dialog>
+
+@section Scripts {
+    <script src="~/js/public-evidence.js" asp-append-version="true"></script>
+}

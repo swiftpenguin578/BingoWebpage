@@ -2,7 +2,7 @@
 
 ## Data Model and Calculation Specification
 
-**Status:** Planning Pass 2 target model v0.2; implementation and migration not started
+**Status:** Planning Pass 2 target model v0.2; implementation and migration details are maintained in the current checkout
 **Last updated:** 2026-07-25
 **Companion document:** `PRODUCT_REQUIREMENTS.md`
 
@@ -869,39 +869,29 @@ Captain authorization requires all of:
 
 An admin identity transfer updates the event participant's owning `account_id` and any derived normal participant/captain access atomically. The destination `(event_id, account_id)` uniqueness constraint must succeed first. The transfer does not move `AccountOsrsCharacter` rows or merge `Account` records; it preserves all event-owned participant, assignment, team, evidence, and history rows.
 
-### 8.3 AccountNotification
+### 8.3 PersonalNotification
 
-Durable in-site notification for an authenticated website account.
+`PersonalNotification` is a durable recipient-specific in-site notification stored in the `personal_notifications` table. It is a destination and reminder, not an event, participant, evidence, account-lifecycle, or Admin-action record; those underlying records remain authoritative.
 
 Fields:
 
-- `id`
-- `account_id`
-- `event_id`, nullable
-- `event_participant_id`, nullable
-- `type`
-- `created_at`
-- `read_at`, nullable
-- `target_path`
+- `Id`
+- `RecipientAccountId`
+- `Title`
+- `Detail`
+- `Route`
+- `CreatedAt`
+- `ReadAt`, nullable
 
-Waiting-list promotion creates one `SIGNUP_PROMOTED` notification for the participant when they have a linked account and one for every enabled administrator. Admin notification metadata includes the promotion trigger without copying private custom-answer payloads. A recipient-and-transition uniqueness/idempotency key prevents duplicate notifications when a promotion command is retried. Notification content contains no OAuth secret. The notification is supplementary; current event/signup state remains authoritative.
+The table has a primary key on `Id` and an index over `(RecipientAccountId, ReadAt, CreatedAt)`. It does not carry the richer event/participant/type/path foreign-key shape or a universal recipient-transition uniqueness constraint. `Route` is a supplementary direct destination and must still resolve under the recipient's current authorization and scope; an empty route falls back to the notification page.
 
-Participant-directed notification types also include:
+Reading a notification is recipient-scoped and marks `ReadAt` only when it is not already set, so repeated reads are idempotent. Notifications are retained, and reading or following a destination never resolves the underlying workflow or Admin action. Pending review, waiting-list follow-up, postponed start, vacancy, missing-Captain, and other operational state disappears only when its authoritative record is resolved.
 
-```text
-SIGNUP_WITHDRAWN_BY_ADMIN
-SIGNUP_RESTORED
-SIGNUP_ACCOUNTS_CHANGED
-TEAM_REPLACEMENT_CONFIRMED
-TEAM_ROLE_CHANGED
-EVIDENCE_REJECTED
-```
+Required notifications are written with their surrounding accepted mutation. Retry-sensitive producers use deterministic IDs and their owning transition/recipient boundary where implemented, including live withdrawal/replacement and evidence rejection. Ordinary notification producers may use fresh GUIDs and rely on the surrounding accepted transaction or action; notification persistence has no universal recipient-transition deduplication rule.
 
-Payment changes, private-note changes, and ordinary non-account answer corrections create no participant notification. Every notification command uses the same recipient-and-transition idempotency rule.
+Waiting-list promotion notifies the linked participant when present and enabled administrators, with the participant confirmation or Admin management destination and no private custom-answer, payment, note, OAuth-secret, or other unnecessary account data. Payment changes, private-note changes, and ordinary non-account answer corrections create no participant notification.
 
-`TEAM_VACANCY_CREATED` targets every enabled admin and each remaining linked captain/co-captain on the affected team. `TEAM_REPLACEMENT_CONFIRMED` targets the linked replacement and current linked team captains/co-captains.
-
-`EVIDENCE_REJECTED` targets the linked credited participant and every current linked captain/co-captain on the submission's team. Its metadata includes the submission, event, tile/drop label, and rejection reason. Recipient-and-review-transition uniqueness prevents duplicates when a rejection command is retried. It does not target ordinary team members; when the credited participant is unlinked, the captain/co-captain recipients cover the notification.
+Vacancy and replacement notifications target enabled administrators and the remaining or newly linked current Captain/co-Captain recipients as applicable. Evidence rejection targets the linked credited participant and current linked Captain/co-Captains, includes only the necessary event/tile/drop/reason detail, and does not target ordinary team members. When the credited participant is unlinked, the current Captain/co-Captain recipients cover the notification.
 
 ## 9. Global OSRS catalogue
 
@@ -1206,7 +1196,7 @@ ORIGINAL_EVIDENCE
 REPLACEMENT_EVIDENCE
 ```
 
-Only one active original or replacement screenshot is used as the primary evidence at a time. Previous evidence remains historical.
+Only one active original or replacement screenshot is used as the primary evidence at a time. While a submission remains pending and its ordinary mutation window is open, its authorized participant or team captain may replace that active screenshot; the prior asset is deactivated but remains historical. Read-only submission states cannot replace evidence.
 
 ### 11.3 ReviewAction
 

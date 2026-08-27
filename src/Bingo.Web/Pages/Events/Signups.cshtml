@@ -1,14 +1,112 @@
 @page "/Events/{slug}/Signups"
 @model Bingo.Web.Pages.Events.SignupsModel
-@{ ViewData["Title"] = Model.EventName; }
-<section class="table-page">
-    <div class="page-heading"><div><p class="eyebrow">@T["Event signup"]</p><h1>@Model.EventName</h1><p>@T["Confirmed participants and the waiting list."]</p></div></div>
-    <section class="panel"><h2>@T["Confirmed"]</h2>
-        @if (!Model.Confirmed.Any()) { <p>@T["No confirmed participants yet."]</p> }
-        else { <div class="table-wrap"><table><thead><tr><th>@T["Player"]</th>@foreach(var heading in Model.Headings){<th>@heading</th>}</tr></thead><tbody>@foreach(var participant in Model.Confirmed){<tr><th scope="row">@participant.Name</th>@foreach(var value in participant.Values){<td>@value</td>}</tr>}</tbody></table></div> }
+@{ ViewData["Title"] = Model.EventName; ViewData["BodyClass"] = "public-ui-pass1"; }
+<section class="signup-sheet public-signups-directory" aria-labelledby="signups-heading" data-public-ui-no-ambient>
+    <header class="signup-sheet__masthead">
+        <div class="signup-sheet__title">
+            <div class="public-masthead-copy">
+                <span class="signup-sheet__kicker public-masthead-kicker">@T["Event signup"]</span>
+                <h1 id="signups-heading" class="public-masthead-title">@Model.EventName</h1>
+                <p class="public-masthead-support">@(string.IsNullOrWhiteSpace(Model.EventDescription) ? T["Confirmed participants and the waiting list."] : Model.EventDescription)</p>
+            </div>
+            <dl class="signup-sheet__meta">
+                <div><dt>@T["Event starts"]</dt><dd>@(Model.EventStartsAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? T["Not set"])</dd></div>
+                <div><dt>@T["Signup closes"]</dt><dd>@(Model.SignupClosesAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? T["Not set"])</dd></div>
+                <div><dt>@T["Capacity"]</dt><dd>@(Model.ParticipantCap?.ToString() ?? T["Not set"])</dd></div>
+            </dl>
+        </div>
+        <div class="signup-sheet__capacity" aria-label="@T["confirmed"]">
+            <span class="signup-sheet__capacity-value"><strong class="signup-sheet__capacity-number">@Model.ConfirmedCount</strong><span class="signup-sheet__capacity-slash" aria-hidden="true">/</span><strong class="signup-sheet__capacity-number">@(Model.ParticipantCap?.ToString() ?? T["Not set"])</strong></span>
+            <span class="signup-sheet__capacity-label">@T["confirmed"]</span>
+        </div>
+        <div class="signup-sheet__lifecycle" aria-label="@T["Status"]">
+            <strong>@Model.EventStatus</strong>
+            <span class="signup-sheet__status-divider" aria-hidden="true"></span>
+            <span class="signup-sheet__status-line">@Model.WaitingCount @T["Currently waiting"]</span>
+        </div>
+    </header>
+
+    <section class="public-signups-directory__section" aria-labelledby="confirmed-heading">
+        <header class="public-signups-directory__section-heading public-signups-directory__section-heading--confirmed">
+            <h2 id="confirmed-heading">@T["confirmed"] <span>@Model.ConfirmedCount</span></h2>
+        </header>
+        @if (!Model.Confirmed.Any())
+        {
+            <div class="public-signups-directory__empty">
+                <h3>@T["No confirmed participants yet."]</h3>
+                <p>@T["Confirmed signups will appear here."]</p>
+            </div>
+        }
+        else
+        {
+            <div class="public-signups-directory__table-wrap">
+                <table class="public-signups-directory__table">
+                    <thead>
+                        <tr>
+                            <th scope="col">@T["Player"]</th>
+                            @foreach (var heading in Model.Headings)
+                            {
+                                <th scope="col">@heading</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var participant in Model.Confirmed)
+                        {
+                            <tr>
+                                <th scope="row" data-label="@T["Player"]">@participant.Name</th>
+                                @foreach (var value in participant.Values.Select((value, index) => new { value, index }))
+                                {
+                                    <td data-label="@Model.Headings[value.index]">@value.value</td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </section>
-    <section class="panel"><h2>@T["Waiting list"]</h2>
-        @if (!Model.Waiting.Any()) { <p>@T["No participants are waiting."]</p> }
-        else { <div class="table-wrap"><table><thead><tr><th>@T["Position"]</th><th>@T["Player"]</th>@foreach(var heading in Model.Headings){<th>@heading</th>}</tr></thead><tbody>@foreach(var participant in Model.Waiting){<tr><td>@participant.WaitingPosition</td><th scope="row">@participant.Name</th>@foreach(var value in participant.Values){<td>@value</td>}</tr>}</tbody></table></div> }
+
+    <section class="public-signups-directory__section" aria-labelledby="waiting-heading">
+        <header class="public-signups-directory__section-heading public-signups-directory__section-heading--waiting">
+            <h2 id="waiting-heading">@T["Waiting list"] <span>@Model.WaitingCount</span></h2>
+        </header>
+        @if (!Model.Waiting.Any())
+        {
+            <div class="public-signups-directory__empty">
+                <h3>@T["No participants are waiting."]</h3>
+                <p>@T["The waiting list will appear when event capacity is reached."]</p>
+            </div>
+        }
+        else
+        {
+            <div class="public-signups-directory__table-wrap">
+                <table class="public-signups-directory__table">
+                    <thead>
+                        <tr>
+                            <th scope="col">@T["Position"]</th>
+                            <th scope="col">@T["Player"]</th>
+                            @foreach (var heading in Model.Headings)
+                            {
+                                <th scope="col">@heading</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var participant in Model.Waiting)
+                        {
+                            <tr>
+                                <th scope="row" data-label="@T["Position"]">@participant.WaitingPosition?.ToString("00")</th>
+                                <th scope="row" data-label="@T["Player"]">@participant.Name</th>
+                                @foreach (var value in participant.Values.Select((value, index) => new { value, index }))
+                                {
+                                    <td data-label="@Model.Headings[value.index]">@value.value</td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </section>
 </section>

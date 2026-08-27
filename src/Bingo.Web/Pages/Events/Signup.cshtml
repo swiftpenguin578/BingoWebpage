@@ -4,37 +4,249 @@
 @using System.Globalization
 @{
     ViewData["Title"] = Model.EventView?.Name ?? T["Signup"];
+    var accountQuestions = Model.Questions.Where(question => question.Type == SignupQuestionType.Account).ToList();
+    var preferenceQuestions = Model.Questions.Where(question => question.Type != SignupQuestionType.Account && (question.SystemField == SignupSystemField.CaptainVolunteer || question.Type == SignupQuestionType.Text)).ToList();
+    var eventQuestions = Model.Questions.Where(question => question.Type != SignupQuestionType.Account && !preferenceQuestions.Contains(question)).ToList();
+    var statusLabel = Model.EventView!.Cancelled ? T["Event cancelled"] : Model.EventView.Accepting ? T["Signups open"] : T["Signups are not currently open"];
+    var primaryAccountQuestion = accountQuestions.FirstOrDefault(question => question.AccountRole == EventCharacterRole.Playing);
+    var primaryAccountInput = primaryAccountQuestion is null ? null : Model.Input.AccountAnswers.GetValueOrDefault(primaryAccountQuestion.Id);
+    var selectedAccount = primaryAccountQuestion is null || primaryAccountInput?.OsrsCharacterId is not { } selectedId
+        ? null
+        : primaryAccountQuestion.Accounts.FirstOrDefault(account => account.Id == selectedId);
+    var captainQuestion = preferenceQuestions.FirstOrDefault(question => question.SystemField == SignupSystemField.CaptainVolunteer);
+    var captainPreference = captainQuestion is null ? (bool?)null : Model.Input.Answers.GetValueOrDefault(captainQuestion.Id) == "true";
+    var currentEhb = primaryAccountInput?.Ehb;
+    var currentAccountVerified = !string.IsNullOrWhiteSpace(primaryAccountInput?.WiseOldManLookupToken);
 }
-<section class="form-page wide-form"><p class="eyebrow">@T[Model.IsEditing ? "Edit signup" : "Event signup"]</p><h1>@Model.EventView!.Name</h1><p class="form-intro">@Model.EventView.Description</p>
-<div class="panel event-summary"><p><strong>@T["Signup closes"]</strong><span>@(Model.EventView.SignupClosesAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? T["Not set"])</span></p><p><strong>@T["Event"]</strong><span>@(Model.EventView.EventStartsAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? T["Not set"]) – @(Model.EventView.EventEndsAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? T["Not set"])</span></p></div>
-@if(Model.EventView.TableAvailable){<p><a class="btn neutral-outline-action" asp-page="/Events/Signups" asp-route-slug="@Model.EventView.Slug">@T["View signup table"]</a></p>}
-@if (ViewData.ModelState.ErrorCount > 0) { <div asp-validation-summary="All" class="validation-summary panel" data-feedback-target tabindex="-1"></div> }
-@if (Model.EventView.Cancelled) { <div class="panel"><h2>@T["Event cancelled"]</h2><p>@T["This event will not take place."]</p></div> }
-else if (!Model.EventView.Accepting) { <div class="panel"><h2>@T["Signups are not currently open"]</h2><p>@T["The event information remains visible, but the form is unavailable."]</p></div> }
-else {
-<form method="post" class="panel form-stack">
-<input type="hidden" asp-for="Input.ExpectedResponseVersion" />
-@foreach (var question in Model.Questions) {
-<label for="question-@question.Id">@question.Label @if(question.Required){<span aria-hidden="true">*</span>}</label>
-@if(question.Type == SignupQuestionType.Account){ var accountInput = Model.Input.AccountAnswers.GetValueOrDefault(question.Id) ?? new SignupModel.AccountInput(); <select id="question-@question.Id" name="Input.AccountAnswers[@question.Id].OsrsCharacterId" class="form-select" data-ehb-input="@(question.AccountRole == EventCharacterRole.Playing ? $"ehb-{question.Id}" : null)" data-lookup-token-input="@(question.AccountRole == EventCharacterRole.Playing ? $"lookup-{question.Id}" : null)"><option value="">@T["Choose…"]</option>@foreach(var account in question.Accounts){<option value="@account.Id" data-saved-ehb="@(account.SavedEhb?.ToString(CultureInfo.InvariantCulture) ?? string.Empty)" selected="@(account.Id == accountInput.OsrsCharacterId ? "selected" : null)">@account.Name@if(account.Historical){<text> (@T["Currently registered"])</text>}</option>}</select><span class="field-error">@Html.ValidationMessage($"Input.AccountAnswers[{question.Id}].OsrsCharacterId")</span>@if(question.AccountRole == EventCharacterRole.Playing){<label for="ehb-@question.Id">@T["EHB (Wise Old Man)"]</label><input id="ehb-@question.Id" name="Input.AccountAnswers[@question.Id].Ehb" value="@accountInput.Ehb" class="form-control" type="number" min="0" step="0.01" /><input id="lookup-@question.Id" type="hidden" name="Input.AccountAnswers[@question.Id].WiseOldManLookupToken" value="@accountInput.WiseOldManLookupToken" /><button class="btn neutral-outline-action" type="submit" name="Input.FetchQuestionId" value="@question.Id">@T["Fetch from Wise Old Man"]</button>@if(Model.LookupQuestionId == question.Id && Model.LookupFetchedAt is { } fetchedAt){<span class="form-hint">@T["Fetched from Wise Old Man"]: @fetchedAt.ToLocalTime().ToString("g")</span>}<span class="field-error">@Html.ValidationMessage($"Input.AccountAnswers[{question.Id}].Ehb")</span>}<p class="form-hint"><a href="@Model.MyAccountsUrl">@T["Don't see your account? Add it to My accounts"]</a></p>}
-    else if(question.SystemField == SignupSystemField.CaptainVolunteer){<label class="check-row"><input type="checkbox" name="Input.Answers[@question.Id]" value="true" checked="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "true" ? "checked" : null)" /> @T["I am willing to be a captain"]</label>}
-    else if(question.Type == SignupQuestionType.Text){<textarea id="question-@question.Id" name="Input.Answers[@question.Id]" class="form-control" rows="3">@Model.Input.Answers.GetValueOrDefault(question.Id)</textarea>}
-    else if(question.Type == SignupQuestionType.YesNo){<select id="question-@question.Id" name="Input.Answers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option><option value="true" selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "true" ? "selected" : null)">@T["Yes"]</option><option value="false" selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "false" ? "selected" : null)">@T["No"]</option></select>}
-else if(question.Type == SignupQuestionType.SingleChoice){<select id="question-@question.Id" name="Input.Answers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option>@foreach(var option in question.OptionList){<option selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == option ? "selected" : null)">@option</option>}</select>}
-else {<input id="question-@question.Id" name="Input.Answers[@question.Id]" value="@Model.Input.Answers.GetValueOrDefault(question.Id)" class="form-control" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" />}
-@if(question.Type != SignupQuestionType.Account && question.SystemField != SignupSystemField.CaptainVolunteer){<span class="field-error">@Html.ValidationMessage($"Input.Answers[{question.Id}]")</span>}
-}
-@if(Model.EventView.RequireCode){<label asp-for="Input.SignupCode"></label><input asp-for="Input.SignupCode" class="form-control" autocomplete="off" /><span asp-validation-for="Input.SignupCode" class="field-error"></span>}
-<button class="btn action-accent-outline" type="submit">@T[Model.IsEditing ? "Save signup" : "Sign up"]</button></form> }
+
+<section class="signup-sheet" aria-labelledby="signup-heading">
+    <header class="signup-sheet__masthead">
+        <div class="signup-sheet__title">
+            <div class="public-masthead-copy">
+                <span class="signup-sheet__kicker public-masthead-kicker">@T[Model.IsEditing ? "Edit signup" : "Event signup"]</span>
+                <h1 id="signup-heading" class="public-masthead-title">@Model.EventView.Name</h1>
+                <p class="public-masthead-support">@(string.IsNullOrWhiteSpace(Model.EventView.Description) ? T["Choose your account, answer the event questions and reserve your place."] : Model.EventView.Description)</p>
+            </div>
+            <dl class="signup-sheet__meta">
+                <div><dt>@T["Event starts"]</dt><dd>@(Model.EventView.EventStartsAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? T["Not set"])</dd></div>
+                <div><dt>@T["Signup closes"]</dt><dd>@(Model.EventView.SignupClosesAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? T["Not set"])</dd></div>
+                <div><dt>@T["Capacity"]</dt><dd>@(Model.EventView.ParticipantCap?.ToString() ?? T["Not set"])</dd></div>
+            </dl>
+        </div>
+        <div class="signup-sheet__capacity" aria-label="@T["confirmed"]">
+            <span class="signup-sheet__capacity-value"><strong class="signup-sheet__capacity-number">@Model.EventView.ConfirmedCount</strong><span class="signup-sheet__capacity-slash" aria-hidden="true">/</span><strong class="signup-sheet__capacity-number">@(Model.EventView.ParticipantCap?.ToString() ?? T["Not set"])</strong></span>
+            <span class="signup-sheet__capacity-label">@T["confirmed"]</span>
+        </div>
+        <div class="signup-sheet__lifecycle" aria-label="@T["Status"]">
+            <strong>@statusLabel</strong>
+            <span class="signup-sheet__status-divider" aria-hidden="true"></span>
+            <span class="signup-sheet__status-line">@Model.EventView.WaitingCount @T["Currently waiting"]</span>
+        </div>
+    </header>
+
+    @if (ViewData.ModelState.ErrorCount > 0)
+    {
+        <div asp-validation-summary="All" class="signup-sheet__message" data-feedback-target tabindex="-1"></div>
+    }
+
+    @if (Model.EventView.Cancelled || !Model.EventView.Accepting)
+    {
+        <div class="signup-sheet__unavailable">
+            <span class="signup-sheet__number" aria-hidden="true">01</span>
+            <div class="signup-sheet__unavailable-copy">
+                <h2>@(Model.EventView.Cancelled ? T["Event cancelled"] : T["Signups are not currently open"])</h2>
+                <p>@(Model.EventView.Cancelled ? T["This event will not take place."] : T["The event information remains visible, but the form is unavailable."])</p>
+            </div>
+            <aside class="signup-sheet__rail" aria-label="@T["Signup"]">
+                <h2>@T["Your signup"]</h2>
+                <dl>
+                    <div><dt>@T["Event"]</dt><dd>@Model.EventView.Name</dd></div>
+                    <div><dt>@T["Event ends"]</dt><dd>@(Model.EventView.EventEndsAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? T["Not set"])</dd></div>
+                </dl>
+                @if (Model.EventView.TableAvailable)
+                {
+                    <a class="signup-sheet__rail-action" asp-page="/Events/Signups" asp-route-slug="@Model.EventView.Slug">@T["View signup table"]</a>
+                }
+            </aside>
+        </div>
+    }
+    else
+    {
+        <form method="post" class="signup-sheet__form">
+            <input type="hidden" asp-for="Input.ExpectedResponseVersion" />
+            <div class="signup-sheet__rows">
+                <section class="signup-sheet__row" aria-labelledby="signup-account-heading">
+                    <span class="signup-sheet__number" aria-hidden="true">01</span>
+                    <header>
+                        <h2 id="signup-account-heading">@T["Your account"]</h2>
+                        <p>@T["Choose the account you will use for this event."]</p>
+                    </header>
+                    <div class="signup-sheet__controls signup-sheet__controls--accounts">
+                        @foreach (var question in accountQuestions)
+                        {
+                            var accountInput = Model.Input.AccountAnswers.GetValueOrDefault(question.Id) ?? new SignupModel.AccountInput();
+                            <fieldset class="signup-sheet__account-group">
+                                <legend>@question.Label @if (question.Required) { <span aria-hidden="true">*</span> }</legend>
+                                <div class="signup-sheet__account-options">
+                                    @foreach (var account in question.Accounts)
+                                    {
+                                        var selected = account.Id == accountInput.OsrsCharacterId;
+                                        var accountVerified = selected && !string.IsNullOrWhiteSpace(accountInput.WiseOldManLookupToken);
+                                        var displayedEhb = selected && accountInput.Ehb is { } selectedEhb ? selectedEhb : account.SavedEhb;
+                                        <div class="signup-sheet__account-option @(selected ? "is-selected" : null)">
+                                            <label class="signup-sheet__account-choice" for="question-@question.Id-@account.Id">
+                                                <input id="question-@question.Id-@account.Id" type="radio" name="Input.AccountAnswers[@question.Id].OsrsCharacterId" value="@account.Id" checked="@(selected ? "checked" : null)" data-saved-ehb="@(account.SavedEhb?.ToString(CultureInfo.InvariantCulture) ?? string.Empty)" data-ehb-input="ehb-@question.Id" data-lookup-token-input="lookup-@question.Id" />
+                                                <span class="signup-sheet__radio" aria-hidden="true"></span>
+                                                <span class="signup-sheet__account-name">@account.Name@if (account.Historical) { <small>(@T["Currently registered"])</small> }</span>
+                                            </label>
+                                            <span class="signup-sheet__account-role">@(question.AccountRole == EventCharacterRole.Playing ? T["Regular account"] : T["Alt account"])</span>
+                                            @if (displayedEhb is { } ehb)
+                                            {
+                                                <span class="signup-sheet__account-ehb">@ehb.ToString("0.##", CultureInfo.InvariantCulture) @T["EHB"]</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="signup-sheet__account-ehb signup-sheet__account-ehb--empty">@T["EHB"]: —</span>
+                                            }
+                                            <button class="signup-sheet__fetch" type="submit" name="Input.FetchQuestionId" value="@question.Id" data-account-input="question-@question.Id-@account.Id"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M13 6a5 5 0 0 0-8.5-1L3 6.5M3 3v3.5h3.5M3 10a5 5 0 0 0 8.5 1l1.5-1.5M13 13v-3.5H9.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" /></svg>@T["Fetch EHB from WOM"]</button>
+                                            @if (accountVerified)
+                                            {
+                                                <span class="signup-sheet__account-state signup-sheet__account-state--verified">@T["Wise Old Man verified"]</span>
+                                            }
+                                        </div>
+                                    }
+                                    @if (!question.Accounts.Any())
+                                    {
+                                        <p class="signup-sheet__empty">@T["No accounts recorded."]</p>
+                                    }
+                                </div>
+                                <span class="signup-sheet__error">@Html.ValidationMessage($"Input.AccountAnswers[{question.Id}].OsrsCharacterId")</span>
+                                <input id="ehb-@question.Id" name="Input.AccountAnswers[@question.Id].Ehb" value="@accountInput.Ehb" type="hidden" />
+                                <input id="lookup-@question.Id" type="hidden" name="Input.AccountAnswers[@question.Id].WiseOldManLookupToken" value="@accountInput.WiseOldManLookupToken" />
+                                @if (Model.LookupQuestionId == question.Id && Model.LookupFetchedAt is { } fetchedAt)
+                                {
+                                    <span class="signup-sheet__hint">@T["Fetched from Wise Old Man"]: @fetchedAt.ToLocalTime().ToString("g")</span>
+                                }
+                                <span class="signup-sheet__error">@Html.ValidationMessage($"Input.AccountAnswers[{question.Id}].Ehb")</span>
+                            </fieldset>
+                        }
+                        @if (!accountQuestions.Any())
+                        {
+                            <p class="signup-sheet__empty">@T["No accounts recorded."]</p>
+                        }
+                        <a class="signup-sheet__link signup-sheet__link--small" href="@Model.MyAccountsUrl">@T["My accounts"] <span aria-hidden="true">→</span></a>
+                    </div>
+                </section>
+
+                <section class="signup-sheet__row" aria-labelledby="signup-preferences-heading">
+                    <span class="signup-sheet__number" aria-hidden="true">02</span>
+                    <header>
+                        <h2 id="signup-preferences-heading">@T["Preferences"]</h2>
+                        <p>@T["Tell organizers how you want to take part."]</p>
+                    </header>
+                    <div class="signup-sheet__controls signup-sheet__controls--preferences">
+                        @foreach (var question in preferenceQuestions)
+                        {
+                            @if (question.SystemField == SignupSystemField.CaptainVolunteer)
+                            {
+                                <label class="signup-sheet__check"><input type="checkbox" name="Input.Answers[@question.Id]" value="true" checked="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "true" ? "checked" : null)" /><span aria-hidden="true"></span>@T["I am willing to be a captain"]</label>
+                            }
+                            else if (question.Type == SignupQuestionType.Text)
+                            {
+                                <div class="signup-sheet__field signup-sheet__field--wide"><label for="question-@question.Id">@question.Label @if (question.Required) { <span aria-hidden="true">*</span> }</label><textarea id="question-@question.Id" name="Input.Answers[@question.Id]" class="signup-sheet__input" rows="2">@Model.Input.Answers.GetValueOrDefault(question.Id)</textarea><span class="signup-sheet__error">@Html.ValidationMessage($"Input.Answers[{question.Id}]")</span></div>
+                            }
+                        }
+                        @if (!preferenceQuestions.Any())
+                        {
+                            <p class="signup-sheet__empty">@T["No custom questions added."]</p>
+                        }
+                    </div>
+                </section>
+
+                <section class="signup-sheet__row" aria-labelledby="signup-questions-heading">
+                    <span class="signup-sheet__number" aria-hidden="true">03</span>
+                    <header>
+                        <h2 id="signup-questions-heading">@T["Event questions"]</h2>
+                        <p>@T["Answer the questions for this event."]</p>
+                    </header>
+                    <div class="signup-sheet__controls signup-sheet__controls--questions">
+                        @foreach (var question in eventQuestions)
+                        {
+                            <div class="signup-sheet__field"><label for="question-@question.Id">@question.Label @if (question.Required) { <span aria-hidden="true">*</span> }</label>
+                                @if (question.Type == SignupQuestionType.YesNo) { <select id="question-@question.Id" name="Input.Answers[@question.Id]" class="signup-sheet__input"><option value="">@T["Choose…"]</option><option value="true" selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "true" ? "selected" : null)">@T["Yes"]</option><option value="false" selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "false" ? "selected" : null)">@T["No"]</option></select> }
+                                else if (question.Type == SignupQuestionType.SingleChoice) { <select id="question-@question.Id" name="Input.Answers[@question.Id]" class="signup-sheet__input"><option value="">@T["Choose…"]</option>@foreach (var option in question.OptionList) { <option value="@option" selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == option ? "selected" : null)">@option</option> }</select> }
+                                else { <input id="question-@question.Id" name="Input.Answers[@question.Id]" value="@Model.Input.Answers.GetValueOrDefault(question.Id)" class="signup-sheet__input" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" /> }
+                                <span class="signup-sheet__error">@Html.ValidationMessage($"Input.Answers[{question.Id}]")</span>
+                            </div>
+                        }
+                        @if (Model.EventView.RequireCode)
+                        {
+                            <div class="signup-sheet__field"><label asp-for="Input.SignupCode">@T["Signup code"]</label><input asp-for="Input.SignupCode" class="signup-sheet__input" autocomplete="off" /><span class="signup-sheet__error" asp-validation-for="Input.SignupCode"></span></div>
+                        }
+                        @if (!eventQuestions.Any() && !Model.EventView.RequireCode)
+                        {
+                            <p class="signup-sheet__empty">@T["No custom questions added."]</p>
+                        }
+                    </div>
+                </section>
+            </div>
+
+            <aside class="signup-sheet__rail" aria-label="@T["Your signup"]">
+                @if (Model.IsEditing)
+                {
+                    <h2>@T["Your signup"]</h2>
+                    <dl>
+                        <div><dt>@T["Account"]</dt><dd>@(selectedAccount?.Name ?? T["Not selected"])</dd></div>
+                        @if (captainPreference is { } willing)
+                        {
+                            <div><dt>@T["Captain preference"]</dt><dd>@(willing ? T["Yes"] : T["No"])</dd></div>
+                        }
+                        @if (currentEhb is { } ehb)
+                        {
+                            <div><dt>@T["Current EHB"]</dt><dd>@ehb.ToString("0.##", CultureInfo.InvariantCulture)</dd></div>
+                        }
+                        @if (currentAccountVerified)
+                        {
+                            <div><dt>@T["Verification"]</dt><dd class="signup-sheet__verified">@T["Wise Old Man verified"]</dd></div>
+                        }
+                    </dl>
+                }
+                <div class="signup-sheet__next">
+                    <h3>@T["What happens next"]</h3>
+                    <ol>
+                        <li>@T["Your signup is saved."]</li>
+                        <li>@T["Teams are drafted."]</li>
+                        <li>@T["The event board opens."]</li>
+                    </ol>
+                </div>
+                @if (Model.EventView.TableAvailable)
+                {
+                    <a class="signup-sheet__rail-action" asp-page="/Events/Signups" asp-route-slug="@Model.EventView.Slug">@T["View signup table"]</a>
+                }
+            </aside>
+
+            <footer class="signup-sheet__actions"><p>@T["You can edit or withdraw your signup until signups close."]</p><button class="signup-sheet__submit" type="submit">@T[Model.IsEditing ? "Save signup" : "Sign up"] <span aria-hidden="true">→</span></button></footer>
+        </form>
+    }
 </section>
+
 @section Scripts { <partial name="_ValidationScriptsPartial" /> <script>
-document.querySelectorAll("select[data-ehb-input]").forEach((select) => {
-    select.addEventListener("change", () => {
-        const ehb = document.getElementById(select.dataset.ehbInput);
-        const token = document.getElementById(select.dataset.lookupTokenInput);
+document.querySelectorAll("input[type=radio][data-ehb-input]").forEach((input) => {
+    input.addEventListener("change", () => {
+        const ehb = document.getElementById(input.dataset.ehbInput);
+        const token = document.getElementById(input.dataset.lookupTokenInput);
         if (!ehb) return;
-        ehb.value = select.selectedOptions[0]?.dataset.savedEhb ?? "";
+        ehb.value = input.dataset.savedEhb ?? "";
         if (token) token.value = "";
+    });
+});
+document.querySelectorAll("button[data-account-input]").forEach((button) => {
+    button.addEventListener("click", () => {
+        const input = document.getElementById(button.dataset.accountInput);
+        if (input && !input.checked) {
+            input.checked = true;
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+        }
     });
 });
 </script> }

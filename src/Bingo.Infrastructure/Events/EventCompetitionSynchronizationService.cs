@@ -240,7 +240,8 @@ public sealed class EventCompetitionSynchronizationService(
                 .Select(expected => expected.DisplayName).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
             var rows = lease.Expected.Where(expected => byName.TryGetValue(expected.NormalizedName, out var participant) && participant.EhbDelta is not null)
                 .Select(expected => new EventCompetitionCharacterActivity(Guid.NewGuid(), lease.EventId, lease.Generation, lease.CompetitionId,
-                    expected.CharacterId, byName[expected.NormalizedName].EhbDelta!.Value, now, result.Competition.LastUpdatedAt, lease.AssignmentFingerprint)).ToList();
+                    expected.CharacterId, byName[expected.NormalizedName].EhbDelta!.Value, now, result.Competition.LastUpdatedAt,
+                    lease.AssignmentFingerprint, byName[expected.NormalizedName].StartEhb, byName[expected.NormalizedName].EndEhb)).ToList();
             await db.EventCompetitionCharacterActivities.Where(x => x.EventId == lease.EventId && x.Generation == lease.Generation).ExecuteDeleteAsync(cancellationToken);
             db.EventCompetitionCharacterActivities.AddRange(rows);
             state.MarkSuccess(now, result.Competition.LastUpdatedAt, missing.Count == 0, JsonSerializer.Serialize(missing), missing.Count == 0 ? null : "The competition response is missing one or more current Playing accounts.");
@@ -274,7 +275,7 @@ public sealed class EventCompetitionSynchronizationService(
             .Join(db.OsrsCharacters.AsNoTracking(), x => x.OsrsCharacterId, x => x.Id,
                 (assignment, character) => new { assignment.OsrsCharacterId, character.DisplayName, character.NormalizedName })
             .OrderBy(x => x.NormalizedName).ToListAsync(cancellationToken);
-        return rows.Select(x => new ExpectedAssignment(x.OsrsCharacterId, x.DisplayName, x.NormalizedName)).ToList();
+        return rows.Select(x => new ExpectedAssignment(x.OsrsCharacterId, x.DisplayName, Normalize(x.NormalizedName))).ToList();
     }
 
     private async Task<string> AssignmentFingerprintAsync(Guid eventId, CancellationToken cancellationToken)
@@ -300,7 +301,7 @@ public sealed class EventCompetitionSynchronizationService(
         try { return JsonSerializer.Deserialize<List<string>>(json) ?? []; } catch (JsonException) { return []; }
     }
 
-    private static string Normalize(string value) => value.Trim().ToUpperInvariant();
+    private static string Normalize(string value) => value.Trim().Replace('_', ' ').ToUpperInvariant();
     private sealed record ExpectedAssignment(Guid CharacterId, string DisplayName, string NormalizedName);
     private sealed record SyncLease(Guid EventId, Guid StateId, int Generation, long CompetitionId, string Owner, string AssignmentFingerprint, IReadOnlyList<ExpectedAssignment> Expected);
 }

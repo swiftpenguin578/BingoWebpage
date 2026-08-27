@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Bingo.Web.Navigation;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -30,6 +29,18 @@ public sealed class NotificationsModel(Bingo.Infrastructure.Persistence.Applicat
         return await MarkReadAsync(id, cancellationToken);
     }
 
+    public async Task<IActionResult> OnPostMarkAllAsReadAsync(CancellationToken cancellationToken)
+    {
+        var accountId = User.GetAccountId();
+        if (accountId is null) return Challenge();
+        var now = time.GetUtcNow();
+        var notifications = await db.PersonalNotifications.Where(item => item.RecipientAccountId == accountId && item.ReadAt == null).ToListAsync(cancellationToken);
+        foreach (var notification in notifications)
+            notification.MarkRead(now);
+        await db.SaveChangesAsync(cancellationToken);
+        return Redirect("/notifications");
+    }
+
     private async Task<IActionResult> MarkReadAsync(Guid id, CancellationToken cancellationToken)
     {
         var accountId = User.GetAccountId();
@@ -41,24 +52,15 @@ public sealed class NotificationsModel(Bingo.Infrastructure.Persistence.Applicat
         return Redirect(string.IsNullOrWhiteSpace(notification.Route) ? "/notifications" : notification.Route);
     }
 
-    public string Title(string type) => type switch { "account.admin_granted" => text["Admin access granted"], "account.admin_revoked" => text["Admin access revoked"], "account.restored" => text["Account restored"], "event.cancelled" => text["Event cancelled"], "event.results_published" => text["Official results published"], "evidence.rejected" => text["Evidence rejected"], "participant.live_withdrawn" => text["Live participant withdrawn"], "participant.live_replaced" => text["Live replacement confirmed"], _ => type };
-    public string Detail(string type, string detail) => type switch { "account.admin_granted" => text["An administrator granted your account Admin access."], "account.admin_revoked" => text["An administrator removed your Admin access."], "account.restored" => text["Account restored"], "event.cancelled" => text["Your event has been cancelled."], "event.results_published" => detail, "evidence.rejected" => FormatEvidenceRejection(detail), "participant.live_withdrawn" or "participant.live_replaced" => detail, _ => detail };
-    private string FormatEvidenceRejection(string detail)
+    public string Title(string type) => NotificationPresentation.Title(text, type);
+    public string RelativeAge(DateTimeOffset createdAt)
     {
-        try
-        {
-            using var document = JsonDocument.Parse(detail);
-            var root = document.RootElement;
-            var eventName = root.GetProperty("eventName").GetString() ?? text["Unknown event"];
-            var tile = root.GetProperty("tile").GetString() ?? text["Unknown tile"];
-            var drop = root.TryGetProperty("drop", out var dropValue) && dropValue.ValueKind != JsonValueKind.Null ? $" · {dropValue.GetString()}" : string.Empty;
-            var reason = root.GetProperty("reason").GetString() ?? string.Empty;
-            return text["Evidence for {0} · {1}{2} was rejected. Reason: {3}", eventName, tile, drop, reason];
-        }
-        catch (JsonException)
-        {
-            return text["Evidence rejected."];
-        }
+        var age = time.GetUtcNow() - createdAt;
+        if (age < TimeSpan.FromMinutes(1)) return text["just now"];
+        if (age < TimeSpan.FromHours(1)) return text[age.TotalMinutes >= 2 ? "{0} minutes ago" : "1 minute ago", Math.Max(1, (int)age.TotalMinutes)];
+        if (age < TimeSpan.FromDays(1)) return text[age.TotalHours >= 2 ? "{0} hours ago" : "1 hour ago", Math.Max(1, (int)age.TotalHours)];
+        return text[age.TotalDays >= 2 ? "{0} days ago" : "1 day ago", Math.Max(1, (int)age.TotalDays)];
     }
+    public string Detail(string type, string detail) => NotificationPresentation.Detail(text, type, detail);
     public sealed record NotificationView(Guid Id, string Type, string Detail, string Route, DateTimeOffset CreatedAt, DateTimeOffset? ReadAt);
 }

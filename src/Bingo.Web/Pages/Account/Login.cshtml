@@ -1,30 +1,22 @@
 @page
 @model Bingo.Web.Pages.Account.LoginModel
 @{
-    ViewData["Title"] = T["Sign in"];
+    ViewData["Title"] = T["Log in or sign up"];
+    ViewData["BodyClass"] = "public-login-page";
 }
 
-<section class="form-page">
-    <p class="eyebrow">@T["Protected access"]</p>
-    <h1>@T["Sign in"]</h1>
-    <p class="form-intro">@T["Use your public username and password, or continue with Discord when it is available."]</p>
-
-    <form method="post" class="panel form-stack">
-        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
-        <input asp-for="ReturnUrl" type="hidden" />
-        <label asp-for="Input.Username"></label>
-        <input asp-for="Input.Username" class="form-control" autocomplete="username" autofocus />
-        <span asp-validation-for="Input.Username" class="field-error"></span>
-        <label asp-for="Input.Password"></label>
-        <input asp-for="Input.Password" class="form-control" autocomplete="current-password" />
-        <span asp-validation-for="Input.Password" class="field-error"></span>
-        <label class="check-row"><input asp-for="Input.RememberMe" /> @T["Remember me on this device"]</label>
-        <button type="submit" class="btn btn-primary">@T["Sign in"]</button>
-        <a class="btn btn-outline-light" asp-page="ForgotPassword">@T["Forgot password?"]</a>
-    </form>
-    <p><a class="btn btn-outline-light" asp-page="DiscordLogin" asp-route-returnUrl="@Model.ReturnUrl">@T["Continue with Discord"]</a></p>
+<section class="login-sheet" aria-labelledby="login-heading">
+    <div class="login-sheet__column">
+        <span class="login-sheet__kicker">@T["Welcome back"]</span>
+        <h1 id="login-heading">@T["Log in or sign up"]</h1>
+        <p>@T["Follow live boards, manage your signups and submit evidence from one account."]</p>
+        <partial name="_LoginForm" model="Model" />
+    </div>
+    <div class="login-sheet__artwork" aria-hidden="true">
+        <div class="login-sheet__background"></div>
+        <img class="login-sheet__mark login-sheet__mark--light" src="~/images/branding/login-artwork.svg" asp-append-version="true" alt="" />
+        <img class="login-sheet__mark login-sheet__mark--dark" src="~/images/branding/login-artwork-dark.svg" asp-append-version="true" alt="" />
+    </div>
 </section>
 
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-}
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

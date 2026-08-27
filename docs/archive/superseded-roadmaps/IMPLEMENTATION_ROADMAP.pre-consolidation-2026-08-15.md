@@ -4,7 +4,7 @@
 
 **Status:** Milestone 8A Slices 1–10 accepted; post-functional Application Atlas produced for review
 
-**Last updated:** 2026-08-03
+**Last updated:** 2026-08-11
 
 **Companion documents:** `PRODUCT_REQUIREMENTS.md`, `FUNCTIONAL_WORKFLOWS.md`, `DATA_MODEL.md`, `TECHNICAL_ARCHITECTURE.md`, `UI_OVERHAUL_ROADMAP.md`
 
@@ -251,7 +251,7 @@ Allow admins to create an event, configure signup, open only the signup page, an
 - Form validation and event signup code.
 - Mode-specific signup readiness: **Open now** uses the current instant and ignores scheduled-opening configuration, while scheduled opening requires and revalidates its configured instant.
 - Signup-opening blockers for missing public description, non-positive capacity, invalid schedule/closing, invalid lifecycle state, unavailable Discord login configuration, damaged built-in questions, invalid custom-question definitions, or an enabled signup-code requirement without a usable code.
-- Signup-opening warnings for a disabled waiting list, publicly visible free-text answers, and reopening a populated form. These require acknowledgement but no typed reason.
+- Signup-opening warnings for a disabled waiting list and reopening a populated form. These require acknowledgement but no typed reason.
 - Authenticated participant editing only while signup is open.
 - Approved deterministic migration for imported/legacy records without inferred ownership, plus later explicit Admin identity recovery where required.
 - Atomic signup create/edit transaction covering participant, answers, new trust links, event-character reservations, EHB snapshots, form marker/version, and capacity status.
@@ -785,7 +785,7 @@ Slices 1, 2, and 3 are implemented, independently cleared, verified, manually ac
 
 ### Post-functional Application Atlas gate
 
-**Atlas status (2026-08-03):** Complete as a read-only consolidation/audit deliverable at accepted source commit `2301d63ae166873a750266ce5ee6a087f3039054`. The durable source is `APPLICATION_ATLAS.md` and the standalone interactive review surface is `APPLICATION_ATLAS.html`. All ten functional slices are accepted; older implementation-position prose elsewhere in this roadmap is historical and is superseded by this status and `CURRENT_STATUS.md`. Atlas findings require user review and authorize no application or UI change.
+**Atlas status (2026-08-11):** Complete as a read-only consolidation/audit deliverable at accepted source commit `2301d63ae166873a750266ce5ee6a087f3039054`. The durable source is `APPLICATION_ATLAS.md` and the standalone interactive review surface is `APPLICATION_ATLAS.html`. All ten functional slices are accepted. The Atlas-derived UI impact map and dependency-based Milestone 9 pass order are now recorded in `UI_OVERHAUL_ROADMAP.md` section 3.8. F-04 (Live identity) and F-06 (permanent Rules/how-to) remain explicit product-decision gates; the map does not authorize behavior changes.
 
 After Slice 10 is accepted and before the UI overhaul begins, create a product-facing Application Atlas of the completed website. Its durable source is `APPLICATION_ATLAS.md`; its primary review surface is a standalone interactive HTML visualization, with an optional PDF summary. Cover role-based navigation, lifecycle transitions, workflow swimlanes, capability-by-state, scheduled automation, data/history ownership, notification triggers, and a complete feature inventory. Classify functionality as required, awkward, duplicated, rare/edge-case, possibly unnecessary, unreachable, or obsolete, and identify missing navigation or workflow gaps.
 

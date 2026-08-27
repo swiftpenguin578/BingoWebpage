@@ -1,5 +1,17 @@
 @page "/Account/DiscordComplete"
 @model Bingo.Web.Pages.Account.DiscordCallbackModel
 @{
-    ViewData["Title"] = "Completing Discord sign-in";
+    ViewData["Title"] = T["Completing Discord sign-in"];
+    ViewData["BodyClass"] = "public-login-page";
 }
+
+<section class="public-ui-dialog-page public-ui-dialog-page--inset" aria-labelledby="discord-complete-heading">
+    <header class="public-ui-dialog__header public-ui-component-header">
+        <div class="public-ui-component-header__copy">
+            <h1 id="discord-complete-heading" class="public-ui-component-title">@T["Completing Discord sign-in"]</h1>
+        </div>
+    </header>
+    <div class="public-ui-dialog__content">
+        <p class="public-ui-supporting-text">@T["Please wait while your Discord sign-in is completed."]</p>
+    </div>
+</section>

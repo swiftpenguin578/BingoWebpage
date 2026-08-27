@@ -1,18 +1,29 @@
 @model string
-<div class="evidence-drop compact-evidence-drop" tabindex="0"
+@{ var evidenceRequired = !(ViewData["EvidenceOptional"] as bool? ?? false); var previewUrl = ViewData["EvidencePreviewUrl"] as string; var hasPreview = !string.IsNullOrWhiteSpace(previewUrl); }
+<div class="public-ui-evidence-drop @(hasPreview ? "has-preview" : null)" data-evidence-drop tabindex="0"
      data-ready-template="@T["Ready: {0}"]"
      data-pasted-screenshot="@T["pasted screenshot"]"
      data-clipboard-empty="@T["The clipboard does not contain an image."]"
      data-clipboard-blocked="@T["Clipboard access was blocked. Focus the outer box and press Command+V instead."]">
-    <div class="compact-evidence-empty" data-evidence-empty>
-        <div class="compact-evidence-copy"><strong>@T["Paste or drag screenshot"]</strong><small>@T["PNG, JPEG or WebP · 10 MB maximum"]</small></div>
-        <div class="evidence-input-actions"><button type="button" class="btn paste-evidence action-neutral-outline">@T["Paste"]</button><input name="@Model" type="file" accept="image/png,image/jpeg,image/webp" required /></div>
-        <small class="paste-status" aria-live="polite"></small>
+    <div class="public-ui-evidence-drop__empty" data-evidence-empty hidden="@(hasPreview ? "hidden" : null)">
+        <div class="public-ui-evidence-drop__copy"><strong>@T["Paste or drag screenshot"]</strong><small>@T["PNG, JPEG or WebP · 10 MB maximum"]</small></div>
+        <div class="public-ui-evidence-drop__actions">
+            <button type="button" class="public-ui-action public-ui-action--standard" data-evidence-paste>@T["Paste"]</button>
+            @if (evidenceRequired)
+            {
+                <input name="@Model" type="file" accept="image/png,image/jpeg,image/webp" required />
+            }
+            else
+            {
+                <input name="@Model" type="file" accept="image/png,image/jpeg,image/webp" />
+            }
+        </div>
+        <small class="public-ui-evidence-drop__status" data-evidence-status aria-live="polite"></small>
     </div>
-    <div class="compact-evidence-preview" data-evidence-preview hidden>
-        <button type="button" class="compact-evidence-preview-button" data-evidence-image data-evidence-alt="@T["Screenshot ready for submission"]">
-            <img alt="@T["Evidence preview"]" />
+    <div class="public-ui-evidence-drop__preview" data-evidence-preview hidden="@(hasPreview ? null : "hidden")">
+        <button type="button" class="public-ui-evidence-drop__preview-button" data-evidence-image="@previewUrl" data-evidence-alt="@T["Screenshot ready for submission"]">
+            <img src="@(previewUrl ?? string.Empty)" alt="@T["Evidence preview"]" />
         </button>
-        <button type="button" class="compact-evidence-remove action-remove-x" data-evidence-remove aria-label="@T["Remove screenshot"]">×</button>
+        <button type="button" class="public-ui-action public-ui-action--destructive public-ui-evidence-drop__remove" data-evidence-remove aria-label="@T["Remove screenshot"]">×</button>
     </div>
 </div>

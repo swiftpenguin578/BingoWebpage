@@ -1,10 +1,156 @@
 @page "{id:guid}"
 @model Bingo.Web.Pages.Admin.Accounts.ManageModel
 @using Bingo.Domain.Access
-@{ ViewData["Title"]="Manage account"; var item=Model.AccountView!; var owner=User.IsInRole(nameof(GlobalRole.SuperAdmin)); var canManageUser = owner || item.Role == GlobalRole.User; }
-<section class="form-page wide-form"><p class="eyebrow">Account management</p><h1>@item.Username</h1><div class="panel details-list"><p><strong>Type</strong><span>@item.AccountType</span></p><p><strong>Role</strong><span>@item.Role</span></p><p><strong>State</strong><span>@(item.Active ? "Active" : "Disabled")</span></p><p><strong>Discord</strong><span>@(item.DiscordLinked ? "Linked" : "Not linked")</span></p>@if(item.DiscordDisplayName is not null){<p><strong>Last-known Discord display name</strong><span>@item.DiscordDisplayName (non-authoritative)</span></p>}<p><strong>Last login</strong><span>@(item.LastLoginAt?.ToLocalTime().ToString("g") ?? "Never")</span></p></div><div asp-validation-summary="ModelOnly" class="validation-summary"></div>
-@if(item.AccountType == AccountType.WebsiteAccount){<section class="panel"><h2>Linked OSRS characters</h2><ul>@foreach(var character in item.Characters){<li>@character.DisplayName @if(character.Preferred){<span>(preferred)</span>} @if(!character.Active){<span>(inactive)</span>}</li>}@if(!item.Characters.Any()){<li>None recorded.</li>}</ul></section><section class="panel"><h2>Event participation and team-role history</h2>@if(!item.EventRoles.Any()){<p>No event participation is currently linked through the account’s OSRS characters.</p>}@foreach(var role in item.EventRoles){<div><strong>@role.EventName</strong> — @role.ParticipationState<ul>@foreach(var teamRole in role.TeamRoles){<li>@teamRole.TeamName: @teamRole.Role (@teamRole.JoinedAt.ToLocalTime().ToString("g") — @(teamRole.LeftAt?.ToLocalTime().ToString("g") ?? "current"))</li>}@if(!role.TeamRoles.Any()){<li>No team role recorded.</li>}</ul></div>}</section><section class="panel"><h2>Disable history</h2><ul>@foreach(var history in item.DisableHistory){<li>@history.State by @history.ActorName at @history.OccurredAt.ToLocalTime().ToString("g")</li>}@if(!item.DisableHistory.Any()){<li>No disable history.</li>}</ul></section>}
-@if(TempData["CredentialLink"] is string link && TempData["CredentialLinkTargetId"]?.ToString() == item.Id.ToString() && TempData["CredentialLinkPurpose"] is string purpose && (purpose == "reset" || purpose == "emergency" && item.AccountType == AccountType.EmergencyCaptain)){<div class="panel"><strong>One-time credential link</strong><p><code>@link</code></p></div>}else{TempData.Remove("CredentialLink");TempData.Remove("CredentialLinkTargetId");TempData.Remove("CredentialLinkPurpose");}
-@if(item.AccountType==AccountType.WebsiteAccount && owner && item.Role==GlobalRole.User){<form method="post" asp-page-handler="GrantAdmin" class="panel form-stack"><h2>Grant Admin</h2><p>Grant Admin access to @item.Username?</p><button class="btn action-accent-outline">Grant Admin</button></form>}@if(item.AccountType==AccountType.WebsiteAccount && owner && item.Role==GlobalRole.Admin){<form method="post" asp-page-handler="RevokeAdmin" class="panel form-stack"><h2>Revoke Admin</h2><p>Return @item.Username to User?</p><button class="btn btn-outline-light">Revoke Admin</button></form>}
-@if(item.AccountType==AccountType.WebsiteAccount && canManageUser){<form method="post" asp-page-handler="GenerateResetLink" class="panel form-stack"><h2>Password reset link</h2><p>The link is shown once and expires after 60 minutes.</p><button class="btn btn-outline-light">Generate reset link</button></form>}@if(item.AccountType==AccountType.WebsiteAccount && item.Active && canManageUser){<form method="post" asp-page-handler="Disable" class="panel form-stack"><h2>Disable account</h2><label asp-for="Reason"></label><textarea asp-for="Reason" class="form-control"></textarea><button class="btn btn-danger">Disable</button></form>}else if(item.AccountType==AccountType.WebsiteAccount && canManageUser){<form method="post" asp-page-handler="Restore" class="panel form-stack"><h2>Restore account</h2><button class="btn action-accent-outline">Restore</button></form>}
-@if(item.AccountType==AccountType.EmergencyCaptain){<div class="panel details-list"><p><strong>Event scope</strong><span>@item.Scope?.EventName / @item.Scope?.TeamName</span></p><p><strong>Setup</strong><span>@(item.HasPassword ? "Complete" : "Awaiting setup")</span></p><p><strong>Cutoff</strong><span>@(item.Scope?.CutoffDisabled == true ? "Disabled at cutoff" : "Not cutoff-disabled")</span></p></div><form method="post" asp-page-handler="GenerateEmergencyLink" class="panel form-stack"><h2>Setup or reset link</h2><p>The link is shown once and expires after 60 minutes.</p><button class="btn btn-outline-light">Generate link</button></form>@if(item.Active && item.Scope?.Enabled == true){<form method="post" asp-page-handler="DisableEmergency" class="panel form-stack"><button class="btn btn-danger">Disable emergency credential</button></form>}else{<form method="post" asp-page-handler="EnableEmergency" class="panel form-stack"><button class="btn action-accent-outline">Enable emergency credential</button></form>}}</section>
+@{
+    var item = Model.AccountView!;
+    var owner = User.IsInRole(nameof(GlobalRole.SuperAdmin));
+    var canManageUser = item.AccountType == AccountType.WebsiteAccount && item.Role != GlobalRole.SuperAdmin && (owner || item.Role == GlobalRole.User);
+    var roleLabel = item.Role switch { GlobalRole.SuperAdmin => T["Super Admin"].Value, GlobalRole.Admin => T["Admin"].Value, _ => T["User"].Value };
+    var roleModifier = item.Role switch { GlobalRole.SuperAdmin => "is-purple", GlobalRole.Admin => "is-blue", _ => "is-muted" };
+    var accountTypeModifier = item.AccountType == AccountType.WebsiteAccount ? "is-website-account" : "is-emergency-credential";
+    string ParticipationStateClass(string state) => state switch
+    {
+        "Confirmed" => "is-green",
+        "WaitingList" => "is-orange",
+        "Withdrawn" => "is-danger",
+        _ => "is-muted"
+    };
+    ViewData["Title"] = T["Manage account"];
+    ViewData["AdminPageDescription"] = T["Review account scope, history, and permitted access actions."];
+    var headingId = Model.IsOverlay ? "manage-account-dialog-title" : "manage-account-heading";
+    var descriptionId = Model.IsOverlay ? "manage-account-dialog-description" : null;
+    var statusMessage = TempData.Peek("StatusMessage") as string;
+    var validationMessage = ModelState.Values.SelectMany(value => value.Errors).Select(error => error.ErrorMessage).FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
+    var directoryUrl = Url.Page("Index");
+}
+
+<section class="admin-account-route-page admin-account-manage-page @accountTypeModifier @(Model.IsOverlay ? "admin-dialog-page event-overview-section admin-account-dialog-page" : null)" aria-labelledby="@headingId" aria-describedby="@descriptionId" data-account-dialog-page="true" data-account-dialog-kind="manage" data-account-manage-page="true" data-account-directory-url="@directoryUrl" data-account-dialog-overlay="@(Model.IsOverlay ? "true" : "false")" data-account-manage-overlay="@(Model.IsOverlay ? "true" : "false")" data-account-status-message="@(statusMessage ?? string.Empty)" data-account-validation-message="@(validationMessage ?? string.Empty)">
+    @if (Model.IsOverlay)
+    {
+        <div class="event-overview-section-heading admin-dialog-component-heading">
+            <div><h2 id="@headingId">@item.Username</h2><p id="@descriptionId">@(item.AccountType == AccountType.WebsiteAccount ? T["Website account administration"] : T["Team-scoped emergency credential administration"])</p></div>
+            <button type="button" class="admin-route-dialog-close" data-account-dialog-close data-account-manage-close aria-label="@T["Close account management"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
+        </div>
+    }
+    else
+    {
+        <header class="admin-account-route-heading"><div><h1 id="@headingId">@item.Username</h1><p>@(item.AccountType == AccountType.WebsiteAccount ? T["Website account administration"] : T["Team-scoped emergency credential administration"])</p></div></header>
+    }
+    <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+    <section class="admin-account-route-panel admin-account-summary-panel">
+            <div class="admin-account-route-panel-heading"><h2>@T["Account summary"]</h2><p>@T["Authoritative account state and access type."]</p></div>
+        <div class="admin-account-summary-grid">
+            <div><span class="admin-account-label">@T["Account type"]</span><strong>@(item.AccountType == AccountType.WebsiteAccount ? T["Website account"] : T["Emergency credential"])</strong></div>
+            <div><span class="admin-account-label">@T["Role"]</span>@if (item.AccountType == AccountType.WebsiteAccount) { <span class="admin-status-pill @roleModifier">@roleLabel</span> } else { <span class="admin-status-pill is-muted">@T["Team scoped"]</span> }</div>
+            <div><span class="admin-account-label">@T["State"]</span><span class="admin-status-pill @(item.Active ? "is-green" : "is-muted")">@(item.Active ? T["Active"] : T["Disabled"])</span></div>
+            <div><span class="admin-account-label">@T["Last login"]</span><strong>@(item.LastLoginAt?.ToLocalTime().ToString("g") ?? T["Never"].Value)</strong></div>
+        </div>
+    </section>
+
+    @if (item.AccountType == AccountType.WebsiteAccount)
+    {
+        <section class="admin-account-route-panel">
+            <div class="admin-account-route-panel-heading"><h2>@T["Website identity"]</h2><p>@T["Identity information remains separate from event participation history."]</p></div>
+            <div class="admin-account-detail-rows"><p><strong>@T["Username"]</strong><span>@item.Username</span></p><p><strong>@T["Discord"]</strong><span>@(item.DiscordLinked ? T["Linked"] : T["Not linked"])</span></p>@if (item.DiscordDisplayName is not null) { <p><strong>@T["Last-known Discord display name"]</strong><span>@item.DiscordDisplayName <small>@T["(non-authoritative)"]</small></span></p> }</div>
+        </section>
+        <section class="admin-account-route-panel admin-account-characters-panel">
+            <div class="admin-account-route-panel-heading"><h2>@T["Linked OSRS characters"]</h2><p>@T["Characters currently linked to this website account."]</p></div>
+            @if (item.Characters.Any())
+            {
+                <ul class="admin-account-history-list admin-account-character-list">@foreach (var character in item.Characters) { <li class="admin-account-character-row"><strong>@character.DisplayName</strong><span>@(character.Preferred ? "Preferred" : character.Active ? "Active" : "Inactive")</span></li> }</ul>
+            }
+            else
+            {
+                <p class="admin-account-empty-copy">@T["No characters recorded."]</p>
+            }
+        </section>
+        <section class="admin-account-route-panel">
+            <div class="admin-account-route-panel-heading"><h2>@T["Participation and team-role history"]</h2><p>@T["Event participation and current or historical team roles."]</p></div>
+            @if (!item.EventRoles.Any()) { <p class="admin-account-empty-copy">@T["No event participation is currently linked through this account."]</p> }
+            <div class="admin-account-event-history">
+                @foreach (var role in item.EventRoles)
+                {
+                    <article>
+                        <div class="admin-account-event-copy">
+                            <strong>@role.EventName</strong>
+                            @if (role.TeamRoles.Any())
+                            {
+                                <span class="admin-account-event-support">@string.Join("; ", role.TeamRoles.Select(teamRole => $"{teamRole.TeamName}: {teamRole.Role} ({teamRole.JoinedAt.ToLocalTime().ToString("g")} — {teamRole.LeftAt?.ToLocalTime().ToString("g") ?? T["current"]})"))</span>
+                            }
+                            else
+                            {
+                                <span class="admin-account-event-support">@T["No team role recorded."]</span>
+                            }
+                        </div>
+                        <span class="admin-status-pill @ParticipationStateClass(role.ParticipationState)">@role.ParticipationState</span>
+                    </article>
+                }
+            </div>
+        </section>
+        <section class="admin-account-route-panel">
+            <div class="admin-account-route-panel-heading"><h2>@T["Disable history"]</h2><p>@T["Recorded state changes for this website account."]</p></div>
+            <ul class="admin-account-history-list">@foreach (var history in item.DisableHistory) { <li><strong>@history.State</strong><span>@history.ActorName · @history.OccurredAt.ToLocalTime().ToString("g")</span></li> }@if (!item.DisableHistory.Any()) { <li>@T["No disable history."]</li> }</ul>
+        </section>
+        @if (TempData["CredentialLink"] is string link && TempData["CredentialLinkTargetId"]?.ToString() == item.Id.ToString() && TempData["CredentialLinkPurpose"]?.ToString() == "reset")
+        {
+            <section class="admin-account-route-panel admin-account-secret-panel"><strong>@T["One-time reset link"]</strong><code>@link</code></section>
+        }
+        @if (owner && item.Role == GlobalRole.User)
+        {
+            <details class="admin-destructive-confirmation admin-account-action-confirmation"><summary class="admin-button-create"><strong>@T["Grant Admin"]</strong><span>@T["Give this website account Admin access."]</span></summary><div class="event-confirmation-box"><p><strong>@T["Grant Admin access?"]</strong><span class="event-confirmation-supporting">@T["The account will become an Admin."]</span></p><form method="post" asp-page-handler="GrantAdmin" class="event-confirmation-form"><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><div class="event-confirmation-actions"><a class="admin-button-secondary" data-account-confirmation-cancel href="@Request.Path">@T["Cancel"]</a><button class="admin-button-create" type="submit">@T["Grant Admin"]</button></div></form></div></details>
+        }
+        @if (owner && item.Role == GlobalRole.Admin)
+        {
+            <details class="admin-destructive-confirmation admin-account-action-confirmation"><summary class="action-danger-outline"><strong>@T["Revoke Admin"]</strong><span>@T["Return this account to User."]</span></summary><div class="event-confirmation-box"><p><strong>@T["Revoke Admin access?"]</strong><span class="event-confirmation-supporting">@T["The account will become a User."]</span></p><form method="post" asp-page-handler="RevokeAdmin" class="event-confirmation-form"><input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" /><div class="event-confirmation-actions"><a class="admin-button-secondary" data-account-confirmation-cancel href="@Request.Path">@T["Cancel"]</a><button class="action-danger-outline" type="submit">@T["Revoke Admin"]</button></div></form></div></details>
+        }
+        @if (canManageUser)
+        {
+            <div class="admin-account-final-actions">
+                <form method="post" asp-page-handler="GenerateResetLink" class="admin-account-final-action-form">
+                    <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+            <button class="admin-button-secondary" type="submit" data-account-final-action="true" data-account-handler="GenerateResetLink" data-account-confirmation-title="@T["Generate a reset link?"]" data-account-confirmation-support="@T["The link is shown once and expires after 60 minutes."]" data-account-confirmation-label="@T["Generate reset link"]" data-account-confirmation-style="secondary">@T["Generate reset link"]</button>
+                </form>
+            @if (item.Active)
+            {
+                <form method="post" asp-page-handler="Disable" class="admin-account-final-action-form">
+                    <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+            <button class="action-danger-outline" type="submit" data-account-final-action="true" data-account-handler="Disable" data-account-confirmation-title="@T["Disable this account?"]" data-account-confirmation-support="@T["Existing authorization and sessions will be protected by the account state change."]" data-account-confirmation-label="@T["Disable account"]" data-account-confirmation-style="danger" data-account-confirmation-reason="true" data-account-confirmation-reason-label="@T["Disable reason"]">@T["Disable account"]</button>
+                </form>
+            }
+            else
+            {
+                <form method="post" asp-page-handler="Restore" class="admin-account-final-action-form">
+                    <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
+                    <button class="admin-button-secondary" type="submit" data-account-final-action="true" data-account-handler="Restore" data-account-confirmation-title="@T["Restore this account?"]" data-account-confirmation-support="@T["The account will become active again."]" data-account-confirmation-label="@T["Restore account"]" data-account-confirmation-style="secondary">@T["Restore account"]</button>
+                </form>
+            }
+            </div>
+        }
+    }
+    else
+    {
+        <section class="admin-account-route-panel">
+            <div class="admin-account-route-panel-heading"><h2>@T["Emergency scope and lifecycle"]</h2><p>@T["This credential has no website role and remains limited to its assigned event team."]</p></div>
+            <div class="admin-account-summary-grid"><div><span class="admin-account-label">@T["Event"]</span><strong>@item.Scope?.EventName</strong></div><div><span class="admin-account-label">@T["Team"]</span><strong>@item.Scope?.TeamName</strong></div><div><span class="admin-account-label">@T["Setup"]</span><span class="admin-status-pill @(item.HasPassword ? "is-green" : "is-yellow")">@(item.HasPassword ? T["Complete"] : T["Pending"])</span></div><div><span class="admin-account-label">@T["Cutoff"]</span><span class="admin-status-pill @(item.Scope?.CutoffDisabled == true ? "is-muted" : "is-green")">@(item.Scope?.CutoffDisabled == true ? T["Disabled at cutoff"] : T["Open"])</span></div></div>
+        </section>
+        @if (TempData["CredentialLink"] is string emergencyLink && TempData["CredentialLinkTargetId"]?.ToString() == item.Id.ToString() && TempData["CredentialLinkPurpose"]?.ToString() == "emergency")
+        {
+            <section class="admin-account-route-panel admin-account-secret-panel"><strong>@T["One-time setup or reset link"]</strong><code>@emergencyLink</code></section>
+        }
+        <span hidden aria-hidden="true">@Html.AntiForgeryToken()</span>
+        <div class="admin-account-emergency-actions">
+            <button type="button" class="admin-button-secondary" data-account-emergency-action="true" data-account-handler="GenerateEmergencyLink" data-account-confirmation-title="@T["Generate a setup or reset link?"]" data-account-confirmation-support="@T["The link is shown once and expires after 60 minutes."]" data-account-confirmation-label="@T["Generate link"]" data-account-confirmation-style="secondary">@T["Generate setup or reset link"]</button>
+            @if (item.Active && item.Scope?.Enabled == true)
+            {
+                <button type="button" class="action-danger-outline" data-account-emergency-action="true" data-account-handler="DisableEmergency" data-account-confirmation-title="@T["Disable this emergency credential?"]" data-account-confirmation-support="@T["The assigned team will no longer be able to use this fallback login."]" data-account-confirmation-label="@T["Disable credential"]" data-account-confirmation-style="danger">@T["Disable emergency credential"]</button>
+            }
+            else
+            {
+                <button type="button" class="admin-button-secondary" data-account-emergency-action="true" data-account-handler="EnableEmergency" data-account-confirmation-title="@T["Enable this emergency credential?"]" data-account-confirmation-support="@T["The login remains limited to its configured event and team."]" data-account-confirmation-label="@T["Enable credential"]" data-account-confirmation-style="secondary">@T["Enable emergency credential"]</button>
+            }
+        </div>
+    }
+</section>
+
+@section Scripts { <script src="~/js/account-manage-dialog.js" asp-append-version="true"></script> }

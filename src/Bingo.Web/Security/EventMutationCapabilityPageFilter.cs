@@ -4,11 +4,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Security;
 
 /// <summary>Authoritative route boundary for Admin event mutations; domain/services remain the mutation-time authority.</summary>
-public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db) : IAsyncPageFilter
+public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, IStringLocalizer<SharedResource> text) : IAsyncPageFilter
 {
     public Task OnPageHandlerSelectionAsync(PageHandlerSelectedContext context) => Task.CompletedTask;
 
@@ -57,7 +58,7 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db) :
         if (!EventStatePolicy.Allows(state.Value, capability))
         {
             if (context.HandlerInstance is PageModel page)
-                page.TempData["StatusMessage"] = "This event is read-only in its current lifecycle state.";
+                page.TempData["StatusMessage"] = text["This event is read-only in its current lifecycle state."].Value;
             context.Result = new RedirectResult($"/Admin/Events/Manage/{eventId}");
             return;
         }

@@ -6,7 +6,7 @@
     const empty = zone.querySelector("[data-evidence-empty]");
     const image = preview?.querySelector("img") ?? zone.querySelector("img");
     const previewButton = preview?.querySelector("[data-evidence-image]");
-    const status = zone.querySelector(".paste-status");
+    const status = zone.querySelector("[data-evidence-status]");
     if (!(input instanceof HTMLInputElement) || !(image instanceof HTMLImageElement)) return;
     const transfer = new DataTransfer();
     transfer.items.add(file);
@@ -24,8 +24,8 @@
       image.hidden = false;
     }
     if (status) {
-      const template = zone.dataset.readyTemplate || "Ready: {0}";
-      status.textContent = template.replace("{0}", file.name || zone.dataset.pastedScreenshot || "pasted screenshot");
+      const template = zone.dataset.readyTemplate || "";
+      status.textContent = template.replace("{0}", file.name || zone.dataset.pastedScreenshot || "");
     }
   }
 
@@ -36,7 +36,7 @@
     const empty = zone.querySelector("[data-evidence-empty]");
     const image = preview?.querySelector("img");
     const previewButton = preview?.querySelector("[data-evidence-image]");
-    const status = zone.querySelector(".paste-status");
+    const status = zone.querySelector("[data-evidence-status]");
     if (zone.dataset.evidencePreviewUrl) URL.revokeObjectURL(zone.dataset.evidencePreviewUrl);
     delete zone.dataset.evidencePreviewUrl;
     if (input instanceof HTMLInputElement) {
@@ -52,38 +52,38 @@
   }
 
   document.addEventListener("dragover", event => {
-    const zone = event.target.closest?.(".evidence-drop");
+    const zone = event.target.closest?.("[data-evidence-drop]");
     if (!zone) return;
     event.preventDefault();
     zone.classList.add("dragging");
   });
-  document.addEventListener("dragleave", event => event.target.closest?.(".evidence-drop")?.classList.remove("dragging"));
+  document.addEventListener("dragleave", event => event.target.closest?.("[data-evidence-drop]")?.classList.remove("dragging"));
   document.addEventListener("drop", event => {
-    const zone = event.target.closest?.(".evidence-drop");
+    const zone = event.target.closest?.("[data-evidence-drop]");
     if (!zone) return;
     event.preventDefault();
     zone.classList.remove("dragging");
     showFile(zone, Array.from(event.dataTransfer?.files ?? []).find(file => file.type.startsWith("image/")));
   });
   document.addEventListener("paste", event => {
-    const zone = event.target.closest?.(".evidence-drop");
+    const zone = event.target.closest?.("[data-evidence-drop]");
     if (zone) showFile(zone, Array.from(event.clipboardData?.files ?? []).find(file => file.type.startsWith("image/")));
   });
   document.addEventListener("change", event => {
     const input = event.target;
-    if (input instanceof HTMLInputElement && input.matches('.evidence-drop input[type="file"]')) showFile(input.closest(".evidence-drop"), input.files?.[0]);
+    if (input instanceof HTMLInputElement && input.matches('[data-evidence-drop] input[type="file"]')) showFile(input.closest("[data-evidence-drop]"), input.files?.[0]);
   });
   document.addEventListener("click", async event => {
     const removeButton = event.target.closest?.("[data-evidence-remove]");
     if (removeButton) {
       event.preventDefault();
-      removeFile(removeButton.closest(".evidence-drop"));
+      removeFile(removeButton.closest("[data-evidence-drop]"));
       return;
     }
-    const button = event.target.closest?.(".paste-evidence");
+    const button = event.target.closest?.("[data-evidence-paste]");
     if (!button) return;
-    const zone = button.closest(".evidence-drop");
-    const status = zone?.querySelector(".paste-status");
+    const zone = button.closest("[data-evidence-drop]");
+    const status = zone?.querySelector("[data-evidence-status]");
     try {
       const items = await navigator.clipboard.read();
       for (const item of items) {
@@ -93,9 +93,9 @@
         showFile(zone, new File([blob], "pasted-screenshot.png", { type }));
         return;
       }
-      if (status) status.textContent = zone?.dataset.clipboardEmpty || "The clipboard does not contain an image.";
+      if (status) status.textContent = zone?.dataset.clipboardEmpty || "";
     } catch {
-      if (status) status.textContent = zone?.dataset.clipboardBlocked || "Clipboard access was blocked. Focus the outer box and press Command+V instead.";
+      if (status) status.textContent = zone?.dataset.clipboardBlocked || "";
       zone?.focus();
     }
   });

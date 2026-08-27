@@ -2,22 +2,42 @@
 @model Bingo.Web.Pages.Admin.Events.BoardModel
 @using Bingo.Domain.Boards
 @{
-    ViewData["Title"] = "Board editor";
+    ViewData["Title"] = T["Board editor"];
+    ViewData["AdminPageDescription"] = T["Create, review, and approve the event board."];
     var boardCanBeEdited = Model.BoardView?.State is BoardState.Draft or BoardState.Validated || Model.BoardView?.PublishedCorrectionInProgress == true;
     var editable = boardCanBeEdited && Model.CanEditBoard;
     var published = Model.BoardView?.State == BoardState.Published;
+    var boardStatusModifier = Model.BoardView?.PublishedCorrectionInProgress == true
+        ? "is-orange"
+        : Model.BoardView?.State switch
+        {
+            BoardState.Validated => "is-green",
+            BoardState.Published => "is-cyan",
+            _ => "is-yellow"
+        };
+    var boardStatusLabel = Model.BoardView?.PublishedCorrectionInProgress == true
+        ? T["Published · correction in progress"]
+        : Model.BoardView?.State switch
+        {
+            BoardState.Draft => T["Private draft"],
+            BoardState.Validated => T["Approved privately"],
+            BoardState.Published => T["Published"],
+            _ => T[Model.BoardView?.State.ToString() ?? "Unknown"]
+        };
 }
 
 <section class="table-page board-page event-manage-page">
-    <header class="compact-operational-heading board-compact-page-heading">
-        <h1>Board editor</h1>
-    </header>
-    <aside class="collaboration-status board-presence" data-admin-board-event="@RouteData.Values["id"]" data-current-account="@Model.CurrentAccountId" data-can-edit="@Model.CanEditBoard.ToString().ToLowerInvariant()" data-editor-expires-at="@Model.BoardEditorLeaseExpiresAt?.ToUniversalTime().ToString("O")" hidden>
-        <strong>Other administrators are viewing this board.</strong><span data-board-presence-names></span>
+        <aside class="collaboration-status board-presence" data-admin-board-event="@RouteData.Values["id"]" data-current-account="@Model.CurrentAccountId" data-can-edit="@Model.CanEditBoard.ToString().ToLowerInvariant()" data-editor-expires-at="@Model.BoardEditorLeaseExpiresAt?.ToUniversalTime().ToString("O")" data-presence-template="@T["Also viewing: {0}."]" hidden>
+        <strong>@T["Other administrators are viewing this board."]</strong><span data-board-presence-names></span>
     </aside>
     @if (Model.BoardView is null)
     {
-        <form method="post" asp-page-handler="Create" class="panel compact-board-setup"><div><h2>Create the board</h2><p>Choose the starting size. You can change it while the board remains private.</p></div><div><label asp-for="Rows"></label><input asp-for="Rows" class="form-control" /></div><div><label asp-for="Columns"></label><input asp-for="Columns" class="form-control" /></div><button class="btn btn-sm catalogue-compact-action catalogue-add-action">Create board</button></form>
+        <form method="post" asp-page-handler="Create" class="panel compact-board-setup admin-board-create-panel">
+            <div><h2>@T["Create the board"]</h2><p>@T["Choose the starting size. You can change it while the board remains private."]</p></div>
+            <div class="admin-field"><label asp-for="Rows"></label><input asp-for="Rows" class="form-control" /></div>
+            <div class="admin-field"><label asp-for="Columns"></label><input asp-for="Columns" class="form-control" /></div>
+            <button class="btn admin-button-primary">@T["Create board"]</button>
+        </form>
     }
     else
     {
@@ -26,69 +46,80 @@
             <section class="panel collaboration-status board-editing-status">
                 @if (Model.CanEditBoard)
                 {
-                    <div><strong>You are editing this board.</strong><span>Other administrators can continue reviewing it. Select Finish editing to release control, or it will expire after five minutes without board activity.</span></div>
-                    <form method="post" asp-page-handler="ReleaseEditing" data-release-board-editing><button class="btn btn-sm catalogue-compact-action neutral-outline-action">Finish editing</button></form>
+                    <div><strong>@T["You are editing this board."]</strong><span>@T["Other administrators can continue reviewing it. Select Finish editing to release control, or it will expire after five minutes without board activity."]</span></div>
+                    <form method="post" asp-page-handler="ReleaseEditing" data-release-board-editing><button class="btn admin-button-secondary">@T["Finish editing"]</button></form>
                 }
                 else if (Model.BoardEditorAccountId is not null)
                 {
-                    <div><strong>@(Model.BoardEditorName ?? "Another administrator") is currently editing this board.</strong><span>You can inspect everything in view mode. Their editing control expires automatically when inactive.</span></div>
-                    <form method="post" asp-page-handler="TakeEditing" onsubmit="return confirm('Take editing control? The current editor will immediately return to view mode and may lose unsaved form changes.');"><button class="btn btn-sm catalogue-compact-action warning-outline-action">Take over editing</button></form>
+                    <div><strong>@T["{0} is currently editing this board.", Model.BoardEditorName ?? T["Another administrator"]]</strong><span>@T["You can inspect everything in view mode. Their editing control expires automatically when inactive."]</span></div>
+                    <form method="post" asp-page-handler="TakeEditing" onsubmit="return confirm('@T["Take editing control? The current editor will immediately return to view mode and may lose unsaved form changes."]');"><button class="btn admin-button-secondary">@T["Take over editing"]</button></form>
                 }
                 else
                 {
-                    <div><strong>You are viewing this board.</strong><span>Enter edit mode when you are ready to make changes.</span></div>
-                    <form method="post" asp-page-handler="TakeEditing"><button class="btn btn-sm catalogue-compact-action catalogue-add-action">Edit board</button></form>
+                    <div><strong>@T["You are viewing this board."]</strong><span>@T["Enter edit mode when you are ready to make changes."]</span></div>
+                    <form method="post" asp-page-handler="TakeEditing"><button class="btn admin-button-secondary">@T["Edit board"]</button></form>
                 }
             </section>
         }
         <div class="board-toolbar panel @(published ? "published-board-toolbar" : string.Empty)">
             <div class="board-toolbar-summary">
-                <span class="eyebrow">Board setup</span>
-                <strong>@Model.BoardView.Rows × @Model.BoardView.Columns board</strong>
-                <span>@Model.Tiles.Count of @(Model.BoardView.Rows * Model.BoardView.Columns) positions filled</span>
+                <span class="board-compact-label">@T["Board setup"]</span>
+                <strong>@Model.BoardView.Rows × @Model.BoardView.Columns @T["board"]</strong>
+                <span>@T["{0} of {1} positions filled", Model.Tiles.Count, Model.BoardView.Rows * Model.BoardView.Columns]</span>
             </div>
-            <span class="board-state-pill">@(Model.BoardView.PublishedCorrectionInProgress ? "Published · correction in progress" : Model.BoardView.State switch { BoardState.Draft => "Private draft", BoardState.Validated => "Approved privately", BoardState.Published => "Published", _ => Model.BoardView.State.ToString() })</span>
-            <a class="btn btn-sm catalogue-compact-action neutral-outline-action" asp-page="BoardPreview" asp-route-id="@RouteData.Values["id"]">Preview board</a>
-            @if (editable)
-            {
-                <details><summary class="btn btn-sm catalogue-compact-action neutral-outline-action">Board size</summary><form method="post" asp-page-handler="Resize" class="toolbar-popover"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><label asp-for="Rows"></label><input asp-for="Rows" class="form-control" /><label asp-for="Columns"></label><input asp-for="Columns" class="form-control" /><button class="btn btn-sm catalogue-compact-action catalogue-add-action">Apply size</button></form></details>
-                @if (Model.BoardView.State == BoardState.Draft)
+            <div class="board-toolbar-actions">
+                <span class="admin-status-pill @boardStatusModifier">@boardStatusLabel</span>
+                <a class="btn admin-button-secondary" asp-page="BoardPreview" asp-route-id="@RouteData.Values["id"]">@T["Preview board"]</a>
+                @if (editable)
                 {
-                    <form method="post" asp-page-handler="Approve"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn btn-sm catalogue-compact-action catalogue-add-action">Approve board</button></form>
-                    <span class="text-muted">Approval is private. Publication is a separate action after draft finalization.</span>
-                }
-                else if (Model.BoardView.State == BoardState.Validated)
-                {
-                    <form method="post" asp-page-handler="Unapprove" onsubmit="return confirm('Return this board to live draft values? The approval remains in history.');"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn btn-sm catalogue-compact-action warning-outline-action">Unapprove board</button></form>
-                    <span class="text-muted">This private approval is frozen. Any board-content edit returns to live draft values.</span>
-                    @if (Model.DraftFinalized)
+                    <details><summary class="btn admin-button-secondary">@T["Board size"]</summary><form method="post" asp-page-handler="Resize" class="toolbar-popover board-size-popover"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><div class="board-size-fields"><div class="admin-field"><label asp-for="Rows"></label><input asp-for="Rows" class="form-control" /></div><div class="admin-field"><label asp-for="Columns"></label><input asp-for="Columns" class="form-control" /></div></div><div class="board-size-actions"><button class="btn admin-button-secondary">@T["Apply size"]</button></div></form></details>
+                    @if (Model.BoardView.State == BoardState.Draft)
                     {
-                        <span class="text-muted">The finalized roster makes this private approval eligible for separate publication.</span>
+                        <form method="post" asp-page-handler="Approve"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn admin-button-secondary">@T["Approve board"]</button></form>
                     }
-                    else
+                    else if (Model.BoardView.State == BoardState.Validated)
                     {
-                        <span class="text-muted">Finalize the team draft before publishing this approved board.</span>
+                        <form method="post" asp-page-handler="Unapprove" onsubmit="return confirm('@T["Return this board to live draft values? The approval remains in history."]');"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn admin-button-secondary">@T["Unapprove board"]</button></form>
+                    }
+                    else if (Model.BoardView.State == BoardState.Published && Model.BoardView.PublishedCorrectionInProgress)
+                    {
+                        <form method="post" asp-page-handler="Approve"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn admin-button-primary">@T["Publish corrected board"]</button></form>
                     }
                 }
-                else if (Model.BoardView.State == BoardState.Published && Model.BoardView.PublishedCorrectionInProgress)
+                @if (Model.BoardView.State == BoardState.Validated && Model.DraftFinalized)
                 {
-                    <form method="post" asp-page-handler="Approve"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn btn-sm catalogue-compact-action catalogue-add-action">Publish corrected board</button></form>
-                    <span class="text-muted">The current public snapshot remains live until this corrected working copy is published.</span>
+                    <form method="post" asp-page-handler="Publish"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn admin-button-primary">@T["Publish board"]</button></form>
+                }
+                else if (published && !Model.BoardView.PublishedCorrectionInProgress)
+                {
+                    <details><summary class="btn admin-button-secondary">@T["Correct published board"]</summary><form method="post" asp-page-handler="CorrectPublished" class="toolbar-popover"><label><input type="checkbox" name="confirmed" value="true" /> @T["I confirm this exceptional correction."]</label><div class="admin-field"><label for="published-correction-reason">@T["Reason"]</label><textarea id="published-correction-reason" name="reason" required class="form-control"></textarea></div><button class="btn admin-button-primary">@T["Start private correction"]</button></form></details>
+                }
+            </div>
+            @if (editable && Model.BoardView.State == BoardState.Draft)
+            {
+                <p class="board-toolbar-support">@T["Approval is private. Publication is a separate action after draft finalization."]</p>
+            }
+            else if (editable && Model.BoardView.State == BoardState.Validated)
+            {
+                <p class="board-toolbar-support">@T["This private approval is frozen. Any board-content edit returns to live draft values."]</p>
+                @if (Model.DraftFinalized)
+                {
+                    <p class="board-toolbar-support">@T["The finalized roster makes this private approval eligible for separate publication."]</p>
+                }
+                else
+                {
+                    <p class="board-toolbar-support">@T["Finalize the team draft before publishing this approved board."]</p>
                 }
             }
-            @if (Model.BoardView.State == BoardState.Validated && Model.DraftFinalized)
+            else if (editable && Model.BoardView.State == BoardState.Published && Model.BoardView.PublishedCorrectionInProgress)
             {
-                <form method="post" asp-page-handler="Publish"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn btn-sm catalogue-compact-action catalogue-add-action">Publish board</button></form>
-            }
-            else if (published && !Model.BoardView.PublishedCorrectionInProgress)
-            {
-                <details><summary class="btn btn-sm catalogue-compact-action warning-outline-action">Correct published board</summary><form method="post" asp-page-handler="CorrectPublished" class="toolbar-popover"><label><input type="checkbox" name="confirmed" value="true" /> I confirm this exceptional correction.</label><label>Reason<textarea name="reason" required class="form-control"></textarea></label><button class="btn btn-sm catalogue-compact-action warning-outline-action">Start private correction</button></form></details>
+                <p class="board-toolbar-support">@T["The current public snapshot remains live until this corrected working copy is published."]</p>
             }
         </div>
 
         @if (Model.ReadinessWarnings.Count > 0)
         {
-            <aside class="panel validation-summary" aria-live="polite"><strong>Board readiness needs attention</strong><ul>@foreach (var warning in Model.ReadinessWarnings) { <li>@warning</li> }</ul></aside>
+            <aside class="panel validation-summary" aria-live="polite"><strong>@T["Board readiness needs attention"]</strong><ul>@foreach (var warning in Model.ReadinessWarnings) { <li>@warning</li> }</ul></aside>
         }
 
         @if (editable) { <form method="post" asp-page-handler="Move" id="move-form">@Html.AntiForgeryToken()<input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><input type="hidden" name="sourceId" id="move-source" /><input type="hidden" name="targetPosition" id="move-target" /></form> }
@@ -96,8 +127,8 @@
         <div class="board-workspace redesigned-board-workspace @(published ? "published-board-workspace" : string.Empty)">
             <div class="board-canvas panel">
             <div class="board-canvas-heading">
-                <div><span class="eyebrow">Tile layout</span><h2>Board</h2></div>
-                @if (editable) { <span>Drag a tile onto another position to swap them.</span> }
+                <div><span class="board-compact-label">@T["Tile layout"]</span><h2>@T["board"]</h2></div>
+                @if (editable) { <span>@T["Drag a tile onto another position to swap them."]</span> }
             </div>
             <div class="board-editor auto-hide-scrollbar" data-board-columns="@Model.BoardView.Columns" style="--board-columns:@Model.BoardView.Columns">
             @for (var position = 0; position < Model.BoardView.Rows * Model.BoardView.Columns; position++)
@@ -105,17 +136,17 @@
                 var row = position / Model.BoardView.Columns; var column = position % Model.BoardView.Columns; var tile = Model.Tiles.SingleOrDefault(x => x.Position == position);
                 if (tile is null)
                 {
-                    <div class="board-cell empty" data-position="@position" data-row="@row" data-column="@column" data-ehb="0">@if (editable) { <button type="button" class="create-tile-button" data-position="@position"><span>＋</span>Create tile</button> } else { <span>Empty</span> }</div>
+                    <div class="board-cell empty" data-position="@position" data-row="@row" data-column="@column" data-ehb="0">@if (editable) { <button type="button" class="create-tile-button" data-position="@position"><span>＋</span>@T["Create tile"]</button> } else { <span>@T["Empty"]</span> }</div>
                 }
                 else
                 {
                     <div class="board-cell populated" draggable="@editable.ToString().ToLowerInvariant()" data-tile-id="@tile.Id" data-position="@position" data-row="@row" data-column="@column" data-ehb="@tile.Ehb.ToString(System.Globalization.CultureInfo.InvariantCulture)" tabindex="0">
-                        @if (editable) { <span class="drag-handle" title="Drag onto another position">⠿</span> }
+                        @if (editable) { <span class="drag-handle" title="@T["Drag onto another position"]">⠿</span> }
                         <button type="button" class="tile-details-button @(editable ? "edit-tile-button" : string.Empty)" data-details-id="details-@tile.Id" data-tile-id="@tile.Id"><strong>@tile.Name</strong><span>@tile.Ehb.ToString("0.##") EHB</span></button>
                     </div>
                     <dialog id="details-@tile.Id" class="tile-dialog tile-dialog-details">
-                        <button type="button" class="dialog-close" aria-label="Close">×</button>
-                        <p class="eyebrow">Position @(position + 1)</p>
+                        <button type="button" class="dialog-close admin-route-dialog-close" aria-label="@T["Close"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
+                        <p class="eyebrow">@T["Position {0}", position + 1]</p>
                         <h2>@tile.Name</h2>
                         @if (!string.IsNullOrWhiteSpace(tile.Description))
                         {
@@ -124,12 +155,13 @@
 
                         @{
                             var tileEditor = Model.TileEditors.FirstOrDefault(x => x.Id == tile.Id);
+                            var dropSourcesById = Model.Drops.ToDictionary(x => x.Id);
                         }
                         <section class="tile-dialog-section">
-                            <h3>Requirements</h3>
+                            <h3>@T["Requirements"]</h3>
                             @if (tileEditor is null || tileEditor.Requirements.Count == 0)
                             {
-                                <p class="text-muted">No requirements recorded.</p>
+                                <p class="text-muted">@T["No requirements recorded."]</p>
                             }
                             else
                             {
@@ -143,35 +175,41 @@
                                             .ToList();
                                         <article class="tile-dialog-objective">
                                             <div class="tile-dialog-objective-head">
-                                                <strong>@(tileEditor.Requirements.Count > 1 ? $"Objective {objectiveIndex + 1}" : "Objective")</strong>
-                                                <span class="tile-dialog-quantity">Quantity: @requirement.Target</span>
+                                                <strong>@(tileEditor.Requirements.Count > 1 ? T["Objective {0}", objectiveIndex + 1] : T["Objective"])</strong>
+                                                <span class="tile-dialog-quantity">@T["Total drops: {0}", requirement.Target]</span>
                                             </div>
                                             @if (requirement.Kind == "challenge")
                                             {
-                                                <p>@(string.IsNullOrWhiteSpace(requirement.Description) ? "Complete the challenge described by this tile." : requirement.Description)</p>
+                                                <p>@(string.IsNullOrWhiteSpace(requirement.Description) ? T["Complete the challenge described by this tile."] : requirement.Description)</p>
                                             }
                                             else
                                             {
                                                 <dl class="tile-dialog-facts">
                                                     <div>
-                                                        <dt>Bosses or activities</dt>
-                                                        <dd>@(bossNames.Count == 0 ? "None selected" : string.Join(", ", bossNames))</dd>
+                                                        <dt>@T["Bosses or activities"]</dt>
+                                                        <dd>@(bossNames.Count == 0 ? T["None selected"] : string.Join(", ", bossNames))</dd>
                                                     </div>
                                                     <div>
-                                                        <dt>Eligible drops</dt>
+                                                        <dt>@T["Eligible drops"]</dt>
                                                         <dd>
                                                             @if (requirement.Drops.Count == 0)
                                                             {
-                                                                <span>No drops selected</span>
+                                                                <span>@T["No drops selected"]</span>
                                                             }
                                                             else
                                                             {
-                                                                <ul class="tile-dialog-drop-list">
-                                                                    @foreach (var drop in requirement.Drops)
+                                                                <div class="tile-dialog-drop-groups">
+                                                                    @foreach (var dropGroup in requirement.Drops
+                                                                        .GroupBy(drop => dropSourcesById.TryGetValue(drop.Id, out var source) ? source.BossId : (Guid?)null))
                                                                     {
-                                                                        <li><span>@drop.ItemName <small>@drop.DisplayRate</small></span>@if (drop.CreditedWeight > 1) { <span class="tile-dialog-quantity">Counts for @drop.CreditedWeight</span> }</li>
+                                                                        <div class="tile-dialog-drop-grid">
+                                                                            @foreach (var drop in dropGroup)
+                                                                            {
+                                                                                <div class="tile-dialog-drop-card"><span>@drop.ItemName <small>@drop.DisplayRate</small></span>@if (drop.CreditedWeight > 1) { <span class="tile-dialog-quantity">@T["Counts for {0}", drop.CreditedWeight]</span> }</div>
+                                                                            }
+                                                                        </div>
                                                                     }
-                                                                </ul>
+                                                                </div>
                                                             }
                                                         </dd>
                                                     </div>
@@ -186,10 +224,10 @@
                         <p class="tile-dialog-ehb"><strong>@tile.Ehb.ToString("0.##") EHB</strong></p>
                         @if (editable)
                         {
-                            <form method="post" asp-page-handler="Remove" onsubmit="return confirm('Remove this tile? The position will become empty.');">
+                            <form method="post" asp-page-handler="Remove" onsubmit="return confirm('@T["Remove this tile? The position will become empty."]');">
                                 <input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" />
                                 <input type="hidden" name="tileId" value="@tile.Id" />
-                                <button class="btn btn-sm catalogue-compact-action btn-outline-danger">Remove tile</button>
+                                <button class="btn admin-button-secondary action-danger-outline">@T["Remove tile"]</button>
                             </form>
                         }
                     </dialog>
@@ -201,22 +239,22 @@
             <aside class="board-sidebar">
                 @if (Model.Statistics is not null)
                 {
-                    <section class="panel stats-panel"><div class="board-panel-heading"><div><span class="eyebrow">Overview</span><h2>Board statistics</h2></div><span>@Model.Statistics.DurationDays.ToString("0.#")-day event</span></div><dl><div><dt>Total EHB</dt><dd data-stat-total>@Model.Statistics.TotalEhb.ToString("0.##")</dd></div><div><dt>Players per team</dt><dd data-stat-team-size>@(Model.Statistics.TeamSize?.ToString() ?? "Not set")</dd></div><div><dt>EHB per player</dt><dd data-stat-per-player>@(Model.Statistics.EhbPerPlayer?.ToString("0.##") ?? "—")</dd></div><div><dt>EHB per player each day</dt><dd data-stat-per-day>@(Model.Statistics.EhbPerPlayerPerDay?.ToString("0.##") ?? "—")</dd></div><div><dt>Average tile</dt><dd>@Model.Statistics.AverageTileEhb.ToString("0.##")</dd></div><div><dt>Lowest / highest row or column</dt><dd data-stat-lines>@Model.Statistics.LowestLineEhb.ToString("0.##") / @Model.Statistics.HighestLineEhb.ToString("0.##")</dd></div></dl>@if (editable) { <form method="post" asp-page-handler="TeamSize" class="inline-stat-form" data-auto-submit><label for="expected-team-size">Expected players per team</label><input id="expected-team-size" name="expectedTeamSize" value="@Model.Statistics.TeamSize" type="number" min="1" max="100" class="form-control" /></form> }@if (Model.Statistics.MissingEhbTiles > 0) { <p class="balance-warning">@Model.Statistics.MissingEhbTiles tile(s) still need an EHB estimate.</p> }</section>
+                    <section class="panel stats-panel"><div class="board-panel-heading"><div><span class="board-compact-label">@T["Overview"]</span><h2>@T["Board statistics"]</h2></div><span>@T["{0}-day event", Model.Statistics.DurationDays.ToString("0.#")]</span></div><dl><div><dt>@T["Total EHB"]</dt><dd data-stat-total>@Model.Statistics.TotalEhb.ToString("0.##")</dd></div><div><dt>@T["Players per team"]</dt><dd data-stat-team-size>@(Model.Statistics.TeamSize?.ToString() ?? T["Not set"])</dd></div><div><dt>@T["EHB per player"]</dt><dd data-stat-per-player>@(Model.Statistics.EhbPerPlayer?.ToString("0.##") ?? "—")</dd></div><div><dt>@T["EHB per player each day"]</dt><dd data-stat-per-day>@(Model.Statistics.EhbPerPlayerPerDay?.ToString("0.##") ?? "—")</dd></div><div><dt>@T["Average tile"]</dt><dd>@Model.Statistics.AverageTileEhb.ToString("0.##")</dd></div><div><dt>@T["Lowest / highest row or column"]</dt><dd data-stat-lines>@Model.Statistics.LowestLineEhb.ToString("0.##") / @Model.Statistics.HighestLineEhb.ToString("0.##")</dd></div></dl>@if (editable) { <form method="post" asp-page-handler="TeamSize" class="inline-stat-form" data-auto-submit><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><div class="admin-field"><label for="expected-team-size">@T["Expected players per team"]</label><input id="expected-team-size" name="expectedTeamSize" value="@Model.Statistics.TeamSize" type="number" min="1" max="100" class="form-control" /></div></form> }@if (Model.Statistics.MissingEhbTiles > 0) { <p class="balance-warning">@T["{0} tile(s) still need an EHB estimate.", Model.Statistics.MissingEhbTiles]</p> }</section>
                 }
                 @if (Model.TeamWorkloads.Count > 0)
                 {
-                    <details class="panel line-summary" open>
-                        <summary><strong>EHB per player by team</strong></summary>
+                    <details class="panel line-summary team-workload-summary" open>
+                        <summary><strong>@T["EHB per player by team"]</strong></summary>
                         @foreach (var team in Model.TeamWorkloads)
                         {
                             <div class="line-stat team-workload-stat">
                                 <span>
                                     @team.TeamName
                                     <small>
-                                        @team.FormationType · Based on @(team.SizeUsed?.ToString() ?? "no") players
+                                        @team.FormationType · @T["Based on {0} players", team.SizeUsed?.ToString() ?? T["No"]]
                                         @if (team.ActualRosterSize != team.SizeUsed)
                                         {
-                                            <text> · @team.ActualRosterSize currently on the team</text>
+                                            <text> · @T["{0} currently on the team", team.ActualRosterSize]</text>
                                         }
                                     </small>
                                 </span>
@@ -225,40 +263,43 @@
                         }
                     </details>
                 }
-                <details class="panel line-summary" open><summary><strong>Rows and columns</strong></summary>@foreach (var line in Model.Lines) { <div class="line-stat" data-line-kind="@line.Kind" data-line-index="@line.Index" tabindex="0"><span>@line.Key</span><strong>@line.Ehb.ToString("0.##")</strong></div> }<p class="balance-warning line-spread" hidden="@(Model.BalanceSpread <= 0)">Line spread: <span>@Model.BalanceSpread.ToString("0.##")</span> EHB</p></details>
+                <details class="panel line-summary"><summary><strong>@T["Rows and columns"]</strong></summary>@foreach (var line in Model.Lines) { <div class="line-stat" data-line-kind="@line.Kind" data-line-index="@line.Index" tabindex="0"><span>@line.Key</span><strong>@line.Ehb.ToString("0.##")</strong></div> }<p class="balance-warning line-spread" hidden="@(Model.BalanceSpread <= 0)">@T["Line spread:"] <span>@Model.BalanceSpread.ToString("0.##")</span> EHB</p></details>
             </aside>
         </div>
 
         @if (editable)
         {
             <dialog id="create-tile-dialog" class="tile-dialog create-tile-dialog auto-hide-scrollbar">
-                <button type="button" class="dialog-close" aria-label="Close">×</button><p class="eyebrow">Board editor</p><h2 id="create-tile-heading">Create tile</h2>
+                <button type="button" class="dialog-close admin-route-dialog-close" aria-label="@T["Close"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button><p class="eyebrow">@T["Board editor"]</p><h2 id="create-tile-heading">@T["Create tile"]</h2>
                 <form method="post" enctype="multipart/form-data" asp-page-handler="CreateTile" class="form-stack" id="create-tile-form" data-native-submit data-create-action="@Url.Page("Board", "CreateTile", new { id = RouteData.Values["id"] })" data-edit-action="@Url.Page("Board", "EditTile", new { id = RouteData.Values["id"] })">
                     <input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" />
                     <input type="hidden" asp-for="TileDraft.TileId" id="tile-id" />
                     <input type="hidden" asp-for="TileDraft.Position" id="tile-position" />
                     <section class="tile-editor-section tile-details-section">
+                        <div class="tile-editor-section-heading"><h3>@T["Tile details"]</h3></div>
                         <div class="tile-details-grid">
-                            <label asp-for="TileDraft.Name"><span class="tile-field-label"><span>Tile name</span><small>Suggested from selected bosses</small></span><input asp-for="TileDraft.Name" id="tile-name" class="form-control" placeholder="Suggested automatically" /></label>
-                            <label asp-for="TileDraft.Description"><span class="tile-field-label"><span>Short description</span><small>Optional</small></span><input asp-for="TileDraft.Description" class="form-control" /></label>
+                            <div class="admin-field"><label asp-for="TileDraft.Name"><span class="tile-field-label"><span>@T["Tile name"]</span><small>@T["Suggested from selected bosses"]</small></span></label><input asp-for="TileDraft.Name" id="tile-name" class="form-control" placeholder="@T["Suggested automatically"]" /></div>
+                            <div class="admin-field"><label asp-for="TileDraft.Description"><span class="tile-field-label"><span>@T["Short description"]</span><small>@T["Optional"]</small></span></label><input asp-for="TileDraft.Description" class="form-control" /></div>
                         </div>
-                        <label asp-for="TileDraft.Image"><span class="tile-field-label"><span>Custom tile image</span><small>Optional managed upload</small></span><input asp-for="TileDraft.Image" class="form-control" accept="image/png,image/jpeg,image/webp" /></label>
-                        <label class="checkbox-row" id="tile-remove-image-row" hidden><input asp-for="TileDraft.RemoveImage" /> Remove the current custom image</label>
+                        <div class="admin-field"><label asp-for="TileDraft.Image"><span class="tile-field-label"><span>@T["Custom tile image"]</span><small>@T["Optional managed upload"]</small></span></label><input asp-for="TileDraft.Image" class="form-control" accept="image/png,image/jpeg,image/webp" /></div>
+                        <label class="checkbox-row" id="tile-remove-image-row" hidden><input asp-for="TileDraft.RemoveImage" /> @T["Remove the current custom image"]</label>
                     </section>
-                    <aside class="tile-objective-guide">
-                        <strong>One objective is one target.</strong>
-                        <span>Select multiple bosses if their drops share a total. Add another objective only when both totals are required.</span>
+                    <aside class="information-callout tile-objective-guide" role="note">
+                        <div class="information-callout-heading">
+                            <svg class="information-callout-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 7.5h.01" /></svg>
+                            <strong>@T["One objective, one target"]</strong>
+                        </div>
+                        <span>@T["Select one or more bosses or activities when their drops share the same total. Add another objective only when this tile needs separate totals."]</span>
                     </aside>
                     <div id="requirements"><partial name="_BoardRequirementEditor" model="@(new Bingo.Web.Pages.Admin.Events.BoardRequirementEditorViewModel(0, Model.Bosses, Model.Drops))" /></div>
-                    <button type="button" class="btn btn-sm catalogue-compact-action catalogue-add-action add-objective-button" id="add-requirement">＋ Add another objective</button>
-                    <section class="tile-editor-section tile-finish-section">
-                        <div class="tile-editor-section-heading"><h3>EHB</h3></div>
-                        <div class="tile-finish-grid">
-                            <label asp-for="TileDraft.ManualEhb"><span class="tile-field-label"><span>Manual total EHB estimate</span><small>Required for a custom challenge; otherwise overrides the live catalogue calculation.</small></span><input asp-for="TileDraft.ManualEhb" class="form-control" type="number" min="0" step="any" /></label>
-                        </div>
-                    </section>
-                    <div class="dialog-actions"><button type="button" class="btn btn-sm catalogue-compact-action neutral-outline-action dialog-cancel">Cancel</button><button class="btn btn-sm catalogue-compact-action catalogue-add-action" id="save-tile-button">Create tile here</button></div>
+                    <div class="tile-editor-actions"><button type="button" class="btn admin-button-secondary add-objective-button" id="add-requirement">＋ @T["Add another objective"]</button></div>
+                    <details class="manual-ehb-override"><summary><span>@T["Manual EHB override"]</span><svg class="board-dialog-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m6 9 6 6 6-6" /></svg></summary><div class="manual-ehb-override-content"><div class="admin-field"><label asp-for="TileDraft.ManualEhb"><span class="tile-field-label"><span>@T["Manual total EHB estimate"]</span><small>@T["Required for a custom challenge; otherwise overrides the live catalogue calculation."]</small></span></label><input asp-for="TileDraft.ManualEhb" class="form-control" type="number" min="0" step="any" /></div></div></details>
+                    <div class="dialog-actions"><button type="button" class="btn admin-button-secondary dialog-cancel">@T["Cancel"]</button><button class="btn admin-button-secondary" id="save-tile-button">@T["Create tile"]</button></div>
                 </form>
+            </dialog>
+            <dialog id="remove-objective-dialog" class="tile-dialog board-confirmation-dialog" aria-labelledby="remove-objective-question">
+                <h2 id="remove-objective-question">@T["Are you sure you wanna remove this objective?"]</h2>
+                <div class="dialog-actions"><button type="button" class="btn admin-button-secondary dialog-cancel">@T["Cancel"]</button><button type="button" class="btn admin-button-secondary action-danger-outline" id="confirm-remove-objective">@T["Remove objective"]</button></div>
             </dialog>
             <template id="requirement-template"><partial name="_BoardRequirementEditor" model="@(new Bingo.Web.Pages.Admin.Events.BoardRequirementEditorViewModel(-1, Model.Bosses, Model.Drops))" /></template>
             <script type="application/json" id="tile-editor-data">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TileEditors, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }))</script>
@@ -329,11 +370,17 @@ document.querySelectorAll('.board-cell[data-position]').forEach(cell => {
             const response = await fetch(moveForm.action, { method: 'POST', body: new FormData(moveForm), headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw new Error('The board could not be updated.');
             const result = await response.json();
-            if (!result.success) throw new Error('The board could not be updated.');
+            if (!result.success) {
+                window.showBingoToast?.(result.message || 'The board could not be updated.', result.type || 'warning');
+                window.location.reload();
+                return;
+            }
             swapBoardCells(source, cell);
             document.querySelectorAll('input[name="BoardVersion"]').forEach(input => input.value = result.boardVersion);
             refreshLineStatistics();
-        } catch {
+            window.showBingoToast?.(result.message, result.type);
+        } catch (error) {
+            window.showBingoToast?.(error instanceof Error && error.message ? error.message : 'The board could not be updated.', 'error');
             window.location.reload();
         } finally {
             movingTile = false;
@@ -343,9 +390,20 @@ document.querySelectorAll('.board-cell[data-position]').forEach(cell => {
     });
 });
 document.querySelectorAll('.line-stat').forEach(line => { const toggle = active => document.querySelectorAll(`[data-${line.dataset.lineKind}="${line.dataset.lineIndex}"]`).forEach(cell => cell.classList.toggle('line-highlight', active)); line.addEventListener('mouseenter', () => toggle(true)); line.addEventListener('mouseleave', () => toggle(false)); line.addEventListener('focus', () => toggle(true)); line.addEventListener('blur', () => toggle(false)); });
+const boardDialogs = [...document.querySelectorAll('.board-page dialog.tile-dialog')];
+function syncBoardDialogState() { document.body.classList.toggle('board-dialog-open', boardDialogs.some(dialog => dialog.open)); }
+function showBoardDialog(dialog) { if (!dialog?.open) dialog?.showModal(); syncBoardDialogState(); }
+boardDialogs.forEach(dialog => dialog.addEventListener('close', syncBoardDialogState));
+syncBoardDialogState();
 document.querySelectorAll('.dialog-close, .dialog-cancel').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
+boardDialogs.forEach(dialog => dialog.addEventListener('click', event => {
+    if (event.target !== dialog || window.matchMedia?.('(max-width: 900px)')?.matches) return;
+    dialog.close();
+}));
 
 const createDialog = document.getElementById('create-tile-dialog'); const tileForm = document.getElementById('create-tile-form');
+const removeObjectiveDialog = document.getElementById('remove-objective-dialog'); let objectiveToRemove = null;
+removeObjectiveDialog?.addEventListener('close', () => objectiveToRemove = null);
 const tileEditorData = new Map(JSON.parse(document.getElementById('tile-editor-data')?.textContent || '[]').map(tile => [tile.id, tile]));
 let tileNameEdited = false; document.getElementById('tile-name')?.addEventListener('input', event => tileNameEdited = event.target.value.trim().length > 0);
 function resetTileForm() { tileForm.reset(); tileForm.action = tileForm.dataset.createAction; document.getElementById('tile-id').value = ''; document.getElementById('tile-remove-image-row').hidden = true; document.getElementById('requirements').innerHTML = document.getElementById('requirement-template').innerHTML.replaceAll('Requirements[-1]', 'Requirements[0]').replaceAll('requirement--1', 'requirement-0').replaceAll('data-index="-1"', 'data-index="0"'); requirementIndex = 1; tileNameEdited = false; initializeRequirements(); }
@@ -362,8 +420,8 @@ document.addEventListener('click', event => {
         resetTileForm();
         document.getElementById('tile-position').value = createButton.dataset.position;
         document.getElementById('create-tile-heading').textContent = `Create tile in position ${Number(createButton.dataset.position) + 1}`;
-        document.getElementById('save-tile-button').textContent = 'Create tile here';
-        createDialog.showModal();
+        document.getElementById('save-tile-button').textContent = 'Create tile';
+        showBoardDialog(createDialog);
         return;
     }
 
@@ -385,25 +443,33 @@ document.addEventListener('click', event => {
         tile.requirements.forEach(requirement => addRequirement(requirement));
         document.getElementById('create-tile-heading').textContent = `Edit ${tile.name}`;
         document.getElementById('save-tile-button').textContent = 'Save tile';
-        createDialog.showModal();
+        showBoardDialog(createDialog);
         return;
     }
 
     const detailsButton = event.target.closest('.tile-details-button');
-    if (detailsButton) document.getElementById(detailsButton.dataset.detailsId)?.showModal();
+    if (detailsButton) showBoardDialog(document.getElementById(detailsButton.dataset.detailsId));
+});
+document.getElementById('confirm-remove-objective')?.addEventListener('click', () => {
+    if (objectiveToRemove?.isConnected) {
+        objectiveToRemove.remove();
+        renumberObjectiveHeadings();
+    }
+    objectiveToRemove = null;
+    removeObjectiveDialog?.close();
 });
 function initializeRequirements() {
-    document.querySelectorAll('.requirement-editor:not([data-ready])').forEach(editor => {
-        editor.dataset.ready = 'true'; const kind = editor.querySelector('.requirement-kind'); const dropFields = editor.querySelector('.drop-only-fields'); const challengeFields = editor.querySelector('.challenge-only-fields'); const challengeDescription = editor.querySelector('.challenge-description'); const bossChecks = [...editor.querySelectorAll('.boss-checkbox')]; const dropGroups = [...editor.querySelectorAll('.eligible-drop-group')]; const bossSummary = editor.querySelector('.boss-picker summary'); const emptyDrops = editor.querySelector('.drop-picker-empty'); const dropActions = editor.querySelector('.eligible-drop-actions');
+        document.querySelectorAll('.requirement-editor:not([data-ready])').forEach(editor => {
+        editor.dataset.ready = 'true'; const kind = editor.querySelector('.requirement-kind'); const dropFields = editor.querySelector('.drop-only-fields'); const challengeFields = editor.querySelector('.challenge-only-fields'); const challengeDescription = editor.querySelector('.challenge-description'); const bossChecks = [...editor.querySelectorAll('.boss-checkbox')]; const dropGroups = [...editor.querySelectorAll('.eligible-drop-group')]; const bossPickerLabel = editor.querySelector('.boss-picker-label'); const emptyDrops = editor.querySelector('.drop-picker-empty'); const dropActions = editor.querySelector('.eligible-drop-actions');
         const updateKind = () => { const challenge = kind.value === 'challenge'; dropFields.hidden = challenge; challengeFields.hidden = !challenge; challengeDescription.required = challenge; }; kind.addEventListener('change', updateKind); updateKind();
-        const updateBosses = () => { const selected = bossChecks.filter(x => x.checked); const ids = selected.map(x => x.dataset.bossId); let visibleDrops = 0; dropGroups.forEach(group => { const visible = ids.includes(group.dataset.bossId); group.hidden = !visible; if (!visible) group.querySelectorAll('.eligible-drop-checkbox').forEach(input => input.checked = false); else visibleDrops += group.querySelectorAll('.eligible-drop-checkbox').length; }); bossSummary.textContent = selected.length === 0 ? 'Choose bosses or activities' : selected.length === 1 ? selected[0].dataset.bossName : `${selected.length} sources selected`; emptyDrops.textContent = selected.length === 0 ? 'Choose a boss or activity first.' : visibleDrops === 0 ? 'No drops have been added to the selected bosses yet.' : ''; emptyDrops.hidden = visibleDrops > 0; if (dropActions) dropActions.hidden = visibleDrops === 0; if (editor.dataset.index === '0' && !tileNameEdited) document.getElementById('tile-name').value = selected.map(x => x.dataset.bossName).join(' + '); };
+        const updateBosses = () => { const selected = bossChecks.filter(x => x.checked); const ids = selected.map(x => x.dataset.bossId); let visibleDrops = 0; dropGroups.forEach(group => { const visible = ids.includes(group.dataset.bossId); group.hidden = !visible; if (!visible) group.querySelectorAll('.eligible-drop-checkbox').forEach(input => input.checked = false); else visibleDrops += group.querySelectorAll('.eligible-drop-checkbox').length; }); const selectedLabel = selected.length === 0 ? 'Choose bosses or activities' : selected.length === 1 ? selected[0].dataset.bossName : `${selected.length} sources selected`; if (bossPickerLabel) bossPickerLabel.textContent = selectedLabel; emptyDrops.textContent = selected.length === 0 ? 'Choose a boss or activity first.' : visibleDrops === 0 ? 'No drops have been added to the selected bosses yet.' : ''; emptyDrops.hidden = visibleDrops > 0; if (dropActions) dropActions.hidden = visibleDrops === 0; if (editor.dataset.index === '0' && !tileNameEdited) document.getElementById('tile-name').value = selected.map(x => x.dataset.bossName).join(' + '); };
         bossChecks.forEach(checkbox => checkbox.addEventListener('change', updateBosses)); updateBosses();
         editor.querySelector('.select-all-drops')?.addEventListener('click', () => dropGroups.filter(group => !group.hidden).forEach(group => group.querySelectorAll('.eligible-drop-checkbox').forEach(input => input.checked = true)));
         editor.querySelector('.deselect-all-drops')?.addEventListener('click', () => dropGroups.filter(group => !group.hidden).forEach(group => group.querySelectorAll('.eligible-drop-checkbox').forEach(input => input.checked = false)));
         const weightsToggle = editor.querySelector('.individual-drop-weights-toggle'); const weightFields = [...editor.querySelectorAll('.drop-weight-field')];
         const updateWeights = () => { const enabled = weightsToggle?.checked === true; weightFields.forEach(field => { field.hidden = !enabled; const input = field.querySelector('input'); if (input && !enabled) input.value = '1'; }); };
         weightsToggle?.addEventListener('change', updateWeights); updateWeights();
-        editor.querySelector('.remove-requirement')?.addEventListener('click', () => { editor.remove(); renumberObjectiveHeadings(); });
+        editor.querySelector('.remove-requirement')?.addEventListener('click', () => { objectiveToRemove = editor; showBoardDialog(removeObjectiveDialog); });
     });
     renumberObjectiveHeadings();
 }

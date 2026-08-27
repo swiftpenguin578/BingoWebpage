@@ -165,6 +165,8 @@ public sealed class Slice10Pass101WiseOldManTests
         var participant = Assert.Single(result.Competition.Participants);
         Assert.Equal("Alice", participant.Username);
         Assert.Equal(12.5m, participant.EhbDelta);
+        Assert.Equal(10m, participant.StartEhb);
+        Assert.Equal(22m, participant.EndEhb);
         Assert.Equal(DateTimeOffset.Parse("2026-08-03T12:01:00Z", CultureInfo.InvariantCulture), result.Competition.LastUpdatedAt);
     }
 

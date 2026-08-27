@@ -45,12 +45,15 @@ public sealed record EventCompetitionParticipantActivity(
     decimal TotalGainedEhb,
     IReadOnlyList<EventCompetitionAccountActivity> Accounts,
     int ExpectedAccountCount = 0,
-    int MatchedAccountCount = 0);
+    int MatchedAccountCount = 0,
+    IReadOnlyList<string>? PlayingAccountNames = null);
 
 public sealed record EventCompetitionAccountActivity(
     Guid CharacterId,
     string CharacterName,
-    decimal GainedEhb);
+    decimal GainedEhb,
+    decimal? StartEhb = null,
+    decimal? EndEhb = null);
 
 public interface IEventCompetitionActivityProjection
 {

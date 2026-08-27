@@ -55,7 +55,9 @@ public enum WiseOldManCompetitionStatus
 public sealed record WiseOldManCompetitionParticipant(
     string Username,
     string? Type,
-    decimal? EhbDelta);
+    decimal? EhbDelta,
+    decimal? StartEhb = null,
+    decimal? EndEhb = null);
 
 public sealed record WiseOldManCompetition(
     long Id,

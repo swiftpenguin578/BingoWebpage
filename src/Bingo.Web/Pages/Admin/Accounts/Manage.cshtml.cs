@@ -8,23 +8,30 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Admin.Accounts;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationService administration, AccountIdentityService identities) : PageModel
+public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationService administration, AccountIdentityService identities, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     public AccountDetails? AccountView { get; private set; }
     [BindProperty, StringLength(500)] public string Reason { get; set; } = string.Empty;
-    public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct) => await Load(id, ct) ? Page() : NotFound();
-    public Task<IActionResult> OnPostGrantAdminAsync(Guid id, CancellationToken ct) => Mutate(id, x => administration.GrantAdminAsync(User.GetAccountId()!.Value, id, x), "Admin access granted.", ct);
-    public Task<IActionResult> OnPostRevokeAdminAsync(Guid id, CancellationToken ct) => Mutate(id, x => administration.RevokeAdminAsync(User.GetAccountId()!.Value, id, x), "Admin access revoked.", ct);
-    public Task<IActionResult> OnPostDisableAsync(Guid id, CancellationToken ct) => Mutate(id, x => administration.DisableAsync(User.GetAccountId()!.Value, id, Reason, x), "Account disabled.", ct);
-    public Task<IActionResult> OnPostRestoreAsync(Guid id, CancellationToken ct) => Mutate(id, x => administration.RestoreAsync(User.GetAccountId()!.Value, id, x), "Account restored.", ct);
-    public Task<IActionResult> OnPostEnableEmergencyAsync(Guid id, CancellationToken ct) => Mutate(id, x => administration.SetEmergencyEnabledAsync(User.GetAccountId()!.Value, id, true, x), "Emergency credential enabled.", ct);
-    public Task<IActionResult> OnPostDisableEmergencyAsync(Guid id, CancellationToken ct) => Mutate(id, x => administration.SetEmergencyEnabledAsync(User.GetAccountId()!.Value, id, false, x), "Emergency credential disabled.", ct);
-    public async Task<IActionResult> OnPostGenerateResetLinkAsync(Guid id, CancellationToken ct) => await GenerateLink(id, false, ct);
-    public async Task<IActionResult> OnPostGenerateEmergencyLinkAsync(Guid id, CancellationToken ct) => await GenerateLink(id, true, ct);
+    [BindProperty] public bool Overlay { get; set; }
+    public bool IsOverlay => Overlay || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
+    public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
+    {
+        Overlay = string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
+        return await Load(id, ct) ? Page() : NotFound();
+    }
+    public Task<IActionResult> OnPostGrantAdminAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.GrantAdminAsync(User.GetAccountId()!.Value, id, x), Localize("Admin access granted."), ct); }
+    public Task<IActionResult> OnPostRevokeAdminAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.RevokeAdminAsync(User.GetAccountId()!.Value, id, x), Localize("Admin access revoked."), ct); }
+    public Task<IActionResult> OnPostDisableAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.DisableAsync(User.GetAccountId()!.Value, id, Reason, x), Localize("Account disabled."), ct); }
+    public Task<IActionResult> OnPostRestoreAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.RestoreAsync(User.GetAccountId()!.Value, id, x), Localize("Account restored."), ct); }
+    public Task<IActionResult> OnPostEnableEmergencyAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.SetEmergencyEnabledAsync(User.GetAccountId()!.Value, id, true, x), Localize("Emergency credential enabled."), ct); }
+    public Task<IActionResult> OnPostDisableEmergencyAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.SetEmergencyEnabledAsync(User.GetAccountId()!.Value, id, false, x), Localize("Emergency credential disabled."), ct); }
+    public async Task<IActionResult> OnPostGenerateResetLinkAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return await GenerateLink(id, false, ct); }
+    public async Task<IActionResult> OnPostGenerateEmergencyLinkAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return await GenerateLink(id, true, ct); }
 
     private async Task<IActionResult> GenerateLink(Guid id, bool emergency, CancellationToken ct)
     {
@@ -36,11 +43,15 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
             TempData["CredentialLink"] = Url.Page("/Account/ResetPassword", pageHandler: null, values: new { token }, protocol: Request.Scheme);
             TempData["CredentialLinkTargetId"] = id.ToString();
             TempData["CredentialLinkPurpose"] = emergency ? "emergency" : "reset";
-            return RedirectToPage(new { id });
+            TempData["StatusMessage"] = emergency
+                ? Localize("Generated a one-time setup or reset link. It expires after 60 minutes.")
+                : Localize("Generated a one-time reset link. It expires after 60 minutes.");
+            TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();
+            return RedirectToPage(new { id, overlay = IsOverlay ? "1" : null });
         }
         catch (InvalidOperationException)
         {
-            ModelState.AddModelError(string.Empty, "This action is not available for this account.");
+            ModelState.AddModelError(string.Empty, Localize("The account link could not be generated."));
             await Load(id, ct);
             return Page();
         }
@@ -48,8 +59,23 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
 
     private async Task<IActionResult> Mutate(Guid id, Func<CancellationToken, Task> action, string message, CancellationToken ct)
     {
-        try { await action(ct); TempData["StatusMessage"] = message; TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString(); return RedirectToPage("Index"); }
-        catch (InvalidOperationException) { ModelState.AddModelError(string.Empty, "This action is not available for this account."); await Load(id, ct); return Page(); }
+        try
+        {
+            await action(ct);
+            TempData["StatusMessage"] = message;
+            TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();
+            if (IsOverlay)
+            {
+                return RedirectToPage(new { id, overlay = "1" });
+            }
+            return RedirectToPage("Index");
+        }
+        catch (InvalidOperationException)
+        {
+            ModelState.AddModelError(string.Empty, Localize("The account change could not be saved."));
+            await Load(id, ct);
+            return Page();
+        }
     }
 
     private async Task<bool> Load(Guid id, CancellationToken ct)
@@ -80,6 +106,16 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
         AccountView = new AccountDetails(account.Id, account.LoginName, account.AccountType, account.GlobalRole, account.Active, account.DiscordUserId is not null, account.DiscordDisplayName, account.LastLoginAt, account.DisabledAt, account.PasswordHash is not null, scope, characters, roles, disableHistory);
         return true;
     }
+
+    private bool ResolveSubmittedOverlay(bool overlay)
+    {
+        if (!Request.HasFormContentType) return overlay || IsOverlay;
+        var submitted = Request.Form["overlay"].ToString();
+        ModelState.Remove("overlay");
+        return overlay || string.Equals(submitted, "1", StringComparison.Ordinal) || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
+    }
+
+    private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(System.Globalization.CultureInfo.CurrentCulture, key, arguments);
 
     public sealed record AccountDetails(Guid Id, string Username, AccountType AccountType, GlobalRole? Role, bool Active, bool DiscordLinked, string? DiscordDisplayName, DateTimeOffset? LastLoginAt, DateTimeOffset? DisabledAt, bool HasPassword, EmergencyScope? Scope, IReadOnlyList<CharacterView> Characters, IReadOnlyList<EventRoleView> EventRoles, IReadOnlyList<DisableHistoryView> DisableHistory);
     public sealed record EmergencyScope(string EventName, string TeamName, bool Enabled, bool CutoffDisabled);

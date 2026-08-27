@@ -1,6 +1,60 @@
 @page "/Account/MyEvents"
 @model Bingo.Web.Pages.Account.MyEventsModel
-@{ ViewData["Title"] = T["My events"]; }
-<section class="content-page"><p class="eyebrow">@T["My events"]</p><h1>@T["My events"]</h1>
-<div class="panel"><h2>@T["Current events"]</h2>@if (!Model.Current.Any()) { <p>@T["You have no current events."]</p> } else { <ul>@foreach (var item in Model.Current) { <li><a asp-page="@item.DestinationPage" asp-route-slug="@item.Slug" asp-route-teamSlug="@item.TeamSlug" asp-route-participantId="@item.ParticipantId">@item.Name</a> — @Model.DisplayLabel(item)</li> }</ul> }</div>
-<div class="panel"><h2>@T["History"]</h2>@if (!Model.History.Any()) { <p>@T["You have no event history."]</p> } else { <ul>@foreach (var item in Model.History) { <li><a asp-page="@item.DestinationPage" asp-route-slug="@item.Slug" asp-route-teamSlug="@item.TeamSlug" asp-route-participantId="@item.ParticipantId">@item.Name</a> — @Model.DisplayLabel(item) @if (Model.EvidenceHistory.TryGetValue(item.EventId, out var assets)) { <ul><li>Own rejected/withdrawn evidence history: @foreach (var assetId in assets) { <a asp-page="/Evidence" asp-route-id="@assetId">View evidence</a> }</li></ul> }</li> }</ul> }</div></section>
+@{
+    ViewData["Title"] = T["My events"];
+    ViewData["BodyClass"] = "public-ui-pass2";
+}
+
+<section class="public-pass2-page public-pass2-overview-page" aria-labelledby="my-events-heading">
+    <header class="public-pass2-masthead">
+        <span class="public-pass2-kicker">@T["Account overview"]</span>
+        <h1 id="my-events-heading">@T["My events"]</h1>
+        <p>@T["Open your current registrations and revisit previous events."]</p>
+    </header>
+
+    <section class="public-pass2-overview-section" aria-labelledby="current-events-heading">
+        <header class="public-pass2-ledger-heading"><h2 id="current-events-heading">@T["Current events"]</h2><span aria-hidden="true"></span></header>
+        @if (!Model.Current.Any())
+        {
+            <div class="public-pass2-empty-state"><span class="public-pass2-kicker">@T["My events"] · @T["Empty"]</span><h3>@T["You have no current events."]</h3><p>@T["Your confirmed, waiting-list and previous event registrations will appear here."]</p><a class="public-pass2-text-link" asp-page="/Index">@T["Browse events"] <span aria-hidden="true">→</span></a></div>
+        }
+        else
+        {
+            <div class="public-pass2-event-list">
+                @foreach (var item in Model.Current)
+                {
+                    <article class="public-pass2-event-row">
+                        <span class="public-pass2-event-status @Model.DisplayStateModifier(item)"><i aria-hidden="true"></i>@Model.DisplayLabel(item)</span>
+                        <span class="public-pass2-event-divider" aria-hidden="true"></span>
+                        <a asp-page="@item.DestinationPage" asp-route-slug="@item.Slug" asp-route-teamSlug="@item.TeamSlug" asp-route-participantId="@item.ParticipantId">@item.Name <span aria-hidden="true">→</span></a>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="public-pass2-overview-section" aria-labelledby="event-history-heading">
+        <header class="public-pass2-ledger-heading"><h2 id="event-history-heading">@T["History"]</h2><span aria-hidden="true"></span></header>
+        @if (!Model.History.Any())
+        {
+            <div class="public-pass2-empty-state"><h3>@T["You have no event history."]</h3></div>
+        }
+        else
+        {
+            <div class="public-pass2-event-list">
+                @foreach (var item in Model.History)
+                {
+                    <article class="public-pass2-event-row public-pass2-event-row--history">
+                        <span class="public-pass2-event-status @Model.DisplayStateModifier(item)"><i aria-hidden="true"></i>@Model.DisplayLabel(item)</span>
+                        <span class="public-pass2-event-divider" aria-hidden="true"></span>
+                        <div><a asp-page="@item.DestinationPage" asp-route-slug="@item.Slug" asp-route-teamSlug="@item.TeamSlug" asp-route-participantId="@item.ParticipantId">@item.Name <span aria-hidden="true">→</span></a>
+                        @if (Model.EvidenceHistory.TryGetValue(item.EventId, out var assets))
+                        {
+                            <p class="public-pass2-note">@T["Own rejected/withdrawn evidence history"] · @foreach (var assetId in assets) { <a class="public-pass2-text-link" asp-page="/Evidence" asp-route-id="@assetId">@T["View evidence"] <span aria-hidden="true">→</span></a> }</p>
+                        }</div>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+</section>

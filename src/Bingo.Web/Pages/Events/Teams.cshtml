@@ -1,16 +1,88 @@
 @page "/Events/{slug}/Teams"
 @model Bingo.Web.Pages.Events.TeamsModel
-@using Bingo.Domain.Events
 @using Bingo.Domain.Teams
-@{ ViewData["Title"] = $"{Model.EventName} teams"; }
-<section class="table-page"><div class="page-heading"><div><p class="eyebrow">@T["Final rosters"]</p><h1>@T["{0} teams", Model.EventName]</h1></div><a asp-page="/Index">@T["Home"]</a></div>
-@if (Model.ParticipantContext is { } context)
-{
-    <section class="panel participant-live-context" aria-label="@T["Your event context"]">
-        <p class="eyebrow">@T["Your event context"]</p>
-        <h2>@context.TeamName</h2>
-        <p>@T["Lifecycle"]: @context.EventState · @T["Role"]: @context.TeamRole · @T["Planned starting account"]: <strong>@context.PlannedCharacterName</strong></p>
-        @if (context.EventEndsAt is { } eventEnd) { <p>@T["Event ends"]: <time datetime="@eventEnd.ToUniversalTime().ToString("O")">@eventEnd.ToUniversalTime().ToString("dd MMM yyyy HH:mm 'UTC'")</time></p> }
-    </section>
-}
-<div class="team-grid">@foreach(var team in Model.Teams){<article class="panel team-card">@if(!string.IsNullOrWhiteSpace(team.ImageUrl)){<img src="@team.ImageUrl" alt="@team.Name"/>}<h2>@team.Name</h2>@if(!string.IsNullOrWhiteSpace(team.Affiliation)){<p>@team.Affiliation</p>}<ul>@foreach(var member in team.Members){<li><span>@member.Name <small>@member.Role</small></span></li>}</ul></article>}</div>@if(Model.Picks.Count>0){<div class="page-heading subheading"><h2>@T["Draft results"]</h2></div><div class="table-wrap panel"><table><thead><tr><th>@T["Pick"]</th><th>@T["Team"]</th><th>@T["Player"]</th></tr></thead><tbody>@foreach(var pick in Model.Picks){<tr><td>#@pick.PickNumber</td><td>@pick.TeamName</td><td>@pick.PlayerName</td></tr>}</tbody></table></div>}</section>
+@{ ViewData["Title"] = $"{Model.EventName} teams"; ViewData["BodyClass"] = "public-ui-pass1"; }
+<section class="public-ui-page-width--wide public-teams-directory" data-public-ui-no-ambient>
+    <header class="public-teams-directory__masthead">
+        <div class="public-teams-directory__intro">
+            <div class="public-masthead-copy">
+                <span class="public-teams-directory__kicker public-masthead-kicker">@T["Final rosters"]</span>
+                <h1 class="public-teams-directory__title public-masthead-title">@Model.EventName</h1>
+            </div>
+            <a class="public-teams-directory__back" asp-page="/Index">← @T["All events"]</a>
+            <dl class="public-teams-directory__meta">
+                <div><dt>@T["Event starts"]</dt><dd>@(Model.EventStartsAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? T["Not set"])</dd></div>
+                <div><dt>@T["Event ends"]</dt><dd>@(Model.EventEndsAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? T["Not set"])</dd></div>
+                <div><dt>@T["players"]</dt><dd>@Model.PlayerCount</dd></div>
+            </dl>
+        </div>
+        <div class="landing-hero__art public-teams-directory__art" aria-hidden="true">
+            <div class="landing-hero__background"></div>
+            <img class="landing-hero__mark landing-hero__mark--light" src="~/images/branding/login-artwork.svg" asp-append-version="true" alt="" />
+            <img class="landing-hero__mark landing-hero__mark--dark" src="~/images/branding/login-artwork-dark.svg" asp-append-version="true" alt="" />
+        </div>
+    </header>
+
+    <div class="public-ui-page-width--wide public-teams-directory__content">
+        @if (Model.ParticipantContext is { } context)
+        {
+            <section class="public-teams-directory__context" aria-label="@T["Your event context"]">
+                <div><span class="public-teams-directory__label">@T["Your event context"]</span><strong>@context.TeamName</strong></div>
+                <dl>
+                    <div><dt>@T["Lifecycle"]</dt><dd>@context.EventState</dd></div>
+                    <div><dt>@T["Role"]</dt><dd>@context.TeamRole</dd></div>
+                    <div><dt>@T["Planned starting account"]</dt><dd>@context.PlannedCharacterName</dd></div>
+                    @if (context.EventEndsAt is { } contextEnd)
+                    {
+                        <div><dt>@T["Event ends"]</dt><dd><time datetime="@contextEnd.ToUniversalTime().ToString("O")">@contextEnd.ToUniversalTime().ToString("dd MMM yyyy HH:mm 'UTC'")</time></dd></div>
+                    }
+                </dl>
+            </section>
+        }
+
+        <section class="public-teams-directory__section" data-public-ui-team-roster aria-labelledby="rosters-heading">
+            <header class="public-teams-directory__section-heading"><h2 id="rosters-heading">@T["final teams"]</h2></header>
+            <div class="public-teams-directory__rosters">
+                @for (var index = 0; index < Model.Teams.Count; index++)
+                {
+                    var team = Model.Teams[index];
+                    <article class="public-teams-directory__team">
+                        <header>
+                            <span class="public-teams-directory__team-number">@((index + 1).ToString("00"))</span>
+                            <div><h3>@team.Name</h3><p>@team.FormationType</p></div>
+                        </header>
+                        <ul>
+                            @foreach (var member in team.Members)
+                            {
+                                <li class="@(member.Role switch { TeamMembershipRole.Captain => "is-captain", TeamMembershipRole.CoCaptain => "is-co-captain", _ => "is-member" })">
+                                    <span>@member.Name</span>
+                                </li>
+                            }
+                        </ul>
+                    </article>
+                }
+            </div>
+        </section>
+
+        @if (Model.Picks.Count > 0)
+        {
+            <section class="public-teams-directory__section public-teams-directory__draft" data-public-ui-draft-results aria-labelledby="draft-heading">
+                <header class="public-teams-directory__section-heading"><h2 id="draft-heading">@T["Draft results"]</h2></header>
+                <div class="public-teams-directory__pick-labels" aria-hidden="true">
+                    @for (var column = 0; column < 2; column++)
+                    {
+                        <div>
+                            <span>@T["Pick"]</span><span>@T["Team"]</span><span>@T["Player"]</span>
+                        </div>
+                    }
+                </div>
+                <ol class="public-teams-directory__picks">
+                    @foreach (var pick in Model.Picks)
+                    {
+                        <li><strong>@pick.PickNumber.ToString("00")</strong><span>@pick.TeamName</span><span>@pick.PlayerName</span></li>
+                    }
+                </ol>
+            </section>
+        }
+    </div>
+</section>

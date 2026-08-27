@@ -252,7 +252,7 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
             });
 
             var principal = Principal(admin);
-            var shell = await new SharedShellService(verify, new PassthroughLocalizer()).GetNotificationsAsync(principal, CancellationToken.None);
+            var shell = await new SharedShellService(verify, new PassthroughLocalizer(), null!, null!, null!, clock).GetNotificationsAsync(principal, CancellationToken.None);
             var preview = Assert.Single(shell.Items);
             Assert.Equal("Scheduled signup opening failed", preview.Title);
             Assert.Contains("blocking-live-event", preview.Detail);

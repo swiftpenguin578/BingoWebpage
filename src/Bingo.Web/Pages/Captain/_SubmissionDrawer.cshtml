@@ -1,9 +1,19 @@
 @model Bingo.Web.Pages.Captain.SubmitModel
 @{ ViewData["SubmissionDrawer"] = true; }
-<section class="team-submission-drawer auto-hide-scrollbar" data-submission-drawer aria-label="@T["Submit drop for {0}", Model.Tile.Name]">
-    <header>
-        <div><span class="feature-kicker">@T["Submit drop"]</span><h2>@Model.Tile.Name</h2><p>@Model.Tile.Description</p></div>
-        <button type="button" class="submission-drawer-close" data-submission-drawer-close aria-label="@T["Close submission form"]">×</button>
+<section class="public-ui-surface public-ui-surface--charcoal public-ui-submission-drawer public-ui-auto-hide-scrollbar" data-submission-drawer aria-label="@T["Submit drop for {0}", Model.Tile?.Name ?? T["your team"]]"
+         data-submission-discard-confirm="@T["Discard the evidence submission you started?"]"
+         data-submission-failed="@T["Submission failed."]"
+         data-submission-success="@T["Your drop was submitted and is awaiting review."]"
+         data-submission-refresh-failed="@T["Submission form could not be refreshed."]"
+         data-submission-validation-failed="@T["Check the highlighted fields and try again."]"
+         data-submission-retry-failed="@T["Submission failed. Please try again."]"
+         data-submission-success-title="@T["Drop submitted"]"
+         data-submission-failure-title="@T["Submission failed"]"
+         data-submission-ok="@T["Okay"]"
+         data-submission-retry="@T["Try again"]">
+    <header class="public-ui-component-header">
+        <div class="public-ui-component-header__copy"><span class="public-ui-overline">@T["Submit drop"]</span><h2 class="public-ui-component-title">@(Model.Tile?.Name ?? T["Choose a tile"])</h2><p class="public-ui-supporting-text">@(Model.Tile?.Description ?? T["Choose the tile this evidence completes."])</p></div>
+        <button type="button" class="public-ui-action public-ui-action--text public-ui-action--compact" data-submission-drawer-close aria-label="@T["Close submission form"]"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
     </header>
-    <div class="submission-drawer-body"><partial name="_SubmissionForms" model="Model" /></div>
+    <div class="public-ui-submission-drawer__body"><partial name="_SubmissionForms" model="Model" /></div>
 </section>

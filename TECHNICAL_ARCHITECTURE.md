@@ -364,7 +364,7 @@ Normal swaps are recorded immediately but become evidence-effective at the first
 
 After draft finalization, participant navigation resolves to the published team roster until the board is available, then to the existing team-board route. Role-aware queries add only the participant's own non-public submissions and their team's focus projection. They do not change the approved public-board HTML/data projection for anonymous users or opponents. If the private focus layer is visually disabled by an authorized viewer, the server authorization and shared marker state remain unchanged.
 
-Participants may create evidence for themselves and edit/withdraw their own pending evidence through the active submission cutoff, including the post-end grace period. Captains retain team-wide scope. At cutoff, server authorization closes every participant/captain submission mutation while leaving participant-owned history readable and admin review available.
+Participants may create evidence for themselves and edit, replace the active screenshot on, or withdraw their own pending evidence through the active submission cutoff, including the post-end grace period. Screenshot replacement stores a new active asset and retains the deactivated prior asset as history. Captains retain team-wide scope. At cutoff, server authorization closes every participant/captain submission mutation while leaving participant-owned history readable and admin review available.
 
 The unlisted public signup table treats every participant-facing answer as public in version one. The retained visibility field is fixed/defaulted true for future compatibility; there is no admin-only custom question or post-draft privacy mutation. Confirmed and waiting-listed profiles are shown separately using their primary regular OSRS characters as event-facing names; waiting-listed profiles show exact derived positions. Generated Account/Alt account headings remain consistent. Website username, Discord identity, payment, Admin notes, security data, and audit data never enter the projection. Alt-account answers are excluded from later roster, evidence, progress, and leaderboard projections.
 
@@ -378,7 +378,7 @@ Participant- or admin-initiated withdrawal before draft start uses the same `WIT
 
 Normal edits preserve signup ordering and status. Cancellation while signup is open uses the withdrawal transition and releases reservations. Rejoining reuses the same event-participant identity but must reacquire all reservations and obtains a new signup timestamp/sequence at the end of the queue. Post-close withdrawal has no participant self-service undo. Admin restoration before draft start uses current capacity/end-of-waiting-list rules and never displaces an existing promotion. Each compound action and resulting promotion is one transaction.
 
-Waiting-list promotion writes idempotent durable in-site notifications for the linked participant and every enabled administrator in the promotion transaction. Participant notification links to the authoritative confirmation page; admin notifications link to participant management and include the event, participant, and promotion trigger. Recipient-and-transition idempotency prevents duplicate inbox entries on retries. No Discord message integration is required.
+Waiting-list promotion writes durable in-site notifications for the linked participant and every enabled administrator in the promotion transaction. Participant notification links to the authoritative confirmation page; admin notifications link to participant management and include the event, participant, and promotion trigger. These ordinary notification rows use fresh IDs and rely on the accepted promotion transaction; no universal recipient-and-transition notification constraint is required. No Discord message integration is required.
 
 Event-participant ownership transfer is an admin-only correction for a participant attached to the wrong or duplicate website account; lost Discord access uses same-account relinking instead. The command uses strong confirmation, locks the participant, verifies that the destination account has no participant in that event, changes ownership/derived access atomically, and records structured old/new identity history. It does not merge accounts or My accounts links. Authorization is resolved from current ownership on every request, so the previous account loses event access immediately without requiring its unrelated global login session to be destroyed.
 
@@ -390,7 +390,7 @@ Admin-created internal participants bypass only public availability and signup-c
 
 Payment is stored as a private boolean and defaults unpaid. The migration from the current multi-value enum maps only existing `PAID` to true and maps every other legacy value to false while preserving the old value in migration/audit evidence. Participant status migration maps legacy `REMOVED` to `WITHDRAWN` and retains its original timestamp/history.
 
-Admin withdrawal, restoration, and registered-account correction create idempotent in-site notifications for a linked participant. Payment, private-note, and non-account answer corrections do not. Every command still records automatic structured history without requiring a typed reason.
+Admin withdrawal, restoration, and registered-account correction create durable in-site notifications for a linked participant within the accepted mutation. These ordinary notification rows use fresh IDs rather than a universal recipient-transition constraint. Payment, private-note, and non-account answer corrections do not. Every command still records automatic structured history without requiring a typed reason.
 
 After draft start, participant self-withdrawal is rejected server-side. Admin withdrawal remains available through the live event. The command ends current membership and future eligibility while preserving the draft pick, membership history, registered-account reservations, evidence, and contributions. It creates a durable vacancy/admin action item but never invokes the automatic promotion service.
 
@@ -402,9 +402,9 @@ The withdrawal command revokes the participant's website event/team mutation aut
 
 Captain/co-captain mutations are admin-only, event/team-scoped role-transition commands over an active membership and website account. Event-start readiness blocks unless every team has a current Captain or active team emergency credential; co-captain alone is insufficient. Withdrawal atomically revokes the departing member's role. Removing the last current captain during live play is allowed because real-world withdrawal may require it, but emits a prominent team/admin warning rather than silently granting authority or stopping the event. A later assignment takes effect immediately, survives authentication-method changes, is retained in role history, and creates an in-site notification for the affected linked participant.
 
-Vacancy creation writes idempotent in-site notifications for every enabled admin and remaining linked team captain/co-captain. Replacement confirmation writes them for the linked replacement and current linked team captains/co-captains. Discord remains the manual availability-contact channel.
+Vacancy creation writes idempotent in-site notifications for every enabled admin and remaining linked team captain/co-captain using the owning live transition/recipient deterministic IDs. Replacement confirmation writes them for the linked replacement and current linked team captains/co-captains using the same selective retry boundary. Discord remains the manual availability-contact channel.
 
-External/pre-formed teams may contain roster members without website accounts. Submission access uses one or more explicitly enabled, individually audited emergency captain credentials for that team. These credentials do not own a participant or OSRS character and do not receive participant-only focus controls.
+External/pre-formed teams may contain roster members without website accounts. Submission access uses one or more explicitly enabled, individually audited emergency captain credentials for that team. These credentials do not own a participant or OSRS character, but retain the approved team-scoped focus controls without receiving participant-only account controls.
 
 Emergency credentials are individual rather than shared. Any enabled Admin may create multiple credentials for one event/team, each using the global login-identifier namespace. Creation stores a disabled, uninitialized credential and exposes one purpose-bound, hashed, single-use 60-minute setup link; the intended captain chooses the normal-policy password while the credential remains disabled. Reset supersedes earlier setup/reset links and uses the same flow. Password setup and explicit enablement are separate transactions, and the Admin never chooses or sees the lasting password. Only an initialized credential may be enabled. Submission cutoff disables it as already specified.
 
@@ -493,6 +493,52 @@ Recommended workflow:
 8. Docker Compose replaces the application container.
 9. A health check verifies the release.
 10. The previous image remains available for rollback.
+
+### 12.1 Merge, build, and live deployment
+
+These are three separate operations:
+
+- **Merge:** accepted commits become part of the deployment branch, expected to
+  be `main`. A merge changes repository history only. By itself it does not
+  change the live application.
+- **Build:** GitHub Actions tests the merged revision, builds one immutable
+  application image, and publishes that exact image. A successful build creates
+  a deployable candidate; it still does not change production.
+- **Deploy:** an operator approves the candidate for production. Automation then
+  performs any required backup and controlled migration, asks the server to pull
+  the approved image, replaces the ASP.NET Core application container, and
+  checks its health. Caddy remains the public entry point throughout.
+
+The initial production policy is **automatic test/build after merge, manual
+approval before production deployment**. Do not configure an ordinary merge to
+silently deploy to production. The approval should trigger one documented
+deployment command or workflow; it should not require editing the server,
+turning individual pages off and on, or manually replacing files inside the
+running container.
+
+The application is deployed as one unit. A small CSS or copy correction follows
+the same image-build and container-replacement path as a larger application
+change, but it does not require database backup or migration work when no schema
+change is present. With the planned single application replica, replacement may
+briefly interrupt an in-flight request or SignalR connection. The deployment
+rehearsal must measure that interval, verify automatic client reconnection, and
+confirm that Caddy returns a controlled response rather than exposing an
+unhandled failure. Zero-downtime or multiple-replica deployment is not a
+version-one requirement unless rehearsal shows the short replacement interval
+is operationally unacceptable.
+
+After deployment, new requests receive the new application version. Existing
+browser tabs may retain already-rendered HTML until navigation or refresh. Static
+asset URLs must be versioned so a refreshed page does not indefinitely reuse an
+obsolete stylesheet or script. Never patch the live container directly; make the
+correction in a short-lived branch, merge it, build a new immutable image, and
+deploy that image so production remains reproducible.
+
+Before the first live release, the CI and production-deployment workflows must
+be implemented, reviewed, and rehearsed. Until that automation exists, merging
+to `main` does not update any live server. The operator runbook must record the
+exact approval action, deployed image identifier, health check, smoke tests,
+rollback action, and whether the release contains a database migration.
 
 Database migrations must be designed for safe forward deployment. Application rollback cannot automatically reverse a destructive database migration.
 

@@ -1,4 +1,4 @@
-@page "/Events/{slug}/Board/{teamSlug}"
+@page "/Events/{slug}/Board/{teamSlug}/{**tileRoute}"
 @model Bingo.Web.Pages.Events.TeamBoardModel
 @using Bingo.Domain.Events
 @using Bingo.Web.Catalogue
@@ -13,7 +13,6 @@
         .ThenByDescending(player => player.ApprovedContribution)
         .ThenBy(player => player.PlayerName)
         .ToList();
-    var dropMvp = publicContributors.FirstOrDefault();
     var activityStateText = Model.Activity.State switch
     {
         Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.NotConfigured => T["Activity tracking is not configured."],
@@ -26,265 +25,216 @@
             : T["Wise Old Man is temporarily unavailable."],
         _ => T["Activity cache is current."]
     };
-    var overlayMode = string.Equals(ViewContext.HttpContext.Request.Query["overlay"], "true", StringComparison.OrdinalIgnoreCase);
-    ViewData["OverlayMode"] = overlayMode;
-    if (overlayMode) { ViewData["BodyClass"] = "public-event-shell team-board-overlay-document"; }
+    var publicBossArtwork = new[]
+    {
+        "/images/public-board/bosses/chambers-of-xeric.png",
+        "/images/public-board/bosses/vorkath.png",
+        "/images/public-board/bosses/araxxor.png"
+    };
+    ViewData["BodyClass"] = "public-event-shell public-ui-pass1 public-team-board-route";
 }
-@if (!overlayMode)
+@if (Model.Focus is { IsVisible: true })
 {
-    <script src="~/js/team-board-overlay-redirect.js" asp-append-version="true"
-            data-overview-url="@Url.Page("/Events/Board", new { slug = Model.Board.EventSlug })"></script>
-}
-@if (Model.LiveContexts.Count > 0)
-{
-    <section class="panel participant-live-context" aria-label="@T["Participant event context"]">
-        <p class="eyebrow">@T["Participant event context"]</p>
-        <div class="participant-live-context-grid">
-        @foreach (var context in Model.LiveContexts)
-        {
-            <div>
-                <h2>@(context.ParticipantId == Model.ParticipantContext?.ParticipantId ? T["Your live account"] : T["Team member live account"])</h2>
-                <p>@T["Lifecycle"]: @context.EventState · @T["Role"]: @context.TeamRole · @T["Planned"]: <strong>@context.PlannedCharacterName</strong> · @T["Active"]: <strong>@(context.ActiveCharacterName ?? T["Not active yet"])</strong></p>
-                @if (context.EventEndsAt is { } eventEnd) { <p>@T["Event ends"]: <time datetime="@eventEnd.ToUniversalTime().ToString("O")">@eventEnd.ToUniversalTime().ToString("dd MMM yyyy HH:mm 'UTC'")</time></p> }
-                @if (context.CanSwap)
-                {
-                    <form method="post" asp-page-handler="Swap" class="participant-account-swap">
-                        <input type="hidden" asp-for="Input.ParticipantId" value="@context.ParticipantId" />
-                        <input type="hidden" asp-for="Input.ExpectedCurrentCharacterId" value="@context.PlayingCharacters.Single(character => character.IsActive).CharacterId" />
-                        <label asp-for="Input.NextCharacterId">@T["Switch active account"]</label>
-                        <select asp-for="Input.NextCharacterId">
-                            @foreach (var character in context.PlayingCharacters.Where(character => !character.IsActive))
-                            {
-                                <option value="@character.CharacterId">@character.Name</option>
-                            }
-                        </select>
-                        <button type="submit">@T["Swap next minute"]</button>
-                    </form>
-                }
-            </div>
-        }
-        </div>
-    </section>
-}
-@if (Model.Focus is { CanInspect: true, IsVisible: false })
-{
-    <section class="panel team-focus-inspection-prompt" aria-label="@T["Team focus inspection"]">
-        <strong>@T["Team focus is hidden"]</strong>
-        <p>@T["Super Admin inspection is read-only and must be enabled for this team."]</p>
-        <a class="action-accent-outline" asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Team.TeamSlug" asp-route-inspectFocus="true">@T["Inspect team focus"]</a>
-    </section>
-}
-@if (Model.Focus is { IsVisible: true } focus)
-{
-    var focusedRows = focus.Markers.Where(marker => marker.Focused && marker.TargetKind == Bingo.Domain.Teams.TeamFocusTargetKind.Row).Select(marker => marker.RowIndex!.Value + 1).ToList();
-    var focusedColumns = focus.Markers.Where(marker => marker.Focused && marker.TargetKind == Bingo.Domain.Teams.TeamFocusTargetKind.Column).Select(marker => marker.ColumnIndex!.Value + 1).ToList();
-    var focusedTiles = focus.Markers.Count(marker => marker.Focused && marker.TargetKind == Bingo.Domain.Teams.TeamFocusTargetKind.Tile);
-    <section class="panel team-focus-panel" aria-label="@T["Team focus"]">
-        <div class="team-focus-heading">
-            <div><p class="eyebrow">@T["Team focus"]</p><h2>@T["Current priorities"]</h2></div>
-            @if (focus.IsInspection)
-            {
-                <span class="team-focus-inspection-label">@T["Read-only inspection"]</span>
-                <a class="neutral-outline-action" asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Team.TeamSlug">@T["Stop inspecting"]</a>
-            }
-        </div>
-        <p class="team-focus-summary">@T["{0} focused tile(s)", focusedTiles] · @T["Rows"]: @(focusedRows.Count == 0 ? T["none"] : string.Join(", ", focusedRows)) · @T["Columns"]: @(focusedColumns.Count == 0 ? T["none"] : string.Join(", ", focusedColumns))</p>
-        @if (focus.CanMutate)
-        {
-            <div class="team-focus-controls">
-                @if (focus.Markers.Any(marker => marker.Focused))
-                {
-                    <form method="post" asp-page-handler="ClearAllFocus">
-                        @for (var index = 0; index < focus.Markers.Count; index++)
-                        {
-                            <input type="hidden" name="FocusInput.MarkerVersions[@index].Id" value="@focus.Markers[index].Id" />
-                            <input type="hidden" name="FocusInput.MarkerVersions[@index].Version" value="@focus.Markers[index].Version" />
-                        }
-                        <button type="submit" class="action-danger-outline">@T["Clear all focus"]</button>
-                    </form>
-                }
-                @foreach (var tile in Model.Team.Tiles)
-                {
-                    var marker = focus.Markers.SingleOrDefault(value => value.TargetKind == Bingo.Domain.Teams.TeamFocusTargetKind.Tile && value.BoardTileId == tile.TileId);
-                    if (tile.Complete) continue;
-                    <form method="post" asp-page-handler="ToggleFocus">
-                        <input type="hidden" name="FocusInput.TargetKind" value="Tile" />
-                        <input type="hidden" name="FocusInput.BoardTileId" value="@tile.TileId" />
-                        <input type="hidden" name="FocusInput.Focused" value="@(marker?.Focused != true ? "true" : "false")" />
-                        <input type="hidden" name="FocusInput.ExpectedVersion" value="@(marker?.Version ?? 0)" />
-                        <button type="submit" class="neutral-outline-action">@(marker?.Focused == true ? T["Unfocus {0}", tile.Name] : T["Focus {0}", tile.Name])</button>
-                    </form>
-                }
-                @for (var row = 0; row < Model.Board.Rows; row++)
-                {
-                    var marker = focus.Markers.SingleOrDefault(value => value.TargetKind == Bingo.Domain.Teams.TeamFocusTargetKind.Row && value.RowIndex == row);
-                    <form method="post" asp-page-handler="ToggleFocus">
-                        <input type="hidden" name="FocusInput.TargetKind" value="Row" />
-                        <input type="hidden" name="FocusInput.RowIndex" value="@row" />
-                        <input type="hidden" name="FocusInput.Focused" value="@(marker?.Focused != true ? "true" : "false")" />
-                        <input type="hidden" name="FocusInput.ExpectedVersion" value="@(marker?.Version ?? 0)" />
-                        <button type="submit" class="neutral-outline-action">@(marker?.Focused == true ? T["Unfocus row {0}", row + 1] : T["Focus row {0}", row + 1])</button>
-                    </form>
-                }
-                @for (var column = 0; column < Model.Board.Columns; column++)
-                {
-                    var marker = focus.Markers.SingleOrDefault(value => value.TargetKind == Bingo.Domain.Teams.TeamFocusTargetKind.Column && value.ColumnIndex == column);
-                    <form method="post" asp-page-handler="ToggleFocus">
-                        <input type="hidden" name="FocusInput.TargetKind" value="Column" />
-                        <input type="hidden" name="FocusInput.ColumnIndex" value="@column" />
-                        <input type="hidden" name="FocusInput.Focused" value="@(marker?.Focused != true ? "true" : "false")" />
-                        <input type="hidden" name="FocusInput.ExpectedVersion" value="@(marker?.Version ?? 0)" />
-                        <button type="submit" class="neutral-outline-action">@(marker?.Focused == true ? T["Unfocus column {0}", column + 1] : T["Focus column {0}", column + 1])</button>
-                    </form>
-                }
-            </div>
-        }
-    </section>
     <script src="~/js/team-focus.js" asp-append-version="true"
             data-event-id="@Model.Board.EventId" data-team-id="@Model.Team.TeamId"
             data-inspect="@Model.InspectFocus.ToString().ToLowerInvariant()"></script>
 }
 <section class="public-team-board" data-progress-event="@Model.Board.EventId"
          style="--public-board-columns:@Model.Board.Columns">
-    @if (!overlayMode)
-    {
-    <header class="public-team-masthead">
+    <header class="public-team-masthead public-masthead-copy">
+        <p class="public-masthead-kicker">@Model.Board.EventName</p>
+        <h1 class="public-masthead-title">@Model.Team.TeamName</h1>
         <a class="public-team-back" asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug"
            asp-route-transitionTeam="@Model.Team.TeamId.ToString("N")">← @T["View all teams"]</a>
-        <div class="public-team-heading">
-            <div class="rank-medallion rank-@Math.Min(Model.Team.Rank, 4)">#@Model.Team.Rank</div>
-            <div>
-                <p class="feature-kicker">@Model.Board.EventName</p>
-                <h1>@Model.Team.TeamName</h1>
-                <p>
-                    @if (!string.IsNullOrWhiteSpace(Model.Team.Affiliation)) { <span>@Model.Team.Affiliation · </span> }
-                    <span>@T["{0} of {1} tiles complete", Model.Team.Progress.CompletedTiles, totalTiles]</span>
-                </p>
-            </div>
-            @if (Model.Team.ProvisionalWinner) { <strong class="winner-label">@T["Provisional winner"]</strong> }
-        </div>
+        @if (!string.IsNullOrWhiteSpace(Model.Team.Affiliation))
+        {
+            <p class="public-masthead-support"><span>@Model.Team.Affiliation · </span></p>
+        }
     </header>
-    }
 
     <div class="progress-update" data-progress-update hidden role="status">@T["New approved progress is available."] <button type="button" data-progress-refresh>@T["Refresh now"]</button></div>
 
     <div class="public-team-workspace">
-        <aside class="public-team-sidebar panel" aria-label="@T["Team statistics"]">
+        @if (Model.SelectedTile is { } selectedTile)
+        {
+            <partial name="_TileSidebar" model="new TileSidebarView(selectedTile, Model.CanSubmit, Model.Board.EventId, Model.Team.TeamId, Model.Team.Tiles.ToList().FindIndex(value => value.TileId == selectedTile.TileId) + 1)" />
+        }
+        else
+        {
+        <aside class="public-team-sidebar public-ui-surface public-ui-surface--charcoal public-ui-sectioned-surface" aria-label="@T["Team statistics"]">
+            @if (Model.ParticipantContext is { } participantContext)
+            {
+                <section class="team-account-strip" aria-label="@T["Active account"]">
+                    <div class="team-account-heading"><span class="team-account-label">@T["Active account"]</span><strong class="team-account-name">@(participantContext.ActiveCharacterName ?? T["Not active yet"])</strong></div>
+                    @if (participantContext.CanSwap)
+                    {
+                        <details class="team-account-switch">
+                            <summary><span>@T["Switch"]</span><span aria-hidden="true">→</span></summary>
+                            <form method="post" asp-page-handler="Swap" class="participant-account-swap">
+                                <input type="hidden" asp-for="Input.ParticipantId" value="@participantContext.ParticipantId" />
+                                <input type="hidden" asp-for="Input.ExpectedCurrentCharacterId" value="@participantContext.PlayingCharacters.Single(character => character.IsActive).CharacterId" />
+                                <label asp-for="Input.NextCharacterId">
+                                    @T["Switch active account"]
+                                    <select asp-for="Input.NextCharacterId" class="public-ui-control-visual public-ui-control-visual--select">
+                                        @foreach (var character in participantContext.PlayingCharacters.Where(character => !character.IsActive))
+                                        {
+                                            <option value="@character.CharacterId">@character.Name</option>
+                                        }
+                                    </select>
+                                    <span class="public-ui-select-chevron" aria-hidden="true"></span>
+                                </label>
+                                <button type="submit" class="public-ui-action public-ui-action--standard public-ui-action--compact">@T["Swap next minute"]</button>
+                            </form>
+                        </details>
+                    }
+                </section>
+            }
             <section class="team-sidebar-section team-progress-section">
-                <header><span class="feature-kicker">@T["Bingo progress"]</span><strong>@completionPercent%</strong></header>
-                <div class="team-progress-meter" aria-label="@T["{0} percent complete", completionPercent]"><span style="width:@completionPercent%"></span></div>
-                <dl class="team-progress-stats">
-                    <div><dt>@T["Tiles"]</dt><dd>@Model.Team.Progress.CompletedTiles/@totalTiles</dd></div>
-                    <div><dt>@T["Rows"]</dt><dd>@completedLines</dd></div>
+                <h2 class="team-rail-heading">@T["Team progress"]</h2>
+                <dl class="team-progress-summary">
+                    <div class="team-progress-row"><dt class="team-progress-label">@T["Completion"]</dt><dd class="team-progress-value">@completionPercent%</dd></div>
+                    <div class="team-progress-row"><dt class="team-progress-label">@T["Tiles"]</dt><dd class="team-progress-value">@Model.Team.Progress.CompletedTiles / @totalTiles</dd></div>
+                    <div class="team-progress-row"><dt class="team-progress-label">@T["rows"]</dt><dd class="team-progress-value">@completedLines</dd></div>
                 </dl>
+                <div class="public-ui-progress-meter team-progress-meter" aria-label="@T["{0} percent complete", completionPercent]"><span style="width:@completionPercent%"></span></div>
+                @if (Model.CanOpenSubmissionWorkspace || Model.Focus is { CanInspect: true, IsVisible: false } || Model.Focus is { IsInspection: true })
+                {
+                    <div class="team-progress-actions">
+                        @if (Model.CanOpenSubmissionWorkspace && Model.CanOpenCaptainWorkspace)
+                        {
+                            <a class="public-ui-action public-ui-action--standard public-ui-action--compact team-progress-action team-progress-action--secondary" href="@Url.Page("/Captain/Index", new { eventId = Model.Board.EventId, teamId = Model.Team.TeamId })"
+                               data-submission-history-link>
+                                @T["Team history"]
+                            </a>
+                        }
+                        else if (Model.CanOpenSubmissionWorkspace)
+                        {
+                            <a class="public-ui-action public-ui-action--standard public-ui-action--compact team-progress-action team-progress-action--secondary" href="@Url.Page("/Submissions/Index", new { eventId = Model.Board.EventId, teamId = Model.Team.TeamId })"
+                               data-submission-history-link>
+                                @T["Team history"]
+                            </a>
+                        }
+                        @if (Model.CanOpenSubmissionWorkspace && Model.Board.SubmissionsOpen)
+                        {
+                            <a class="public-ui-action public-ui-action--commit public-ui-action--compact team-progress-action team-progress-action--primary" href="@Url.Page("/Captain/Submit", new { eventId = Model.Board.EventId, teamId = Model.Team.TeamId })"
+                               data-open-submission-drawer>
+                                @T["Submit drop"]
+                            </a>
+                        }
+                        @if (Model.Focus is { CanInspect: true, IsVisible: false })
+                        {
+                            <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact team-focus-rail-action" asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Team.TeamSlug" asp-route-inspectFocus="true">@T["Inspect team focus"]</a>
+                        }
+                        @if (Model.Focus is { IsInspection: true })
+                        {
+                            <span class="team-focus-rail-state">@T["Read-only focus"]</span>
+                            <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact team-focus-rail-action" asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Team.TeamSlug">@T["Stop inspecting"]</a>
+                        }
+                    </div>
+                }
             </section>
 
-            @if (Model.CanOpenSubmissionWorkspace)
-            {
-                <a class="team-sidebar-section action-neutral-outline" href="@Url.Page("/Captain/Index", new { eventId = Model.Board.EventId, teamId = Model.Team.TeamId })"
-                   data-submission-history-link>
-                    @T["Team submission history"]
-                </a>
-            }
-
             <section class="team-sidebar-section team-ehb-section">
-                <header><span class="feature-kicker">@T["Drop EHB"]</span></header>
-                <div class="team-metric-source">
-                    <span class="team-mvp-mark" aria-hidden="true">◆</span>
-                    <span><strong>@T["Approved bingo progress"]</strong><small>@T["Combined expected tile effort"]</small></span>
-                </div>
-                <div class="team-metric-values">
-                    <span><small>@T["Team total"]</small><strong>@Model.Team.Progress.EhbTiebreak.ToString("N0")</strong></span>
-                    <span>
-                        <small>@T["Team MVP"]</small>
-                        @if (dropMvp is not null)
-                        {
-                            <strong>@dropMvp.PlayerName</strong><b>@dropMvp.EstimatedEhb.ToString("N0") EHB</b>
-                        }
-                        else
-                        {
-                            <strong>—</strong>
-                        }
-                    </span>
-                </div>
+                <h2 class="team-rail-heading">@T["Drop EHB"]</h2>
+                <p class="team-rail-supporting">@T["Approved bingo progress"] · @T["Combined expected tile effort"]</p>
+                <dl class="team-metric-list">
+                    <div class="team-metric-row"><dt>@T["Team total"]</dt><dd class="team-metric-value">@if (Model.Team.Progress.EhbTiebreak == 0) { <span>-</span> } else { <span class="public-ui-positive-delta--success">@Model.Team.Progress.EhbTiebreak.ToString("+0.00;-0.00;0.00")</span> }</dd></div>
+                </dl>
+                @if (publicContributors.Count > 0)
+                {
+                    <details class="team-contributor-block">
+                        <summary class="team-rail-subheading"><span>@T["Contributors"]</span><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></summary>
+                        <ol class="team-contributor-list" aria-label="@T["Contributors"]">
+                            @for (var index = 0; index < publicContributors.Count; index++)
+                            {
+                                var player = publicContributors[index];
+                                <li><span class="team-contributor-rank" aria-hidden="true">@((index + 1).ToString("00"))</span><span class="team-contributor-name">@player.PlayerName</span><strong class="team-contributor-value public-ui-positive-delta--success">@(player.EstimatedEhb == 0 ? "-" : player.EstimatedEhb.ToString("+0.00;-0.00;0.00"))</strong></li>
+                            }
+                        </ol>
+                    </details>
+                }
             </section>
 
             <section class="team-sidebar-section team-activity-section">
-                <header><span class="feature-kicker">@T["Activity EHB"]</span></header>
-                <div class="team-metric-source">
-                    <span class="team-activity-mark" aria-hidden="true">↗</span>
-                    <span><strong>@T["Wise Old Man"]</strong><small>@activityStateText</small></span>
-                </div>
-                @if (Model.Activity.FetchedAt is { } fetchedAt)
-                {
-                    <p class="form-hint">@T["Fetched from Wise Old Man"]: <time datetime="@fetchedAt.ToUniversalTime().ToString("O")">@fetchedAt.ToLocalTime().ToString("g")</time></p>
-                }
+                <h2 class="team-rail-heading">@T["EHB"]</h2>
+                <p class="team-rail-supporting">@T["Wise Old Man"] · @activityStateText</p>
                 @if (Model.Activity.HasRankings &&
                      Model.TeamActivity is not null &&
                      Model.TeamActivity.MatchedAccountCount < Model.TeamActivity.ExpectedAccountCount &&
                      (Model.Activity.State == Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.Partial ||
                       Model.Activity.State == Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.TemporarilyUnavailable))
                 {
-                    <p class="form-hint">@T["Provisional coverage"]: @Model.TeamActivity.MatchedAccountCount/@Model.TeamActivity.ExpectedAccountCount @T["team accounts matched"] · @Model.TeamActivity.ContributingParticipantCount/@Model.TeamActivity.ExpectedParticipantCount @T["participants contributing"]</p>
+                    <p class="team-rail-supporting">@T["Provisional coverage"]: @Model.TeamActivity.MatchedAccountCount/@Model.TeamActivity.ExpectedAccountCount @T["team accounts matched"] · @Model.TeamActivity.ContributingParticipantCount/@Model.TeamActivity.ExpectedParticipantCount @T["participants contributing"]</p>
                 }
                 @if (Model.TeamActivity is null || !Model.Activity.HasRankings)
                 {
-                    <div class="team-metric-values" aria-label="@T["Activity EHB is not available yet"]">
-                        <span><small>@T["Team total"]</small><strong>—</strong></span>
-                        <span><small>@T["Activity MVP"]</small><strong>—</strong></span>
-                    </div>
+                    <dl class="team-metric-list" aria-label="@T["EHB is not available yet"]">
+                        <div class="team-metric-row"><dt>@T["Team total"]</dt><dd class="team-metric-value">-</dd></div>
+                    </dl>
                 }
                 else
                 {
-                    <div class="team-metric-values" aria-label="@T["Activity EHB"]">
-                        <span><small>@T["Activity rank"]</small><strong>#@Model.TeamActivity.Rank</strong></span>
-                        <span><small>@T["Team total"]</small><strong>@Model.TeamActivity.TotalGainedEhb.ToString("N2")</strong></span>
-                        <span><small>@T["Average / participant"]</small><strong>@Model.TeamActivity.AverageGainedEhb.ToString("N2")</strong></span>
-                        <span><small>@T["Activity MVP"]</small><strong>@string.Join(", ", Model.TeamActivity.MvpNames)</strong></span>
-                    </div>
-                    <details class="activity-participant-breakdown">
-                        <summary>@T["Participant and account breakdown"]</summary>
-                        @foreach (var participant in Model.TeamActivity.Participants)
-                        {
-                            <div class="activity-participant-row"><strong>@participant.ParticipantName</strong><b>@participant.TotalGainedEhb.ToString("N2") EHB</b><span>@participant.MatchedAccountCount/@participant.ExpectedAccountCount @T["accounts matched"] · @string.Join(" · ", participant.Accounts.Select(account => $"{account.CharacterName}: {account.GainedEhb:N2}"))</span></div>
-                        }
-                    </details>
+                    <dl class="team-metric-list" aria-label="@T["EHB"]">
+                        <div class="team-metric-row"><dt>@T["Team total"]</dt><dd class="team-metric-value">@if (Model.TeamActivity.TotalGainedEhb == 0) { <span>-</span> } else { <span class="public-ui-positive-delta--success">@Model.TeamActivity.TotalGainedEhb.ToString("+0.00;-0.00;0.00")</span> }</dd></div>
+                    </dl>
+                    @if (Model.TeamActivity.Participants.Count > 0)
+                    {
+                        <details class="team-contributor-block">
+                            <summary class="team-rail-subheading"><span>@T["Contributors"]</span><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></summary>
+                            <ol class="team-contributor-list" aria-label="@T["Contributors"]">
+                                @for (var index = 0; index < Model.TeamActivity.Participants.Count; index++)
+                                {
+                                    var participant = Model.TeamActivity.Participants[index];
+                                    <li><span class="team-contributor-rank" aria-hidden="true">@((index + 1).ToString("00"))</span><span class="team-contributor-name">@participant.ParticipantName</span><strong class="team-contributor-value public-ui-positive-delta--success">@(participant.TotalGainedEhb == 0 ? "-" : participant.TotalGainedEhb.ToString("+0.00;-0.00;0.00"))</strong></li>
+                                }
+                            </ol>
+                        </details>
+                    }
                 }
             </section>
-
-            @if (publicContributors.Count > 1)
-            {
-                <section class="team-sidebar-section team-contributors-section">
-                    <header><span class="feature-kicker">@T["Team contributions"]</span><small>@T["Drop EHB"]</small></header>
-                    <ol class="auto-hide-scrollbar">
-                        @for (var index = 0; index < publicContributors.Count; index++)
-                        {
-                            var player = publicContributors[index];
-                            <li><span class="contributor-rank">@(index + 1)</span><strong>@player.PlayerName</strong><b>@player.EstimatedEhb.ToString("N0")</b></li>
-                        }
-                    </ol>
-                </section>
-            }
         </aside>
+        }
 
-        <div class="public-board-scroll auto-hide-scrollbar" tabindex="0" aria-label="@T["{0} bingo board", Model.Team.TeamName]">
+        <div class="public-team-board-legend" aria-label="@T["Board state legend"]">
+            <span class="public-board-legend__item"><i class="public-board-legend__swatch public-board-legend__swatch--complete" aria-hidden="true"></i>@T["Completed"]</span>
+            <span class="public-board-legend__item"><i class="public-board-legend__swatch public-board-legend__swatch--progress" aria-hidden="true"></i>@T["In progress"]</span>
+            <span class="public-board-legend__item"><i class="public-board-legend__swatch public-board-legend__swatch--remaining" aria-hidden="true"></i>@T["remaining"]</span>
+        </div>
+
+        <div class="public-board-scroll public-ui-auto-hide-scrollbar" tabindex="0" aria-label="@T["{0} bingo board", Model.Team.TeamName]">
             <div class="public-full-board">
             @foreach (var tile in Model.Team.Tiles)
             {
                 var progressPercent = tile.Target == 0 ? 0 : Math.Min(100, tile.Approved * 100 / tile.Target);
                 var stateLabel = tile.Complete ? T["Complete"] : tile.Approved > 0 ? T["In progress"] : T["Not started"];
+                var tileStateClass = tile.Complete ? "public-ui-team-board-tile--complete" : tile.Approved > 0 ? "public-ui-team-board-tile--in-progress" : "public-ui-team-board-tile--not-started";
+                var isBossTile = tile.BossImageUrls.Count > 0;
+                var bossArtwork = isBossTile
+                    ? tile.Name switch
+                    {
+                        var name when string.Equals(name, "Chambers of Xeric", StringComparison.OrdinalIgnoreCase) => publicBossArtwork[0],
+                        var name when string.Equals(name, "Vorkath", StringComparison.OrdinalIgnoreCase) => publicBossArtwork[1],
+                        var name when string.Equals(name, "Araxxor", StringComparison.OrdinalIgnoreCase) => publicBossArtwork[2],
+                        _ => null
+                    }
+                    : null;
                 var focusPresentation = TeamBoardModel.GetFocusPresentation(tile, Model.Focus?.Markers ?? []);
-                <a class="public-tile panel @(tile.Complete ? "complete" : tile.Approved > 0 ? "in-progress" : null) @(focusPresentation.Tile ? "team-focus-tile" : null) @(focusPresentation.Row ? "team-focus-row" : null) @(focusPresentation.Column ? "team-focus-column" : null)"
+                <a class="public-tile public-ui-nested-container public-ui-team-board-tile @tileStateClass @(focusPresentation.Tile ? "public-ui-team-board-tile--focused" : null) @(focusPresentation.Row ? "public-ui-team-board-tile--row-focused" : null) @(focusPresentation.Column ? "public-ui-team-board-tile--column-focused" : null)"
                    aria-label="@T["{0}. {1}, {2} of {3}.", tile.Name, stateLabel, tile.Approved, tile.Target]"
-                   asp-page="/Events/Tile" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Team.TeamSlug" asp-route-tileId="@tile.TileId">
-                    <span class="public-tile-art" aria-hidden="true">
-                        @if (!string.IsNullOrWhiteSpace(tile.ImageUrl))
+                   asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Team.TeamSlug" asp-route-tileRoute="@($"Tiles/{tile.TileId}")">
+                    <span class="public-ui-team-board-tile__number" aria-hidden="true">@((tile.Row * Model.Board.Columns + tile.Column + 1).ToString("00"))</span>
+                    <span class="public-ui-team-board-tile__art" aria-hidden="true">
+                        @if (bossArtwork is not null)
                         {
-                            <img class="custom-art" src="@WikiImages.GetPublicUrl(tile.ImageUrl)" alt="" loading="lazy" />
+                            <img class="public-ui-team-board-tile__art-image" src="@bossArtwork" alt="" loading="lazy" />
+                        }
+                        else if (!string.IsNullOrWhiteSpace(tile.ImageUrl))
+                        {
+                            <img class="public-ui-team-board-tile__art-image" src="@WikiImages.GetPublicUrl(tile.ImageUrl)" alt="" loading="lazy" />
                         }
                         else if (tile.BossImageUrls.Count > 0)
                         {
-                            <span class="boss-art-grid boss-art-count-@tile.BossImageUrls.Count">
+                            <span class="public-ui-team-board-tile__boss-art-grid public-ui-team-board-tile__boss-art-grid--count-@tile.BossImageUrls.Count">
                                 @foreach (var imageUrl in tile.BossImageUrls)
                                 {
                                     <img src="@WikiImages.GetPublicUrl(imageUrl)" alt="" loading="lazy" />
@@ -293,15 +243,19 @@
                         }
                         else
                         {
-                            <span class="tile-art-placeholder">▦</span>
+                            <span class="public-ui-team-board-tile__placeholder">▦</span>
                         }
                     </span>
-                    <span class="public-tile-shade" aria-hidden="true"></span>
-                    <span class="public-tile-copy">
-                        <span class="tile-position">R@(tile.Row + 1) · C@(tile.Column + 1)</span>
-                        <strong>@tile.Name</strong>
-                        <span class="public-tile-progress-row">
-                            <span class="tile-progress" aria-hidden="true"><span style="width:@progressPercent%"></span></span>
+                    <span class="public-ui-team-board-tile__shade" aria-hidden="true"></span>
+                    <span class="public-ui-team-board-tile__copy">
+                        <span class="public-ui-team-board-tile__position">R@(tile.Row + 1) · C@(tile.Column + 1)</span>
+                        <strong class="public-ui-team-board-tile__title">@tile.Name</strong>
+                        <span class="public-ui-team-board-tile__progress-row">
+                            @if (tile.Complete)
+                            {
+                                <span class="public-ui-team-board-tile__completion-check" aria-hidden="true">✓</span>
+                            }
+                            <span class="public-ui-team-board-tile__progress" aria-hidden="true"><span style="width:@progressPercent%"></span></span>
                             <span>@tile.Approved/@tile.Target</span>
                         </span>
                     </span>
@@ -311,8 +265,6 @@
         </div>
     </div>
 
-    @if (!overlayMode)
-    {
     <nav class="public-team-switcher" aria-label="@T["Switch team"]">
         @if (Model.Previous is not null)
         {
@@ -324,6 +276,25 @@
             <a class="next" asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Next.TeamSlug"><small>@T["Next team"]</small><strong>#@Model.Next.Rank @Model.Next.TeamName →</strong></a>
         }
     </nav>
-    }
 </section>
-@section Scripts { <partial name="_PublicProgressScripts" model="Model.Board.EventId" /> }
+<dialog class="public-lightbox public-evidence-viewer" data-public-lightbox data-evidence-dialog data-evidence-empty="@T["Evidence"]" data-evidence-default-source="@T["Recent drops"]" data-enlarged-evidence="@T["Enlarged approved evidence"]">
+    <button type="button" class="public-ui-viewport-close" data-evidence-close aria-label="@T["Close enlarged evidence"]"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+    <div class="public-evidence-viewer__layout">
+        <figure class="public-evidence-viewer__figure"><img data-evidence-dialog-image alt="" /></figure>
+        <aside class="public-evidence-viewer__meta" aria-label="@T["Evidence details"]">
+            <span class="public-ui-overline">@T["Approved evidence"]</span>
+            <strong class="public-ui-component-title" data-evidence-dialog-drop>@T["Evidence"]</strong>
+            <dl class="public-evidence-viewer__facts">
+                <div><dt>@T["Player"]</dt><dd data-evidence-dialog-player>—</dd></div>
+                <div><dt>@T["Team"]</dt><dd data-evidence-dialog-team>—</dd></div>
+                <div><dt>@T["Source"]</dt><dd data-evidence-dialog-source>@T["Recent drops"]</dd></div>
+            </dl>
+        </aside>
+    </div>
+</dialog>
+@section Scripts {
+    <partial name="_PublicProgressScripts" model="Model.Board.EventId" />
+    <script src="~/js/captain-evidence-input.js" asp-append-version="true"></script>
+    <script src="~/js/team-board-drawer.js" asp-append-version="true"></script>
+    <script src="~/js/public-evidence.js" asp-append-version="true"></script>
+}

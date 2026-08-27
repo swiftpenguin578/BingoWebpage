@@ -89,6 +89,33 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task OwnerSearchIsBoundedAndDisabledOwnerIdsAreRejectedWithoutCreation()
+    {
+        var setup = await SeedAsync(capacity: 20, confirmed: 12, waiting: 0);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.SignupForms.Add(new SignupForm(Guid.NewGuid(), setup.EventId, DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync();
+
+            var model = new Bingo.Web.Pages.Admin.Events.ParticipantsModel(db, Service(db));
+            var response = Assert.IsType<JsonResult>(await model.OnGetSearchOwnerAccountsAsync("owner", CancellationToken.None));
+            var matches = Assert.IsType<List<Bingo.Web.Pages.Admin.Events.ParticipantsModel.OwnerAccountOption>>(response.Value);
+            Assert.Equal(10, matches.Count);
+            Assert.DoesNotContain(matches, item => item.Username.StartsWith("disabled", StringComparison.OrdinalIgnoreCase));
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var before = await db.EventParticipants.CountAsync(item => item.EventId == setup.EventId);
+            var result = await Service(db).CreateAdminParticipantAsync(new AdminParticipantChangeRequest(
+                setup.EventId, null, setup.EnabledAdminId, "admin", setup.DisabledAdminId, new Dictionary<Guid, AdminAccountAnswer>(), new Dictionary<Guid, string>()));
+            Assert.False(result.Succeeded);
+            Assert.Contains("active website account", result.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(before, await db.EventParticipants.CountAsync(item => item.EventId == setup.EventId));
+        }
+    }
+
+    [Fact]
     public async Task PreformedRosterMembersStayOutOfSignupCountsAndPromotionWithoutExcludingAdminSignups()
     {
         var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 1);

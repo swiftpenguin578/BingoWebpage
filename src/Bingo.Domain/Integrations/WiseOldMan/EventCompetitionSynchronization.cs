@@ -170,7 +170,8 @@ public sealed class EventCompetitionCharacterActivity
 
     public EventCompetitionCharacterActivity(
         Guid id, Guid eventId, int generation, long competitionId, Guid osrsCharacterId,
-        decimal gainedEhb, DateTimeOffset fetchedAt, DateTimeOffset? upstreamUpdatedAt, string assignmentFingerprint)
+        decimal gainedEhb, DateTimeOffset fetchedAt, DateTimeOffset? upstreamUpdatedAt, string assignmentFingerprint,
+        decimal? startEhb = null, decimal? endEhb = null)
     {
         Id = id;
         EventId = eventId;
@@ -178,6 +179,8 @@ public sealed class EventCompetitionCharacterActivity
         CompetitionId = competitionId;
         OsrsCharacterId = osrsCharacterId;
         GainedEhb = gainedEhb;
+        StartEhb = startEhb;
+        EndEhb = endEhb;
         FetchedAt = fetchedAt.ToUniversalTime();
         UpstreamUpdatedAt = upstreamUpdatedAt?.ToUniversalTime();
         AssignmentFingerprint = assignmentFingerprint;
@@ -189,6 +192,8 @@ public sealed class EventCompetitionCharacterActivity
     public long CompetitionId { get; private set; }
     public Guid OsrsCharacterId { get; private set; }
     public decimal GainedEhb { get; private set; }
+    public decimal? StartEhb { get; private set; }
+    public decimal? EndEhb { get; private set; }
     public DateTimeOffset FetchedAt { get; private set; }
     public DateTimeOffset? UpstreamUpdatedAt { get; private set; }
     public string AssignmentFingerprint { get; private set; } = string.Empty;

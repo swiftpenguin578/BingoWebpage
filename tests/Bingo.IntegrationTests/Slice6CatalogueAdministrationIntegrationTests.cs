@@ -293,6 +293,34 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
     }
 
     [Fact]
+    public async Task TeamSizeChangeSucceedsWithTheRenderedBoardVersion()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var admin = Website($"slice6-team-size-admin-{Guid.NewGuid():N}", now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Team size board", $"team-size-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var board = new Board(Guid.NewGuid(), bingoEvent.Id, "Board", 1, 1);
+        board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
+
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(admin, bingoEvent, board);
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var page = Page(db, admin.Id);
+            page.BoardVersion = board.Version;
+
+            Assert.IsType<RedirectToPageResult>(await page.OnPostTeamSizeAsync(bingoEvent.Id, 7, CancellationToken.None));
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(7, await verify.Events.Where(value => value.Id == bingoEvent.Id).Select(value => value.ExpectedTeamSize).SingleAsync());
+        Assert.Equal(2, await verify.Boards.Where(value => value.Id == board.Id).Select(value => value.Version).SingleAsync());
+    }
+
+    [Fact]
     public async Task PrivateApprovalFreezesOneSnapshotAndUnapprovalRetainsHistory()
     {
         var now = DateTimeOffset.UtcNow;

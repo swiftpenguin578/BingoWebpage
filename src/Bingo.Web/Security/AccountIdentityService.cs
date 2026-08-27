@@ -50,7 +50,7 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
             return UsernameRenameResult.UsernameTaken;
         }
     }
-    public async Task<Account> CompleteOnboardingAsync(string discordUserId, string? displayName, string username, string firstOsrsCharacter, string password, CancellationToken ct)
+    public async Task<Account> CompleteOnboardingAsync(string discordUserId, string? displayName, string username, string firstOsrsCharacter, string password, CancellationToken ct, decimal? savedEhb = null)
     {
         ValidatePassword(password);
         var name = username.Trim(); var normalized = AccountAuthenticationService.NormalizeUsername(name);
@@ -69,7 +69,7 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
         account.SetPassword(passwords.HashPassword(account, password), false, now, incrementVersion: false);
         account.CompleteOnboarding(character.Id, now);
         db.Accounts.Add(account);
-        db.AccountOsrsCharacters.Add(new AccountOsrsCharacter(Guid.NewGuid(), account.Id, character.Id, true, 0, now));
+        db.AccountOsrsCharacters.Add(new AccountOsrsCharacter(Guid.NewGuid(), account.Id, character.Id, account.Id, true, 0, null, savedEhb, now));
         db.AccountDiscordIdentityTransitions.Add(new AccountDiscordIdentityTransition(Guid.NewGuid(), account.Id, "linked", null, discordUserId, now));
         db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, account.Id, account.LoginName, "account.onboarded", "account", account.Id.ToString(), "Website account onboarding completed."));
         try

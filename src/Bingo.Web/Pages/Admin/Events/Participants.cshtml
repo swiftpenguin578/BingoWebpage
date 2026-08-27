@@ -5,128 +5,233 @@
 @{
     var eventView = Model.Event!;
     ViewData["Title"] = T["Participants · {0}", eventView.Name];
-    var participantGroups = new[]
-    {
-        (Title: T["Confirmed participants"], Description: T["Website signups available for the draft."], Rows: Model.Participants.Where(item => item.Status == SignupStatus.Confirmed).ToList(), Open: true),
-        (Title: T["Waiting list"], Description: T["Entries are promoted in signup order when space becomes available."], Rows: Model.Participants.Where(item => item.Status == SignupStatus.WaitingList).ToList(), Open: true),
-        (Title: T["Signup history"], Description: T["Withdrawn records remain available for audit and follow-up."], Rows: Model.Participants.Where(item => item.Status == SignupStatus.Withdrawn).ToList(), Open: false)
-    };
+    ViewData["AdminPageDescription"] = T["Manage signup settings, capacity, and participants."];
+    var currentParticipants = Model.Participants.Where(item => item.Status is SignupStatus.Confirmed or SignupStatus.WaitingList).ToList();
+    var historyParticipants = Model.Participants.Where(item => item.Status == SignupStatus.Withdrawn).ToList();
+    var signupQuestionCount = Model.ActiveSignupQuestions.Count;
+    var requiredSignupQuestions = Model.ActiveSignupQuestions.Where(question => question.Required).ToList();
+    var optionalSignupQuestions = Model.ActiveSignupQuestions.Where(question => !question.Required).ToList();
+    var accountQuestion = Model.ActiveSignupQuestions.FirstOrDefault(question => question.Type == SignupQuestionType.Account);
+    var captainVolunteerQuestion = Model.ActiveSignupQuestions.FirstOrDefault(question => string.Equals(question.Label, "Captain volunteer", StringComparison.OrdinalIgnoreCase));
+    var remainingPreviewQuestionCount = signupQuestionCount - (accountQuestion is null ? 0 : 1) - (captainVolunteerQuestion is null ? 0 : 1);
+    var activeSort = string.IsNullOrWhiteSpace(Model.Sort) ? "ownership" : Model.Sort.ToLowerInvariant();
+    var activeDirection = string.Equals(Model.Direction, "asc", StringComparison.OrdinalIgnoreCase) ? "asc" : "desc";
     const string updateTargets = "#app-notice-region, .event-participants-page";
+
+    string StatusClass(SignupStatus status) => status switch
+    {
+        SignupStatus.Confirmed => "is-green",
+        SignupStatus.WaitingList => "is-orange",
+        SignupStatus.Withdrawn => "is-danger",
+        _ => "is-muted"
+    };
+
+    string SortDirection(string key) => activeSort == key && activeDirection == "asc" ? "desc" : "asc";
 }
 
 <section class="admin-events-page event-participants-page" id="players">
-    <header class="event-create-heading admin-events-heading">
-        <div>
-            <div class="admin-module-title-row">
-                <svg class="admin-module-title-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m16 11 2 2 4-4" /><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
-                <h1>@T["Participants"]</h1>
+    <div class="participant-settings-grid">
+        <section class="participant-settings-region participant-signup-form-region" aria-labelledby="signup-settings-heading">
+            <div class="participant-settings-heading">
+                <div><h2 id="signup-settings-heading">@T["Signup form"]</h2><p>@T["Own the questions and form participants use to sign up."]</p></div>
             </div>
-            <p class="admin-module-description">@T["Manage signup records, capacity, and the waiting list for {0}.", eventView.Name]</p>
-        </div>
-        <div class="admin-header-actions-inline">
-            <span class="admin-state admin-state-signupopen">@T["{0} confirmed · {1} waiting", eventView.Confirmed, eventView.Waiting]</span>
-            <a class="admin-button-secondary signup-questions-trigger" asp-page="Questions" asp-route-id="@eventView.Id" data-signup-questions-trigger="true">@T["Signup questions"]</a>
-        </div>
-    </header>
-
-    <section class="event-create-panel participant-settings-panel" aria-labelledby="signup-settings-heading">
-        <div class="admin-section-heading">
-            <div><h2 id="signup-settings-heading">@T["Signup capacity and waiting list"]</h2><p>@T["Increase capacity to make places available. Waiting-list entries are promoted automatically in signup order."]</p></div>
-            <span class="participant-capacity-summary">@T["{0} of {1} confirmed", eventView.Confirmed, eventView.ParticipantCap]</span>
-        </div>
-        @if (eventView.DraftLocked || eventView.State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
-        {
-            <p class="admin-muted-note">@T["These settings are locked because participant administration has moved on."]</p>
-        }
-        else
-        {
-            <form method="post" asp-page-handler="SignupAdministration" class="participant-settings-form" data-update-targets="@updateTargets">
-                <input asp-for="SignupAdministration.Version" type="hidden" />
-                <input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="ParticipantPayment" value="@Model.ParticipantPayment" /><input type="hidden" name="ParticipantDiscord" value="@Model.ParticipantDiscord" /><input type="hidden" name="ParticipantCaptain" value="@Model.ParticipantCaptain" /><input type="hidden" name="ParticipantSource" value="@Model.ParticipantSource" /><input type="hidden" name="ParticipantTeamId" value="@Model.ParticipantTeamId" />
-                <div class="event-create-fields">
-                    <div class="admin-field event-create-field">
-                        <label asp-for="SignupAdministration.ParticipantCap">@T["Maximum players"]</label>
-                        <input asp-for="SignupAdministration.ParticipantCap" class="form-control" min="1" max="10000" />
-                        <small>@T["Increasing this number can promote waiting-list entries immediately."]</small>
-                        <span asp-validation-for="SignupAdministration.ParticipantCap" class="field-error"></span>
-                    </div>
-                    <label class="admin-setting-toggle"><input asp-for="SignupAdministration.WaitingListEnabled" /><span><strong>@T["Waiting list enabled"]</strong><small>@T["Keep accepting signups after capacity is reached."]</small></span></label>
-                    @if (eventView.Waiting > 0)
+            <div class="participant-form-preview" aria-label="@T["Configured signup form preview"]">
+                <p class="participant-form-summary" data-signup-question-summary="@T["{0} active questions configured.", signupQuestionCount]">@T["{0} active questions configured.", signupQuestionCount]</p>
+                <ul class="participant-form-preview-list">
+                    @if (accountQuestion is not null)
                     {
-                        <label class="admin-setting-toggle participant-waiting-confirm"><input asp-for="SignupAdministration.ConfirmWaitingListDisablement" /><span><strong>@T["Confirm waiting-list disablement"]</strong><small>@T["If disabled, all {0} queued participants will be promoted in signup order; capacity will be raised to at least {1} if needed.", eventView.Waiting, eventView.Confirmed + eventView.Waiting]</small></span></label>
+                        <li><span>@accountQuestion.Label</span><small>@(accountQuestion.Required ? T["Required"] : T["Optional"])</small></li>
                     }
-                </div>
-                <div class="participant-settings-actions"><span class="admin-muted-note">@T["Current waiting list: {0}", eventView.Waiting]</span><button class="admin-button-primary" type="submit">@T["Save signup settings"]</button></div>
-            </form>
-        }
-    </section>
-
-    @if (!eventView.DraftLocked && eventView.State is EventState.SignupOpen or EventState.SignupClosed)
-    {
-        <details class="event-create-panel participant-internal-panel"><summary>@T["Add internal participant"]</summary>
-            <p>@T["Use the active signup form. An owner is optional; external roster members are managed in Teams / Draft, not here."]</p>
-            <form method="post" asp-page-handler="CreateInternalParticipant" class="form-stack" data-update-targets="@updateTargets">
-                <div class="admin-field event-create-field"><label asp-for="InternalParticipant.OwnerUsername">@T["Website owner username (optional)"]</label><input asp-for="InternalParticipant.OwnerUsername" class="form-control" autocomplete="off" /></div>
-                <div class="participant-field-grid">
-                @foreach (var question in Model.ActiveSignupQuestions)
-                {
-                    var account = Model.InternalParticipant.AccountAnswers.GetValueOrDefault(question.Id) ?? new ParticipantModel.AccountInput();
-                    var answer = Model.InternalParticipant.Answers.GetValueOrDefault(question.Id);
-                    <div class="admin-field event-create-field"><label for="internal-@question.Id">@question.Label @if (question.Required) { <small>@T["Required"]</small> }</label>
-                    @if (question.Type == SignupQuestionType.Account)
+                    @if (captainVolunteerQuestion is not null)
                     {
-                        <input id="internal-@question.Id" name="InternalParticipant.AccountAnswers[@question.Id].CharacterName" value="@account.CharacterName" class="form-control" maxlength="100" placeholder="@T["OSRS character"]" />
-                        @if (question.AccountRole == EventCharacterRole.Playing) { <input name="InternalParticipant.AccountAnswers[@question.Id].Ehb" value="@account.Ehb" class="form-control" type="number" min="0" step="0.01" placeholder="@T["EHB"]" /> }
+                        <li><span>@captainVolunteerQuestion.Label</span><small>@(captainVolunteerQuestion.Required ? T["Required"] : T["Optional"])</small></li>
                     }
-                    else if (question.Type == SignupQuestionType.Text) { <textarea id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-control" rows="3">@answer</textarea> }
-                    else if (question.Type == SignupQuestionType.YesNo) { <select id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option><option value="true">@T["Yes"]</option><option value="false">@T["No"]</option></select> }
-                    else if (question.Type == SignupQuestionType.SingleChoice) { <select id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option>@foreach (var option in question.Options) { <option value="@option">@option</option> }</select> }
-                    else { <input id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" value="@answer" class="form-control" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" /> }
-                    </div>
-                }
-                </div>
-                <button class="admin-button-secondary" type="submit">@T["Create internal participant"]</button>
-            </form>
-        </details>
-    }
+                    @if (remainingPreviewQuestionCount > 0)
+                    {
+                        <li><span>@T["Other questions"]</span><small>@T["{0} more", remainingPreviewQuestionCount]</small></li>
+                    }
+                </ul>
+            </div>
+            <div class="participant-settings-actions">
+                <a class="admin-button-secondary signup-questions-trigger" data-signup-questions-trigger="true" asp-page="Questions" asp-route-id="@eventView.Id">@T["Edit signup form"]</a>
+            </div>
+        </section>
 
-    <form method="get" class="participant-filter-form" data-participant-filter-form>
-        <label class="admin-search-field"><span class="visually-hidden">@T["Search participants"]</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg><input asp-for="ParticipantSearch" class="admin-search-field-input form-control" type="search" placeholder="@T["Search participants"]" /></label>
-        <label class="admin-field"><span>@T["Status"]</span><select asp-for="ParticipantStatus" class="form-select"><option value="">@T["All"]</option><option value="Confirmed">@T["Confirmed"]</option><option value="WaitingList">@T["Waiting list"]</option><option value="Withdrawn">@T["Withdrawn"]</option></select></label>
-        <label class="admin-field"><span>@T["Payment"]</span><select asp-for="ParticipantPayment" class="form-select"><option value="">@T["All"]</option><option value="paid">@T["Paid"]</option><option value="unpaid">@T["Unpaid"]</option></select></label>
-        <label class="admin-field"><span>@T["Discord"]</span><select asp-for="ParticipantDiscord" class="form-select"><option value="">@T["All"]</option><option value="linked">@T["Linked"]</option><option value="unlinked">@T["Unlinked"]</option></select></label>
-        <label class="admin-field"><span>@T["Captain"]</span><select asp-for="ParticipantCaptain" class="form-select"><option value="">@T["All"]</option><option value="true">@T["Volunteer"]</option><option value="false">@T["Not volunteering"]</option></select></label>
-        <label class="admin-field"><span>@T["Source"]</span><select asp-for="ParticipantSource" class="form-select"><option value="">@T["All"]</option><option value="Website">@T["Website signup"]</option><option value="AdminCreated">@T["Admin created"]</option><option value="CsvImport">@T["CSV import"]</option></select></label>
-        <label class="admin-field"><span>@T["Team"]</span><select asp-for="ParticipantTeamId" class="form-select"><option value="">@T["Any team"]</option>@foreach (var team in Model.ParticipantTeams) { <option value="@team.Id">@team.Name</option> }</select></label>
-        <div class="participant-filter-actions"><a class="admin-button-secondary" asp-page="Participants" asp-route-id="@eventView.Id">@T["Clear"]</a></div>
-    </form>
+        <section class="participant-settings-region participant-capacity-region" aria-labelledby="capacity-settings-heading">
+            <div class="participant-settings-heading">
+                <div>
+                    <h2 id="capacity-settings-heading">@T["Capacity and waiting list"]</h2>
+                    <span class="participant-capacity-summary">@T["{0} confirmed of {1} · {2} waiting", eventView.Confirmed, eventView.ParticipantCap, eventView.Waiting]</span>
+                </div>
+            </div>
+            @if (eventView.DraftLocked || eventView.State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
+            {
+                <p class="admin-muted-note">@T["These settings are locked because participant administration has moved on."]</p>
+            }
+            else
+            {
+                <form id="signup-settings-form" method="post" asp-page-handler="SignupAdministration" class="participant-settings-form" data-update-targets="@updateTargets">
+                    <input asp-for="SignupAdministration.Version" type="hidden" />
+                    <input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="sort" value="@Model.Sort" /><input type="hidden" name="direction" value="@Model.Direction" />
+                    <div class="participant-capacity-fields">
+                        <div class="admin-field event-create-field participant-capacity-field">
+                            <label asp-for="SignupAdministration.ParticipantCap">@T["Maximum players"]</label>
+                            <input asp-for="SignupAdministration.ParticipantCap" class="form-control" min="1" max="10000" />
+                            <span asp-validation-for="SignupAdministration.ParticipantCap" class="field-error"></span>
+                        </div>
+                        <div class="participant-shared-row">
+                            <strong id="waiting-list-enabled-heading" class="participant-shared-row-heading">@T["waiting list enabled"]</strong>
+                            <label class="admin-setting-toggle participant-shared-row-content">
+                                <span class="admin-setting-toggle-marker"><input asp-for="SignupAdministration.WaitingListEnabled" aria-labelledby="waiting-list-enabled-heading" aria-describedby="waiting-list-enabled-support" /></span>
+                                <span id="waiting-list-enabled-support" class="admin-setting-toggle-copy"><small>@T["Keep accepting signups after capacity is reached."]</small></span>
+                            </label>
+                        </div>
+                        @if (eventView.Waiting > 0)
+                        {
+                            <label class="admin-setting-toggle participant-waiting-confirm">
+                                <span class="admin-setting-toggle-marker"><input asp-for="SignupAdministration.ConfirmWaitingListDisablement" /></span>
+                                <span class="admin-setting-toggle-copy"><strong>@T["Confirm waiting-list disablement"]</strong><small>@T["If disabled, all {0} queued participants will be promoted in signup order; capacity will be raised to at least {1} if needed.", eventView.Waiting, eventView.Confirmed + eventView.Waiting]</small></span>
+                            </label>
+                        }
+                    </div>
+                </form>
+            }
+            @if (!eventView.DraftLocked && eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed)
+            {
+                <div class="participant-settings-actions">
+                    <button class="admin-button-secondary" type="submit" form="signup-settings-form">@T["Save signup settings"]</button>
+                </div>
+            }
+        </section>
+    </div>
+
+    <div class="admin-events-directory-controls">
+        <form class="admin-events-toolbar" method="get" data-participant-filter-form>
+            <input type="hidden" name="sort" value="@Model.Sort" /><input type="hidden" name="direction" value="@Model.Direction" />
+            <div class="admin-search-field admin-events-search">
+                <label class="visually-hidden" for="participant-search">@T["Search participants"]</label>
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                <input id="participant-search" class="admin-search-field-input form-control" type="search" name="ParticipantSearch" value="@Model.ParticipantSearch" placeholder="@T["Search participants"]" data-participant-search-input />
+                <button class="admin-search-clear" type="button" data-admin-search-clear aria-label="@T["Clear participant search"]" hidden="@(string.IsNullOrWhiteSpace(Model.ParticipantSearch) ? "hidden" : null)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
+            </div>
+            <div class="admin-events-state-filter admin-field">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
+                <label for="participant-status">@T["Status"]:</label>
+                <div class="admin-events-state-select">
+                    <select id="participant-status" class="admin-filter-select form-select" name="ParticipantStatus">
+                        <option value="">@T["All"]</option>
+                        <option value="Confirmed" selected="@(Model.ParticipantStatus == "Confirmed" ? "selected" : null)">@T["confirmed"]</option>
+                        <option value="WaitingList" selected="@(Model.ParticipantStatus == "WaitingList" ? "selected" : null)">@T["Waiting list"]</option>
+                        <option value="Withdrawn" selected="@(Model.ParticipantStatus == "Withdrawn" ? "selected" : null)">@T["Withdrawn"]</option>
+                    </select>
+                    <svg class="admin-events-state-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
+                </div>
+            </div>
+        </form>
+        @if (!eventView.DraftLocked && eventView.State is EventState.SignupOpen or EventState.SignupClosed)
+        {
+            @if (Model.AddParticipant)
+            {
+                <a class="admin-button-create participant-add-route-trigger" data-participant-add-trigger data-participant-add-route-trigger hidden asp-page="Participants" asp-route-id="@eventView.Id" asp-route-addParticipant="1" asp-route-ParticipantSearch="@Model.ParticipantSearch" asp-route-ParticipantStatus="@Model.ParticipantStatus" asp-route-ParticipantPayment="@Model.ParticipantPayment" asp-route-ParticipantDiscord="@Model.ParticipantDiscord" asp-route-ParticipantCaptain="@Model.ParticipantCaptain" asp-route-ParticipantSource="@Model.ParticipantSource" asp-route-ParticipantTeamId="@Model.ParticipantTeamId" asp-route-sort="@Model.Sort" asp-route-direction="@Model.Direction"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M5 12h14" /><path d="M12 5v14" /></svg><span>@T["Add participant"]</span></a>
+                <section class="participant-add-route-page" aria-labelledby="participant-add-route-title">
+                    <a class="participant-add-route-back admin-button-secondary" asp-page="Participants" asp-route-id="@eventView.Id" asp-route-ParticipantSearch="@Model.ParticipantSearch" asp-route-ParticipantStatus="@Model.ParticipantStatus" asp-route-ParticipantPayment="@Model.ParticipantPayment" asp-route-ParticipantDiscord="@Model.ParticipantDiscord" asp-route-ParticipantCaptain="@Model.ParticipantCaptain" asp-route-ParticipantSource="@Model.ParticipantSource" asp-route-ParticipantTeamId="@Model.ParticipantTeamId" asp-route-sort="@Model.Sort" asp-route-direction="@Model.Direction">@T["Back to participants"]</a>
+                    <div id="participant-add-route-title" class="visually-hidden">@T["Add participant"]</div>
+                    <partial name="_InternalParticipantForm" model="Model" />
+                </section>
+            }
+            else
+            {
+                <div class="admin-header-actions-inline">
+                    <a class="admin-button-create participant-add-route-trigger" data-participant-add-trigger asp-page="Participants" asp-route-id="@eventView.Id" asp-route-addParticipant="1" asp-route-ParticipantSearch="@Model.ParticipantSearch" asp-route-ParticipantStatus="@Model.ParticipantStatus" asp-route-ParticipantPayment="@Model.ParticipantPayment" asp-route-ParticipantDiscord="@Model.ParticipantDiscord" asp-route-ParticipantCaptain="@Model.ParticipantCaptain" asp-route-ParticipantSource="@Model.ParticipantSource" asp-route-ParticipantTeamId="@Model.ParticipantTeamId" asp-route-sort="@Model.Sort" asp-route-direction="@Model.Direction"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M5 12h14" /><path d="M12 5v14" /></svg><span>@T["Add participant"]</span></a>
+                </div>
+            }
+        }
+    </div>
 
     <div class="participant-group-list">
-        @foreach (var group in participantGroups)
+        @foreach (var group in new[]
         {
-            <details class="participant-group" open="@group.Open" data-participant-group data-no-matches="@T["No matching participants."]">
-                <summary><span><strong>@group.Title</strong><small>@group.Description</small></span><span class="admin-state">@group.Rows.Count</span></summary>
-                <div class="participant-group-tools"><label class="admin-search-field"><span class="visually-hidden">@T["Search {0}", group.Title]</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg><input type="search" class="admin-search-field-input form-control" placeholder="@T["Search this section"]" aria-label="@T["Search {0}", group.Title]" data-participant-search /></label></div>
+            (Title: T["Current signups"], Description: T["Confirmed and waiting-list entries remain together for active administration."], Rows: currentParticipants, Table: "current"),
+            (Title: T["Signup history"], Description: T["Withdrawn records remain available for audit and follow-up."], Rows: historyParticipants, Table: "history")
+        })
+        {
+            <section class="participant-group" data-participant-group>
+                <header class="participant-group-heading"><div><h2>@group.Title</h2><p>@group.Description</p></div><span class="admin-badge">@group.Rows.Count</span></header>
                 <div class="admin-events-table-wrap participant-table-wrap"><div class="admin-events-table-scroll">
-                    <table class="event-table participant-table"><thead><tr><th>#</th><th>@T["Participant"]</th><th>@T["EHB"]</th><th>@T["Status"]</th><th>@T["Payment"]</th><th>@T["Signed up"]</th><th>@T["Signup source / ownership"]</th><th><span class="visually-hidden">@T["Actions"]</span></th></tr></thead><tbody>
-                    @if (group.Rows.Count == 0) { <tr><td colspan="8" class="participant-empty">@T["No participants in this section."]</td></tr> }
+                    <table class="event-table participant-table" data-participant-table="@group.Table" data-participant-no-matches="@T["No matching participants."]"><thead><tr>
+                        @foreach (var header in new[] { (Key: "sequence", Label: "#"), (Key: "participant", Label: "Participant"), (Key: "ehb", Label: "EHB"), (Key: "status", Label: "Status"), (Key: "payment", Label: "Payment"), (Key: "signedup", Label: "Signed up"), (Key: "ownership", Label: "Team") })
+                        {
+                            var nextDirection = SortDirection(header.Key);
+                            @if (activeSort == header.Key)
+                            {
+                                <th data-participant-sort-header aria-sort="@(activeDirection == "asc" ? "ascending" : "descending")"><a class="participant-sort-link" data-participant-sort data-sort-key="@header.Key" data-sort-label="@header.Label" asp-page="Participants" asp-route-id="@eventView.Id" asp-route-ParticipantSearch="@Model.ParticipantSearch" asp-route-ParticipantStatus="@Model.ParticipantStatus" asp-route-sort="@header.Key" asp-route-direction="@nextDirection" aria-label="@T["Sort by {0} {1}.", header.Label, nextDirection]">@T[header.Label]<svg class="participant-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="@(activeDirection == "asc" ? "m6 15 6-6 6 6" : "m6 9 6 6 6-6")" /></svg></a></th>
+                            }
+                            else
+                            {
+                                <th data-participant-sort-header><a class="participant-sort-link" data-participant-sort data-sort-key="@header.Key" data-sort-label="@header.Label" asp-page="Participants" asp-route-id="@eventView.Id" asp-route-ParticipantSearch="@Model.ParticipantSearch" asp-route-ParticipantStatus="@Model.ParticipantStatus" asp-route-sort="@header.Key" asp-route-direction="@nextDirection" aria-label="@T["Sort by {0} {1}.", header.Label, nextDirection]">@T[header.Label]</a></th>
+                            }
+                        }
+                        <th class="event-actions-heading"><span class="participant-actions-heading-label">@T["Actions"]</span></th>
+                    </tr></thead><tbody>
+                    <tr class="participant-table-empty" hidden="@(group.Rows.Count > 0 ? "hidden" : null)"><td colspan="8">@T["No matching participants."]</td></tr>
                     @foreach (var participant in group.Rows)
                     {
-                        var participantStatus = participant.Status switch { SignupStatus.Confirmed => T["Confirmed"], SignupStatus.WaitingList => T["Waiting list"], SignupStatus.Withdrawn => T["Withdrawn"], _ => T["Removed"] };
-                        <tr id="participant-row-@participant.Id" data-participant-row>
-                            <td data-label="#" data-sort-value="@participant.Sequence">@participant.Sequence</td>
-                            <td data-label="@T["Participant"]" data-sort-value="@participant.Name"><a asp-page="Participant" asp-route-id="@eventView.Id" asp-route-participantId="@participant.Id"><strong>@participant.Name</strong></a>@if (participant.CaptainVolunteer) { <small class="participant-captain">@T["Captain volunteer"]</small> }</td>
-                            <td data-label="@T["EHB"]" data-sort-value="@participant.Ehb.ToString(System.Globalization.CultureInfo.InvariantCulture)">@participant.Ehb.ToString("0.##")</td>
-                            <td data-label="@T["Status"]" data-sort-value="@participantStatus"><span class="admin-state participant-status">@participantStatus</span>@if (participant.WaitingPosition is not null) { <small>#@participant.WaitingPosition</small> }</td>
-                            <td data-label="@T["Payment"]" data-sort-value="@participant.Payment">@if (eventView.CanEditParticipant) { <form method="post" asp-page-handler="Payment" class="participant-payment-form" data-update-targets="#app-notice-region, #participant-row-@participant.Id"><input type="hidden" name="participantId" value="@participant.Id" /><input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="ParticipantPayment" value="@Model.ParticipantPayment" /><input type="hidden" name="ParticipantDiscord" value="@Model.ParticipantDiscord" /><input type="hidden" name="ParticipantCaptain" value="@Model.ParticipantCaptain" /><input type="hidden" name="ParticipantSource" value="@Model.ParticipantSource" /><input type="hidden" name="ParticipantTeamId" value="@Model.ParticipantTeamId" /><select name="payment" aria-label="@T["Payment for {0}", participant.Name]" data-auto-submit data-payment-save><option value="Unpaid" selected="@(participant.Payment != PaymentStatus.Paid)">@T["Unpaid"]</option><option value="Paid" selected="@(participant.Payment == PaymentStatus.Paid)">@T["Paid"]</option></select><span class="save-state" aria-live="polite" data-save-state>@T["Saved"]</span></form> } else { <span>@(participant.Payment == PaymentStatus.Paid ? T["Paid"] : T["Unpaid"])</span> }</td>
-                            <td data-label="@T["Signed up"]" data-sort-value="@participant.SignedUpAt.ToUnixTimeMilliseconds()">@participant.SignedUpAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</td>
-                            <td data-label="@T["Signup source / ownership"]"><span>@T[participant.Source.ToString()]</span><small>@(participant.WebsiteUsername ?? T["Unowned"]) · @(participant.TeamName ?? T["No external roster"])</small></td>
-                            <td class="event-row-action participant-row-actions">@if (participant.Status is SignupStatus.Confirmed or SignupStatus.WaitingList) { @if (eventView.State == EventState.Live) { <a asp-page="Participant" asp-route-id="@eventView.Id" asp-route-participantId="@participant.Id">@T["Manage live participant"]</a> } else if (!eventView.CanEditParticipant) { <small>@T["Read-only after the draft starts."]</small> } else { <form method="post" asp-page-handler="Withdraw" data-update-targets="@updateTargets"><input type="hidden" name="participantId" value="@participant.Id" /><input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="ParticipantPayment" value="@Model.ParticipantPayment" /><input type="hidden" name="ParticipantDiscord" value="@Model.ParticipantDiscord" /><input type="hidden" name="ParticipantCaptain" value="@Model.ParticipantCaptain" /><input type="hidden" name="ParticipantSource" value="@Model.ParticipantSource" /><input type="hidden" name="ParticipantTeamId" value="@Model.ParticipantTeamId" /><button class="admin-button-secondary" type="submit">@T["Withdraw"]</button></form> } }</td>
+                        var participantStatus = participant.Status == SignupStatus.WaitingList && participant.WaitingPosition is { } waitingPosition
+                            ? T["Waiting list · #{0}", waitingPosition]
+                            : T[participant.Status.ToString()];
+                        var paymentLabel = participant.Payment == PaymentStatus.Paid ? T["Paid"] : T["Unpaid"];
+                        var paymentNext = participant.Payment == PaymentStatus.Paid ? PaymentStatus.Unpaid : PaymentStatus.Paid;
+                        <tr id="participant-row-@participant.Id" data-participant-row data-participant-id="@participant.Id" data-participant-sequence="@participant.Sequence" data-participant-name="@participant.Name" data-participant-ehb="@participant.Ehb.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-participant-status="@participant.Status" data-participant-payment="@participant.Payment" data-participant-signed-up="@participant.SignedUpAt.ToUnixTimeMilliseconds()" data-participant-ownership="@(participant.TeamName ?? "Unassigned")">
+                            <td data-label="#">@participant.Sequence</td>
+                            <td data-label="@T["Participant"]"><span class="participant-primary-value">@participant.Name</span><small>@(participant.WebsiteUsername ?? T["Unlinked"])</small></td>
+                            <td data-label="@T["EHB"]">@participant.Ehb.ToString("0.##")</td>
+                            <td data-label="@T["Status"]"><span class="admin-status-pill participant-status-pill @StatusClass(participant.Status)">@participantStatus</span></td>
+                            <td data-label="@T["Payment"]">
+                                @if (group.Table == "current" && eventView.CanEditParticipant)
+                                {
+                                    <form method="post" asp-page-handler="Payment" class="participant-payment-form" data-update-targets="@updateTargets"><input type="hidden" name="participantId" value="@participant.Id" /><input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="sort" value="@Model.Sort" /><input type="hidden" name="direction" value="@Model.Direction" /><button name="payment" value="@paymentNext" class="admin-status-pill participant-status-pill participant-payment-control @StatusClass(participant.Payment == PaymentStatus.Paid ? SignupStatus.Confirmed : SignupStatus.Withdrawn)" type="submit" aria-label="@T["Mark {0} as {1}", participant.Name, paymentNext]">@paymentLabel</button></form>
+                                }
+                                else
+                                {
+                                    <span class="admin-status-pill participant-status-pill @StatusClass(participant.Payment == PaymentStatus.Paid ? SignupStatus.Confirmed : SignupStatus.Withdrawn)">@paymentLabel</span>
+                                }
+                            </td>
+                            <td data-label="@T["Signed up"]"><span class="participant-primary-value">@participant.SignedUpAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</span><small>@T[participant.Source.ToString()]</small></td>
+                            <td data-label="@T["Team"]"><span class="participant-primary-value">@(participant.TeamName ?? T["Unassigned"])</span>@if (participant.CaptainVolunteer) { <small>@T["Volunteered to captain"]</small> }</td>
+                            <td class="event-row-action participant-actions-cell">
+                                <div class="participant-row-actions">
+                                <a class="participant-edit-action" aria-label="@T["Edit {0}", participant.Name]" title="@T["Edit {0}", participant.Name]" asp-page="Participant" asp-route-id="@eventView.Id" asp-route-participantId="@participant.Id"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg><span class="visually-hidden">@T["Edit {0}", participant.Name]</span></a>
+                                @if (group.Table == "current")
+                                {
+                                    @if (eventView.State == EventState.Live)
+                                    {
+                                        <a class="admin-button-secondary" asp-page="Participant" asp-route-id="@eventView.Id" asp-route-participantId="@participant.Id">@T["Manage live participant"]</a>
+                                    }
+                                    else if (eventView.CanEditParticipant)
+                                    {
+                                        <details class="admin-destructive-confirmation">
+                                            <summary class="admin-button-secondary action-danger-outline">@T["Remove"]</summary>
+                                            <div class="event-confirmation-box" role="alertdialog" aria-labelledby="remove-participant-@participant.Id-heading">
+                                                <p><strong id="remove-participant-@participant.Id-heading">@T["Remove {0}?", participant.Name]</strong><br />@T["This withdraws the signup and keeps its history."]</p>
+                                                <form method="post" asp-page-handler="Withdraw" class="event-confirmation-form" data-update-targets="@updateTargets">
+                                                    <input type="hidden" name="participantId" value="@participant.Id" /><input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="sort" value="@Model.Sort" /><input type="hidden" name="direction" value="@Model.Direction" />
+                                                    <div class="event-confirmation-actions"><button class="admin-button-secondary action-danger-outline" type="submit">@T["Remove"]</button><a class="admin-button-secondary" asp-page="Participants" asp-route-id="@eventView.Id" asp-route-ParticipantSearch="@Model.ParticipantSearch" asp-route-ParticipantStatus="@Model.ParticipantStatus" asp-route-sort="@Model.Sort" asp-route-direction="@Model.Direction">@T["Cancel"]</a></div>
+                                                </form>
+                                            </div>
+                                        </details>
+                                    }
+                                    else
+                                    {
+                                        <small>@T["Read-only after the draft starts."]</small>
+                                    }
+                                }
+                                </div>
+                            </td>
                         </tr>
                     }
-                    </tbody></table></div>
-                </div>
-            </details>
+                    </tbody></table>
+                </div></div>
+            </section>
         }
     </div>
 </section>

@@ -3,8 +3,7 @@
     ViewData["Title"] = T["Access denied"];
 }
 
-<section class="content-page">
-    <p class="eyebrow">@T["Protected access"]</p>
-    <h1>@T["Access denied"]</h1>
-    <p>@T["Your account does not have permission to use this page."]</p>
+<section class="status-editorial status-editorial--403" aria-labelledby="access-denied-heading">
+    <div class="status-editorial__code" aria-hidden="true">403</div>
+    <div class="status-editorial__copy"><span class="editorial-kicker">@T["Protected access"]</span><h1 id="access-denied-heading" class="editorial-display">@T["Access denied"]</h1><p>@T["Your account does not have permission to use this page."]</p><a class="editorial-button editorial-button--coral-outline" asp-page="/Account/Login">@T["Sign in with another account"] <span aria-hidden="true">→</span></a><a class="editorial-link editorial-link--small" asp-page="/Index">@T["Return to public boards"]</a></div>
 </section>

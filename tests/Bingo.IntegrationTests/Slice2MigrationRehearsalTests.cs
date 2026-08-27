@@ -67,7 +67,7 @@ public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
                 VALUES ({linkedCharacterId}, {"Existing Main"}, {"EXISTING MAIN"}, {created}, {created});
                 INSERT INTO account_osrs_characters
                     ("Id", "AccountId", "OsrsCharacterId", active, preferred, "Position", "CreatedAt", "UpdatedAt")
-                VALUES ({linkId}, {accountId}, {linkedCharacterId}, TRUE, TRUE, 4, {created}, {created.AddHours(1)});
+                VALUES ({linkId}, {accountId}, {linkedCharacterId}, TRUE, FALSE, 4, {created}, {created.AddHours(1)});
                 INSERT INTO events
                     (id, name, slug, description, timezone, state, signup_opens_at, signup_closes_at,
                      event_starts_at, event_ends_at, submission_cutoff_at, participant_cap,
@@ -99,7 +99,7 @@ public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
             Assert.Equal(linkedCharacterId, link.OsrsCharacterId);
             Assert.True(link.Active);
             Assert.True(link.Preferred);
-            Assert.Equal(4, link.SortOrder);
+            Assert.Equal(0, link.SortOrder);
             Assert.Equal(created, link.LinkedAt);
             Assert.Equal(accountId, link.LinkedByAccountId);
             Assert.Null(link.UnlinkedAt);

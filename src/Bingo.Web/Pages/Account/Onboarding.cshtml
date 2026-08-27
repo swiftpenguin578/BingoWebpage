@@ -1,5 +1,46 @@
 @page
 @model Bingo.Web.Pages.Account.OnboardingModel
 @{ ViewData["Title"] = T["Create your account"]; }
-<section class="form-page"><p class="eyebrow">@T["Account setup"]</p><h1>@T["Create your website account"]</h1><p class="form-intro">@T["Your website username is your public password-login identity. Most people use their primary OSRS character, but the two values do not need to match."]</p><form method="post" class="panel form-stack"><div asp-validation-summary="ModelOnly" class="validation-summary" tabindex="-1"></div><label asp-for="Input.Username">@T["Website username"]</label><input asp-for="Input.Username" class="form-control" autocomplete="username" autofocus/><span asp-validation-for="Input.Username" class="field-error"></span><label asp-for="Input.OsrsCharacterName">@T["First OSRS character"]</label><p class="form-hint">@T["Use the exact OSRS character spelling. We do not validate ownership, availability, or existence."]</p><input asp-for="Input.OsrsCharacterName" class="form-control"/><span asp-validation-for="Input.OsrsCharacterName" class="field-error"></span><label asp-for="Input.Password"></label><input asp-for="Input.Password" class="form-control" autocomplete="new-password"/><span asp-validation-for="Input.Password" class="field-error"></span><label asp-for="Input.ConfirmPassword"></label><input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password"/><span asp-validation-for="Input.ConfirmPassword" class="field-error"></span><button class="btn action-accent-outline">@T["Create account"]</button></form></section>
-@section Scripts { <partial name="_ValidationScriptsPartial" /> }
+
+<section class="identity-page identity-page--onboarding" aria-labelledby="onboarding-heading">
+    <header class="identity-masthead">
+        <span class="editorial-kicker">@T["Account setup"]</span>
+        <h1 id="onboarding-heading" class="editorial-display">@T["Create your website account"]</h1>
+        <p>@T["Your website username is your public password-login identity. Most people use their primary OSRS character, but the two values do not need to match."]</p>
+    </header>
+    <form method="post" class="onboarding-workflow" data-onboarding-form data-onboarding-fetch-failure="@T["Wise Old Man lookup could not be completed. Please try again."]">
+        <section class="onboarding-step" aria-labelledby="onboarding-account-heading">
+            <span class="onboarding-step__number" aria-hidden="true">01</span>
+            <header class="onboarding-step__heading"><span class="editorial-kicker">@T["Account information"]</span><h2 id="onboarding-account-heading">@T["Account information"]</h2></header>
+            <div class="onboarding-step__content">
+                <div class="onboarding-fields">
+                    <label class="identity-field"><span class="editorial-label">@T["Website username"]</span><input asp-for="Input.Username" class="identity-input" autocomplete="username" autofocus /><span asp-validation-for="Input.Username" class="identity-field__error"></span></label>
+                    <label class="identity-field"><span class="editorial-label">@T["Password"]</span><input asp-for="Input.Password" class="identity-input" autocomplete="new-password" /><span asp-validation-for="Input.Password" class="identity-field__error"></span></label>
+                    <label class="identity-field"><span class="editorial-label">@T["Confirm password"]</span><input asp-for="Input.ConfirmPassword" class="identity-input" autocomplete="new-password" /><span asp-validation-for="Input.ConfirmPassword" class="identity-field__error"></span></label>
+                </div>
+            </div>
+        </section>
+        <section class="onboarding-step" aria-labelledby="onboarding-character-heading">
+            <span class="onboarding-step__number" aria-hidden="true">02</span>
+            <header class="onboarding-step__heading"><span class="editorial-kicker">@T["First OSRS character"]</span><h2 id="onboarding-character-heading">@T["Add your first OSRS character"]</h2></header>
+            <div class="onboarding-step__content">
+                <p class="onboarding-note">@T["Use the exact OSRS character spelling. We do not validate ownership, availability, or existence."]</p>
+                <div class="onboarding-fields onboarding-fields--character">
+                    <label class="identity-field"><span class="editorial-label">@T["First OSRS character"]</span><input asp-for="Input.OsrsCharacterName" class="identity-input" data-onboarding-character /><span asp-validation-for="Input.OsrsCharacterName" class="identity-field__error"></span></label>
+                    <div class="identity-field"><label class="editorial-label" asp-for="Input.SavedEhb">@T["EHB"]</label><div class="onboarding-ehb-control"><input asp-for="Input.SavedEhb" class="identity-input" data-onboarding-ehb inputmode="decimal" /><button type="button" data-onboarding-fetch-url='@Url.Page("/Account/Onboarding", "Fetch")' formnovalidate data-onboarding-fetch class="editorial-button editorial-link--fetch"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M13 6a5 5 0 0 0-8.5-1L3 6.5M3 3v3.5h3.5M3 10a5 5 0 0 0 8.5 1l1.5-1.5M13 13v-3.5H9.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" /></svg>@T["Fetch from WOM"]</button></div><span asp-validation-for="Input.SavedEhb" class="identity-field__error"></span></div>
+                </div>
+            </div>
+        </section>
+        @if (ViewData.ModelState.TryGetValue(string.Empty, out var modelErrors) && modelErrors.Errors.Count > 0)
+        {
+            <div class="identity-validation onboarding-validation" data-onboarding-fetch-feedback tabindex="-1"><div asp-validation-summary="ModelOnly"></div></div>
+        }
+        else
+        {
+            <div class="onboarding-validation" data-onboarding-fetch-feedback tabindex="-1"></div>
+        }
+        <button class="editorial-button editorial-button--coral onboarding-submit" type="submit">@T["Create account"] <span aria-hidden="true">→</span></button>
+    </form>
+</section>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /><script src="~/js/onboarding-wom-fetch.js" asp-append-version="true"></script> }

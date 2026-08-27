@@ -45,13 +45,13 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         eventItem.CloseSignups(now.AddHours(-1));
         eventItem.StartEvent(now);
         var participant = new EventParticipant(Guid.NewGuid(), eventItem.Id, SignupStatus.Confirmed, 1, now.AddHours(-2), SignupSource.Website);
-        var alice = new OsrsCharacter(Guid.NewGuid(), "Alice", "ALICE", now);
+        var mathias = new OsrsCharacter(Guid.NewGuid(), "Mathias_Jr", "MATHIAS_JR", now);
         var bob = new OsrsCharacter(Guid.NewGuid(), "Bob", "BOB", now);
         var alt = new OsrsCharacter(Guid.NewGuid(), "Alt", "ALT", now);
         var released = new OsrsCharacter(Guid.NewGuid(), "Released", "RELEASED", now);
         var assignments = new List<EventParticipantCharacter>
         {
-            new(Guid.NewGuid(), eventItem.Id, participant.Id, alice.Id, 0, now, null, null, EventCharacterRole.Playing, 0, EhbSource.Manual, null),
+            new(Guid.NewGuid(), eventItem.Id, participant.Id, mathias.Id, 0, now, null, null, EventCharacterRole.Playing, 0, EhbSource.Manual, null),
             new(Guid.NewGuid(), eventItem.Id, participant.Id, bob.Id, 1, now, null, null, EventCharacterRole.Playing, 0, EhbSource.Manual, null),
             new(Guid.NewGuid(), eventItem.Id, participant.Id, alt.Id, 2, now, null, null, EventCharacterRole.Informational, null, null, null),
             new(Guid.NewGuid(), eventItem.Id, participant.Id, released.Id, 3, now, null, null, EventCharacterRole.Playing, 0, EhbSource.Manual, null)
@@ -59,13 +59,13 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         assignments[^1].Release(admin.Id, now);
         await using (var setup = new ApplicationDbContext(options))
         {
-            setup.AddRange(admin, eventItem, participant, alice, bob, alt, released);
+            setup.AddRange(admin, eventItem, participant, mathias, bob, alt, released);
             setup.AddRange(assignments);
             await setup.SaveChangesAsync();
         }
 
         var competition = new WiseOldManCompetition(42, "Test competition", eventItem.EventStartsAt!.Value, eventItem.EventEndsAt!.Value, now,
-            [new("Alice", "REGULAR", 12.5m), new("Alt", "REGULAR", 99m)]);
+            [new("mathias jr", "REGULAR", 51.85956m, 100m, 151.85956m), new("Alt", "REGULAR", 99m)]);
         var fake = new FakeCompetitionClient([new(WiseOldManCompetitionStatus.Success, competition), new(WiseOldManCompetitionStatus.Success, competition)]);
         await using (var db = new ApplicationDbContext(options))
         {
@@ -81,7 +81,10 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
 
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(1, await verify.EventCompetitionCharacterActivities.CountAsync(x => x.EventId == eventItem.Id));
-        Assert.Equal(12.5m, await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.GainedEhb).SingleAsync());
+        Assert.Equal(51.85956m, await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.GainedEhb).SingleAsync());
+        Assert.Equal(100m, await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.StartEhb).SingleAsync());
+        Assert.Equal(151.85956m, await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.EndEhb).SingleAsync());
+        Assert.Equal("Mathias_Jr", await verify.OsrsCharacters.Where(x => x.Id == mathias.Id).Select(x => x.DisplayName).SingleAsync());
         Assert.DoesNotContain(await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.OsrsCharacterId).ToListAsync(), id => id == alt.Id || id == released.Id);
         Assert.Equal(2, fake.Calls);
     }

@@ -1,13 +1,38 @@
-﻿@page
+@page
 @model PrivacyModel
 @{
-    ViewData["Title"] = "Privacy";
+    ViewData["Title"] = T["Privacy"];
+    ViewData["BodyClass"] = "public-ui-pass2";
 }
-<section class="content-page">
-    <p class="eyebrow">Community data</p>
-    <h1>@ViewData["Title"]</h1>
-    <p>
-        The event-specific privacy notice will be completed before real signups and
-        evidence uploads are enabled.
-    </p>
+
+<section class="public-pass2-page public-pass2-privacy-page" aria-labelledby="privacy-heading">
+    <header class="public-pass2-masthead public-masthead-copy">
+        <span class="public-pass2-kicker public-masthead-kicker">@T["Community data"]</span>
+        <h1 id="privacy-heading" class="public-masthead-title">@T["Privacy"]</h1>
+        <p class="public-masthead-support">@T["This notice explains what DK Legacy Bingo stores, why it is needed, and how to ask about your information."]</p>
+    </header>
+
+    <div class="public-pass2-editorial-layout">
+        <nav class="public-pass2-local-nav" aria-label="@T["Privacy sections"]">
+            <a href="#privacy-store">01 <span>@T["What we store and why"]</span></a>
+            <a href="#privacy-public">02 <span>@T["What may be public"]</span></a>
+            <a href="#privacy-services">03 <span>@T["Services, retention and your choices"]</span></a>
+        </nav>
+        <div class="public-pass2-editorial-content">
+            <section id="privacy-store" class="public-pass2-editorial-section">
+                <h2><span>01</span>@T["What we store and why"]</h2>
+                <p>@T["We store your website username and a password hash to provide authentication. You may choose to link your Discord account, and we store the association and display metadata needed for that connection."]</p>
+                <p>@T["For bingo events, we store OSRS character names, labels and saved EHB, signup answers, team assignments, notifications, submission and evidence records, review decisions, and security and audit records. We use this information to run events, show progress and rankings, review evidence, notify participants, and protect the service."]</p>
+            </section>
+            <section id="privacy-public" class="public-pass2-editorial-section">
+                <h2><span>02</span>@T["What may be public"]</h2>
+                <p>@T["Event-facing OSRS and player names, teams, rankings, progress, approved evidence, and configured public signup information may be shown to other visitors. Private account credentials and security records are not part of that public event view."]</p>
+            </section>
+            <section id="privacy-services" class="public-pass2-editorial-section">
+                <h2><span>03</span>@T["Services, retention and your choices"]</h2>
+                <p>@T["We use essential authentication and language cookies. Depending on the feature, the service connects to Discord, Wise Old Man, and the hosting, database, and object-storage providers configured for the deployment."]</p>
+                <p>@T["Records are retained while needed for account operation, event participation, evidence and review history, security, and auditability. Contact Chris on Discord to ask for access, correction, deletion, or restriction of your information, or to raise a complaint."]</p>
+            </section>
+        </div>
+    </div>
 </section>

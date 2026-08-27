@@ -51,6 +51,8 @@ public sealed class EventCompetitionCharacterActivityConfiguration : IEntityType
         builder.Property(x => x.CompetitionId).HasColumnName("competition_id");
         builder.Property(x => x.OsrsCharacterId).HasColumnName("osrs_character_id");
         builder.Property(x => x.GainedEhb).HasColumnName("gained_ehb").HasPrecision(14, 4);
+        builder.Property(x => x.StartEhb).HasColumnName("start_ehb").HasPrecision(14, 4);
+        builder.Property(x => x.EndEhb).HasColumnName("end_ehb").HasPrecision(14, 4);
         builder.Property(x => x.FetchedAt).HasColumnName("fetched_at");
         builder.Property(x => x.UpstreamUpdatedAt).HasColumnName("upstream_updated_at");
         builder.Property(x => x.AssignmentFingerprint).HasColumnName("assignment_fingerprint").HasMaxLength(64);

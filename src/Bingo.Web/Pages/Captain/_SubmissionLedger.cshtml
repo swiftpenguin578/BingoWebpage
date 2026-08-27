@@ -1,0 +1,58 @@
+@model Bingo.Web.Pages.Captain.SubmissionLedgerViewModel
+
+<div id="captain-ledger-results" data-captain-ledger-results aria-live="polite" aria-busy="false">
+<p class="captain-ledger-count">@T["Showing {0} of {1} retained submissions", Model.Submissions.Count, Model.TotalSubmissionCount]</p>
+@if (Model.Submissions.Count == 0)
+{
+    <div class="public-pass2-empty-state"><h3>@T["No submissions match this search"]</h3><p>@T["Try a different search or player. The complete retained history remains available above."]</p></div>
+}
+else
+{
+    <div class="captain-ledger-table-wrap">
+        <table class="public-ui-table captain-ledger-table" data-public-leaderboard-sort-table aria-label="@T["All team submissions"]">
+            <thead><tr>
+                <th scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="status" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Status"]" aria-label="@T["Sort by Status"]"><span>@T["Status"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th>
+                <th scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="drop" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Drop"]" aria-label="@T["Sort by Drop"]"><span>@T["Drop"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th>
+                <th scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="tile" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Tile"]" aria-label="@T["Sort by Tile"]"><span>@T["Tile"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th>
+                <th scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="player" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Player"]" aria-label="@T["Sort by Player"]"><span>@T["Player"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th>
+                <th scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="submitted" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Submitted"]" aria-label="@T["Sort by Submitted"]"><span>@T["Submitted"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th>
+                <th scope="col">@T["Details"]</th>
+            </tr></thead>
+            <tbody>
+            @foreach (var submission in Model.Submissions)
+            {
+                <tr data-public-leaderboard-sort-row data-sort-status="@submission.DisplayStatus" data-sort-drop="@submission.Drop" data-sort-tile="@submission.Tile" data-sort-player="@submission.Player" data-sort-submitted="@submission.SubmittedAt.ToUnixTimeMilliseconds()">
+                    <td><span class="captain-ledger-status captain-ledger-status--@(submission.DisplayStatus.ToLowerInvariant())">@T[submission.DisplayStatus]</span></td>
+                    <td>@(submission.Drop ?? "—")</td>
+                    <td>@submission.Tile@if (submission.HasFeedback) { <small>@T["Reviewer feedback available"]</small> }</td>
+                    <td>@submission.Player</td>
+                    <td>@submission.SubmittedAt.ToLocalTime().ToString("g")</td>
+                    <td><a class="public-ui-action public-ui-action--text public-ui-action--hyperlink captain-ledger-detail" asp-page="@Model.DetailPage" asp-route-id="@submission.Id" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId">@(submission.HasFeedback ? T["View feedback"] : T["View details"])</a></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <nav class="public-ui-leaderboard-pagination captain-ledger-pagination" aria-label="@T["Submission pages"]">
+        <span class="public-ui-supporting-text">@T["Page {0} of {1}", Model.PageNumber, Model.TotalPages]</span>
+        <span class="public-ui-leaderboard-pagination-controls">
+            @if (Model.PageNumber > 1)
+            {
+                <a class="public-ui-leaderboard-pagination-control" data-captain-ledger-page href="@Url.Page(Model.LedgerPage, null, new { eventId = Model.EventId, teamId = Model.TeamId, search = Model.Search, player = Model.PlayerFilter, ledgerPage = Model.PageNumber - 1 })" aria-label="@T["Previous page"]"><svg class="public-ui-leaderboard-pagination-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m15 6-6 6 6 6" /></svg></a>
+            }
+            else
+            {
+                <span class="public-ui-leaderboard-pagination-control" aria-disabled="true"><svg class="public-ui-leaderboard-pagination-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m15 6-6 6 6 6" /></svg></span>
+            }
+            @if (Model.PageNumber < Model.TotalPages)
+            {
+                <a class="public-ui-leaderboard-pagination-control" data-captain-ledger-page href="@Url.Page(Model.LedgerPage, null, new { eventId = Model.EventId, teamId = Model.TeamId, search = Model.Search, player = Model.PlayerFilter, ledgerPage = Model.PageNumber + 1 })" aria-label="@T["Next page"]"><svg class="public-ui-leaderboard-pagination-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m9 6 6 6-6 6" /></svg></a>
+            }
+            else
+            {
+                <span class="public-ui-leaderboard-pagination-control" aria-disabled="true"><svg class="public-ui-leaderboard-pagination-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m9 6 6 6-6 6" /></svg></span>
+            }
+        </span>
+    </nav>
+}
+</div>

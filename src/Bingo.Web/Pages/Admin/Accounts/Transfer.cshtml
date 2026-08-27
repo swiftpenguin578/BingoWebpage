@@ -1,15 +1,22 @@
 @page
 @model Bingo.Web.Pages.Admin.Accounts.TransferModel
-@{ ViewData["Title"] = "Transfer Super Admin ownership"; }
-<section class="form-page wide-form">
-    <p class="eyebrow">Super Admin</p>
-    <h1>Transfer ownership</h1>
-    <p class="form-intro">The destination must be another active website account. It becomes the sole Super Admin; your account becomes Admin.</p>
-    <form method="post" class="panel form-stack">
-        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
-        <label asp-for="Input.CurrentPassword"></label><input asp-for="Input.CurrentPassword" class="form-control" autocomplete="current-password" />
-        <label asp-for="Input.DestinationUsername"></label><input asp-for="Input.DestinationUsername" class="form-control" autocomplete="username" />
-        <button class="btn btn-danger">Transfer ownership</button>
-        <a class="btn btn-outline-light" asp-page="Index">Cancel</a>
-    </form>
+@{
+    ViewData["Title"] = T["Transfer ownership"];
+    ViewData["AdminPageDescription"] = T["Transfer the sole Super Admin role safely."];
+}
+
+<section class="admin-account-route-page" aria-labelledby="transfer-ownership-heading">
+    <header class="admin-account-route-heading"><div><h1 id="transfer-ownership-heading">@T["Transfer ownership"]</h1><p>@T["Choose an existing active website account. The former owner remains an Admin after the transaction."]</p></div></header>
+    <details class="admin-destructive-confirmation admin-account-transfer-confirmation" open>
+        <summary class="action-danger-outline"><strong>@T["Transfer Super Admin ownership"]</strong><span>@T["This changes the sole owner and cannot be undone from this form."]</span></summary>
+        <div class="event-confirmation-box">
+            <p><strong>@T["Confirm ownership transfer"]</strong><span class="event-confirmation-supporting">@T["The selected account becomes Super Admin; your account remains an Admin. The service validates the transaction and destination again on submit."]</span></p>
+            <form method="post" class="event-confirmation-form">
+                <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+                <div class="admin-field"><label asp-for="Input.DestinationUsername"></label><select asp-for="Input.DestinationUsername" class="form-select"><option value="">@T["Choose an eligible active website account"]</option>@foreach (var destination in Model.Destinations) { <option value="@destination.Username">@destination.Username</option> }</select><span asp-validation-for="Input.DestinationUsername" class="field-error"></span></div>
+                <div class="admin-field"><label asp-for="Input.CurrentPassword"></label><input asp-for="Input.CurrentPassword" class="form-control" autocomplete="current-password" /><span asp-validation-for="Input.CurrentPassword" class="field-error"></span></div>
+                <div class="event-confirmation-actions"><a class="admin-button-secondary" asp-page="Index">@T["Cancel"]</a><button class="action-danger-outline" type="submit">@T["Transfer ownership"]</button></div>
+            </form>
+        </div>
+    </details>
 </section>

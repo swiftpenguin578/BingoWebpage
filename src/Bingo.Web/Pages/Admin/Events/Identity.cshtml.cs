@@ -14,22 +14,27 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage storage, TimeProvider time) : PageModel
+public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage storage, TimeProvider time, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     private static readonly IReadOnlyList<TimezoneOption> Defaults = [new("Europe/Copenhagen", "Copenhagen (Europe/Copenhagen)"), new("UTC", "UTC")];
     [BindProperty] public InputModel Input { get; set; } = new();
     [BindProperty] public long BannerVersion { get; set; }
     public string EventName { get; private set; } = string.Empty;
+    public string EventSlug { get; private set; } = string.Empty;
     public Guid EventId { get; private set; }
+    public EventState EventState { get; private set; }
+    public bool ShowPublicBoard { get; private set; }
     public bool HasBanner { get; private set; }
     public bool IsSlugLocked { get; private set; }
     public bool RequiresTimezoneReason { get; private set; }
     public IReadOnlyList<TimezoneOption> Timezones => Options();
     public IReadOnlyList<TimePreview> TimezonePreview { get; private set; } = [];
+    public IReadOnlyList<ManageModel.TimelineRow> EffectiveTimeline { get; private set; } = [];
 
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
     {
@@ -45,20 +50,20 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
         if (item is null) return NotFound();
         EventName = item.Name;
         RequiresTimezoneReason = item.ActualStartedAt is not null;
-        if (Input.Version != item.Version) { ModelState.AddModelError(string.Empty, "This event changed while you were editing it. Review the latest values and try again."); Populate(item, preserveInput: true); return Page(); }
+        if (Input.Version != item.Version) { ModelState.AddModelError(string.Empty, Localize("This event changed while you were editing it. Review the latest values and try again.")); Populate(item, preserveInput: true); return Page(); }
         var validTimezone = TryTimezone(Input.Timezone, out _);
-        if (!validTimezone) ModelState.AddModelError("Input.Timezone", "Choose a supported timezone.");
+        if (!validTimezone) ModelState.AddModelError("Input.Timezone", Localize("Choose a supported timezone."));
         var slug = EventSlugGenerator.Generate(string.IsNullOrWhiteSpace(Input.Slug) ? Input.Name : Input.Slug);
-        if (!string.Equals(slug, Input.Slug?.Trim(), StringComparison.Ordinal)) ModelState.AddModelError("Input.Slug", "Use lowercase letters, numbers, and hyphens for the event link.");
-        if (item.FirstPublicAt is not null && !string.Equals(slug, item.Slug, StringComparison.Ordinal)) ModelState.AddModelError("Input.Slug", "The public event link is locked after first publication.");
-        if (await db.Events.AnyAsync(x => x.Id != id && x.Slug == slug, ct)) ModelState.AddModelError("Input.Slug", "That event link is already in use.");
+        if (!string.Equals(slug, Input.Slug?.Trim(), StringComparison.Ordinal)) ModelState.AddModelError("Input.Slug", Localize("Use lowercase letters, numbers, and hyphens for the event link."));
+        if (item.FirstPublicAt is not null && !string.Equals(slug, item.Slug, StringComparison.Ordinal)) ModelState.AddModelError("Input.Slug", Localize("The public event link is locked after first publication."));
+        if (await db.Events.AnyAsync(x => x.Id != id && x.Slug == slug, ct)) ModelState.AddModelError("Input.Slug", Localize("That event link is already in use."));
         var timezoneChanged = !string.Equals(item.Timezone, Input.Timezone, StringComparison.Ordinal);
         if (validTimezone && timezoneChanged && item.FirstPublicAt is not null && !Input.ConfirmTimezoneChange)
         {
-            ModelState.AddModelError("Input.ConfirmTimezoneChange", "Review the participant-facing time preview and confirm this timezone change.");
+            ModelState.AddModelError("Input.ConfirmTimezoneChange", Localize("Review the participant-facing time preview and confirm this timezone change."));
             TimezonePreview = Preview(item, item.Timezone, Input.Timezone);
         }
-        if (timezoneChanged && item.ActualStartedAt is not null && string.IsNullOrWhiteSpace(Input.TimezoneReason)) ModelState.AddModelError("Input.TimezoneReason", "Enter a reason for changing timezone after event start.");
+        if (timezoneChanged && item.ActualStartedAt is not null && string.IsNullOrWhiteSpace(Input.TimezoneReason)) ModelState.AddModelError("Input.TimezoneReason", Localize("Enter a reason for changing timezone after event start."));
         if (!ModelState.IsValid) { Populate(item, preserveInput: true); return Page(); }
 
         var actor = User.GetAccountId()!.Value;
@@ -86,24 +91,29 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
         }
         catch (DbUpdateConcurrencyException)
         {
-            await transaction.RollbackAsync(ct); await DeleteUploadedAsync(uploaded, ct); db.ChangeTracker.Clear(); ModelState.AddModelError(string.Empty, "This event changed while you were editing it. Review the latest values and try again."); var latest = await db.Events.AsNoTracking().SingleAsync(x => x.Id == id, ct); Populate(latest, true); return Page();
+            await transaction.RollbackAsync(ct); await DeleteUploadedAsync(uploaded, ct); db.ChangeTracker.Clear(); ModelState.AddModelError(string.Empty, Localize("This event changed while you were editing it. Review the latest values and try again.")); var latest = await db.Events.AsNoTracking().SingleAsync(x => x.Id == id, ct); Populate(latest, true); return Page();
         }
         catch (DbUpdateException ex) when (IsSlugCollision(ex))
         {
             await transaction.RollbackAsync(ct);
             await DeleteUploadedAsync(uploaded, ct);
             db.ChangeTracker.Clear();
-            ModelState.AddModelError("Input.Slug", "That event link is already in use.");
+            ModelState.AddModelError("Input.Slug", Localize("That event link is already in use."));
             var latest = await db.Events.AsNoTracking().SingleAsync(x => x.Id == id, ct);
             Populate(latest, true);
             return Page();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            await transaction.RollbackAsync(ct); await DeleteUploadedAsync(uploaded, ct); db.ChangeTracker.Clear(); ModelState.AddModelError(string.Empty, "The identity update could not be saved. Try again."); Populate(item, true); return Page();
+            await transaction.RollbackAsync(ct); await DeleteUploadedAsync(uploaded, ct); db.ChangeTracker.Clear(); ModelState.AddModelError(string.Empty, Localize("The identity update could not be saved. Try again.")); Populate(item, true); return Page();
         }
-        TempData["StatusMessage"] = "Event identity updated."; TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
+        TempData["StatusMessage"] = Localize("Event identity updated."); TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
         return RedirectToPage("Manage", new { id });
+    }
+
+    public string EventDate(DateTimeOffset value)
+    {
+        return TimeZoneInfo.ConvertTime(value, TimeZoneInfo.FindSystemTimeZoneById(DisplayTimezone)).ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
     }
 
     public async Task<IActionResult> OnPostRemoveBannerAsync(Guid id, CancellationToken ct)
@@ -114,7 +124,7 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
         if (BannerVersion != item.Version)
         {
             await transaction.RollbackAsync(ct);
-            TempData["StatusMessage"] = "This event changed while you were editing it. Review the latest values and try again.";
+            TempData["StatusMessage"] = Localize("This event changed while you were editing it. Review the latest values and try again.");
             TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString();
             return RedirectToPage(new { id });
         }
@@ -141,19 +151,19 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
         catch (DbUpdateConcurrencyException)
         {
             await transaction.RollbackAsync(ct);
-            TempData["StatusMessage"] = "This event changed while you were editing it. Review the latest values and try again.";
+            TempData["StatusMessage"] = Localize("This event changed while you were editing it. Review the latest values and try again.");
             TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString();
             return RedirectToPage(new { id });
         }
         catch (InvalidOperationException)
         {
             await transaction.RollbackAsync(ct);
-            TempData["StatusMessage"] = "The banner could not be removed in the event's current state.";
+            TempData["StatusMessage"] = Localize("The banner could not be removed in the event's current state.");
             TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString();
             return RedirectToPage(new { id });
         }
 
-        TempData["StatusMessage"] = "Event banner removed.";
+        TempData["StatusMessage"] = Localize("Event banner removed.");
         TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
         return RedirectToPage(new { id });
     }
@@ -162,10 +172,27 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
     {
         EventId = item.Id;
         EventName = item.Name;
+        EventSlug = item.Slug;
+        EventState = item.State;
+        ShowPublicBoard = item.FirstPublicAt is not null && item.BoardPublished;
         HasBanner = item.BannerAssetId is not null;
         BannerVersion = item.Version;
         IsSlugLocked = item.FirstPublicAt is not null;
         RequiresTimezoneReason = item.ActualStartedAt is not null;
+        DisplayTimezone = item.Timezone;
+        EffectiveTimeline = ManageModel.EffectiveTimelineFor(new(
+            item.SignupOpensAt,
+            item.SignupClosesAt,
+            item.DraftAt,
+            item.EventStartsAt,
+            item.EventEndsAt,
+            item.ActualSignupOpenedAt,
+            item.ActualSignupClosedAt,
+            item.ActualStartedAt,
+            item.ActualEndedAt,
+            item.SubmissionCutoffAt,
+            item.SubmissionsClosedAt,
+            item.CancelledAt));
         if (!preserveInput) Input = new InputModel { Name = item.Name, Slug = item.Slug, Description = item.Description, Timezone = item.Timezone, Version = item.Version };
     }
     private async Task DeleteUploadedAsync(StoredEvidence? uploaded, CancellationToken ct)
@@ -184,6 +211,8 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
     {
         return Defaults.Select(option => new TimezoneOption(option.Id, Label(option.Id, option.Label))).ToList();
     }
+    private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
+    private string DisplayTimezone { get; set; } = "UTC";
     private static string Label(string timezoneId, string place)
     {
         if (!TryFind(timezoneId, out var timezone)) return place;

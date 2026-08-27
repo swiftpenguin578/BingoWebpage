@@ -77,7 +77,7 @@ public sealed partial class LoginModel(
             ChangePasswordModel.CreatePasswordSessionProperties(Input.RememberMe, DateTimeOffset.UtcNow));
         if (account.MustChangePassword)
         {
-            return RedirectToPage("/Account/ChangePassword");
+            return RedirectToPage("/Account/ChangePassword", new { ReturnUrl = Url.IsLocalUrl(ReturnUrl) ? ReturnUrl : null });
         }
 
         TempData["StatusMessage"] = text["Signed in successfully."].Value;

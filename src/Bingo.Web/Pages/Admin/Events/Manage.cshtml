@@ -2,6 +2,7 @@
 @model Bingo.Web.Pages.Admin.Events.ManageModel
 @using Bingo.Domain.Events
 @using Bingo.Domain.Signups
+@using Bingo.Web.UI
 @{
     ViewData["Title"] = Model.EventView?.Name ?? T["Event"];
     ViewData["CompactNavigation"] = true;
@@ -19,6 +20,7 @@
     var signupUrl = Url.Page("/Events/Signup", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
     var signupTableUrl = Url.Page("/Events/Signups", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
     var publicBoardUrl = Url.Page("/Events/Board", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
+    var signupWarningAcknowledgementRequired = eventView.State != EventState.SignupOpen && Model.SignupReadiness?.Warnings.Count > 0 && !Model.SignupWarningAcknowledged;
     var showPublicBoard = eventView.FirstPublicAt is not null && eventView.BoardPublished;
     var boardTileSummary = eventView.ConfiguredBoardTileCount is { } configuredTiles && eventView.ExpectedBoardCellCount is { } expectedTiles
         ? $"{configuredTiles} / {expectedTiles}"
@@ -38,31 +40,7 @@
     var milestoneContext = nextMilestone.At is null ? T["Not configured"].Value : T["Scheduled"].Value;
     var boardDotClass = boardTileSummary is null ? "is-orange" : "is-green";
     var submissionDotClass = Model.PendingReviewCount > 0 ? "is-pink" : reviewedSubmissionCount > 0 ? "is-green" : "is-purple";
-    var eventStatusLabel = eventView.State switch
-    {
-        EventState.Draft => T["Setup"],
-        EventState.SignupOpen => T["Signups open"],
-        EventState.SignupClosed => T["Signups closed"],
-        EventState.Live => T["Live"],
-        EventState.AwaitingFinalReview => T["Final review"],
-        EventState.Finalized => T["Finished"],
-        EventState.Archived => T["Archived"],
-        EventState.Cancelled => T["Cancelled"],
-        EventState.Discarded => T["Discarded"],
-        _ => T[eventView.State.ToString()]
-    };
-    var eventStatusTone = eventView.State switch
-    {
-        EventState.Draft => "is-yellow",
-        EventState.SignupOpen => "is-cyan",
-        EventState.SignupClosed => "is-orange",
-        EventState.Live => "is-green",
-        EventState.AwaitingFinalReview => "is-purple",
-        EventState.Finalized => "is-blue",
-        EventState.Archived => "is-muted",
-        EventState.Cancelled or EventState.Discarded => "is-pink",
-        _ => "is-muted"
-    };
+    var eventStatus = AdminEventStatePresentation.For(eventView.State, T);
 }
 
 <section class="table-page event-manage-page">
@@ -83,7 +61,7 @@
                         }
                         else
                         {
-                            <strong>@(eventView.ActualTeamCount > 0 ? eventView.ActualTeamCount : eventView.ExpectedTeamCount ?? 0) <small>@T["teams"]</small></strong>
+                            <strong>@(eventView.ActualTeamCount > 0 ? eventView.ActualTeamCount : eventView.ExpectedTeamCount ?? 0) <small>@T["Teams"]</small></strong>
                         }
                         <span class="event-overview-metric-context @peopleDotClass"><span class="event-overview-metric-dot" aria-hidden="true"></span>@peopleContext</span>
                     </div>
@@ -103,7 +81,7 @@
             </article>
             <article class="event-overview-metric">
                 <header class="event-overview-metric-header">
-                    <span class="event-overview-metric-label"><svg class="event-overview-metric-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18M3 15h18M9 3v18M15 3v18" /></svg><span>@T["Board"]</span></span>
+                    <span class="event-overview-metric-label"><svg class="event-overview-metric-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18M3 15h18M9 3v18M15 3v18" /></svg><span>@T["board"]</span></span>
                     <svg class="event-overview-metric-arrow" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M7 17 17 7M7 7h10v10" /></svg>
                 </header>
                 <div class="event-overview-metric-body">
@@ -115,7 +93,7 @@
             </article>
             <article class="event-overview-metric">
                 <header class="event-overview-metric-header">
-                    <span class="event-overview-metric-label"><svg class="event-overview-metric-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 13h8M8 17h6" /></svg><span>@T["Submissions"]</span></span>
+                        <span class="event-overview-metric-label"><svg class="event-overview-metric-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 13h8M8 17h6" /></svg><span>@T["submissions"]</span></span>
                     <svg class="event-overview-metric-arrow" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M7 17 17 7M7 7h10v10" /></svg>
                 </header>
                 <div class="event-overview-metric-body">
@@ -163,7 +141,7 @@
             <dl class="event-overview-dates">
                 <div class="event-overview-date-row event-overview-information-summary">
                     <div class="event-overview-information-name"><dt class="visually-hidden">@T["Event name"]</dt><dd>@eventView.Name</dd></div>
-                    <div class="event-overview-information-status"><dt class="visually-hidden">@T["Status"]</dt><dd><span class="event-overview-status-pill @eventStatusTone">@eventStatusLabel</span></dd></div>
+                    <div class="event-overview-information-status"><dt class="visually-hidden">@T["Status"]</dt><dd><span class="admin-status-pill @eventStatus.Modifier">@eventStatus.Label</span></dd></div>
                 </div>
                 @foreach (var row in Model.EffectiveTimeline)
                 {
@@ -226,9 +204,9 @@
                             <h3>@T["Manual signup control"]</h3>
                             <p>@(eventView.State == EventState.SignupOpen ? T["Close signups now. Players already on the list are not affected."] : T["Open signups now after completing the schedule and readiness checks."])</p>
                             <p class="event-control-status event-control-supporting"><a asp-page="Schedule" asp-route-id="@eventView.Id">@T["Edit the event schedule and review signup readiness"]</a></p>
-                            @if (eventView.ActualSignupOpenedAt is { } actualOpening) { <p class="event-control-status event-control-supporting is-green"><strong>Actual signup opening:</strong> @actualOpening.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</p> }
-                            else if (eventView.ScheduledSignupOpeningEnabled && eventView.SignupOpensAt is { } scheduledOpening) { <p class="event-control-status event-control-supporting is-cyan"><strong>Automatic signup opening scheduled for:</strong> @scheduledOpening.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</p> }
-                            else { <p class="event-control-status event-control-supporting is-yellow"><strong>No automatic signup opening scheduled.</strong></p> }
+                            @if (eventView.ActualSignupOpenedAt is { } actualOpening) { <p class="event-control-status event-control-supporting is-green"><strong>@T["Actual signup opening:"]</strong> @actualOpening.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</p> }
+                            else if (eventView.ScheduledSignupOpeningEnabled && eventView.SignupOpensAt is { } scheduledOpening) { <p class="event-control-status event-control-supporting is-cyan"><strong>@T["Automatic signup opening scheduled for:"]</strong> @scheduledOpening.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</p> }
+                            else { <p class="event-control-status event-control-supporting is-yellow"><strong>@T["No automatic signup opening scheduled."]</strong></p> }
                         </div>
                         <div class="event-admin-event-actions">
                             @if (Model.ConfirmationAction == "signup")
@@ -241,17 +219,32 @@
                             }
                             @if (Model.ConfirmationAction == "signup")
                             {
-                                <div class="event-confirmation-box" data-confirmation-box tabindex="-1">
-                                    <p>@(eventView.State == EventState.SignupOpen ? T["Close signups now? Players already on the list are not affected."] : T["Review the signup consequences below before continuing."])</p>
-                                    @if (eventView.State != EventState.SignupOpen && Model.SignupReadiness?.Warnings.Count > 0)
-                                    {
-                                        <ul class="event-confirmation-list" aria-label="@T["Signup warnings"]">
-                                            @foreach (var warning in Model.SignupReadiness.Warnings)
+                                @if (signupWarningAcknowledgementRequired)
+                                {
+                                    <section class="admin-signup-warning-ack" aria-labelledby="manage-warning-heading">
+                                        <div class="event-control-copy">
+                                            <h3 id="manage-warning-heading">@T["Review signup warnings"]</h3>
+                                            <p>@T["Acknowledge these active signup warnings before continuing."]</p>
+                                        </div>
+                                        <ul class="admin-signup-warning-list" aria-label="@T["Signup warnings"]">
+                                            @foreach (var warning in Model.SignupReadiness!.Warnings)
                                             {
                                                 <li>@warning.Description</li>
                                             }
                                         </ul>
-                                    }
+                                        <form method="post" asp-page-handler="ConfirmSignup" class="event-confirmation-form" data-update-targets="@partialUpdateTargets">
+                                            <input asp-for="EventVersion" type="hidden" />
+                                            <div class="event-confirmation-actions">
+                                                <button class="admin-button-secondary" type="submit" name="AcknowledgeSignupWarnings" value="true">@T["Confirm warnings"]</button>
+                                                <a class="admin-button-secondary" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a>
+                                            </div>
+                                        </form>
+                                    </section>
+                                }
+                                @if (!signupWarningAcknowledgementRequired)
+                                {
+                                    <div class="event-confirmation-box" data-confirmation-box tabindex="-1">
+                                        <p>@(eventView.State == EventState.SignupOpen ? T["Close signups now? Players already on the list are not affected."] : T["Review the signup consequences below before continuing."])</p>
                                     @if (Model.SignupCloseRequiresAcceptance)
                                     {
                                         <p class="event-confirmation-supporting"><strong>@T["Proposed signup close:"]</strong> @Model.EventDate(Model.SignupReadiness!.CloseDecision.ProposedClose) @eventView.Timezone</p>
@@ -259,13 +252,13 @@
                                     <form method="post" asp-page-handler="ConfirmSignup" class="event-confirmation-form" data-update-targets="@partialUpdateTargets">
                                         <input asp-for="EventVersion" type="hidden" />
                                         <div class="event-confirmation-actions">
-                                            @if (eventView.State != EventState.SignupOpen && Model.SignupReadiness?.Warnings.Count > 0 && !Model.SignupWarningAcknowledged) { <button class="btn event-create-cancel" type="submit" name="AcknowledgeSignupWarnings" value="true">@T["Confirm warnings"]</button> }
                                             @if (Model.SignupCloseRequiresAcceptance && !Model.SignupCloseAcknowledged) { <button class="btn event-create-cancel" type="submit" name="AcceptProposedClose" value="true">@T["Accept proposed close"]</button> }
                                             @if ((eventView.State == EventState.SignupOpen || Model.SignupReadiness?.Warnings.Count == 0 || Model.SignupWarningAcknowledged) && (!Model.SignupCloseRequiresAcceptance || Model.SignupCloseAcknowledged)) { <button class="btn event-create-cancel" type="submit">@T["Confirm"]</button> }
                                             <a class="btn event-create-cancel" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a>
                                         </div>
                                     </form>
-                                </div>
+                                    </div>
+                                }
                             }
                         </div>
                     </section>
@@ -335,17 +328,17 @@
                         @if (eventView.ReopenedCutoff is not null) { <small class="event-reopened-note">@T["Submissions reopened until"] @eventView.ReopenedCutoff.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</small> }
                         <section class="event-admin-control-group event-control-subsection" aria-labelledby="resume-event-heading">
                             <div class="event-control-copy">
-                                <h3 id="resume-event-heading">Resume premature end</h3>
-                                <p>The prior end remains in immutable history. Choose a future replacement end to return this event to live play.</p>
+                                <h3 id="resume-event-heading">@T["Resume premature end"]</h3>
+                                <p>@T["The prior end remains in immutable history. Choose a future replacement end to return this event to live play."]</p>
                             </div>
                             <div class="event-admin-event-actions">
                                 @if (Model.ConfirmationAction == "resume")
                                 {
-                                    <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>The prior end remains in immutable history. Confirm the replacement end to resume live play.</p><form method="post" asp-page-handler="ResumeEvent" class="form-stack event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="ReplacementEventEndsAt"><span>Replacement event end</span></label><input asp-for="ReplacementEventEndsAt" asp-format="{0:yyyy-MM-ddTHH:mm:ss.fffzzz}" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="Time" required /></div><div class="event-create-field"><label asp-for="ResumeReason"><span>Reason (required)</span></label><textarea asp-for="ResumeReason" class="form-control" rows="3" required></textarea></div><div class="event-confirmation-actions"><button class="btn event-create-cancel" type="submit" name="ConfirmResumeEvent" value="true">Confirm resume</button><a class="btn event-create-cancel" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a></div></form></div>
+                                    <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["The prior end remains in immutable history. Confirm the replacement end to resume live play."]</p><form method="post" asp-page-handler="ResumeEvent" class="form-stack event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="ReplacementEventEndsAt"><span>@T["Replacement event end"]</span></label><input asp-for="ReplacementEventEndsAt" asp-format="{0:yyyy-MM-ddTHH:mm:ss.fffzzz}" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" required /></div><div class="event-create-field"><label asp-for="ResumeReason"><span>@T["Reason (required)"]</span></label><textarea asp-for="ResumeReason" class="form-control" rows="3" required></textarea></div><div class="event-confirmation-actions"><button class="btn event-create-cancel" type="submit" name="ConfirmResumeEvent" value="true">@T["Confirm resume"]</button><a class="btn event-create-cancel" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a></div></form></div>
                                 }
                                 else
                                 {
-                                    <form method="post" asp-page-handler="PrepareResumeConfirmation" data-update-targets="@partialUpdateTargets"><button class="btn event-create-cancel" type="submit">Resume event</button></form>
+                                    <form method="post" asp-page-handler="PrepareResumeConfirmation" data-update-targets="@partialUpdateTargets"><button class="btn event-create-cancel" type="submit">@T["Resume event"]</button></form>
                                 }
                             </div>
                         </section>
@@ -356,7 +349,7 @@
                 @if (showAllControlStages || eventView.State == EventState.Live && Model.StartReadiness?.Blockers.Any(item => item.Code == "TEAM_ACCESS_MISSING") == true)
                 {
                     <section class="event-admin-control-group">
-                        <div><h3>Captain access needs attention</h3><p>The event remains Live. Assign a usable Captain or explicitly enable team-scoped emergency access.</p></div>
+                        <div><h3>@T["Captain access needs attention"]</h3><p>@T["The event remains Live. Assign a usable Captain or explicitly enable team-scoped emergency access."]</p></div>
                         <p class="event-control-status">@T["{0} access checks need attention.", Math.Max(1, Model.StartReadiness?.Blockers.Count(item => item.Code == "TEAM_ACCESS_MISSING") ?? 0)] <a asp-page="Draft" asp-route-id="@eventView.Id">@T["Review teams and draft"]</a></p>
                     </section>
                 }
@@ -401,15 +394,15 @@
                 @{ var integration = Model.CompetitionIntegration; var integrationEditable = showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live; var integrationStatusClass = integration is null || !integration.Configured || !string.IsNullOrWhiteSpace(integration.LastError) ? "event-wom-status-danger" : integration.Complete == true ? "event-wom-status-success" : integration.RetryDueAt is not null ? "event-wom-status-warning" : "event-wom-status-info"; var hasRequestBudget = integration?.RequestStatus.ObservedRemaining is not null || integration?.RequestStatus.ObservedLimit is not null || integration?.RequestStatus.ResetAt is not null; }
                 <section class="event-admin-control-group event-wom-section" aria-labelledby="competition-integration-heading">
                     <div class="event-wom-header">
-                        <h3 id="competition-integration-heading">Wise Old Man competition</h3>
-                        <p>Link a competition to sync EHB activity.</p>
+                        <h3 id="competition-integration-heading">@T["Wise Old Man competition"]</h3>
+                        <p>@T["Link a competition to sync EHB activity."]</p>
                     @if (integration is null || !integration.Configured)
                     {
-                        <p class="event-control-status event-wom-status"><strong>Status:</strong> <span class="event-wom-status-value @integrationStatusClass">Not configured.</span></p>
+                        <p class="event-control-status event-wom-status"><strong>@T["Status:"]</strong> <span class="event-wom-status-value @integrationStatusClass">@T["Not configured."]</span></p>
                     }
                     else
                     {
-                        <p class="event-control-status event-wom-status"><strong>Status:</strong> <span class="event-wom-status-value @integrationStatusClass"><strong>@integration.CompetitionTitle</strong> · @integration.CompetitionId · @(integration.Complete == true ? "Complete" : integration.Complete == false && integration.MissingAccounts.Count > 0 ? "Partial" : integration.Complete == false ? "Incomplete" : "Waiting")@(integration.LastSuccessfulAt is { } synced ? $" · {synced.ToLocalTime():g}" : string.Empty)@(integration.RetryDueAt is not null ? " · Retry scheduled" : string.Empty)@(integration.MissingAccounts.Count > 0 ? $" · {integration.MissingAccounts.Count} accounts missing" : string.Empty)@(!string.IsNullOrWhiteSpace(integration.LastError) ? $" · {integration.LastError}" : string.Empty)</span></p>
+                        <p class="event-control-status event-wom-status"><strong>@T["Status:"]</strong> <span class="event-wom-status-value @integrationStatusClass"><strong>@integration.CompetitionTitle</strong> · @integration.CompetitionId · @(integration.Complete == true ? T["Complete"] : integration.Complete == false && integration.MissingAccounts.Count > 0 ? T["Partial"] : integration.Complete == false ? T["Incomplete"] : T["Waiting"])@(integration.LastSuccessfulAt is { } synced ? $" · {synced.ToLocalTime():g}" : string.Empty)@(integration.RetryDueAt is not null ? $" · {T["Retry scheduled"]}" : string.Empty)@(integration.MissingAccounts.Count > 0 ? $" · {T["{0} accounts missing", integration.MissingAccounts.Count]}" : string.Empty)@(!string.IsNullOrWhiteSpace(integration.LastError) ? $" · {integration.LastError}" : string.Empty)</span></p>
                     }
                     </div>
                     <div class="event-control-static">
@@ -417,29 +410,29 @@
                     {
                         <form method="post" asp-page-handler="Competition" class="form-stack event-wom-form">
                             <input asp-for="EventVersion" type="hidden" />
-                            <div class="event-create-field"><label asp-for="CompetitionId">Competition ID</label><input asp-for="CompetitionId" class="form-control" inputmode="numeric" /></div>
+                            <div class="event-create-field"><label asp-for="CompetitionId">@T["Competition ID"]</label><input asp-for="CompetitionId" class="form-control" inputmode="numeric" /></div>
                             @if (showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed)
                             {
-                                <div class="event-wom-schedule-field"><div class="event-create-field"><label asp-for="SynchronizeCompetitionSchedule">Schedule handling</label><div class="event-wom-select-wrap"><select asp-for="SynchronizeCompetitionSchedule" class="form-select"><option value="false">Keep current schedule</option><option value="true">Use competition dates</option></select><svg class="event-wom-select-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></div></div></div>
+                                <div class="event-wom-schedule-field"><div class="event-create-field"><label asp-for="SynchronizeCompetitionSchedule">@T["Schedule handling"]</label><div class="event-wom-select-wrap"><select asp-for="SynchronizeCompetitionSchedule" class="form-select"><option value="false">@T["Keep current schedule"]</option><option value="true">@T["Use competition dates"]</option></select><svg class="event-wom-select-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></div></div></div>
                             }
-                            <button class="btn admin-button-secondary" type="submit">Link competition</button>
+                            <button class="btn admin-button-secondary" type="submit">@T["Link competition"]</button>
                         </form>
                         @if (integration?.Configured == true && eventView.State is not EventState.Live)
                         {
-                            <form method="post" asp-page-handler="ClearCompetition" class="form-stack"><input asp-for="EventVersion" type="hidden" /><button class="btn event-create-cancel" type="submit">Clear competition</button></form>
+                            <form method="post" asp-page-handler="ClearCompetition" class="form-stack"><input asp-for="EventVersion" type="hidden" /><button class="btn event-create-cancel" type="submit">@T["Clear competition"]</button></form>
                         }
                         @if ((showAllControlStages || eventView.State == EventState.Live) && integration?.Configured == true)
                         {
-                            <form method="post" asp-page-handler="RefreshCompetition"><button class="btn event-create-cancel" type="submit">Refresh cached activity</button></form>
+                            <form method="post" asp-page-handler="RefreshCompetition"><button class="btn event-create-cancel" type="submit">@T["Refresh cached activity"]</button></form>
                             @if (Model.ShowDevelopmentCompetitionControl)
                             {
-                                <form method="post" asp-page-handler="MakeDevelopmentCompetitionDue" class="form-stack"><button class="btn event-create-cancel" type="submit">Make next refresh due (Development TEST 15)</button></form>
+                                <form method="post" asp-page-handler="MakeDevelopmentCompetitionDue" class="form-stack"><button class="btn event-create-cancel" type="submit">@T["Make next refresh due (Development TEST 15)"]</button></form>
                             }
                         }
                     }
                     @if (hasRequestBudget)
                     {
-                        <p class="event-wom-budget"><small>Request budget: @(integration?.RequestStatus.ObservedRemaining?.ToString() ?? "—") remaining@(integration?.RequestStatus.ObservedLimit is { } limit ? $" of {limit}" : string.Empty)@(integration?.RequestStatus.ResetAt is { } reset ? $" · reset {reset.ToLocalTime():g}" : string.Empty)</small></p>
+                        <p class="event-wom-budget"><small>@T["Request budget:"] @(integration?.RequestStatus.ObservedRemaining?.ToString() ?? "—") @T["remaining"]@(integration?.RequestStatus.ObservedLimit is { } limit ? $" {T["of {0}", limit]}" : string.Empty)@(integration?.RequestStatus.ResetAt is { } reset ? $" · {T["reset"]} {reset.ToLocalTime():g}" : string.Empty)</small></p>
                     }
                     </div>
                 </section>

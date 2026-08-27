@@ -23,6 +23,7 @@ public sealed class BoardEditingUiTests
             "admin-collaboration.js"));
 
         Assert.Contains("id=\"create-tile-form\" data-native-submit", boardMarkup);
+        Assert.Contains("asp-page-handler=\"TeamSize\" class=\"inline-stat-form\" data-auto-submit><input type=\"hidden\" name=\"BoardVersion\" value=\"@Model.BoardView.Version\" />", boardMarkup);
         Assert.Contains("data-release-board-editing", boardMarkup);
         Assert.Contains("after five minutes without board activity", boardMarkup);
         Assert.DoesNotContain("pagehide", collaborationScript);
@@ -65,10 +66,19 @@ public sealed class BoardEditingUiTests
 
         Assert.Contains("One objective is one target", boardMarkup);
         Assert.Contains("Select multiple bosses", boardMarkup);
+        Assert.Contains("class=\"tile-editor-section-heading\"><h3>Tile details</h3>", boardMarkup);
+        Assert.Contains("class=\"information-callout tile-objective-guide\" role=\"note\"", boardMarkup);
         Assert.Contains("Add another objective", boardMarkup);
+        Assert.Contains("class=\"btn admin-button-secondary add-objective-button\"", boardMarkup);
+        Assert.Contains("class=\"manual-ehb-override\"><summary><span>Manual EHB override</span>", boardMarkup);
         Assert.Contains("Bosses or activities", requirementMarkup);
+        Assert.Contains("class=\"boss-picker-label\"", requirementMarkup);
+        Assert.Contains("bossPickerLabel.textContent", boardMarkup);
+        Assert.DoesNotContain("bossSummary.textContent", boardMarkup, StringComparison.Ordinal);
         Assert.Contains("Eligible drops", requirementMarkup);
         Assert.Contains("Counting options", requirementMarkup);
+        Assert.Contains("class=\"objective-counting-options\"><div class=\"counting-options-heading\"", requirementMarkup);
+        Assert.DoesNotContain("<details class=\"objective-counting-options\"", requirementMarkup, StringComparison.Ordinal);
         Assert.Contains("individual-drop-weights-toggle", requirementMarkup);
         Assert.Contains("DropWeights", requirementMarkup);
         Assert.Contains("Counts for @drop.CreditedWeight", boardMarkup);
@@ -91,18 +101,41 @@ public sealed class BoardEditingUiTests
         Assert.Contains("asp-page-handler=\"CorrectPublished\"", boardMarkup);
         Assert.Contains("Approval is private. Publication is a separate action after draft finalization.", boardMarkup);
         Assert.Contains("Finalize the team draft before publishing this approved board.", boardMarkup);
+        Assert.DoesNotContain("board-compact-page-heading", boardMarkup);
+        Assert.DoesNotContain("<label class=\"admin-field\"", boardMarkup);
+        Assert.DoesNotContain("<label class=\"admin-field\"", requirementMarkup);
+        Assert.Contains("class=\"admin-status-pill @boardStatusModifier\"", boardMarkup);
+        Assert.Contains("class=\"btn admin-button-secondary\" asp-page=\"BoardPreview\"", boardMarkup);
         Assert.Contains("Publish board? The approved board is ready.", draftCode);
         Assert.Contains("color-scheme: dark", siteStyles);
-        Assert.Contains("catalogue-compact-action catalogue-add-action\">Edit board", boardMarkup);
-        Assert.Contains("catalogue-compact-action neutral-outline-action\">Finish editing", boardMarkup);
-        Assert.Contains("catalogue-compact-action warning-outline-action\">Take over editing", boardMarkup);
-        Assert.Contains("catalogue-compact-action btn-outline-danger\">Remove tile", boardMarkup);
+        Assert.Contains("admin-button-secondary\">Edit board", boardMarkup);
+        Assert.Contains("admin-button-secondary\">Approve board", boardMarkup);
+        Assert.Contains("admin-button-secondary\">Finish editing", boardMarkup);
+        Assert.Contains("admin-button-secondary\">Take over editing", boardMarkup);
+        Assert.Contains("admin-button-secondary action-danger-outline\">Remove tile", boardMarkup);
         Assert.Contains(".board-page .board-editor", siteStyles);
         Assert.Contains("align-items: stretch", siteStyles);
         Assert.DoesNotContain("Optional settings for reviewing proof", boardMarkup);
         Assert.Contains("Manual total EHB estimate", boardMarkup);
-        Assert.Contains(".create-tile-dialog > .dialog-close", siteStyles);
+        Assert.Contains("width: min(41rem, calc(100vw - 2rem));", siteStyles);
+        Assert.DoesNotContain(".admin-shell-body .board-page .tile-dialog {\n  width: min(54rem", siteStyles);
+        Assert.Contains("admin-route-dialog-close", boardMarkup);
+        Assert.Contains("action-danger-outline", boardMarkup);
+        Assert.DoesNotContain("catalogue-compact-action", boardMarkup);
+        Assert.DoesNotContain("catalogue-compact-action", requirementMarkup);
+        Assert.Contains("admin-shell-body .board-page .tile-dialog-section", siteStyles);
+        Assert.Contains("var(--admin-focus-accent-strong)", siteStyles);
+        Assert.Contains("<details class=\"panel line-summary team-workload-summary\" open>", boardMarkup);
+        Assert.Contains(".admin-shell-body .board-page .team-workload-summary > div {\n  border-bottom: 0;\n}", siteStyles);
+        Assert.Contains(".admin-shell-body .board-page .eligible-drop-group {\n  color: var(--admin-text-soft);\n  background: var(--admin-surface-raised);\n  border: 0;\n  border-radius: 0.75rem;\n  padding: 1.25rem;\n  gap: 0.75rem;\n}", siteStyles);
+        Assert.Contains(".admin-shell-body .board-page .eligible-drop-option {\n  display: flex;", siteStyles);
+        Assert.Contains("border: 1px solid var(--admin-border-strong);", siteStyles);
+        Assert.Contains("class=\"eligible-drop-heading\"><strong>Eligible drops</strong><div class=\"eligible-drop-actions\"", requirementMarkup);
+        Assert.Contains(".admin-shell-body .board-page .eligible-drop-option:has(input:checked)", siteStyles);
         Assert.Contains("position: absolute", siteStyles);
+        Assert.Contains("color: var(--admin-muted);\n  font-size: 0.625rem;\n  font-weight: 700;\n  letter-spacing: 0.1em;\n  line-height: 1.2;\n  text-transform: uppercase;", siteStyles);
+        Assert.Contains("event.target !== dialog || window.matchMedia?.('(max-width: 900px)')?.matches", boardMarkup);
+        Assert.Contains("dialog.close();", boardMarkup);
     }
 
     private static string FindRepositoryRoot()

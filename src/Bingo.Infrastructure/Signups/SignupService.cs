@@ -215,8 +215,8 @@ public sealed class SignupService(
 
     public async Task<ParticipantOwnershipTransferResult> TransferParticipantOwnershipAsync(ParticipantOwnershipTransferRequest request, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.DestinationUsername) || !string.Equals(request.DestinationUsername, request.ConfirmationUsername, StringComparison.Ordinal))
-            return new(false, "Enter the exact destination username to confirm the transfer.");
+        if (request.DestinationOwnerAccountId is null)
+            return new(false, "Select an active website account to transfer ownership.");
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         var bingoEvent = await LockEventAsync(request.EventId, cancellationToken);
         if (bingoEvent is null) return new(false, "The event could not be found.");
@@ -226,9 +226,8 @@ public sealed class SignupService(
         var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(x => x.EventId == request.EventId && x.Id == request.ParticipantId, cancellationToken);
         if (participant is null) return new(false, "The participant could not be found.");
         if (request.ExpectedOwnerAccountId != participant.AccountId) return new(false, "This participant ownership changed elsewhere. Reload before transferring it.");
-        var destination = await dbContext.Accounts.SingleOrDefaultAsync(x => x.LoginName == request.DestinationUsername && x.Active && x.AccountType == AccountType.WebsiteAccount, cancellationToken);
+        var destination = await dbContext.Accounts.SingleOrDefaultAsync(x => x.Id == request.DestinationOwnerAccountId && x.Active && x.AccountType == AccountType.WebsiteAccount, cancellationToken);
         if (destination is null) return new(false, "The destination must be an active website account.");
-        if (!string.Equals(destination.LoginName, request.DestinationUsername, StringComparison.Ordinal)) return new(false, "Enter the destination username exactly as shown.");
         if (participant.AccountId == destination.Id) { await transaction.CommitAsync(cancellationToken); return new(true, null); }
         if (await dbContext.EventParticipants.AnyAsync(x => x.EventId == request.EventId && x.AccountId == destination.Id && x.Id != participant.Id, cancellationToken)) return new(false, "That account already owns a participant in this event.");
         var previousOwnerId = participant.AccountId;

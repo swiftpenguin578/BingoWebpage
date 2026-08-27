@@ -93,10 +93,10 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public async Task<IActionResult> OnPostReopenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.ReopenAsync(id, EventVersion, AcknowledgeSignupWarnings, AcceptProposedClose, Actor, ct), id, "Signups reopened.");
     public async Task<IActionResult> OnPostCapacityAsync(Guid id, CancellationToken ct)
     {
-        if (HasBindingErrors(nameof(NewCap))) { TempData["StatusMessage"] = "Enter a valid player cap."; return RedirectToPage(new { id }); }
-        if (await dbContext.Events.AnyAsync(e => e.Id == id && e.DraftLocked, ct)) { TempData["StatusMessage"] = "The participant cap cannot change after the draft has started."; return RedirectToPage(new { id }); }
+        if (HasBindingErrors(nameof(NewCap))) { TempData["StatusMessage"] = Localize("Enter a valid player cap."); return RedirectToPage(new { id }); }
+        if (await dbContext.Events.AnyAsync(e => e.Id == id && e.DraftLocked, ct)) { TempData["StatusMessage"] = Localize("The participant cap cannot change after the draft has started."); return RedirectToPage(new { id }); }
         var before = await dbContext.Events.AsNoTracking().Where(e => e.Id == id).Select(e => e.ParticipantCap).SingleOrDefaultAsync(ct);
-        try { var promoted = await signupService.IncreaseCapacityAndPromoteAsync(id, NewCap, ct); await AuditAsync("event.capacity_increased", await dbContext.Events.FindAsync([id], ct) ?? throw new InvalidOperationException(), $"{before} → {NewCap}; promoted {promoted}", ct); TempData["StatusMessage"] = $"Capacity increased. {promoted} participant(s) promoted."; }
+        try { var promoted = await signupService.IncreaseCapacityAndPromoteAsync(id, NewCap, ct); await AuditAsync("event.capacity_increased", await dbContext.Events.FindAsync([id], ct) ?? throw new InvalidOperationException(), $"{before} → {NewCap}; promoted {promoted}", ct); TempData["StatusMessage"] = Localize("Capacity increased. {0} participant(s) promoted.", promoted); }
         catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; }
         return RedirectToPage(new { id });
     }
@@ -122,7 +122,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var closeConfirmed = state is not (EventState.Draft or EventState.SignupClosed) || readiness?.CloseDecision.RequiresAcceptance != true || acceptProposedClose || TempData.Peek(SignupConfirmationKey(id, "close")) is not null;
         if (!warningsConfirmed || !closeConfirmed)
         {
-            SetStatus("Confirm each listed signup consequence before continuing.", UiMessageType.Error);
+            SetStatus(Localize("Confirm each listed signup consequence before continuing."), UiMessageType.Error);
             return RedirectToPage(new { id, confirm = "signup" });
         }
         TempData.Remove(SignupConfirmationKey(id, "warnings"));
@@ -135,28 +135,28 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public async Task<IActionResult> OnPostStartEventAsync(Guid id, CancellationToken ct)
     {
         var result = await eventLifecycle.StartNowAsync(id, EventVersion, ConfirmStartEvent, StartReason, Actor, ct);
-        SetStatus(result.Succeeded ? "Event started." : result.Error ?? "The event could not be started.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        SetStatus(result.Succeeded ? Localize("Event started.") : result.Error ?? Localize("The event could not be started."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostEndEventAsync(Guid id, CancellationToken ct)
     {
         var result = await eventLifecycle.EndNowAsync(id, EventVersion, ConfirmEndEvent, EndReason, Actor, ct);
-        SetStatus(result.Succeeded ? "Event ended and moved to final review." : result.Error ?? "The event could not be ended.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        SetStatus(result.Succeeded ? Localize("Event ended and moved to final review.") : result.Error ?? Localize("The event could not be ended."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostResumeEventAsync(Guid id, CancellationToken ct)
     {
         var result = await eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, ReplacementEventEndsAt, Actor, ct);
-        SetStatus(result.Succeeded ? "Event resumed and returned to live play." : result.Error ?? "The event could not be resumed.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        SetStatus(result.Succeeded ? Localize("Event resumed and returned to live play.") : result.Error ?? Localize("The event could not be resumed."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostCompetitionAsync(Guid id, CancellationToken ct)
     {
-        if (ModelState.ErrorCount > 0) { SetStatus("Enter a valid competition ID.", UiMessageType.Error); return RedirectToPage(new { id }); }
+        if (ModelState.ErrorCount > 0) { SetStatus(Localize("Enter a valid competition ID."), UiMessageType.Error); return RedirectToPage(new { id }); }
         try
         {
             var result = await (competitionSynchronization ?? throw new InvalidOperationException("Competition synchronization is not configured.")).ConfigureAsync(id, EventVersion, CompetitionId, SynchronizeCompetitionSchedule, Actor, ct);
-            SetStatus(result.Succeeded ? CompetitionId is null ? "Competition integration cleared." : "Competition linked and validated." : result.Error ?? "The competition could not be configured.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+            SetStatus(result.Succeeded ? CompetitionId is null ? Localize("Competition integration cleared.") : Localize("Competition linked and validated.") : result.Error ?? Localize("The competition could not be configured."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         }
         catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }
         return RedirectToPage(new { id });
@@ -166,7 +166,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         try
         {
             var result = await (competitionSynchronization ?? throw new InvalidOperationException("Competition synchronization is not configured.")).ConfigureAsync(id, EventVersion, null, false, Actor, ct);
-            SetStatus(result.Succeeded ? "Competition integration cleared." : result.Error ?? "The competition could not be cleared.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+            SetStatus(result.Succeeded ? Localize("Competition integration cleared.") : result.Error ?? Localize("The competition could not be cleared."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         }
         catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }
         return RedirectToPage(new { id });
@@ -192,7 +192,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         try
         {
             var madeDue = await (competitionSynchronization ?? throw new InvalidOperationException("Competition synchronization is not configured.")).MakeDevelopmentRefreshDueAsync(id, Actor, ct);
-            SetStatus(madeDue ? "Development TEST 15 competition refresh is due." : "The Development TEST 15 refresh control is unavailable.", madeDue ? UiMessageType.Success : UiMessageType.Error);
+            SetStatus(madeDue ? Localize("Development TEST 15 competition refresh is due.") : Localize("The Development TEST 15 refresh control is unavailable."), madeDue ? UiMessageType.Success : UiMessageType.Error);
         }
         catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }
         return RedirectToPage(new { id });
@@ -200,31 +200,31 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public async Task<IActionResult> OnPostDiscardAsync(Guid id, CancellationToken ct)
     {
         var result = await destructiveLifecycle.DiscardAsync(id, EventVersion, ConfirmDestructiveAction, Actor, ct);
-        SetStatus(result.Succeeded ? "Event discarded." : result.Error ?? "The event could not be discarded.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        SetStatus(result.Succeeded ? Localize("Event discarded.") : result.Error ?? Localize("The event could not be discarded."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return result.Succeeded ? RedirectToPage("Index") : RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostCancelAsync(Guid id, CancellationToken ct)
     {
         var result = await destructiveLifecycle.CancelAsync(id, EventVersion, ConfirmDestructiveAction, CancellationReason, Actor, ct);
-        SetStatus(result.Succeeded ? "Event cancelled." : result.Error ?? "The event could not be cancelled.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        SetStatus(result.Succeeded ? Localize("Event cancelled.") : result.Error ?? Localize("The event could not be cancelled."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostReopenSubmissionsAsync(Guid id, CancellationToken ct)
-    { var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); if (HasBindingErrors(nameof(ReopenUntil), nameof(StateReason)) || ReopenUntil is null || string.IsNullOrWhiteSpace(StateReason)) { TempData["StatusMessage"] = "A valid future cutoff and reason are required."; return RedirectToPage(new { id }); } try { item.ReopenSubmissions(ReopenUntil.Value, timeProvider.GetUtcNow()); await dbContext.SaveChangesAsync(ct); await AuditAsync("event.submissions_reopened", item, $"Until {ReopenUntil:O}; {StateReason}", ct); TempData["StatusMessage"] = $"Submissions reopened until {ReopenUntil.Value.ToLocalTime():g}."; } catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; } return RedirectToPage(new { id }); }
+    { var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); if (HasBindingErrors(nameof(ReopenUntil), nameof(StateReason)) || ReopenUntil is null || string.IsNullOrWhiteSpace(StateReason)) { TempData["StatusMessage"] = Localize("A valid future cutoff and reason are required."); return RedirectToPage(new { id }); } try { item.ReopenSubmissions(ReopenUntil.Value, timeProvider.GetUtcNow()); await dbContext.SaveChangesAsync(ct); await AuditAsync("event.submissions_reopened", item, $"Until {ReopenUntil:O}; {StateReason}", ct); TempData["StatusMessage"] = Localize("Submissions reopened until {0}.", ReopenUntil.Value.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)); } catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; } return RedirectToPage(new { id }); }
     public Task<IActionResult> OnPostEnableEvidenceCodesAsync(Guid id, CancellationToken ct) => SetEvidenceCodeMode(id, true, ct);
     public Task<IActionResult> OnPostDisableEvidenceCodesAsync(Guid id, CancellationToken ct) => SetEvidenceCodeMode(id, false, ct);
     private async Task<IActionResult> SetEvidenceCodeMode(Guid id, bool enabled, CancellationToken ct)
     {
-        var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); item.SetEvidenceCodeEnabled(enabled); await dbContext.SaveChangesAsync(ct); await AuditAsync("event.evidence_code_mode", item, enabled ? "Enabled" : "Disabled", ct); TempData["StatusMessage"] = enabled ? "Verification codes enabled." : "Verification codes disabled."; return RedirectToPage(new { id });
+        var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); item.SetEvidenceCodeEnabled(enabled); await dbContext.SaveChangesAsync(ct); await AuditAsync("event.evidence_code_mode", item, enabled ? "Enabled" : "Disabled", ct); TempData["StatusMessage"] = enabled ? Localize("Verification codes enabled.") : Localize("Verification codes disabled."); return RedirectToPage(new { id });
     }
     public Task<IActionResult> OnPostCreateEvidenceCodeAsync(Guid id, CancellationToken ct) => CreateEvidenceCode(id, NewEvidenceCode, ct);
     private async Task<IActionResult> CreateEvidenceCode(Guid id, string? code, CancellationToken ct)
     {
-        var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); if (HasBindingErrors(nameof(NewEvidenceCode), nameof(EvidenceCodeActivatesAt), nameof(EvidenceCodeNote))) { TempData["StatusMessage"] = "Check the verification code details and try again."; return RedirectToPage(new { id }); }
-        if (!item.EvidenceCodeEnabled) { TempData["StatusMessage"] = "Enable evidence codes first."; return RedirectToPage(new { id }); }
-        if (string.IsNullOrWhiteSpace(code)) { TempData["StatusMessage"] = "Enter or generate a code first."; return RedirectToPage(new { id }); }
-        var activates = (EvidenceCodeActivatesAt ?? timeProvider.GetUtcNow()).ToUniversalTime(); if (await dbContext.EvidenceCodes.AnyAsync(x => x.EventId == id && x.ActivatesAt == activates, ct)) { TempData["StatusMessage"] = "Another code already activates at that exact time."; return RedirectToPage(new { id }); }
-        var created = new EvidenceCode(Guid.NewGuid(), id, code, activates, User.GetAccountId()!.Value, timeProvider.GetUtcNow(), EvidenceCodeNote); dbContext.EvidenceCodes.Add(created); var codes = await dbContext.EvidenceCodes.Where(x => x.EventId == id).OrderBy(x => x.ActivatesAt).ToListAsync(ct); codes.Add(created); codes = codes.OrderBy(x => x.ActivatesAt).ToList(); for (var index = 0; index < codes.Count; index++) codes[index].SetRetiresAt(index + 1 < codes.Count ? codes[index + 1].ActivatesAt : null); await dbContext.SaveChangesAsync(ct); await AuditAsync("evidence_code.created", item, $"{created.Code}; activates {activates:O}", ct); TempData["StatusMessage"] = $"Evidence code {created.Code} saved."; return RedirectToPage(new { id });
+        var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); if (HasBindingErrors(nameof(NewEvidenceCode), nameof(EvidenceCodeActivatesAt), nameof(EvidenceCodeNote))) { TempData["StatusMessage"] = Localize("Check the verification code details and try again."); return RedirectToPage(new { id }); }
+        if (!item.EvidenceCodeEnabled) { TempData["StatusMessage"] = Localize("Enable evidence codes first."); return RedirectToPage(new { id }); }
+        if (string.IsNullOrWhiteSpace(code)) { TempData["StatusMessage"] = Localize("Enter or generate a code first."); return RedirectToPage(new { id }); }
+        var activates = (EvidenceCodeActivatesAt ?? timeProvider.GetUtcNow()).ToUniversalTime(); if (await dbContext.EvidenceCodes.AnyAsync(x => x.EventId == id && x.ActivatesAt == activates, ct)) { TempData["StatusMessage"] = Localize("Another code already activates at that exact time."); return RedirectToPage(new { id }); }
+        var created = new EvidenceCode(Guid.NewGuid(), id, code, activates, User.GetAccountId()!.Value, timeProvider.GetUtcNow(), EvidenceCodeNote); dbContext.EvidenceCodes.Add(created); var codes = await dbContext.EvidenceCodes.Where(x => x.EventId == id).OrderBy(x => x.ActivatesAt).ToListAsync(ct); codes.Add(created); codes = codes.OrderBy(x => x.ActivatesAt).ToList(); for (var index = 0; index < codes.Count; index++) codes[index].SetRetiresAt(index + 1 < codes.Count ? codes[index + 1].ActivatesAt : null); await dbContext.SaveChangesAsync(ct); await AuditAsync("evidence_code.created", item, $"{created.Code}; activates {activates:O}", ct); TempData["StatusMessage"] = Localize("Evidence code {0} saved.", created.Code); return RedirectToPage(new { id });
     }
     private async Task<bool> LoadAsync(Guid id, CancellationToken ct)
     {
@@ -295,7 +295,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     }
     private LifecycleActor Actor => new(User.GetAccountId()!.Value, User.Identity!.Name!);
     private Task<IActionResult> SignupResult(SignupLifecycleResult result, Guid id, string success)
-    { TempData["StatusMessage"] = result.Succeeded ? success : result.ProposedClose is { } close ? $"{result.Error} Proposed close: {close.ToLocalTime():dd MMM yyyy, HH:mm}." : result.Error; if (result.Succeeded) TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString(); return Task.FromResult<IActionResult>(RedirectToPage(new { id })); }
+    { TempData["StatusMessage"] = result.Succeeded ? Localize(success) : result.ProposedClose is { } close ? $"{result.Error} Proposed close: {close.ToLocalTime():dd MMM yyyy, HH:mm}." : result.Error; if (result.Succeeded) TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString(); return Task.FromResult<IActionResult>(RedirectToPage(new { id })); }
     private Task AuditAsync(string action, BingoEvent item, string details, CancellationToken ct) => auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, action, "event", item.Id.ToString(), details, ct);
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     private string CompetitionRefreshFailure(EventCompetitionRefreshResult result)

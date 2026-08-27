@@ -62,8 +62,8 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
         var result = await signupService.SignUpAuthenticatedAsync(new AuthenticatedSignupRequest(EventView!.Id, User.GetAccountId()!.Value, accountAnswers, Input.Answers, Input.SignupCode, Input.ExpectedResponseVersion), ct);
         if (!result.Succeeded)
         {
-            ModelState.AddModelError(string.Empty, IsResponseConflict(result.Error) ? (text?["Your signup changed while you were editing it. Please reload and try again."].Value ?? "Your signup changed while you were editing it. Please reload and try again.") : result.Error!);
-            if (result.Error == "The event code is incorrect.") ModelState.AddModelError(nameof(Input.SignupCode), result.Error!);
+            ModelState.AddModelError(string.Empty, IsResponseConflict(result.Error) ? (text?["Your signup changed while you were editing it. Please reload and try again."].Value ?? "Your signup changed while you were editing it. Please reload and try again.") : Localize(result.Error!));
+            if (result.Error == "The event code is incorrect.") ModelState.AddModelError(nameof(Input.SignupCode), Localize(result.Error!));
             await PopulateInputAsync(null, ct, preserveSubmitted: true);
             return Page();
         }
@@ -74,24 +74,24 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
         var question = Questions.SingleOrDefault(item => item.Id == questionId);
         if (question is null || question.Type != SignupQuestionType.Account || question.AccountRole != EventCharacterRole.Playing)
         {
-            ModelState.AddModelError(string.Empty, "Wise Old Man fetching is available only for regular accounts.");
+            ModelState.AddModelError(string.Empty, Localize("Wise Old Man fetching is available only for regular accounts."));
             return;
         }
         var input = Input.AccountAnswers.GetValueOrDefault(questionId);
         if (input?.OsrsCharacterId is not { } characterId || characterId == Guid.Empty)
         {
-            ModelState.AddModelError(string.Empty, "Choose a regular account before fetching its EHB.");
+            ModelState.AddModelError(string.Empty, Localize("Choose a regular account before fetching its EHB."));
             return;
         }
         var account = question.Accounts.SingleOrDefault(item => item.Id == characterId);
         if (account is null)
         {
-            ModelState.AddModelError(string.Empty, "Choose a regular account from My accounts before fetching its EHB.");
+            ModelState.AddModelError(string.Empty, Localize("Choose a regular account from My accounts before fetching its EHB."));
             return;
         }
         if (wiseOldMan is null || lookupTokens is null)
         {
-            ModelState.AddModelError(string.Empty, "Wise Old Man is unavailable right now. Your current EHB was kept.");
+            ModelState.AddModelError(string.Empty, Localize("Wise Old Man is unavailable right now. Your current EHB was kept."));
             return;
         }
         var normalizedCharacterName = await dbContext.OsrsCharacters.AsNoTracking()
@@ -100,7 +100,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
             .SingleOrDefaultAsync(ct);
         if (normalizedCharacterName is null)
         {
-            ModelState.AddModelError(string.Empty, "That character is no longer available. Your current EHB was kept.");
+            ModelState.AddModelError(string.Empty, Localize("That character is no longer available. Your current EHB was kept."));
             return;
         }
         var result = await wiseOldMan.LookupPlayerAsync(account.Name, ct);
@@ -118,10 +118,15 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     }
     private async Task<bool> LoadAsync(string slug, CancellationToken ct)
     {
-        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Slug == slug, ct); if (item is null || item.State == Bingo.Domain.Events.EventState.Discarded || item.State == Bingo.Domain.Events.EventState.Cancelled && item.FirstPublicAt is null) return false;
+        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Slug == slug, ct); if (item is null || item.State == Bingo.Domain.Events.EventState.Discarded || item.State == Bingo.Domain.Events.EventState.Cancelled && item.FirstPublicAt is null || User.IsInRole("Admin") == false && item.FirstPublicAt is null) return false;
         var cancelled = item.State == Bingo.Domain.Events.EventState.Cancelled;
         var rosterExists = await dbContext.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && dbContext.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == item.Id), ct);
-        EventView = new EventInfo(item.Id, item.Slug, item.Name, item.Description ?? string.Empty, item.SignupClosesAt, item.EventStartsAt, item.EventEndsAt, item.RequireSignupCode, !cancelled && item.AcceptsSignups(timeProvider.GetUtcNow()), cancelled, EventDestinationPolicy.MayUseSignupTable(EventDestinationPolicy.From(item, rosterExists), User.IsInRole("Admin")));
+        var signupCounts = await dbContext.EventParticipants.AsNoTracking().Where(participant => participant.EventId == item.Id).GroupBy(participant => participant.EventId).Select(group => new
+        {
+            Confirmed = group.Count(participant => participant.SignupStatus == SignupStatus.Confirmed),
+            Waiting = group.Count(participant => participant.SignupStatus == SignupStatus.WaitingList)
+        }).SingleOrDefaultAsync(ct);
+        EventView = new EventInfo(item.Id, item.Slug, item.Name, item.Description ?? string.Empty, item.SignupClosesAt, item.EventStartsAt, item.EventEndsAt, item.RequireSignupCode, !cancelled && item.AcceptsSignups(timeProvider.GetUtcNow()), cancelled, EventDestinationPolicy.MayUseSignupTable(EventDestinationPolicy.From(item, rosterExists), User.IsInRole("Admin")), item.ParticipantCap, signupCounts?.Confirmed ?? 0, signupCounts?.Waiting ?? 0);
         var accountId = User.GetAccountId();
         var links = accountId is null ? [] : await (from link in dbContext.AccountOsrsCharacters.AsNoTracking() join character in dbContext.OsrsCharacters.AsNoTracking() on link.OsrsCharacterId equals character.Id where link.AccountId == accountId && link.Active orderby link.Preferred descending, link.Position select new AccountOption(character.Id, character.DisplayName, link.SavedEhb, link.Preferred, false)).ToListAsync(ct);
         var questions = cancelled ? [] : await dbContext.SignupQuestions.AsNoTracking().Where(q => q.EventId == item.Id && q.Active).OrderBy(q => q.Position).ToListAsync(ct);
@@ -138,7 +143,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     private async Task<IActionResult?> RedirectForPublishedSurfaceAsync(string slug, CancellationToken ct)
     {
         var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug, ct);
-        if (item is null || User.IsInRole("Admin")) return null;
+        if (item is null || User.IsInRole("Admin") || item.FirstPublicAt is null) return null;
         var rosterExists = await dbContext.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && dbContext.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == item.Id), ct);
         return EventDestinationPolicy.Decide(EventDestinationPolicy.From(item, rosterExists), false) switch
         {
@@ -178,7 +183,8 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     public string MyAccountsUrl => Url.Page("/Account/MyAccounts", new { returnUrl = SignupReturnUrl(EventView!.Slug, IsEditing) })!;
     private string SignupReturnUrl(string slug, bool edit) => Url.Page("/Events/Signup", new { slug, edit = edit ? true : (bool?)null })!;
     private static bool IsResponseConflict(string? error) => error?.Contains("changed while you were editing", StringComparison.OrdinalIgnoreCase) == true;
-    public sealed record EventInfo(Guid Id, string Slug, string Name, string Description, DateTimeOffset? SignupClosesAt, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, bool RequireCode, bool Accepting, bool Cancelled, bool TableAvailable);
+    private string Localize(string message) => text?[message].Value ?? message;
+    public sealed record EventInfo(Guid Id, string Slug, string Name, string Description, DateTimeOffset? SignupClosesAt, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, bool RequireCode, bool Accepting, bool Cancelled, bool TableAvailable, int? ParticipantCap, int ConfirmedCount, int WaitingCount);
     public sealed record AccountOption(Guid Id, string Name, decimal? SavedEhb, bool Preferred, bool Historical);
     public sealed record QuestionView(Guid Id, string Label, SignupQuestionType Type, bool Required, string[] OptionList, EventCharacterRole? AccountRole, SignupSystemField SystemField, IReadOnlyList<AccountOption> Accounts);
     public sealed class SignupInput

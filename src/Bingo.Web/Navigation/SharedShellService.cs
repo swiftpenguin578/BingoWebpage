@@ -10,6 +10,7 @@ using Bingo.Web.Security;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
+using Bingo.Web.UI;
 
 namespace Bingo.Web.Navigation;
 
@@ -26,7 +27,65 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         var notifications = user.Identity?.IsAuthenticated == true
             ? await GetNotificationsAsync(user, cancellationToken)
             : NotificationInbox.Empty;
-        return new SharedShellData(breadcrumbs, notifications, adminEvent, adminEvents);
+        var captainNavigation = user.Identity?.IsAuthenticated == true
+            ? await GetCaptainNavigationAsync(user, cancellationToken)
+            : null;
+        var submissionNavigation = user.Identity?.IsAuthenticated == true
+            ? await GetSubmissionNavigationAsync(user, cancellationToken)
+            : null;
+        return new SharedShellData(breadcrumbs, notifications, adminEvent, adminEvents, captainNavigation, submissionNavigation);
+    }
+
+    private async Task<SubmissionNavigation?> GetSubmissionNavigationAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId)) return null;
+        var rows = await (from participant in db.EventParticipants.AsNoTracking()
+                          join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
+                          join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
+                          where participant.AccountId == accountId && team.Active && membership.LeftAt == null && participant.EventId == team.EventId
+                          select new { participant.EventId, TeamId = team.Id }).Distinct().ToListAsync(cancellationToken);
+        return rows.Count == 1 ? new SubmissionNavigation(rows[0].EventId, rows[0].TeamId) : null;
+    }
+
+    private async Task<CaptainNavigation?> GetCaptainNavigationAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId)) return null;
+        var accountType = await db.Accounts.AsNoTracking()
+            .Where(account => account.Id == accountId && account.Active)
+            .Select(account => (Bingo.Domain.Access.AccountType?)account.AccountType)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (accountType is null) return null;
+
+        var scopes = new List<(Guid EventId, Guid TeamId)>();
+        if (accountType == Bingo.Domain.Access.AccountType.WebsiteAccount)
+        {
+            var rows = await (from participant in db.EventParticipants.AsNoTracking()
+                              join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
+                              join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
+                              join bingoEvent in db.Events.AsNoTracking() on participant.EventId equals bingoEvent.Id
+                              where participant.AccountId == accountId && team.Active && membership.LeftAt == null &&
+                                    participant.EventId == team.EventId && bingoEvent.State == EventState.Live &&
+                                    (membership.Role == Bingo.Domain.Teams.TeamMembershipRole.Captain || membership.Role == Bingo.Domain.Teams.TeamMembershipRole.CoCaptain)
+                              select new { EventId = bingoEvent.Id, TeamId = team.Id })
+                .Distinct()
+                .ToListAsync(cancellationToken);
+            scopes = rows.Select(scope => (scope.EventId, scope.TeamId)).ToList();
+        }
+        else if (accountType == Bingo.Domain.Access.AccountType.EmergencyCaptain)
+        {
+            var now = timeProvider.GetUtcNow();
+            var rows = await (from access in db.AccountEventAccesses.AsNoTracking()
+                              join team in db.Teams.AsNoTracking() on access.TeamId equals team.Id
+                              join bingoEvent in db.Events.AsNoTracking() on access.EventId equals bingoEvent.Id
+                              where access.AccountId == accountId && access.Enabled && team.Active && team.EventId == bingoEvent.Id && bingoEvent.State == EventState.Live &&
+                                    (access.ActiveFrom == null || access.ActiveFrom <= now) && (access.ExpiresAt == null || access.ExpiresAt > now)
+                              select new { EventId = bingoEvent.Id, TeamId = team.Id })
+                .Distinct()
+                .ToListAsync(cancellationToken);
+            scopes = rows.Select(scope => (scope.EventId, scope.TeamId)).ToList();
+        }
+
+        return scopes.Count == 1 ? new CaptainNavigation(scopes[0].EventId, scopes[0].TeamId) : null;
     }
 
     public async Task<NotificationInbox> GetNotificationsAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
@@ -36,7 +95,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         {
             var unread = db.PersonalNotifications.AsNoTracking().Where(item => item.RecipientAccountId == accountId && item.ReadAt == null);
             var personal = await unread.OrderByDescending(item => item.CreatedAt).Take(6).ToListAsync(cancellationToken);
-            personalItems = personal.Select(item => new ShellNotification(item.Id, NotificationTitle(item.Title), NotificationDetail(item.Title, item.Detail), $"/notifications?read={item.Id}")).ToList();
+            personalItems = personal.Select(item => new ShellNotification(item.Id, NotificationPresentation.Title(text, item.Title), NotificationPresentation.Detail(text, item.Title, item.Detail), $"/notifications?read={item.Id}")).ToList();
             var personalCount = await unread.CountAsync(cancellationToken);
             var adminActions = user.IsInRole("Admin") || user.IsInRole("SuperAdmin")
                 ? await GetAdminActionsAsync(cancellationToken)
@@ -51,49 +110,6 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         var anonymousEventIds = await db.Events.AsNoTracking().Where(item => item.State == EventState.Live || item.State == EventState.AwaitingFinalReview).Select(item => item.Id).ToListAsync(cancellationToken);
         return new NotificationInbox(anonymousEventIds, anonymousAdminActions.Count, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personalItems,
             0, anonymousAdminActions.Count, text["Admin actions"], text["No unresolved Admin actions."], text["Open Admin actions"], "/Admin", anonymousAdminActions.Items);
-    }
-
-    private string NotificationTitle(string type) => type switch
-    {
-        "account.admin_granted" => text["Admin access granted"],
-        "account.admin_revoked" => text["Admin access revoked"],
-        "account.restored" => text["An administrator restored your account."],
-        "event.cancelled" => text["Event cancelled"],
-        "event.results_published" => text["Official results published"],
-        "evidence.rejected" => text["Evidence rejected"],
-        "participant.live_withdrawn" => text["Live participant withdrawn"],
-        "participant.live_replaced" => text["Live replacement confirmed"],
-        _ => type
-    };
-
-    private string NotificationDetail(string type, string detail) => type switch
-    {
-        "account.admin_granted" => text["An administrator granted your account Admin access."],
-        "account.admin_revoked" => text["An administrator removed your Admin access."],
-        "account.restored" => text["An administrator restored your account."],
-        "event.cancelled" => text["Your event has been cancelled."],
-        "event.results_published" => detail,
-        "evidence.rejected" => FormatEvidenceRejection(detail),
-        "participant.live_withdrawn" or "participant.live_replaced" => detail,
-        _ => detail
-    };
-
-    private string FormatEvidenceRejection(string detail)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(detail);
-            var root = document.RootElement;
-            var eventName = root.GetProperty("eventName").GetString() ?? text["Unknown event"];
-            var tile = root.GetProperty("tile").GetString() ?? text["Unknown tile"];
-            var drop = root.TryGetProperty("drop", out var dropValue) && dropValue.ValueKind != JsonValueKind.Null ? $" · {dropValue.GetString()}" : string.Empty;
-            var reason = root.GetProperty("reason").GetString() ?? string.Empty;
-            return text["Evidence for {0} · {1}{2} was rejected. Reason: {3}", eventName, tile, drop, reason];
-        }
-        catch (JsonException)
-        {
-            return text["Evidence rejected."];
-        }
     }
 
     public async Task<AdminActionProjection> GetAdminActionsAsync(CancellationToken cancellationToken)
@@ -114,18 +130,20 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             item.Id,
             $"Evidence review · {item.Team} · {item.Tile}",
             text["{0} · {1} · submitted {2}", eventMap[item.EventId].Name, item.Player, FormatDate(item.SubmittedAt, eventMap[item.EventId].Timezone)],
-            $"/Admin/Review/Details/{item.Id}")));
+            $"/Admin/Review/Details/{item.Id}",
+            "Evidence review",
+            $"{item.Team} · {item.Tile}")));
 
         var followups = await (from followUp in db.WaitingListPromotionFollowUps.AsNoTracking()
                                join participant in db.EventParticipants.AsNoTracking() on followUp.PromotedParticipantId equals participant.Id
                                where followUp.CompletedAt == null && activeEventIds.Contains(followUp.EventId)
                                select new { followUp.Id, followUp.EventId, ParticipantId = participant.Id }).Take(6).ToListAsync(cancellationToken);
         var followupCount = await db.WaitingListPromotionFollowUps.CountAsync(x => x.CompletedAt == null && activeEventIds.Contains(x.EventId), cancellationToken);
-        items.AddRange(followups.Select(x => new ShellNotification(x.Id, "Waiting-list follow-up", "Contact the promoted participant, then mark the follow-up complete.", $"/Admin/Events/Participant/{x.EventId}/Participants/{x.ParticipantId}")));
+        items.AddRange(followups.Select(x => new ShellNotification(x.Id, "Waiting-list follow-up", $"{eventMap[x.EventId].Name} · Contact the promoted participant, then mark the follow-up complete.", $"/Admin/Events/Participant/{x.EventId}/Participants/{x.ParticipantId}")));
 
         var postponed = await db.ScheduledEventStartAttempts.AsNoTracking().Where(x => activeEventIds.Contains(x.EventId) && !x.Started && x.ResolvedAt == null && x.ScheduledFor <= DateTimeOffset.UtcNow).OrderByDescending(x => x.AttemptedAt).Take(6).ToListAsync(cancellationToken);
         var postponedCount = await db.ScheduledEventStartAttempts.CountAsync(x => activeEventIds.Contains(x.EventId) && !x.Started && x.ResolvedAt == null && x.ScheduledFor <= DateTimeOffset.UtcNow, cancellationToken);
-        items.AddRange(postponed.Select(x => new ShellNotification(x.Id, "Postponed start", "Resolve the scheduled start blockers.", $"/Admin/Events/Manage/{x.EventId}")));
+        items.AddRange(postponed.Select(x => new ShellNotification(x.Id, "Postponed start", $"{eventMap[x.EventId].Name} · Resolve the scheduled start blockers.", $"/Admin/Events/Manage/{x.EventId}")));
 
         var vacancies = await (from membership in db.TeamMemberships.AsNoTracking()
                                join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
@@ -137,7 +155,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
                                   join ev in db.Events.AsNoTracking() on participant.EventId equals ev.Id
                                   where (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) && participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && !db.TeamMemberships.Any(replacement => replacement.ReplacesMembershipId == membership.Id)
                                   select membership.Id).CountAsync(cancellationToken);
-        items.AddRange(vacancies.Select(x => new ShellNotification(x.Id, "Open vacancy", "Review the open team vacancy and choose whether to replace it.", $"/Admin/Events/Participant/{x.EventId}/Participants/{x.ParticipantId}")));
+        items.AddRange(vacancies.Select(x => new ShellNotification(x.Id, "Open vacancy", $"{eventMap[x.EventId].Name} · Review the open team vacancy and choose whether to replace it.", $"/Admin/Events/Participant/{x.EventId}/Participants/{x.ParticipantId}")));
 
         var missingCaptains = await (from team in db.Teams.AsNoTracking()
                                      join ev in db.Events.AsNoTracking() on team.EventId equals ev.Id
@@ -157,7 +175,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
                                                !db.AccountEventAccesses.Any(access => access.EventId == ev.Id && access.TeamId == team.Id && access.Enabled &&
                                                    db.Accounts.Any(account => account.Id == access.AccountId && account.Active && account.AccountType == Bingo.Domain.Access.AccountType.EmergencyCaptain))
                                          select team.Id).CountAsync(cancellationToken);
-        items.AddRange(missingCaptains.Select(x => new ShellNotification(x.Id, "Missing Captain", "Assign a current Captain through the event roster.", $"/Admin/Events/Manage/{x.EventId}")));
+        items.AddRange(missingCaptains.Select(x => new ShellNotification(x.Id, "Missing Captain", $"{eventMap[x.EventId].Name} · Assign a current Captain through the event roster.", $"/Admin/Events/Manage/{x.EventId}")));
 
         return new AdminActionProjection(activeEventIds, items.Take(8).ToList(), pendingCount + followupCount + postponedCount + vacancyCount + missingCaptainCount);
     }
@@ -188,7 +206,8 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
 
         if (eventView is null) return null;
         var blockerCount = await GetAdminEventBlockerCountAsync(eventView.Id, eventView.State, cancellationToken);
-        return new AdminEventContext(eventView.Id, eventView.Name, eventView.State, StatusLabel(eventView.State), blockerCount);
+        var presentation = AdminEventStatePresentation.For(eventView.State, text);
+        return new AdminEventContext(eventView.Id, eventView.Name, eventView.State, presentation.Label, blockerCount);
     }
 
     private async Task<int> GetAdminEventBlockerCountAsync(Guid eventId, EventState state, CancellationToken cancellationToken)
@@ -229,7 +248,11 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             .OrderBy(item => item.Name)
             .Select(item => new { item.Id, item.Name, item.State })
             .ToListAsync(cancellationToken);
-        return events.Select(item => new AdminEventOption(item.Id, item.Name, item.State, StatusLabel(item.State))).ToList();
+        return events.Select(item =>
+        {
+            var presentation = AdminEventStatePresentation.For(item.State, text);
+            return new AdminEventOption(item.Id, item.Name, item.State, presentation.Label, presentation.Modifier);
+        }).ToList();
     }
 
     private async Task<IReadOnlyList<BreadcrumbItem>> BuildCaptainBreadcrumbs(string page, RouteValueDictionary values, CancellationToken cancellationToken)
@@ -256,7 +279,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
     private async Task<IReadOnlyList<BreadcrumbItem>> BuildPublicBreadcrumbs(string page, RouteValueDictionary values, CancellationToken cancellationToken)
     {
         var slug = values["slug"]?.ToString();
-        if (string.IsNullOrWhiteSpace(slug) || page.Contains("/Signup", StringComparison.Ordinal)) return [];
+        if (string.IsNullOrWhiteSpace(slug) || page is "/Events/Teams" or "/Events/Confirmation" || page.Contains("/Signup", StringComparison.Ordinal)) return [];
         var eventView = await db.Events.AsNoTracking().Where(item => item.Slug == slug).Select(item => new { item.Id, item.Name, item.State }).SingleOrDefaultAsync(cancellationToken);
         if (eventView is null) return [];
         var items = new List<BreadcrumbItem> { new(text["Public boards"], "/") };
@@ -277,17 +300,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         return items;
     }
 
-    private string StatusLabel(EventState state) => state switch
-    {
-        EventState.Draft => text["Setup"],
-        EventState.SignupOpen => text["Signups open"],
-        EventState.SignupClosed => text["Signups closed"],
-        EventState.Live => text["Live"],
-        EventState.AwaitingFinalReview => text["Final review"],
-        EventState.Finalized => text["Finished"],
-        EventState.Archived => text["Archived"],
-        _ => state.ToString()
-    };
+    private string StatusLabel(EventState state) => AdminEventStatePresentation.For(state, text).Label;
 
     private static string FormatDate(DateTimeOffset value, string timezoneId)
     {
@@ -308,13 +321,71 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
     private static bool TryGuid(RouteValueDictionary values, string key, out Guid value) => Guid.TryParse(values[key]?.ToString(), out value);
 }
 
-public sealed record SharedShellData(IReadOnlyList<BreadcrumbItem> Breadcrumbs, NotificationInbox Notifications, AdminEventContext? AdminEvent, IReadOnlyList<AdminEventOption> AdminEvents);
+public sealed record SharedShellData(IReadOnlyList<BreadcrumbItem> Breadcrumbs, NotificationInbox Notifications, AdminEventContext? AdminEvent, IReadOnlyList<AdminEventOption> AdminEvents, CaptainNavigation? CaptainNavigation, SubmissionNavigation? SubmissionNavigation);
+public sealed record CaptainNavigation(Guid EventId, Guid TeamId)
+{
+    public string Url => $"/Captain?eventId={EventId}&teamId={TeamId}";
+}
+public sealed record SubmissionNavigation(Guid EventId, Guid TeamId)
+{
+    public string Url => $"/Submissions?eventId={EventId}&teamId={TeamId}";
+}
 public sealed record BreadcrumbItem(string Label, string? Url, string? Status = null, string? StatusClass = null);
-public sealed record ShellNotification(Guid Id, string Title, string Detail, string Url);
+public sealed record ShellNotification(Guid Id, string Title, string Detail, string Url, string? TitleLabel = null, string? TitleMetadata = null);
 public sealed record AdminEventContext(Guid Id, string Name, EventState State, string StatusLabel, int BlockerCount = 0);
-public sealed record AdminEventOption(Guid Id, string Name, EventState State, string StatusLabel);
+public sealed record AdminEventOption(Guid Id, string Name, EventState State, string StatusLabel, string StatusModifier);
 public sealed record NotificationInbox(IReadOnlyList<Guid> EventIds, int Count, string Heading, string EmptyText, string OverviewLabel, string OverviewUrl, IReadOnlyList<ShellNotification> Items, int PersonalCount, int AdminActionCount, string AdminHeading, string AdminEmptyText, string AdminOverviewLabel, string AdminOverviewUrl, IReadOnlyList<ShellNotification> AdminItems)
 {
     public static NotificationInbox Empty { get; } = new([], 0, string.Empty, string.Empty, string.Empty, string.Empty, [], 0, 0, string.Empty, string.Empty, string.Empty, string.Empty, []);
 }
 public sealed record AdminActionProjection(IReadOnlyList<Guid> EventIds, IReadOnlyList<ShellNotification> Items, int Count);
+
+internal static class NotificationPresentation
+{
+    public static string Title(IStringLocalizer<SharedResource> text, string type) => type switch
+    {
+        "account.admin_granted" => text["Admin access granted"],
+        "account.admin_revoked" => text["Admin access revoked"],
+        "account.restored" => text["An administrator restored your account."],
+        "event.cancelled" => text["Event cancelled"],
+        "event.results_published" => text["Official results published"],
+        "evidence.rejected" => text["Evidence rejected"],
+        "participant.ownership_transferred" => text["Participant ownership transferred"],
+        "participant.withdrawn" => text["Signup withdrawn"],
+        "participant.restored" => text["Signup restored"],
+        "participant.promoted" => text["Signup promoted to confirmed"],
+        "participant.live_withdrawn" => text["Live participant withdrawn"],
+        "participant.live_replaced" => text["Live replacement confirmed"],
+        _ => type
+    };
+
+    public static string Detail(IStringLocalizer<SharedResource> text, string type, string detail) => type switch
+    {
+        "account.admin_granted" => text["An administrator granted your account Admin access."],
+        "account.admin_revoked" => text["An administrator removed your Admin access."],
+        "account.restored" => text["An administrator restored your account."],
+        "event.cancelled" => text["Your event has been cancelled."],
+        "event.results_published" => detail,
+        "evidence.rejected" => FormatEvidenceRejection(text, detail),
+        "participant.live_withdrawn" or "participant.live_replaced" => detail,
+        _ => detail
+    };
+
+    private static string FormatEvidenceRejection(IStringLocalizer<SharedResource> text, string detail)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(detail);
+            var root = document.RootElement;
+            var eventName = root.GetProperty("eventName").GetString() ?? text["Unknown event"];
+            var tile = root.GetProperty("tile").GetString() ?? text["Unknown tile"];
+            var drop = root.TryGetProperty("drop", out var dropValue) && dropValue.ValueKind != JsonValueKind.Null ? $" · {dropValue.GetString()}" : string.Empty;
+            var reason = root.GetProperty("reason").GetString() ?? string.Empty;
+            return text["Evidence for {0} · {1}{2} was rejected. Reason: {3}", eventName, tile, drop, reason];
+        }
+        catch (JsonException)
+        {
+            return text["Evidence rejected."];
+        }
+    }
+}

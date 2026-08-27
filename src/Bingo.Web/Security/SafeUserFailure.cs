@@ -19,6 +19,7 @@ public static class SafeUserFailure
         "This link is no longer valid.",
         "The current password is incorrect.",
         "This submission is no longer editable.",
+        "This objective has already been completed.",
         "This event is not accepting submissions.",
         "You can only submit evidence for your own team.",
         "A public username is required.",

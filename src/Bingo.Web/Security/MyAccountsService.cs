@@ -40,7 +40,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
     public async Task AddOrReactivateAsync(Guid accountId, string characterName, string? label, decimal? savedEhb, CancellationToken ct)
     {
         var cleanName = RequireCharacterName(characterName);
-        ValidateEhb(savedEhb);
+        savedEhb = NormalizeEhb(savedEhb);
         await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
         var now = time.GetUtcNow();
         await LockCharacterAsync(cleanName, ct);
@@ -51,8 +51,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         {
             var position = (await db.AccountOsrsCharacters.Where(item => item.AccountId == accountId && item.Active)
                 .MaxAsync(item => (int?)item.Position, ct) ?? -1) + 1;
-            var preferred = !await db.AccountOsrsCharacters.AnyAsync(item => item.AccountId == accountId && item.Active && item.Preferred, ct);
-            db.AccountOsrsCharacters.Add(new AccountOsrsCharacter(Guid.NewGuid(), accountId, character.Id, accountId, preferred, position, label, savedEhb, now));
+            db.AccountOsrsCharacters.Add(new AccountOsrsCharacter(Guid.NewGuid(), accountId, character.Id, accountId, false, position, label, savedEhb, now));
         }
         else if (link.Active)
         {
@@ -61,37 +60,25 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         else
         {
             link.Relink(accountId, now);
-            link.UpdatePreferences(label, link.Position, link.Preferred, savedEhb, now);
+            link.UpdatePreferences(label, link.Position, false, savedEhb, now);
         }
 
+        await NormalizePreferredAsync(accountId, now, ct);
         await SaveAndCommitAsync(transaction, ct);
     }
 
-    public async Task UpdateAsync(Guid accountId, Guid linkId, string? label, decimal? savedEhb, CancellationToken ct)
+    public async Task UpdateAsync(Guid accountId, Guid linkId, string characterName, string? label, decimal? savedEhb, CancellationToken ct)
     {
-        ValidateEhb(savedEhb);
+        var cleanName = RequireCharacterName(characterName);
+        savedEhb = NormalizeEhb(savedEhb);
         await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
+        await LockCharacterAsync(cleanName, ct);
         var link = await ActiveLinkAsync(accountId, linkId, ct);
-        link.UpdatePreferences(label, link.Position, link.Preferred, savedEhb, time.GetUtcNow());
-        await SaveAndCommitAsync(transaction, ct);
-    }
-
-    public async Task<string> GetCharacterNameForLookupAsync(Guid accountId, Guid linkId, CancellationToken ct)
-    {
-        await RequireWebsiteAccountAsync(accountId, ct);
-        return await (from link in db.AccountOsrsCharacters.AsNoTracking()
-                      join character in db.OsrsCharacters.AsNoTracking() on link.OsrsCharacterId equals character.Id
-                      where link.AccountId == accountId && link.Id == linkId && link.Active
-                      select character.DisplayName).SingleOrDefaultAsync(ct)
-            ?? throw new InvalidOperationException("That character is no longer available in your My Accounts list.");
-    }
-
-    public async Task UpdateSavedEhbAsync(Guid accountId, Guid linkId, decimal savedEhb, CancellationToken ct)
-    {
-        ValidateEhb(savedEhb);
-        await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
-        var link = await ActiveLinkAsync(accountId, linkId, ct);
-        link.UpdatePreferences(link.PersonalLabel, link.Position, link.Preferred, savedEhb, time.GetUtcNow());
+        var now = time.GetUtcNow();
+        var corrected = await FindOrCreateCharacterAsync(cleanName, now, ct);
+        await ApplyCharacterCorrectionAsync(accountId, link, corrected, now, ct);
+        link.UpdatePreferences(label, link.Position, link.Preferred, savedEhb, now);
+        await NormalizePreferredAsync(accountId, now, ct);
         await SaveAndCommitAsync(transaction, ct);
     }
 
@@ -108,20 +95,14 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         var now = time.GetUtcNow();
         var first = links[index];
         var second = links[next];
-        first.UpdatePreferences(first.PersonalLabel, second.Position, first.Preferred, first.SavedEhb, now);
-        second.UpdatePreferences(second.PersonalLabel, first.Position, second.Preferred, second.SavedEhb, now);
-        await SaveAndCommitAsync(transaction, ct);
-    }
-
-    public async Task SetPreferredAsync(Guid accountId, Guid linkId, CancellationToken ct)
-    {
-        await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
-        var link = await ActiveLinkAsync(accountId, linkId, ct);
-        var now = time.GetUtcNow();
-        foreach (var preferred in await db.AccountOsrsCharacters.Where(item => item.AccountId == accountId && item.Active && item.Preferred).ToListAsync(ct))
-            preferred.UpdatePreferences(preferred.PersonalLabel, preferred.Position, false, preferred.SavedEhb, now);
+        var firstPosition = first.Position;
+        var secondPosition = second.Position;
+        first.UpdatePreferences(first.PersonalLabel, secondPosition, first.Preferred, first.SavedEhb, now);
+        second.UpdatePreferences(second.PersonalLabel, firstPosition, second.Preferred, second.SavedEhb, now);
+        foreach (var link in links.Where(item => item.Preferred))
+            link.UpdatePreferences(link.PersonalLabel, link.Position, false, link.SavedEhb, now);
         await SaveChangesSafelyAsync(ct);
-        link.UpdatePreferences(link.PersonalLabel, link.Position, true, link.SavedEhb, now);
+        await NormalizePreferredAsync(accountId, now, ct);
         await SaveAndCommitAsync(transaction, ct);
     }
 
@@ -131,7 +112,9 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         var link = await ActiveLinkAsync(accountId, linkId, ct);
         if (!confirmedRegistrationWarning && await HasUpcomingOrLiveRegistrationAsync(accountId, link.OsrsCharacterId, ct))
             throw new MyAccountsConfirmationRequiredException();
-        link.Unlink(time.GetUtcNow());
+        var now = time.GetUtcNow();
+        link.Unlink(now);
+        await NormalizePreferredAsync(accountId, now, ct);
         await SaveAndCommitAsync(transaction, ct);
     }
 
@@ -143,6 +126,13 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         var link = await ActiveLinkAsync(accountId, linkId, ct);
         var now = time.GetUtcNow();
         var corrected = await FindOrCreateCharacterAsync(cleanName, now, ct);
+        await ApplyCharacterCorrectionAsync(accountId, link, corrected, now, ct);
+        await NormalizePreferredAsync(accountId, now, ct);
+        await SaveAndCommitAsync(transaction, ct);
+    }
+
+    private async Task ApplyCharacterCorrectionAsync(Guid accountId, AccountOsrsCharacter link, OsrsCharacter corrected, DateTimeOffset now, CancellationToken ct)
+    {
         if (corrected.Id == link.OsrsCharacterId) return;
         if (await db.AccountOsrsCharacters.AnyAsync(item => item.AccountId == accountId && item.OsrsCharacterId == corrected.Id, ct))
             throw new InvalidOperationException("That corrected character already has a separate My Accounts link.");
@@ -170,7 +160,6 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
 
         link.CorrectCharacter(corrected.Id, now);
         foreach (var assignment in editable) assignment.Assignment.ReplaceCharacter(corrected.Id);
-        await SaveAndCommitAsync(transaction, ct);
     }
 
     public async Task<bool> IsWebsiteAccountAsync(Guid accountId, CancellationToken ct) =>
@@ -224,6 +213,26 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
                   (bingoEvent.State == EventState.Draft || bingoEvent.State == EventState.SignupOpen || bingoEvent.State == EventState.SignupClosed || bingoEvent.State == EventState.Live)
             select assignment.Id).AnyAsync(ct);
 
+    private async Task NormalizePreferredAsync(Guid accountId, DateTimeOffset now, CancellationToken ct)
+    {
+        await db.AccountOsrsCharacters.Where(item => item.AccountId == accountId).LoadAsync(ct);
+        var links = db.AccountOsrsCharacters.Local
+            .Where(item => item.AccountId == accountId && item.Active)
+            .OrderBy(item => item.Position).ThenBy(item => item.LinkedAt).ThenBy(item => item.Id)
+            .ToList();
+        foreach (var link in links.Where(item => item.Preferred))
+        {
+            link.UpdatePreferences(link.PersonalLabel, link.Position, false, link.SavedEhb, now);
+        }
+        for (var position = 0; position < links.Count; position++)
+        {
+            var link = links[position];
+            var preferred = position == 0;
+            if (link.Position == position && link.Preferred == preferred) continue;
+            link.UpdatePreferences(link.PersonalLabel, position, preferred, link.SavedEhb, now);
+        }
+    }
+
     private async Task SaveAndCommitAsync(IDbContextTransaction transaction, CancellationToken ct)
     {
         try
@@ -256,9 +265,12 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         return result;
     }
 
-    private static void ValidateEhb(decimal? savedEhb)
+    public static decimal RoundEhb(decimal value) => decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+
+    private static decimal? NormalizeEhb(decimal? savedEhb)
     {
-        if (savedEhb < 0) throw new InvalidOperationException("Saved EHB cannot be negative.");
+        if (savedEhb < 0) throw new InvalidOperationException("EHB cannot be negative.");
+        return savedEhb is { } value ? RoundEhb(value) : null;
     }
 
     private sealed record EditableAssignment(EventParticipantCharacter Assignment, Guid ParticipantId, Guid EventId, string EventName);

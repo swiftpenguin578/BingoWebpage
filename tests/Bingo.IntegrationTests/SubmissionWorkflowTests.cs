@@ -184,15 +184,19 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ArchivedPrivateEvidenceAllowsOnlyTheCreditedOwnerForRejectedHistory()
+    public async Task ArchivedPrivateEvidenceAllowsCurrentTeamMembersAndRejectsFormerOrUnrelatedAccounts()
     {
         var setup = await SeedAsync(target: 3, allowHigherWeights: true);
         await using var db = new ApplicationDbContext(options);
         var participantAccount = Account.CreateWebsite(Guid.NewGuid(), "archived-owner", "ARCHIVED-OWNER", now);
+        var teammateAccount = Account.CreateWebsite(Guid.NewGuid(), "archived-teammate", "ARCHIVED-TEAMMATE", now);
         var unrelatedAccount = Account.CreateWebsite(Guid.NewGuid(), "archived-other", "ARCHIVED-OTHER", now);
         var participant = await db.EventParticipants.SingleAsync(x => x.Id == setup.ParticipantId);
         participant.AssignOwner(participantAccount);
-        db.Accounts.AddRange(participantAccount, unrelatedAccount);
+        var teammate = new EventParticipant(Guid.NewGuid(), setup.EventId, SignupStatus.Confirmed, 2, now, SignupSource.AdminCreated);
+        teammate.AssignOwner(teammateAccount);
+        var teammateMembership = new TeamMembership(Guid.NewGuid(), setup.TeamId, teammate.Id, TeamMembershipRole.Participant, now, null, "Archived evidence test");
+        db.AddRange(participantAccount, teammateAccount, unrelatedAccount, teammate, teammateMembership);
         await db.SaveChangesAsync();
         var result = await Service(db).CreateAsync(Command(setup));
         await Service(db).RejectAsync(result.SubmissionId, setup.AdminId, "Archived test rejection");
@@ -209,7 +213,10 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         }
 
         Assert.IsType<FileStreamResult>(await ReadAs(participantAccount.Id));
-        Assert.False((await ReadAs(setup.CaptainId)) is FileStreamResult);
+        Assert.IsType<FileStreamResult>(await ReadAs(teammateAccount.Id));
+        teammateMembership.Leave(now.AddHours(3), "Former member test");
+        await db.SaveChangesAsync();
+        Assert.False((await ReadAs(teammateAccount.Id)) is FileStreamResult);
         Assert.False((await ReadAs(unrelatedAccount.Id)) is FileStreamResult);
     }
 
@@ -323,6 +330,8 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var notifications = await db.PersonalNotifications.AsNoTracking().Where(x => x.Title == "evidence.rejected").ToListAsync();
         Assert.Equal(2, notifications.Count);
         Assert.Equal(new[] { participantAccount.Id, coCaptainAccount.Id }.OrderBy(x => x), notifications.Select(x => x.RecipientAccountId).OrderBy(x => x));
+        Assert.Equal($"/Submissions/{submission.SubmissionId}", notifications.Single(x => x.RecipientAccountId == participantAccount.Id).Route);
+        Assert.Equal($"/Captain/Submissions/{submission.SubmissionId}", notifications.Single(x => x.RecipientAccountId == coCaptainAccount.Id).Route);
         Assert.All(notifications, notification =>
         {
             Assert.Contains("Event ", notification.Detail, StringComparison.Ordinal);
@@ -334,7 +343,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PendingEditsKeepTheActiveAssetAndLinkedResubmissionOwnsNewEvidence()
+    public async Task PendingEditsCanKeepOrReplaceTheActiveAsset()
     {
         var setup = await SeedAsync(target: 3, allowHigherWeights: true);
         await using var db = new ApplicationDbContext(options);
@@ -347,6 +356,38 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var assets = await db.EvidenceAssets.Where(x => x.SubmissionId == submission.SubmissionId).OrderBy(x => x.UploadedAt).ToListAsync();
         Assert.Single(assets);
         Assert.True(assets[0].Active);
+        var originalAssetId = assets[0].Id;
+
+        await using var replacement = new MemoryStream([1, 2, 3]);
+        await service.CorrectAsync(new CorrectSubmissionCommand(
+            submission.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId,
+            setup.ParticipantId, 1, "replacement screenshot", null, "replacement.png", replacement));
+
+        assets = await db.EvidenceAssets.Where(x => x.SubmissionId == submission.SubmissionId).OrderBy(x => x.UploadedAt).ToListAsync();
+        Assert.Equal(2, assets.Count);
+        Assert.False(assets.Single(x => x.Id == originalAssetId).Active);
+        Assert.Equal(EvidenceAssetRole.ReplacementEvidence, assets.Single(x => x.Active).Role);
+        Assert.Contains(await db.ReviewActions.ToListAsync(), x => x.SubmissionId == submission.SubmissionId && x.Action == ReviewActionType.ReplaceEvidence);
+    }
+
+    [Fact]
+    public async Task NeutralOwnerMutationPathRejectsTeamCaptainAndAllowsCreditedOwner()
+    {
+        var setup = await SeedAsync(target: 3, allowHigherWeights: true);
+        await using var db = new ApplicationDbContext(options);
+        var owner = Account.CreateWebsite(Guid.NewGuid(), "neutral-owner", "NEUTRAL OWNER", now.AddDays(-2));
+        owner.SetPassword(new PasswordHasher<Account>().HashPassword(owner, "password"), false, now, false);
+        (await db.EventParticipants.SingleAsync(x => x.Id == setup.ParticipantId)).AssignOwner(owner);
+        await db.SaveChangesAsync();
+
+        var service = Service(db);
+        var submission = await service.CreateAsync(Command(setup));
+        var correction = new CorrectSubmissionCommand(submission.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId,
+            setup.ParticipantId, 1, "captain must not mutate neutral route", OwnerOnly: true);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CorrectAsync(correction));
+
+        await service.CorrectAsync(correction with { ActorAccountId = owner.Id, CaptainNote = "owner correction" });
+        Assert.Equal("owner correction", await db.Submissions.Where(x => x.Id == submission.SubmissionId).Select(x => x.CaptainNote).SingleAsync());
     }
 
     [Fact]
@@ -432,9 +473,20 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var initial = await publicBoards.GetEventBoardAsync($"event-{setup.EventId:N}");
 
         var initialTeam = Assert.Single(initial!.Teams);
+        var initialRosterPlayer = Assert.Single(initial.RosterPlayers!);
+        Assert.Equal(setup.ParticipantId, initialRosterPlayer.PlayerId);
+        Assert.Equal(["Player One"], initialRosterPlayer.PlayingAccountNames);
         Assert.Equal(1, Assert.Single(initialTeam.Tiles).Approved);
         Assert.False(initialTeam.Progress.BoardComplete);
         Assert.Single(initial.PlayerLeaderboard);
+        var initialDropTeam = Assert.Single(initial.DropEhbTeams!);
+        Assert.Equal(1, initialDropTeam.PlayerCount);
+        Assert.Equal(1, initialDropTeam.ContributingPlayerCount);
+        Assert.Equal(1, initialDropTeam.TotalDrops);
+        var initialDropPlayer = Assert.Single(initialDropTeam.Players);
+        Assert.Equal("Player One", initialDropPlayer.PlayerName);
+        Assert.Equal(["Player One"], initialDropPlayer.PlayingAccountNames);
+        Assert.Equal(initialDropTeam.DropEhb, initialDropTeam.Players.Sum(value => value.DropEhb));
         var recentDrop = Assert.Single(initial.RecentDrops);
         Assert.Equal(approved.SubmissionId, recentDrop.SubmissionId);
         Assert.Equal("Player One", recentDrop.PlayerName);
@@ -443,6 +495,9 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         await submissions.ReverseAsync(approved.SubmissionId, setup.AdminId, "Wrong evidence");
         var reversed = await publicBoards.GetEventBoardAsync($"event-{setup.EventId:N}");
         var reversedTeam = Assert.Single(reversed!.Teams);
+        var reversedRosterPlayer = Assert.Single(reversed.RosterPlayers!);
+        Assert.Equal(initialRosterPlayer.PlayerId, reversedRosterPlayer.PlayerId);
+        Assert.Equal(["Player One"], reversedRosterPlayer.PlayingAccountNames);
         Assert.Equal(0, Assert.Single(reversedTeam.Tiles).Approved);
         var zeroContributor = Assert.Single(reversedTeam.Progress.Players);
         Assert.Equal("Player One", zeroContributor.PlayerName);
@@ -450,7 +505,103 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         Assert.Equal(0, zeroContributor.ApprovedContribution);
         Assert.Equal(0, zeroContributor.ApprovedSubmissions);
         Assert.Empty(reversed.PlayerLeaderboard);
+        var reversedDropTeam = Assert.Single(reversed.DropEhbTeams!);
+        Assert.Equal(1, reversedDropTeam.PlayerCount);
+        Assert.Equal(0, reversedDropTeam.ContributingPlayerCount);
+        Assert.Equal(0, reversedDropTeam.TotalDrops);
+        Assert.Equal(0, reversedDropTeam.DropEhb);
+        var reversedDropPlayer = Assert.Single(reversedDropTeam.Players);
+        Assert.Equal("Player One", reversedDropPlayer.PlayerName);
+        Assert.Equal(0, reversedDropPlayer.ApprovedSubmissions);
+        Assert.Empty(reversedDropTeam.MvpNames);
         Assert.Empty(reversed.RecentDrops);
+    }
+
+    [Fact]
+    public async Task PublicBoardResultUsesProvisionalLeaderThenOfficialPlacementSnapshot()
+    {
+        var setup = await SeedAsync(target: 1, allowHigherWeights: false);
+        await using var db = new ApplicationDbContext(options);
+        var team = await db.Teams.SingleAsync(value => value.Id == setup.TeamId);
+        team.Finalize(now.AddMinutes(-30));
+        await db.SaveChangesAsync();
+
+        var publicBoards = new PublicBoardService(db);
+        var open = await publicBoards.GetEventBoardAsync($"event-{setup.EventId:N}");
+        Assert.True(open!.SubmissionsOpen);
+        Assert.Null(open.EventResult);
+
+        var bingoEvent = await db.Events.SingleAsync(value => value.Id == setup.EventId);
+        bingoEvent.EndEvent(now);
+        await db.SaveChangesAsync();
+
+        var awaitingReview = await publicBoards.GetEventBoardAsync(bingoEvent.Slug);
+        Assert.False(awaitingReview!.SubmissionsOpen);
+        Assert.Equal(new PublicEventResult("Team One", $"team-{setup.TeamId:N}", false), awaitingReview.EventResult);
+
+        bingoEvent.FinalizeResults(now.AddMinutes(1));
+        var finalization = new EventFinalizationSnapshot(Guid.NewGuid(), bingoEvent.Id, 1, now.AddMinutes(1), setup.AdminId, Guid.NewGuid());
+        db.EventFinalizations.Add(finalization);
+        db.OfficialPlacements.Add(new OfficialPlacementSnapshot(
+            Guid.NewGuid(), finalization.Id, bingoEvent.Id, setup.TeamId, "Historic Team One", 1,
+            boardComplete: false, boardCompletedAt: null, completedLines: 0, completedTiles: 0, ehbTiebreak: 0));
+        await db.SaveChangesAsync();
+
+        var finalized = await publicBoards.GetEventBoardAsync(bingoEvent.Slug);
+        Assert.Equal(new PublicEventResult("Historic Team One", $"team-{setup.TeamId:N}", true), finalized!.EventResult);
+    }
+
+    [Fact]
+    public async Task PublicRecentDropsProjectHistoricalProgressBeforeVisibleLimit()
+    {
+        var setup = await SeedAsync(target: 30, allowHigherWeights: false);
+        await using var db = new ApplicationDbContext(options);
+        var team = await db.Teams.SingleAsync(x => x.Id == setup.TeamId);
+        team.Finalize(now.AddMinutes(-30));
+        await db.SaveChangesAsync();
+        var clock = new MutableTimeProvider(now);
+        var submissions = Service(db, clock);
+        for (var index = 0; index < 26; index++)
+        {
+            var submission = await submissions.CreateAsync(Command(setup));
+            await submissions.ApproveAsync(submission.SubmissionId, setup.AdminId);
+            clock.Set(clock.GetUtcNow().AddMinutes(1));
+        }
+
+        var board = await new PublicBoardService(db).GetEventBoardAsync($"event-{setup.EventId:N}", 25);
+
+        Assert.Equal(25, board!.RecentDrops.Count);
+        Assert.Equal(Enumerable.Range(2, 25).OrderByDescending(value => value), board.RecentDrops.Select(value => value.ProgressAfter));
+        Assert.All(board.RecentDrops, value => Assert.Equal(30, value.Target));
+    }
+
+    [Fact]
+    public async Task PublicRecentDropsFilterTheFullApprovedSetBeforeVisibleLimit()
+    {
+        var setup = await SeedAsync(target: 30, allowHigherWeights: false);
+        await using var db = new ApplicationDbContext(options);
+        var team = await db.Teams.SingleAsync(x => x.Id == setup.TeamId);
+        team.Finalize(now.AddMinutes(-30));
+        await db.SaveChangesAsync();
+        var clock = new MutableTimeProvider(now);
+        var submissions = Service(db, clock);
+        for (var index = 0; index < 26; index++)
+        {
+            var submission = await submissions.CreateAsync(Command(setup));
+            await submissions.ApproveAsync(submission.SubmissionId, setup.AdminId);
+            clock.Set(clock.GetUtcNow().AddMinutes(1));
+        }
+
+        var singleTermBoard = await new PublicBoardService(db).GetEventBoardAsync(
+            $"event-{setup.EventId:N}", 25, "test drop", $"team-{setup.TeamId:N}");
+        var board = await new PublicBoardService(db).GetEventBoardAsync(
+            $"event-{setup.EventId:N}", 25, "test drop + no matching term", $"team-{setup.TeamId:N}");
+
+        Assert.Equal(26, board!.RecentDropFilteredTotal!.Value);
+        Assert.Equal(singleTermBoard!.RecentDropFilteredTotal, board.RecentDropFilteredTotal);
+        Assert.Equal(25, board.RecentDrops.Count);
+        Assert.All(board.RecentDrops, value => Assert.Equal("Team One", value.TeamName));
+        Assert.Equal(Enumerable.Range(2, 25).OrderByDescending(value => value), board.RecentDrops.Select(value => value.ProgressAfter));
     }
 
     [Fact]

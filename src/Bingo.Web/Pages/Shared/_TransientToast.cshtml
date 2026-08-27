@@ -1,0 +1,41 @@
+@using Bingo.Web.UI
+@{
+    var statusMessage = TempData["StatusMessage"] as string;
+    var messageType = statusMessage is null ? UiMessageType.Information : UiMessage.Resolve(statusMessage, TempData[UiMessage.TypeKey]?.ToString());
+    var messageLabel = messageType switch
+    {
+        UiMessageType.Success => T["Success"],
+        UiMessageType.Warning => T["Warning"],
+        UiMessageType.Error => T["Error"],
+        _ => T["Information"]
+    };
+}
+<div id="app-notice-region" aria-live="polite" aria-atomic="true">
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="app-toast app-toast-@messageType.ToString().ToLowerInvariant()" role="@(messageType == UiMessageType.Error ? "alert" : "status")" data-transient-toast data-toast-duration="6000">
+            @switch (messageType)
+            {
+                case UiMessageType.Success:
+                    <svg class="app-toast-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="m8 12 2.5 2.5L16 9" /></svg>
+                    break;
+                case UiMessageType.Warning:
+                    <svg class="app-toast-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m12 3 9 17H3L12 3Z" /><path d="M12 9v4" /><path d="M12 16h.01" /></svg>
+                    break;
+                case UiMessageType.Error:
+                    <svg class="app-toast-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="m9 9 6 6m0-6-6 6" /></svg>
+                    break;
+                default:
+                    <svg class="app-toast-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 10v6" /><path d="M12 7h.01" /></svg>
+                    break;
+            }
+            <div class="app-toast-copy">
+                <strong>@messageLabel</strong>
+                <span>@T[statusMessage]</span>
+            </div>
+            <button type="button" class="app-toast-dismiss admin-route-dialog-close" data-dismiss-toast aria-label="@T["Dismiss message"]">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" /></svg>
+            </button>
+        </div>
+    }
+</div>

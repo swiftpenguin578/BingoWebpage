@@ -3,33 +3,65 @@
     var drawer = ViewData["SubmissionDrawer"] is true;
     var availableRequirements = Model.Requirements.Where(requirement => requirement.Remaining > 0).ToList();
     var availableDrops = availableRequirements.SelectMany(requirement => requirement.Drops).ToList();
-    var selectedDrop = availableDrops.SingleOrDefault(drop => drop.Id == Model.Input.DropSnapshotId);
-    var selectedRequirementId = selectedDrop?.RequirementId ??
-        (Model.Input.RequirementId != Guid.Empty &&
-         availableRequirements.Any(requirement => requirement.Id == Model.Input.RequirementId)
-            ? Model.Input.RequirementId
-            : availableRequirements.FirstOrDefault()?.Id);
     var manualRequirements = availableRequirements.Where(requirement => requirement.Manual).ToList();
+    var targetCount = availableDrops.Count + manualRequirements.Count;
+    var selectedDrop = availableDrops.SingleOrDefault(drop => drop.Id == Model.Input.DropSnapshotId)
+        ?? (targetCount == 1 ? availableDrops.SingleOrDefault() : null);
+    var selectedRequirementId = selectedDrop?.RequirementId ??
+        (Model.Input.RequirementId != Guid.Empty && availableRequirements.Any(requirement => requirement.Id == Model.Input.RequirementId)
+            ? Model.Input.RequirementId
+            : targetCount == 1 ? availableDrops.FirstOrDefault()?.RequirementId ?? manualRequirements[0].Id : Guid.Empty);
+    var defaultPlayerName = Model.Players.SingleOrDefault(player => player.Id == Model.DefaultParticipantId)?.Name;
 }
 @if (!ViewData.ModelState.IsValid)
 {
-    <div asp-validation-summary="All" class="validation-summary"></div>
+    <div asp-validation-summary="All" class="public-ui-nested-container public-ui-state--error public-ui-submission-validation"></div>
 }
 
-@if (drawer && availableRequirements.Count > 0)
+@if (drawer && Model.Tile is null)
+{
+    <form method="post" class="public-ui-nested-container public-ui-submission-form public-ui-submission-form--shared"
+          asp-page="/Captain/Submit" asp-page-handler="Drawer" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId">
+        <label>
+            <span class="public-ui-role-label">@T["Tile"]</span>
+            <select name="Input.TileId" class="public-ui-control-visual public-ui-control-visual--select" data-submission-tile-select required>
+                <option value="">@T["Choose a tile"]</option>
+                @foreach (var tile in Model.Tiles)
+                {
+                    <option value="@tile.Id" data-drawer-url="@Url.Page("/Captain/Submit", new { tileId = tile.Id, eventId = Model.EventId, teamId = Model.TeamId, handler = "Drawer" })">@tile.Name</option>
+                }
+            </select>
+            <span class="public-ui-select-chevron" aria-hidden="true"></span>
+        </label>
+        <p class="public-ui-supporting-text">@T["Choose a tile to load its eligible drops or manual completions."]</p>
+    </form>
+}
+else if (drawer && availableRequirements.Count > 0)
 {
     <form method="post" enctype="multipart/form-data"
-          class="panel form-stack submission-form compact-submission-form"
-          asp-page="/Captain/Submit" asp-page-handler="Drawer" asp-route-tileId="@Model.Tile.Id" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId">
+          class="public-ui-nested-container public-ui-submission-form public-ui-submission-form--shared"
+          asp-page="/Captain/Submit" asp-page-handler="Drawer" asp-route-tileId="@(Model.Tile?.Id)" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId">
+        <div class="public-ui-submission-row">
+        <label>
+            <span class="public-ui-role-label">@T["Tile"]</span>
+            <select name="Input.TileId" class="public-ui-control-visual public-ui-control-visual--select" data-submission-tile-select required>
+                <option value="">@T["Choose a tile"]</option>
+                @foreach (var tile in Model.Tiles)
+                {
+                    <option value="@tile.Id" selected="@(tile.Id == Model.Tile?.Id)" data-drawer-url="@Url.Page("/Captain/Submit", new { tileId = tile.Id, eventId = Model.EventId, teamId = Model.TeamId, handler = "Drawer" })">@tile.Name</option>
+                }
+            </select>
+            <span class="public-ui-select-chevron" aria-hidden="true"></span>
+        </label>
         <input name="Input.RequirementId" type="hidden" value="@selectedRequirementId" data-submission-requirement-id />
         <input name="Input.DropSnapshotId" type="hidden" value="@selectedDrop?.Id" data-submission-drop-id />
         <input name="Input.ClaimedWeight" type="hidden" value="1" />
 
-        @if (availableDrops.Count > 0 || manualRequirements.Count > 1)
+        @if (targetCount > 0)
         {
-            <label class="submission-field">
-                <span>@(availableDrops.Count > 0 ? T["Eligible drop"] : T["Completion"])</span>
-                <select class="form-select" data-submission-target-select required>
+            <label>
+                <span class="public-ui-role-label">@(availableDrops.Count > 0 ? T["Eligible drop"] : T["Completion"])</span>
+                <select class="public-ui-control-visual public-ui-control-visual--select" data-submission-target-select required>
                     <option value="">@(availableDrops.Count > 0 ? T["Choose a drop"] : T["Choose a completion"])</option>
                     @foreach (var group in availableDrops.GroupBy(drop => drop.Boss))
                     {
@@ -60,50 +92,71 @@
                         </optgroup>
                     }
                 </select>
+                <span class="public-ui-select-chevron" aria-hidden="true"></span>
             </label>
         }
+        </div>
 
-        <div class="submission-secondary-fields">
+        <div class="public-ui-submission-row public-ui-submission-row--secondary">
             @if (Model.CanChooseCreditedParticipant)
             {
-                <label class="submission-field"><span>@T["Player"]</span><select name="Input.CreditedParticipantId" class="form-select" required>@foreach (var player in Model.Players){<option value="@player.Id" selected="@(player.Id == Model.Input.CreditedParticipantId)">@player.Name</option>}</select></label>
+                <label><span class="public-ui-role-label">@T["Player"]</span><select name="Input.CreditedParticipantId" class="public-ui-control-visual public-ui-control-visual--select" required>@foreach (var player in Model.Players){<option value="@player.Id" selected="@(player.Id == Model.Input.CreditedParticipantId)">@player.Name</option>}</select><span class="public-ui-select-chevron" aria-hidden="true"></span></label>
             }
             else
             {
                 <input name="Input.CreditedParticipantId" type="hidden" value="@Model.DefaultParticipantId" />
-                <p class="submission-owner-note">@T["Submitting as your active playing character"]</p>
+                <label><span class="public-ui-role-label">@T["Player"]</span><input type="text" class="public-ui-control-visual" value="@defaultPlayerName" readonly /></label>
             }
-            <label class="submission-field">
-                <span>@T["Note"] <small>@T["Optional"]</small></span>
-                <textarea name="Input.Note" class="form-control" rows="2">@Model.Input.Note</textarea>
+            <label>
+                <span class="public-ui-role-label">@T["Note"] <small class="public-ui-supporting-text">@T["Optional"]</small></span>
+                <textarea name="Input.Note" class="public-ui-control-visual" rows="1">@Model.Input.Note</textarea>
             </label>
         </div>
 
-        <label class="submission-field">
-            <span>@T["Screenshot"]</span>
+        <label class="public-ui-submission-upload-field">
+            <span class="public-ui-role-label">@T["Screenshot"]</span>
             <partial name="_EvidenceUpload" model="@("Input.Evidence")" />
         </label>
-        <button class="btn submission-confirm-action action-accent-outline">@T["Submit for review"]</button>
+        <button class="public-ui-action public-ui-action--commit public-ui-submission-confirm">@T["Submit drop"]</button>
     </form>
 }
-else
+else if (!drawer && Model.Tile is null)
+{
+    <form method="get" class="public-ui-nested-container public-ui-submission-form public-ui-submission-form--shared" asp-page="/Captain/Submit">
+        <input type="hidden" name="eventId" value="@Model.EventId" />
+        <input type="hidden" name="teamId" value="@Model.TeamId" />
+        <label>
+            <span class="public-ui-role-label">@T["Tile"]</span>
+            <select name="tileId" class="public-ui-control-visual public-ui-control-visual--select" required>
+                <option value="">@T["Choose a tile"]</option>
+                @foreach (var tile in Model.Tiles)
+                {
+                    <option value="@tile.Id">@tile.Name</option>
+                }
+            </select>
+            <span class="public-ui-select-chevron" aria-hidden="true"></span>
+        </label>
+        <button class="public-ui-action public-ui-action--commit">@T["Open submission form"]</button>
+    </form>
+}
+else if (!drawer)
 {
     @foreach (var requirement in Model.Requirements)
     {
         if (requirement.Remaining == 0)
         {
-            <section class="panel captain-tile complete"><h2>@requirement.Description</h2><strong>@T["Requirement complete"]</strong><p>@T["Existing pending submissions remain available to administrators for review."]</p></section>
+            <section class="public-ui-nested-container public-ui-section public-ui-submission-complete"><h2 class="public-ui-section-heading">@requirement.Description</h2><strong class="public-ui-state public-ui-state--success">@T["Requirement complete"]</strong><p class="public-ui-supporting-text">@T["Existing pending submissions remain available to administrators for review."]</p></section>
             continue;
         }
-        <form method="post" enctype="multipart/form-data" class="panel form-stack submission-form"
-              asp-page="/Captain/Submit" asp-route-tileId="@Model.Tile.Id" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId">
+        <form method="post" enctype="multipart/form-data" class="public-ui-nested-container public-ui-submission-form public-ui-submission-form--shared"
+              asp-page="/Captain/Submit" asp-route-tileId="@Model.Tile!.Id" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId">
             <input type="hidden" name="Input.RequirementId" value="@requirement.Id" />
-            <h2>@requirement.Description</h2>
-            <p>@T["Target contribution: {0}", requirement.Target]</p>
+            <h2 class="public-ui-component-title">@requirement.Description</h2>
+            <p class="public-ui-supporting-text">@T["Target contribution: {0}", requirement.Target]</p>
             @if (!requirement.Manual)
             {
-                <label>@T["Eligible drop"]</label>
-                <select name="Input.DropSnapshotId" class="form-select" required>
+                <label><span class="public-ui-role-label">@T["Eligible drop"]</span>
+                <select name="Input.DropSnapshotId" class="public-ui-control-visual public-ui-control-visual--select" required>
                     <option value="">@T["Choose a drop"]</option>
                     @foreach (var group in requirement.Drops.GroupBy(value => value.Boss))
                     {
@@ -115,22 +168,25 @@ else
                         </optgroup>
                     }
                 </select>
+                <span class="public-ui-select-chevron" aria-hidden="true"></span>
+                </label>
             }
             @if (Model.CanChooseCreditedParticipant)
             {
-                <label>@T["Player"]</label><select name="Input.CreditedParticipantId" class="form-select" required>@foreach (var player in Model.Players) { <option value="@player.Id" selected="@(player.Id == Model.Input.CreditedParticipantId)">@player.Name</option> }</select>
+                <label><span class="public-ui-role-label">@T["Player"]</span><select name="Input.CreditedParticipantId" class="public-ui-control-visual public-ui-control-visual--select" required>@foreach (var player in Model.Players) { <option value="@player.Id" selected="@(player.Id == Model.Input.CreditedParticipantId)">@player.Name</option> }</select><span class="public-ui-select-chevron" aria-hidden="true"></span></label>
             }
             else
             {
                 <input name="Input.CreditedParticipantId" type="hidden" value="@Model.DefaultParticipantId" />
-                <p class="submission-owner-note">@T["Submitting as your active playing character"]</p>
+                <label><span class="public-ui-role-label">@T["Player"]</span><input type="text" class="public-ui-control-visual" value="@defaultPlayerName" readonly /></label>
             }
             <input name="Input.ClaimedWeight" type="hidden" value="1" />
-            <label>@T["Note"] <small>@T["Optional"]</small></label>
-            <textarea name="Input.Note" class="form-control" rows="2">@(requirement.Id == selectedRequirementId ? Model.Input.Note : null)</textarea>
-            <label>@T["Screenshot"]</label>
+            <label><span class="public-ui-role-label">@T["Note"] <small class="public-ui-supporting-text">@T["Optional"]</small></span>
+            <textarea name="Input.Note" class="public-ui-control-visual" rows="1">@(requirement.Id == selectedRequirementId ? Model.Input.Note : null)</textarea></label>
+            <label class="public-ui-submission-upload-field"><span class="public-ui-role-label">@T["Screenshot"]</span>
             <partial name="_EvidenceUpload" model="@("Input.Evidence")" />
-            <button class="btn action-accent-outline">@T["Submit for review"]</button>
+            </label>
+            <button class="public-ui-action public-ui-action--commit public-ui-submission-confirm">@T["Submit drop"]</button>
         </form>
     }
 }

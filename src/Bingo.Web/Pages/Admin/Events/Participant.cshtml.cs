@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using Bingo.Application.Access;
 using Bingo.Application.Signups;
 using Bingo.Domain.Auditing;
@@ -27,13 +28,14 @@ public sealed class ParticipantModel(
     [BindProperty, StringLength(2000)] public string? AdminNote { get; set; }
     [BindProperty] public string? ExpectedAdminNote { get; set; }
     [BindProperty] public bool ConfirmLifecycleAction { get; set; }
-    [BindProperty] public string? DestinationUsername { get; set; }
-    [BindProperty] public string? DestinationUsernameConfirmation { get; set; }
+    [BindProperty] public Guid? DestinationOwnerAccountId { get; set; }
     [BindProperty] public Guid? ExpectedOwnerAccountId { get; set; }
     [BindProperty, StringLength(4000)] public string? PrivateWithdrawalNote { get; set; }
     [BindProperty] public long? ExpectedMembershipVersion { get; set; }
     [BindProperty] public Guid? ReplacementWaitingParticipantId { get; set; }
     [BindProperty] public InternalReplacementInput InternalReplacement { get; set; } = new();
+    [BindProperty] public bool Overlay { get; set; }
+    public bool IsOverlay => Overlay || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
     public bool CanAdminWithdraw { get; private set; }
     public bool CanAdminLiveWithdraw { get; private set; }
     public bool CanEditParticipant { get; private set; }
@@ -52,38 +54,42 @@ public sealed class ParticipantModel(
     public DateTimeOffset SignedUpAt { get; private set; }
     public long SignupSequence { get; private set; }
     public string? TeamName { get; private set; }
+    public string? WebsiteOwner { get; private set; }
     public string? StatusReason { get; private set; }
     public IReadOnlyList<QuestionView> Questions { get; private set; } = [];
     public IReadOnlyList<ReplacementCandidate> WaitingReplacementCandidates { get; private set; } = [];
     public PromotionFollowUpView? PromotionFollowUp { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(Guid id, Guid participantId, CancellationToken ct)
-    { _ = characterService; return await LoadAsync(id, participantId, true, ct) ? Page() : NotFound(); }
+    { _ = characterService; Overlay = string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal); return await LoadAsync(id, participantId, true, ct) ? Page() : NotFound(); }
 
-    public async Task<IActionResult> OnPostAsync(Guid id, Guid participantId, CancellationToken ct)
+    public async Task<IActionResult> OnPostAsync(Guid id, Guid participantId, [FromForm] bool overlay, CancellationToken ct)
     {
+        Overlay = ResolveSubmittedOverlay(overlay);
         var actorId = User.GetAccountId(); if (actorId is null) return Forbid();
         var result = signupService is null ? new AdminParticipantResult(false, "Participant correction is not available.") : await signupService.CorrectAdminParticipantAsync(new AdminParticipantChangeRequest(id, participantId, actorId.Value, User.Identity?.Name ?? "Admin", null, Input.AccountAnswers.ToDictionary(x => x.Key, x => new AdminAccountAnswer(x.Value.CharacterName, x.Value.Ehb)), Input.CustomAnswers, Input.ExpectedResponseVersion), ct);
-        if (!result.Succeeded) { ModelState.AddModelError(string.Empty, IsResponseConflict(result.Error) ? (text?["Your signup changed while you were editing it. Please reload and try again."].Value ?? "Your signup changed while you were editing it. Please reload and try again.") : result.Error ?? "Participant details could not be saved."); if (!await LoadAsync(id, participantId, false, ct)) return NotFound(); return Page(); }
-        SetStatus("Participant details saved.", UiMessageType.Success);
-        return RedirectToPage(new { id, participantId });
+        if (!result.Succeeded) { ModelState.AddModelError(string.Empty, IsResponseConflict(result.Error) ? (text?[Localize("Your signup changed while you were editing it. Please reload and try again.")].Value ?? Localize("Your signup changed while you were editing it. Please reload and try again.")) : result.Error ?? Localize("Participant details could not be saved.")); if (!await LoadAsync(id, participantId, false, ct)) return NotFound(); return Page(); }
+        SetStatus(Localize("Participant details saved."), UiMessageType.Success);
+        return RedirectToParticipant(id, participantId);
     }
 
-    public async Task<IActionResult> OnPostTransferOwnershipAsync(Guid id, Guid participantId, CancellationToken ct)
+    public async Task<IActionResult> OnPostTransferOwnershipAsync(Guid id, Guid participantId, [FromForm] bool overlay, CancellationToken ct)
     {
+        Overlay = ResolveSubmittedOverlay(overlay);
         var actorId = User.GetAccountId(); if (actorId is null) return Forbid();
-        var result = signupService is null ? new ParticipantOwnershipTransferResult(false, "Participant ownership transfer is not available.") : await signupService.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(id, participantId, actorId.Value, User.Identity?.Name ?? "Admin", DestinationUsername ?? string.Empty, DestinationUsernameConfirmation ?? string.Empty, ExpectedOwnerAccountId), ct);
-        SetStatus(result.Succeeded ? "Participant ownership transferred." : result.Error ?? "Participant ownership could not be transferred.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return RedirectToPage(null, null, new { id, participantId }, "ownership");
+        var result = signupService is null ? new ParticipantOwnershipTransferResult(false, "Participant ownership transfer is not available.") : await signupService.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(id, participantId, actorId.Value, User.Identity?.Name ?? "Admin", DestinationOwnerAccountId, ExpectedOwnerAccountId), ct);
+        SetStatus(result.Succeeded ? Localize("Participant ownership transferred.") : result.Error ?? Localize("Participant ownership could not be transferred."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToParticipant(id, participantId, "ownership");
     }
 
-    public async Task<IActionResult> OnPostAdminNoteAsync(Guid id, Guid participantId, CancellationToken ct)
+    public async Task<IActionResult> OnPostAdminNoteAsync(Guid id, Guid participantId, [FromForm] bool overlay, CancellationToken ct)
     {
+        Overlay = ResolveSubmittedOverlay(overlay);
         var note = Clean(AdminNote);
         if (AdminNote?.Length > 2000)
         {
-            SetStatus("Admin notes must be 2,000 characters or fewer.", UiMessageType.Error);
-            return RedirectToPage(null, null, new { id, participantId }, "admin-notes");
+            SetStatus(Localize("Admin notes must be 2,000 characters or fewer."), UiMessageType.Error);
+            return RedirectToParticipant(id, participantId, "admin-notes");
         }
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
@@ -91,15 +97,15 @@ public sealed class ParticipantModel(
         if (bingoEvent is null) return NotFound();
         if (bingoEvent.DraftLocked || bingoEvent.State is not (EventState.SignupOpen or EventState.SignupClosed))
         {
-            SetStatus("Participant administration is read-only after the draft starts.", UiMessageType.Error);
-            return RedirectToPage(null, null, new { id, participantId }, "admin-notes");
+            SetStatus(Localize("Participant administration is read-only after the draft starts."), UiMessageType.Error);
+            return RedirectToParticipant(id, participantId, "admin-notes");
         }
         var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(item => item.EventId == id && item.Id == participantId, ct);
         if (participant is null) return NotFound();
         if (!string.Equals(participant.AdminNotes ?? string.Empty, ExpectedAdminNote ?? string.Empty, StringComparison.Ordinal))
         {
-            SetStatus("This note changed elsewhere. Reload it before saving.", UiMessageType.Error);
-            return RedirectToPage(new { id, participantId });
+            SetStatus(Localize("This note changed elsewhere. Reload it before saving."), UiMessageType.Error);
+            return RedirectToParticipant(id, participantId);
         }
         var before = participant.AdminNotes;
         if (!string.Equals(before, note, StringComparison.Ordinal))
@@ -110,27 +116,30 @@ public sealed class ParticipantModel(
             await dbContext.SaveChangesAsync(ct);
         }
         await transaction.CommitAsync(ct);
-        SetStatus("Private Admin note saved.", UiMessageType.Success);
-        return RedirectToPage(null, null, new { id, participantId }, "admin-notes");
+        SetStatus(Localize("Private Admin note saved."), UiMessageType.Success);
+        return RedirectToParticipant(id, participantId, "admin-notes");
     }
 
-    public async Task<IActionResult> OnPostPaymentAsync(Guid id, Guid participantId, PaymentStatus payment, CancellationToken ct)
+    public async Task<IActionResult> OnPostPaymentAsync(Guid id, Guid participantId, PaymentStatus payment, [FromForm] bool overlay, CancellationToken ct)
     {
+        Overlay = ResolveSubmittedOverlay(overlay);
         var result = signupService is null ? new ParticipantPaymentResult(false, "Participant payment is not available.") : await signupService.SetPaymentAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", payment, ct);
-        SetStatus(result.Succeeded ? "Payment saved." : result.Error ?? "Payment could not be saved.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return RedirectToPage(null, null, new { id, participantId }, "payment");
+        SetStatus(result.Succeeded ? Localize("Payment saved.") : result.Error ?? Localize("Payment could not be saved."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToParticipant(id, participantId, "payment");
     }
 
-    public async Task<IActionResult> OnPostWithdrawAsync(Guid id, Guid participantId, CancellationToken ct)
+    public async Task<IActionResult> OnPostWithdrawAsync(Guid id, Guid participantId, [FromForm] bool overlay, CancellationToken ct)
     {
-        if (!ConfirmLifecycleAction) { SetStatus("Confirm the withdrawal before continuing.", UiMessageType.Error); return RedirectToPage(new { id, participantId }); }
+        Overlay = ResolveSubmittedOverlay(overlay);
+        if (!ConfirmLifecycleAction) { SetStatus(Localize("Confirm the withdrawal before continuing."), UiMessageType.Error); return RedirectToParticipant(id, participantId); }
         var result = signupService is null ? new ParticipantLifecycleResult(false, "Participant lifecycle is not available.") : await signupService.WithdrawAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", true, PrivateWithdrawalNote, ExpectedMembershipVersion, ct);
-        SetStatus(result.Succeeded ? "Participant withdrawn." : result.Error ?? "Participant could not be withdrawn.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return RedirectToPage(new { id, participantId });
+        SetStatus(result.Succeeded ? Localize("Participant withdrawn.") : result.Error ?? Localize("Participant could not be withdrawn."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToParticipant(id, participantId);
     }
 
-    public async Task<IActionResult> OnPostFillVacancyAsync(Guid id, Guid participantId, CancellationToken ct)
+    public async Task<IActionResult> OnPostFillVacancyAsync(Guid id, Guid participantId, [FromForm] bool overlay, CancellationToken ct)
     {
+        Overlay = ResolveSubmittedOverlay(overlay);
         var actorId = User.GetAccountId();
         if (actorId is null || VacancyMembershipId is null) return Forbid();
         Guid? ownerId = null;
@@ -139,8 +148,8 @@ public sealed class ParticipantModel(
             ownerId = await dbContext.Accounts.AsNoTracking().Where(x => x.LoginName == InternalReplacement.OwnerUsername.Trim() && x.Active && x.AccountType == Bingo.Domain.Access.AccountType.WebsiteAccount).Select(x => (Guid?)x.Id).SingleOrDefaultAsync(ct);
             if (ownerId is null)
             {
-                SetStatus("The internal owner must be an active website account.", UiMessageType.Error);
-                return RedirectToPage(new { id, participantId });
+                SetStatus(Localize("The internal owner must be an active website account."), UiMessageType.Error);
+                return RedirectToParticipant(id, participantId);
             }
         }
         var internalRequest = ReplacementWaitingParticipantId is null
@@ -150,25 +159,27 @@ public sealed class ParticipantModel(
         var result = signupService is null
             ? new LiveParticipantResult(false, "Live participant replacement is not available.")
             : await signupService.ReplaceVacancyAsync(new LiveReplacementRequest(id, VacancyMembershipId.Value, actorId.Value, User.Identity?.Name ?? "Admin", ReplacementWaitingParticipantId, internalRequest, VacancyMembershipVersion), ct);
-        SetStatus(result.Succeeded ? "Replacement saved." : result.Error ?? "The vacancy could not be filled.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return RedirectToPage(new { id, participantId });
+        SetStatus(result.Succeeded ? Localize("Replacement saved.") : result.Error ?? Localize("The vacancy could not be filled."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToParticipant(id, participantId);
     }
 
-    public async Task<IActionResult> OnPostCompletePromotionFollowUpAsync(Guid id, Guid participantId, Guid followUpId, CancellationToken ct)
+    public async Task<IActionResult> OnPostCompletePromotionFollowUpAsync(Guid id, Guid participantId, Guid followUpId, [FromForm] bool overlay, CancellationToken ct)
     {
+        Overlay = ResolveSubmittedOverlay(overlay);
         var actorId = User.GetAccountId(); if (actorId is null) return Forbid();
         var result = signupService is null ? new PromotionFollowUpResult(false, "Promotion follow-up is not available.") : await signupService.CompletePromotionFollowUpAsync(id, followUpId, actorId.Value, User.Identity?.Name ?? "Admin", ct);
-        SetStatus(result.Succeeded ? "Promotion follow-up marked complete." : result.Error ?? "The promotion follow-up could not be completed.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return RedirectToPage(new { id, participantId });
+        SetStatus(result.Succeeded ? Localize("Promotion follow-up marked complete.") : result.Error ?? Localize("The promotion follow-up could not be completed."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToParticipant(id, participantId);
     }
 
-    public async Task<IActionResult> OnPostRestoreAsync(Guid id, Guid participantId, CancellationToken ct)
+    public async Task<IActionResult> OnPostRestoreAsync(Guid id, Guid participantId, [FromForm] bool overlay, CancellationToken ct)
     {
-        if (!ConfirmLifecycleAction) { SetStatus("Confirm the restoration before continuing.", UiMessageType.Error); return RedirectToPage(new { id, participantId }); }
+        Overlay = ResolveSubmittedOverlay(overlay);
+        if (!ConfirmLifecycleAction) { SetStatus(Localize("Confirm the restoration before continuing."), UiMessageType.Error); return RedirectToParticipant(id, participantId); }
         var accountId = User.GetAccountId(); if (accountId is null) return Forbid();
         var result = signupService is null ? new ParticipantLifecycleResult(false, "Participant lifecycle is not available.") : await signupService.RestoreAsync(id, participantId, accountId.Value, User.Identity?.Name ?? "Admin", ct);
-        SetStatus(result.Succeeded ? "Participant restored." : result.Error ?? "Participant could not be restored.", result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return RedirectToPage(new { id, participantId });
+        SetStatus(result.Succeeded ? Localize("Participant restored.") : result.Error ?? Localize("Participant could not be restored."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return RedirectToParticipant(id, participantId);
     }
 
     private async Task<bool> LoadAsync(Guid id, Guid participantId, bool initializeInput, CancellationToken ct)
@@ -189,6 +200,12 @@ public sealed class ParticipantModel(
                                 orderby assignment.RegistrationOrder
                                 select character.DisplayName).FirstOrDefaultAsync(ct);
         Name = authority?.Name ?? "External roster member";
+        WebsiteOwner = participant.AccountId is { } ownerId
+            ? await dbContext.Accounts.AsNoTracking()
+                .Where(account => account.Id == ownerId && account.Active && account.AccountType == Bingo.Domain.Access.AccountType.WebsiteAccount)
+                .Select(account => account.LoginName)
+                .SingleOrDefaultAsync(ct)
+            : null;
         Status = participant.SignupStatus;
         StatusLabel = participant.SignupStatus switch
         {
@@ -285,10 +302,23 @@ public sealed class ParticipantModel(
         return true;
     }
 
+    private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private void SetStatus(string message, UiMessageType type)
     {
         TempData["StatusMessage"] = message;
         TempData[UiMessage.TypeKey] = type.ToString();
+    }
+
+    private RedirectToPageResult RedirectToParticipant(Guid id, Guid participantId, string? fragment = null) =>
+        RedirectToPage(null, null, new { id, participantId, overlay = Overlay ? "1" : null }, fragment);
+
+    private bool ResolveSubmittedOverlay(bool overlay)
+    {
+        if (!Request.HasFormContentType) return overlay || IsOverlay;
+
+        var submitted = Request.Form["overlay"].ToString();
+        ModelState.Remove("overlay");
+        return overlay || string.Equals(submitted, "1", StringComparison.Ordinal) || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
     }
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

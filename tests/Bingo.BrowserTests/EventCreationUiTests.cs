@@ -55,6 +55,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         var questions = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Questions.cshtml"));
         var participant = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participant.cshtml"));
         var participants = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participants.cshtml"));
+        var participantForm = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "_InternalParticipantForm.cshtml"));
         var participantsHandler = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participants.cshtml.cs"));
         var siteScript = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "site.js"));
         var signupQuestionsOverlayScript = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "signup-questions-overlay.js"));
@@ -174,7 +175,9 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("event-overview-information-summary", manage);
         Assert.Contains("event-overview-information-name", manage);
         Assert.Contains("event-overview-information-status", manage);
-        Assert.Contains("event-overview-status-pill", manage);
+        Assert.DoesNotContain("event-overview-status-pill", manage);
+        Assert.Contains("var eventStatus = AdminEventStatePresentation.For(eventView.State, T);", manage);
+        Assert.Contains("<span class=\"admin-status-pill @eventStatus.Modifier\">@eventStatus.Label</span>", manage);
         Assert.Contains("href=\"/Admin/Events/Participants/@eventContext.Id\"", adminLayout);
         Assert.Contains("Public pages", manage);
         Assert.Contains("data-copy-url=\"@signupUrl\"", manage);
@@ -379,7 +382,8 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("--admin-chart-yellow", siteCss);
         Assert.Contains("--admin-chart-green", siteCss);
         Assert.Contains("--event-status-yellow: var(--admin-warning);", siteCss);
-        Assert.Contains("event-overview-status-pill.is-cyan", siteCss);
+        Assert.DoesNotContain("event-overview-status-pill", siteCss);
+        Assert.Contains(".admin-status-pill.is-cyan", siteCss);
         Assert.Contains("text-transform: none", siteCss);
         Assert.Contains("border: 0; border-radius: 999px", siteCss);
         Assert.Contains(".event-public-pages { margin-top: 0.75rem; padding-top: 0.2rem;", siteCss);
@@ -457,14 +461,26 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.DoesNotContain("asp-page-handler=\"WaitingList\"", questions);
         Assert.DoesNotContain("WaitingListEnabled", questions);
         Assert.Contains("asp-page-handler=\"SignupCode\"", questions);
+        Assert.Contains("asp-page=\"/Admin/Events/Questions\" asp-route-id=\"@eventId\"", questions);
         Assert.Contains("<script src=\"~/js/event-manage.js\" asp-append-version=\"true\"></script>", questions);
         Assert.Contains("Save signup code", questions);
         Assert.Contains("data-signup-questions-trigger", participants);
         Assert.Contains("data-signup-questions-dialog", adminLayout);
+        Assert.Contains("data-signup-questions-content", adminLayout);
+        Assert.DoesNotContain("data-signup-questions-frame", adminLayout);
         Assert.Contains("showModal", signupQuestionsOverlayScript);
         Assert.Contains("popstate", signupQuestionsOverlayScript);
-        Assert.Contains("postMessage", questions);
-        Assert.Contains("signup-questions-close", signupQuestionsOverlayScript);
+        Assert.Contains("window.fetch", signupQuestionsOverlayScript);
+        Assert.Contains("replaceChildren", signupQuestionsOverlayScript);
+        Assert.DoesNotContain("postMessage", signupQuestionsOverlayScript);
+        Assert.DoesNotContain("data-participant-add-panel", participants);
+        Assert.Contains("data-participant-add-trigger", participants);
+        Assert.Contains("asp-page-handler=\"CreateInternalParticipant\"", participantForm);
+        Assert.Contains("participant-add-dialog", manageScript);
+        Assert.Contains("participantAddOverlay", manageScript);
+        Assert.Contains("window.innerWidth > 900", manageScript);
+        Assert.Contains("dialog.showModal()", manageScript);
+        Assert.DoesNotContain("<header class=\"event-create-heading admin-events-heading\">", questions.Substring(questions.IndexOf("data-overlay=\"@(Model.IsOverlay", StringComparison.Ordinal)));
         Assert.Contains("Questions added after the first response are always optional.", questions);
         Assert.Contains("@if (Model.HasFirstResponse)", questions);
         Assert.Contains("data-required-field", questions);
@@ -481,7 +497,13 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("Replacement.Label", questions);
         Assert.Contains("aria-label=\"Participant signup preview\"", questions);
         Assert.Contains("event-manage.js", questions);
-        Assert.Contains("data-auto-submit data-payment-save", participant);
+        Assert.Contains("participant-payment-control", participant);
+        Assert.DoesNotContain("data-payment-save", participant);
+        Assert.DoesNotContain("data-save-state", participant);
+        Assert.Contains("data-owner-account-picker", participant);
+        Assert.Contains("DestinationOwnerAccountId", participant);
+        Assert.DoesNotContain("DestinationUsernameConfirmation", participant);
+        Assert.Contains("@T[\"Remove\"]", participant);
         Assert.Contains("<script src=\"~/js/event-manage.js\" asp-append-version=\"true\"></script>", participant);
         Assert.Contains("asp-page-handler=\"FillVacancy\"", participant);
         Assert.Contains("asp-page-handler=\"CompletePromotionFollowUp\"", participant);
@@ -515,7 +537,28 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("Required only when changing a time that has already passed.", schedule);
         Assert.Contains("<input asp-for=\"Input.Reason\" class=\"form-control\" />", schedule);
         Assert.DoesNotContain("<textarea asp-for=\"Input.Reason\"", schedule);
-        Assert.Contains("class=\"event-confirmation-box schedule-confirmation-box\"", schedule);
+        Assert.Contains("class=\"admin-signup-warning-list\"", schedule);
+        Assert.Contains("class=\"event-schedule-group-heading\"", schedule);
+        Assert.Contains("class=\"event-schedule-groups\"", schedule);
+        Assert.Contains("class=\"event-schedule-group schedule-capacity-warning-component\"", schedule);
+        Assert.Contains("class=\"schedule-capacity-warning-grid@(hasSignupWarning ? \" has-schedule-warning\" : \"\")\"", schedule);
+        Assert.Contains("class=\"admin-field schedule-capacity-label\"", schedule);
+        Assert.Contains("class=\"admin-field schedule-warning-label\"", schedule);
+        Assert.Contains("class=\"schedule-capacity-control\"", schedule);
+        Assert.Contains("class=\"schedule-warning-row\"", schedule);
+        Assert.Contains("class=\"event-confirmation-actions schedule-warning-action\"", schedule);
+        Assert.Contains(".admin-shell-body .schedule-editor-panel .schedule-capacity-warning-grid { display: grid; grid-template-columns: 1fr; grid-template-areas: \"capacity-label\" \"capacity-control\"; gap: 0.75rem 1.25rem; align-items: stretch; }", siteCss);
+        Assert.Contains("grid-template-areas: \"capacity-label warning-label\" \"capacity-control warning-row\" \". warning-action\";", siteCss);
+        Assert.Contains(".admin-shell-body .schedule-editor-panel .schedule-capacity-warning-grid .schedule-warning-row { display: grid; grid-template-rows: minmax(0, 1fr) auto; grid-area: warning-row; min-width: 0; }", siteCss);
+        Assert.Contains(".admin-shell-body .schedule-editor-panel .schedule-warning-row .admin-signup-warning-list li { box-sizing: border-box; display: flex; align-items: center; }", siteCss);
+        Assert.DoesNotContain("schedule-capacity-warning-row", schedule);
+        Assert.DoesNotContain("schedule-capacity-warning-row", siteCss);
+        Assert.DoesNotContain("event-schedule-groups.has-schedule-warning", siteCss);
+        Assert.DoesNotContain("admin-signup-warning-ack", schedule);
+        Assert.DoesNotContain("admin-signup-warning-heading", schedule);
+        Assert.DoesNotContain("schedule-warning-heading", schedule);
+        Assert.DoesNotContain("These warnings must be acknowledged before automatic signup opening can be scheduled.", schedule);
+        Assert.DoesNotContain("class=\"event-confirmation-box schedule-confirmation-box\" aria-labelledby=\"schedule-warning-heading\"", schedule);
         Assert.Contains("Model.ScheduledSignupOpeningEnabled", schedule);
         Assert.DoesNotContain("class=\"check-row\"", schedule);
         Assert.DoesNotContain("type=\"checkbox\"", schedule);
@@ -561,6 +604,216 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.DoesNotContain("new(\"Europe/London\"", createHandler);
     }
 
+    [Fact]
+    public void ParticipantsUseSharedDestructiveConfirmationAndCapacityLabelRoles()
+    {
+        var root = FindRepositoryRoot();
+        var participants = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participants.cshtml"));
+        var siteCss = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "site.css"));
+        var roadmap = File.ReadAllText(Path.Combine(root, "UI_OVERHAUL_ROADMAP.md"));
+
+        Assert.Contains("<details class=\"admin-destructive-confirmation\">", participants);
+        Assert.Contains("role=\"alertdialog\"", participants);
+        Assert.Contains("asp-page-handler=\"Withdraw\"", participants);
+        Assert.Contains("@T[\"Remove {0}?\", participant.Name]", participants);
+        Assert.Contains("@T[\"Cancel\"]", participants);
+        Assert.Contains("admin-destructive-confirmation", roadmap);
+        Assert.Contains(".admin-shell-body .admin-setting-toggle-copy > strong", siteCss);
+        Assert.Contains("font-family: inherit; font-size: 0.75rem; font-weight: 500; line-height: 1.25", siteCss);
+        Assert.Contains("border-width: 0.5px", siteCss);
+    }
+
+    [Fact]
+    public void ParticipantCapacityKeepsWaitingListInOuterRowsAndResetsNarrowly()
+    {
+        var root = FindRepositoryRoot();
+        var participants = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participants.cshtml"));
+        var siteCss = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "site.css"));
+
+        Assert.Contains("<div class=\"participant-shared-row\">", participants);
+        Assert.Contains("<strong id=\"waiting-list-enabled-heading\" class=\"participant-shared-row-heading\">@T[\"Waiting list enabled\"]</strong>", participants);
+        Assert.Contains("<label class=\"admin-setting-toggle participant-shared-row-content\">", participants);
+        Assert.Contains("aria-labelledby=\"waiting-list-enabled-heading\" aria-describedby=\"waiting-list-enabled-support\"", participants);
+        Assert.Contains("<span id=\"waiting-list-enabled-support\" class=\"admin-setting-toggle-copy\"><small>@T[\"Keep accepting signups after capacity is reached.\"]</small></span>", participants);
+        var sharedRow = participants[participants.IndexOf("<div class=\"participant-shared-row\">", StringComparison.Ordinal)..];
+        Assert.True(sharedRow.IndexOf("participant-shared-row-heading", StringComparison.Ordinal) < sharedRow.IndexOf("participant-shared-row-content", StringComparison.Ordinal));
+        Assert.Contains(".participant-capacity-region .participant-capacity-field > label { grid-column: 1; grid-row: 1; }", siteCss);
+        Assert.Contains(".participant-capacity-region .participant-capacity-field > input { grid-column: 1; grid-row: 2; }", siteCss);
+        Assert.Contains(".admin-shell-body .event-participants-page .participant-shared-row { display: contents; }", siteCss);
+        Assert.Contains(".admin-shell-body .event-participants-page .participant-shared-row-heading { grid-column: 2; grid-row: 1;", siteCss);
+        Assert.Contains(".admin-shell-body .event-participants-page .participant-shared-row-content { display: grid; grid-column: 2; grid-row: 2;", siteCss);
+        Assert.DoesNotContain("participant-shared-row-toggle", participants + siteCss);
+
+        var desktopPlacement = siteCss.IndexOf("participant-shared-row-content { display: grid; grid-column: 2; grid-row: 2;", StringComparison.Ordinal);
+        var narrowReset = siteCss.IndexOf("@media (max-width: 700px)", desktopPlacement, StringComparison.Ordinal);
+        Assert.True(narrowReset > desktopPlacement);
+        var narrowCss = siteCss[narrowReset..];
+        Assert.Contains(".participant-capacity-region .participant-settings-form .event-create-fields { width: 100%; grid-template-columns: 1fr; grid-template-rows: none; }", narrowCss);
+        Assert.Contains(".admin-shell-body .event-participants-page .participant-shared-row { display: grid; grid-template-columns: 1fr; grid-column: auto; grid-row: auto;", narrowCss);
+        Assert.Contains(".admin-shell-body .event-participants-page .participant-shared-row-heading,", narrowCss);
+        Assert.Contains(".admin-shell-body .event-participants-page .participant-shared-row-content { display: flex;", narrowCss);
+    }
+
+    [Fact]
+    public void ParticipantActionsKeepRouteFallbackAndShareDesktopDialogContract()
+    {
+        var root = FindRepositoryRoot();
+        var participants = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participants.cshtml"));
+        var participantsHandler = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participants.cshtml.cs"));
+        var questions = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Questions.cshtml"));
+        var participant = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participant.cshtml"));
+        var participantHandler = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participant.cshtml.cs"));
+        var participantForm = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "_InternalParticipantForm.cshtml"));
+        var adminLayout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminLayout.cshtml"));
+        var manageScript = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "event-manage.js"));
+        var questionsScript = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "signup-questions-overlay.js"));
+        var siteCss = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "site.css"));
+
+        Assert.Contains("asp-page=\"Questions\"", participants);
+        Assert.Contains("data-signup-questions-trigger=\"true\"", participants);
+        Assert.DoesNotContain("data-participant-add-panel", participants);
+        Assert.Contains("data-participant-add-trigger", participants);
+        Assert.Contains("asp-route-addParticipant=\"1\"", participants);
+        Assert.Contains("participant-add-route-page", participants);
+        Assert.Contains("participant-edit-action", participants);
+        Assert.Contains("@T[\"Participants / Signups\"]", adminLayout);
+        Assert.Contains("data-participant-edit-page", participant);
+        Assert.Contains("data-participant-edit-close", participant);
+        Assert.Contains("data-participants-url", participant);
+        Assert.Contains("WebsiteOwner", participant);
+        Assert.Contains("WebsiteUsername", participantsHandler);
+        Assert.Contains("class=\"participant-primary-value\">@participant.Name</span>", participants);
+        Assert.Contains("@(participant.WebsiteUsername ?? T[\"Unlinked\"])", participants);
+        Assert.DoesNotContain("<strong>@participant.Name</strong>", participants);
+        var participantActionCell = participants[participants.IndexOf("<td class=\"event-row-action participant-actions-cell\"", StringComparison.Ordinal)..];
+        Assert.True(participantActionCell.IndexOf("participant-edit-action", StringComparison.Ordinal) < participantActionCell.IndexOf("@if (group.Table == \"current\")", StringComparison.Ordinal));
+        Assert.Contains("name=\"overlay\" value=\"@overlayValue\"", participant);
+        Assert.Contains("[FromForm] bool overlay", participantHandler);
+        Assert.Contains("RedirectToParticipant", participantHandler);
+        Assert.Contains("participantEditOverlay", manageScript);
+        Assert.Contains("participantEditBase", manageScript);
+        Assert.Contains("initializeParticipantEditDialog", manageScript);
+        Assert.Contains("initializeOwnerAccountPicker(content);", manageScript);
+        Assert.DoesNotContain("establishDirectReturn", manageScript);
+        Assert.Contains("loadDirectWorkspace", manageScript);
+        Assert.Contains("main.hidden = true", manageScript);
+        Assert.Contains("fetch(editorRequestUrl()", manageScript);
+        Assert.Contains("data-edit-path", participant);
+        Assert.DoesNotContain("participant-status-badge", participant);
+        Assert.Contains("<summary class=\"admin-button-secondary\">@T[\"Restore participant\"]</summary>", participant);
+        Assert.Contains("<button class=\"admin-button-secondary\" type=\"submit\">@T[\"Confirm restoration\"]</button>", participant);
+        Assert.DoesNotContain("admin-button-accent-outline", participant);
+        Assert.DoesNotContain("<summary class=\"admin-button-primary\">@T[\"Restore participant\"]</summary>", participant);
+        Assert.DoesNotContain("<button class=\"admin-button-primary\" type=\"submit\">@T[\"Confirm restoration\"]</button>", participant);
+        Assert.DoesNotContain("<summary class=\"admin-button-secondary action-accent-outline\">@T[\"Restore participant\"]</summary>", participant);
+        Assert.DoesNotContain("<button class=\"admin-button-secondary action-accent-outline\" type=\"submit\">@T[\"Confirm restoration\"]</button>", participant);
+        Assert.DoesNotContain("participant-secondary-actions-panel\">\n                @if (Model.CanAdminRestore)", participant);
+        Assert.Contains("@if (Model.CanAdminWithdraw || Model.CanAdminRestore)", participant);
+        Assert.Contains(".admin-shell-body .admin-button-secondary,", siteCss);
+        Assert.DoesNotContain(".admin-shell-body .admin-button-accent-outline", siteCss);
+        Assert.Contains(".admin-shell-body .participant-confirmation-box > summary { cursor: pointer; }", siteCss);
+        Assert.Contains("<tr class=\"participant-table-empty\" hidden=\"@(group.Rows.Count > 0 ? \"hidden\" : null)\"><td colspan=\"8\">", participants);
+        Assert.Contains("<form method=\"post\" asp-page-handler=\"Restore\" class=\"event-confirmation-form\" data-update-targets=\"@partialTargets\">", participant);
+        Assert.Contains("<form method=\"post\" asp-page-handler=\"FillVacancy\" class=\"form-stack\" data-update-targets=\"@partialTargets\">", participant);
+        Assert.Contains("<form method=\"post\" asp-page-handler=\"CompletePromotionFollowUp\" data-update-targets=\"@partialTargets\">", participant);
+        Assert.Contains("@media (max-width: 900px)", siteCss);
+        Assert.Contains(".admin-shell-body .participant-edit-dialog-page", siteCss);
+        Assert.DoesNotContain("Participant lifecycle", participant);
+        Assert.Contains("participant-lifecycle-footer", participant);
+        Assert.Contains("@T[\"Remove participant\"]", participant);
+        Assert.Contains("PrivateWithdrawalNote", participant);
+        Assert.Contains("role=\"alertdialog\"", participant);
+        Assert.Contains(".participant-admin-page .participant-lifecycle-footer .participant-confirmation-box[open] > .event-confirmation-box", siteCss);
+        Assert.Contains("top: 50%;", siteCss);
+        Assert.Contains("transform: translate(-50%, -50%);", siteCss);
+        Assert.Contains("font-size: 17px;", siteCss);
+        Assert.Contains("font-weight: 600;", siteCss);
+        Assert.DoesNotContain("<hr", participant);
+        Assert.Contains(".admin-shell-body .participant-admin-page .participant-edit-card > footer { padding-top: 0; border-top: 0; }", siteCss);
+        Assert.Contains(".admin-shell-body .participant-admin-page .participant-read-only-details > header h2 { color: var(--admin-text); font-family: inherit; font-size: 0.75rem; font-weight: 600; line-height: 1.25; }", siteCss);
+        Assert.Contains("font-family: inherit", siteCss[siteCss.LastIndexOf("/* Participant edit reuses", StringComparison.Ordinal)..]);
+        Assert.Contains("class=\"event-overview-dates\"", participant);
+        Assert.Contains("class=\"event-overview-date-copy\"", participant);
+        Assert.DoesNotContain("participant-status-pill @(Model.Status", participant);
+        Assert.Contains("data-participant-add-route-trigger hidden", participants);
+        Assert.Contains("public bool AddParticipant", participantsHandler);
+        Assert.Contains("asp-page-handler=\"CreateInternalParticipant\"", participantForm);
+        Assert.Contains("ParticipantSearch", participantForm);
+        Assert.Contains("ParticipantPayment", participantForm);
+        Assert.Contains("ParticipantTeamId", participantForm);
+        Assert.Contains("participant-account-controls", participantForm);
+        Assert.Contains("aria-label=\"@T[\"EHB\"]\"", participantForm);
+        Assert.Contains("type=\"text\" />", participantForm);
+        Assert.Contains("InternalParticipant.OwnerAccountId", participantForm);
+        Assert.DoesNotContain("OwnerUsername", participantForm);
+        Assert.Contains("OnGetSearchOwnerAccountsAsync", participantsHandler);
+        Assert.Contains("item.Active && item.AccountType == AccountType.WebsiteAccount", participantsHandler);
+        Assert.Contains("Take(10)", participantsHandler);
+        Assert.Contains("InternalParticipant.OwnerAccountId", participantsHandler);
+        Assert.DoesNotContain("OwnerUsername", participantsHandler);
+        Assert.Contains("data-owner-account-search", participantForm);
+        Assert.Contains("data-owner-account-results", participantForm);
+        Assert.Contains("data-owner-account-id", participantForm);
+        Assert.Contains("data-signup-questions-dialog", adminLayout);
+        Assert.Contains("data-signup-questions-content", adminLayout);
+        Assert.DoesNotContain("<iframe", adminLayout);
+        Assert.Contains("admin-route-dialog", manageScript);
+        Assert.Contains("participantAddOverlay", manageScript);
+        Assert.Contains("history.back()", manageScript);
+        Assert.Contains("window.innerWidth > 900", manageScript);
+        Assert.Contains("const routePage = page.querySelector(\".participant-add-route-page\")", manageScript);
+        Assert.Contains("const interactionTarget = trigger instanceof HTMLElement ? trigger : routePage", manageScript);
+        Assert.Contains("const directRouteFallback = routePage instanceof HTMLElement && trigger?.hidden === true", manageScript);
+        Assert.Contains("hide(false, false)", manageScript);
+        Assert.Contains("const focusTarget = directRouteFallback && returnToParticipants ? trigger : opener", manageScript);
+        Assert.Contains("!focusTarget.hidden", manageScript);
+        Assert.True(participants.IndexOf("data-participant-add-route-trigger hidden", StringComparison.Ordinal) < participants.IndexOf("<section class=\"participant-add-route-page\"", StringComparison.Ordinal));
+        Assert.Contains("setRouteVisibility(true)", manageScript);
+        Assert.Contains("showModal()", manageScript);
+        Assert.Contains("initializeOwnerAccountPicker", manageScript);
+        Assert.Contains("AbortController", manageScript);
+        Assert.Contains("ownerId.value = \"\"", manageScript);
+        Assert.Contains("option.role = \"option\"", manageScript);
+        Assert.Contains("if (!query) {\n          clearResults();\n          return;\n        }", manageScript);
+        Assert.Contains("window.innerWidth > 900", questionsScript);
+        Assert.Contains("history.back()", questionsScript);
+        Assert.Contains("signup-questions-page-title", questions);
+        Assert.Contains("aria-describedby=\"@(Model.IsOverlay ? \"signup-questions-dialog-description\" : null)\"", questions);
+        Assert.Contains("aria-label=\"@T[\"Move {0} up\", question.Label]\"", questions);
+        Assert.Contains("aria-label=\"@T[\"Move {0} down\", question.Label]\"", questions);
+        Assert.Contains("@T[\"Signup access\"]", questions);
+        Assert.Contains(".admin-dialog-page-kicker { margin: 0; color: var(--admin-muted);", siteCss);
+        Assert.DoesNotContain("class=\"step-kicker\"", questions);
+        Assert.Contains("@if (!Model.IsOverlay)", questions);
+        Assert.Contains("max-height: min(38rem, calc(100dvh - 7rem))", siteCss);
+        Assert.Contains("width: min(41rem, calc(100vw - 3rem))", siteCss);
+        Assert.Contains("participant-account-controls { display: grid;", siteCss);
+        Assert.Contains("class=\"btn admin-button-create\" type=\"submit\">+ @T[\"Create participant\"]", participantForm);
+        Assert.Contains(".admin-shell-body .admin-button-create", siteCss);
+        Assert.DoesNotContain("participant-add-dialog-page .admin-dialog-page-actions .admin-button-primary", siteCss);
+        Assert.Contains("font-family: inherit; font-size: 0.875rem; font-weight: 600", siteCss);
+        Assert.Contains(".participant-add-dialog", siteCss);
+    }
+
+    [Fact]
+    public void QuestionsMoveAndEditMutationsPreserveSubmittedOverlayState()
+    {
+        var root = FindRepositoryRoot();
+        var questionsHandler = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Questions.cshtml.cs"));
+        var move = questionsHandler[questionsHandler.IndexOf("OnPostMoveAsync", StringComparison.Ordinal)..questionsHandler.IndexOf("OnPostEditAsync", StringComparison.Ordinal)];
+        var edit = questionsHandler[questionsHandler.IndexOf("OnPostEditAsync", StringComparison.Ordinal)..questionsHandler.IndexOf("OnPostReplaceAsync", StringComparison.Ordinal)];
+
+        Assert.Contains("[FromForm] bool overlay", move);
+        Assert.Contains("Question order saved.", move);
+        Assert.Contains("RedirectToQuestions(id, overlay)", move);
+        Assert.Contains("[FromForm] bool overlay", edit);
+        Assert.Contains("Question saved.", edit);
+        Assert.Contains("RedirectToQuestions(id, overlay)", edit);
+        Assert.Contains("Overlay = overlay;", questionsHandler);
+        Assert.Contains("overlay = (overlay ?? Overlay) ? \"1\" : null", questionsHandler);
+        Assert.Contains("ModelState.Remove(\"overlay\")", questionsHandler);
+    }
+
     [Theory]
     [InlineData("scheduled action", "scheduledBlockerCount == 0", "event-control-status", ".event-manage-page .event-admin-controls > .event-admin-control-group > .event-control-status")]
     [InlineData("pre-live signup", "showSignupControls", "event-signup-group", ".event-manage-page .event-signup-group { display: grid; grid-template-columns: minmax(0, 1fr) auto;")]
@@ -604,7 +857,11 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         var siteCss = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "css", "site.css"));
 
         Assert.Contains("<p class=\"event-control-status event-control-supporting is-yellow\">@T[\"Confirmation required\"]</p>", manage);
-        Assert.Contains("@foreach (var warning in Model.SignupReadiness.Warnings)", manage);
+        Assert.Contains("class=\"admin-signup-warning-ack\"", manage);
+        Assert.Contains("class=\"admin-signup-warning-list\"", manage);
+        Assert.Contains("class=\"event-control-copy\"", manage);
+        Assert.DoesNotContain("admin-signup-warning-heading", manage);
+        Assert.Contains("@foreach (var warning in Model.SignupReadiness!.Warnings)", manage);
         Assert.True(manage.IndexOf("@warning.Description", StringComparison.Ordinal) < manage.IndexOf("@T[\"Confirm warnings\"]", StringComparison.Ordinal));
         Assert.Contains("@if (Model.SignupCloseRequiresAcceptance)", manage);
         Assert.Contains("Model.EventDate(Model.SignupReadiness!.CloseDecision.ProposedClose)", manage);
@@ -616,6 +873,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.DoesNotContain(".admin-shell-body .event-create-cancel { display: inline-block;", siteCss);
         Assert.Contains(".admin-shell-body .event-create-page .event-create-cancel { display: inline-flex;", siteCss);
         Assert.Contains(".event-manage-page .event-signup-group .event-create-cancel { display: inline-flex;", siteCss);
+        Assert.Contains(".event-manage-page .event-signup-group .admin-signup-warning-ack { width: min(28rem, 100%); }", siteCss);
     }
 
     [Fact]

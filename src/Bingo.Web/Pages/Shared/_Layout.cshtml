@@ -3,127 +3,245 @@
 @inject SharedShellService SharedShell
 @{
     var shell = await SharedShell.GetAsync(User, ViewContext.RouteData.Values, Context.RequestAborted);
-    var overlayMode = ViewData["OverlayMode"] as bool? == true;
+    var captainNavigation = shell.CaptainNavigation;
+    var submissionNavigation = shell.SubmissionNavigation;
+    var currentPage = ViewContext.RouteData.Values["page"]?.ToString();
+    var isPublicBoardsPage = string.Equals(currentPage, "/Index", StringComparison.OrdinalIgnoreCase)
+        || currentPage?.StartsWith("/Events/", StringComparison.OrdinalIgnoreCase) == true
+        || currentPage?.StartsWith("/Evidence", StringComparison.OrdinalIgnoreCase) == true;
+    var isAccountPage = currentPage?.StartsWith("/Account/", StringComparison.OrdinalIgnoreCase) == true;
+    var isCaptainPage = currentPage?.StartsWith("/Captain", StringComparison.OrdinalIgnoreCase) == true;
+    var isSubmissionsPage = currentPage?.StartsWith("/Submissions", StringComparison.OrdinalIgnoreCase) == true;
+    var isAccountSubsectionPage = currentPage is "/Account/Settings" or "/Account/MyAccounts" or "/Account/MyEvents" or "/Account/ChangePassword";
+    var isAccountSettingsPage = currentPage is "/Account/Settings" or "/Account/ChangePassword";
+    var isHowToPage = string.Equals(currentPage, "/HowTo", StringComparison.OrdinalIgnoreCase);
+    var isLandingPage = string.Equals(currentPage, "/Index", StringComparison.OrdinalIgnoreCase);
+    var isPass1PublicPage = currentPage is "/Events/Signup"
+        or "/Events/Confirmation"
+        or "/Account/Login"
+        or "/Account/DiscordComplete"
+        or "/Account/Onboarding"
+        or "/Account/AccessDenied"
+        or "/Error"
+        or "/Errors/StatusCode";
+    var isEventBoardPage = currentPage is "/Events/Board" or "/Events/TeamBoard";
+    var eventSlug = ViewContext.RouteData.Values["slug"]?.ToString();
+    var eventBoardView = Context.Request.Query["view"].ToString();
+    var isRecentDropsView = string.Equals(currentPage, "/Events/Board", StringComparison.OrdinalIgnoreCase) && string.Equals(eventBoardView, "drops", StringComparison.OrdinalIgnoreCase);
+    var isLeaderboardsView = string.Equals(currentPage, "/Events/Board", StringComparison.OrdinalIgnoreCase) && string.Equals(eventBoardView, "leaderboards", StringComparison.OrdinalIgnoreCase);
+    var isViewBingo = isEventBoardPage && !isRecentDropsView && !isLeaderboardsView;
+    var hasSecondaryNavigation = (isEventBoardPage && !string.IsNullOrWhiteSpace(eventSlug)) || isAccountSubsectionPage;
 }
 <!DOCTYPE html>
-<html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName">
+<html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName"
+      data-public-select-option="@T["Select option"]"
+      data-public-page-template="@T["Page {0} of {1}"]"
+      data-public-sort-template="@T["Sort by {0}"]"
+      data-public-sort-current-template="@T["Currently sorted by {0} {1}. Activate to sort {2}."]"
+      data-public-sort-ascending="@T["ascending"]"
+      data-public-sort-descending="@T["descending"]"
+      data-public-toast-success="@T["Success"]"
+      data-public-toast-warning="@T["Warning"]"
+      data-public-toast-error="@T["Error"]"
+      data-public-toast-information="@T["Information"]"
+      data-public-toast-dismiss="@T["Dismiss message"]"
+      data-time-label="@T["Time"]"
+      data-time-hour="@T["hour"]"
+      data-time-minute="@T["minute"]"
+      data-sort-column="@T["Column"]"
+      data-sort-by-template="@T["Sort by {0}"]"
+      data-sort-current-template="@T["Currently sorted by {0} {1}. Activate to sort {2}."]"
+      data-sort-direction-ascending="@T["ascending"]"
+      data-sort-direction-descending="@T["descending"]"
+      data-post-error="@T["The change could not be sent. Check your connection and try again."]">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - OSRS Community Bingo</title>
+    <style>html, body { background: var(--public-ui-page-canvas); }</style>
+    <script>
+        (() => {
+            let theme = "light";
+            try { theme = localStorage.getItem("bingo:public-theme") === "dark" ? "dark" : "light"; } catch { }
+            document.documentElement.dataset.publicTheme = theme;
+            document.documentElement.style.backgroundColor = theme === "dark" ? "#1B1A1D" : "#FFF9EC";
+        })();
+    </script>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/lib/flatpickr/flatpickr.min.css" />
     <link rel="stylesheet" href="~/lib/flatpickr/flatpickr-dark.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.transitional.foundation.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.public-ui.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.transitional.application.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Bingo.Web.styles.css" asp-append-version="true" />
+    @await RenderSectionAsync("Head", required: false)
 </head>
-<body class="@ViewData["BodyClass"] @(overlayMode ? "overlay-document" : null)">
-    @if (!overlayMode)
-    {
+<body class="public-ui-page-canvas @(isLandingPage ? "public-ui-editorial-landing" : isPass1PublicPage ? "public-ui-pass1" : null) @ViewData["BodyClass"] @(hasSecondaryNavigation ? "public-ui-has-secondary-nav" : null)">
     <a class="skip-link" href="#main-content">@T["Skip to main content"]</a>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm border-bottom @((ViewData["CompactNavigation"] as bool? == true || shell.Breadcrumbs.Count > 0) ? string.Empty : "mb-3") app-nav">
-            <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/Index">OSRS Community Bingo</a>
-                @if (User.Identity?.IsAuthenticated == true)
-                {
-                    <div class="nav-popover header-notification" data-notification-inbox data-event-ids="@string.Join(',', shell.Notifications.EventIds)">
-                        <details>
-                            <summary class="nav-icon-button" aria-label="@T["Notifications"]">
-                                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
-                                <span class="notification-count" data-notification-count hidden="@(shell.Notifications.Count == 0)">@(shell.Notifications.Count > 99 ? "99+" : shell.Notifications.Count)</span>
-                            </summary>
-                            <div class="nav-panel notification-panel">
-                                <div class="nav-panel-heading">
-                                    <strong data-notification-heading>@shell.Notifications.Heading</strong>
-                                    <span class="notification-total">@T["Personal {0} · Admin {1}", shell.Notifications.PersonalCount, shell.Notifications.AdminActionCount]</span>
-                                </div>
-                                <div class="notification-list" data-notification-list>
-                                    @foreach (var item in shell.Notifications.Items)
-                                    {
-                                        <a class="notification-item" href="@item.Url"><strong>@item.Title</strong><span>@item.Detail</span></a>
-                                    }
-                                </div>
-                                <p class="notification-empty" data-notification-empty hidden="@(shell.Notifications.Count > 0)">@shell.Notifications.EmptyText</p>
-                                <a class="notification-overview" data-notification-overview href="@shell.Notifications.OverviewUrl" hidden="@(string.IsNullOrWhiteSpace(shell.Notifications.OverviewUrl))">@shell.Notifications.OverviewLabel</a>
-                                @if (shell.Notifications.AdminActionCount > 0 || shell.Notifications.AdminItems.Count > 0)
-                                {
-                                    <div class="nav-panel-heading"><strong>@shell.Notifications.AdminHeading</strong><span class="notification-total">@shell.Notifications.AdminActionCount</span></div>
-                                    <div class="notification-list">
-                                        @foreach (var item in shell.Notifications.AdminItems)
-                                        {
-                                            <a class="notification-item" href="@item.Url"><strong>@item.Title</strong><span>@item.Detail</span></a>
-                                        }
-                                    </div>
-                                    <a class="notification-overview" href="@shell.Notifications.AdminOverviewUrl">@shell.Notifications.AdminOverviewLabel</a>
-                                }
-                            </div>
-                        </details>
-                    </div>
-                }
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between @(User.Identity?.IsAuthenticated == true ? "nav-authenticated" : null)">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/Index">@T["Public boards"]</a>
-                        </li>
+    <header class="landing-shell-header">
+        <nav class="landing-shell-nav" aria-label="@T["Public navigation"]">
+            <div class="landing-shell-primary">
+                <a class="landing-shell-brand" asp-area="" asp-page="/Index" aria-label="@T["OSRS Community Bingo home"]">
+                    <img class="landing-shell-brand-mark" src="~/images/branding/dk-legacy-public-mark.png" asp-append-version="true" alt="" />
+                </a>
+                <div class="landing-shell-links">
+                    <a class="landing-shell-link @(isPublicBoardsPage ? "is-current" : null)" aria-current="@(isPublicBoardsPage ? "page" : null)" asp-area="" asp-page="/Index">@T["Events"]</a>
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <a class="landing-shell-link @(isAccountPage ? "is-current" : null)" aria-current="@(isAccountPage ? "page" : null)" asp-page="/Account/Settings">@T["Account"]</a>
+                        }
+                        @if (captainNavigation is not null)
+                        {
+                            <a class="landing-shell-link @(isCaptainPage ? "is-current" : null)" aria-current="@(isCaptainPage ? "page" : null)" href="@captainNavigation.Url">@T["Captain"]</a>
+                        }
+                        @if (submissionNavigation is not null)
+                        {
+                            <a class="landing-shell-link @(isSubmissionsPage ? "is-current" : null)" aria-current="@(isSubmissionsPage ? "page" : null)" href="@submissionNavigation.Url">@T["submissions"]</a>
+                        }
+                        <a class="landing-shell-link @(isHowToPage ? "is-current" : null)" aria-current="@(isHowToPage ? "page" : null)" asp-page="/HowTo">@T["How to"]</a>
                         @if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
                         {
-                            <li class="nav-item"><a class="nav-link" asp-page="/Admin/Index">@T["Admin tools"]</a></li>
+                            <a class="landing-shell-link" asp-page="/Admin/Index">@T["Admin"]</a>
                         }
-                        @if (User.IsInRole("Captain"))
+                    </div>
+                    <div class="landing-shell-actions">
+                        <div class="landing-shell-menu" data-public-ui-popover>
+                            <button type="button" class="landing-shell-icon" aria-label="@T["Open navigation"]" aria-expanded="false" aria-controls="public-ui-header-menu-panel">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+                            </button>
+                            <div id="public-ui-header-menu-panel" class="landing-shell-menu-panel" data-public-ui-popover-panel hidden>
+                                <a class="landing-shell-link @(isPublicBoardsPage ? "is-current" : null)" aria-current="@(isPublicBoardsPage ? "page" : null)" asp-area="" asp-page="/Index">@T["Events"]</a>
+                                @if (User.Identity?.IsAuthenticated == true)
+                                {
+                                    <a class="landing-shell-link @(isAccountPage ? "is-current" : null)" aria-current="@(isAccountPage ? "page" : null)" asp-area="" asp-page="/Account/Settings">@T["Account"]</a>
+                                }
+                                @if (captainNavigation is not null)
+                                {
+                                    <a class="landing-shell-link @(isCaptainPage ? "is-current" : null)" aria-current="@(isCaptainPage ? "page" : null)" href="@captainNavigation.Url">@T["Captain"]</a>
+                                }
+                                @if (submissionNavigation is not null)
+                                {
+                                    <a class="landing-shell-link @(isSubmissionsPage ? "is-current" : null)" aria-current="@(isSubmissionsPage ? "page" : null)" href="@submissionNavigation.Url">@T["submissions"]</a>
+                                }
+                                <a class="landing-shell-link @(isHowToPage ? "is-current" : null)" aria-current="@(isHowToPage ? "page" : null)" asp-area="" asp-page="/HowTo">@T["How to"]</a>
+                                @if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+                                {
+                                    <a class="landing-shell-link" asp-area="" asp-page="/Admin/Index">@T["Admin"]</a>
+                                }
+                            </div>
+                        </div>
+                        @if (User.Identity?.IsAuthenticated == true)
                         {
-                            <li class="nav-item"><a class="nav-link" asp-page="/Captain/Index">@T["Captain board"]</a></li>
+                            <div class="public-ui-header-popover landing-shell-popover" data-notification-inbox data-public-ui-notification-inbox data-event-ids="@string.Join(',', shell.Notifications.EventIds)">
+                                <div data-public-ui-popover>
+                                    <button type="button" class="landing-shell-icon" aria-label="@T["Notifications"]" aria-expanded="false" aria-controls="public-ui-header-notification-panel">
+                                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M10.268 21a2 2 0 0 0 3.464 0" /><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /></svg>
+                                        <span class="landing-shell-notification" data-notification-count hidden="@(shell.Notifications.Count == 0)">@(shell.Notifications.Count > 99 ? "99+" : shell.Notifications.Count)</span>
+                                    </button>
+                                    <div id="public-ui-header-notification-panel" class="public-ui-header-popover__panel public-ui-header-popover__panel--notifications" data-public-ui-popover-panel hidden>
+                                        <div class="public-ui-header-popover__heading">
+                                            <strong class="public-ui-section-heading" data-notification-heading>@shell.Notifications.Heading</strong>
+                                            <span class="public-ui-supporting-text">
+                                                @if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+                                                {
+                                                    @T["Personal {0} · Admin {1}", shell.Notifications.PersonalCount, shell.Notifications.AdminActionCount]
+                                                }
+                                                else
+                                                {
+                                                    @T["Personal {0}", shell.Notifications.PersonalCount]
+                                                }
+                                            </span>
+                                        </div>
+                                        <div class="public-ui-header-popover__list" data-notification-list>
+                                            @foreach (var item in shell.Notifications.Items)
+                                            {
+                                                <a class="public-ui-header-popover__item" href="@item.Url"><strong class="public-ui-section-heading">@item.Title</strong><span class="public-ui-supporting-text">@item.Detail</span></a>
+                                            }
+                                        </div>
+                                        <p class="public-ui-header-popover__empty public-ui-supporting-text" data-notification-empty hidden="@(shell.Notifications.Count > 0)">@shell.Notifications.EmptyText</p>
+                                        <a class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" data-notification-overview href="@shell.Notifications.OverviewUrl" hidden="@(string.IsNullOrWhiteSpace(shell.Notifications.OverviewUrl))">@shell.Notifications.OverviewLabel</a>
+                                        @if (shell.Notifications.AdminActionCount > 0 || shell.Notifications.AdminItems.Count > 0)
+                                        {
+                                            <div class="public-ui-header-popover__heading"><strong class="public-ui-section-heading">@shell.Notifications.AdminHeading</strong><span class="public-ui-supporting-text">@shell.Notifications.AdminActionCount</span></div>
+                                            <div class="public-ui-header-popover__list">
+                                                @foreach (var item in shell.Notifications.AdminItems)
+                                                {
+                                                    <a class="public-ui-header-popover__item" href="@item.Url"><strong class="public-ui-section-heading">@item.Title</strong><span class="public-ui-supporting-text">@item.Detail</span></a>
+                                                }
+                                            </div>
+                                            <a class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" href="@shell.Notifications.AdminOverviewUrl">@shell.Notifications.AdminOverviewLabel</a>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
                         }
-                    </ul>
-                    <ul class="navbar-nav nav-utilities">
-                        <li class="nav-item nav-popover settings-popover">
-                            <details>
-                                <summary class="nav-icon-button" aria-label="@T["Settings"]">
-                                    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15 1.7 1.7 0 0 0 3.08 14H3v-4h.08A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63 1.7 1.7 0 0 0 10 3.08V3h4v.08A1.7 1.7 0 0 0 15 4.64a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9 1.7 1.7 0 0 0 20.92 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z" /></svg>
-                                </summary>
-                                <div class="nav-panel settings-panel">
-                                    <strong class="settings-heading">@T["Settings"]</strong>
-                                    <form method="post" asp-page="/Language" class="settings-language-form">
+                        <div class="public-ui-header-popover landing-shell-popover">
+                            <div data-public-ui-popover>
+                                @if (User.Identity?.IsAuthenticated == true)
+                                {
+                                    <button type="button" class="landing-shell-account" aria-label="@T["Account"]" aria-expanded="false" aria-controls="public-ui-header-settings-panel"><span>@User.Identity.Name</span><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg></button>
+                                }
+                                else
+                                {
+                                <button type="button" class="landing-shell-icon" aria-label="@T["Settings"]" aria-expanded="false" aria-controls="public-ui-header-settings-panel">
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /><circle cx="12" cy="12" r="3" /></svg>
+                                </button>
+                                }
+                                <div id="public-ui-header-settings-panel" class="public-ui-header-popover__panel public-ui-header-popover__panel--settings" data-public-ui-popover-panel hidden>
+                                    <strong class="public-ui-header-popover__heading public-ui-section-heading">@T["Settings"]</strong>
+                                    <form method="post" asp-page="/Language" class="public-ui-header-popover__form">
                                         <input type="hidden" name="returnUrl" value="@($"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}")" />
-                                        <label for="site-language">@T["Language"]</label>
-                                        <select id="site-language" name="culture" aria-label="@T["Language"]" onchange="this.form.submit()">
-                                            <option value="en" selected="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en")">English</option>
-                                            <option value="da" selected="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "da")">Dansk</option>
-                                        </select>
-                                        <noscript><button type="submit">@T["Apply language"]</button></noscript>
+                                        <label class="public-ui-header-popover__field" for="site-language"><span class="public-ui-role-label">@T["Language"]</span><span class="public-ui-header-popover__select"><select id="site-language" name="culture" class="public-ui-control-visual public-ui-control-visual--select" aria-label="@T["Language"]" onchange="this.form.submit()">
+                                            <option value="en" selected="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en")">@T["English"]</option>
+                                            <option value="da" selected="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "da")">@T["Danish"]</option>
+                                        </select><span class="public-ui-select-chevron" aria-hidden="true"></span></span><noscript><button class="public-ui-action public-ui-action--standard public-ui-action--compact" type="submit">@T["Apply language"]</button></noscript></label>
                                     </form>
+                                    <label class="public-ui-header-popover__field" for="site-theme"><span class="public-ui-role-label">@T["Theme"]</span><span class="public-ui-header-popover__select"><select id="site-theme" class="public-ui-control-visual public-ui-control-visual--select" data-public-theme-control aria-label="@T["Theme"]"><option value="light">@T["Light"]</option><option value="dark">@T["Dark"]</option></select><span class="public-ui-select-chevron" aria-hidden="true"></span></span></label>
+                                    <a class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" asp-page="/Privacy">@T["Privacy"]</a>
                                     @if (User.Identity?.IsAuthenticated == true)
                                     {
-                                        <div class="settings-account">
-                                            <span>@T["Signed in as"]</span>
-                                            <strong>@User.Identity.Name</strong>
+                                        <div class="public-ui-header-popover__account">
+                                            <span class="public-ui-supporting-text">@T["Signed in as"]</span>
+                                            <strong class="public-ui-section-heading">@User.Identity.Name</strong>
                                         </div>
-                                        <a asp-page="/Account/Settings">@T["Account settings"]</a>
+                                        <a class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" asp-page="/Account/Settings">@T["Account settings"]</a>
                                         @if (User.FindFirst("bingo:account_type")?.Value == "WebsiteAccount")
                                         {
-                                            <a asp-page="/Account/MyAccounts">@T["My accounts"]</a>
-                                            <a asp-page="/Account/MyEvents">@T["My events"]</a>
+                                            <a class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" asp-page="/Account/MyAccounts">@T["My accounts"]</a>
+                                            <a class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" asp-page="/Account/MyEvents">@T["My events"]</a>
                                         }
-                                        <a asp-page="/Account/ChangePassword">@T["Change password"]</a>
-                                        <form method="post" asp-page="/Account/Logout"><button type="submit">@T["Sign out"]</button></form>
+                                        <a class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-action--compact" asp-page="/Account/ChangePassword">@T["Change password"]</a>
+                                        <form method="post" asp-page="/Account/Logout"><button class="public-ui-header-popover__action public-ui-action public-ui-action--text public-ui-action--compact" type="submit">@T["Sign out"]</button></form>
                                     }
                                 </div>
-                            </details>
-                        </li>
+                            </div>
+                        </div>
                         @if (User.Identity?.IsAuthenticated != true)
                         {
-                            <li class="nav-item"><a class="nav-link" asp-page="/Account/Login">@T["Sign in"]</a></li>
+                            <a class="landing-shell-link landing-shell-sign-in" asp-page="/Account/Login">@T["Sign in"]</a>
                         }
-                    </ul>
-                </div>
+                    </div>
             </div>
-        </nav>
+    </nav>
     </header>
+    @if (isEventBoardPage && !string.IsNullOrWhiteSpace(eventSlug))
+    {
+        <nav class="public-ui-header-context-nav" aria-label="@T["Bingo views"]">
+            <a class="public-ui-header-context-link @(isViewBingo ? "is-current" : null)" aria-current="@(isViewBingo ? "page" : null)" asp-page="/Events/Board" asp-route-slug="@eventSlug">
+                @T["Boards"]
+            </a>
+            <a class="public-ui-header-context-link @(isRecentDropsView ? "is-current" : null)" aria-current="@(isRecentDropsView ? "page" : null)" asp-page="/Events/Board" asp-route-slug="@eventSlug" asp-route-view="drops">@T["Drops"]</a>
+            <a class="public-ui-header-context-link @(isLeaderboardsView ? "is-current" : null)" aria-current="@(isLeaderboardsView ? "page" : null)" asp-page="/Events/Board" asp-route-slug="@eventSlug" asp-route-view="leaderboards">@T["Leaderboards"]</a>
+        </nav>
+    }
+    @if (isAccountSubsectionPage)
+    {
+        <nav class="public-ui-header-context-nav" aria-label="@T["Account navigation"]">
+            <a class="public-ui-header-context-link @(isAccountSettingsPage ? "is-current" : null)" aria-current="@(isAccountSettingsPage ? "page" : null)" asp-page="/Account/Settings">@T["Settings"]</a>
+            <a class="public-ui-header-context-link @(currentPage == "/Account/MyAccounts" ? "is-current" : null)" aria-current="@(currentPage == "/Account/MyAccounts" ? "page" : null)" asp-page="/Account/MyAccounts">@T["My accounts"]</a>
+            <a class="public-ui-header-context-link @(currentPage == "/Account/MyEvents" ? "is-current" : null)" aria-current="@(currentPage == "/Account/MyEvents" ? "page" : null)" asp-page="/Account/MyEvents">@T["My events"]</a>
+        </nav>
     }
     @if (shell.Breadcrumbs.Count > 0 && ViewData["HideBreadcrumbs"] as bool? != true)
     {
@@ -155,38 +273,12 @@
             </div>
         </nav>
     }
-    <div class="@(overlayMode ? "overlay-page-frame" : "container")">
-        <main id="main-content" role="main" class="pb-3" tabindex="-1">
-            <div id="app-notice-region" aria-live="polite">
-                @if (TempData["StatusMessage"] is string statusMessage)
-                {
-                    var messageType = UiMessage.Resolve(statusMessage, TempData[UiMessage.TypeKey]?.ToString());
-                    var messageLabel = messageType switch
-                    {
-                        UiMessageType.Success => T["Success"],
-                        UiMessageType.Warning => T["Warning"],
-                        UiMessageType.Error => T["Error"],
-                        _ => T["Information"]
-                    };
-                    <div class="app-notice notice-@messageType.ToString().ToLowerInvariant()" role="@(messageType == UiMessageType.Error ? "alert" : "status")" tabindex="-1" data-feedback-target>
-                        <strong>@messageLabel</strong>
-                        <span>@T[statusMessage]</span>
-                        <button type="button" class="app-notice-dismiss" data-dismiss-notice aria-label="@T["Dismiss message"]">×</button>
-                    </div>
-                }
-            </div>
+    <div class="@(isLandingPage ? "landing-shell-frame" : isPass1PublicPage ? "public-ui-document-frame" : "container")">
+        <main id="main-content" role="main" class="pb-3 @(isLandingPage ? "landing-shell-main" : isPass1PublicPage ? "public-ui-pass1-main" : null)" tabindex="-1">
+            @await Html.PartialAsync("_TransientToast")
             @RenderBody()
         </main>
     </div>
-
-    @if (!overlayMode)
-    {
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 OSRS Community Bingo · <a asp-area="" asp-page="/Privacy">@T["Privacy"]</a>
-        </div>
-    </footer>
-    }
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

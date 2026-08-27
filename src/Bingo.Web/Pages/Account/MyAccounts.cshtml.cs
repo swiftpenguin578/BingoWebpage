@@ -18,7 +18,6 @@ public sealed class MyAccountsModel(
     ILogger<MyAccountsModel> logger) : PageModel
 {
     public IReadOnlyList<MyAccountCharacter> Links { get; private set; } = [];
-    public Guid? PendingUnlinkLinkId { get; private set; }
     public Guid? FetchFailureLinkId { get; private set; }
     public string? FetchFailureLabel { get; private set; }
     public string? FetchFailureEhb { get; private set; }
@@ -27,8 +26,6 @@ public sealed class MyAccountsModel(
     [BindProperty] public EditInput Edit { get; set; } = new();
     [BindProperty] public LinkInput Action { get; set; } = new();
     [BindProperty] public UnlinkInput Unlink { get; set; } = new();
-    [BindProperty] public CorrectInput Correct { get; set; } = new();
-    [BindProperty] public FetchInput Fetch { get; set; } = new();
 
     public async Task<IActionResult> OnGetAsync(CancellationToken ct)
     {
@@ -49,6 +46,26 @@ public sealed class MyAccountsModel(
         catch (InvalidOperationException exception) { return await FailureAsync(exception, ct); }
     }
 
+    public async Task<IActionResult> OnPostFetchAddAsync(CancellationToken ct)
+    {
+        NormalizeReturnUrl();
+        KeepValidationFor(nameof(Add));
+        if (!ModelState.IsValid) return await ReloadAsync(ct);
+        try
+        {
+            var result = await wiseOldMan.LookupPlayerAsync(Add.CharacterName, ct);
+            if (!result.Succeeded)
+            {
+                ModelState.AddModelError(string.Empty, LookupFailure(result));
+                return await ReloadAsync(ct);
+            }
+            Add.SavedEhb = MyAccountsService.RoundEhb(result.Ehb!.Value);
+            ModelState.Remove("Add.SavedEhb");
+            return await ReloadAsync(ct);
+        }
+        catch (InvalidOperationException exception) { return await FailureAsync(exception, ct); }
+    }
+
     public async Task<IActionResult> OnPostUpdateAsync(CancellationToken ct)
     {
         NormalizeReturnUrl();
@@ -56,8 +73,13 @@ public sealed class MyAccountsModel(
         if (!ModelState.IsValid) return await ReloadAsync(ct);
         try
         {
-            await accounts.UpdateAsync(AccountId, Edit.LinkId, Edit.PersonalLabel, Edit.SavedEhb, ct);
+            await accounts.UpdateAsync(AccountId, Edit.LinkId, Edit.CharacterName, Edit.PersonalLabel, Edit.SavedEhb, ct);
             return Success("My Accounts details saved.");
+        }
+        catch (MyAccountsCorrectionConflictException exception)
+        {
+            ModelState.AddModelError(string.Empty, text["The corrected character is already registered in {0}.", exception.EventName]);
+            return await ReloadAsync(ct);
         }
         catch (InvalidOperationException exception) { return await FailureAsync(exception, ct); }
     }
@@ -65,35 +87,30 @@ public sealed class MyAccountsModel(
     public async Task<IActionResult> OnPostFetchAsync(CancellationToken ct)
     {
         NormalizeReturnUrl();
+        KeepValidationFor(nameof(Edit));
+        if (!ModelState.IsValid) { PreserveFetchValues(); return await ReloadAsync(ct); }
         try
         {
-            var characterName = await accounts.GetCharacterNameForLookupAsync(AccountId, Fetch.LinkId, ct);
-            var result = await wiseOldMan.LookupPlayerAsync(characterName, ct);
+            var result = await wiseOldMan.LookupPlayerAsync(Edit.CharacterName, ct);
             if (!result.Succeeded)
             {
                 PreserveFetchValues();
                 ModelState.AddModelError(string.Empty, LookupFailure(result));
                 return await ReloadAsync(ct);
             }
-            await accounts.UpdateSavedEhbAsync(AccountId, Fetch.LinkId, result.Ehb!.Value, ct);
-            return Success("Saved EHB fetched from Wise Old Man.");
+            var fetchedEhb = MyAccountsService.RoundEhb(result.Ehb!.Value);
+            Edit.SavedEhb = fetchedEhb;
+            FetchFailureLinkId = Edit.LinkId;
+            FetchFailureLabel = Edit.PersonalLabel;
+            FetchFailureEhb = fetchedEhb.ToString("0.00", CultureInfo.InvariantCulture);
+            ModelState.Remove("Edit.SavedEhb");
+            return await ReloadAsync(ct);
         }
         catch (InvalidOperationException exception) { PreserveFetchValues(); return await FailureAsync(exception, ct); }
     }
 
     public async Task<IActionResult> OnPostMoveUpAsync(CancellationToken ct) => await MoveAsync(-1, ct);
     public async Task<IActionResult> OnPostMoveDownAsync(CancellationToken ct) => await MoveAsync(1, ct);
-
-    public async Task<IActionResult> OnPostSetPreferredAsync(CancellationToken ct)
-    {
-        NormalizeReturnUrl();
-        try
-        {
-            await accounts.SetPreferredAsync(AccountId, Action.LinkId, ct);
-            return Success("Preferred character updated.");
-        }
-        catch (InvalidOperationException exception) { return await FailureAsync(exception, ct); }
-    }
 
     public async Task<IActionResult> OnPostUnlinkAsync(CancellationToken ct)
     {
@@ -105,26 +122,7 @@ public sealed class MyAccountsModel(
         }
         catch (MyAccountsConfirmationRequiredException)
         {
-            PendingUnlinkLinkId = Unlink.LinkId;
             ModelState.AddModelError(string.Empty, text["Confirm that the event registration will remain before unlinking this character."]);
-            return await ReloadAsync(ct);
-        }
-        catch (InvalidOperationException exception) { return await FailureAsync(exception, ct); }
-    }
-
-    public async Task<IActionResult> OnPostCorrectAsync(CancellationToken ct)
-    {
-        NormalizeReturnUrl();
-        KeepValidationFor(nameof(Correct));
-        if (!ModelState.IsValid) return await ReloadAsync(ct);
-        try
-        {
-            await accounts.CorrectAsync(AccountId, Correct.LinkId, Correct.CharacterName, ct);
-            return Success("OSRS character spelling corrected.");
-        }
-        catch (MyAccountsCorrectionConflictException exception)
-        {
-            ModelState.AddModelError(string.Empty, text["The corrected character is already registered in {0}.", exception.EventName]);
             return await ReloadAsync(ct);
         }
         catch (InvalidOperationException exception) { return await FailureAsync(exception, ct); }
@@ -175,9 +173,9 @@ public sealed class MyAccountsModel(
 
     private void PreserveFetchValues()
     {
-        FetchFailureLinkId = Fetch.LinkId;
+        FetchFailureLinkId = Edit.LinkId;
         FetchFailureLabel = Edit.PersonalLabel;
-        FetchFailureEhb = ModelState["Edit.SavedEhb"]?.AttemptedValue ?? Edit.SavedEhb?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        FetchFailureEhb = ModelState["Edit.SavedEhb"]?.AttemptedValue ?? Edit.SavedEhb?.ToString("0.00", CultureInfo.InvariantCulture);
     }
 
     private string LookupFailure(WiseOldManPlayerLookupResult result) => result.Status switch
@@ -202,26 +200,21 @@ public sealed class MyAccountsModel(
         public string CharacterName { get; set; } = string.Empty;
         [StringLength(100), Display(Name = "Personal label")]
         public string? PersonalLabel { get; set; }
-        [Range(typeof(decimal), "0", "9999999999.99", ErrorMessage = "Saved EHB cannot be negative."), Display(Name = "Saved EHB")]
+        [Range(typeof(decimal), "0", "9999999999.99", ParseLimitsInInvariantCulture = true, ErrorMessage = "EHB cannot be negative."), Display(Name = "EHB")]
         public decimal? SavedEhb { get; set; }
     }
 
     public sealed class EditInput
     {
         public Guid LinkId { get; set; }
+        [Required(ErrorMessage = "An OSRS character name is required."), StringLength(100), Display(Name = "OSRS character")]
+        public string CharacterName { get; set; } = string.Empty;
         [StringLength(100), Display(Name = "Personal label")]
         public string? PersonalLabel { get; set; }
-        [Range(typeof(decimal), "0", "9999999999.99", ErrorMessage = "Saved EHB cannot be negative."), Display(Name = "Saved EHB")]
+        [Range(typeof(decimal), "0", "9999999999.99", ParseLimitsInInvariantCulture = true, ErrorMessage = "EHB cannot be negative."), Display(Name = "EHB")]
         public decimal? SavedEhb { get; set; }
     }
 
     public sealed class LinkInput { public Guid LinkId { get; set; } }
-    public sealed class FetchInput { public Guid LinkId { get; set; } }
     public sealed class UnlinkInput { public Guid LinkId { get; set; } public bool ConfirmRegistrationWarning { get; set; } }
-    public sealed class CorrectInput
-    {
-        public Guid LinkId { get; set; }
-        [Required(ErrorMessage = "An OSRS character name is required."), StringLength(100), Display(Name = "Correct OSRS character spelling")]
-        public string CharacterName { get; set; } = string.Empty;
-    }
 }

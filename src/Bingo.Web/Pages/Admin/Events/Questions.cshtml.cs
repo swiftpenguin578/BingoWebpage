@@ -15,11 +15,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter auditWriter, ISecretHasher hasher, TimeProvider timeProvider) : PageModel
+public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter auditWriter, ISecretHasher hasher, TimeProvider timeProvider, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     public IReadOnlyList<SignupQuestion> Questions { get; private set; } = [];
 
@@ -39,21 +40,23 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
         return await LoadAsync(id, ct) ? Page() : NotFound();
     }
 
-    public async Task<IActionResult> OnPostAsync(Guid id, [Bind(Prefix = "Input")] QuestionInput input, CancellationToken ct)
+    public async Task<IActionResult> OnPostAsync(Guid id, [Bind(Prefix = "Input")] QuestionInput input, [FromForm] bool overlay, CancellationToken ct)
     {
+        overlay = ResolveSubmittedOverlay(overlay);
         Input = input;
+        Overlay = overlay;
         if (!await CanEditAsync(id, ct))
         {
             SetLockedStatus();
-            return RedirectToQuestions(id);
+            return RedirectToQuestions(id, overlay);
         }
 
         var options = input.Type == SignupQuestionType.SingleChoice ? NormalizeChoices(input.Options) : null;
         if (input.Type == SignupQuestionType.SingleChoice && options is null)
         {
-            ModelState.AddModelError("Input.Options", "Add at least one choice.");
+            ModelState.AddModelError("Input.Options", Localize("Add at least one choice."));
         }
-        if (input.Type == SignupQuestionType.Account && input.AccountRole is null) ModelState.AddModelError("Input.AccountRole", "Choose Regular account or Alt account.");
+        if (input.Type == SignupQuestionType.Account && input.AccountRole is null) ModelState.AddModelError("Input.AccountRole", Localize("Choose Regular account or Alt account."));
         var form = await dbContext.SignupForms.SingleAsync(item => item.EventId == id, ct);
         if (input.Type == SignupQuestionType.Account || form.FirstResponseAt is not null) input.Required = false;
 
@@ -85,16 +88,17 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
         await CompleteMutationAsync(id, "signup_question.created", question.Id.ToString(), null, Snapshot(question), ct);
         await transaction.CommitAsync(ct);
 
-        SetStatus("Question added.", UiMessageType.Success);
-        return RedirectToQuestions(id);
+        SetStatus(Localize("Question added."), UiMessageType.Success);
+        return RedirectToQuestions(id, overlay);
     }
 
-    public async Task<IActionResult> OnPostDeactivateAsync(Guid id, Guid questionId, CancellationToken ct)
+    public async Task<IActionResult> OnPostDeactivateAsync(Guid id, Guid questionId, [FromForm] bool overlay, CancellationToken ct)
     {
+        overlay = ResolveSubmittedOverlay(overlay);
         if (!await CanEditAsync(id, ct))
         {
             SetLockedStatus();
-            return RedirectToQuestions(id);
+            return RedirectToQuestions(id, overlay);
         }
 
         var question = await dbContext.SignupQuestions
@@ -102,8 +106,8 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
         if (question is null) return NotFound();
         if (question.SystemField != SignupSystemField.None)
         {
-            SetStatus("Standard questions cannot be removed.", UiMessageType.Error);
-            return RedirectToQuestions(id);
+            SetStatus(Localize("Standard questions cannot be removed."), UiMessageType.Error);
+            return RedirectToQuestions(id, overlay);
         }
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
@@ -112,70 +116,73 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
         await CompleteMutationAsync(id, "signup_question.deactivated", question.Id.ToString(), before, Snapshot(question), ct);
         await transaction.CommitAsync(ct);
 
-        SetStatus("Question removed.", UiMessageType.Success);
-        return RedirectToQuestions(id);
+        SetStatus(Localize("Question removed."), UiMessageType.Success);
+        return RedirectToQuestions(id, overlay);
     }
 
-    public async Task<IActionResult> OnPostMoveAsync(Guid id, Guid questionId, bool up, CancellationToken ct)
+    public async Task<IActionResult> OnPostMoveAsync(Guid id, Guid questionId, bool up, [FromForm] bool overlay, CancellationToken ct)
     {
-        if (!await CanEditAsync(id, ct)) { SetLockedStatus(); return RedirectToQuestions(id); }
+        overlay = ResolveSubmittedOverlay(overlay);
+        if (!await CanEditAsync(id, ct)) { SetLockedStatus(); return RedirectToQuestions(id, overlay); }
         await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
         var questions = await dbContext.SignupQuestions.Where(x => x.EventId == id && x.Active).OrderBy(x => x.Position).ToListAsync(ct);
         var index = questions.FindIndex(x => x.Id == questionId);
-        if (index < 0 || questions[index].SystemField != SignupSystemField.None) { SetStatus("That question cannot be reordered.", UiMessageType.Error); return RedirectToQuestions(id); }
-        var otherIndex = index + (up ? -1 : 1); if (otherIndex < 0 || otherIndex >= questions.Count || questions[otherIndex].SystemField != SignupSystemField.None) { SetStatus("That question cannot be reordered.", UiMessageType.Error); return RedirectToQuestions(id); }
+        if (index < 0 || questions[index].SystemField != SignupSystemField.None) { SetStatus(Localize("That question cannot be reordered."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
+        var otherIndex = index + (up ? -1 : 1); if (otherIndex < 0 || otherIndex >= questions.Count || questions[otherIndex].SystemField != SignupSystemField.None) { SetStatus(Localize("That question cannot be reordered."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
         var question = questions[index]; var other = questions[otherIndex]; var position = question.Position; question.MoveTo(other.Position); other.MoveTo(position);
         await CompleteMutationAsync(id, "signup_question.reordered", question.Id.ToString(), new { from = position }, new { to = question.Position }, ct); await transaction.CommitAsync(ct);
-        SetStatus("Question order saved.", UiMessageType.Success); return RedirectToQuestions(id);
+        SetStatus(Localize("Question order saved."), UiMessageType.Success); return RedirectToQuestions(id, overlay);
     }
 
-    public async Task<IActionResult> OnPostEditAsync(Guid id, Guid questionId, [Bind(Prefix = "Edit")] EditQuestionInput edit, CancellationToken ct)
+    public async Task<IActionResult> OnPostEditAsync(Guid id, Guid questionId, [Bind(Prefix = "Edit")] EditQuestionInput edit, [FromForm] bool overlay, CancellationToken ct)
     {
+        overlay = ResolveSubmittedOverlay(overlay);
         var form = await dbContext.SignupForms.SingleAsync(x => x.EventId == id, ct);
-        if (!await CanEditAsync(id, ct)) { SetLockedStatus(); return RedirectToQuestions(id); }
+        if (!await CanEditAsync(id, ct)) { SetLockedStatus(); return RedirectToQuestions(id, overlay); }
         var question = await dbContext.SignupQuestions.SingleOrDefaultAsync(x => x.Id == questionId && x.EventId == id, ct);
         if (question is null || question.SystemField != SignupSystemField.None) return NotFound();
         if (form.FirstResponseAt is not null)
         {
             if (HasStructuralEditInput())
             {
-                SetStatus("Answer format is locked after the first response. Use replacement for a new optional question.", UiMessageType.Error);
-                return RedirectToQuestions(id);
+                SetStatus(Localize("Answer format is locked after the first response. Use replacement for a new optional question."), UiMessageType.Error);
+                return RedirectToQuestions(id, overlay);
             }
-            if (TryGetEditValidationError(out var error)) { SetStatus(error, UiMessageType.Error); return RedirectToQuestions(id); }
+            if (TryGetEditValidationError(out var error)) { SetStatus(error, UiMessageType.Error); return RedirectToQuestions(id, overlay); }
             await using var presentationTransaction = await dbContext.Database.BeginTransactionAsync(ct);
             var presentationBefore = Snapshot(question);
             question.UpdatePresentation(edit.Label, edit.HelpText);
             await CompleteMutationAsync(id, "signup_question.edited", question.Id.ToString(), presentationBefore, Snapshot(question), ct);
             await presentationTransaction.CommitAsync(ct);
-            SetStatus("Question saved.", UiMessageType.Success);
-            return RedirectToQuestions(id);
+            SetStatus(Localize("Question saved."), UiMessageType.Success);
+            return RedirectToQuestions(id, overlay);
         }
 
-        if (edit.Type is null) ModelState.AddModelError("Edit.Type", "Choose an answer format.");
-        if (TryGetEditValidationError(out var validationError)) { SetStatus(validationError, UiMessageType.Error); return RedirectToQuestions(id); }
+        if (edit.Type is null) ModelState.AddModelError("Edit.Type", Localize("Choose an answer format."));
+        if (TryGetEditValidationError(out var validationError)) { SetStatus(validationError, UiMessageType.Error); return RedirectToQuestions(id, overlay); }
         var type = edit.Type!.Value;
         var options = type == SignupQuestionType.SingleChoice ? NormalizeChoices(edit.Options) : null;
-        if (type == SignupQuestionType.SingleChoice && options is null) { SetStatus("Add unique nonblank choices.", UiMessageType.Error); return RedirectToQuestions(id); }
-        if (type == SignupQuestionType.Account && edit.AccountRole is null) { SetStatus("Choose an account role.", UiMessageType.Error); return RedirectToQuestions(id); }
+        if (type == SignupQuestionType.SingleChoice && options is null) { SetStatus(Localize("Add unique nonblank choices."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
+        if (type == SignupQuestionType.Account && edit.AccountRole is null) { SetStatus(Localize("Choose an account role."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
         await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
         var before = Snapshot(question);
         question.UpdateDefinition(edit.Label, edit.HelpText, type, type == SignupQuestionType.Account ? false : edit.Required == true, options, type == SignupQuestionType.Account ? edit.AccountRole : null);
         await CompleteMutationAsync(id, "signup_question.edited", question.Id.ToString(), before, Snapshot(question), ct); await transaction.CommitAsync(ct);
-        SetStatus("Question saved.", UiMessageType.Success); return RedirectToQuestions(id);
+        SetStatus(Localize("Question saved."), UiMessageType.Success); return RedirectToQuestions(id, overlay);
     }
 
-    public async Task<IActionResult> OnPostReplaceAsync(Guid id, Guid questionId, [Bind(Prefix = "Replacement")] QuestionInput replacementInput, CancellationToken ct)
+    public async Task<IActionResult> OnPostReplaceAsync(Guid id, Guid questionId, [Bind(Prefix = "Replacement")] QuestionInput replacementInput, [FromForm] bool overlay, CancellationToken ct)
     {
-        if (!await CanEditAsync(id, ct)) { SetLockedStatus(); return RedirectToQuestions(id); }
+        overlay = ResolveSubmittedOverlay(overlay);
+        if (!await CanEditAsync(id, ct)) { SetLockedStatus(); return RedirectToQuestions(id, overlay); }
         var form = await dbContext.SignupForms.SingleAsync(x => x.EventId == id, ct);
         var original = await dbContext.SignupQuestions.SingleOrDefaultAsync(x => x.Id == questionId && x.EventId == id && x.Active, ct);
-        if (original is null || original.SystemField != SignupSystemField.None) { SetStatus("That question cannot be replaced.", UiMessageType.Error); return RedirectToQuestions(id); }
-        if (form.FirstResponseAt is null) { SetStatus("Use ordinary editing until the first response is received.", UiMessageType.Error); return RedirectToQuestions(id); }
+        if (original is null || original.SystemField != SignupSystemField.None) { SetStatus(Localize("That question cannot be replaced."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
+        if (form.FirstResponseAt is null) { SetStatus(Localize("Use ordinary editing until the first response is received."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
         var options = replacementInput.Type == SignupQuestionType.SingleChoice ? NormalizeChoices(replacementInput.Options) : null;
-        if (!ModelState.IsValid || string.IsNullOrWhiteSpace(replacementInput.Label)) { SetStatus("Enter a question label.", UiMessageType.Error); return RedirectToQuestions(id); }
-        if (replacementInput.Type == SignupQuestionType.SingleChoice && options is null) { SetStatus("Add unique nonblank choices.", UiMessageType.Error); return RedirectToQuestions(id); }
-        if (replacementInput.Type == SignupQuestionType.Account && replacementInput.AccountRole is null) { SetStatus("Choose an account role.", UiMessageType.Error); return RedirectToQuestions(id); }
+        if (!ModelState.IsValid || string.IsNullOrWhiteSpace(replacementInput.Label)) { SetStatus(Localize("Enter a question label."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
+        if (replacementInput.Type == SignupQuestionType.SingleChoice && options is null) { SetStatus(Localize("Add unique nonblank choices."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
+        if (replacementInput.Type == SignupQuestionType.Account && replacementInput.AccountRole is null) { SetStatus(Localize("Choose an account role."), UiMessageType.Error); return RedirectToQuestions(id, overlay); }
         var replacement = new SignupQuestion(Guid.NewGuid(), form.Id, id, await CreateUniqueKeyAsync(id, replacementInput.Label, ct), replacementInput.Label, replacementInput.Type, false, original.Position, options, accountAnswerRole: replacementInput.Type == SignupQuestionType.Account ? replacementInput.AccountRole : null, helpText: replacementInput.HelpText);
         await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
         var before = Snapshot(original);
@@ -184,8 +191,8 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
         dbContext.SignupQuestions.Add(replacement);
         await CompleteMutationAsync(id, "signup_question.replaced", original.Id.ToString(), before, new { original = Snapshot(original), replacement = Snapshot(replacement) }, ct);
         await transaction.CommitAsync(ct);
-        SetStatus("Question replaced. Existing answers remain with the original question.", UiMessageType.Success);
-        return RedirectToQuestions(id);
+        SetStatus(Localize("Question replaced. Existing answers remain with the original question."), UiMessageType.Success);
+        return RedirectToQuestions(id, overlay);
     }
 
     private async Task CompleteMutationAsync(Guid eventId, string action, string targetId, object? before, object? after, CancellationToken ct)
@@ -198,22 +205,23 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
 
     private static object Snapshot(SignupQuestion question) => new { question.Id, question.Key, question.Label, question.HelpText, Type = question.Type.ToString(), question.Required, question.Position, question.Options, AccountRole = question.AccountAnswerRole?.ToString(), question.Active, question.ReplacedBySignupQuestionId };
 
-    public async Task<IActionResult> OnPostSignupCodeAsync(Guid id, [Bind(Prefix = "Settings")] SignupSettingsInput settings, CancellationToken ct)
+    public async Task<IActionResult> OnPostSignupCodeAsync(Guid id, [Bind(Prefix = "Settings")] SignupSettingsInput settings, [FromForm] bool overlay, CancellationToken ct)
     {
+        overlay = ResolveSubmittedOverlay(overlay);
         var bingoEvent = await dbContext.Events.SingleOrDefaultAsync(item => item.Id == id, ct);
         if (bingoEvent is null) return NotFound();
         if (bingoEvent.DraftLocked || bingoEvent.State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
         {
-            SetStatus("Signup settings are locked because the draft has started or this event has moved on.", UiMessageType.Error);
-            return RedirectToQuestions(id);
+            SetStatus(Localize("Signup settings are locked because the draft has started or this event has moved on."), UiMessageType.Error);
+            return RedirectToQuestions(id, overlay);
         }
         try
         {
             var form = await dbContext.SignupForms.SingleAsync(item => item.EventId == id, ct);
             if (settings.RequireSignupCode && !form.RequireSignupCode && string.IsNullOrWhiteSpace(settings.NewSignupCode))
             {
-                SetStatus("Enter a new signup code or turn code protection off.", UiMessageType.Error);
-                return RedirectToQuestions(id);
+                SetStatus(Localize("Enter a new signup code or turn code protection off."), UiMessageType.Error);
+                return RedirectToQuestions(id, overlay);
             }
             var hash = !settings.RequireSignupCode ? null : string.IsNullOrWhiteSpace(settings.NewSignupCode) ? form.SignupCodeHash : hasher.Hash(settings.NewSignupCode);
             bingoEvent.ConfigureSignup(bingoEvent.WaitingListEnabled, settings.RequireSignupCode, hash);
@@ -221,13 +229,13 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
             form.AdvanceVersion();
             await dbContext.SaveChangesAsync(ct);
             await auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, "event.signup_code_changed", "event", id.ToString(), "Signup-code protection changed.", ct);
-            SetStatus("Signup-code protection saved.", UiMessageType.Success);
+            SetStatus(Localize("Signup-code protection saved."), UiMessageType.Success);
         }
         catch (InvalidOperationException)
         {
-            SetStatus("The signup-code setting could not be changed in this event state.", UiMessageType.Error);
+            SetStatus(Localize("The signup-code setting could not be changed in this event state."), UiMessageType.Error);
         }
-        return RedirectToQuestions(id);
+        return RedirectToQuestions(id, overlay);
     }
 
     private async Task<bool> LoadAsync(Guid id, CancellationToken ct)
@@ -293,12 +301,12 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
             if (!ModelState.TryGetValue(key, out var state) || state.Errors.Count == 0) continue;
             error = key switch
             {
-                "Edit.Label" when string.IsNullOrWhiteSpace(editLabelValue(state)) => "Enter a question label.",
-                "Edit.Options" => "Enter valid choices.",
-                "Edit.AccountRole" => "Choose an account role.",
+                "Edit.Label" when string.IsNullOrWhiteSpace(editLabelValue(state)) => Localize("Enter a question label."),
+                "Edit.Options" => Localize("Enter valid choices."),
+                "Edit.AccountRole" => Localize("Choose an account role."),
                 _ => state.Errors[0].ErrorMessage
             };
-            if (string.IsNullOrWhiteSpace(error)) error = "Enter a valid question value.";
+            if (string.IsNullOrWhiteSpace(error)) error = Localize("Enter a valid question value.");
             return true;
         }
         error = string.Empty;
@@ -309,17 +317,29 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
 
     private void SetLockedStatus() =>
         SetStatus(
-            "Signup questions can only be changed while signups are closed and before the draft starts.",
+            Localize("Signup questions can only be changed while signups are closed and before the draft starts."),
             UiMessageType.Error);
 
-    private RedirectToPageResult RedirectToQuestions(Guid id) =>
-        RedirectToPage(new { id, overlay = IsOverlay ? "1" : null });
+    private RedirectToPageResult RedirectToQuestions(Guid id, bool? overlay = null) =>
+        RedirectToPage(new { id, overlay = (overlay ?? Overlay) ? "1" : null });
+
+    private bool ResolveSubmittedOverlay(bool overlay)
+    {
+        if (!Request.HasFormContentType) return overlay;
+
+        var submitted = Request.Form["overlay"].ToString();
+        ModelState.Remove("overlay");
+        return overlay || string.Equals(submitted, "1", StringComparison.Ordinal);
+    }
 
     private void SetStatus(string message, UiMessageType type)
     {
         TempData["StatusMessage"] = message;
         TempData[UiMessage.TypeKey] = type.ToString();
     }
+
+    private string Localize(string key, params object[] arguments)
+        => text?[key, arguments].Value ?? string.Format(System.Globalization.CultureInfo.CurrentCulture, key, arguments);
 
     public static string FormatType(SignupQuestionType type) => type switch
     {

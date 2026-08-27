@@ -1,34 +1,89 @@
 @page
 @model Bingo.Web.Pages.Account.SettingsModel
-@{ ViewData["Title"] = T["Account settings"]; }
-<section class="form-page">
-    <p class="eyebrow">@T["Account settings"]</p>
-    <h1>@T["Security and Discord"]</h1>
-    <div asp-validation-summary="ModelOnly" class="validation-summary" tabindex="-1"></div>
-    <div class="panel details-list"><p><strong>@T["Discord"]</strong><span>@(Model.DiscordLinked ? T["Linked"] : T["Not linked"])</span></p></div>
-    <a class="btn btn-outline-light" asp-page="ChangePassword">@T["Change password"]</a>
+@{
+    ViewData["Title"] = T["Account settings"];
+    ViewData["BodyClass"] = "public-ui-pass2";
+}
+
+<section class="public-pass2-page public-pass2-form-page public-pass2-settings-page" aria-labelledby="settings-heading">
+    <header class="public-pass2-masthead">
+        <span class="public-pass2-kicker">@T["Account settings"]</span>
+        <h1 id="settings-heading">@T["Security and Discord"]</h1>
+        <p>@T["Manage your login details and connected Discord account."]</p>
+    </header>
+
+    <div asp-validation-summary="ModelOnly" class="public-pass2-validation" tabindex="-1"></div>
+
+    <section class="public-pass2-worksection" aria-labelledby="account-status-heading">
+        <div class="public-pass2-index" aria-hidden="true">01</div>
+        <div class="public-pass2-worksection__body">
+            <h2 id="account-status-heading">@T["Account status"]</h2>
+            <div class="public-pass2-settings-discord-pair">
+                <div class="public-pass2-status-line">
+                    <span>@T["Discord"]</span>
+                    <strong class="public-pass2-status @(Model.DiscordLinked ? "public-pass2-status--success" : "public-pass2-status--caution")">@(Model.DiscordLinked ? T["Linked"] : T["Not linked"])</strong>
+                </div>
+                <form method="post" asp-page-handler="BeginLink" class="public-pass2-form-grid">
+                    <div class="public-pass2-field">
+                        <label asp-for="CurrentPassword">@T["Current password"]</label>
+                        <input asp-for="CurrentPassword" type="password" autocomplete="current-password" />
+                        <span asp-validation-for="CurrentPassword" class="public-pass2-field-error"></span>
+                    </div>
+                    <button type="submit" class="public-pass2-action public-pass2-action--outline">
+                        @if (!Model.DiscordLinked)
+                        {
+                            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M19.54 5.32A16.7 16.7 0 0 0 15.47 4l-.5 1.02a15.5 15.5 0 0 0-5.94 0L8.53 4a16.7 16.7 0 0 0-4.07 1.32C1.88 9.08 1.18 12.75 1.52 16.37a16.8 16.8 0 0 0 5 2.57l1.2-1.65a10.5 10.5 0 0 1-1.9-.91l.46-.36a11.9 11.9 0 0 0 10.44 0l.46.36c-.6.36-1.24.67-1.9.91l1.2 1.65a16.8 16.8 0 0 0 5-2.57c.4-4.2-.68-7.83-1.94-11.05ZM8.35 14.5c-1.03 0-1.88-.95-1.88-2.12s.83-2.13 1.88-2.13 1.9.96 1.88 2.13c0 1.17-.83 2.12-1.88 2.12Zm7.3 0c-1.03 0-1.88-.95-1.88-2.12s.83-2.13 1.88-2.13 1.9.96 1.88 2.13c0 1.17-.83 2.12-1.88 2.12Z" /></svg>
+                        }
+                        @T[Model.DiscordLinked ? "Change linked Discord" : "Link Discord"]
+                    </button>
+                    <a class="public-pass2-text-link" asp-page="ChangePassword">@T["Change password"] <span aria-hidden="true">→</span></a>
+                </form>
+            </div>
+        </div>
+    </section>
+
     @if (Model.IsWebsiteAccount)
     {
-        <form method="post" asp-page-handler="RenameUsername" class="panel form-stack">
-            <h2>@T["Change website username"]</h2>
-            <p class="form-hint">@T["Your website username is separate from OSRS characters and Discord. It also becomes the username used for password login."]</p>
-            <label asp-for="Rename.Username">@T["Website username"]</label><input asp-for="Rename.Username" class="form-control" autocomplete="username" /><span asp-validation-for="Rename.Username" class="field-error"></span>
-            <label asp-for="Rename.CurrentPassword">@T["Current password"]</label><input asp-for="Rename.CurrentPassword" class="form-control" type="password" autocomplete="current-password" /><span asp-validation-for="Rename.CurrentPassword" class="field-error"></span>
-            <button class="btn action-accent-outline">@T["Change website username"]</button>
-        </form>
+        <section class="public-pass2-worksection" aria-labelledby="username-heading">
+            <div class="public-pass2-index" aria-hidden="true">02</div>
+            <div class="public-pass2-worksection__body">
+                <h2 id="username-heading">@T["Website username"]</h2>
+                <p>@T["Your website username is separate from OSRS characters and Discord. It also becomes the username used for password login."]</p>
+                <form method="post" asp-page-handler="RenameUsername" class="public-pass2-form-grid public-pass2-form-grid--two">
+                    <div class="public-pass2-field">
+                        <label asp-for="Rename.Username">@T["Website username"]</label>
+                        <input asp-for="Rename.Username" autocomplete="username" />
+                        <span asp-validation-for="Rename.Username" class="public-pass2-field-error"></span>
+                    </div>
+                    <div class="public-pass2-field">
+                        <label asp-for="Rename.CurrentPassword">@T["Current password"]</label>
+                        <input asp-for="Rename.CurrentPassword" type="password" autocomplete="current-password" />
+                        <span asp-validation-for="Rename.CurrentPassword" class="public-pass2-field-error"></span>
+                    </div>
+                    <button type="submit" class="public-pass2-action public-pass2-action--danger">@T["Change website username"] <span aria-hidden="true">→</span></button>
+                </form>
+            </div>
+        </section>
     }
-    <form method="post" asp-page-handler="BeginLink" class="panel form-stack" data-native-submit>
-        <h2>@(Model.DiscordLinked ? T["Change linked Discord"] : T["Link Discord"])</h2>
-        <label asp-for="CurrentPassword"></label><input asp-for="CurrentPassword" class="form-control" type="password" /><span asp-validation-for="CurrentPassword" class="field-error"></span>
-        <button class="btn btn-outline-light">@T["Continue with Discord"]</button>
-    </form>
+
     @if (Model.DiscordLinked)
     {
-        <form method="post" asp-page-handler="Unlink" class="panel form-stack">
-            <h2>@T["Unlink Discord"]</h2>
-            <label asp-for="CurrentPassword"></label><input asp-for="CurrentPassword" class="form-control" type="password" /><span asp-validation-for="CurrentPassword" class="field-error"></span>
-            <button class="btn btn-danger">@T["Unlink Discord"]</button>
-        </form>
+        <section class="public-pass2-worksection" aria-labelledby="discord-heading">
+            <div class="public-pass2-index" aria-hidden="true">03</div>
+            <div class="public-pass2-worksection__body">
+                <h2 id="discord-heading">@T["Discord connection"]</h2>
+                <p>@T["Unlinking Discord removes Discord login from this account."]</p>
+                <form method="post" asp-page-handler="Unlink" class="public-pass2-form-grid">
+                    <div class="public-pass2-field">
+                        <label asp-for="CurrentPassword">@T["Current password"]</label>
+                        <input asp-for="CurrentPassword" type="password" autocomplete="current-password" />
+                        <span asp-validation-for="CurrentPassword" class="public-pass2-field-error"></span>
+                    </div>
+                    <button type="submit" class="public-pass2-action public-pass2-action--danger">@T["Unlink Discord"]</button>
+                </form>
+            </div>
+        </section>
     }
 </section>
+
 @section Scripts { <partial name="_ValidationScriptsPartial" /> }

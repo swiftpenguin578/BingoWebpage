@@ -3,156 +3,200 @@
     var eligibleDrops = Model.Tile.Requirements
         .SelectMany(requirement => requirement.EligibleDrops)
         .ToList();
-}
-<aside class="public-team-sidebar panel tile-context-sidebar auto-hide-scrollbar" aria-label="@T["{0} details", Model.Tile.TileName]" data-tile-context-sidebar>
-    <section class="tile-context-heading">
-        <div class="tile-context-actions">
-            <button type="button" class="tile-context-back" data-team-sidebar-return>← @T["Team overview"]</button>
-            @if (Model.CanSubmit && !Model.Tile.Complete)
-            {
-                <a class="btn tile-submit-action action-accent-outline" asp-page="/Captain/Submit" asp-route-tileId="@Model.Tile.TileId" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId" data-open-submission-drawer>@T["Submit drop"]</a>
-            }
-        </div>
-        <h2>@Model.Tile.TileName</h2>
-        <p>@Model.Tile.Description</p>
-        <div class="tile-context-total"><strong>@Model.Tile.Approved/@Model.Tile.Target</strong><span>@T["approved"]</span></div>
-        <div class="team-progress-meter" aria-label="@T["{0} of {1} approved", Model.Tile.Approved, Model.Tile.Target]">
-            <span style="width:@(Model.Tile.Target == 0 ? 0 : Math.Min(100, Model.Tile.Approved * 100 / Model.Tile.Target))%"></span>
-        </div>
-    </section>
+    var bossGroups = eligibleDrops
+        .GroupBy(drop => drop.BossName)
+        .ToList();
+    var eventSlug = ViewContext.RouteData.Values["slug"]?.ToString();
+    var teamSlug = ViewContext.RouteData.Values["teamSlug"]?.ToString();
 
-    @if (Model.Tile.Requirements.Count > 1)
+    string FormatPublicRate(string rate)
     {
-        <section class="tile-context-section">
-            <header><span class="feature-kicker">@T["Completion breakdown"]</span></header>
-            <div class="tile-context-requirements">
-                @foreach (var requirement in Model.Tile.Requirements)
+        var parts = rate.Split('/', 2, StringSplitOptions.None);
+        if (parts.Length != 2
+            || !decimal.TryParse(parts[0], System.Globalization.NumberStyles.AllowDecimalPoint | System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out _)
+            || !decimal.TryParse(parts[1], System.Globalization.NumberStyles.AllowDecimalPoint | System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var denominator))
+        {
+            return rate;
+        }
+
+        return $"{parts[0]}/{decimal.Round(denominator, 0, MidpointRounding.AwayFromZero).ToString("0", System.Globalization.CultureInfo.InvariantCulture)}";
+    }
+}
+<aside class="public-team-sidebar public-ui-surface public-ui-surface--charcoal public-ui-sectioned-surface tile-context-sidebar public-ui-auto-hide-scrollbar" aria-label="@T["{0} details", Model.Tile.TileName]" data-tile-context-sidebar>
+    <div class="tile-context-sidebar__content">
+        <section class="tile-context-sidebar__section tile-context-sidebar__actions">
+            <div class="public-ui-action-list public-ui-action-list--split">
+                <a class="public-ui-action public-ui-action--compact tile-context-sidebar__action--overview" asp-page="/Events/TeamBoard" asp-route-slug="@eventSlug" asp-route-teamSlug="@teamSlug" asp-route-tileRoute="" data-team-sidebar-return>@T["Team overview"]</a>
+                @if (Model.CanSubmit && !Model.Tile.Complete)
                 {
-                    <div class="tile-context-requirement @(requirement.Complete ? "complete" : null)">
-                        <span><strong>@requirement.Description</strong><small>@T["{0} of {1} approved", requirement.Approved, requirement.Target]</small></span>
-                        <b aria-label="@(requirement.Complete ? T["Complete"] : T["In progress"])">@(requirement.Complete ? "✓" : $"{requirement.Approved}/{requirement.Target}")</b>
-                    </div>
+                    <a class="public-ui-action public-ui-action--commit public-ui-action--compact" asp-page="/Captain/Submit" asp-route-tileId="@Model.Tile.TileId" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId" data-open-submission-drawer>@T["Submit drop"]</a>
                 }
             </div>
         </section>
-    }
 
-    @if (eligibleDrops.Count > 0)
-    {
-        <section class="tile-context-section">
-            <header><span class="feature-kicker">@T["Eligible drops"]</span><small>@eligibleDrops.Count</small></header>
-            <div class="tile-context-drops">
-                @{
-                    var bossGroups = eligibleDrops
-                        .GroupBy(drop => drop.BossName)
-                        .ToList();
-                    var itemGroups = eligibleDrops
-                        .GroupBy(drop => drop.ItemName)
-                        .ToList();
-                    var groupByItem = itemGroups.Count < bossGroups.Count;
-                    var showBossHeadings = bossGroups.Count > 1;
-                    var collapseBossGroups = eligibleDrops.Count > 12 && showBossHeadings;
-                }
-                @if (groupByItem)
-                {
-                    @foreach (var itemGroup in itemGroups)
+        <section class="tile-context-sidebar__section tile-context-sidebar__progress">
+            <header class="public-ui-component-header">
+                <div class="public-ui-component-header__copy">
+                    <span class="public-ui-overline">@T["Tile"] @Model.SequenceNumber.ToString("00")</span>
+                    <h2 class="public-ui-component-title">@Model.Tile.TileName</h2>
+                    <p class="public-ui-supporting-text">@Model.Tile.Description</p>
+                </div>
+            </header>
+            <div class="tile-context-sidebar__progress-summary" aria-label="@T["{0} of {1} drops", Model.Tile.Approved, Model.Tile.Target]">
+                <strong class="public-ui-data-value @(Model.Tile.Complete ? "tile-context-sidebar__value--complete" : null)">@Model.Tile.Approved/@Model.Tile.Target</strong>
+                <span class="public-ui-data-label">@T["Drops"]</span>
+            </div>
+        </section>
+
+        @if (Model.Tile.Requirements.Count > 1)
+        {
+            <section class="tile-context-sidebar__section tile-context-sidebar__breakdown" data-tile-completion-breakdown>
+                <header class="tile-context-sidebar__section-header">
+                    <h3 class="public-ui-section-heading">@T["Completion breakdown"]</h3>
+                </header>
+                <div class="tile-context-sidebar__breakdown-list">
+                    @foreach (var requirement in Model.Tile.Requirements)
                     {
-                        <div class="tile-drop-group">
-                            <strong class="tile-drop-boss">@itemGroup.Key</strong>
-                            <div class="tile-drop-list">
-                                @foreach (var drop in itemGroup)
+                        <div class="tile-context-sidebar__breakdown-row">
+                            <span>@requirement.Description</span>
+                            <span class="tile-context-sidebar__breakdown-value @(requirement.Complete ? "tile-context-sidebar__status--complete" : "tile-context-sidebar__status--in-progress")">
+                                <strong>@requirement.Approved OF @requirement.Target</strong>
+                                <small>@T["approved"]</small>
+                                @if (requirement.Complete)
                                 {
-                                    <span class="tile-drop-row">
-                                        <strong>@drop.BossName</strong>
-                                        <small>@drop.DisplayRate</small>
-                                        @if (drop.CreditedWeight > 1)
-                                        {
-                                            <b>×@drop.CreditedWeight</b>
-                                        }
-                                    </span>
+                                    <span class="public-ui-state public-ui-state--success" aria-label="@T["Complete"]">✓</span>
                                 }
-                            </div>
+                            </span>
                         </div>
                     }
-                }
-                else
+                </div>
+            </section>
+        }
+
+        @if (eligibleDrops.Count > 0)
+        {
+        <section class="tile-context-sidebar__section tile-context-sidebar__eligible" data-tile-eligible-drops>
+                <header class="tile-context-sidebar__section-header">
+                    <h3 class="public-ui-section-heading">@T["Eligible drops"]</h3>
+                    <small class="public-ui-supporting-text">@eligibleDrops.Count</small>
+                </header>
+                @if (bossGroups.Count > 1)
                 {
-                    @foreach (var bossGroup in bossGroups)
-                    {
-                        @if (collapseBossGroups)
+                    <div class="tile-context-sidebar__drop-groups">
+                        @foreach (var bossGroup in bossGroups)
                         {
-                            <details class="tile-drop-group tile-drop-collapsible">
-                                <summary><strong>@bossGroup.Key</strong><small>@T["{0} drops", bossGroup.Count()]</small></summary>
-                                <div class="tile-drop-list">
+                            <details class="tile-context-sidebar__drop-disclosure">
+                                <summary><span>@bossGroup.Key</span><span class="tile-context-sidebar__drop-meta">@T["{0} drops", bossGroup.Count()] <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></span></summary>
+                                <div class="tile-context-sidebar__drop-rows">
                                     @foreach (var drop in bossGroup)
                                     {
-                                        <span class="tile-drop-row">
+                                        <div class="tile-context-sidebar__drop-row">
                                             <strong>@drop.ItemName</strong>
-                                            <small>@drop.DisplayRate</small>
+                                            <span>@FormatPublicRate(drop.DisplayRate)</span>
                                             @if (drop.CreditedWeight > 1)
                                             {
-                                                <b>×@drop.CreditedWeight</b>
+                                                <small>×@drop.CreditedWeight</small>
                                             }
-                                        </span>
+                                        </div>
                                     }
                                 </div>
                             </details>
                         }
-                        else
+                    </div>
+                }
+                else
+                {
+                    <div class="tile-context-sidebar__drop-rows">
+                        @foreach (var drop in eligibleDrops.Take(eligibleDrops.Count <= 4 ? eligibleDrops.Count : 3))
                         {
-                            <div class="tile-drop-group @(eligibleDrops.Count <= 4 ? "tile-drop-sparse" : null)">
-                                @if (showBossHeadings)
+                            <div class="tile-context-sidebar__drop-row">
+                                <strong>@drop.ItemName</strong>
+                                <span>@FormatPublicRate(drop.DisplayRate)</span>
+                                @if (drop.CreditedWeight > 1)
                                 {
-                                    <strong class="tile-drop-boss">@bossGroup.Key</strong>
+                                    <small>×@drop.CreditedWeight</small>
                                 }
-                                <div class="tile-drop-list">
-                                    @foreach (var drop in bossGroup)
-                                    {
-                                        <span class="tile-drop-row">
-                                            <strong>@drop.ItemName</strong>
-                                            <small>@drop.DisplayRate</small>
-                                            @if (drop.CreditedWeight > 1)
-                                            {
-                                                <b>×@drop.CreditedWeight</b>
-                                            }
-                                        </span>
-                                    }
-                                </div>
                             </div>
                         }
+                    </div>
+                    @if (eligibleDrops.Count > 4)
+                    {
+                        <details class="tile-context-sidebar__drop-disclosure tile-context-sidebar__drop-disclosure--overflow">
+                            <summary>
+                                <span class="tile-context-sidebar__drop-summary-label tile-context-sidebar__drop-summary-label--closed">@T["View all {0}", eligibleDrops.Count]</span>
+                                <span class="tile-context-sidebar__drop-summary-label tile-context-sidebar__drop-summary-label--open">@T["Show less"]</span>
+                                <span class="tile-context-sidebar__drop-meta" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></span>
+                            </summary>
+                            <div class="tile-context-sidebar__drop-rows">
+                                @foreach (var drop in eligibleDrops.Skip(3))
+                                {
+                                    <div class="tile-context-sidebar__drop-row">
+                                        <strong>@drop.ItemName</strong>
+                                        <span>@FormatPublicRate(drop.DisplayRate)</span>
+                                        @if (drop.CreditedWeight > 1)
+                                        {
+                                            <small>×@drop.CreditedWeight</small>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </details>
                     }
                 }
-            </div>
-        </section>
-    }
+            </section>
+        }
 
-    <section class="tile-context-section tile-context-evidence">
-        <header><span class="feature-kicker">@T["Approved evidence"]</span><small>@Model.Tile.Evidence.Count</small></header>
-        @if (Model.Tile.Evidence.Count == 0)
-        {
-            <p class="tile-context-empty">@T["No approved evidence yet."]</p>
-        }
-        else
-        {
-            <div class="tile-evidence-thumbnails auto-hide-scrollbar" tabindex="0" aria-label="@T["Approved evidence"]">
-                @foreach (var evidence in Model.Tile.Evidence)
-                {
-                    if (evidence.EvidenceAssetId is Guid assetId)
+        <section class="tile-context-sidebar__section tile-context-sidebar__evidence public-ui-evidence-gallery-section">
+            <header class="tile-context-sidebar__section-header">
+                <h3 class="public-ui-section-heading">@T["Approved submissions"]</h3>
+                <small class="public-ui-supporting-text">@Model.Tile.Evidence.Count</small>
+            </header>
+            @if (Model.Tile.Evidence.Count == 0)
+            {
+                <div class="tile-context-sidebar__empty">
+                    <strong>@T["No approved evidence yet"]</strong>
+                    <span class="tile-context-sidebar__empty-support">@T["Approved submissions will appear here."]</span>
+                </div>
+            }
+            else
+            {
+                <div class="public-ui-evidence-gallery public-ui-auto-hide-scrollbar" tabindex="0" aria-label="@T["Approved submissions"]">
+                    @foreach (var evidence in Model.Tile.Evidence)
                     {
-                        <button type="button" class="tile-evidence-thumbnail" data-evidence-image="/Evidence/@assetId" data-evidence-alt="@T["Approved evidence from {0}", evidence.PlayerName ?? string.Empty]">
-                            <img src="/Evidence/@assetId" alt="" loading="lazy" />
-                            <span><strong>@evidence.PlayerName</strong><small>@(evidence.DropName ?? T["Manual completion"])</small></span>
-                        </button>
+                        var localSubmittedAt = evidence.SubmittedAt.ToLocalTime();
+                        var age = DateTimeOffset.UtcNow - evidence.SubmittedAt.ToUniversalTime();
+                        var minutesAgo = (int)age.TotalMinutes;
+                        var hoursAgo = (int)age.TotalHours;
+                        var daysAgo = (int)age.TotalDays;
+                        var relativeAge = age.TotalMinutes < 1 ? T["Just now"] : age.TotalHours < 1 ? minutesAgo == 1 ? T["1 minute ago"] : T["{0} minutes ago", minutesAgo] : age.TotalDays < 1 ? hoursAgo == 1 ? T["1 hour ago"] : T["{0} hours ago", hoursAgo] : daysAgo == 1 ? T["1 day ago"] : T["{0} days ago", daysAgo];
+                        var submittedTitle = localSubmittedAt.ToString("f");
+                        var submittedIso = evidence.SubmittedAt.ToUniversalTime().ToString("O");
+                        var source = evidence.BossName ?? T["Manual completion"];
+                        if (evidence.EvidenceAssetId is Guid assetId)
+                        {
+                            <button type="button" class="tile-context-sidebar__evidence-row public-ui-evidence-gallery__cell" data-evidence-image="/Evidence/@assetId" data-evidence-alt="@T["Approved evidence from {0}", evidence.PlayerName ?? string.Empty]" data-evidence-drop="@(evidence.DropName ?? T["Manual completion"])" data-evidence-player="@(evidence.PlayerName ?? string.Empty)" data-evidence-team="@Model.Tile.TeamName" data-evidence-source="@T["Approved submissions"]" aria-label="@T["View approved evidence from {0}", evidence.PlayerName ?? string.Empty]">
+                                <img src="/Evidence/@assetId" alt="" loading="lazy" />
+                                <span class="tile-context-sidebar__evidence-copy">
+                                    <strong>@(evidence.PlayerName ?? T["Unknown participant"])</strong>
+                                    <small>@(evidence.DropName ?? T["Manual completion"])</small>
+                                    <small>@source · <time datetime="@submittedIso" title="@submittedTitle">@relativeAge</time></small>
+                                </span>
+                            </button>
+                        }
+                        else
+                        {
+                            <article class="tile-context-sidebar__evidence-row public-ui-evidence-gallery__cell public-ui-evidence-gallery__cell--manual">
+                                <span class="tile-context-sidebar__evidence-mark public-ui-state public-ui-state--success" aria-hidden="true">✓</span>
+                                <span class="tile-context-sidebar__evidence-copy">
+                                    <strong>@(evidence.PlayerName ?? T["Unknown participant"])</strong>
+                                    <small>@(evidence.DropName ?? T["Manual completion"])</small>
+                                    <small>@source · <time datetime="@submittedIso" title="@submittedTitle">@relativeAge</time></small>
+                                </span>
+                            </article>
+                        }
                     }
-                    else
-                    {
-                        <article class="tile-evidence-summary">
-                            <span aria-hidden="true">✓</span>
-                            <div><strong>@evidence.PlayerName</strong><small>@(evidence.DropName ?? T["Manual completion"])</small>@if (!string.IsNullOrWhiteSpace(evidence.BossName)) { <small>@evidence.BossName</small> }</div>
-                        </article>
-                    }
-                }
-            </div>
-        }
-    </section>
+                </div>
+            }
+        </section>
+    </div>
 </aside>

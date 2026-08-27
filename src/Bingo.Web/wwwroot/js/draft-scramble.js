@@ -1,4 +1,5 @@
 (() => {
+  const adminText = key => document.body?.dataset[key] || "";
   let scramblePending = false;
   let scrambleAnimating = false;
 
@@ -14,8 +15,8 @@
     scramblePending = true;
     const status = form.querySelector("[data-draft-scramble-status]");
     const button = form.querySelector("[data-draft-scramble-submit]");
-    if (status) status.textContent = "Creating a random order…";
-    if (button) button.textContent = "Drawing order…";
+    if (status) status.textContent = adminText("adminDraftCreating");
+    if (button) button.textContent = adminText("adminDraftDrawing");
   }, true);
 
   document.addEventListener("bingo:content-updated", event => {
@@ -37,7 +38,7 @@
     const finalRanks = new Map(finalOrder.map(card => [card, card.querySelector("[data-draft-rank]")?.textContent ?? ""]));
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      if (status) status.textContent = "Order ready.";
+      if (status) status.textContent = adminText("adminDraftReady");
       return;
     }
 
@@ -45,7 +46,7 @@
     if (button) button.disabled = true;
     grid.setAttribute("aria-busy", "true");
     grid.classList.add("is-scrambling");
-    if (status) status.textContent = "Drawing the team order…";
+    if (status) status.textContent = adminText("adminDraftDrawing");
 
     let currentOrder = [...finalOrder];
     for (const wait of [90, 110, 140, 180, 230, 300]) {
@@ -66,7 +67,7 @@
     grid.removeAttribute("aria-busy");
     if (button) button.disabled = false;
     scrambleAnimating = false;
-    if (status) status.textContent = "Order ready.";
+    if (status) status.textContent = adminText("adminDraftReady");
   }
 
   function moveCards(grid, draftedTeams, otherTeams, settling = false) {

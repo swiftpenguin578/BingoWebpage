@@ -7,6 +7,7 @@
     const empty = inbox.querySelector('[data-notification-empty]');
     const heading = inbox.querySelector('[data-notification-heading]');
     const overview = inbox.querySelector('[data-notification-overview]');
+    const publicInbox = inbox.matches('[data-public-ui-notification-inbox]');
 
     const render = data => {
         const total = Number(data.count || 0);
@@ -23,11 +24,13 @@
         list.replaceChildren();
         for (const item of data.items || []) {
             const link = document.createElement('a');
-            link.className = 'notification-item';
+            link.className = publicInbox ? 'public-ui-header-popover__item' : 'notification-item';
             link.href = item.url;
             const title = document.createElement('strong');
+            if (publicInbox) title.className = 'public-ui-section-heading';
             title.textContent = item.title;
             const detail = document.createElement('span');
+            if (publicInbox) detail.className = 'public-ui-supporting-text';
             detail.textContent = item.detail;
             link.append(title, detail);
             list.append(link);

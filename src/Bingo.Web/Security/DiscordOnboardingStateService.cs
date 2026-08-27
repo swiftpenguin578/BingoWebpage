@@ -11,9 +11,9 @@ public sealed class DiscordOnboardingStateService(IDataProtectionProvider protec
     private const string Purpose = "slice1-discord-account-creation-v1";
     private readonly IDataProtector protector = protectionProvider.CreateProtector(Purpose);
 
-    public void Issue(HttpResponse response, string discordUserId, string? displayName)
+    public void Issue(HttpResponse response, string discordUserId, string? displayName, string? returnUrl = null)
     {
-        var state = new State(discordUserId, displayName, Convert.ToHexString(RandomNumberGenerator.GetBytes(32)), time.GetUtcNow().AddMinutes(15));
+        var state = new State(discordUserId, displayName, returnUrl, Convert.ToHexString(RandomNumberGenerator.GetBytes(32)), time.GetUtcNow().AddMinutes(15));
         cache.Set(CacheKey(state.Nonce), state.ExpiresAt, state.ExpiresAt - time.GetUtcNow());
         response.Cookies.Append(CookieName, protector.Protect(System.Text.Json.JsonSerializer.Serialize(state)), new CookieOptions
         {
@@ -42,5 +42,5 @@ public sealed class DiscordOnboardingStateService(IDataProtectionProvider protec
     }
 
     private static string CacheKey(string nonce) => "slice1-discord-onboarding:" + nonce;
-    public sealed record State(string DiscordUserId, string? DisplayName, string Nonce, DateTimeOffset ExpiresAt);
+    public sealed record State(string DiscordUserId, string? DisplayName, string? ReturnUrl, string Nonce, DateTimeOffset ExpiresAt);
 }

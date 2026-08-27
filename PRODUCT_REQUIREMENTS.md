@@ -87,7 +87,7 @@ Public visitors cannot:
 
 Initial website-account creation requires Discord authentication, but Discord-server membership is not required. Onboarding adds a required password. Returning users may authenticate with Discord or public username/password, and either method opens the same website account. That account owns at most one event-participant record in the event. Participants manage their signup through the account only while signup is open and do not receive a private edit link for a new normal signup.
 
-The first account journey after Discord authentication requires a unique website username, password, and first OSRS character. The page may recommend using the primary OSRS character as the website username, but the values are independent and need not match. Exact-spelling guidance applies to the OSRS-character field; the application trusts that entry and does not verify OSRS syntax, current availability, ownership, Wise Old Man membership, or existence. It trims surrounding whitespace and compares normalized values case-insensitively for their separate uniqueness boundaries without otherwise rewriting submitted spelling. The username becomes both the public site label and password-login username, while the separately entered character is created/linked and marked preferred in My accounts. Neither the username nor link proves character ownership. Public-username uniqueness does not prevent another website account from linking or legitimately borrowing the same OSRS character; it only prevents two public profiles from presenting or logging in with the same username.
+The first account journey after Discord authentication requires a unique website username, password, and first OSRS character. The page may recommend using the primary OSRS character as the website username, but the values are independent and need not match. Exact-spelling guidance applies to the OSRS-character field; the application trusts that entry and does not verify OSRS syntax, current availability, ownership, Wise Old Man membership, or existence. It trims surrounding whitespace and compares normalized values case-insensitively for their separate uniqueness boundaries without otherwise rewriting submitted spelling. The username becomes both the public site label and password-login username, while the separately entered character is created/linked in position 01 and is therefore preferred in My accounts. Neither the username nor link proves character ownership. Public-username uniqueness does not prevent another website account from linking or legitimately borrowing the same OSRS character; it only prevents two public profiles from presenting or logging in with the same username.
 
 A participant may later change their public username to any valid value if the normalized public name is available. The username remains independent of linked OSRS characters and is never the event-facing participant name; event views use registered OSRS characters. A successful rename updates the current session without rewriting event assignments or invalidating unrelated sessions solely for the name change.
 
@@ -96,8 +96,10 @@ An authenticated participant can:
 - View and manage their own open signup
 - View their event and team access
 - Submit evidence for themselves when the event/evidence workflow allows it
-- View, edit, or withdraw their own pending evidence through cutoff and read their own rejection feedback
-- Manage a flexible global **My accounts** list with optional personal labels, saved per-link EHB defaults, ordering, and one preferred character
+- Open a normal authenticated `/Submissions` ledger containing the complete retained history of their current authorized team, including records credited to departed teammates
+- Open `/Submissions/{id:guid}` for any retained submission in that current team; only the credited owner may edit pending evidence, replace its active screenshot, withdraw through cutoff, or create its one linked resubmission after rejection, while every other state and teammate-owned row is read-only
+- Read team-visible rejection feedback and retained evidence assets when currently authorized; replaced screenshot assets remain retained history
+- Manage a flexible global **My accounts** list with optional personal labels, saved per-link EHB defaults, and ordering whose first active character is the sole preferred character
 - Register several available characters for an event while keeping exactly one active and drop-eligible at a time
 - Answer additional admin-configured Account or support-alt questions when present
 - Swap without limit among the playing accounts locked into that event signup
@@ -112,13 +114,15 @@ Captain and co-captain are event/team roles on the participant's existing websit
 They can:
 
 - Before/during the website draft, view the confirmed draft-pool signup table with participant-submitted answer columns expanded
-- Submit evidence for their own team
-- Credit the drop to a player on their team
-- View their team's pending, approved, and rejected submissions
+- Submit evidence for their own team through exactly the same team-board tile drawer/interface used by ordinary members
+- Credit the drop to a player on their team through that shared submission flow
+- View a complete team submission ledger covering pending, approved, rejected, withdrawn, replaced, and other retained historical states
+- Filter that ledger by status, player, and tile, open submission details, and read reviewer feedback
+- See pending, rejected, and approved summary counts without changing the underlying submission states
 - Edit their team's pending submissions
 - Withdraw their team's pending submissions
 - Read admin feedback on their team's submissions
-- Highlight tiles, rows, and columns as non-authoritative team focus
+- Select or clear tiles, rows, and columns as non-authoritative team focus that is visible to the whole current team on its normal board
 
 They cannot:
 
@@ -129,6 +133,24 @@ They cannot:
 - Edit the event, board, catalogue, roster, or rules
 
 Captain and co-captain have the same website permissions. Their expanded draft table includes participant-submitted answers hidden from the public board but excludes paid/unpaid status, private admin notes, identity-recovery/security data, and audit history. External/pre-formed-team captains do not see the internal draft pool.
+
+The Captain page is a team-operations page, not another board or submission
+experience. Its ordered content is current team focus and controls, team
+submission status totals, and the complete team submission ledger. Submission
+starts from the ordinary team board and uses its existing drawer/interface;
+Captain authority may affect the allowed credited teammate, but it does not
+create a second form or flow. Submission review, approval, rejection, reversal,
+and other reviewer controls remain Admin-only.
+
+The `/Captain/Submit/{tileId?}` route is retained only as the shared drawer's
+transport/handler endpoint and as a compatibility redirect for old direct
+links. It is not a rendered submission page or a no-JavaScript acceptance
+surface. `/Captain/Submissions/{id:guid}` belongs to the team-scoped Captain
+ledger/detail family. Ordinary participants use `/Submissions` and
+`/Submissions/{id:guid}` instead. The participant ledger is visually aligned
+with the approved Captain ledger but omits the Captain-only current-focus and
+team-submission-status sections. `/Evidence/{id}` is a protected file-download
+handler consumed by evidence views, not a rendered page family.
 
 At draft finalization, the signup page remains a signup page and stays available to enabled administrators for historical and operational use. Public, participant, and captain requests for that route redirect to published team rosters; roster pages never expose the old signup answers, including a team's expanded draft answers.
 
@@ -534,7 +556,7 @@ Admins deliberately position tiles to balance rows and columns. Tiles are not ra
 
 EHB and efficient-rate data may be imported from useful external sources such as Wise Old Man where technically and legally appropriate. The preferred approach is a stable API or data endpoint rather than fragile HTML scraping.
 
-Catalogue source data is collected through the existing reviewed import/admin workflow and remains editable by admins. Separately, Slice 10 provides explicit Wise Old Man account-EHB lookup plus cached Live event-competition EHB synchronization under the bounded contract in `SLICE_10_IMPLEMENTATION_PLAN.md`; it does not turn catalogue data into an automatically synchronized external feed.
+Catalogue source data is collected through the existing reviewed import/admin workflow and remains editable by admins. Separately, Slice 10 provides explicit Wise Old Man account-EHB lookup plus cached Live event-competition EHB synchronization under the bounded contract in `FUNCTIONAL_CONTRACTS.md` section 9.6 and the technical/data authorities; it does not turn catalogue data into an automatically synchronized external feed.
 
 For a simple single-drop requirement, expected EHB is calculated from a reviewed source-specific probability and efficient-completion-rate pair. For example, at 100 kills per hour and a `1/1,000` drop rate, the expected time for one qualifying drop is 10 EHB. Group content may pair an in-name probability with the relevant team completion rate, or a full-contribution probability with a rate normalized per invested player-hour; team size is applied exactly once. Catalogue rates may use numerators other than one and explicitly record per-completion rolls. Team, raid-scale, purple-table, points, and contribution assumptions are resolved before entry and retained as explanatory notes rather than calculator exceptions.
 
@@ -649,7 +671,7 @@ Only when submission occurred after the authoritative event end, the review addi
 
 A duplicate, unusable screenshot, or other invalid attempt is rejected with the required reason. There is no request-changes or special duplicate review state. While the active upload window remains open, the rejected-submission view offers **Resubmit**. It creates a new submission, prefills the rejected attempt's structured values and note, and requires a newly uploaded screenshot. The submitter may correct ordinary structured choices such as tile/requirement or qualifying drop, but the originally credited participant and playing account are copied and read-only even if that participant has since swapped. The new record links to the rejected record, receives its own immutable server submission time and review history, and undergoes normal validation. Rejection never reopens or extends the upload window, and the rejected record remains historical.
 
-Rejection creates an idempotent in-site notification containing the reason for the linked credited participant and every current linked captain/co-captain on the team. It does not notify the whole roster. When the credited participant is unlinked, captains/co-captains remain the notification recipients.
+Rejection creates an idempotent in-site notification containing the reason for the linked credited participant and every current linked captain/co-captain on the team. It does not notify the whole roster. When the credited participant is unlinked, captains/co-captains remain the notification recipients. A credited recipient is routed to `/Submissions/{id:guid}`; a current linked captain/co-captain recipient is routed to `/Captain/Submissions/{id:guid}`. If one recipient is both, the credited-owner route wins. The destination independently authorizes the credited participant's current-team scope or the existing team-scoped Captain/co-captain/emergency authority.
 
 ### 13.2 Reversal
 
@@ -671,11 +693,11 @@ Reversing an approval:
 - There is no hidden-but-still-approved evidence state. If an approved image should no longer be public, an admin reverses its approval with a reason; the team may submit a corrected or redacted screenshot through the normal resubmission workflow while the upload window permits it.
 - Version one has no public evidence-report, bug-report, or general-feedback form. Community reports and feedback use the Discord feedback channel; admins handle a valid evidence concern through reversal/resubmission.
 
-After draft finalization, the signed-in participant's primary event destination is their published roster until the board is published, then the existing team-board view. That view shows event/team, role, planned/current active account, and event end; submission access is enforced without ordinarily displaying the internal cutoff. It adds the participant's own evidence actions and private team-focus projection without creating a separate participant board.
+After draft finalization, the signed-in participant's primary event destination is their published roster until the board is published, then the existing team-board view. That view retains only compact current active-account context and the authorized next-whole-UTC-minute swap control; it does not duplicate lifecycle, roster, or team-operations panels. Submission access is enforced without ordinarily displaying the internal cutoff. It adds the participant's own evidence actions and private read-only team-focus projection without creating a separate participant board. Captain/co-captain focus mutations belong exclusively to the route-backed Captain workspace.
 
 Before event start, the built-in primary account is only the planned starting account. It becomes active at event start. Participant/captain swaps are available only during `LIVE`, remain unlimited under the approved next-whole-UTC-minute rule, and close at event end. Evidence creation and pending edit/withdraw remain open through the submission cutoff for in-window drops; cutoff then makes participant history read-only while admin review continues.
 
-Current team members see team focus read-only on the existing team board; captains/co-captains receive mutation controls there. Public/opponent projections retain the approved board without focus. If the authorized view becomes crowded, a view-only focus visibility toggle or compact summary may hide/show the private layer without changing focus state.
+Current team members see team focus read-only on the existing team board; captains/co-captains mutate it exclusively in the route-backed Captain workspace. Public/opponent projections retain the approved board without focus. A participating Super Admin may explicitly opt into a clearly identified, read-only inspection of another team's focus; no cross-team focus data loads before that opt-in. If the authorized view becomes crowded, a view-only focus visibility toggle or compact summary may hide/show the private layer without changing focus state.
 
 The public tile view should show approved drop, player, team, submission time, contribution, and evidence.
 
@@ -914,7 +936,7 @@ Import is scoped to the selected pre-formed team, previews all validation before
 
 Public boards is an overview of the current public event and previous archived events. Selecting a current event does not automatically redirect visitors into its board; visitors choose the relevant public event surface from the overview.
 
-Archived events keep the same public board/team/tile/result routes. Signed-in former participants may also read their own rejected and withdrawn submission history, but every event mutation is removed. There is no separate archived-participant dashboard.
+Archived events keep the same public board/team/tile/result routes. Signed-in current members of an archived event team may read that team's complete retained submission history through `/Submissions` and its detail route, including rows credited to departed teammates; former members without current membership, anonymous users, and cross-team viewers fail closed, and every event mutation is removed. There is no separate archived-participant dashboard.
 
 ### 19.2 Captain pages
 

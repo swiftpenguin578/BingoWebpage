@@ -60,11 +60,8 @@ public static class DependencyInjection
         services.AddScoped<IEventCompetitionSynchronizationService, EventCompetitionSynchronizationService>();
         services.AddScoped<IEventCompetitionActivityProjection, CachedEventCompetitionActivityProjection>();
         services.AddScoped<IEventBannerCleanupService, EventBannerCleanupService>();
-        services.AddScoped<IProgressNotifier, NullProgressNotifier>();
-        services.AddScoped<IAdminCollaborationNotifier, NullAdminCollaborationNotifier>();
         services.AddScoped<ITeamCaptainAuthorityService, TeamCaptainAuthorityService>();
         services.AddScoped<ITeamFocusService, TeamFocusService>();
-        services.AddScoped<ITeamFocusNotifier, NullTeamFocusNotifier>();
 
         return services;
     }

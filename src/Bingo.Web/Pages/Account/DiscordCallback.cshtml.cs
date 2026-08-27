@@ -74,7 +74,7 @@ public sealed class DiscordCallbackModel(
             return LocalRedirect(Url.IsLocalUrl(returnUrl) ? returnUrl : "/");
         }
 
-        onboardingState.Issue(HttpContext.Response, discordId, result.Principal?.Identity?.Name);
+        onboardingState.Issue(HttpContext.Response, discordId, result.Principal?.Identity?.Name, Url.IsLocalUrl(returnUrl) ? returnUrl : null);
         return RedirectToPage("Onboarding");
     }
 }

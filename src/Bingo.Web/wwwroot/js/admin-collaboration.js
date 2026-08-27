@@ -33,7 +33,7 @@
             const others = viewers.filter(viewer => String(viewer.accountId).toLowerCase() !== currentAccount);
             boardRoot.hidden = others.length === 0;
             const names = boardRoot.querySelector('[data-board-presence-names]');
-            if (names) names.textContent = others.length === 0 ? '' : `Also viewing: ${others.map(viewer => viewer.username).join(', ')}.`;
+            if (names) names.textContent = others.length === 0 ? '' : (boardRoot.dataset.presenceTemplate || '').replace('{0}', others.map(viewer => viewer.username).join(', '));
         });
         connection.on('boardChanged', scheduleBoardReload);
         const scheduleBoardExpiryReload = expiresAt => {

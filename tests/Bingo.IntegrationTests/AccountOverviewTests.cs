@@ -29,6 +29,7 @@ public sealed class AccountOverviewTests : IAsyncLifetime
         {
             var username = $"overview-user-{index:D2}";
             var web = Account.CreateWebsite(Guid.NewGuid(), username, AccountAuthenticationService.NormalizeUsername(username), now);
+            if (index == 0) web.SetGlobalRole(GlobalRole.Admin);
             var character = new OsrsCharacter(Guid.NewGuid(), username, AccountAuthenticationService.NormalizeUsername(username), now);
             var participant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, index, now, SignupSource.Website);
             participant.AssignOwner(web);
@@ -52,23 +53,33 @@ public sealed class AccountOverviewTests : IAsyncLifetime
         {
             WebsitePage = 2,
             EmergencyPage = 1,
-            WebsiteEventId = await db.Events.Select(x => (Guid?)x.Id).SingleAsync(),
-            EmergencySetup = "pending"
+            WebsiteRole = GlobalRole.User,
+            EmergencySearch = "overview-emergency-24"
         };
 
         await page.OnGetAsync(CancellationToken.None);
 
         Assert.Single(page.WebsiteAccounts);
-        Assert.Equal(13, page.EmergencyCredentials.Count);
-        Assert.All(page.WebsiteAccounts, row => Assert.DoesNotContain("hash", string.Join(' ', row.GetType().GetProperties().Select(property => property.Name)), StringComparison.OrdinalIgnoreCase));
+        Assert.Single(page.EmergencyCredentials);
+        Assert.DoesNotContain("not-a-real-password-hash", string.Join(' ', page.EmergencyCredentials.Select(row => row.Username)), StringComparison.Ordinal);
         Assert.Contains("Overview event", page.WebsiteAccounts[0].EventRoleSummary);
+
+        var searchedWebsite = new IndexModel(db) { WebsiteSearch = "overview-user-01", WebsiteRole = GlobalRole.User };
+        await searchedWebsite.OnGetAsync(CancellationToken.None);
+        Assert.Single(searchedWebsite.WebsiteAccounts);
+        Assert.Equal("overview-user-01", searchedWebsite.WebsiteAccounts[0].Username);
+
+        var searchedEmergency = new IndexModel(db) { EmergencySearch = "overview-emergency-01" };
+        await searchedEmergency.OnGetAsync(CancellationToken.None);
+        Assert.Single(searchedEmergency.EmergencyCredentials);
+        Assert.Equal("overview-emergency-01", searchedEmergency.EmergencyCredentials[0].Username);
     }
 
     [Fact]
     public async Task OutOfRangeAndCombinedFiltersReturnEmptyWithoutChangingOtherDataset()
     {
         await using var db = new ApplicationDbContext(options);
-        var page = new IndexModel(db) { WebsitePage = 99, EmergencyPage = 1, WebsiteState = "disabled", EmergencyState = "disabled", EmergencyCutoff = "cutoff" };
+        var page = new IndexModel(db) { WebsitePage = 99, EmergencyPage = 99 };
         await page.OnGetAsync(CancellationToken.None);
 
         Assert.Empty(page.WebsiteAccounts);

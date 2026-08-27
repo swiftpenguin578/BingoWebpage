@@ -136,10 +136,12 @@ public sealed class WiseOldManClient(
             await admission.CompleteAsync(response, true, false, cancellationToken);
             var participants = payload.Participations
                 .Where(item => !string.IsNullOrWhiteSpace(item.Player?.Username))
-                .Select(item => new WiseOldManCompetitionParticipant(
-                    item.Player!.Username!.Trim(),
-                    item.Player.Type,
-                    item.Deltas?.FirstOrDefault(delta => string.Equals(delta.Metric, "ehb", StringComparison.OrdinalIgnoreCase))?.Values?.Gained))
+                .Select(item =>
+                {
+                    var ehb = item.Deltas?.FirstOrDefault(delta => string.Equals(delta.Metric, "ehb", StringComparison.OrdinalIgnoreCase))?.Values;
+                    return new WiseOldManCompetitionParticipant(
+                        item.Player!.Username!.Trim(), item.Player.Type, ehb?.Gained, ehb?.Start, ehb?.End);
+                })
                 .ToList();
             return new(WiseOldManCompetitionStatus.Success,
                 new WiseOldManCompetition(payload.Id ?? competitionId, payload.Title?.Trim() ?? $"Competition {competitionId}",
@@ -189,5 +191,5 @@ public sealed class WiseOldManClient(
     private sealed record CompetitionParticipationPayload(CompetitionPlayerPayload? Player, List<CompetitionDeltaPayload>? Deltas);
     private sealed record CompetitionPlayerPayload(string? Username, string? Type);
     private sealed record CompetitionDeltaPayload(string? Metric, CompetitionDeltaValuesPayload? Values);
-    private sealed record CompetitionDeltaValuesPayload(decimal? Gained);
+    private sealed record CompetitionDeltaValuesPayload(decimal? Gained, decimal? Start, decimal? End);
 }

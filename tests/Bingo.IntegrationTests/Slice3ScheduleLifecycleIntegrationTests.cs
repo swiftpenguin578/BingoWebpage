@@ -51,12 +51,32 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
             var closed = await db.Events.SingleAsync(x => x.Id == eventId);
             Assert.Equal(now, closed.ActualSignupClosedAt);
             var evaluator = new EventReadinessEvaluator(db, configuration);
+            var reopeningReadiness = await evaluator.GetSignupReadinessAsync(eventId, SignupOpeningMode.Reopen, now);
+            Assert.Contains(reopeningReadiness!.Warnings, item => item.Code == "WAITING_LIST_DISABLED");
+            Assert.Contains(reopeningReadiness.Warnings, item => item.Code == "REOPENING_POPULATED_SIGNUP");
             var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
             Assert.False((await service.ReopenAsync(eventId, closed.Version, false, false, actor)).Succeeded);
             Assert.True((await service.ReopenAsync(eventId, closed.Version, true, false, actor)).Succeeded);
             Assert.Equal(3, await db.EventStateTransitions.CountAsync(x => x.EventId == eventId));
             Assert.Equal(3, await db.AuditEntries.CountAsync(x => x.EventId == eventId && x.Action.StartsWith("event.signup_")));
         }
+    }
+
+    [Fact]
+    public async Task PublicFreeTextAnswersDoNotCreateAnOpeningWarningOrAcknowledgementGate()
+    {
+        var actor = new LifecycleActor(Guid.NewGuid(), "schedule-admin");
+        var eventId = await SeedReadyDraftAsync("free-text", waitingList: true, publicTextQuestion: true);
+        await using var db = new ApplicationDbContext(options);
+        var evaluator = new EventReadinessEvaluator(db, configuration);
+        var readiness = await evaluator.GetSignupReadinessAsync(eventId, SignupOpeningMode.OpenNow, now);
+        Assert.DoesNotContain(readiness!.Warnings, item => item.Code == "PUBLIC_FREE_TEXT");
+        Assert.Empty(readiness.Warnings);
+
+        var version = (await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId)).Version;
+        var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
+        Assert.True((await service.OpenAsync(eventId, version, false, false, actor)).Succeeded);
+        Assert.Equal(EventState.SignupOpen, (await db.Events.SingleAsync(x => x.Id == eventId)).State);
     }
 
     [Fact]
@@ -221,7 +241,7 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
         }
     }
 
-    private async Task<Guid> SeedReadyDraftAsync(string slug, bool waitingList, bool signupClose = true, int startDays = 2, int endDays = 4)
+    private async Task<Guid> SeedReadyDraftAsync(string slug, bool waitingList, bool signupClose = true, int startDays = 2, int endDays = 4, bool publicTextQuestion = false)
     {
         await using var db = new ApplicationDbContext(options);
         var item = new BingoEvent(Guid.NewGuid(), slug, slug, "UTC", Guid.NewGuid(), now);
@@ -232,6 +252,7 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
         var regular = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var captain = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
         db.AddRange(item, form, regular, captain);
+        if (publicTextQuestion) db.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "public_text", "Tell us something", SignupQuestionType.Text, false, 2, null));
         await db.SaveChangesAsync();
         return item.Id;
     }

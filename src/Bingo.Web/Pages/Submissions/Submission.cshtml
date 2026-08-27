@@ -1,0 +1,13 @@
+@page "/Submissions/{id:guid}"
+@model Bingo.Web.Pages.Submissions.SubmissionModel
+@{
+    if (Model.Details is null) { return; }
+    ViewData["Title"] = Model.Details.Tile;
+    ViewData["BodyClass"] = "public-ui-pass2";
+    ViewData["CompactNavigation"] = true;
+    ViewData["HideBreadcrumbs"] = true;
+}
+
+<partial name="/Pages/Captain/_SubmissionDetail.cshtml" model="Model" />
+
+@section Scripts { <partial name="/Pages/Captain/_SubmissionDetailScripts.cshtml" model="Model" /> }

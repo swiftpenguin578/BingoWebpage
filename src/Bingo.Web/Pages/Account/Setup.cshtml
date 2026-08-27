@@ -2,24 +2,41 @@
 @model Bingo.Web.Pages.Account.SetupModel
 @{
     ViewData["Title"] = T["Create the first admin"];
+    ViewData["BodyClass"] = "public-ui-pass2";
 }
 
-<section class="form-page">
-    <p class="eyebrow">@T["Local development only"]</p>
-    <h1>@T["Create the first admin"]</h1>
-    <p class="form-intro">@T["This page stops working after the first administrator exists."]</p>
-    <form method="post" class="panel form-stack">
-        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
-        <label asp-for="Input.Username"></label>
-        <input asp-for="Input.Username" class="form-control" autocomplete="username" />
-        <span asp-validation-for="Input.Username" class="field-error"></span>
-        <label asp-for="Input.Password"></label>
-        <input asp-for="Input.Password" class="form-control" autocomplete="new-password" />
-        <span asp-validation-for="Input.Password" class="field-error"></span>
-        <label asp-for="Input.ConfirmPassword"></label>
-        <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" />
-        <span asp-validation-for="Input.ConfirmPassword" class="field-error"></span>
-        <button type="submit" class="btn btn-primary">@T["Create admin"]</button>
+<section class="public-pass2-page public-pass2-form-page public-pass2-form-page--narrow" aria-labelledby="setup-heading">
+    <header class="public-pass2-masthead">
+        <span class="public-pass2-kicker">@T["Local development only"]</span>
+        <h1 id="setup-heading">@T["Create the first admin"]</h1>
+        <p>@T["This page stops working after the first administrator exists."]</p>
+    </header>
+    <form method="post" class="public-pass2-form">
+        <div asp-validation-summary="ModelOnly" class="public-pass2-validation"></div>
+        <section class="public-pass2-worksection" aria-labelledby="setup-account-heading">
+            <div class="public-pass2-index" aria-hidden="true">01</div>
+            <div class="public-pass2-worksection__body">
+                <h2 id="setup-account-heading">@T["Administrator account"]</h2>
+                <div class="public-pass2-field">
+                    <label asp-for="Input.Username">@T["Username"]</label>
+                    <input asp-for="Input.Username" autocomplete="username" />
+                    <span asp-validation-for="Input.Username" class="public-pass2-field-error"></span>
+                </div>
+                <div class="public-pass2-field">
+                    <label asp-for="Input.Password">@T["Password"]</label>
+                    <input asp-for="Input.Password" type="password" autocomplete="new-password" />
+                    <span asp-validation-for="Input.Password" class="public-pass2-field-error"></span>
+                </div>
+                <div class="public-pass2-field">
+                    <label asp-for="Input.ConfirmPassword">@T["Confirm password"]</label>
+                    <input asp-for="Input.ConfirmPassword" type="password" autocomplete="new-password" />
+                    <span asp-validation-for="Input.ConfirmPassword" class="public-pass2-field-error"></span>
+                </div>
+            </div>
+        </section>
+        <div class="public-pass2-form-actions">
+            <button type="submit" class="public-pass2-action public-pass2-action--danger">@T["Create admin"] <span aria-hidden="true">→</span></button>
+        </div>
     </form>
 </section>
 

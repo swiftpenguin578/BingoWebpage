@@ -66,7 +66,6 @@ public sealed class EventReadinessEvaluator(ApplicationDbContext db, IConfigurat
             questions.Select(x => x.Position).Distinct().Count() != questions.Count || invalidQuestion)
             blockers.Add(new("SIGNUP_QUESTIONS_INVALID", "One or more existing signup questions are incomplete or invalid."));
         if (!item.WaitingListEnabled) warnings.Add(new("WAITING_LIST_DISABLED", "The waiting list is disabled."));
-        if (questions.Any(question => question.Type == SignupQuestionType.Text)) warnings.Add(new("PUBLIC_FREE_TEXT", "Signup includes public free-text answers that require moderator handling."));
         if (mode == SignupOpeningMode.Reopen && await db.EventParticipants.AnyAsync(x => x.EventId == item.Id, ct)) warnings.Add(new("REOPENING_POPULATED_SIGNUP", "Reopening signup keeps the existing participant and signup history."));
         if (!await db.DraftSessions.AnyAsync(x => x.EventId == item.Id && x.State == Bingo.Domain.Teams.DraftState.Finalized, ct)) later.Add(new("DRAFT_NOT_FINALIZED", "Team draft finalization is a later readiness task."));
         if (!await db.Boards.AnyAsync(x => x.EventId == item.Id && x.State == BoardState.Published, ct)) later.Add(new("BOARD_NOT_PUBLISHED", "Board publication is a later readiness task."));

@@ -16,6 +16,13 @@ namespace Bingo.Web.Pages.Events;
 public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityService captainAuthority, IStringLocalizer<SharedResource> text) : PageModel
 {
     public string EventName { get; private set; } = string.Empty;
+    public string EventDescription { get; private set; } = string.Empty;
+    public DateTimeOffset? EventStartsAt { get; private set; }
+    public DateTimeOffset? SignupClosesAt { get; private set; }
+    public string EventStatus { get; private set; } = string.Empty;
+    public int? ParticipantCap { get; private set; }
+    public int ConfirmedCount { get; private set; }
+    public int WaitingCount { get; private set; }
     public IReadOnlyList<string> Headings { get; private set; } = [];
     public IReadOnlyList<ParticipantView> Confirmed { get; private set; } = [];
     public IReadOnlyList<ParticipantView> Waiting { get; private set; } = [];
@@ -42,6 +49,22 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
         }
 
         EventName = item.Name;
+        EventDescription = item.Description ?? string.Empty;
+        EventStartsAt = item.EventStartsAt;
+        SignupClosesAt = item.SignupClosesAt;
+        EventStatus = item.State switch
+        {
+            EventState.Draft => text["Setup"].Value,
+            EventState.SignupOpen => text["Signups open"].Value,
+            EventState.SignupClosed => text["Signups closed"].Value,
+            EventState.Live => text["Live"].Value,
+            EventState.AwaitingFinalReview => text["Final review"].Value,
+            EventState.Finalized => text["Finished"].Value,
+            EventState.Archived => text["Archived"].Value,
+            EventState.Cancelled => text["Cancelled"].Value,
+            _ => item.State.ToString()
+        };
+        ParticipantCap = item.ParticipantCap;
         // Retained historical questions remain visible to administrators, but public
         // projections must honour the same explicit board-visibility flag.
         var questions = await db.SignupQuestions.AsNoTracking().Where(x => x.EventId == item.Id && (captainDraftAccess ? x.Active : x.PublicOnSignupBoard)).OrderBy(x => x.Position).ToListAsync(ct);
@@ -69,6 +92,8 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
         }).ToList();
         Confirmed = views.Where((_, index) => participants[index].SignupStatus == SignupStatus.Confirmed).ToList();
         Waiting = views.Where((_, index) => participants[index].SignupStatus == SignupStatus.WaitingList).ToList();
+        ConfirmedCount = Confirmed.Count;
+        WaitingCount = Waiting.Count;
         return Page();
     }
 

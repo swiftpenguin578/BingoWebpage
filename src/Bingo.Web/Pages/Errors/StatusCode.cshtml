@@ -1,25 +1,12 @@
 @page "/Errors/{code:int}"
 @model Bingo.Web.Pages.Errors.StatusCodeModel
 @{
-    ViewData["Title"] = Model.Code == 404 ? "Page not found" : "Request could not be completed";
+    ViewData["Title"] = Model.Code == 404 ? T["Page not found"] : T["Request could not be completed"];
+    var statusTitle = Model.Code == 404 ? "That page could not be found." : Model.Code == 403 ? "You do not have permission to view this page." : "The request could not be completed.";
+    var statusDetail = Model.Code == 404 ? "The event, team, tile, or evidence may not exist or may not be publicly available." : Model.Code == 403 ? "Sign in with an account that has access, or return to the public boards." : "Please return to the public boards and try again.";
 }
 
-<section class="status-code-page panel">
-    <p class="eyebrow">Error @Model.Code</p>
-    @if (Model.Code == 404)
-    {
-        <h1>That page could not be found.</h1>
-        <p>The event, team, tile, or evidence may not exist or may not be publicly available.</p>
-    }
-    else if (Model.Code == 403)
-    {
-        <h1>You do not have permission to view this page.</h1>
-        <p>Sign in with an account that has access, or return to the public boards.</p>
-    }
-    else
-    {
-        <h1>The request could not be completed.</h1>
-        <p>Please return to the public boards and try again.</p>
-    }
-    <a class="btn btn-primary" asp-page="/Index">Return to public boards</a>
+<section class="status-editorial status-editorial--@Model.Code" aria-labelledby="status-heading">
+    <div class="status-editorial__code" aria-hidden="true">@Model.Code</div>
+    <div class="status-editorial__copy"><span class="editorial-kicker">@T["Error {0}", Model.Code]</span><h1 id="status-heading" class="editorial-display">@T[statusTitle]</h1><p>@T[statusDetail]</p><a class="editorial-button editorial-button--coral-outline" asp-page="/Index">@T["Return to public boards"] <span aria-hidden="true">→</span></a></div>
 </section>

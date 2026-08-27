@@ -10,17 +10,21 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycleService schedules, IEventReadinessEvaluator readiness, TimeProvider time) : PageModel
+public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycleService schedules, IEventReadinessEvaluator readiness, TimeProvider time, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     [BindProperty] public InputModel Input { get; set; } = new();
     public Guid EventId { get; private set; }
     public string EventName { get; private set; } = string.Empty;
+    public string EventSlug { get; private set; } = string.Empty;
     public string EventTimezone { get; private set; } = string.Empty;
     public EventState EventState { get; private set; }
+    public bool ShowPublicBoard { get; private set; }
+    public IReadOnlyList<ManageModel.TimelineRow> EffectiveTimeline { get; private set; } = [];
     public string? ActualSignupOpened { get; private set; }
     public string? ActualSignupClosed { get; private set; }
     public string? ScheduledSignupOpening { get; private set; }
@@ -45,29 +49,29 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         if (item is null) return NotFound();
         EventId = item.Id; EventName = item.Name;
         SetDisplay(item);
-        if (Input.Version != item.Version) { ModelState.AddModelError(string.Empty, "This event changed while you were editing it. Review the latest values and try again."); return await Reload(item, ct); }
-        if (!TryTimezone(item.Timezone, out var timezone)) { ModelState.AddModelError(string.Empty, "The event timezone is unavailable."); return await Reload(item, ct); }
+        if (Input.Version != item.Version) { ModelState.AddModelError(string.Empty, Localize("This event changed while you were editing it. Review the latest values and try again.")); return await Reload(item, ct); }
+        if (!TryTimezone(item.Timezone, out var timezone)) { ModelState.AddModelError(string.Empty, Localize("The event timezone is unavailable.")); return await Reload(item, ct); }
         var values = Parse(timezone, item.ParticipantCap);
         if (!ModelState.IsValid) return await Reload(item, ct);
         values = ApplyLifecycleScheduleRules(item, values);
         if (item.State == EventState.Draft && values.SignupOpensAt is not null)
         {
             var now = time.GetUtcNow();
-            if (values.SignupOpensAt is null || values.SignupOpensAt <= now) ModelState.AddModelError("Input.SignupOpensLocal", "A scheduled signup opening must be in the future.");
-            if (values.SignupClosesAt is null) ModelState.AddModelError("Input.SignupClosesLocal", "A scheduled signup opening requires a signup closing time.");
-            if (values.SignupOpensAt is { } opens && values.SignupClosesAt is { } closes && closes <= opens) ModelState.AddModelError("Input.SignupClosesLocal", "Signup closing must be after the scheduled opening.");
+            if (values.SignupOpensAt is null || values.SignupOpensAt <= now) ModelState.AddModelError("Input.SignupOpensLocal", Localize("A scheduled signup opening must be in the future."));
+            if (values.SignupClosesAt is null) ModelState.AddModelError("Input.SignupClosesLocal", Localize("A scheduled signup opening requires a signup closing time."));
+            if (values.SignupOpensAt is { } opens && values.SignupClosesAt is { } closes && closes <= opens) ModelState.AddModelError("Input.SignupClosesLocal", Localize("Signup closing must be after the scheduled opening."));
             if (!ModelState.IsValid) return await Reload(item, ct);
         }
         var changed = Changed(item, values);
         if (changed && item.FirstPublicAt is not null && !Input.ConfirmPublicScheduleChange)
         {
-            ModelState.AddModelError("Input.ConfirmPublicScheduleChange", "Review the participant-facing time preview and confirm this schedule change.");
+            ModelState.AddModelError("Input.ConfirmPublicScheduleChange", Localize("Review the participant-facing time preview and confirm this schedule change."));
             PublicPreview = Preview(item, values, timezone);
             return await Reload(item, ct, preserveInput: true);
         }
         var result = await schedules.SaveScheduleAsync(id, Input.Version, values, Input.AcknowledgeScheduledWarnings, Input.ConfirmPublicScheduleChange, Input.Reason, new LifecycleActor(User.GetAccountId()!.Value, User.Identity!.Name!), ct);
         if (!result.Succeeded) { ModelState.AddModelError(string.Empty, result.Error!); PublicPreview = changed ? Preview(item, values, timezone) : []; return await Reload(item, ct, preserveInput: true); }
-        TempData["StatusMessage"] = "Event schedule updated."; TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
+        TempData["StatusMessage"] = Localize("Event schedule updated."); TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
         return RedirectToPage("Manage", new { id });
     }
 
@@ -75,12 +79,13 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     private DateTimeOffset? Parse(string field, string? text, TimeZoneInfo timezone)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
-        if (!DateTime.TryParseExact(text, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var local)) { ModelState.AddModelError(field, "Choose a valid local date and time."); return null; }
-        if (local.Minute % 5 != 0) { ModelState.AddModelError(field, "Choose a time in five-minute increments."); return null; }
+        if (!DateTime.TryParseExact(text, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var local)) { ModelState.AddModelError(field, Localize("Choose a valid local date and time.")); return null; }
+        if (local.Minute % 5 != 0) { ModelState.AddModelError(field, Localize("Choose a time in five-minute increments.")); return null; }
         local = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
-        if (timezone.IsInvalidTime(local)) { ModelState.AddModelError(field, "That local time does not exist because the clocks change at that time."); return null; }
+        if (timezone.IsInvalidTime(local)) { ModelState.AddModelError(field, Localize("That local time does not exist because the clocks change at that time.")); return null; }
         return new DateTimeOffset(local, timezone.GetUtcOffset(local)).ToUniversalTime();
     }
+    private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private async Task<IActionResult> Reload(BingoEvent item, CancellationToken ct, bool preserveInput = true)
     {
         SetDisplay(item);
@@ -99,13 +104,33 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     {
         EventId = item.Id;
         EventName = item.Name;
+        EventSlug = item.Slug;
         EventTimezone = item.Timezone;
         EventState = item.State;
+        ShowPublicBoard = item.FirstPublicAt is not null && item.BoardPublished;
+        EffectiveTimeline = ManageModel.EffectiveTimelineFor(new(
+            item.SignupOpensAt,
+            item.SignupClosesAt,
+            item.DraftAt,
+            item.EventStartsAt,
+            item.EventEndsAt,
+            item.ActualSignupOpenedAt,
+            item.ActualSignupClosedAt,
+            item.ActualStartedAt,
+            item.ActualEndedAt,
+            item.SubmissionCutoffAt,
+            item.SubmissionsClosedAt,
+            item.CancelledAt));
         if (!TryTimezone(item.Timezone, out var timezone)) return;
         ActualSignupOpened = Display(item.ActualSignupOpenedAt, timezone);
         ActualSignupClosed = Display(item.ActualSignupClosedAt, timezone);
         ScheduledSignupOpening = Display(item.SignupOpensAt, timezone);
         ScheduledSignupOpeningEnabled = item.ScheduledSignupOpeningEnabled;
+    }
+    public string EventDate(DateTimeOffset value)
+    {
+        var timezone = TryTimezone(EventTimezone, out var resolved) ? resolved : TimeZoneInfo.Utc;
+        return TimeZoneInfo.ConvertTime(value, timezone).ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
     }
     private static bool Changed(BingoEvent item, EventScheduleValues values) => item.SignupOpensAt != values.SignupOpensAt || item.SignupClosesAt != values.SignupClosesAt || item.DraftAt != values.DraftAt || item.EventStartsAt != values.EventStartsAt || item.EventEndsAt != values.EventEndsAt || item.ParticipantCap != values.ParticipantCap;
     private static EventScheduleValues ApplyLifecycleScheduleRules(BingoEvent item, EventScheduleValues values)

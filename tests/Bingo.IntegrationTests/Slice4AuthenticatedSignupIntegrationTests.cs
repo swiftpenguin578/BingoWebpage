@@ -160,6 +160,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Guid regularId;
         Guid characterId;
         Guid linkId;
+        Guid accountId;
         string loginName;
         await using (var db = new ApplicationDbContext(options))
         {
@@ -172,7 +173,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             var link = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, null, 10m, now);
             db.AddRange(owner, bingoEvent, form, regular, character, link);
             await db.SaveChangesAsync();
-            eventId = bingoEvent.Id; regularId = regular.Id; characterId = character.Id; linkId = link.Id; loginName = owner.LoginName;
+            eventId = bingoEvent.Id; regularId = regular.Id; characterId = character.Id; linkId = link.Id; accountId = owner.Id; loginName = owner.LoginName;
         }
 
         var fake = new FakeWiseOldManPlayerLookup();
@@ -199,6 +200,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         {
             ["Fetch.LinkId"] = linkId.ToString(),
             ["Edit.LinkId"] = linkId.ToString(),
+            ["Edit.CharacterName"] = "Route WoM Main",
             ["Edit.PersonalLabel"] = string.Empty,
             ["Edit.SavedEhb"] = "10",
             ["__RequestVerificationToken"] = AntiforgeryToken(myAccounts)
@@ -236,10 +238,39 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.Equal(2, fake.Calls);
         await using (var verify = new ApplicationDbContext(options)) Assert.Equal(EhbSource.WiseOldMan, await verify.EventParticipantCharacters.Where(x => x.EventId == eventId && x.ReleasedAt == null).Select(x => x.EhbSource).SingleAsync());
 
+        var addPage = await client.GetStringAsync("/Account/MyAccounts");
+        var beforeAddLinkCount = await CountActiveLinksAsync(accountId);
+        using var fetchedAdd = await client.PostAsync("/Account/MyAccounts?handler=FetchAdd", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Add.CharacterName"] = "Route WoM Add",
+            ["Add.SavedEhb"] = string.Empty,
+            ["__RequestVerificationToken"] = AntiforgeryToken(addPage)
+        }));
+        Assert.Equal(HttpStatusCode.OK, fetchedAdd.StatusCode);
+        var fetchedAddPage = await fetchedAdd.Content.ReadAsStringAsync();
+        Assert.Equal(3, fake.Calls);
+        Assert.Contains("Route WoM Add", fetchedAddPage, StringComparison.Ordinal);
+        Assert.Contains("value=\"3000.10\"", fetchedAddPage, StringComparison.Ordinal);
+        Assert.Equal(beforeAddLinkCount, await CountActiveLinksAsync(accountId));
+        using var savedFetchedAdd = await client.PostAsync("/Account/MyAccounts?handler=Add", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Add.CharacterName"] = "Route WoM Add",
+            ["Add.SavedEhb"] = "3000.10",
+            ["__RequestVerificationToken"] = AntiforgeryToken(fetchedAddPage)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, savedFetchedAdd.StatusCode);
+        await using (var verify = new ApplicationDbContext(options)) Assert.Equal(3000.10m, await verify.AccountOsrsCharacters.Where(x => x.AccountId == accountId && x.Active && x.SavedEhb == 3000.10m).Select(x => x.SavedEhb).SingleAsync());
+
         async Task<string> EventSlugAsync(Guid id)
         {
             await using var lookup = new ApplicationDbContext(options);
             return await lookup.Events.Where(x => x.Id == id).Select(x => x.Slug).SingleAsync();
+        }
+
+        async Task<int> CountActiveLinksAsync(Guid ownerId)
+        {
+            await using var lookup = new ApplicationDbContext(options);
+            return await lookup.AccountOsrsCharacters.CountAsync(x => x.AccountId == ownerId && x.Active);
         }
     }
 
@@ -843,14 +874,33 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var confirmationUrl = $"/Events/{slug}/Signup/Confirmation?participantId={participantId}";
         var confirmation = await ownerClient.GetStringAsync(confirmationUrl);
         Assert.Contains("Withdraw from event", confirmation, StringComparison.Ordinal);
+        Assert.DoesNotContain("breadcrumb-bar", confirmation, StringComparison.Ordinal);
+        Assert.Contains("data-confirm-message=\"Withdraw from this event? This will release your place.\"", confirmation, StringComparison.Ordinal);
+        Assert.Contains("name=\"ConfirmLifecycleAction\" value=\"false\"", confirmation, StringComparison.Ordinal);
+        Assert.DoesNotContain("I understand that", confirmation, StringComparison.Ordinal);
         using var withdrawn = await ownerClient.PostAsync($"/Events/{slug}/Signup/Confirmation?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["ConfirmLifecycleAction"] = "true",
             ["participantId"] = waitingId.ToString(),
             ["__RequestVerificationToken"] = AntiforgeryToken(confirmation)
         }));
         Assert.Equal(HttpStatusCode.Redirect, withdrawn.StatusCode);
-        var resultPage = await ownerClient.GetStringAsync(withdrawn.Headers.Location!);
+        var missingConfirmationPage = await ownerClient.GetStringAsync(withdrawn.Headers.Location!);
+        Assert.Contains("Confirm that you want to withdraw before continuing.", missingConfirmationPage, StringComparison.Ordinal);
+        using var falseConfirmation = await ownerClient.PostAsync($"/Events/{slug}/Signup/Confirmation?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["ConfirmLifecycleAction"] = "false",
+            ["__RequestVerificationToken"] = AntiforgeryToken(missingConfirmationPage)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, falseConfirmation.StatusCode);
+        var rejectedWithdrawPage = await ownerClient.GetStringAsync(falseConfirmation.Headers.Location!);
+        Assert.Contains("Confirm that you want to withdraw before continuing.", rejectedWithdrawPage, StringComparison.Ordinal);
+        using var confirmedWithdraw = await ownerClient.PostAsync($"/Events/{slug}/Signup/Confirmation?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["ConfirmLifecycleAction"] = "true",
+            ["__RequestVerificationToken"] = AntiforgeryToken(rejectedWithdrawPage)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, confirmedWithdraw.StatusCode);
+        var resultPage = await ownerClient.GetStringAsync(confirmedWithdraw.Headers.Location!);
         Assert.Contains("Your signup has been withdrawn.", resultPage, StringComparison.Ordinal);
         Assert.Contains("Withdrawn", resultPage, StringComparison.Ordinal);
         Assert.DoesNotContain("Your place is confirmed.", resultPage, StringComparison.Ordinal);
@@ -861,12 +911,19 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             Assert.Equal(SignupStatus.Confirmed, await verify.EventParticipants.Where(x => x.Id == waitingId).Select(x => x.SignupStatus).SingleAsync());
             Assert.All(await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == participantId).ToListAsync(), x => Assert.NotNull(x.ReleasedAt));
         }
+        using (var rejectedRejoin = await ownerClient.PostAsync($"/Events/{slug}/Signup/Confirmation?handler=Rejoin", new FormUrlEncodedContent(new Dictionary<string, string> { ["ConfirmLifecycleAction"] = "false", ["__RequestVerificationToken"] = AntiforgeryToken(resultPage) })))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, rejectedRejoin.StatusCode);
+            resultPage = await ownerClient.GetStringAsync(rejectedRejoin.Headers.Location!);
+            Assert.Contains("Confirm that you want to rejoin before continuing.", resultPage, StringComparison.Ordinal);
+        }
         using (var rejoined = await ownerClient.PostAsync($"/Events/{slug}/Signup/Confirmation?handler=Rejoin", new FormUrlEncodedContent(new Dictionary<string, string> { ["ConfirmLifecycleAction"] = "true", ["__RequestVerificationToken"] = AntiforgeryToken(resultPage) })))
         {
             Assert.Equal(HttpStatusCode.Redirect, rejoined.StatusCode);
             resultPage = await ownerClient.GetStringAsync(rejoined.Headers.Location!);
             Assert.Contains("You rejoined at waiting-list position 1.", resultPage, StringComparison.Ordinal);
-            Assert.Contains("WaitingList", resultPage, StringComparison.Ordinal);
+            Assert.Contains("Waiting list", resultPage, StringComparison.Ordinal);
+            Assert.Contains("data-confirm-message=\"Rejoin this event? You will join at the end of the queue.\"", resultPage, StringComparison.Ordinal);
         }
         using (var withdrawnAgain = await ownerClient.PostAsync($"/Events/{slug}/Signup/Confirmation?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string> { ["ConfirmLifecycleAction"] = "true", ["__RequestVerificationToken"] = AntiforgeryToken(resultPage) })))
         {
@@ -895,7 +952,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         login = await otherClient.GetStringAsync("/Account/Login");
         using (var signedIn = await otherClient.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = otherLogin, ["Input.Password"] = "other-password", ["__RequestVerificationToken"] = AntiforgeryToken(login) }))) Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
         var otherPage = await otherClient.GetStringAsync($"/Events/{slug}/Signup");
-        using var denied = await otherClient.PostAsync($"/Events/{slug}/Signup/Confirmation?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string> { ["ConfirmLifecycleAction"] = "true", ["participantId"] = participantId.ToString(), ["__RequestVerificationToken"] = AntiforgeryToken(otherPage) }));
+        using var denied = await otherClient.PostAsync($"/Events/{slug}/Signup/Confirmation?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string> { ["participantId"] = participantId.ToString(), ["ConfirmLifecycleAction"] = "true", ["__RequestVerificationToken"] = AntiforgeryToken(otherPage) }));
         Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
         Assert.Contains("AccessDenied", denied.Headers.Location?.OriginalString, StringComparison.Ordinal);
         await using var final = new ApplicationDbContext(options);
@@ -1157,7 +1214,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var stale = await client.GetStringAsync(detailRoute);
         using (var rejected = await client.PostAsync($"{detailRoute}?handler=AdminNote", new FormUrlEncodedContent(new Dictionary<string, string> { ["AdminNote"] = "stale overwrite", ["ExpectedAdminNote"] = "", ["__RequestVerificationToken"] = AntiforgeryToken(stale) }))) Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
         await using (var verify = new ApplicationDbContext(options)) { var saved = await verify.EventParticipants.SingleAsync(x => x.Id == participant.Id); Assert.False(saved.PaymentReceived); Assert.Equal("private note", saved.AdminNotes); var audits = await verify.AuditEntries.Where(x => x.TargetId == participant.Id.ToString()).ToListAsync(); Assert.Equal(4, audits.Count(x => x.Action == "participant.payment_updated")); Assert.Contains(audits, x => x.Action == "participant.admin_note_updated" && x.BeforeState!.Contains("false") && x.AfterState!.Contains("true")); Assert.Equal(1, audits.Count(x => x.Action == "participant.admin_note_updated")); }
-        var post = await client.GetStringAsync(detailRoute); Assert.Contains("Save note", post, StringComparison.Ordinal); Assert.Contains("handler=Payment", post, StringComparison.Ordinal); Assert.Contains("data-save-state", post, StringComparison.Ordinal); Assert.DoesNotContain("data-admin-note-form", post, StringComparison.Ordinal);
+        var post = await client.GetStringAsync(detailRoute); Assert.Contains("Save note", post, StringComparison.Ordinal); Assert.Contains("handler=Payment", post, StringComparison.Ordinal); Assert.DoesNotContain("data-save-state", post, StringComparison.Ordinal); Assert.DoesNotContain("data-admin-note-form", post, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1232,9 +1289,9 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var adminClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }); await LoginAsync(adminClient, admin.LoginName, "password");
         var detailRoute = $"/Admin/Events/Participant/{bingoEvent.Id}/Participants/{participant.Id}"; var detail = await adminClient.GetStringAsync(detailRoute);
-        using (var invalid = await adminClient.PostAsync($"{detailRoute}?handler=TransferOwnership", new FormUrlEncodedContent(new Dictionary<string, string> { ["ExpectedOwnerAccountId"] = oldOwner.Id.ToString(), ["DestinationUsername"] = newOwner.LoginName, ["DestinationUsernameConfirmation"] = "wrong", ["__RequestVerificationToken"] = AntiforgeryToken(detail) }))) Assert.Equal(HttpStatusCode.Redirect, invalid.StatusCode);
+        using (var invalid = await adminClient.PostAsync($"{detailRoute}?handler=TransferOwnership", new FormUrlEncodedContent(new Dictionary<string, string> { ["ExpectedOwnerAccountId"] = oldOwner.Id.ToString(), ["DestinationOwnerAccountId"] = Guid.NewGuid().ToString(), ["__RequestVerificationToken"] = AntiforgeryToken(detail) }))) Assert.Equal(HttpStatusCode.Redirect, invalid.StatusCode);
         var transferPage = await adminClient.GetStringAsync(detailRoute);
-        using (var transferred = await adminClient.PostAsync($"{detailRoute}?handler=TransferOwnership", new FormUrlEncodedContent(new Dictionary<string, string> { ["ExpectedOwnerAccountId"] = oldOwner.Id.ToString(), ["DestinationUsername"] = newOwner.LoginName, ["DestinationUsernameConfirmation"] = newOwner.LoginName, ["__RequestVerificationToken"] = AntiforgeryToken(transferPage) }))) Assert.Equal(HttpStatusCode.Redirect, transferred.StatusCode);
+        using (var transferred = await adminClient.PostAsync($"{detailRoute}?handler=TransferOwnership", new FormUrlEncodedContent(new Dictionary<string, string> { ["ExpectedOwnerAccountId"] = oldOwner.Id.ToString(), ["DestinationOwnerAccountId"] = newOwner.Id.ToString(), ["__RequestVerificationToken"] = AntiforgeryToken(transferPage) }))) Assert.Equal(HttpStatusCode.Redirect, transferred.StatusCode);
         await using (var verify = new ApplicationDbContext(options))
         {
             var saved = await verify.EventParticipants.SingleAsync(x => x.Id == participant.Id); Assert.Equal(newOwner.Id, saved.AccountId); Assert.Equal(now, saved.SignedUpAt); Assert.Equal(1, saved.SignupSequence); Assert.True(saved.PaymentReceived); Assert.Equal("private", saved.AdminNotes);
@@ -1244,7 +1301,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         using var oldClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }); await LoginAsync(oldClient, oldOwner.LoginName, "password"); Assert.NotEqual(HttpStatusCode.OK, (await oldClient.GetAsync($"/Events/{bingoEvent.Slug}/Signup/Confirmation?participantId={participant.Id}")).StatusCode);
         using var newClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }); await LoginAsync(newClient, newOwner.LoginName, "password"); Assert.Equal(HttpStatusCode.OK, (await newClient.GetAsync($"/Events/{bingoEvent.Slug}/Signup/Confirmation?participantId={participant.Id}")).StatusCode);
         var duplicatePage = await adminClient.GetStringAsync(detailRoute);
-        using (var duplicateTransfer = await adminClient.PostAsync($"{detailRoute}?handler=TransferOwnership", new FormUrlEncodedContent(new Dictionary<string, string> { ["ExpectedOwnerAccountId"] = newOwner.Id.ToString(), ["DestinationUsername"] = duplicateOwner.LoginName, ["DestinationUsernameConfirmation"] = duplicateOwner.LoginName, ["__RequestVerificationToken"] = AntiforgeryToken(duplicatePage) }))) Assert.Equal(HttpStatusCode.Redirect, duplicateTransfer.StatusCode);
+        using (var duplicateTransfer = await adminClient.PostAsync($"{detailRoute}?handler=TransferOwnership", new FormUrlEncodedContent(new Dictionary<string, string> { ["ExpectedOwnerAccountId"] = newOwner.Id.ToString(), ["DestinationOwnerAccountId"] = duplicateOwner.Id.ToString(), ["__RequestVerificationToken"] = AntiforgeryToken(duplicatePage) }))) Assert.Equal(HttpStatusCode.Redirect, duplicateTransfer.StatusCode);
         await using (var verify = new ApplicationDbContext(options)) { Assert.Equal(newOwner.Id, await verify.EventParticipants.Where(x => x.Id == participant.Id).Select(x => x.AccountId).SingleAsync()); Assert.Equal(2, await verify.PersonalNotifications.CountAsync(x => x.Title == "participant.ownership_transferred")); }
 
         async Task LoginAsync(HttpClient http, string username, string password)
@@ -1270,7 +1327,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             await setup.SaveChangesAsync(); setup.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, answer.Id, "Answer", "retained")); await setup.SaveChangesAsync();
         }
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var first = TransferAsync(firstDestination.LoginName); var second = TransferAsync(secondDestination.LoginName); start.SetResult();
+        var first = TransferAsync(firstDestination.Id); var second = TransferAsync(secondDestination.Id); start.SetResult();
         var results = await Task.WhenAll(first, second);
         Assert.Equal(1, results.Count(x => x.Succeeded)); Assert.Equal(1, results.Count(x => !x.Succeeded && x.Error!.Contains("changed elsewhere", StringComparison.Ordinal)));
         await using (var verify = new ApplicationDbContext(options))
@@ -1281,12 +1338,12 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             Assert.Single(await verify.AuditEntries.Where(x => x.TargetId == participant.Id.ToString() && x.Action == "participant.ownership_transferred").ToListAsync()); Assert.Equal(2, await verify.PersonalNotifications.CountAsync(x => x.Title == "participant.ownership_transferred"));
         }
 
-        async Task<ParticipantOwnershipTransferResult> TransferAsync(string destination)
+        async Task<ParticipantOwnershipTransferResult> TransferAsync(Guid destination)
         {
             await start.Task;
             await using var context = new ApplicationDbContext(options);
             var service = new SignupService(context, new SecretHasher(), TimeProvider.System);
-            return await service.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, destination, destination, original.Id));
+            return await service.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, destination, original.Id));
         }
     }
 
@@ -1365,6 +1422,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     private static BingoEvent Event(Guid ownerId, DateTimeOffset now)
     {
         var item = new BingoEvent(Guid.NewGuid(), "Authenticated signup", $"authenticated-signup-{Guid.NewGuid():N}", "", "UTC", now.AddHours(-1), now.AddDays(1), now.AddDays(2), now.AddDays(3), now.AddDays(3).AddHours(1), 10, ownerId, now);
+        item.MarkFirstPublic(now);
         item.OpenSignups(now);
         return item;
     }
@@ -1377,7 +1435,8 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         public Task<WiseOldManPlayerLookupResult> LookupPlayerAsync(string characterName, CancellationToken cancellationToken = default)
         {
             Calls++;
-            return Task.FromResult(new WiseOldManPlayerLookupResult(WiseOldManLookupStatus.Success, 17.5m, DateTimeOffset.UtcNow));
+            var ehb = characterName == "Route WoM Add" ? 3000.09582m : 17.5m;
+            return Task.FromResult(new WiseOldManPlayerLookupResult(WiseOldManLookupStatus.Success, ehb, DateTimeOffset.UtcNow));
         }
     }
 }

@@ -24,14 +24,14 @@
         "overview" => T["Overview"],
         "identity" => T["Identity"],
         "schedule" => T["Schedule"],
-        "participants" => T["Participants"],
+        "participants" => currentPage == "/Admin/Events/Participants" ? T["Participants & signups"] : T["Participants"],
         "board" => T["Board editor"],
         "draft" => T["Teams / Draft"],
         "evidence" => T["Review"],
         "finalization" => T["Finalize"],
-        _ => ViewData["Title"]?.ToString() ?? T["Admin"].Value
+        _ => T[ViewData["Title"]?.ToString() ?? "Admin"]
     };
-    var pageDescription = eventSection == "overview" ? T["Event lifecycle and readiness"] : null;
+    var pageDescription = ViewData["AdminPageDescription"] is string description ? T[description].Value : (eventSection == "overview" ? T["Event lifecycle and readiness"].Value : null);
     var headerBlockerCount = eventContext?.BlockerCount ?? 0;
     var blockerHref = eventSection == "overview" ? "#readiness" : eventContext is null ? "#readiness" : $"/Admin/Events/Manage/{eventContext.Id}#readiness";
     var signedInName = User.Identity?.Name?.Trim();
@@ -45,7 +45,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - OSRS Community Bingo</title>
+    <title>@T[ViewData["Title"]?.ToString() ?? "Admin"] - OSRS Community Bingo</title>
     <script type="importmap"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -53,16 +53,51 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/lib/flatpickr/flatpickr.min.css" />
     <link rel="stylesheet" href="~/lib/flatpickr/flatpickr-dark.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.transitional.foundation.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.public-ui.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.transitional.application.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Bingo.Web.styles.css" asp-append-version="true" />
 </head>
-<body class="admin-shell-body @ViewData["BodyClass"]">
+<body class="admin-shell-body @ViewData["BodyClass"]"
+      data-admin-close-confirmation="@T["Close confirmation"]"
+      data-admin-cancel="@T["Cancel"]"
+      data-admin-confirm="@T["Confirm"]"
+      data-admin-reason="@T["Reason"]"
+      data-admin-account-confirm-title="@T["Confirm this account action"]"
+      data-admin-account-confirm-support="@T["This account action will change emergency access."]"
+      data-admin-account-load-error="@T["The account management view could not be loaded."]"
+      data-admin-account-create-error="@T["Could not create the emergency credential. Please try again."]"
+      data-admin-account-created="@T["Emergency credential created."]"
+      data-admin-account-created-disabled="@T["Created disabled emergency credential {0}. Create a setup link before enabling it."]"
+      data-admin-account-teams-error="@T["Could not load the active teams. Please try again."]"
+      data-admin-account-action-error="@T["Could not complete the account action. Please try again."]"
+      data-admin-catalogue-load-error="@T["The catalogue editor could not be loaded."]"
+      data-admin-catalogue-kills-per-hour="@T["Kills per hour"]"
+      data-admin-catalogue-runs-per-hour="@T["Runs per hour"]"
+      data-admin-draft-creating="@T["Creating a random order…"]"
+      data-admin-draft-drawing="@T["Drawing the team order…"]"
+      data-admin-draft-ready="@T["Order ready."]"
+      data-admin-saving="@T["Saving"]"
+      data-admin-participant-load-error="@T["The participant details could not be loaded."]"
+      data-admin-participant-form-error="@T["The participant form could not be loaded."]"
+      data-admin-copy-success="@T["Link copied."]"
+      data-admin-copy-error="@T["The link could not be copied."]"
+      data-admin-time="@T["Time"]"
+      data-time-label="@T["Time"]"
+      data-time-hour="@T["hour"]"
+      data-time-minute="@T["minute"]"
+      data-admin-sort-current-template="@T["Currently sorted by {0} {1}. Activate to sort {2}."]"
+      data-admin-sort-template="@T["Sort by {0} {1}."]"
+      data-admin-post-error="@T["The change could not be sent. Check your connection and try again."]"
+      data-signup-questions-request-error="@T["Signup form request failed."]"
+      data-signup-questions-editor-error="@T["Signup form editor was not returned."]"
+      data-signup-questions-load-error="@T["The signup form could not be loaded."]">
     <a class="skip-link" href="#main-content">@T["Skip to main content"]</a>
     <header class="admin-header">
         <nav class="admin-header-nav" aria-label="@T["Admin navigation"]">
-            <a class="admin-brand" asp-page="/Admin" aria-label="DKL Bingo Admin">
-                <span class="admin-brand-mark" aria-hidden="true"></span>
-                <span class="admin-brand-product">DKL Bingo</span>
+            <a class="admin-brand" asp-page="/Admin" aria-label="@T["DK Legacy Admin"]">
+                <img class="admin-brand-mark" src="~/images/branding/dk-legacy-admin-mark.png" alt="" />
+                <span class="admin-brand-product">@T["DK Legacy"]</span>
             </a>
             <div class="admin-page-context">
                 <span class="admin-page-title">@pageHeading</span>
@@ -91,7 +126,7 @@
                             <a class="admin-event-option @(isSelectedEvent ? "is-current" : null)" asp-page="/Admin/Events/Manage" asp-route-id="@option.Id" aria-current="@(isSelectedEvent ? "page" : null)" role="option" aria-selected="@isSelectedEvent">
                                 <span class="admin-event-option-copy">
                                     <span>@option.Name</span>
-                                    <small class="admin-state admin-state-@option.State.ToString().ToLowerInvariant()">@option.StatusLabel</small>
+                                    <small class="admin-status-pill @option.StatusModifier">@option.StatusLabel</small>
                                 </span>
                                 @if (isSelectedEvent)
                                 {
@@ -154,8 +189,8 @@
                                 <input type="hidden" name="returnUrl" value="@($"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}")" />
                                 <label for="admin-site-language">@T["Language"]</label>
                                 <select id="admin-site-language" name="culture" aria-label="@T["Language"]" onchange="this.form.submit()">
-                                    <option value="en" selected="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en")">English</option>
-                                    <option value="da" selected="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "da")">Dansk</option>
+                                    <option value="en" selected="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en")">@T["English"]</option>
+                                    <option value="da" selected="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "da")">@T["Dansk"]</option>
                                 </select>
                                 <noscript><button type="submit">@T["Apply language"]</button></noscript>
                             </form>
@@ -193,7 +228,7 @@
             <nav class="admin-sidebar-nav">
                 <a class="admin-nav-link @(isCurrent("/Admin") ? "is-active" : null)" href="/Admin" aria-current="@(isCurrent("/Admin") ? "page" : null)"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" /></svg>@T["Dashboard"]</a>
                 <a class="admin-nav-link @(isCurrent("/Admin/Events/Index") ? "is-active" : null)" asp-page="/Admin/Events/Index" aria-current="@(isCurrent("/Admin/Events/Index") ? "page" : null)"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg>@T["Events"]</a>
-                <a class="admin-nav-link @(currentPage.StartsWith("/Admin/Catalogue/", StringComparison.Ordinal) ? "is-active" : null)" asp-page="/Admin/Catalogue/Index" aria-current="@(currentPage.StartsWith("/Admin/Catalogue/", StringComparison.Ordinal) ? "page" : null)"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5V19A9 3 0 0 0 21 19V5" /><path d="M3 12A9 3 0 0 0 21 12" /></svg>@T["OSRS Catalogue"]</a>
+                <a class="admin-nav-link @(currentPage.StartsWith("/Admin/Catalogue/", StringComparison.Ordinal) ? "is-active" : null)" asp-page="/Admin/Catalogue/Index" aria-current="@(currentPage.StartsWith("/Admin/Catalogue/", StringComparison.Ordinal) ? "page" : null)"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5V19A9 3 0 0 0 21 19V5" /><path d="M3 12A9 3 0 0 0 21 12" /></svg>@T["OSRS catalogue"]</a>
                 <a class="admin-nav-link @(currentPage.StartsWith("/Admin/Accounts/", StringComparison.Ordinal) ? "is-active" : null)" asp-page="/Admin/Accounts/Index" aria-current="@(currentPage.StartsWith("/Admin/Accounts/", StringComparison.Ordinal) ? "page" : null)"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><path d="M16 3.128a4 4 0 0 1 0 7.744" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><circle cx="9" cy="7" r="4" /></svg>@T["Accounts / Roles"]</a>
                 <a class="admin-nav-link @(currentPage.StartsWith("/Admin/Audit/", StringComparison.Ordinal) ? "is-active" : null)" asp-page="/Admin/Audit/Index" aria-current="@(currentPage.StartsWith("/Admin/Audit/", StringComparison.Ordinal) ? "page" : null)"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>@T["Audit"]</a>
 
@@ -215,7 +250,7 @@
                         <a class="admin-nav-link @(eventSection == "schedule" ? "is-active" : null)" data-admin-event-section="schedule" href="/Admin/Events/Schedule/@eventContext.Id" aria-current="@(eventSection == "schedule" ? "page" : null)"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg>@T["Schedule"]</a>
                         </div>
                         <div class="admin-event-item">
-                        <a class="admin-nav-link @(eventSection == "participants" ? "is-active" : null)" data-admin-event-section="participants" href="/Admin/Events/Participants/@eventContext.Id" aria-current="@(eventSection == "participants" ? "page" : null)"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m16 11 2 2 4-4" /><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>@T["Participants"]</a>
+                        <a class="admin-nav-link @(eventSection == "participants" ? "is-active" : null)" data-admin-event-section="participants" href="/Admin/Events/Participants/@eventContext.Id" aria-current="@(eventSection == "participants" ? "page" : null)"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m16 11 2 2 4-4" /><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>@T["Participants / Signups"]</a>
                         </div>
                         <div class="admin-event-item">
                         <a class="admin-nav-link @(eventSection == "board" ? "is-active" : null)" data-admin-event-section="board" href="/Admin/Events/Board/@eventContext.Id" aria-current="@(eventSection == "board" ? "page" : null)"><svg class="admin-nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M3 15h18" /><path d="M9 3v18" /><path d="M15 3v18" /></svg>@T["Board editor"]</a>
@@ -239,31 +274,16 @@
 
         <div class="admin-main">
             <main id="main-content" role="main" tabindex="-1">
-                <div id="app-notice-region" aria-live="polite">
-                    @if (TempData["StatusMessage"] is string statusMessage)
-                    {
-                        var messageType = UiMessage.Resolve(statusMessage, TempData[UiMessage.TypeKey]?.ToString());
-                        var messageLabel = messageType switch
-                        {
-                            UiMessageType.Success => T["Success"],
-                            UiMessageType.Warning => T["Warning"],
-                            UiMessageType.Error => T["Error"],
-                            _ => T["Information"]
-                        };
-                        <div class="app-notice notice-@messageType.ToString().ToLowerInvariant()" role="@(messageType == UiMessageType.Error ? "alert" : "status")" tabindex="-1" data-feedback-target><strong>@messageLabel</strong><span>@T[statusMessage]</span><button type="button" class="app-notice-dismiss" data-dismiss-notice aria-label="@T["Dismiss message"]">×</button></div>
-                    }
-                </div>
+                @await Html.PartialAsync("_TransientToast")
                 @RenderBody()
             </main>
         </div>
     </div>
 
-    <dialog class="admin-route-dialog" data-signup-questions-dialog aria-labelledby="signup-questions-dialog-title" aria-describedby="signup-questions-dialog-description">
-        <header class="admin-route-dialog-header">
-            <div><p class="admin-module-eyebrow">@T["Signup administration"]</p><h2 id="signup-questions-dialog-title">@T["Signup questions"]</h2><p id="signup-questions-dialog-description">@T["Edit the questions shown on the public signup form."]</p></div>
-            <button type="button" class="admin-route-dialog-close" data-signup-questions-close aria-label="@T["Close signup questions"]">×</button>
-        </header>
-        <iframe title="@T["Signup questions editor"]" data-signup-questions-frame></iframe>
+    <dialog class="admin-route-dialog" data-signup-questions-dialog aria-live="polite">
+        <div class="admin-route-dialog-content" data-signup-questions-content>
+            <p class="admin-route-dialog-loading">@T["Loading signup form…"]</p>
+        </div>
     </dialog>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>

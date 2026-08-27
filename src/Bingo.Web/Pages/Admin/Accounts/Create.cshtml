@@ -1,33 +1,57 @@
 @page
 @model Bingo.Web.Pages.Admin.Accounts.CreateModel
-@using Bingo.Domain.Access
 @{
-    ViewData["Title"] = "Create account";
+    ViewData["Title"] = T["Create emergency credential"];
+    ViewData["AdminPageDescription"] = T["Create a team-scoped fallback login."];
+    var headingId = Model.IsOverlay ? "create-emergency-dialog-title" : "create-emergency-heading";
+    var descriptionId = Model.IsOverlay ? "create-emergency-dialog-description" : null;
+    var validationMessage = ModelState.Values.SelectMany(value => value.Errors).Select(error => error.ErrorMessage).FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
+    var directoryUrl = Url.Page("Index");
 }
 
-<section class="form-page wide-form">
-    <p class="eyebrow">Account management</p>
-    <h1>Create account</h1>
-    <p class="form-intro">Emergency captain credentials are separate disabled logins, each restricted to one active team in an event. The captain sets the password through a one-time setup link, then an Admin enables the credential.</p>
-    <form method="get" class="panel filter-row">
-        <label for="event-selection">Event</label><select id="event-selection" name="eventId" asp-items="Model.Events" class="form-select"><option value="">Choose event</option></select>
-        <button class="btn btn-outline-light" type="submit">Show teams</button>
+<section class="admin-account-route-page is-emergency-credential @(Model.IsOverlay ? "admin-dialog-page event-overview-section admin-account-dialog-page" : null)" aria-labelledby="@headingId" aria-describedby="@descriptionId" data-account-dialog-page="true" data-account-dialog-kind="create" data-account-create-page="true" data-account-directory-url="@directoryUrl" data-account-dialog-overlay="@(Model.IsOverlay ? "true" : "false")" data-account-create-overlay="@(Model.IsOverlay ? "true" : "false")" data-account-status-message="" data-account-validation-message="@(validationMessage ?? string.Empty)">
+    @if (Model.IsOverlay)
+    {
+        <div class="event-overview-section-heading admin-dialog-component-heading">
+            <div><h2 id="@headingId">@T["Create emergency credential"]</h2><p id="@descriptionId">@T["Create a team-scoped fallback login."]</p></div>
+            <button type="button" class="admin-route-dialog-close" data-account-dialog-close aria-label="@T["Close create emergency credential"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
+        </div>
+    }
+    else
+    {
+        <header class="admin-account-route-heading"><div><h1 id="@headingId">@T["Create emergency credential"]</h1><p>@T["Emergency credentials are disabled fallback logins scoped to one event team. The captain completes a one-time setup flow before an Admin enables access."]</p></div></header>
+    }
+    <form method="get" class="admin-account-route-panel admin-account-option-form">
+        <div class="admin-account-route-panel-heading"><h2>@T["Choose scope"]</h2><p>@T["Select an event to load its active teams."]</p></div>
+        <div class="admin-account-fields">
+            <div class="admin-field"><label for="event-selection">@T["Event"]</label><select id="event-selection" name="eventId" asp-items="Model.Events" class="form-select"><option value="">@T["Choose event"]</option></select></div>
+            @if (!Model.IsOverlay)
+            {
+                <div class="admin-account-route-actions"><button class="admin-button-secondary" type="submit">@T["Load teams"]</button></div>
+            }
+        </div>
     </form>
-    <form method="post" class="panel form-stack">
+    <form method="post" class="admin-account-route-panel">
         <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
-        <label asp-for="Input.Username"></label><input asp-for="Input.Username" class="form-control" /><span asp-validation-for="Input.Username" class="field-error"></span>
-        <input asp-for="Input.EventId" type="hidden" />
-        @if (Model.Events.SingleOrDefault(item => item.Value == Model.Input.EventId?.ToString()) is { } selectedEvent)
-        {
-            <p class="form-hint">Selected event: @selectedEvent.Text. Access begins at the event start, has full submission access through the submission cutoff, and is disabled at that cutoff. If an Admin deliberately re-enables it afterward, it has correction-only access.</p>
-        }
-        else
-        {
-            <p class="form-hint">Choose an event above to load its active teams.</p>
-        }
-        <label asp-for="Input.TeamId"></label><select asp-for="Input.TeamId" class="form-select"><option value="">Choose team</option>@foreach(var team in Model.Teams){<option value="@team.Id">@team.Name</option>}</select><span asp-validation-for="Input.TeamId" class="field-error"></span>
-        <div class="button-row"><button class="btn btn-primary" type="submit">Create</button><a class="btn btn-outline-light" asp-page="Index">Cancel</a></div>
+        <div class="admin-account-route-panel-heading"><h2>@T["Credential details"]</h2><p>@T["Access starts disabled and remains subject to the event submission cutoff."]</p></div>
+        <div class="admin-account-fields">
+            <div class="admin-field"><label asp-for="Input.Username"></label><input asp-for="Input.Username" class="form-control" autocomplete="off" /><span asp-validation-for="Input.Username" class="field-error"></span></div>
+            <input asp-for="Input.EventId" type="hidden" />
+            @if (Model.IsOverlay) { <input type="hidden" name="overlay" value="1" /> }
+            <div class="admin-account-scope-note">
+                @if (Model.Events.SingleOrDefault(item => item.Value == Model.Input.EventId?.ToString()) is { } selectedEvent)
+                {
+                    <strong>@T["Selected event"]</strong><span>@selectedEvent.Text</span><p>@T["Access is full through the submission cutoff and can only be deliberately re-enabled afterward for correction work."]</p>
+                }
+                else
+                {
+                    <span>@T["Choose an event above to load its active teams."]</span>
+                }
+            </div>
+            <div class="admin-field"><label asp-for="Input.TeamId"></label><select asp-for="Input.TeamId" class="form-select"><option value="">@T["Choose team"]</option>@foreach (var team in Model.Teams) { <option value="@team.Id">@team.Name</option> }</select><span asp-validation-for="Input.TeamId" class="field-error"></span></div>
+        </div>
+        <div class="admin-account-route-actions"><a class="admin-button-secondary" data-account-dialog-cancel href="@Url.Page("Index")">@T["Cancel"]</a><button class="admin-button-create" type="submit"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M5 12h14" /><path d="M12 5v14" /></svg><span>@T["Create emergency credential"]</span></button></div>
     </form>
 </section>
 
-@section Scripts { <partial name="_ValidationScriptsPartial" /><script>document.querySelector('form[method="get"] select').addEventListener('change', event => event.currentTarget.form.requestSubmit());</script> }
+@section Scripts { <partial name="_ValidationScriptsPartial" /> <script src="~/js/account-manage-dialog.js" asp-append-version="true"></script> }
