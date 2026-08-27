@@ -648,6 +648,15 @@ Production deployment is due **2026-08-31**. Live production testing is
 planned for **2026-09-01 through 2026-09-05**, and public signup opens
 **2026-09-06**. Launch-critical work takes precedence over deferred UI polish.
 
+Keep the complete infrastructure and operational checklist through release,
+including optional but prudent safety items. Evaluate each item when its
+deployment step approaches and present provider/tier options, current costs,
+tradeoffs, a hobby-project recommendation, and the consequence of deferring or
+omitting it. Optional does not mean silently removed. Do not create an external
+account, purchase a service, enable a paid tier, accept a credential, change DNS,
+or mutate production without the user's explicit approval. Keep repository-side
+automation provider-portable where practical until a choice is required.
+
 After the launch-critical journey and the remaining ordered UI work:
 
 - Complete whole-application desktop/mobile, keyboard, permission, error,
@@ -670,6 +679,15 @@ After the launch-critical journey and the remaining ordered UI work:
 - Deploy only that rehearsed candidate. Run controlled migrations, public,
   admin, and captain smoke tests, health/background checks, backup/restore,
   rollback, monitoring, and operator recovery checks.
+
+**Production Release Pass 1 — provider-neutral topology, complete 2026-08-27.**
+The single-VPS Compose contract now defines Caddy, one ASP.NET Core web replica,
+and private PostgreSQL networking; persistent PostgreSQL, data-protection,
+catalogue-cache, and Caddy state/config volumes; immutable image input; the
+R2/Discord/Wise Old Man/bootstrap configuration names; and clean-start/operator
+assumptions. CI/image publication, application operations and health components,
+deployment automation, provider setup, backup/restore, rehearsal, and release
+remain later passes.
 
 ## 4. Dependencies, approvals, and stop rules
 

@@ -1,0 +1,83 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${BINGO_POSTGRES_DB:?Set BINGO_POSTGRES_DB in the production environment}
+      POSTGRES_USER: ${BINGO_POSTGRES_USER:?Set BINGO_POSTGRES_USER in the production environment}
+      POSTGRES_PASSWORD: ${BINGO_POSTGRES_PASSWORD:?Set BINGO_POSTGRES_PASSWORD in the production environment}
+    volumes:
+      - bingo-production-postgres:/var/lib/postgresql/data
+    networks:
+      - bingo-private
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  web:
+    image: ${BINGO_WEB_IMAGE:?Set BINGO_WEB_IMAGE to the reviewed GHCR image digest}
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      AllowedHosts: ${BINGO_DOMAIN:?Set BINGO_DOMAIN in the production environment}
+      ConnectionStrings__Database: ${BINGO_DATABASE_CONNECTION:?Set BINGO_DATABASE_CONNECTION in the production environment}
+      EvidenceStorage__Provider: R2
+      EvidenceStorage__R2__AccountId: ${BINGO_R2_ACCOUNT_ID:?Set BINGO_R2_ACCOUNT_ID in the production environment}
+      EvidenceStorage__R2__AccessKeyId: ${BINGO_R2_ACCESS_KEY_ID:?Set BINGO_R2_ACCESS_KEY_ID in the production environment}
+      EvidenceStorage__R2__SecretAccessKey: ${BINGO_R2_SECRET_ACCESS_KEY:?Set BINGO_R2_SECRET_ACCESS_KEY in the production environment}
+      EvidenceStorage__R2__Bucket: ${BINGO_R2_BUCKET:?Set BINGO_R2_BUCKET in the production environment}
+      EvidenceStorage__R2__ServiceUrl: ${BINGO_R2_SERVICE_URL:?Set BINGO_R2_SERVICE_URL in the production environment}
+      WiseOldMan__BaseUrl: ${BINGO_WISE_OLD_MAN_BASE_URL:?Set BINGO_WISE_OLD_MAN_BASE_URL in the production environment}
+      WiseOldMan__UserAgent: ${BINGO_WISE_OLD_MAN_USER_AGENT:?Set BINGO_WISE_OLD_MAN_USER_AGENT in the production environment}
+      WiseOldMan__ApiKey: ${BINGO_WISE_OLD_MAN_API_KEY:-}
+      WiseOldMan__TimeoutSeconds: ${BINGO_WISE_OLD_MAN_TIMEOUT_SECONDS:-15}
+      DiscordAuthentication__ClientId: ${BINGO_DISCORD_CLIENT_ID:?Set BINGO_DISCORD_CLIENT_ID in the production environment}
+      DiscordAuthentication__ClientSecret: ${BINGO_DISCORD_CLIENT_SECRET:?Set BINGO_DISCORD_CLIENT_SECRET in the production environment}
+      Slice1__BootstrapOwnerPassword: ${BINGO_BOOTSTRAP_OWNER_PASSWORD:?Set BINGO_BOOTSTRAP_OWNER_PASSWORD in the production environment}
+      DataProtection__KeyRingPath: /var/lib/bingo/data-protection-keys
+      CatalogueImageCache__LocalPath: /var/lib/bingo/catalogue-images
+      CatalogueImageCache__SyncDelayMilliseconds: ${BINGO_CATALOGUE_IMAGE_SYNC_DELAY_MILLISECONDS:-500}
+    volumes:
+      - bingo-production-data-protection:/var/lib/bingo/data-protection-keys
+      - bingo-production-catalogue-images:/var/lib/bingo/catalogue-images
+    networks:
+      - bingo-private
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      BINGO_DOMAIN: ${BINGO_DOMAIN:?Set BINGO_DOMAIN in the production environment}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - bingo-production-caddy-data:/data
+      - bingo-production-caddy-config:/config
+    networks:
+      - bingo-private
+    depends_on:
+      - web
+
+networks:
+  bingo-private:
+    driver: bridge
+
+volumes:
+  bingo-production-postgres:
+  bingo-production-data-protection:
+  bingo-production-catalogue-images:
+  bingo-production-caddy-data:
+  bingo-production-caddy-config:

@@ -6,12 +6,39 @@ historical material is preserved separately and is non-authoritative.
 ## Canonical checkout
 
 - Path: `/Users/christopher/Documents/BingoWebpage`
-- Branch: `ui-overhaul`
-- Base commit: `34bad2fee6c2f7196e4946e198e5eb186d87e36c`
-- Tracking: no upstream is configured for the experiment branch.
-- The checkout is intentionally dirty with user/planner changes. Preserve all
-  existing modifications; this documentation-only handoff update did not stage,
-  commit, push, reset, clean, or create a worktree.
+- Branch: `production-release-pipeline`
+- Base commit: `52ec8494c6792f1f1f4ccd5893ac0cdb11cb74a3`
+- Tracking: no upstream is configured for the release-planning branch.
+- The UI overhaul is merged and pushed to `main` at the base commit above.
+- Preserve the local developer-only `launchSettings.json` override, `tmp/`, and
+  the unexpected untracked duplicate files ending in ` 2` that first appeared
+  after the push. They are outside the release candidate and must remain
+  excluded from authority searches, staging, and review pending user-directed
+  cleanup.
+
+## Active production-release handoff
+
+Production is unchanged. Production Release Pass 1 (provider-neutral topology)
+completed on 2026-08-27: `compose.production.yml`, the Caddy site configuration,
+the non-secret production environment template, and the topology/operator
+contract are present. Compose renders with safe placeholders and has one web
+replica, PostgreSQL without a published host port, Caddy on 80/443, one private
+network, five persistent volumes, and an immutable web-image input. Caddy image
+syntax validation was skipped because `caddy:2-alpine` was not cached; no image
+was pulled and no production system was touched.
+
+The next proposed task is Production Release Pass 2 for application operations:
+wire the mounted data-protection key-ring path and implement the approved
+production health/operational components. It requires user authorization and
+the required independent readiness review before implementation.
+
+Retain the complete infrastructure and operational checklist, including
+optional but prudent safety items. At the deployment step where an item becomes
+relevant, present the available providers and tiers, current costs, tradeoffs,
+the recommendation for this hobby project, and the consequence of deferring or
+omitting it. Do not silently remove an optional item. No external account,
+subscription, purchase, paid tier, credential, DNS change, or production
+mutation is authorized without the user's explicit approval.
 
 ## Pre-commit audit and direct-to-main integration plan
 
