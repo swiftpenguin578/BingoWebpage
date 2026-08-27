@@ -719,6 +719,33 @@ test execution and immutable-image execution remain unverified because the host
 denies the test runner listener and local Docker API respectively; neither is a
 known failure. No production or provider resource was changed.
 
+**Production Release Pass 3 — release-candidate publication and non-mutating
+promotion, implementation-ready 2026-08-27.** Preserve the existing PR/main CI
+job and check name. After that job succeeds on a `main` push, publish one
+`linux/amd64` image from the current Dockerfile to a fixed GHCR package with a
+trace-only full-commit tag, while making the immutable digest authoritative.
+Record image name, digest, source SHA, platform, workflow run identity/URL, and
+timestamp in a small candidate artifact. Use job-scoped least privilege, no PAT
+or PR secrets, and full-commit pins for trusted actions.
+
+Add one manual `production-promotion.yml` workflow that runs only from `main`,
+accepts the source SHA, digest, and CI run ID, validates their syntax, proves the
+successful main run's candidate artifact binds the exact values, references the
+`production` environment with `deployment: false`, and emits a promotion
+receipt. It performs no SSH, image pull, migration, Compose operation, or other
+production mutation. Naming an unconfigured environment is not an enforceable
+approval gate; environment creation and required-reviewer setup remain an
+explicit user-guided external step before Pass 4.
+
+Actual VPS deployment belongs to Pass 4 after a pre-migration backup, tested
+restore, and rollback contract exist. Pass 3's complexity budget is one extended
+CI workflow, one new promotion workflow, and the two small JSON receipts. Add no
+deployment scripts, third-party deploy action, application/schema change,
+provider account, secret, SSH code, SBOM/signing/provenance framework, build
+cache, multi-architecture image, or production resource. GHCR remains private
+by default; package visibility and the GitHub plan/environment-reviewer choice
+must be confirmed before Pass 4, not changed by repository implementation.
+
 ## 4. Dependencies, approvals, and stop rules
 
 - Use `UI_SYSTEM.md` for global UI rules and `UI_PAGE_MATRIX.md` for page

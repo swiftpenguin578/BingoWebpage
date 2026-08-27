@@ -55,15 +55,26 @@ remains unverified because the local Docker API is unavailable. These are
 recorded environment limitations, not known failures. No image was pulled and
 no production system was changed.
 
-Pass 2 implementation is now present in the working tree and is awaiting the
-required independent review. The implementation adds Production-only key-ring
-validation and JSON logging, internal readiness checks for PostgreSQL/R2 and
-both worker heartbeats, explicit `--migrate` and `--production-preflight`
-commands, and short-lived Compose ownership initialization. No commit, image
-pull, deployment, provider operation, or production mutation was performed.
-The Release Web and IntegrationTests projects build successfully through the
-single-node MSBuild path; focused test execution is unverified because the
-host denies the test runner's TCP listener (`SocketException (13)`).
+The one required Terra High implementation-readiness review for Production
+Release Pass 3 cleared on 2026-08-27 with no decision blocking repository-only
+implementation. Pass 3 extends the existing CI so a successful `main` push
+publishes one `linux/amd64` image to a fixed GHCR package and records its source
+commit and immutable digest in a small candidate artifact. A separate manually
+dispatched, `production`-environment-gated workflow validates a selected main
+CI run, source SHA, digest, and candidate artifact, then emits a non-mutating
+promotion receipt with `deployment: false`. It performs no SSH, migration,
+Compose operation, or production mutation.
+
+Actual VPS deployment remains Pass 4 because no retained-database migration may
+run before the pre-migration backup, tested restore, and rollback contract
+exist. Keep GHCR private by default and create or change no package/environment
+visibility in this pass. Before Pass 4, confirm repository visibility and the
+GitHub plan because required environment reviewers on Free/Pro/Team are limited
+to public repositories; decide then whether the image remains private. Pass 3
+has a budget of one extended existing CI workflow, one new promotion workflow,
+and two small JSON receipts using only pinned trusted actions and runner-native
+shell tools. It adds no deployment script, SSH code, application change,
+dependency, external resource, provider choice, or production secret.
 
 Retain the complete infrastructure and operational checklist, including
 optional but prudent safety items. At the deployment step where an item becomes
