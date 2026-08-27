@@ -1,0 +1,10 @@
+[Unit]
+Description=OSRS Community Bingo encrypted production backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/bingo-backup --reason scheduled
+User=root
+PrivateTmp=true

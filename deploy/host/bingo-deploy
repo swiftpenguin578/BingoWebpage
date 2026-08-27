@@ -1,0 +1,261 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source /usr/local/libexec/bingo-ops-lib.sh
+
+require_root
+require_command docker; require_command jq; require_command curl; require_command ssh-keygen
+ensure_layout
+acquire_lock
+
+source_sha= image_digest= ci_run_id= promotion_id= deployment_id= actor= image_ref=
+while (($#)); do
+    case "$1" in
+        --source-sha) source_sha=${2:-}; shift 2 ;;
+        --image-digest) image_digest=${2:-}; shift 2 ;;
+        --ci-run-id) ci_run_id=${2:-}; shift 2 ;;
+        --promotion-id) promotion_id=${2:-}; shift 2 ;;
+        --deployment-id) deployment_id=${2:-}; shift 2 ;;
+        --actor) actor=${2:-}; shift 2 ;;
+        --image) image_ref=${2:-}; shift 2 ;;
+        *) die "unknown argument" ;;
+    esac
+done
+validate_sha "$source_sha"; validate_digest "$image_digest"; validate_id "$ci_run_id"; validate_id "$promotion_id"; validate_id "$deployment_id"
+[[ "$actor" =~ ^[A-Za-z0-9._-]{1,100}$ ]] || die "invalid actor"
+[[ "$image_ref" == "$BINGO_IMAGE_NAME" ]] || die "image name is not the host-approved GHCR package"
+image_ref="$image_ref@$image_digest"
+[[ "$image_ref" =~ ^ghcr\.io/[a-z0-9._-]+/[a-z0-9._-]+@sha256:[0-9a-f]{64}$ ]] || die "invalid immutable GHCR image reference"
+export BINGO_WEB_IMAGE="$image_ref"
+
+require_root_file "$BINGO_ENV_FILE"
+require_root_path "$BINGO_COMPOSE_FILE"
+[[ "$BINGO_ENV_FILE" == /etc/bingo/* ]] || die "production configuration must stay under /etc/bingo"
+
+started_at=$(utc_now)
+receipt="$DEPLOYMENT_ROOT/$(date -u +%Y%m%dT%H%M%S%NZ)-$deployment_id-$source_sha.json"
+receipt_tmp=
+receipt_written=false
+backup_ready=false
+backup_receipt=
+backup_json='{}'
+failure_stage=pre_backup
+pre_history=
+post_history=
+pre_history_available=false
+post_history_available=false
+container_health=not_checked
+public_health=not_checked
+rollback_outcome=not_attempted
+rollback_recovery_required=false
+rollback_reference=null
+replace_log=
+public_health_log=
+
+cleanup_deploy_temps() {
+    rm -f -- "$replace_log" "$public_health_log" "$receipt_tmp" 2>/dev/null || true
+    [[ -z "$pre_history" ]] || rm -f -- "$pre_history" 2>/dev/null || true
+    [[ -z "$post_history" ]] || rm -f -- "$post_history" 2>/dev/null || true
+}
+history_json_or_null() {
+    local path=${1:-}
+    if [[ "$path" == "$pre_history" && "$pre_history_available" != true ]] || [[ "$path" == "$post_history" && "$post_history_available" != true ]]; then
+        printf 'null'
+    elif [[ -n "$path" && -f "$path" ]]; then
+        json_array_file "$path"
+    else
+        printf 'null'
+    fi
+}
+public_health_json() {
+    case "$public_health" in
+        healthy) printf 'true' ;;
+        not_checked) printf 'null' ;;
+        *) printf 'false' ;;
+    esac
+}
+capture_post_migration_history() {
+    failure_stage=post_migration_history
+    post_history=$(mktemp /tmp/bingo-post-history.XXXXXX)
+    migration_history "$post_history"
+    post_history_available=true
+}
+write_receipt() {
+    local status=$1 exit_code=$2 pre_json post_json health_json
+    pre_json=$(history_json_or_null "$pre_history")
+    post_json=$(history_json_or_null "$post_history")
+    health_json=$(public_health_json)
+    receipt_tmp="$receipt.tmp.$$"
+    rm -f -- "$receipt_tmp"
+    if ! jq -n --arg status "$status" --arg failureStage "$failure_stage" --arg exitCode "$exit_code" \
+        --arg sourceSha "$source_sha" --arg imageDigest "$image_digest" --arg ciRunId "$ci_run_id" \
+        --arg promotionId "$promotion_id" --arg deploymentId "$deployment_id" --arg actor "$actor" \
+        --arg startedAtUtc "$started_at" --arg finishedAtUtc "$(utc_now)" \
+        --argjson preMigrationHistory "$pre_json" --argjson postMigrationHistory "$post_json" \
+        --argjson backup "$backup_json" --arg containerHealth "$container_health" --argjson publicHttpsLive "$health_json" \
+        --arg rollbackOutcome "$rollback_outcome" --argjson rollbackRecoveryRequired "$rollback_recovery_required" \
+        --argjson rollbackReference "$rollback_reference" \
+        '{schemaVersion: 2, status: $status, failureStage: (if $status == "failure" then $failureStage else null end), failureExitCode: (if $status == "failure" then ($exitCode | tonumber) else null end), sourceSha: $sourceSha, imageDigest: $imageDigest, ciRunId: ($ciRunId | tonumber), promotionId: ($promotionId | tonumber), deploymentId: ($deploymentId | tonumber), actor: $actor, startedAtUtc: $startedAtUtc, finishedAtUtc: $finishedAtUtc, preMigrationHistory: $preMigrationHistory, postMigrationHistory: $postMigrationHistory, backup: $backup, health: {container: $containerHealth, publicHttpsLive: $publicHttpsLive}, rollback: {outcome: $rollbackOutcome, recoveryRequired: $rollbackRecoveryRequired, reference: $rollbackReference}}' >"$receipt_tmp"; then
+        rm -f -- "$receipt_tmp"
+        return 1
+    fi
+    chmod 600 "$receipt_tmp" || { rm -f -- "$receipt_tmp"; return 1; }
+    mv -f -- "$receipt_tmp" "$receipt" || { rm -f -- "$receipt_tmp"; return 1; }
+    receipt_written=true
+}
+deployment_exit_handler() {
+    local exit_code=${1:-1}
+    trap - EXIT
+    if [[ "$backup_ready" == true && "$receipt_written" != true ]]; then
+        write_receipt failure "$exit_code" || true
+    fi
+    cleanup_deploy_temps
+}
+trap 'deployment_exit_handler "$?"' EXIT
+
+log_line "deployment start source_sha=$source_sha image_digest=$image_digest ci_run_id=$ci_run_id promotion_id=$promotion_id deployment_id=$deployment_id actor=$actor"
+failure_stage=docker_availability
+run_logged "Docker availability" docker info
+failure_stage=compose_rendering
+run_logged "Compose rendering" compose config --quiet
+for volume in bingo-production-postgres bingo-production-data-protection bingo-production-catalogue-images bingo-production-caddy-data bingo-production-caddy-config; do
+    failure_stage=volume_validation
+    if ! docker volume inspect "$volume" >/dev/null 2>&1; then run_logged "create persistent volume" docker volume create "$volume"; fi
+    mountpoint=$(docker volume inspect -f '{{.Mountpoint}}' "$volume")
+    [[ -d "$mountpoint" ]] || die "persistent volume mountpoint is missing: $volume"
+    [[ "$volume" != bingo-production-data-protection || "$(stat -c '%a' "$mountpoint")" != *[2367] ]] || die "data-protection volume is too broad"
+done
+
+failure_stage=backup
+backup_status=0
+if backup_receipt=$(/usr/local/sbin/bingo-backup --reason deployment --source-sha "$source_sha" --lock-held); then :; else backup_status=$?; fi
+if [[ "$backup_receipt" == "$RECEIPT_ROOT"/*.json && "$backup_receipt" != *$'\n'* && -f "$backup_receipt" ]]; then
+    backup_snapshot=$(jq -er '.snapshot | strings | select(test("^[0-9a-f]{8,64}$"))' "$backup_receipt" 2>/dev/null || true)
+    if [[ "$backup_snapshot" =~ ^[0-9a-f]{8,64}$ ]]; then
+        backup_ready=true
+        backup_json=$(jq -c '{backupId, snapshot, dumpSha256, payloadSha256, productionEnvSha256, productionOpsEnvSha256, dataProtectionSha256, reference, retention}' "$backup_receipt" 2>/dev/null || printf '{"snapshot":"%s"}' "$backup_snapshot")
+    fi
+fi
+(( backup_status == 0 )) || die "backup failed; deployment did not start"
+[[ "$backup_ready" == true ]] || die "backup did not return a valid receipt"
+failure_stage=backup_receipt_validation
+jq -e --arg snapshot "$backup_snapshot" \
+    '.snapshot == $snapshot and (.dumpSha256 | strings | test("^[0-9a-f]{64}$")) and (.payloadSha256 | strings | test("^[0-9a-f]{64}$")) and (.productionEnvSha256 | strings | test("^[0-9a-f]{64}$")) and (.productionOpsEnvSha256 | strings | test("^[0-9a-f]{64}$")) and (.dataProtectionSha256 | strings | test("^[0-9a-f]{64}$")) and (.reference == ("restic:snapshot:" + $snapshot))' "$backup_receipt" >/dev/null || die "backup receipt is incomplete or has a non-restic reference"
+backup_dump_sha=$(jq -er '.dumpSha256' "$backup_receipt")
+backup_reference=$(jq -er '.reference' "$backup_receipt")
+failure_stage=restore_verification
+/usr/local/sbin/bingo-restore --verify --snapshot "$backup_snapshot" --lock-held
+
+failure_stage=pre_migration_history
+pre_history=$(mktemp /tmp/bingo-pre-history.XXXXXX)
+migration_history "$pre_history"
+pre_history_available=true
+retained=false
+failure_stage=database_classification
+if table_exists accounts; then
+    account_count=$(compose exec -T postgres psql -X -A -t -v ON_ERROR_STOP=1 -U "$BINGO_POSTGRES_USER" -d "$BINGO_POSTGRES_DB" -c 'SELECT count(*) FROM accounts;')
+    [[ "$account_count" =~ ^[0-9]+$ ]] || die "could not classify the database"
+    (( account_count > 0 )) && retained=true
+fi
+failure_stage=application_image_pull
+run_logged "GHCR login" bash -c 'source "$1"; printf "%s" "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin >/dev/null' _ "$BINGO_GHCR_ENV_FILE"
+run_logged "pull immutable application image" docker pull "$image_ref"
+run_logged "initialize writable application volumes" compose run --rm --no-deps web-init
+
+if [[ "$retained" == true ]]; then
+    failure_stage=retained_migration_preflight
+    case "$BINGO_RETAINED_LEGACY_PREFLIGHT" in
+        required)
+            [[ -n "$BINGO_RETAINED_OWNER" ]] || die "retained legacy preflight owner is required"
+            run_logged "retained legacy preflight" compose run --rm --no-deps web --slice1-migration-preflight --slice1-owner "$BINGO_RETAINED_OWNER"
+            ;;
+        skip) ;;
+        *) die "BINGO_RETAINED_LEGACY_PREFLIGHT must be required or skip" ;;
+    esac
+else
+    failure_stage=database_migration
+    run_logged "database migration" compose run --rm --no-deps web --migrate
+    capture_post_migration_history
+    failure_stage=catalogue_snapshot
+    run_logged "catalogue snapshot application" compose run --rm --no-deps web --apply-catalogue-snapshot
+    failure_stage=initial_owner_bootstrap
+    run_logged "initial owner bootstrap" compose run --rm --no-deps web --slice1-bootstrap-owner --username "$BINGO_BOOTSTRAP_OWNER_USERNAME" --confirm-username "$BINGO_BOOTSTRAP_OWNER_USERNAME"
+fi
+if [[ "$retained" == true ]]; then
+    failure_stage=database_migration
+    run_logged "database migration" compose run --rm --no-deps web --migrate
+    capture_post_migration_history
+fi
+failure_stage=production_preflight
+run_logged "production preflight" compose run --rm --no-deps web --production-preflight
+
+failure_stage=web_replacement
+previous_container=$(compose ps -q web || true)
+previous_image=
+if [[ -n "$previous_container" ]]; then previous_image=$(docker inspect -f '{{.Config.Image}}' "$previous_container" 2>/dev/null || true); fi
+replace_log=$(mktemp /tmp/bingo-web-replace.XXXXXX)
+replace_status=0
+if compose up -d --no-deps web >"$replace_log" 2>&1; then :; else replace_status=$?; fi
+redact <"$replace_log" >>"$LOG_FILE"
+
+run_rollback_command() {
+    local output status
+    output=$(mktemp /tmp/bingo-rollback.XXXXXX)
+    if "$@" >"$output" 2>&1; then status=0; else status=$?; fi
+    redact <"$output" >>"$LOG_FILE"
+    rm -f -- "$output"
+    return "$status"
+}
+histories_equal() { [[ "$pre_history_available" == true && "$post_history_available" == true ]] && cmp -s "$pre_history" "$post_history"; }
+rollback_after_replace_failure() {
+    local trigger_stage=$failure_stage
+    failure_stage=rollback
+    if histories_equal && [[ "$previous_image" =~ ^ghcr\.io/.+@sha256:[0-9a-f]{64}$ ]]; then
+        export BINGO_WEB_IMAGE="$previous_image"
+        if run_rollback_command compose up -d --no-deps web; then
+            container=$(compose ps -q web || true)
+            if [[ -n "$container" ]] && health_wait "$container"; then
+                container_health=healthy
+                rollback_outcome=prior_image_restored
+                rollback_reference=$(jq -n --arg imageDigest "${previous_image##*@}" '{type: "prior-image", imageDigest: $imageDigest}')
+                failure_stage="rollback_after_${trigger_stage}"
+                die "new application image failed; prior immutable image was restored and deployment did not complete"
+            fi
+        fi
+        container_health=unhealthy_or_unknown
+    fi
+    if run_rollback_command compose stop web; then
+        rollback_outcome=web_stopped
+    else
+        rollback_outcome=recovery_required
+    fi
+    rollback_recovery_required=true
+    failure_stage="rollback_after_${trigger_stage}"
+    die "deployment failed after web replacement; web is stopped or recovery is required before restart"
+}
+if (( replace_status != 0 )); then rollback_after_replace_failure; fi
+
+failure_stage=container_health
+container=$(compose ps -q web || true)
+if [[ -n "$container" ]] && health_wait "$container"; then
+    container_health=healthy
+else
+    container_health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}' "$container" 2>/dev/null || printf 'not_found')
+    rollback_after_replace_failure
+fi
+
+failure_stage=public_https_health
+public_health_log=$(mktemp /tmp/bingo-public-health.XXXXXX)
+if curl --fail --silent --show-error --max-time 20 --proto '=https' --tlsv1.2 "https://$BINGO_DOMAIN/health/live" >"$public_health_log" 2>&1; then
+    public_health=healthy
+    redact <"$public_health_log" >>"$LOG_FILE"
+else
+    public_health=failed
+    redact <"$public_health_log" >>"$LOG_FILE"
+    rollback_after_replace_failure
+fi
+
+failure_stage=success_receipt
+rollback_outcome=not_needed
+write_receipt success 0 || die "could not write the deployment receipt"
+log_line "deployment complete receipt=$receipt"
+printf 'deployment receipt: %s\n' "$receipt"

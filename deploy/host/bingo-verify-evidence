@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source /usr/local/libexec/bingo-ops-lib.sh
+
+require_root
+require_command docker; require_command aws; require_command sha256sum
+ensure_layout
+acquire_lock
+: "${BINGO_R2_SERVICE_URL:?BINGO_R2_SERVICE_URL is required in production.env}"
+: "${BINGO_R2_BUCKET:?BINGO_R2_BUCKET is required in production.env}"
+[[ "$BINGO_R2_SERVICE_URL" =~ ^https://[^[:space:]]+$ ]] || die "R2 service URL must be HTTPS"
+export AWS_ACCESS_KEY_ID="$BINGO_R2_ACCESS_KEY_ID"
+export AWS_SECRET_ACCESS_KEY="$BINGO_R2_SECRET_ACCESS_KEY"
+export AWS_DEFAULT_REGION=auto
+
+objects=$(mktemp /tmp/bingo-evidence-objects.XXXXXX)
+trap 'rm -f "$objects"' EXIT
+query="SELECT storage_key, checksum FROM evidence_assets UNION ALL SELECT storage_key, checksum FROM event_banner_assets UNION ALL SELECT storage_key, checksum FROM team_image_assets UNION ALL SELECT storage_key, checksum FROM board_tile_image_assets ORDER BY storage_key;"
+capture_logged "database evidence inventory" "$objects" compose exec -T postgres psql -X -A -t -F $'\t' -v ON_ERROR_STOP=1 -U "$BINGO_POSTGRES_USER" -d "$BINGO_POSTGRES_DB" -c "$query"
+count=0
+while IFS=$'\t' read -r key expected; do
+    [[ -n "$key" && "$expected" =~ ^[0-9A-Fa-f]{64}$ ]] || die "database evidence inventory contains an invalid key or checksum"
+    actual=$(aws --no-cli-pager --endpoint-url "$BINGO_R2_SERVICE_URL" s3 cp "s3://$BINGO_R2_BUCKET/$key" - | sha256sum | awk '{print $1}') || die "evidence download failed for a database-stored object"
+    [[ "$actual" == "${expected,,}" ]] || die "evidence checksum mismatch for a database-stored object"
+    count=$((count + 1))
+done <"$objects"
+log_line "evidence integrity verified object_count=$count"
+printf 'verified %s database-stored evidence objects\n' "$count"

@@ -746,6 +746,31 @@ cache, multi-architecture image, or production resource. GHCR remains private
 by default; package visibility and the GitHub plan/environment-reviewer choice
 must be confirmed before Pass 4, not changed by repository implementation.
 
+**Production Release Pass 4 — repository-side deployment and recovery contract,
+implemented 2026-08-28.** Extend the existing promotion workflow with explicit
+`promote` and `deploy` modes. Candidate validation runs before the production
+Environment; deploy receives one approval, uses non-cancelling
+`concurrency: production`, and transports only SSH data plus validated release
+metadata. Native OpenSSH invokes the narrowly sudoable root-owned host command.
+
+Add only the minimal host deploy, encrypted restic backup, isolated restore
+verification, and database-stored evidence-integrity scripts; root-only host
+configuration examples; one systemd backup service/timer; and the deployment
+runbook. Deploys back up before every replacement, use the exact image digest,
+preserve Caddy/PostgreSQL, run the existing clean/retained migration and
+preflight commands, verify internal and public health, and emit a secret-free
+receipt. Changed migration history never permits automatic image rollback.
+No application behavior, schema, provider, account, DNS, secret, or production
+resource was changed. The exact operator procedure is in
+`docs/PRODUCTION_RUNBOOK.md`.
+
+Pass 4 complexity budget is one modified promotion workflow, minimal host
+scripts/config examples, one systemd backup service/timer, and concise
+deployment/recovery/evidence documentation. Focused checks are limited to
+script syntax, input rejection, workflow/action pin and permission inspection,
+Compose rendering, receipt/secret-leak checks, documentation links, and a
+disposable restore exercise only if Docker is available.
+
 ## 4. Dependencies, approvals, and stop rules
 
 - Use `UI_SYSTEM.md` for global UI rules and `UI_PAGE_MATRIX.md` for page

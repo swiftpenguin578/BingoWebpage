@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source /usr/local/libexec/bingo-ops-lib.sh
+
+require_root
+require_command docker; require_command jq; require_command restic; require_command tar; require_command sha256sum
+ensure_layout
+
+reason=scheduled
+source_sha=none
+lock_held=false
+while (($#)); do
+    case "$1" in
+        --reason) reason=${2:-}; shift 2 ;;
+        --source-sha) source_sha=${2:-}; shift 2 ;;
+        --lock-held) lock_held=true; shift ;;
+        *) die "unknown argument" ;;
+    esac
+done
+[[ "$reason" =~ ^[A-Za-z0-9._-]+$ ]] || die "invalid backup reason"
+[[ "$source_sha" == none || "$source_sha" =~ ^[0-9a-f]{40}$ ]] || die "invalid source SHA"
+[[ "$lock_held" == true ]] || acquire_lock
+
+set -a; source "$BINGO_RESTIC_ENV_FILE"; set +a
+export RESTIC_PASSWORD_FILE="$BINGO_RESTIC_PASSWORD_FILE"
+stamp=$(date -u +%Y%m%dT%H%M%S%NZ)
+stage=$(mktemp -d "$BINGO_BACKUP_ROOT/work.XXXXXX")
+cleanup() { rm -rf -- "$stage" 2>/dev/null || true; }
+trap cleanup EXIT
+mkdir -p "$stage/data-protection-keys"
+chmod 700 "$stage"
+
+log_line "backup start reason=$reason source_sha=$source_sha"
+run_logged "Compose validation" compose config --quiet
+run_logged "PostgreSQL start" compose up -d postgres
+for i in $(seq 1 60); do
+    pg_container=$(compose ps -q postgres)
+    pg_status=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}' "$pg_container" 2>/dev/null || true)
+    [[ "$pg_status" == healthy ]] && break
+    [[ "$i" == 60 ]] && die "PostgreSQL did not become healthy"
+    sleep 2
+done
+
+dump="$stage/postgres.dump"
+dump_log="$stage/pg_dump.log"
+if compose exec -T postgres pg_dump --format=custom --no-owner --no-privileges -U "$BINGO_POSTGRES_USER" -d "$BINGO_POSTGRES_DB" >"$dump" 2>"$dump_log"; then :; else
+    redact <"$dump_log" >>"$LOG_FILE"; die "PostgreSQL dump failed; see the redacted root-only log"
+fi
+redact <"$dump_log" >>"$LOG_FILE"
+install -m 600 "$BINGO_ENV_FILE" "$stage/production.env"
+install -m 600 "$BINGO_OPS_CONFIG" "$stage/production-ops.env"
+[[ -d "$BINGO_DATA_PROTECTION_DIR" ]] || die "data-protection directory is missing"
+# The application owns this directory; it must never be world-writable.
+[[ "$(stat -c '%a' "$BINGO_DATA_PROTECTION_DIR")" != *[2367] ]] || die "data-protection directory is too broad"
+cp -a "$BINGO_DATA_PROTECTION_DIR/." "$stage/data-protection-keys/"
+dump_sha=$(sha256sum "$dump" | awk '{print $1}')
+env_sha=$(sha256sum "$stage/production.env" | awk '{print $1}')
+ops_sha=$(sha256sum "$stage/production-ops.env" | awk '{print $1}')
+keys_sha=$(directory_sha256 "$stage/data-protection-keys")
+payload_manifest="$stage/payload-manifest.json"
+jq -n --arg backupId "$stamp" --arg reason "$reason" --arg sourceSha "$source_sha" --arg createdAtUtc "$(utc_now)" \
+    --arg dumpSha256 "$dump_sha" --arg productionEnvSha256 "$env_sha" --arg productionOpsEnvSha256 "$ops_sha" --arg dataProtectionSha256 "$keys_sha" \
+    '{schemaVersion: 2, backupId: $backupId, reason: $reason, sourceSha: $sourceSha, createdAtUtc: $createdAtUtc, dumpSha256: $dumpSha256, productionEnvSha256: $productionEnvSha256, productionOpsEnvSha256: $productionOpsEnvSha256, dataProtectionSha256: $dataProtectionSha256}' >"$payload_manifest"
+payload="$stage/payload.tgz"
+tar -C "$stage" -czf "$payload" postgres.dump production.env production-ops.env data-protection-keys payload-manifest.json
+payload_sha=$(sha256sum "$payload" | awk '{print $1}')
+manifest="$stage/backup-manifest.json"
+jq -n --arg backupId "$stamp" --arg reason "$reason" --arg sourceSha "$source_sha" --arg createdAtUtc "$(utc_now)" \
+    --arg dumpSha256 "$dump_sha" --arg payloadSha256 "$payload_sha" --arg productionEnvSha256 "$env_sha" \
+    --arg productionOpsEnvSha256 "$ops_sha" --arg dataProtectionSha256 "$keys_sha" \
+    '{schemaVersion: 2, backupId: $backupId, reason: $reason, sourceSha: $sourceSha, createdAtUtc: $createdAtUtc, dumpSha256: $dumpSha256, payloadSha256: $payloadSha256, productionEnvSha256: $productionEnvSha256, productionOpsEnvSha256: $productionOpsEnvSha256, dataProtectionSha256: $dataProtectionSha256}' >"$manifest"
+restic_json="$stage/restic.json"
+if restic backup --json --tag bingo-production --tag "reason-$reason" "$payload" "$manifest" >"$restic_json" 2>&1; then :; else
+    redact <"$restic_json" >>"$LOG_FILE"; die "off-host backup failed; see the redacted root-only log"
+fi
+redact <"$restic_json" >>"$LOG_FILE"
+snapshot=$(sed -n 's/.*"snapshot_id"[[:space:]]*:[[:space:]]*"\([0-9a-f]\{8,64\}\)".*/\1/p' "$restic_json" | tail -1)
+[[ "$snapshot" =~ ^[0-9a-f]{8,64}$ ]] || die "restic did not return a snapshot ID"
+
+receipt="$RECEIPT_ROOT/$stamp.json"
+jq -n --arg snapshot "$snapshot" --arg reason "$reason" --arg sourceSha "$source_sha" \
+    --arg createdAtUtc "$(utc_now)" --arg dumpSha256 "$dump_sha" --arg payloadSha256 "$payload_sha" \
+    --arg productionEnvSha256 "$env_sha" --arg productionOpsEnvSha256 "$ops_sha" --arg dataProtectionSha256 "$keys_sha" \
+    --arg backupId "$stamp" --arg reference "restic:snapshot:$snapshot" \
+    '{schemaVersion: 2, backupId: $backupId, snapshot: $snapshot, reason: $reason, sourceSha: $sourceSha, createdAtUtc: $createdAtUtc, dumpSha256: $dumpSha256, payloadSha256: $payloadSha256, productionEnvSha256: $productionEnvSha256, productionOpsEnvSha256: $productionOpsEnvSha256, dataProtectionSha256: $dataProtectionSha256, reference: $reference, retention: "pending"}' >"$receipt"
+chmod 600 "$receipt"
+ln -sfn "$receipt" "$RECEIPT_ROOT/latest.json"
+printf '%s\n' "$receipt"
+
+retention_log="$stage/retention.log"
+retention_status=0
+if restic forget --keep-daily "$BINGO_KEEP_DAILY" --keep-weekly "$BINGO_KEEP_WEEKLY" --keep-monthly "$BINGO_KEEP_MONTHLY" --prune >"$retention_log" 2>&1; then
+    retention_state=applied
+else
+    retention_status=$?
+    retention_state=failed
+fi
+redact <"$retention_log" >>"$LOG_FILE"
+tmp_receipt="$stage/receipt.json"
+jq --arg retention "$retention_state" '.retention = $retention' "$receipt" >"$tmp_receipt" && chmod 600 "$tmp_receipt" && mv -f "$tmp_receipt" "$receipt"
+(( retention_status == 0 )) || die "backup retention failed; encrypted snapshot receipt was recorded"
+log_line "backup complete snapshot=$snapshot dump_sha256=$dump_sha"

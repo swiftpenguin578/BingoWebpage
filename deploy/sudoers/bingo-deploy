@@ -1,0 +1,2 @@
+# Install as /etc/sudoers.d/bingo-deploy with mode 0440 after visudo validation.
+replace-with-deploy-user ALL=(root) NOPASSWD: /usr/local/sbin/bingo-deploy

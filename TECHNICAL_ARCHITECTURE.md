@@ -540,6 +540,16 @@ to `main` does not update any live server. The operator runbook must record the
 exact approval action, deployed image identifier, health check, smoke tests,
 rollback action, and whether the release contains a database migration.
 
+The repository-side Pass 4 contract is implemented by the existing
+`.github/workflows/production-promotion.yml` and the root-owned host commands
+documented in `docs/PRODUCTION_RUNBOOK.md`. Candidate metadata is validated
+before the production Environment; deploy uses one approval and
+non-cancelling `concurrency: production`. GitHub transports only SSH
+deployment data and validated release metadata. Application, database, R2,
+Discord, owner/bootstrap, restic, Data Protection, and production configuration
+secrets remain on the host. Routine deploys replace only `web`, retain Caddy
+and PostgreSQL, and never use a mutable application tag.
+
 Database migrations must be designed for safe forward deployment. Application rollback cannot automatically reverse a destructive database migration.
 
 Initial production provisioning uses an empty PostgreSQL database. After controlled migrations, deployment initializes the reviewed `src/Bingo.Web/data/osrs-catalogue.json` snapshot and provisions the intended Super Admin through the operator-only setup path. Development/test accounts, generated captain credentials, events, signups, participants, teams, boards, evidence, notifications, and audit history are not transferred to production. Retained-database migration support remains required for local upgrade testing and any future environment that genuinely needs historical preservation; it is separate from initial production bootstrap.

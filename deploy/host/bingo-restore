@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source /usr/local/libexec/bingo-ops-lib.sh
+
+require_root
+require_command docker; require_command jq; require_command restic; require_command tar; require_command sha256sum; require_command openssl
+ensure_layout
+
+snapshot=
+lock_held=false
+install_config=false
+confirm_restore=
+while (($#)); do
+    case "$1" in
+        --snapshot) snapshot=${2:-}; shift 2 ;;
+        --lock-held) lock_held=true; shift ;;
+        --verify) shift ;;
+        --restore-config) install_config=true; shift ;;
+        --confirm-restore) confirm_restore=${2:-}; shift 2 ;;
+        *) die "usage: bingo-restore --verify --snapshot <restic-snapshot> [--restore-config --confirm-restore <snapshot>]" ;;
+    esac
+done
+[[ "$snapshot" =~ ^[0-9a-f]{8,64}$ ]] || die "snapshot must be a restic snapshot ID"
+if [[ "$install_config" == true ]]; then
+    [[ "$confirm_restore" == "$snapshot" ]] || die "configuration restore requires --confirm-restore matching the snapshot"
+fi
+[[ "$lock_held" == true ]] || acquire_lock
+set -a; source "$BINGO_RESTIC_ENV_FILE"; set +a
+export RESTIC_PASSWORD_FILE="$BINGO_RESTIC_PASSWORD_FILE"
+
+stage=$(mktemp -d "$BINGO_BACKUP_ROOT/restore.XXXXXX")
+container="bingo-restore-${stage##*/}"
+cleanup() { docker rm -f "$container" >/dev/null 2>&1 || true; rm -rf -- "$stage" 2>/dev/null || true; }
+trap cleanup EXIT
+chmod 700 "$stage"
+run_logged "restore download" restic restore "$snapshot" --target "$stage"
+
+mapfile -t payloads < <(find "$stage" -type f -name payload.tgz -print)
+mapfile -t manifests < <(find "$stage" -type f -name backup-manifest.json -print)
+(( ${#payloads[@]} == 1 )) || die "backup payload is missing or ambiguous"
+(( ${#manifests[@]} == 1 )) || die "backup manifest is missing or ambiguous"
+payload=${payloads[0]}
+manifest=${manifests[0]}
+receipt=
+while IFS= read -r candidate; do
+    require_root_file "$candidate" || continue
+    candidate_snapshot=$(jq -er '.snapshot // empty' "$candidate" 2>/dev/null || true)
+    if [[ "$candidate_snapshot" == "$snapshot" ]]; then
+        [[ -z "$receipt" ]] || die "multiple local receipts match the requested snapshot"
+        receipt=$candidate
+    fi
+done < <(find "$RECEIPT_ROOT" -maxdepth 1 -type f -name '*.json' -print)
+[[ -n "$receipt" ]] || die "no local receipt matches the requested snapshot"
+
+tar -xzf "$payload" -C "$stage"
+mapfile -t dumps < <(find "$stage" -type f -name postgres.dump -print)
+mapfile -t env_files < <(find "$stage" -type f -name production.env -print)
+mapfile -t ops_files < <(find "$stage" -type f -name production-ops.env -print)
+mapfile -t key_dirs < <(find "$stage" -type d -name data-protection-keys -print)
+mapfile -t payload_manifests < <(find "$stage" -type f -name payload-manifest.json -print)
+(( ${#dumps[@]} == 1 && ${#env_files[@]} == 1 && ${#ops_files[@]} == 1 && ${#key_dirs[@]} == 1 && ${#payload_manifests[@]} == 1 )) || die "backup payload is incomplete or ambiguous"
+dump=${dumps[0]}
+env_file=${env_files[0]}
+ops_file=${ops_files[0]}
+keys=${key_dirs[0]}
+payload_manifest=${payload_manifests[0]}
+require_root_file "$env_file"; require_root_file "$ops_file"
+bash -n "$env_file" || die "restored production.env is not valid shell syntax"
+validate_ops_config_content "$ops_file" || die "restored production-ops.env contains invalid or incomplete settings"
+expected_payload_sha=$(jq -er '.payloadSha256 | strings | select(test("^[0-9a-f]{64}$"))' "$manifest")
+actual_payload_sha=$(sha256sum "$payload" | awk '{print $1}')
+[[ "$expected_payload_sha" == "$actual_payload_sha" ]] || die "restored payload checksum mismatch"
+expected_backup_id=$(jq -er '.backupId | strings' "$manifest")
+expected_dump_sha=$(jq -er '.dumpSha256 | strings | select(test("^[0-9a-f]{64}$"))' "$manifest")
+expected_env_sha=$(jq -er '.productionEnvSha256 | strings | select(test("^[0-9a-f]{64}$"))' "$manifest")
+expected_ops_sha=$(jq -er '.productionOpsEnvSha256 | strings | select(test("^[0-9a-f]{64}$"))' "$manifest")
+expected_keys_sha=$(jq -er '.dataProtectionSha256 | strings | select(test("^[0-9a-f]{64}$"))' "$manifest")
+actual_dump_sha=$(sha256sum "$dump" | awk '{print $1}')
+actual_env_sha=$(sha256sum "$env_file" | awk '{print $1}')
+actual_ops_sha=$(sha256sum "$ops_file" | awk '{print $1}')
+actual_keys_sha=$(directory_sha256 "$keys")
+[[ "$expected_dump_sha" == "$actual_dump_sha" ]] || die "restored dump checksum mismatch"
+[[ "$expected_env_sha" == "$actual_env_sha" && "$expected_ops_sha" == "$actual_ops_sha" && "$expected_keys_sha" == "$actual_keys_sha" ]] || die "restored configuration or Data Protection checksum mismatch"
+jq -e --slurpfile manifest "$manifest" --arg snapshot "$snapshot" --arg backupId "$expected_backup_id" \
+    '.snapshot == $snapshot and .reference == ("restic:snapshot:" + $snapshot) and .backupId == $backupId and .payloadSha256 == $manifest[0].payloadSha256 and .dumpSha256 == $manifest[0].dumpSha256 and .productionEnvSha256 == $manifest[0].productionEnvSha256 and .productionOpsEnvSha256 == $manifest[0].productionOpsEnvSha256 and .dataProtectionSha256 == $manifest[0].dataProtectionSha256' \
+    "$receipt" >/dev/null || die "snapshot receipt and restored manifest do not match"
+jq -e --arg backupId "$expected_backup_id" --arg dumpSha "$expected_dump_sha" --arg envSha "$expected_env_sha" --arg opsSha "$expected_ops_sha" --arg keysSha "$expected_keys_sha" \
+    '.backupId == $backupId and .dumpSha256 == $dumpSha and .productionEnvSha256 == $envSha and .productionOpsEnvSha256 == $opsSha and .dataProtectionSha256 == $keysSha' "$payload_manifest" >/dev/null || die "payload manifest does not match the recorded snapshot"
+
+docker image inspect "$BINGO_POSTGRES_IMAGE" >/dev/null 2>&1 || die "host PostgreSQL verification image is not available"
+password=$(openssl rand -hex 24)
+run_logged "isolated PostgreSQL start" docker run --detach --network none --name "$container" -e POSTGRES_PASSWORD="$password" "$BINGO_POSTGRES_IMAGE"
+for i in $(seq 1 60); do
+    docker exec -e PGPASSWORD="$password" "$container" pg_isready -U postgres >/dev/null 2>&1 && break
+    [[ "$i" == 60 ]] && die "isolated PostgreSQL did not become ready"
+    sleep 2
+done
+run_logged "isolated database create" docker exec -e PGPASSWORD="$password" "$container" psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres -c 'CREATE DATABASE bingo_restore_verify;'
+run_logged "isolated PostgreSQL restore" docker exec -i -e PGPASSWORD="$password" "$container" pg_restore --exit-on-error --no-owner --no-privileges -U postgres -d bingo_restore_verify <"$dump"
+run_logged "isolated restore query" docker exec -e PGPASSWORD="$password" "$container" psql -X -v ON_ERROR_STOP=1 -U postgres -d bingo_restore_verify -c 'SELECT 1;'
+
+if [[ "$install_config" == true ]]; then
+    [[ "$OPS_CONFIG" == /etc/bingo/production-ops.env && "$BINGO_ENV_FILE" == /etc/bingo/production.env ]] || die "configuration restore targets are not the approved /etc/bingo files"
+    require_root_path /etc/bingo
+    install -o 0 -g 0 -m 600 "$env_file" /etc/bingo/production.env
+    install -o 0 -g 0 -m 600 "$ops_file" /etc/bingo/production-ops.env
+    require_root_file /etc/bingo/production.env
+    require_root_file /etc/bingo/production-ops.env
+    log_line "configuration restored from snapshot=$snapshot"
+fi
+log_line "isolated restore verified snapshot=$snapshot dump_sha256=$actual_dump_sha"
+printf 'verified snapshot %s (dump sha256 %s)\n' "$snapshot" "$actual_dump_sha"

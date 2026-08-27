@@ -1,12 +1,13 @@
 # Production topology
 
 This is the provider-neutral deployment contract for one VPS. It uses the
-reviewed web image and standard Docker Compose; provider provisioning,
-deployment automation, backups, restore rehearsal, and monitoring remain later
-release passes. The application operations in this document are implemented in
-Production Release Pass 2. Production Release Pass 3 publishes a release
-candidate to GHCR and records a non-mutating promotion receipt; it does not
-deploy or change production.
+reviewed web image and standard Docker Compose. The application operations are
+implemented in Production Release Pass 2; Pass 3 publishes a release
+candidate and records a non-mutating promotion receipt; Pass 4 adds the
+repository-side deployment, backup, restore-verification, and operator
+runbook contract. Provider provisioning and production mutation remain
+explicit operator decisions. See [`PRODUCTION_RUNBOOK.md`](PRODUCTION_RUNBOOK.md)
+for the one-time bootstrap and repeat-operation procedures.
 
 ## Services and network
 
@@ -94,11 +95,12 @@ is authoritative. CI uploads a short-lived candidate receipt bound to the
 source SHA, digest, image, platform, and CI run.
 
 The manual production-promotion workflow can be dispatched only from `main`.
-It validates the selected successful CI run and exact candidate receipt, then
-uploads a promotion receipt. It references the `production` environment with
-`deployment: false`, so it does not create a deployment record or mutate
-production. The environment's required reviewers and other protection rules
-must be configured externally before this is an enforceable approval gate.
+Both modes validate the selected successful CI run and exact candidate receipt
+before entering the `production` Environment. `promote` preserves the
+non-mutating receipt with `deployment: false`; `deploy` receives one approval,
+uses `concurrency: production` without cancellation, and calls only the
+root-owned host command over strict native OpenSSH. GitHub carries no
+application or infrastructure secret.
 
 GHCR is assumed private by default. Do not change package visibility or create
 the package/environment as part of this repository pass. Before Pass 4, confirm
@@ -147,6 +149,7 @@ docker compose --env-file deploy/production.env.example \
 The rendered configuration should contain `caddy`, `web`, and `postgres`, one
 private network, five named volumes, public ports only on Caddy, and no
 PostgreSQL host-port mapping. Pass 4 is the explicit deployment boundary: only
-after backup, tested restore, rollback, and release rehearsal exist may an
-operator replace the dummy GHCR digest with the reviewed published digest,
-supply real secret values, run controlled migrations, and mutate the VPS.
+after backup, isolated restore verification, rollback rehearsal, and host
+bootstrap exist may an operator replace the dummy GHCR digest with the reviewed
+published digest, supply real host-side secret values, run controlled
+migrations, and mutate the VPS.

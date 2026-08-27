@@ -7,9 +7,9 @@ historical material is preserved separately and is non-authoritative.
 
 - Path: `/Users/christopher/Documents/BingoWebpage`
 - Branch: `production-release-pipeline`
-- Base commit: `52ec8494c6792f1f1f4ccd5893ac0cdb11cb74a3`
+- Base commit: `42def1766f1ef7c3372d2b9f7f49b788ca29c429` (Pass 3)
 - Tracking: no upstream is configured for the release-planning branch.
-- The UI overhaul is merged and pushed to `main` at the base commit above.
+- The UI overhaul is merged and pushed to `main` at `52ec8494c6792f1f1f4ccd5893ac0cdb11cb74a3`.
 - Preserve the local developer-only `launchSettings.json` override and `tmp/`,
   including the quarantined duplicate files moved under
   `tmp/quarantine-untracked-duplicates-20260827`. They are outside the release
@@ -211,13 +211,38 @@ passing Danish-first focused regression. The demonstrated Landing `VIS BRÆT`
 residual remains queued until L2 completes. The additional review/audit order is
 frozen in steps 4–10 above.
 
-The initial live-release policy is now recorded in
-`TECHNICAL_ARCHITECTURE.md` §12.1: merging to `main`, building a release, and
-deploying production are separate operations. The intended policy is automatic
-test/build after merge with an explicit manual production approval that triggers
-automated container replacement and health checks. This CI/deployment workflow
-is not implemented yet; it must be prepared and rehearsed before the first live
-release, and merging to `main` alone currently updates no live server.
+The initial live-release policy is recorded in `TECHNICAL_ARCHITECTURE.md`
+§12.1: merging to `main`, building a release, and deploying production are
+separate operations. The repository-side Pass 4 workflow and host contract are
+now implemented below; merging to `main` still does not update live production
+without the explicit deploy mode and Environment approval.
+
+## Pass 4 repository handoff — 2026-08-28
+
+The Pass 4 repository contract is implemented on `production-release-pipeline`
+at HEAD `42def1766f1ef7c3372d2b9f7f49b788ca29c429` and remains uncommitted for
+independent review. The existing promotion workflow now validates before the
+production Environment and supports non-mutating `promote` plus one-approved,
+non-cancelling `deploy`. Deploy transports only SSH data and validated release
+metadata, then calls the root-owned host command.
+
+Repository-side host scripts, root-only config examples, systemd backup
+unit/timer, and the deployment/recovery/evidence runbook are under `deploy/`
+and `docs/PRODUCTION_RUNBOOK.md`. They implement exact digest deployment,
+backup before every deploy, encrypted restic storage with cleanup-trapped
+temporary payloads, isolated snapshot-matched restore verification, explicit
+configuration restore confirmation, clean/retained migration ordering,
+migration-aware rollback, public HTTPS health, secret-free success/failure
+receipts, and database-stored evidence hash verification. No application,
+schema, provider, account, DNS, or production resource changed.
+
+Focused verification passed for Bash syntax/input rejection, workflow YAML and
+pin/permission inspection, Compose rendering with placeholders, receipt and
+secret-leak checks, documentation links, and `git diff --check`. Docker restore
+is unverified because the local Docker API denied access to
+`~/.docker/run/docker.sock`; no dependent Docker command was retried. Do not
+stage, commit, push, provision, or deploy. Existing dirty `UI_PAGE_MATRIX.md`,
+`launchSettings.json`, and `tmp/` remain outside this pass.
 
 ## Functional position
 
