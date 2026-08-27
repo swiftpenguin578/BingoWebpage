@@ -2,8 +2,9 @@
 
 This is the provider-neutral deployment contract for one VPS. It uses the
 reviewed web image and standard Docker Compose; provider provisioning, CI/image
-publication, deployment automation, backups, restore rehearsal, monitoring,
-and application data-protection wiring are later release passes.
+publication, deployment automation, backups, restore rehearsal, and monitoring
+remain later release passes. The application operations in this document are
+implemented in Production Release Pass 2.
 
 ## Services and network
 
@@ -33,9 +34,10 @@ SignalR proxy path is required.
 | `bingo-production-caddy-data` | `/data` | Caddy certificates and state |
 | `bingo-production-caddy-config` | `/config` | Caddy runtime config state |
 
-`DataProtection__KeyRingPath` is exposed as the provider-neutral future key-ring
-setting and its volume is mounted now. Pass 2 must wire that setting into the
-application; this pass does not change application key persistence.
+`DataProtection__KeyRingPath` is persisted by the Production application and
+validated before it serves. The web image must be able to create and write the
+mounted directory; Compose's short-lived `web-init` service establishes that
+ownership before `web` starts.
 
 ## Configuration
 
@@ -67,26 +69,45 @@ standard ASP.NET container switch, selects R2, and points the catalogue cache
 at its persistent volume. Development fake WOM settings and development
 credentials are not part of this topology.
 
+## Application operations
+
+- Production uses the built-in JSON console logger and does not trust arbitrary
+  external forwarded headers. Caddy remains the only public proxy and
+  overwrites forwarded headers.
+- `/health/live` is a public, cheap liveness response. `/health/ready` checks
+  PostgreSQL, R2 bucket reachability, and timely heartbeats from both hosted
+  workers. Caddy returns 404 for `/health/ready`; Compose probes it directly on
+  the private web container and starts Caddy only after web is healthy.
+- `--migrate` is the only explicit migration command. Normal Production
+  startup never migrates. `--production-preflight` is read-only and requires
+  no pending migrations, usable R2, a complete catalogue baseline, and exactly
+  one active Super Admin. Wise Old Man requests do not gate readiness.
+
 ## Clean initial start
 
 Production startup intentionally requires exactly one active Super Admin. For
 an empty database, an operator with the real environment file should:
 
 1. Start only PostgreSQL and wait for its health check.
-2. Run the reviewed image once with `--apply-catalogue-snapshot`; that command
-   applies migrations and the tracked catalogue snapshot.
-3. Run the reviewed image once with
+2. Run the reviewed image once with `--migrate`.
+3. Run the reviewed image once with `--apply-catalogue-snapshot`; migrations
+   must already be applied.
+4. Run the reviewed image once with
    `--slice1-bootstrap-owner --username <owner> --confirm-username <owner>`.
    The command consumes `Slice1__BootstrapOwnerPassword` from the environment.
-4. Start `web` and `caddy`, then run the release smoke checks. Catalogue-image
+5. Run the read-only `--production-preflight` with the reviewed image.
+6. Start `web` and `caddy`, then run the release smoke checks. Catalogue-image
    prewarming, if selected, uses the existing `--sync-catalogue-images`
    command after the application is configured.
 
-This pass does not run those commands or touch a provider, server, DNS,
-credentials, or production data. Retained-database migration preflight,
-controlled deployment/migration, backup and restore, rollback, health and
-background-service operations, monitoring, rehearsal, and operator runbooks
-remain later passes.
+For retained data, run the existing `--slice1-migration-preflight` only when
+crossing that legacy boundary and correct the specifically reported rows.
+Then run `--migrate`, `--production-preflight`, and replace `web`. Never apply
+the catalogue snapshot to retained data; it deactivates records absent from
+the snapshot.
+
+These commands do not touch provider resources, DNS, credentials, or
+production data unless an operator runs them against that environment.
 
 ## Safe validation
 

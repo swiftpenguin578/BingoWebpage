@@ -1,4 +1,5 @@
 {$BINGO_DOMAIN} {
     encode zstd gzip
+    respond /health/ready 404
     reverse_proxy web:8080
 }

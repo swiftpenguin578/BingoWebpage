@@ -689,6 +689,36 @@ assumptions. CI/image publication, application operations and health components,
 deployment automation, provider setup, backup/restore, rehearsal, and release
 remain later passes.
 
+**Production Release Pass 2 — application operations, complete and
+independently cleared 2026-08-27.** Persist and startup-validate the configured Production
+data-protection key ring; retain the private-Caddy forwarded-header model; use
+the built-in Production JSON console logger; keep public `/health/live` cheap;
+make container-internal `/health/ready` gate PostgreSQL, configured R2 bucket
+reachability, and timely heartbeats from both existing hosted workers; keep Wise
+Old Man non-blocking; add explicit migration and read-only production-preflight
+commands without normal-startup migration; and initialize non-root ownership of
+the writable data-protection and catalogue-cache volumes. Clean setup runs
+migrate, catalogue snapshot, owner bootstrap, preflight, then web/Caddy. Retained
+data runs the legacy Slice 1 preflight only when crossing that boundary, then
+migrate, production preflight, and replacement; never apply the catalogue
+snapshot to retained data.
+
+The Pass 2 complexity budget is zero tables, schema migrations, product routes,
+policies, jobs, NuGet dependencies, CI/deployment/provider work, or generalized
+frameworks. Extend existing startup, health, worker, storage, command, and
+Compose code; add only the smallest validator, heartbeat state, R2 availability
+probe, and volume-permission/health-probe wiring demonstrated necessary by the
+readiness review. Preserve Development and all product/UI/domain behavior. CI,
+deployment automation, provider setup, backup/restore/rollback runbooks,
+rehearsal, final release, asset work, and monitoring-vendor selection remain
+Pass 3 or later.
+
+Release Web and IntegrationTests builds, Production Compose rendering, scoped
+diff/secret checks, and the built-in .NET readiness-probe command pass. Focused
+test execution and immutable-image execution remain unverified because the host
+denies the test runner listener and local Docker API respectively; neither is a
+known failure. No production or provider resource was changed.
+
 ## 4. Dependencies, approvals, and stop rules
 
 - Use `UI_SYSTEM.md` for global UI rules and `UI_PAGE_MATRIX.md` for page

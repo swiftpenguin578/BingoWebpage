@@ -52,6 +52,25 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      web-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "dotnet", "Bingo.Web.dll", "--health-probe"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  web-init:
+    image: ${BINGO_WEB_IMAGE:?Set BINGO_WEB_IMAGE to the reviewed GHCR image digest}
+    user: "0:0"
+    entrypoint: ["sh", "-c"]
+    command: ["mkdir -p /var/lib/bingo/data-protection-keys /var/lib/bingo/catalogue-images && chown -R 1654:1654 /var/lib/bingo/data-protection-keys /var/lib/bingo/catalogue-images"]
+    volumes:
+      - bingo-production-data-protection:/var/lib/bingo/data-protection-keys
+      - bingo-production-catalogue-images:/var/lib/bingo/catalogue-images
+    networks:
+      - bingo-private
 
   caddy:
     image: caddy:2-alpine
@@ -69,7 +88,8 @@ services:
     networks:
       - bingo-private
     depends_on:
-      - web
+      web:
+        condition: service_healthy
 
 networks:
   bingo-private:

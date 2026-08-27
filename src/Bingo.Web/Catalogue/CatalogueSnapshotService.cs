@@ -110,6 +110,22 @@ public sealed class CatalogueSnapshotService(ApplicationDbContext db, TimeProvid
         return snapshot.Counts;
     }
 
+    public async Task ValidateBaselineAsync(string path, CancellationToken cancellationToken = default)
+    {
+        var snapshot = JsonSerializer.Deserialize<CatalogueSnapshot>(await File.ReadAllTextAsync(path, cancellationToken), JsonOptions)
+            ?? throw new InvalidOperationException("The catalogue snapshot is empty or invalid.");
+        if (snapshot.SchemaVersion != 1 || snapshot.Bosses.Length == 0 || snapshot.Items.Length == 0 || snapshot.Drops.Length == 0)
+            throw new InvalidOperationException("The catalogue baseline is invalid.");
+
+        var activeBossIds = snapshot.Bosses.Where(x => x.Active).Select(x => x.Id).ToArray();
+        var activeItemIds = snapshot.Items.Where(x => x.Active).Select(x => x.Id).ToArray();
+        var activeDropIds = snapshot.Drops.Where(x => x.Active).Select(x => x.Id).ToArray();
+        if (await db.BossActivities.CountAsync(x => x.Active && activeBossIds.Contains(x.Id), cancellationToken) != activeBossIds.Length ||
+            await db.CatalogueItems.CountAsync(x => x.Active && activeItemIds.Contains(x.Id), cancellationToken) != activeItemIds.Length ||
+            await db.SourceDrops.CountAsync(x => x.Active && activeDropIds.Contains(x.Id), cancellationToken) != activeDropIds.Length)
+            throw new InvalidOperationException("The catalogue baseline is incomplete.");
+    }
+
     public sealed record CatalogueSnapshot(int SchemaVersion, DateTimeOffset ExportedAt, BossRecord[] Bosses, ItemRecord[] Items, DropRecord[] Drops)
     {
         [JsonIgnore]

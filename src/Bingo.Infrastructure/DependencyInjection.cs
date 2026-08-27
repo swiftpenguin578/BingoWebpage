@@ -46,7 +46,10 @@ public static class DependencyInjection
         services.AddScoped<EventParticipantCharacterService>();
         services.AddScoped<IParticipantLiveService, ParticipantLiveService>();
         if (string.Equals(configuration["EvidenceStorage:Provider"], "R2", StringComparison.OrdinalIgnoreCase))
-            services.AddSingleton<IEvidenceStorage, R2EvidenceStorage>();
+        {
+            services.AddSingleton<R2EvidenceStorage>();
+            services.AddSingleton<IEvidenceStorage>(serviceProvider => serviceProvider.GetRequiredService<R2EvidenceStorage>());
+        }
         else
             services.AddSingleton<IEvidenceStorage, LocalEvidenceStorage>();
         services.AddScoped<ISubmissionService, SubmissionService>();

@@ -21,6 +21,7 @@ using Bingo.Web.Catalogue;
 using Bingo.Web.Events;
 using Bingo.Web.Hubs;
 using Bingo.Web.Navigation;
+using Bingo.Web.Operations;
 using Bingo.Web.Security;
 using Bingo.Web.Teams;
 using Bingo.Web.TestData;
@@ -28,6 +29,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authentication.OAuth.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
@@ -37,9 +39,22 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Localization;
+using Microsoft.Extensions.Logging;
+
+if (args.Contains("--health-probe", StringComparer.Ordinal))
+{
+    Environment.ExitCode = await ProbeReadinessAsync();
+    return;
+}
 
 var resetTestData = args.Contains("--reset-test-data", StringComparer.Ordinal);
 var builder = WebApplication.CreateBuilder(args);
+
+if (builder.Environment.IsProduction())
+{
+    builder.Logging.ClearProviders();
+    builder.Logging.AddJsonConsole();
+}
 
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 builder.Services.Configure<RequestLocalizationOptions>(options =>
@@ -62,7 +77,9 @@ builder.Services.AddRazorPages(options =>
 }).AddDataAnnotationsLocalization(options =>
     options.DataAnnotationLocalizerProvider = (_, factory) => factory.Create(typeof(Bingo.Web.SharedResource)));
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddDataProtection();
+var dataProtection = builder.Services.AddDataProtection();
+if (builder.Environment.IsProduction())
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(ProductionPreflight.RequireAbsoluteKeyRingPath(builder.Configuration)));
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IProgressNotifier, SignalRProgressNotifier>();
 builder.Services.AddScoped<IAdminCollaborationNotifier, SignalRAdminCollaborationNotifier>();
@@ -125,11 +142,13 @@ builder.Services.AddHttpClient("OsrsWikiImages", client =>
 builder.Services.AddSingleton<OsrsWikiImageCache>();
 builder.Services.AddScoped<OsrsWikiCatalogueDryRunService>();
 builder.Services.AddScoped<CatalogueSnapshotService>();
+builder.Services.AddScoped<ProductionPreflight>();
 builder.Services.AddScoped<DevelopmentScenarioSeeder>();
 builder.Services.AddScoped<SharedShellService>();
 builder.Services.AddScoped<PublicTeamImageService>();
 builder.Services.AddScoped<PublicBoardImageService>();
 builder.Services.AddScoped<EventMutationCapabilityPageFilter>();
+builder.Services.AddSingleton<WorkerHeartbeatRegistry>();
 builder.Services.AddHostedService<EventLifecycleWorker>();
 builder.Services.AddHostedService<EventCompetitionSynchronizationWorker>();
 builder.Services.AddScoped<IAuthorizationHandler, AccountAuthorizationHandler>();
@@ -220,10 +239,31 @@ builder.Services
         name: "postgresql",
         failureStatus: HealthStatus.Unhealthy,
         tags: ["ready"]);
+if (builder.Environment.IsProduction())
+    builder.Services.AddHealthChecks().AddCheck<ProductionReadinessHealthCheck>("production-operations", tags: ["ready"]);
 
 var app = builder.Build();
 
 var catalogueSnapshotPath = Path.Combine(app.Environment.ContentRootPath, CatalogueSnapshotService.DefaultRelativePath);
+
+if (app.Environment.IsProduction())
+    ProductionPreflight.ValidateDataProtection(app.Services, app.Configuration);
+
+if (args.Contains("--migrate", StringComparer.Ordinal))
+{
+    await using var migrationScope = app.Services.CreateAsyncScope();
+    await migrationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
+    Console.WriteLine("Database migrations applied.");
+    return;
+}
+
+if (args.Contains("--production-preflight", StringComparer.Ordinal))
+{
+    await using var preflightScope = app.Services.CreateAsyncScope();
+    await preflightScope.ServiceProvider.GetRequiredService<ProductionPreflight>().ValidateAsync(catalogueSnapshotPath, CancellationToken.None);
+    Console.WriteLine("Production preflight passed.");
+    return;
+}
 
 if (args.Contains("--export-catalogue-snapshot", StringComparer.Ordinal))
 {
@@ -297,7 +337,7 @@ if (args.Contains("--apply-catalogue-snapshot", StringComparer.Ordinal))
 {
     await using var snapshotScope = app.Services.CreateAsyncScope();
     var snapshotDb = snapshotScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await snapshotDb.Database.MigrateAsync();
+    if (!app.Environment.IsProduction()) await snapshotDb.Database.MigrateAsync();
     var snapshots = snapshotScope.ServiceProvider.GetRequiredService<CatalogueSnapshotService>();
     var result = await snapshots.ApplyAsync(catalogueSnapshotPath);
     Console.WriteLine($"Catalogue snapshot applied from {catalogueSnapshotPath}: {result.Bosses} bosses, {result.Items} items, {result.Drops} drops.");
@@ -306,9 +346,8 @@ if (args.Contains("--apply-catalogue-snapshot", StringComparer.Ordinal))
 
 if (app.Environment.IsProduction())
 {
-    await using var ownerScope = app.Services.CreateAsyncScope();
-    var ownerCount = await ownerScope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Accounts.CountAsync(account => account.Active && account.GlobalRole == GlobalRole.SuperAdmin);
-    if (ownerCount != 1) throw new InvalidOperationException("Production startup requires exactly one active Super Admin. Use the controlled bootstrap, retained-owner promotion, or recovery command before starting normally.");
+    await using var preflightScope = app.Services.CreateAsyncScope();
+    await preflightScope.ServiceProvider.GetRequiredService<ProductionPreflight>().ValidateAsync(catalogueSnapshotPath, CancellationToken.None);
 }
 
 if (args.Contains("--apply-wiki-catalogue", StringComparer.Ordinal))
@@ -569,5 +608,20 @@ app.MapHub<AdminCollaborationHub>("/hubs/admin-collaboration");
 app.MapHub<TeamFocusHub>("/hubs/team-focus");
 
 app.Run();
+
+static async Task<int> ProbeReadinessAsync()
+{
+    try
+    {
+        using var handler = new SocketsHttpHandler { UseProxy = false, AllowAutoRedirect = false };
+        using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(2) };
+        using var response = await client.GetAsync("http://127.0.0.1:8080/health/ready", HttpCompletionOption.ResponseHeadersRead);
+        return response.IsSuccessStatusCode ? 0 : 1;
+    }
+    catch
+    {
+        return 1;
+    }
+}
 
 public partial class Program;

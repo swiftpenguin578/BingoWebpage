@@ -1,5 +1,6 @@
 using Bingo.Application.Events;
 using Bingo.Infrastructure.WiseOldMan;
+using Bingo.Web.Operations;
 using Microsoft.Extensions.Options;
 
 namespace Bingo.Web.Events;
@@ -9,12 +10,14 @@ public sealed partial class EventCompetitionSynchronizationWorker(
     TimeProvider time,
     IHostEnvironment environment,
     IOptions<WiseOldManOptions> wiseOldManOptions,
+    WorkerHeartbeatRegistry heartbeats,
     ILogger<EventCompetitionSynchronizationWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
+            heartbeats.Beat(WorkerHeartbeatRegistry.CompetitionSynchronizationWorker);
             try
             {
                 if (environment.IsDevelopment() && !wiseOldManOptions.Value.DevelopmentFake.AutomaticSynchronizationEnabled)

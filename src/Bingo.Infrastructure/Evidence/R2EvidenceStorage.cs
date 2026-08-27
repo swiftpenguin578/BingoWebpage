@@ -18,14 +18,34 @@ public sealed class R2EvidenceStorage : IEvidenceStorage, IDisposable
         var accessKeyId = Required(section["AccessKeyId"], "EvidenceStorage:R2:AccessKeyId");
         var secretAccessKey = Required(section["SecretAccessKey"], "EvidenceStorage:R2:SecretAccessKey");
         bucket = Required(section["Bucket"], "EvidenceStorage:R2:Bucket");
+        var serviceUrl = string.IsNullOrWhiteSpace(section["ServiceUrl"])
+            ? $"https://{accountId}.r2.cloudflarestorage.com"
+            : section["ServiceUrl"]!;
+        if (!Uri.TryCreate(serviceUrl, UriKind.Absolute, out var endpoint) || endpoint.Scheme != Uri.UriSchemeHttps)
+            throw new InvalidOperationException("The required setting 'EvidenceStorage:R2:ServiceUrl' must be an absolute HTTPS URL.");
         var config = new AmazonS3Config
         {
-            ServiceURL = section["ServiceUrl"] ?? $"https://{accountId}.r2.cloudflarestorage.com",
+            ServiceURL = endpoint.ToString(),
             ForcePathStyle = true,
             AuthenticationRegion = "auto"
         };
         client = new AmazonS3Client(new BasicAWSCredentials(accessKeyId, secretAccessKey), config);
     }
+
+    public static void ValidateConfiguration(IConfiguration configuration)
+    {
+        var section = configuration.GetSection("EvidenceStorage:R2");
+        Required(section["AccountId"], "EvidenceStorage:R2:AccountId");
+        Required(section["AccessKeyId"], "EvidenceStorage:R2:AccessKeyId");
+        Required(section["SecretAccessKey"], "EvidenceStorage:R2:SecretAccessKey");
+        Required(section["Bucket"], "EvidenceStorage:R2:Bucket");
+        var serviceUrl = Required(section["ServiceUrl"], "EvidenceStorage:R2:ServiceUrl");
+        if (!Uri.TryCreate(serviceUrl, UriKind.Absolute, out var endpoint) || endpoint.Scheme != Uri.UriSchemeHttps)
+            throw new InvalidOperationException("The required setting 'EvidenceStorage:R2:ServiceUrl' must be an absolute HTTPS URL.");
+    }
+
+    public Task CheckAvailabilityAsync(CancellationToken cancellationToken = default) =>
+        client.HeadBucketAsync(new HeadBucketRequest { BucketName = bucket }, cancellationToken);
 
     public async Task<StoredEvidence> StoreAsync(Guid eventId, Guid submissionId, string originalFilename, Stream content, CancellationToken cancellationToken = default)
     {

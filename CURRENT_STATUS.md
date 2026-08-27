@@ -10,16 +10,17 @@ historical material is preserved separately and is non-authoritative.
 - Base commit: `52ec8494c6792f1f1f4ccd5893ac0cdb11cb74a3`
 - Tracking: no upstream is configured for the release-planning branch.
 - The UI overhaul is merged and pushed to `main` at the base commit above.
-- Preserve the local developer-only `launchSettings.json` override, `tmp/`, and
-  the unexpected untracked duplicate files ending in ` 2` that first appeared
-  after the push. They are outside the release candidate and must remain
-  excluded from authority searches, staging, and review pending user-directed
-  cleanup.
+- Preserve the local developer-only `launchSettings.json` override and `tmp/`,
+  including the quarantined duplicate files moved under
+  `tmp/quarantine-untracked-duplicates-20260827`. They are outside the release
+  candidate and must remain excluded from authority searches, staging, and
+  review.
 
 ## Active production-release handoff
 
 Production is unchanged. Production Release Pass 1 (provider-neutral topology)
-completed on 2026-08-27: `compose.production.yml`, the Caddy site configuration,
+completed and was independently cleared on 2026-08-27 at commit `11801c5`:
+`compose.production.yml`, the Caddy site configuration,
 the non-secret production environment template, and the topology/operator
 contract are present. Compose renders with safe placeholders and has one web
 replica, PostgreSQL without a published host port, Caddy on 80/443, one private
@@ -27,10 +28,42 @@ network, five persistent volumes, and an immutable web-image input. Caddy image
 syntax validation was skipped because `caddy:2-alpine` was not cached; no image
 was pulled and no production system was touched.
 
-The next proposed task is Production Release Pass 2 for application operations:
-wire the mounted data-protection key-ring path and implement the approved
-production health/operational components. It requires user authorization and
-the required independent readiness review before implementation.
+Production Release Pass 2 implemented and was independently cleared on
+2026-08-27. The completed pass persists and startup-validates the Production
+data-protection key ring; retains the existing private-Caddy forwarded-header
+model; uses the built-in Production JSON console logger; keeps public
+`/health/live` cheap while making internal
+`/health/ready` gate PostgreSQL, configured R2 reachability, and both hosted
+worker heartbeats; adds explicit migration and read-only production-preflight
+commands without normal-startup migration; and initializes ownership of the two
+writable application volumes for the non-root web image. Wise Old Man remains
+non-blocking. Clean and retained database ordering must preserve the reviewed
+catalogue/preflight rules.
+
+Pass 2 has a zero budget for tables, schema migrations, product routes, policies,
+jobs, NuGet dependencies, CI/deployment/provider work, and generalized
+frameworks. It may add at most one small startup validator, one worker-heartbeat
+registry, focused readiness checks, one R2 availability method using the
+existing SDK, and minimal Compose volume-permission/runtime health-probe wiring.
+Development and all product/UI/domain behavior remain unchanged.
+
+The Release Web and IntegrationTests builds, Production Compose rendering,
+scoped diff/secret checks, and the reviewed built-in `dotnet Bingo.Web.dll
+--health-probe` command pass. Focused test execution remains unverified because
+this host denies the test runner's TCP listener; immutable-image execution also
+remains unverified because the local Docker API is unavailable. These are
+recorded environment limitations, not known failures. No image was pulled and
+no production system was changed.
+
+Pass 2 implementation is now present in the working tree and is awaiting the
+required independent review. The implementation adds Production-only key-ring
+validation and JSON logging, internal readiness checks for PostgreSQL/R2 and
+both worker heartbeats, explicit `--migrate` and `--production-preflight`
+commands, and short-lived Compose ownership initialization. No commit, image
+pull, deployment, provider operation, or production mutation was performed.
+The Release Web and IntegrationTests projects build successfully through the
+single-node MSBuild path; focused test execution is unverified because the
+host denies the test runner's TCP listener (`SocketException (13)`).
 
 Retain the complete infrastructure and operational checklist, including
 optional but prudent safety items. At the deployment step where an item becomes
