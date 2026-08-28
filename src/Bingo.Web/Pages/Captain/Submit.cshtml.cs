@@ -15,7 +15,8 @@ namespace Bingo.Web.Pages.Captain;
 [RequestSizeLimit(11 * 1024 * 1024)]
 public sealed class SubmitModel(ApplicationDbContext db, ISubmissionService submissions, IEvidenceAuthority evidenceAuthority, TimeProvider time, IStringLocalizer<SharedResource> text, ILogger<SubmitModel> logger) : PageModel
 {
-    public TileDetails? Tile { get; private set; } public IReadOnlyList<TileOption> Tiles { get; private set; } = []; public IReadOnlyList<PlayerView> Players { get; private set; } = []; public IReadOnlyList<RequirementView> Requirements { get; private set; } = [];
+    public TileDetails? Tile { get; private set; }
+    public IReadOnlyList<TileOption> Tiles { get; private set; } = []; public IReadOnlyList<PlayerView> Players { get; private set; } = []; public IReadOnlyList<RequirementView> Requirements { get; private set; } = [];
     public Guid? DefaultParticipantId { get; private set; }
     public Guid EventId { get; private set; }
     public Guid TeamId { get; private set; }

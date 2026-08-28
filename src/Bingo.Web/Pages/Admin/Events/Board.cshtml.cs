@@ -583,7 +583,8 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
 
     public async Task<IActionResult> OnPostRemoveAsync(Guid id, Guid tileId, CancellationToken ct)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct); var board = await db.Boards.SingleAsync(x => x.EventId == id, ct); if (!board.IsEditable) { SetStatus(Localize("This board is no longer editable."), UiMessageType.Warning); return RedirectToPage(new { id }); } if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id }); if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
+        await using var transaction = await db.Database.BeginTransactionAsync(ct); var board = await db.Boards.SingleAsync(x => x.EventId == id, ct); if (!board.IsEditable) { SetStatus(Localize("This board is no longer editable."), UiMessageType.Warning); return RedirectToPage(new { id }); }
+        if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id }); if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
         var tile = await db.BoardTiles.SingleOrDefaultAsync(x => x.BoardId == board.Id && x.Id == tileId, ct); if (tile is null) return NotFound();
         var requirements = await db.BoardRequirementSnapshots.Where(x => x.BoardTileId == tile.Id).ToListAsync(ct); var ids = requirements.Select(x => x.Id).ToList();
         var images = await db.BoardTileImageAssets.Where(x => x.BoardTileId == tile.Id).ToListAsync(ct);

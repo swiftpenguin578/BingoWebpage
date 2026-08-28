@@ -3,11 +3,11 @@ using Bingo.Application.Access;
 using Bingo.Domain.Access;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
-using Microsoft.Extensions.Localization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Admin.Accounts;
 

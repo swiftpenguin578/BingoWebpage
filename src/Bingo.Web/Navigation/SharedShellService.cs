@@ -7,10 +7,10 @@ using Bingo.Domain.Evidence;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web;
 using Bingo.Web.Security;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
-using Bingo.Web.UI;
 
 namespace Bingo.Web.Navigation;
 
