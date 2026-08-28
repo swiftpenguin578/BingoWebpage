@@ -99,17 +99,19 @@ source SHA, digest, image, platform, and CI run.
 
 The manual production-promotion workflow can be dispatched only from `main`.
 Both modes validate the selected successful CI run and exact candidate receipt
-before entering the `production` Environment. `promote` preserves the
-non-mutating receipt with `deployment: false`; `deploy` receives one approval,
-uses `concurrency: production` without cancellation, and calls only the
-root-owned host command over strict native OpenSSH. GitHub carries no
-application or infrastructure secret.
+before taking action. `promote` preserves the non-mutating receipt;
+`deploy` is started by the explicit manual `workflow_dispatch`, which is the
+user's production approval. It uses `concurrency: production` without
+cancellation and calls only the root-owned host command over strict native
+OpenSSH. The five SSH values—`PRODUCTION_SSH_HOST`, `PRODUCTION_SSH_PORT`,
+`PRODUCTION_SSH_USER`, `PRODUCTION_SSH_KNOWN_HOSTS`, and
+`PRODUCTION_SSH_PRIVATE_KEY`—are repository-level Actions secrets. Application,
+database, R2, Discord, and restic secrets remain on the VPS.
 
-GHCR is assumed private by default. Do not change package visibility or create
-the package/environment as part of this repository pass. Before Pass 4, confirm
-repository visibility and the GitHub plan, because required environment
-reviewers may be limited for private repositories on some plans; decide then
-whether the image remains private.
+GHCR and the GitHub repository remain private on GitHub Free. This workflow does
+not use a GitHub Environment, required reviewer, or environment secret. Do not
+change package visibility or add Environment configuration as part of this
+repository pass.
 
 ## Clean initial start
 

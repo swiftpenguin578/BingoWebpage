@@ -62,10 +62,24 @@ volumes must remain present. Check `systemctl is-active docker` and
 The existing `production-promotion.yml` has two modes. `promote` validates a
 successful `main` CI run, source SHA, candidate artifact, and immutable digest,
 then records the existing non-mutating promotion receipt. `deploy` performs
-the same validation before entering the `production` Environment, receives
-exactly one Environment approval, and uses workflow concurrency `production`
-with cancellation disabled. The deploy job transports only host, port, deploy
-user, pinned known-hosts, private SSH key, and validated release metadata.
+the same validation, and the explicit manual `workflow_dispatch` selecting
+`mode: deploy` is the user's production approval. No GitHub Environment,
+required reviewer, or environment secret is used. The workflow uses
+non-cancelling concurrency `production` and the deploy job transports only
+repository-level Actions secrets `PRODUCTION_SSH_HOST`,
+`PRODUCTION_SSH_PORT`, `PRODUCTION_SSH_USER`, `PRODUCTION_SSH_KNOWN_HOSTS`,
+and `PRODUCTION_SSH_PRIVATE_KEY`, plus validated release metadata.
+
+Dispatch checklist:
+
+1. Select `production-promotion.yml` on the `main` branch; any other ref is
+   rejected.
+2. Supply `source_sha`, `image_digest`, and `ci_run_id` from the same successful
+   `main` CI run that produced the candidate and its candidate receipt. Use the
+   full source SHA, the exact `sha256:` image digest, and the numeric CI run ID.
+3. Select `promote` to record a non-mutating receipt, or select `deploy` to
+   start deployment; the explicit manual `deploy` dispatch is production
+   approval. Candidate and input validation fails closed before either action.
 
 The remote command is the root-owned `bingo-deploy` script. It fails closed on
 bad IDs/digests, missing or broad permissions, unavailable Docker/Compose,

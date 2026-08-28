@@ -544,12 +544,14 @@ rollback action, and whether the release contains a database migration.
 The repository-side Pass 4 contract is implemented by the existing
 `.github/workflows/production-promotion.yml` and the root-owned host commands
 documented in `docs/PRODUCTION_RUNBOOK.md`. Candidate metadata is validated
-before the production Environment; deploy uses one approval and
-non-cancelling `concurrency: production`. GitHub transports only SSH
-deployment data and validated release metadata. Application, database, R2,
-Discord, owner/bootstrap, restic, Data Protection, and production configuration
-secrets remain on the host. Routine deploys replace only `web`, retain Caddy
-and PostgreSQL, and never use a mutable application tag.
+before deployment; the explicit manual `workflow_dispatch` selecting deploy is
+the user's production approval, with no GitHub Environment reviewer gate or
+environment secret. The workflow uses non-cancelling
+`concurrency: production` and transports only repository-level SSH deployment
+secrets and validated release metadata. Application, database, R2, Discord,
+owner/bootstrap, restic, Data Protection, and production configuration secrets
+remain on the host. Routine deploys replace only `web`, retain Caddy and
+PostgreSQL, and never use a mutable application tag.
 
 Database migrations must be designed for safe forward deployment. Application
 rollback cannot automatically reverse a destructive database migration. The

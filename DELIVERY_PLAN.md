@@ -730,12 +730,11 @@ or PR secrets, and full-commit pins for trusted actions.
 
 Add one manual `production-promotion.yml` workflow that runs only from `main`,
 accepts the source SHA, digest, and CI run ID, validates their syntax, proves the
-successful main run's candidate artifact binds the exact values, references the
-`production` environment with `deployment: false`, and emits a promotion
-receipt. It performs no SSH, image pull, migration, Compose operation, or other
-production mutation. Naming an unconfigured environment is not an enforceable
-approval gate; environment creation and required-reviewer setup remain an
-explicit user-guided external step before Pass 4.
+successful main run's candidate artifact binds the exact values, and emits a
+promotion receipt. Its explicit manual `workflow_dispatch` with `mode: deploy`
+is the user's production approval; no GitHub Environment, required reviewer, or
+environment secret is used. It performs no SSH, image pull, migration, Compose
+operation, or other production mutation in `promote` mode.
 
 Actual VPS deployment belongs to Pass 4 after a pre-migration backup, tested
 restore, and rollback contract exist. Pass 3's complexity budget is one extended
@@ -743,17 +742,18 @@ CI workflow, one new promotion workflow, and the two small JSON receipts. Add no
 deployment scripts, third-party deploy action, application/schema change,
 provider account, secret, SSH code, SBOM/signing/provenance framework, build
 cache, multi-architecture image, or production resource. GHCR remains private
-by default; package visibility and the GitHub plan/environment-reviewer choice
-must be confirmed before Pass 4, not changed by repository implementation.
+by default, the repository remains private on GitHub Free, and no Environment
+reviewer or environment secret is required.
 
 **Production Release Pass 4 — repository-side deployment and recovery contract,
 committed through `329e04adaa98a444f69d20aa41385b4ca7426bd3` on 2026-08-28, but
 not yet cleared for push as the production release candidate or for Pass 5.**
 The existing promotion workflow has explicit `promote` and `deploy` modes.
-Candidate validation runs before the production Environment; deploy receives
-one approval, uses non-cancelling `concurrency: production`, and transports
-only SSH data plus validated release metadata. Native OpenSSH invokes the
-narrowly sudoable root-owned host command.
+Candidate validation runs before either action; the explicit manual
+`workflow_dispatch` selecting `mode: deploy` is the user's production approval.
+The workflow uses non-cancelling `concurrency: production` and transports only
+SSH data plus validated release metadata. Native OpenSSH invokes the narrowly
+sudoable root-owned host command.
 
 Add only the minimal host deploy, encrypted restic backup, isolated restore
 verification, and database-stored evidence-integrity scripts; root-only host
@@ -785,13 +785,23 @@ complete: the password is bootstrap-only and root-file supplied, absent from
 the long-running web container and durable backup/config payloads, retained on
 failed initialization, and removed after successful initialization or safe
 resume. Passes 2–3 otherwise cleared, and no P0, secret, or unapproved-scope
-issue was found; provider work, production mutation, and Pass 5 remain out of
-scope.
+issue was found. The correction is committed and pushed through `aa1af77`.
+
+Provider-backed Pass 5 setup began on 2026-08-28 with the user's explicit
+approval. Netcup supplies the Ubuntu 24.04 single VPS; Cloudflare supplies DNS
+and private R2 evidence storage; Backblaze B2 supplies the encrypted restic
+repository. Host bootstrap, restricted deployment access, root-only production
+configuration, named volumes, controlled host images, R2 reachability, an
+encrypted baseline backup, isolated restore verification, the scheduled backup
+timer, and apex DNS resolution are verified. This is infrastructure readiness,
+not a completed rehearsal: candidate deployment, end-to-end journeys, evidence,
+Discord, SignalR, load/capacity, interruption measurement, and recovery against
+the deployed candidate remain required.
 
 The revised production/release order is frozen:
 
-1. Independently re-review the bounded release-blocker correction, then accept/push.
-2. Select a provider and run the provider-backed Pass 5 rehearsal.
+1. Independently re-review the bounded release-blocker correction, then accept/push. **Complete.**
+2. Select a provider and run the provider-backed Pass 5 rehearsal. **In progress.**
 3. Run one Sol High whole-application release-risk review using Pass 5 evidence.
 4. Remediate only concrete findings and rerun affected rehearsal scenarios.
 5. Run the Pass 6 final release gate.
@@ -799,8 +809,8 @@ The revised production/release order is frozen:
 The whole-application review deliberately follows Pass 5 so real VPS/provider,
 backup/restore, load, Discord, R2, SignalR, and health evidence replaces
 assumptions. It must not reopen approved UI or become an unfocused line-by-line
-audit. The correction remains uncommitted for the independent re-review and
-must not expand into provider selection/work or Pass 5.
+audit. The separately reviewed GitHub Free release-control adjustment remains
+uncommitted and must be packaged before publishing the candidate.
 
 ## 4. Dependencies, approvals, and stop rules
 

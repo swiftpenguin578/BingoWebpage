@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Promotion receipt only, or deploy the validated candidate
+        description: Promotion receipt only, or manually approve and start deployment
         required: true
         type: choice
         options: [promote, deploy]
@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   validate-candidate:
-    name: Validate candidate (before production approval)
+    name: Validate candidate for selected action
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -131,10 +131,6 @@ jobs:
     permissions:
       contents: read
       actions: read
-    environment:
-      name: production
-      deployment: false
-
     steps:
       - name: Write promotion receipt
         env:
@@ -173,7 +169,7 @@ jobs:
           retention-days: 30
 
   deploy-production:
-    name: Deploy validated candidate
+    name: Deploy manually approved candidate
     needs: validate-candidate
     if: ${{ inputs.mode == 'deploy' && needs.validate-candidate.result == 'success' }}
     runs-on: ubuntu-latest
@@ -181,10 +177,6 @@ jobs:
     permissions:
       contents: read
       actions: read
-    environment:
-      name: production
-      deployment: true
-
     steps:
       - name: Deploy through pinned host command
         env:

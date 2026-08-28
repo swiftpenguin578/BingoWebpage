@@ -60,21 +60,31 @@ Release Pass 3 cleared on 2026-08-27 with no decision blocking repository-only
 implementation. Pass 3 extends the existing CI so a successful `main` push
 publishes one `linux/amd64` image to a fixed GHCR package and records its source
 commit and immutable digest in a small candidate artifact. A separate manually
-dispatched, `production`-environment-gated workflow validates a selected main
-CI run, source SHA, digest, and candidate artifact, then emits a non-mutating
-promotion receipt with `deployment: false`. It performs no SSH, migration,
-Compose operation, or production mutation.
+dispatched workflow validates a selected main run, source SHA, digest, and
+candidate artifact, then emits a non-mutating promotion receipt in `promote`
+mode. Selecting `mode: deploy` in the explicit manual dispatch is the user's
+production approval; no GitHub Environment reviewer gate or environment secret
+is used. It then performs the validated SSH deployment.
 
-Passes 1–4 are committed through `329e04adaa98a444f69d20aa41385b4ca7426bd3`
-on `production-release-pipeline`, but are not yet cleared for push as the
-production release candidate or for Pass 5. The user-approved Sol High
-integrated review found six Pass 4 cross-pass blockers: self-contained host-loss
-recovery, write quiescence/migration safety, single database authority, physical
-Compose volume identity, clean-vs-retained bootstrap state, and clean-host Caddy
-startup. The user has now authorized one bounded remediation for exactly those
-six findings; no provider work, production mutation, or Pass 5 is included.
-Passes 2–3 otherwise cleared; no P0, secret, or unapproved-scope issue was
-found.
+Passes 1–4 and the accepted release-blocker corrections are committed and pushed
+through `aa1af77` on `production-release-pipeline`. The later GitHub Free
+release-control adjustment—an explicit manual `mode: deploy` dispatch as
+production approval, with no GitHub Environment gate—was independently cleared
+and remains an unstaged six-file workflow/documentation change pending
+packaging.
+
+Provider-backed Pass 5 setup is in progress as of 2026-08-29. The selected
+single VPS is Netcup (Ubuntu 24.04, 2 vCPU, 4 GB RAM, 80 GB); Cloudflare provides
+authoritative DNS and private R2 evidence storage, while Backblaze B2 holds the
+encrypted restic repository. The root-only production, operations, GHCR, R2,
+Discord, bootstrap, and restic configuration is installed without repository
+secrets. Docker/Compose, UFW, the restricted `bingo-deploy` account, reviewed
+host scripts, five named volumes, cached PostgreSQL/Caddy images, R2 bucket
+reachability, an encrypted baseline backup, isolated restore verification, and
+the active backup timer are verified. `dklegacy.dk` resolves by a DNS-only A
+record to the VPS. No application candidate has been deployed; the candidate
+build, application journeys, load/realtime checks, Discord callback, evidence
+round trip, and full Pass 5 rehearsal remain pending.
 
 Retain the complete infrastructure and operational checklist, including
 optional but prudent safety items. At the deployment step where an item becomes
@@ -82,7 +92,8 @@ relevant, present the available providers and tiers, current costs, tradeoffs,
 the recommendation for this hobby project, and the consequence of deferring or
 omitting it. Do not silently remove an optional item. No external account,
 subscription, purchase, paid tier, credential, DNS change, or production
-mutation is authorized without the user's explicit approval.
+mutation beyond the already approved setup above is authorized without the
+user's explicit approval.
 
 ## Pre-commit audit and direct-to-main integration plan
 
@@ -215,8 +226,8 @@ frozen in steps 4–10 above.
 The initial live-release policy is recorded in `TECHNICAL_ARCHITECTURE.md`
 §12.1: merging to `main`, building a release, and deploying production are
 separate operations. Passes 1–4 are committed below; merging to `main` still
-does not update live production without the explicit deploy mode and Environment
-approval.
+does not update live production without the explicit manual `mode: deploy`
+dispatch, which is the user's production approval.
 
 ## Pass 4 repository handoff — 2026-08-28
 
