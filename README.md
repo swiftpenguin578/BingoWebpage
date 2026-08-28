@@ -11,6 +11,9 @@ The repository contains the current version-one functional foundation and an in-
 - Git
 
 See [DEVELOPMENT_SETUP.md](DEVELOPMENT_SETUP.md) for the complete Mac setup.
+The provider-neutral production topology and exact deployment/restore procedure
+are [PRODUCTION_TOPOLOGY.md](docs/PRODUCTION_TOPOLOGY.md) and
+[PRODUCTION_RUNBOOK.md](docs/PRODUCTION_RUNBOOK.md).
 
 ## Run locally
 
@@ -189,7 +192,17 @@ tests/                    Unit, integration, and browser-level tests
 
 The default connection string is intentionally local-only and matches `compose.yml`.
 
-Production secrets must be provided through environment variables or a secret store. Never commit `.env` files or real credentials.
+Production secrets must be provided through environment variables, the documented
+temporary root-only bootstrap password file, or a secret store. Never commit
+`.env` files or real credentials.
+
+Production Compose uses `BINGO_POSTGRES_DB`, `BINGO_POSTGRES_USER`, and
+`BINGO_POSTGRES_PASSWORD` as the one database authority. The application
+connection is constructed from those same values, and the host scripts use
+those variables for PostgreSQL backup, evidence verification, migrations, and
+readiness. Keep a real password in a shell-quoted root-only env file; quoted
+connection fields support ordinary punctuation such as `@`, `#`, `!`, `$`,
+`=`, and `;`.
 
 ## Planning documents
 

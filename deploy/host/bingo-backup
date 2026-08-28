@@ -1,25 +1,49 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 source /usr/local/libexec/bingo-ops-lib.sh
+BINGO_REQUIRE_BOOTSTRAP_STATE=true
 
 require_root
 require_command docker; require_command jq; require_command restic; require_command tar; require_command sha256sum
 ensure_layout
 
 reason=scheduled
-source_sha=none
+requested_source_sha=none
+running_image=__auto__
+running_source_sha=__auto__
 lock_held=false
 while (($#)); do
     case "$1" in
         --reason) reason=${2:-}; shift 2 ;;
-        --source-sha) source_sha=${2:-}; shift 2 ;;
+        --source-sha) requested_source_sha=${2:-}; shift 2 ;;
+        --running-image) running_image=${2:-}; shift 2 ;;
+        --running-source-sha) running_source_sha=${2:-}; shift 2 ;;
         --lock-held) lock_held=true; shift ;;
         *) die "unknown argument" ;;
     esac
 done
 [[ "$reason" =~ ^[A-Za-z0-9._-]+$ ]] || die "invalid backup reason"
-[[ "$source_sha" == none || "$source_sha" =~ ^[0-9a-f]{40}$ ]] || die "invalid source SHA"
+[[ "$requested_source_sha" == none || "$requested_source_sha" =~ ^[0-9a-f]{40}$ ]] || die "invalid source SHA"
 [[ "$lock_held" == true ]] || acquire_lock
+
+if [[ "$running_image" == __auto__ || "$running_source_sha" == __auto__ ]]; then
+    [[ "$running_image" == __auto__ && "$running_source_sha" == __auto__ ]] || die "running image and source revision must be supplied together"
+    web_container=$(compose ps -q web || true)
+    if [[ -n "$web_container" ]]; then
+        running_image=$(docker inspect -f '{{.Config.Image}}' "$web_container")
+        running_source_sha=$(docker inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$web_container" 2>/dev/null || true)
+    else
+        running_image=none
+        running_source_sha=none
+    fi
+fi
+if [[ "$running_image" == none || "$running_source_sha" == none ]]; then
+    [[ "$running_image" == none && "$running_source_sha" == none ]] || die "running image identity is incomplete"
+else
+    [[ "$running_image" == "$BINGO_IMAGE_NAME"@sha256:* ]] || die "running web image is not immutable or host-approved"
+    [[ "$running_image" =~ ^ghcr\.io/[a-z0-9._-]+/[a-z0-9._-]+@sha256:[0-9a-f]{64}$ ]] || die "running web image is invalid"
+    [[ "$running_source_sha" =~ ^[0-9a-f]{40}$ ]] || die "running web source revision is missing or invalid"
+fi
 
 set -a; source "$BINGO_RESTIC_ENV_FILE"; set +a
 export RESTIC_PASSWORD_FILE="$BINGO_RESTIC_PASSWORD_FILE"
@@ -30,8 +54,13 @@ trap cleanup EXIT
 mkdir -p "$stage/data-protection-keys"
 chmod 700 "$stage"
 
-log_line "backup start reason=$reason source_sha=$source_sha"
+log_line "backup start reason=$reason running_source_sha=$running_source_sha"
+if grep -Eq '^[[:space:]]*(export[[:space:]]+)?BINGO_BOOTSTRAP_OWNER_PASSWORD=' "$BINGO_ENV_FILE"; then
+    die "production.env contains a legacy bootstrap password; remove it before backup"
+fi
 run_logged "Compose validation" compose config --quiet
+dp_mount=$(volume_mountpoint bingo-production-data-protection)
+[[ "$BINGO_DATA_PROTECTION_DIR" == "$dp_mount" ]] || die "Data Protection path does not match the physical Compose volume"
 run_logged "PostgreSQL start" compose up -d postgres
 for i in $(seq 1 60); do
     pg_container=$(compose ps -q postgres)
@@ -47,42 +76,55 @@ if compose exec -T postgres pg_dump --format=custom --no-owner --no-privileges -
     redact <"$dump_log" >>"$LOG_FILE"; die "PostgreSQL dump failed; see the redacted root-only log"
 fi
 redact <"$dump_log" >>"$LOG_FILE"
+ migration_history "$stage/migration-history.txt"
 install -m 600 "$BINGO_ENV_FILE" "$stage/production.env"
 install -m 600 "$BINGO_OPS_CONFIG" "$stage/production-ops.env"
+install -m 600 "$BINGO_BOOTSTRAP_STATE_FILE" "$stage/bootstrap-state"
 [[ -d "$BINGO_DATA_PROTECTION_DIR" ]] || die "data-protection directory is missing"
 # The application owns this directory; it must never be world-writable.
 [[ "$(stat -c '%a' "$BINGO_DATA_PROTECTION_DIR")" != *[2367] ]] || die "data-protection directory is too broad"
 cp -a "$BINGO_DATA_PROTECTION_DIR/." "$stage/data-protection-keys/"
 dump_sha=$(sha256sum "$dump" | awk '{print $1}')
+history_sha=$(sha256sum "$stage/migration-history.txt" | awk '{print $1}')
 env_sha=$(sha256sum "$stage/production.env" | awk '{print $1}')
 ops_sha=$(sha256sum "$stage/production-ops.env" | awk '{print $1}')
+state_sha=$(sha256sum "$stage/bootstrap-state" | awk '{print $1}')
 keys_sha=$(directory_sha256 "$stage/data-protection-keys")
 payload_manifest="$stage/payload-manifest.json"
-jq -n --arg backupId "$stamp" --arg reason "$reason" --arg sourceSha "$source_sha" --arg createdAtUtc "$(utc_now)" \
+jq -n --arg backupId "$stamp" --arg reason "$reason" --arg createdAtUtc "$(utc_now)" \
+    --arg runningImage "$running_image" --arg runningSourceSha "$running_source_sha" \
     --arg dumpSha256 "$dump_sha" --arg productionEnvSha256 "$env_sha" --arg productionOpsEnvSha256 "$ops_sha" --arg dataProtectionSha256 "$keys_sha" \
-    '{schemaVersion: 2, backupId: $backupId, reason: $reason, sourceSha: $sourceSha, createdAtUtc: $createdAtUtc, dumpSha256: $dumpSha256, productionEnvSha256: $productionEnvSha256, productionOpsEnvSha256: $productionOpsEnvSha256, dataProtectionSha256: $dataProtectionSha256}' >"$payload_manifest"
+    --arg migrationHistorySha256 "$history_sha" --arg bootstrapStateSha256 "$state_sha" \
+    '{schemaVersion: 3, backupId: $backupId, reason: $reason, createdAtUtc: $createdAtUtc, runningImage: $runningImage, runningSourceSha: $runningSourceSha, dumpSha256: $dumpSha256, migrationHistorySha256: $migrationHistorySha256, productionEnvSha256: $productionEnvSha256, productionOpsEnvSha256: $productionOpsEnvSha256, bootstrapStateSha256: $bootstrapStateSha256, dataProtectionSha256: $dataProtectionSha256}' >"$payload_manifest"
 payload="$stage/payload.tgz"
-tar -C "$stage" -czf "$payload" postgres.dump production.env production-ops.env data-protection-keys payload-manifest.json
+tar -C "$stage" -czf "$payload" postgres.dump migration-history.txt production.env production-ops.env bootstrap-state data-protection-keys payload-manifest.json
 payload_sha=$(sha256sum "$payload" | awk '{print $1}')
 manifest="$stage/backup-manifest.json"
-jq -n --arg backupId "$stamp" --arg reason "$reason" --arg sourceSha "$source_sha" --arg createdAtUtc "$(utc_now)" \
+jq -n --arg backupId "$stamp" --arg reason "$reason" --arg createdAtUtc "$(utc_now)" \
+    --arg runningImage "$running_image" --arg runningSourceSha "$running_source_sha" \
     --arg dumpSha256 "$dump_sha" --arg payloadSha256 "$payload_sha" --arg productionEnvSha256 "$env_sha" \
-    --arg productionOpsEnvSha256 "$ops_sha" --arg dataProtectionSha256 "$keys_sha" \
-    '{schemaVersion: 2, backupId: $backupId, reason: $reason, sourceSha: $sourceSha, createdAtUtc: $createdAtUtc, dumpSha256: $dumpSha256, payloadSha256: $payloadSha256, productionEnvSha256: $productionEnvSha256, productionOpsEnvSha256: $productionOpsEnvSha256, dataProtectionSha256: $dataProtectionSha256}' >"$manifest"
+    --arg productionOpsEnvSha256 "$ops_sha" --arg migrationHistorySha256 "$history_sha" --arg bootstrapStateSha256 "$state_sha" --arg dataProtectionSha256 "$keys_sha" \
+    '{schemaVersion: 3, backupId: $backupId, reason: $reason, createdAtUtc: $createdAtUtc, runningImage: $runningImage, runningSourceSha: $runningSourceSha, dumpSha256: $dumpSha256, migrationHistorySha256: $migrationHistorySha256, payloadSha256: $payloadSha256, productionEnvSha256: $productionEnvSha256, productionOpsEnvSha256: $productionOpsEnvSha256, bootstrapStateSha256: $bootstrapStateSha256, dataProtectionSha256: $dataProtectionSha256}' >"$manifest"
+manifest_sha=$(sha256sum "$manifest" | awk '{print $1}')
 restic_json="$stage/restic.json"
-if restic backup --json --tag bingo-production --tag "reason-$reason" "$payload" "$manifest" >"$restic_json" 2>&1; then :; else
+if restic backup --json --tag bingo-production --tag "reason-$reason" --tag "backup-id-$stamp" --tag "manifest-sha256-$manifest_sha" "$payload" "$manifest" >"$restic_json" 2>&1; then :; else
     redact <"$restic_json" >>"$LOG_FILE"; die "off-host backup failed; see the redacted root-only log"
 fi
 redact <"$restic_json" >>"$LOG_FILE"
 snapshot=$(sed -n 's/.*"snapshot_id"[[:space:]]*:[[:space:]]*"\([0-9a-f]\{8,64\}\)".*/\1/p' "$restic_json" | tail -1)
 [[ "$snapshot" =~ ^[0-9a-f]{8,64}$ ]] || die "restic did not return a snapshot ID"
+snapshot_json="$stage/snapshot.json"
+capture_logged "snapshot tag verification" "$snapshot_json" restic snapshots --json "$snapshot"
+jq -e --arg backupTag "backup-id-$stamp" --arg manifestTag "manifest-sha256-$manifest_sha" \
+    'length == 1 and ((.[0].tags // []) | index($backupTag)) and ((.[0].tags // []) | index($manifestTag))' "$snapshot_json" >/dev/null || die "restic snapshot tags do not bind the backup manifest"
 
 receipt="$RECEIPT_ROOT/$stamp.json"
-jq -n --arg snapshot "$snapshot" --arg reason "$reason" --arg sourceSha "$source_sha" \
-    --arg createdAtUtc "$(utc_now)" --arg dumpSha256 "$dump_sha" --arg payloadSha256 "$payload_sha" \
-    --arg productionEnvSha256 "$env_sha" --arg productionOpsEnvSha256 "$ops_sha" --arg dataProtectionSha256 "$keys_sha" \
-    --arg backupId "$stamp" --arg reference "restic:snapshot:$snapshot" \
-    '{schemaVersion: 2, backupId: $backupId, snapshot: $snapshot, reason: $reason, sourceSha: $sourceSha, createdAtUtc: $createdAtUtc, dumpSha256: $dumpSha256, payloadSha256: $payloadSha256, productionEnvSha256: $productionEnvSha256, productionOpsEnvSha256: $productionOpsEnvSha256, dataProtectionSha256: $dataProtectionSha256, reference: $reference, retention: "pending"}' >"$receipt"
+jq -n --arg snapshot "$snapshot" --arg reason "$reason" --arg runningImage "$running_image" --arg runningSourceSha "$running_source_sha" \
+    --arg createdAtUtc "$(utc_now)" --arg backupId "$stamp" --arg manifestSha256 "$manifest_sha" \
+    --arg dumpSha256 "$dump_sha" --arg migrationHistorySha256 "$history_sha" --arg payloadSha256 "$payload_sha" \
+    --arg productionEnvSha256 "$env_sha" --arg productionOpsEnvSha256 "$ops_sha" --arg bootstrapStateSha256 "$state_sha" --arg dataProtectionSha256 "$keys_sha" \
+    --arg reference "restic:snapshot:$snapshot" \
+    '{schemaVersion: 3, backupId: $backupId, snapshot: $snapshot, reason: $reason, createdAtUtc: $createdAtUtc, runningImage: $runningImage, runningSourceSha: $runningSourceSha, manifestSha256: $manifestSha256, dumpSha256: $dumpSha256, migrationHistorySha256: $migrationHistorySha256, payloadSha256: $payloadSha256, productionEnvSha256: $productionEnvSha256, productionOpsEnvSha256: $productionOpsEnvSha256, bootstrapStateSha256: $bootstrapStateSha256, dataProtectionSha256: $dataProtectionSha256, reference: $reference, retention: "pending"}' >"$receipt"
 chmod 600 "$receipt"
 ln -sfn "$receipt" "$RECEIPT_ROOT/latest.json"
 printf '%s\n' "$receipt"

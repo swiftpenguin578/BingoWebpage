@@ -27,7 +27,7 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       AllowedHosts: ${BINGO_DOMAIN:?Set BINGO_DOMAIN in the production environment}
-      ConnectionStrings__Database: ${BINGO_DATABASE_CONNECTION:?Set BINGO_DATABASE_CONNECTION in the production environment}
+      ConnectionStrings__Database: Host="postgres";Port=5432;Database="${BINGO_POSTGRES_DB}";Username="${BINGO_POSTGRES_USER}";Password="${BINGO_POSTGRES_PASSWORD}"
       EvidenceStorage__Provider: R2
       EvidenceStorage__R2__AccountId: ${BINGO_R2_ACCOUNT_ID:?Set BINGO_R2_ACCOUNT_ID in the production environment}
       EvidenceStorage__R2__AccessKeyId: ${BINGO_R2_ACCESS_KEY_ID:?Set BINGO_R2_ACCESS_KEY_ID in the production environment}
@@ -40,7 +40,6 @@ services:
       WiseOldMan__TimeoutSeconds: ${BINGO_WISE_OLD_MAN_TIMEOUT_SECONDS:-15}
       DiscordAuthentication__ClientId: ${BINGO_DISCORD_CLIENT_ID:?Set BINGO_DISCORD_CLIENT_ID in the production environment}
       DiscordAuthentication__ClientSecret: ${BINGO_DISCORD_CLIENT_SECRET:?Set BINGO_DISCORD_CLIENT_SECRET in the production environment}
-      Slice1__BootstrapOwnerPassword: ${BINGO_BOOTSTRAP_OWNER_PASSWORD:?Set BINGO_BOOTSTRAP_OWNER_PASSWORD in the production environment}
       DataProtection__KeyRingPath: /var/lib/bingo/data-protection-keys
       CatalogueImageCache__LocalPath: /var/lib/bingo/catalogue-images
       CatalogueImageCache__SyncDelayMilliseconds: ${BINGO_CATALOGUE_IMAGE_SYNC_DELAY_MILLISECONDS:-500}
@@ -97,7 +96,12 @@ networks:
 
 volumes:
   bingo-production-postgres:
+    name: bingo-production-postgres
   bingo-production-data-protection:
+    name: bingo-production-data-protection
   bingo-production-catalogue-images:
+    name: bingo-production-catalogue-images
   bingo-production-caddy-data:
+    name: bingo-production-caddy-data
   bingo-production-caddy-config:
+    name: bingo-production-caddy-config

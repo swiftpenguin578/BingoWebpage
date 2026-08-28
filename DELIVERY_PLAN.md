@@ -747,11 +747,13 @@ by default; package visibility and the GitHub plan/environment-reviewer choice
 must be confirmed before Pass 4, not changed by repository implementation.
 
 **Production Release Pass 4 — repository-side deployment and recovery contract,
-implemented 2026-08-28.** Extend the existing promotion workflow with explicit
-`promote` and `deploy` modes. Candidate validation runs before the production
-Environment; deploy receives one approval, uses non-cancelling
-`concurrency: production`, and transports only SSH data plus validated release
-metadata. Native OpenSSH invokes the narrowly sudoable root-owned host command.
+committed through `329e04adaa98a444f69d20aa41385b4ca7426bd3` on 2026-08-28, but
+not yet cleared for push as the production release candidate or for Pass 5.**
+The existing promotion workflow has explicit `promote` and `deploy` modes.
+Candidate validation runs before the production Environment; deploy receives
+one approval, uses non-cancelling `concurrency: production`, and transports
+only SSH data plus validated release metadata. Native OpenSSH invokes the
+narrowly sudoable root-owned host command.
 
 Add only the minimal host deploy, encrypted restic backup, isolated restore
 verification, and database-stored evidence-integrity scripts; root-only host
@@ -770,6 +772,35 @@ deployment/recovery/evidence documentation. Focused checks are limited to
 script syntax, input rejection, workflow/action pin and permission inspection,
 Compose rendering, receipt/secret-leak checks, documentation links, and a
 disposable restore exercise only if Docker is available.
+
+The user-approved Sol High integrated review identified six Pass 4 cross-pass
+blockers: self-contained host-loss recovery, write quiescence/migration safety,
+single database authority, physical Compose volume identity, clean-vs-retained
+bootstrap state, and clean-host Caddy startup. That bounded correction is now
+followed by a four-finding release-blocker remediation: exact PostgreSQL
+database restore and migration-history verification, `none`/`none` baseline
+recovery, post-backup failure classification, and `new` marker/history
+contradiction rejection. The separate bootstrap-password correction is also
+complete: the password is bootstrap-only and root-file supplied, absent from
+the long-running web container and durable backup/config payloads, retained on
+failed initialization, and removed after successful initialization or safe
+resume. Passes 2–3 otherwise cleared, and no P0, secret, or unapproved-scope
+issue was found; provider work, production mutation, and Pass 5 remain out of
+scope.
+
+The revised production/release order is frozen:
+
+1. Independently re-review the bounded release-blocker correction, then accept/push.
+2. Select a provider and run the provider-backed Pass 5 rehearsal.
+3. Run one Sol High whole-application release-risk review using Pass 5 evidence.
+4. Remediate only concrete findings and rerun affected rehearsal scenarios.
+5. Run the Pass 6 final release gate.
+
+The whole-application review deliberately follows Pass 5 so real VPS/provider,
+backup/restore, load, Discord, R2, SignalR, and health evidence replaces
+assumptions. It must not reopen approved UI or become an unfocused line-by-line
+audit. The correction remains uncommitted for the independent re-review and
+must not expand into provider selection/work or Pass 5.
 
 ## 4. Dependencies, approvals, and stop rules
 

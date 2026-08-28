@@ -1,13 +1,13 @@
 # Current project status
 
-**Active handoff:** 2026-08-27. This is the concise current-state handoff;
+**Active handoff:** 2026-08-28. This is the concise current-state handoff;
 historical material is preserved separately and is non-authoritative.
 
 ## Canonical checkout
 
 - Path: `/Users/christopher/Documents/BingoWebpage`
 - Branch: `production-release-pipeline`
-- Base commit: `42def1766f1ef7c3372d2b9f7f49b788ca29c429` (Pass 3)
+- Base commit: `329e04adaa98a444f69d20aa41385b4ca7426bd3` (Passes 1–4)
 - Tracking: no upstream is configured for the release-planning branch.
 - The UI overhaul is merged and pushed to `main` at `52ec8494c6792f1f1f4ccd5893ac0cdb11cb74a3`.
 - Preserve the local developer-only `launchSettings.json` override and `tmp/`,
@@ -65,16 +65,16 @@ CI run, source SHA, digest, and candidate artifact, then emits a non-mutating
 promotion receipt with `deployment: false`. It performs no SSH, migration,
 Compose operation, or production mutation.
 
-Actual VPS deployment remains Pass 4 because no retained-database migration may
-run before the pre-migration backup, tested restore, and rollback contract
-exist. Keep GHCR private by default and create or change no package/environment
-visibility in this pass. Before Pass 4, confirm repository visibility and the
-GitHub plan because required environment reviewers on Free/Pro/Team are limited
-to public repositories; decide then whether the image remains private. Pass 3
-has a budget of one extended existing CI workflow, one new promotion workflow,
-and two small JSON receipts using only pinned trusted actions and runner-native
-shell tools. It adds no deployment script, SSH code, application change,
-dependency, external resource, provider choice, or production secret.
+Passes 1–4 are committed through `329e04adaa98a444f69d20aa41385b4ca7426bd3`
+on `production-release-pipeline`, but are not yet cleared for push as the
+production release candidate or for Pass 5. The user-approved Sol High
+integrated review found six Pass 4 cross-pass blockers: self-contained host-loss
+recovery, write quiescence/migration safety, single database authority, physical
+Compose volume identity, clean-vs-retained bootstrap state, and clean-host Caddy
+startup. The user has now authorized one bounded remediation for exactly those
+six findings; no provider work, production mutation, or Pass 5 is included.
+Passes 2–3 otherwise cleared; no P0, secret, or unapproved-scope issue was
+found.
 
 Retain the complete infrastructure and operational checklist, including
 optional but prudent safety items. At the deployment step where an item becomes
@@ -170,8 +170,9 @@ merged. The review initially classified `/Admin/UiReferences` as unapproved
 material scope. The user explicitly approved retaining it on 2026-08-27, and
 `UI_PAGE_MATRIX.md` now records it as a direct-link internal historical-reference
 gallery that is not a product-page approval target or active authority source.
-That finding is resolved. The unimplemented production CI/deployment workflow
-remains a deployment blocker, not a commit blocker.
+That finding is resolved. Pass 4 is committed, but its six integrated review
+blockers remain a release-candidate and Pass 5 gate, not permission for
+remediation or provider work.
 
 The read-only commit-scope inventory and final Ponytail gate also completed on
 2026-08-27. The accepted candidate includes the active authority consolidation,
@@ -213,36 +214,47 @@ frozen in steps 4–10 above.
 
 The initial live-release policy is recorded in `TECHNICAL_ARCHITECTURE.md`
 §12.1: merging to `main`, building a release, and deploying production are
-separate operations. The repository-side Pass 4 workflow and host contract are
-now implemented below; merging to `main` still does not update live production
-without the explicit deploy mode and Environment approval.
+separate operations. Passes 1–4 are committed below; merging to `main` still
+does not update live production without the explicit deploy mode and Environment
+approval.
 
 ## Pass 4 repository handoff — 2026-08-28
 
-The Pass 4 repository contract is implemented on `production-release-pipeline`
-at HEAD `42def1766f1ef7c3372d2b9f7f49b788ca29c429` and remains uncommitted for
-independent review. The existing promotion workflow now validates before the
-production Environment and supports non-mutating `promote` plus one-approved,
-non-cancelling `deploy`. Deploy transports only SSH data and validated release
-metadata, then calls the root-owned host command.
+Pass 4 is committed through `329e04adaa98a444f69d20aa41385b4ca7426bd3`; the
+bounded release-blocker correction is currently uncommitted for independent
+review. It closes exact PostgreSQL restore, `none`/`none` baseline recovery,
+post-backup failure classification, and contradictory `new` marker/history
+handling. The separate bootstrap-password correction is also complete: the
+password is bootstrap-only and root-file supplied, absent from the long-running
+web container and durable backup/config payloads, retained on failed
+initialization, and removed after successful initialization or safe resume. It
+does not include provider work, production mutation, or Pass 5.
+The revised order is owned by the production/release section
+of `DELIVERY_PLAN.md`: independently re-review this correction, then accept/push;
+select a provider and run the provider-backed Pass 5 rehearsal; run one Sol
+High whole-application release-risk review using that evidence; remediate only
+concrete findings and rerun affected scenarios; then run the Pass 6 final
+release gate.
 
-Repository-side host scripts, root-only config examples, systemd backup
-unit/timer, and the deployment/recovery/evidence runbook are under `deploy/`
-and `docs/PRODUCTION_RUNBOOK.md`. They implement exact digest deployment,
-backup before every deploy, encrypted restic storage with cleanup-trapped
-temporary payloads, isolated snapshot-matched restore verification, explicit
-configuration restore confirmation, clean/retained migration ordering,
-migration-aware rollback, public HTTPS health, secret-free success/failure
-receipts, and database-stored evidence hash verification. No application,
-schema, provider, account, DNS, or production resource changed.
+The whole-application review is deliberately after Pass 5 so real VPS,
+provider, backup/restore, load, Discord, R2, SignalR, and health evidence
+replaces assumptions. It must not reopen approved UI or become an unfocused
+line-by-line audit. Existing dirty `UI_PAGE_MATRIX.md`, `launchSettings.json`,
+and `tmp/` remain outside this release handoff.
 
-Focused verification passed for Bash syntax/input rejection, workflow YAML and
-pin/permission inspection, Compose rendering with placeholders, receipt and
-secret-leak checks, documentation links, and `git diff --check`. Docker restore
-is unverified because the local Docker API denied access to
-`~/.docker/run/docker.sock`; no dependent Docker command was retried. Do not
-stage, commit, push, provision, or deploy. Existing dirty `UI_PAGE_MATRIX.md`,
-`launchSettings.json`, and `tmp/` remain outside this pass.
+The bounded correction touches only the approved release surface: Compose and
+production env examples; host operations/backup/restore/deploy/validation;
+production topology/runbook; technical architecture; README; and this status/
+delivery handoff. Bash syntax, YAML parsing, physical-volume/database-authority
+checks, exact database reset/history ordering, baseline state handling,
+post-failure receipt/status preservation, marker/history contradiction checks,
+special-character connection construction, state cases, ordering,
+manifest/tamper/mixed-set checks, Caddy/PostgreSQL preservation, cleanup/trust,
+documentation links, secret scan, and `git diff --check` pass. Docker-dependent
+restore/Compose rendering remains unverified because the local Docker API
+denied the socket; no dependent command was retried.
+Provider-backed restore duration, certificate issuance, password compatibility,
+and interruption measurement remain Pass 5 evidence.
 
 ## Functional position
 

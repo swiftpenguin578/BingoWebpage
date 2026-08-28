@@ -31,11 +31,11 @@ SignalR proxy path is required.
 
 | Volume | Container path | Contract |
 | --- | --- | --- |
-| `bingo-production-postgres` | `/var/lib/postgresql/data` | PostgreSQL data |
-| `bingo-production-data-protection` | `/var/lib/bingo/data-protection-keys` | Reserved for ASP.NET data-protection keys |
-| `bingo-production-catalogue-images` | `/var/lib/bingo/catalogue-images` | Same-origin OSRS Wiki catalogue-image cache |
-| `bingo-production-caddy-data` | `/data` | Caddy certificates and state |
-| `bingo-production-caddy-config` | `/config` | Caddy runtime config state |
+| `bingo-production-postgres` | `/var/lib/postgresql/data` | PostgreSQL data; explicit physical Compose name |
+| `bingo-production-data-protection` | `/var/lib/bingo/data-protection-keys` | Reserved for ASP.NET data-protection keys; explicit physical Compose name |
+| `bingo-production-catalogue-images` | `/var/lib/bingo/catalogue-images` | Same-origin OSRS Wiki catalogue-image cache; explicit physical Compose name |
+| `bingo-production-caddy-data` | `/data` | Caddy certificates and state; explicit physical Compose name |
+| `bingo-production-caddy-config` | `/config` | Caddy runtime config state; explicit physical Compose name |
 
 `DataProtection__KeyRingPath` is persisted by the Production application and
 validated before it serves. The web image must be able to create and write the
@@ -50,9 +50,10 @@ the values through an approved secret mechanism. The required groups are:
 
 - `BINGO_DOMAIN` and `BINGO_WEB_IMAGE` for the public hostname and immutable
   application image.
-- `BINGO_POSTGRES_DB`, `BINGO_POSTGRES_USER`, `BINGO_POSTGRES_PASSWORD`, and
-  `BINGO_DATABASE_CONNECTION` for PostgreSQL and the application connection.
-  The database, username, and password in the two settings must agree.
+- `BINGO_POSTGRES_DB`, `BINGO_POSTGRES_USER`, and `BINGO_POSTGRES_PASSWORD` for
+  PostgreSQL and the application connection. Compose constructs the quoted
+  application connection from these same values; the host scripts use the
+  same variables for backup, evidence, migration, and readiness.
 - `BINGO_DISCORD_CLIENT_ID` and `BINGO_DISCORD_CLIENT_SECRET`; register the
   callback path `/Account/DiscordCallback` for the configured HTTPS domain.
 - `BINGO_R2_ACCOUNT_ID`, `BINGO_R2_ACCESS_KEY_ID`,
@@ -62,9 +63,11 @@ the values through an approved secret mechanism. The required groups are:
   `BINGO_WISE_OLD_MAN_API_KEY` (optional), and
   `BINGO_WISE_OLD_MAN_TIMEOUT_SECONDS` for the production Wise Old Man
   identity and request options.
-- `BINGO_BOOTSTRAP_OWNER_PASSWORD` for the one-shot controlled initial owner
-  command, plus `BINGO_CATALOGUE_IMAGE_SYNC_DELAY_MILLISECONDS` for the
-  existing catalogue-cache operation.
+- `BINGO_BOOTSTRAP_OWNER_PASSWORD_FILE` names the temporary root-only file used
+  only for the one-shot controlled initial owner command. It is deleted after a
+  successful bootstrap and is never part of the long-running web environment;
+  `BINGO_CATALOGUE_IMAGE_SYNC_DELAY_MILLISECONDS` controls the existing
+  catalogue-cache operation.
 
 Compose also sets `ASPNETCORE_ENVIRONMENT=Production`, listens on container
 port 8080, trusts the reverse proxy's forwarded HTTPS headers through the
@@ -110,8 +113,13 @@ whether the image remains private.
 
 ## Clean initial start
 
-Production startup intentionally requires exactly one active Super Admin. For
-an empty database, an operator with the real environment file should:
+Production startup intentionally requires exactly one active Super Admin. The
+root-only `BINGO_BOOTSTRAP_STATE_FILE` marker must contain exactly `new`,
+`interrupted`, or `completed`, and is included in every backup. A new host starts
+with `new`; a failed first bootstrap leaves `interrupted` so the same path can
+resume; `completed` means retained production even when it has zero accounts.
+
+For a genuinely new database, an operator with the real environment file should:
 
 1. Start only PostgreSQL and wait for its health check.
 2. Run the reviewed image once with `--migrate`.
@@ -119,20 +127,34 @@ an empty database, an operator with the real environment file should:
    must already be applied.
 4. Run the reviewed image once with
    `--slice1-bootstrap-owner --username <owner> --confirm-username <owner>`.
-   The command consumes `Slice1__BootstrapOwnerPassword` from the environment.
+   `bingo-deploy` supplies `Slice1__BootstrapOwnerPassword` only to this
+   one-shot container from the temporary root-only password file; the persistent
+   `web` service never receives it.
 5. Run the read-only `--production-preflight` with the reviewed image.
 6. Start `web` and `caddy`, then run the release smoke checks. Catalogue-image
    prewarming, if selected, uses the existing `--sync-catalogue-images`
    command after the application is configured.
 
-For retained data, run the existing `--slice1-migration-preflight` only when
-crossing that legacy boundary and correct the specifically reported rows.
-Then run `--migrate`, `--production-preflight`, and replace `web`. Never apply
-the catalogue snapshot to retained data; it deactivates records absent from
-the snapshot.
+For `interrupted`, resume the same migration/catalogue/owner path; if the owner
+was already created, the host state check skips only that completed owner
+command. For `completed` retained data, run the existing
+`--slice1-migration-preflight` only when crossing that legacy boundary, then
+`--migrate`, `--production-preflight`, and replace `web`. Never apply the
+catalogue snapshot to retained data; it deactivates records absent from the
+snapshot.
 
 These commands do not touch provider resources, DNS, credentials, or
 production data unless an operator runs them against that environment.
+
+The deployment rejects a `new` marker when the application database already
+has non-empty migration history, before catalogue or bootstrap mutation. Stop
+and reconcile the recorded marker and database state; do not reset either one
+to guess which state is authoritative.
+
+A full restore of a correctly bound `none`/`none` baseline restores the database,
+configuration, Data Protection keys, and bootstrap marker but deliberately
+leaves `web` stopped. Its recovery receipt requires a separately validated
+candidate deployment retry; no Super Admin is created during that restore.
 
 ## Safe validation
 
@@ -147,7 +169,7 @@ docker compose --env-file deploy/production.env.example \
 ```
 
 The rendered configuration should contain `caddy`, `web`, and `postgres`, one
-private network, five named volumes, public ports only on Caddy, and no
+private network, five explicitly named physical volumes, public ports only on Caddy, and no
 PostgreSQL host-port mapping. Pass 4 is the explicit deployment boundary: only
 after backup, isolated restore verification, rollback rehearsal, and host
 bootstrap exist may an operator replace the dummy GHCR digest with the reviewed

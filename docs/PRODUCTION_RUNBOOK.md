@@ -15,7 +15,11 @@ or paid tier. Production mutation remains an operator decision.
    `/etc/bingo` root-owned and mode `0700`. Copy the three `deploy/host/*.example`
    templates to `/etc/bingo/`, replace placeholders, and make every secret file
    `root:root` mode `0600`: `production.env`, `production-ops.env`,
-   `restic.env`, `restic-password`, and `ghcr-readonly.env`.
+   `restic.env`, `restic-password`, and `ghcr-readonly.env`. Before a clean
+   first bootstrap, create the temporary root-only file named by
+   `BINGO_BOOTSTRAP_OWNER_PASSWORD_FILE` with the final owner password. It is
+   not a production configuration file and is removed after successful owner
+   bootstrap; a failed or interrupted owner command leaves it for retry.
 3. Configure the selected S3-compatible restic repository and initialize it
    interactively. Store only its repository URL, access credentials, and
    password file on the host. Restic encryption is mandatory. The repository
@@ -43,6 +47,12 @@ or paid tier. Production mutation remains an operator decision.
    deployment never refreshes those mutable upstream tags. Pin and rehearse
    the host images before the first release.
 
+8. Create `/var/lib/bingo/bootstrap-state` as a root-owned `0600` file containing
+   exactly `new` before the first production backup/deploy. The deployment script
+   changes it to `interrupted` before first-bootstrap work and to `completed`
+   only after production preflight succeeds. Never infer this state from account
+   count.
+
 After a reboot, Docker and the backup timer must be enabled and the named
 volumes must remain present. Check `systemctl is-active docker` and
 `systemctl is-enabled bingo-backup.timer` before any deployment.
@@ -66,27 +76,32 @@ command failure. It always uses the full image reference
 
 For every deploy it:
 
-1. Validates Compose and all five persistent volumes, then starts only
-   PostgreSQL if necessary and creates a PostgreSQL custom-format dump.
-2. Copies Data Protection keys, `production.env`, and the root-only
-   non-credential operational configuration `production-ops.env` into a
-   restrictive temporary payload, checksums the complete set, encrypts it
-   off-host with restic, records the immutable snapshot ID and checksums, and
-   runs an isolated restore verification before changing the application. The
-   temporary dump, tar, manifest, and restore material are removed on both
-   success and failure; no plaintext payload path is a durable reference.
-3. On an empty database, runs `--migrate`,
+1. Captures the current running web container's immutable image and OCI source
+   revision, then stops `web`. The stop remains in force through the authoritative
+   pre-change backup, migration, catalogue/bootstrap, preflight, and new-web
+   readiness; a short public interruption is accepted.
+2. Validates Compose and all five physical volumes, starts only PostgreSQL if
+   necessary, and creates a PostgreSQL custom-format dump. The backup manifest
+   binds the captured running image/source, dump, migration history, Data
+   Protection keys, both configs, explicit bootstrap state, and every checksum.
+   Restic tags bind the backup ID and manifest checksum; the local receipt is
+   secret-free corroboration, never a restore prerequisite.
+3. On `new` or `interrupted` state, runs `--migrate`,
    `--apply-catalogue-snapshot`, the selected-owner
-   `--slice1-bootstrap-owner`, and `--production-preflight`. On retained data,
-   it runs `--slice1-migration-preflight --slice1-owner` only when
-   `BINGO_RETAINED_LEGACY_PREFLIGHT=required`, then runs `--migrate` and
-   `--production-preflight`. The existing preflight output identifies the
-   deterministic bad records and the correction target; no extra application
-   diagnostic is added here. Never apply the catalogue snapshot to retained
-   data.
+   `--slice1-bootstrap-owner`, and `--production-preflight`. An interrupted
+   owner command that already succeeded is skipped only after the explicit
+   active-owner check. On `completed` state, it runs the legacy migration
+   preflight only when `BINGO_RETAINED_LEGACY_PREFLIGHT=required`, then
+   `--migrate` and `--production-preflight`. Never apply the catalogue snapshot
+   to completed/retained data. Before any catalogue/bootstrap mutation, a
+   `new` marker with non-empty migration history is rejected for operator
+   reconciliation; the marker is not changed. Any failure before replacement
+   leaves `web` stopped; changed or unknown migration history never permits old
+   code to run.
 4. Replaces only `web` with `docker compose up -d --no-deps web`; Caddy and
-   PostgreSQL are preserved. It waits for the internal container health check
-   and verifies public HTTPS `/health/live`.
+   PostgreSQL are not pulled, refreshed, or replaced. After new web health, it
+   starts Caddy only when no Caddy container exists, then verifies public HTTPS
+   `/health/live`.
 5. Writes one root-only deployment receipt under
    `/var/lib/bingo/deployments/`. Successful deployments write exactly one
    success receipt. Any failure after a verified backup snapshot exists writes
@@ -95,13 +110,20 @@ For every deploy it:
    image digest, CI/promotion/deployment IDs, available pre/post migration
    histories, backup snapshot/checksums/restic reference, known health results,
    actor, honest timestamps, failure stage, and an explicit rollback outcome.
+   Post-failure history is captured when possible; `recoveryRequired` is false
+   only when pre/post histories are positively verified identical.
 
 ## Backup and restore
 
 Scheduled and pre-deployment backups use `bingo-backup`. They contain the
-custom-format PostgreSQL dump, Data Protection keys, `production.env`, and
-`production-ops.env` in one encrypted restic snapshot. The durable local
-receipt references only `restic:snapshot:<snapshot-id>` plus checksums and
+custom-format PostgreSQL dump, migration history, Data Protection keys,
+   `production.env`, `production-ops.env`, and `bootstrap-state` in one encrypted
+   restic snapshot. The temporary bootstrap password file is deliberately not
+   copied into the snapshot, a receipt, a log, or Compose configuration. Every
+   snapshot also records the actually running immutable web
+image digest and source revision (scheduled backups inspect the running web;
+deployment backups pass the identity captured before quiescence). The durable
+local receipt references only `restic:snapshot:<snapshot-id>` plus checksums and
 metadata; restic retention is the only payload retention mechanism. Evidence
 objects are not copied into the VPS backup: they remain in versioned private
 object storage and are checked separately.
@@ -112,26 +134,32 @@ Run an isolated restore rehearsal with:
 sudo /usr/local/sbin/bingo-restore --verify --snapshot <snapshot-id>
 ```
 
-It restores through restic, requires the local receipt matching that exact
-snapshot, verifies the dump, `production.env`, `production-ops.env`, Data
-Protection checksums, and payload manifest as one set, loads the dump into a
-temporary PostgreSQL container with networking disabled, and runs a query. It
-does not touch production. A production disaster restore is an explicit
-maintenance operation. After preserving the current deployment receipt and
-stopping writes, an operator may install the verified application and
-operational configuration only with explicit snapshot confirmation:
+It restores through restic, verifies the snapshot tags, dump, migration history,
+`production.env`, `production-ops.env`, bootstrap state, Data Protection
+checksums, and payload manifest as one set, loads the dump into a temporary
+PostgreSQL container with networking disabled, and runs a query. A local receipt
+is checked when present but is not required, so a rebuilt host can recover after
+total loss.
+
+The one exact full-restore path, after restic/GHCR/provider credentials are
+re-provisioned, is an explicit maintenance operation. Keep writes stopped and
+confirm the same snapshot ID in both arguments:
 
 ```sh
 sudo /usr/local/sbin/bingo-restore --verify --snapshot <snapshot-id> \
-  --restore-config --confirm-restore <snapshot-id>
+  --full-restore --confirm-restore <snapshot-id>
 ```
 
-That install writes only `/etc/bingo/production.env` and
-`/etc/bingo/production-ops.env`, both as `root:root` mode `0600`. Restore
-PostgreSQL/Data Protection/configuration from this same verified snapshot, run
-the reviewed prior-digest preflight, restart only after preflight passes, and
-record a new receipt. Do not bulk-delete object-storage evidence during
-rollback.
+This restores PostgreSQL exactly by dropping and recreating the configured
+database through the maintenance database, verifies the restored migration
+history against the backup before any application preflight, restores Data
+Protection keys, both configs, and bootstrap state, then pulls the recorded
+prior immutable app digest, runs production preflight, starts `web`, starts
+Caddy only if absent, verifies health, and writes a recovery receipt. A
+`none`/`none` baseline snapshot restores the same data/config state, leaves
+`web` stopped, writes the receipt with `candidateRetryRequired: true`, and
+requires a separately validated candidate deployment retry; it does not run
+bootstrap or preflight. It never deletes R2 evidence objects.
 
 The following host credentials are intentionally re-provisioned rather than
 restored from the payload: the restic repository URL/access credentials and
@@ -142,13 +170,15 @@ requiring credentials from the backup in order to access the backup.
 
 ## Rollback boundary
 
-If failure occurs before web replacement, the old web remains in place. If web
-replacement fails and pre/post migration histories are identical, the script
-may restore the prior immutable web digest. If migration history changed, it
-never auto-rolls back the image: it stops `web` to stop writes and fails with
-the explicit restore requirement above. Operators must restore PostgreSQL,
-Data Protection keys, and production configuration, then run the prior digest,
-preflight, restart, and receipt steps explicitly.
+If failure occurs before web replacement, `web` remains stopped. For every
+failure after the deployment backup, the script captures post-failure migration
+history when possible. If web replacement fails and pre/post migration histories
+are available and identical, the script restores only the captured prior
+immutable web digest. If migration history changed or either history is
+unavailable, it marks recovery required, keeps `web` stopped, and requires the
+explicit full restore above; old code never writes against an uncertain schema.
+The original deployment failure status is preserved even when diagnostics or
+receipt writing fail.
 
 ## Evidence integrity
 

@@ -22,7 +22,9 @@ BINGO_OPS_CONFIG=$OPS_CONFIG
 : "${BINGO_IMAGE_NAME:?BINGO_IMAGE_NAME is required}"
 : "${BINGO_DOMAIN:?BINGO_DOMAIN is required}"
 : "${BINGO_BOOTSTRAP_OWNER_USERNAME:?BINGO_BOOTSTRAP_OWNER_USERNAME is required}"
+: "${BINGO_BOOTSTRAP_OWNER_PASSWORD_FILE:?BINGO_BOOTSTRAP_OWNER_PASSWORD_FILE is required}"
 : "${BINGO_DATA_PROTECTION_DIR:?BINGO_DATA_PROTECTION_DIR is required}"
+: "${BINGO_BOOTSTRAP_STATE_FILE:?BINGO_BOOTSTRAP_STATE_FILE is required}"
 : "${BINGO_RETAINED_LEGACY_PREFLIGHT:?BINGO_RETAINED_LEGACY_PREFLIGHT is required}"
 : "${BINGO_POSTGRES_IMAGE:?BINGO_POSTGRES_IMAGE is required}"
 : "${BINGO_KEEP_DAILY:?BINGO_KEEP_DAILY is required}"
@@ -84,10 +86,11 @@ acquire_lock() {
 }
 ensure_layout() {
     require_absolute "$BINGO_ROOT"; require_absolute "$BINGO_COMPOSE_FILE"; require_absolute "$BINGO_ENV_FILE"
-    require_absolute "$BINGO_DATA_PROTECTION_DIR"
+    require_absolute "$BINGO_DATA_PROTECTION_DIR"; require_absolute "$BINGO_BOOTSTRAP_OWNER_PASSWORD_FILE"
     require_root_path "$BINGO_COMPOSE_FILE"
     require_root_path "$BINGO_CADDY_FILE"
     require_root_file "$BINGO_ENV_FILE"; require_root_file "$BINGO_RESTIC_ENV_FILE"; require_root_file "$BINGO_RESTIC_PASSWORD_FILE"; require_root_file "$BINGO_GHCR_ENV_FILE"
+    if [[ "${BINGO_REQUIRE_BOOTSTRAP_STATE:-false}" == true ]]; then require_root_file "$BINGO_BOOTSTRAP_STATE_FILE"; fi
     [[ -d "$BINGO_ROOT" && -d "$(dirname "$BINGO_COMPOSE_FILE")" ]] || die "production root is incomplete"
     mkdir -p "$BINGO_BACKUP_ROOT" "$DEPLOYMENT_ROOT" "$RECEIPT_ROOT" "$BINGO_LOG_DIR"
     chmod 700 "$BINGO_BACKUP_ROOT" "$DEPLOYMENT_ROOT" "$RECEIPT_ROOT" "$BINGO_LOG_DIR"
@@ -102,6 +105,32 @@ validate_id() { [[ "$1" =~ ^[0-9]+$ ]] || die "run/deployment ID must be numeric
 utc_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 json_array_file() { jq -R -s 'split("\n") | map(select(length > 0))' "$1"; }
 directory_sha256() { tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -C "$1" -cf - . | sha256sum | awk '{print $1}'; }
+bootstrap_state() {
+    local state
+    state=$(<"$BINGO_BOOTSTRAP_STATE_FILE")
+    [[ "$state" =~ ^(new|interrupted|completed)$ ]] || die "bootstrap state is invalid or ambiguous"
+    printf '%s\n' "$state"
+}
+set_bootstrap_state() {
+    local state=$1 tmp
+    [[ "$state" =~ ^(new|interrupted|completed)$ ]] || die "bootstrap state is invalid"
+    tmp=$(mktemp "${BINGO_BACKUP_ROOT}/bootstrap-state.XXXXXX")
+    printf '%s\n' "$state" >"$tmp"
+    chmod 600 "$tmp"
+    mv -f -- "$tmp" "$BINGO_BOOTSTRAP_STATE_FILE"
+}
+volume_mountpoint() {
+    local volume=$1 mountpoint
+    mountpoint=$(docker volume inspect -f '{{.Mountpoint}}' "$volume" 2>/dev/null) || die "could not inspect persistent volume: $volume"
+    [[ "$mountpoint" == /* && -d "$mountpoint" ]] || die "persistent volume mountpoint is missing: $volume"
+    printf '%s\n' "$mountpoint"
+}
+active_super_admin_count() {
+    local result
+    result=$(compose exec -T postgres psql -X -A -t -v ON_ERROR_STOP=1 -U "$BINGO_POSTGRES_USER" -d "$BINGO_POSTGRES_DB" -c "SELECT count(*) FROM accounts WHERE active = true AND global_role = 'SuperAdmin';") || die "could not inspect bootstrap owner state"
+    [[ "$result" =~ ^[0-9]+$ ]] || die "bootstrap owner state is invalid"
+    printf '%s\n' "$result"
+}
 table_exists() {
     local result
     result=$(compose exec -T postgres psql -X -A -t -v ON_ERROR_STOP=1 -U "$BINGO_POSTGRES_USER" -d "$BINGO_POSTGRES_DB" -c "SELECT CASE WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '$1') THEN '1' ELSE '0' END;") || die "could not inspect PostgreSQL schema"

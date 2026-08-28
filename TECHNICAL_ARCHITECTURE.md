@@ -488,7 +488,8 @@ Recommended workflow:
 3. GitHub Actions builds the Docker image.
 4. The image is pushed to GitHub Container Registry.
 5. The server pulls the new immutable image.
-6. A pre-deployment database backup is created for schema-changing releases.
+6. The current web image identity is captured, `web` is stopped, and a
+   PostgreSQL-consistent pre-deployment backup is created before migration.
 7. Entity Framework migrations run as a controlled deployment step.
 8. Docker Compose replaces the application container.
 9. A health check verifies the release.
@@ -550,9 +551,25 @@ Discord, owner/bootstrap, restic, Data Protection, and production configuration
 secrets remain on the host. Routine deploys replace only `web`, retain Caddy
 and PostgreSQL, and never use a mutable application tag.
 
-Database migrations must be designed for safe forward deployment. Application rollback cannot automatically reverse a destructive database migration.
+Database migrations must be designed for safe forward deployment. Application
+rollback cannot automatically reverse a destructive database migration. The
+deployment keeps writes stopped through migration and readiness; only an
+available, unchanged pre/post migration history permits restoration of the
+captured prior immutable image. Changed or unknown history requires the
+confirmed full restore procedure.
 
-Initial production provisioning uses an empty PostgreSQL database. After controlled migrations, deployment initializes the reviewed `src/Bingo.Web/data/osrs-catalogue.json` snapshot and provisions the intended Super Admin through the operator-only setup path. Development/test accounts, generated captain credentials, events, signups, participants, teams, boards, evidence, notifications, and audit history are not transferred to production. Retained-database migration support remains required for local upgrade testing and any future environment that genuinely needs historical preservation; it is separate from initial production bootstrap.
+Initial production provisioning uses an empty PostgreSQL database and a root-only
+explicit bootstrap-state marker (`new`, `interrupted`, or `completed`). After
+controlled migrations, deployment initializes the reviewed
+`src/Bingo.Web/data/osrs-catalogue.json` snapshot and provisions the intended
+Super Admin through the operator-only setup path. A failed first bootstrap
+leaves `interrupted` for safe resume; `completed` is retained state even with
+zero accounts. Development/test accounts, generated captain credentials,
+events, signups, participants, teams, boards, evidence, notifications, and
+audit history are not transferred to production. Retained-database migration
+support remains required for local upgrade testing and any future environment
+that genuinely needs historical preservation; it is separate from initial
+production bootstrap.
 
 ## 13. Backup and recovery
 
@@ -567,6 +584,20 @@ During normal operation:
 - Retention policy with daily, weekly, and event-finalization backups
 - Automated checksum verification
 - Periodic test restore into a temporary database
+
+Each encrypted restic snapshot is self-contained: it includes the PostgreSQL
+dump and migration history, Data Protection keys, both production configuration
+files, the bootstrap-state marker, and checksums for every component, bound to
+the actually running immutable web image digest and source revision. Local
+receipts corroborate the restic snapshot but are not required for host-loss
+recovery. The exact confirmed full-restore path drops and recreates the
+configured database through PostgreSQL's maintenance database, restores it,
+verifies migration history before application preflight, then restores all
+other state. A `none`/`none` baseline restores data/configuration and leaves
+`web` stopped with a candidate retry required; it does not bootstrap an owner
+or run preflight. A normal image-bound restore pulls the recorded prior digest,
+runs preflight, starts services, checks public health, and writes a recovery
+receipt. R2 evidence remains external/versioned.
 
 ### 13.2 Evidence storage protection
 

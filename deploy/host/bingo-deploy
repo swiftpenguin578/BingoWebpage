@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 source /usr/local/libexec/bingo-ops-lib.sh
+BINGO_REQUIRE_BOOTSTRAP_STATE=true
 
 require_root
 require_command docker; require_command jq; require_command curl; require_command ssh-keygen
@@ -48,6 +49,9 @@ public_health=not_checked
 rollback_outcome=not_attempted
 rollback_recovery_required=false
 rollback_reference=null
+previous_container=
+previous_image=none
+previous_source_sha=none
 replace_log=
 public_health_log=
 
@@ -79,6 +83,37 @@ capture_post_migration_history() {
     migration_history "$post_history"
     post_history_available=true
 }
+capture_post_failure_history() {
+    local diagnostic history_path
+    [[ -z "$post_history" ]] || rm -f -- "$post_history" 2>/dev/null || true
+    post_history=
+    post_history_available=false
+    if ! diagnostic=$(mktemp /tmp/bingo-post-failure-history.XXXXXX); then return 0; fi
+    if ! history_path=$(mktemp /tmp/bingo-post-history.XXXXXX); then
+        rm -f -- "$diagnostic" 2>/dev/null || true
+        return 0
+    fi
+    if (migration_history "$history_path") 2>"$diagnostic"; then
+        post_history=$history_path
+        post_history_available=true
+    else
+        redact <"$diagnostic" >>"$LOG_FILE" 2>/dev/null || true
+        rm -f -- "$history_path" 2>/dev/null || true
+    fi
+    rm -f -- "$diagnostic" 2>/dev/null || true
+}
+histories_equal() { [[ "$pre_history_available" == true && "$post_history_available" == true ]] && cmp -s "$pre_history" "$post_history"; }
+run_initial_owner_bootstrap() {
+    require_root_file "$BINGO_BOOTSTRAP_OWNER_PASSWORD_FILE"
+    [[ -s "$BINGO_BOOTSTRAP_OWNER_PASSWORD_FILE" ]] || die "temporary bootstrap password file is empty"
+    local bootstrap_password
+    bootstrap_password=$(<"$BINGO_BOOTSTRAP_OWNER_PASSWORD_FILE")
+    [[ -n "$bootstrap_password" ]] || die "temporary bootstrap password is empty"
+    export Slice1__BootstrapOwnerPassword="$bootstrap_password"
+    run_logged "initial owner bootstrap" compose run --rm --no-deps -e Slice1__BootstrapOwnerPassword web --slice1-bootstrap-owner --username "$BINGO_BOOTSTRAP_OWNER_USERNAME" --confirm-username "$BINGO_BOOTSTRAP_OWNER_USERNAME"
+    unset Slice1__BootstrapOwnerPassword
+    rm -f -- "$BINGO_BOOTSTRAP_OWNER_PASSWORD_FILE"
+}
 write_receipt() {
     local status=$1 exit_code=$2 pre_json post_json health_json
     pre_json=$(history_json_or_null "$pre_history")
@@ -106,9 +141,12 @@ deployment_exit_handler() {
     local exit_code=${1:-1}
     trap - EXIT
     if [[ "$backup_ready" == true && "$receipt_written" != true ]]; then
+        capture_post_failure_history
+        if ! histories_equal; then rollback_recovery_required=true; fi
         write_receipt failure "$exit_code" || true
     fi
     cleanup_deploy_temps
+    exit "$exit_code"
 }
 trap 'deployment_exit_handler "$?"' EXIT
 
@@ -120,26 +158,40 @@ run_logged "Compose rendering" compose config --quiet
 for volume in bingo-production-postgres bingo-production-data-protection bingo-production-catalogue-images bingo-production-caddy-data bingo-production-caddy-config; do
     failure_stage=volume_validation
     if ! docker volume inspect "$volume" >/dev/null 2>&1; then run_logged "create persistent volume" docker volume create "$volume"; fi
-    mountpoint=$(docker volume inspect -f '{{.Mountpoint}}' "$volume")
-    [[ -d "$mountpoint" ]] || die "persistent volume mountpoint is missing: $volume"
+    mountpoint=$(volume_mountpoint "$volume")
+    if [[ "$volume" == bingo-production-data-protection ]]; then
+        [[ "$mountpoint" == "$BINGO_DATA_PROTECTION_DIR" ]] || die "Data Protection path does not match the physical Compose volume"
+    fi
     [[ "$volume" != bingo-production-data-protection || "$(stat -c '%a' "$mountpoint")" != *[2367] ]] || die "data-protection volume is too broad"
 done
 
+failure_stage=capture_running_release
+previous_container=$(compose ps -q web || true)
+if [[ -n "$previous_container" ]]; then
+    previous_image=$(docker inspect -f '{{.Config.Image}}' "$previous_container")
+    previous_source_sha=$(docker inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$previous_container" 2>/dev/null || true)
+    [[ "$previous_image" =~ ^ghcr\.io/[a-z0-9._-]+/[a-z0-9._-]+@sha256:[0-9a-f]{64}$ ]] || die "running web image is not immutable"
+    [[ "$previous_source_sha" =~ ^[0-9a-f]{40}$ ]] || die "running web source revision is missing or invalid"
+    failure_stage=quiesce_web
+    run_logged "stop web before deployment backup" compose stop web
+    rollback_outcome=web_stopped
+fi
+
 failure_stage=backup
 backup_status=0
-if backup_receipt=$(/usr/local/sbin/bingo-backup --reason deployment --source-sha "$source_sha" --lock-held); then :; else backup_status=$?; fi
+if backup_receipt=$(/usr/local/sbin/bingo-backup --reason deployment --source-sha "$source_sha" --running-image "$previous_image" --running-source-sha "$previous_source_sha" --lock-held); then :; else backup_status=$?; fi
 if [[ "$backup_receipt" == "$RECEIPT_ROOT"/*.json && "$backup_receipt" != *$'\n'* && -f "$backup_receipt" ]]; then
     backup_snapshot=$(jq -er '.snapshot | strings | select(test("^[0-9a-f]{8,64}$"))' "$backup_receipt" 2>/dev/null || true)
     if [[ "$backup_snapshot" =~ ^[0-9a-f]{8,64}$ ]]; then
         backup_ready=true
-        backup_json=$(jq -c '{backupId, snapshot, dumpSha256, payloadSha256, productionEnvSha256, productionOpsEnvSha256, dataProtectionSha256, reference, retention}' "$backup_receipt" 2>/dev/null || printf '{"snapshot":"%s"}' "$backup_snapshot")
+        backup_json=$(jq -c '{backupId, snapshot, manifestSha256, runningImage, runningSourceSha, dumpSha256, migrationHistorySha256, payloadSha256, productionEnvSha256, productionOpsEnvSha256, bootstrapStateSha256, dataProtectionSha256, reference, retention}' "$backup_receipt" 2>/dev/null || printf '{"snapshot":"%s"}' "$backup_snapshot")
     fi
 fi
 (( backup_status == 0 )) || die "backup failed; deployment did not start"
 [[ "$backup_ready" == true ]] || die "backup did not return a valid receipt"
 failure_stage=backup_receipt_validation
 jq -e --arg snapshot "$backup_snapshot" \
-    '.snapshot == $snapshot and (.dumpSha256 | strings | test("^[0-9a-f]{64}$")) and (.payloadSha256 | strings | test("^[0-9a-f]{64}$")) and (.productionEnvSha256 | strings | test("^[0-9a-f]{64}$")) and (.productionOpsEnvSha256 | strings | test("^[0-9a-f]{64}$")) and (.dataProtectionSha256 | strings | test("^[0-9a-f]{64}$")) and (.reference == ("restic:snapshot:" + $snapshot))' "$backup_receipt" >/dev/null || die "backup receipt is incomplete or has a non-restic reference"
+    '.snapshot == $snapshot and (.backupId | strings) and (.manifestSha256 | strings | test("^[0-9a-f]{64}$")) and (.runningImage | strings) and (.runningSourceSha | strings) and (.dumpSha256 | strings | test("^[0-9a-f]{64}$")) and (.migrationHistorySha256 | strings | test("^[0-9a-f]{64}$")) and (.payloadSha256 | strings | test("^[0-9a-f]{64}$")) and (.productionEnvSha256 | strings | test("^[0-9a-f]{64}$")) and (.productionOpsEnvSha256 | strings | test("^[0-9a-f]{64}$")) and (.bootstrapStateSha256 | strings | test("^[0-9a-f]{64}$")) and (.dataProtectionSha256 | strings | test("^[0-9a-f]{64}$")) and (.reference == ("restic:snapshot:" + $snapshot))' "$backup_receipt" >/dev/null || die "backup receipt is incomplete or has a non-restic reference"
 backup_dump_sha=$(jq -er '.dumpSha256' "$backup_receipt")
 backup_reference=$(jq -er '.reference' "$backup_receipt")
 failure_stage=restore_verification
@@ -149,13 +201,17 @@ failure_stage=pre_migration_history
 pre_history=$(mktemp /tmp/bingo-pre-history.XXXXXX)
 migration_history "$pre_history"
 pre_history_available=true
-retained=false
 failure_stage=database_classification
-if table_exists accounts; then
-    account_count=$(compose exec -T postgres psql -X -A -t -v ON_ERROR_STOP=1 -U "$BINGO_POSTGRES_USER" -d "$BINGO_POSTGRES_DB" -c 'SELECT count(*) FROM accounts;')
-    [[ "$account_count" =~ ^[0-9]+$ ]] || die "could not classify the database"
-    (( account_count > 0 )) && retained=true
+bootstrap_state_value=$(bootstrap_state)
+if [[ "$bootstrap_state_value" == new && -s "$pre_history" ]]; then
+    die "bootstrap-state is new but the application database has migration history; reconcile the marker and database before retrying"
 fi
+retained=false
+case "$bootstrap_state_value" in
+    completed) retained=true ;;
+    new|interrupted) set_bootstrap_state interrupted ;;
+    *) die "bootstrap state is invalid or ambiguous" ;;
+esac
 failure_stage=application_image_pull
 run_logged "GHCR login" bash -c 'source "$1"; printf "%s" "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin >/dev/null' _ "$BINGO_GHCR_ENV_FILE"
 run_logged "pull immutable application image" docker pull "$image_ref"
@@ -178,7 +234,22 @@ else
     failure_stage=catalogue_snapshot
     run_logged "catalogue snapshot application" compose run --rm --no-deps web --apply-catalogue-snapshot
     failure_stage=initial_owner_bootstrap
-    run_logged "initial owner bootstrap" compose run --rm --no-deps web --slice1-bootstrap-owner --username "$BINGO_BOOTSTRAP_OWNER_USERNAME" --confirm-username "$BINGO_BOOTSTRAP_OWNER_USERNAME"
+    if [[ "$bootstrap_state_value" == interrupted ]]; then
+        owner_count=$(active_super_admin_count)
+        case "$owner_count" in
+            0) run_initial_owner_bootstrap ;;
+            1)
+                log_line "interrupted bootstrap owner already exists; resuming"
+                if [[ -e "$BINGO_BOOTSTRAP_OWNER_PASSWORD_FILE" ]]; then
+                    require_root_file "$BINGO_BOOTSTRAP_OWNER_PASSWORD_FILE"
+                    rm -f -- "$BINGO_BOOTSTRAP_OWNER_PASSWORD_FILE"
+                fi
+                ;;
+            *) die "interrupted bootstrap has an ambiguous owner state" ;;
+        esac
+    else
+        run_initial_owner_bootstrap
+    fi
 fi
 if [[ "$retained" == true ]]; then
     failure_stage=database_migration
@@ -187,11 +258,9 @@ if [[ "$retained" == true ]]; then
 fi
 failure_stage=production_preflight
 run_logged "production preflight" compose run --rm --no-deps web --production-preflight
+if [[ "$retained" == false ]]; then set_bootstrap_state completed; fi
 
 failure_stage=web_replacement
-previous_container=$(compose ps -q web || true)
-previous_image=
-if [[ -n "$previous_container" ]]; then previous_image=$(docker inspect -f '{{.Config.Image}}' "$previous_container" 2>/dev/null || true); fi
 replace_log=$(mktemp /tmp/bingo-web-replace.XXXXXX)
 replace_status=0
 if compose up -d --no-deps web >"$replace_log" 2>&1; then :; else replace_status=$?; fi
@@ -205,7 +274,6 @@ run_rollback_command() {
     rm -f -- "$output"
     return "$status"
 }
-histories_equal() { [[ "$pre_history_available" == true && "$post_history_available" == true ]] && cmp -s "$pre_history" "$post_history"; }
 rollback_after_replace_failure() {
     local trigger_stage=$failure_stage
     failure_stage=rollback
@@ -242,6 +310,10 @@ else
     container_health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}' "$container" 2>/dev/null || printf 'not_found')
     rollback_after_replace_failure
 fi
+
+failure_stage=caddy_start
+caddy_container=$(compose ps -q --all caddy || true)
+if [[ -z "$caddy_container" ]]; then run_logged "start clean-host Caddy" compose up -d caddy; fi
 
 failure_stage=public_https_health
 public_health_log=$(mktemp /tmp/bingo-public-health.XXXXXX)
