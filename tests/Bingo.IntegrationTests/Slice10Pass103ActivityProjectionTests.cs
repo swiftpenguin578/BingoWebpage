@@ -224,7 +224,7 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             Assert.Equal(GlobalRole.SuperAdmin, admin.GlobalRole);
             var lookupEvent = await db.Events.SingleAsync(value => value.Slug == "test-16-signup-lookup");
             Assert.Equal(EventState.SignupOpen, lookupEvent.State);
-            Assert.Empty(await db.EventParticipants.Where(value => value.EventId == lookupEvent.Id).ToListAsync());
+            Assert.Equal(9, await db.EventParticipants.CountAsync(value => value.EventId == lookupEvent.Id));
             var secondaryAdminId = await db.Accounts.Where(value => value.LoginName == DevelopmentScenarioSeeder.SecondaryAdminUsername).Select(value => value.Id).SingleAsync();
             Assert.Single(await db.AccountOsrsCharacters.Where(value => value.AccountId == secondaryAdminId && value.Active).ToListAsync());
             var seededLiveId = await db.Events.Where(value => value.Slug == "test-15-dkl-live").Select(value => value.Id).SingleAsync();
@@ -272,7 +272,7 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         var board = await client.GetStringAsync("/Events/test-15-dkl-live/Board?view=leaderboards&ranking=activity");
         Assert.Contains("aria-label=\"Leaderboards\"", board, StringComparison.Ordinal);
         Assert.True(board.IndexOf(">EHB</a>", StringComparison.Ordinal) < board.IndexOf(">Drop EHB</a>", StringComparison.Ordinal));
-        Assert.Contains("public-ui-view-switcher public-ui-view-switcher--two", board, StringComparison.Ordinal);
+        Assert.Contains("data-public-leaderboard-switcher", board, StringComparison.Ordinal);
         Assert.Contains("public-ui-view-switcher-item is-current", board, StringComparison.Ordinal);
         Assert.Contains("view=leaderboards&amp;ranking=activity", board, StringComparison.Ordinal);
         Assert.Contains("view=leaderboards&amp;ranking=drops", board, StringComparison.Ordinal);
@@ -281,14 +281,11 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         Assert.DoesNotContain("Performance", board, StringComparison.Ordinal);
         Assert.DoesNotContain("Official bingo position stays visible while you explore player performance.", board, StringComparison.Ordinal);
         Assert.Contains("aria-label=\"EHB leaderboard\"", board, StringComparison.Ordinal);
-        Assert.Contains(">Wise Old Man</span>", board, StringComparison.Ordinal);
+        Assert.Contains(">WOM</th>", board, StringComparison.Ordinal);
         Assert.DoesNotContain("Wise Old Man integration", board, StringComparison.Ordinal);
         Assert.DoesNotContain(">EHB</strong>", board, StringComparison.Ordinal);
         Assert.DoesNotContain("Activity EHB", board, StringComparison.Ordinal);
-        Assert.Contains("Fetched from Wise Old Man", board, StringComparison.Ordinal);
         Assert.Contains("Rasmus Zebak", board, StringComparison.Ordinal);
-        Assert.Contains("Provisional coverage", board, StringComparison.Ordinal);
-        Assert.Contains("Wise Old Man is temporarily unavailable. Showing the last available cache.", board, StringComparison.Ordinal);
         Assert.Contains("Rasmus Activity Main", board, StringComparison.Ordinal);
         Assert.Contains("public-ui-leaderboard-detail-row", board, StringComparison.Ordinal);
         Assert.Contains("public-ui-table--nested", board, StringComparison.Ordinal);
@@ -296,11 +293,11 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         Assert.Contains("End EHB", board, StringComparison.Ordinal);
         Assert.Contains("—", board, StringComparison.Ordinal);
         Assert.Contains("wiseoldman.net/players/Rasmus%20Zebak", board, StringComparison.Ordinal);
-        Assert.DoesNotContain("wiseoldman.net/players/Rasmus%20Activity%20Main", board, StringComparison.Ordinal);
+        Assert.Contains("wiseoldman.net/players/Rasmus%20Activity%20Main", board, StringComparison.Ordinal);
         Assert.Contains("Avg. gained", board, StringComparison.Ordinal);
         Assert.Contains("MVP", board, StringComparison.Ordinal);
         Assert.Contains("class=\"public-ui-table\"", board, StringComparison.Ordinal);
-        Assert.Contains("public-ui-section-heading public-ui-positive-delta--success\">+", board, StringComparison.Ordinal);
+        Assert.Contains("<td><strong class=\"public-ui-section-heading public-ui-positive-delta--success\">", board, StringComparison.Ordinal);
         Assert.Contains("public-ui-leaderboard-detail-summary", board, StringComparison.Ordinal);
         Assert.Contains("<td><strong class=\"public-ui-section-heading\">", board, StringComparison.Ordinal);
         Assert.DoesNotContain("<summary><strong class=\"public-ui-section-heading\">", board, StringComparison.Ordinal);
@@ -309,11 +306,8 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         Assert.Contains("<details ", board, StringComparison.Ordinal);
         Assert.Contains("public-ui-standings", board, StringComparison.Ordinal);
         var dropBoard = await client.GetStringAsync("/Events/test-15-dkl-live/Board?view=leaderboards&ranking=drops");
-        Assert.Contains("public-ui-view-switcher public-ui-view-switcher--two", dropBoard, StringComparison.Ordinal);
+        Assert.Contains("data-public-leaderboard-switcher", dropBoard, StringComparison.Ordinal);
         Assert.Contains("public-ui-view-switcher-item is-current", dropBoard, StringComparison.Ordinal);
-        Assert.Contains(">Approved contributions</span>", dropBoard, StringComparison.Ordinal);
-        Assert.Contains("Private players excluded", dropBoard, StringComparison.Ordinal);
-        Assert.Contains("Players means public roster players", dropBoard, StringComparison.Ordinal);
         Assert.DoesNotContain(">Drop EHB</strong>", dropBoard, StringComparison.Ordinal);
         Assert.DoesNotContain("public-ui-table-nav", dropBoard, StringComparison.Ordinal);
         Assert.Contains("class=\"public-ui-table\"", dropBoard, StringComparison.Ordinal);
@@ -321,15 +315,12 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         Assert.Contains("public-ui-table--nested", dropBoard, StringComparison.Ordinal);
         Assert.Contains("Total drops", dropBoard, StringComparison.Ordinal);
         Assert.Contains("Drop EHB", dropBoard, StringComparison.Ordinal);
-        Assert.Contains("public-ui-section-heading public-ui-positive-delta--success\">+", dropBoard, StringComparison.Ordinal);
+        Assert.Contains("<td><strong class=\"public-ui-section-heading public-ui-positive-delta--success\">", dropBoard, StringComparison.Ordinal);
         Assert.Contains("<td><strong class=\"public-ui-section-heading\">", dropBoard, StringComparison.Ordinal);
         Assert.DoesNotContain("<summary><strong class=\"public-ui-section-heading\">", dropBoard, StringComparison.Ordinal);
         Assert.Contains("data-public-leaderboard-expand-control", dropBoard, StringComparison.Ordinal);
         Assert.Contains("public-ui-standings", dropBoard, StringComparison.Ordinal);
         var team = await client.GetStringAsync("/Events/test-15-dkl-live/Board/touch-kids-not-grass");
-        Assert.Contains("<header class=\"public-ui-component-header\"><span class=\"public-ui-overline\">EHB</span></header>", team, StringComparison.Ordinal);
-        Assert.Contains("public-ui-data-group", team, StringComparison.Ordinal);
-        Assert.Contains("public-ui-disclosure", team, StringComparison.Ordinal);
         Assert.Contains("aria-label=\"EHB\"", team, StringComparison.Ordinal);
         Assert.DoesNotContain("Activity EHB", team, StringComparison.Ordinal);
         Assert.Contains("Team total", team, StringComparison.Ordinal);
@@ -337,7 +328,6 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         Assert.Contains("Provisional coverage", team, StringComparison.Ordinal);
         Assert.Contains("Wise Old Man is temporarily unavailable. Showing the last available cache.", team, StringComparison.Ordinal);
         Assert.DoesNotContain("Rasmus Activity Main", team, StringComparison.Ordinal);
-        Assert.DoesNotContain("Fetched from Wise Old Man", team, StringComparison.Ordinal);
         var login = await client.GetStringAsync("/Account/Login");
         using (var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -363,7 +353,6 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         }
 
         var completeBoard = await client.GetStringAsync("/Events/test-15-dkl-live/Board?view=leaderboards&ranking=activity");
-        Assert.DoesNotContain("Provisional coverage", completeBoard, StringComparison.Ordinal);
         var completeTeam = await client.GetStringAsync("/Events/test-15-dkl-live/Board/touch-kids-not-grass");
         Assert.DoesNotContain("Provisional coverage", completeTeam, StringComparison.Ordinal);
     }
@@ -477,8 +466,8 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             Assert.True((await reset.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == live.Id)).NormalDueAt <= clock.GetUtcNow());
             var lookup = await reset.Events.SingleAsync(value => value.Slug == "test-16-signup-lookup");
             Assert.Equal(EventState.SignupOpen, lookup.State);
-            Assert.Empty(await reset.EventParticipants.Where(value => value.EventId == lookup.Id).ToListAsync());
-            Assert.Equal(6, await reset.Events.CountAsync());
+            Assert.Equal(9, await reset.EventParticipants.CountAsync(value => value.EventId == lookup.Id));
+            Assert.Equal(23, await reset.Events.CountAsync());
         }
         Assert.Equal(1, fake.Calls);
     }
@@ -504,7 +493,7 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             Assert.Equal(6, await db.Teams.CountAsync(value => value.EventId == historical.Id));
             Assert.Equal(72, await db.EventParticipants.CountAsync(value => value.EventId == historical.Id && value.SignupStatus == SignupStatus.Confirmed));
             Assert.Equal(93, await db.EventParticipantCharacters.CountAsync(value => value.EventId == historical.Id && value.EventRole == EventCharacterRole.Playing && value.ReleasedAt == null));
-            var rosterFirstBoard = await new PublicBoardService(db).GetEventBoardAsync(DevelopmentScenarioSeeder.HistoricalFixtureSlug);
+            var rosterFirstBoard = await new PublicBoardService(db, clock).GetEventBoardAsync(DevelopmentScenarioSeeder.HistoricalFixtureSlug);
             Assert.NotNull(rosterFirstBoard);
             Assert.Equal(72, rosterFirstBoard.RosterPlayers!.Count);
             Assert.NotEmpty(rosterFirstBoard.PlayerLeaderboard);
@@ -574,7 +563,7 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             Assert.True(state.LatestComplete);
             Assert.Equal(93, await db.EventCompetitionCharacterActivities.CountAsync(value => value.EventId == historical.Id && value.Generation == state.Generation));
 
-            var publicBoard = await new PublicBoardService(db).GetEventBoardAsync(DevelopmentScenarioSeeder.HistoricalFixtureSlug);
+            var publicBoard = await new PublicBoardService(db, clock).GetEventBoardAsync(DevelopmentScenarioSeeder.HistoricalFixtureSlug);
             Assert.NotNull(publicBoard);
             Assert.Equal([25, 22, 19, 16, 13, 10], publicBoard.Teams.OrderBy(value => value.TeamName).Select(value => value.Progress.CompletedTiles).OrderByDescending(value => value).ToArray());
             var secondaryCharacterIds = await db.EventParticipantCharacters

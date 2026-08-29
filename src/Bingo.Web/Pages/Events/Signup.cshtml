@@ -125,7 +125,7 @@
                                 <input id="lookup-@question.Id" type="hidden" name="Input.AccountAnswers[@question.Id].WiseOldManLookupToken" value="@accountInput.WiseOldManLookupToken" />
                                 @if (Model.LookupQuestionId == question.Id && Model.LookupFetchedAt is { } fetchedAt)
                                 {
-                                    <span class="signup-sheet__hint">@T["Fetched from Wise Old Man"]: @fetchedAt.ToLocalTime().ToString("g")</span>
+                                    <span class="signup-sheet__hint">@T["Fetched from Wise Old Man"]: @fetchedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</span>
                                 }
                                 <span class="signup-sheet__error">@Html.ValidationMessage($"Input.AccountAnswers[{question.Id}].Ehb")</span>
                             </fieldset>

@@ -241,7 +241,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             await using (var winnerDb = new ApplicationDbContext(options))
             {
                 var winner = await winnerDb.Events.SingleAsync(x => x.Id == eventId);
-                winner.UpdateIdentity("Winner", "renamed", "Description", "UTC");
+                winner.UpdateIdentity(winner.Name, winner.Slug, winner.Description, "Europe/Copenhagen");
                 await winnerDb.SaveChangesAsync();
             }
             var stale = Identity(staleDb, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = "Stale", Slug = "renamed", Description = "Description", Timezone = "UTC", Version = staleVersion });

@@ -210,7 +210,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostReopenSubmissionsAsync(Guid id, CancellationToken ct)
-    { var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); if (HasBindingErrors(nameof(ReopenUntil), nameof(StateReason)) || ReopenUntil is null || string.IsNullOrWhiteSpace(StateReason)) { TempData["StatusMessage"] = Localize("A valid future cutoff and reason are required."); return RedirectToPage(new { id }); } try { item.ReopenSubmissions(ReopenUntil.Value, timeProvider.GetUtcNow()); await dbContext.SaveChangesAsync(ct); await AuditAsync("event.submissions_reopened", item, $"Until {ReopenUntil:O}; {StateReason}", ct); TempData["StatusMessage"] = Localize("Submissions reopened until {0}.", ReopenUntil.Value.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)); } catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; } return RedirectToPage(new { id }); }
+    { var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); if (HasBindingErrors(nameof(ReopenUntil), nameof(StateReason)) || ReopenUntil is null || string.IsNullOrWhiteSpace(StateReason)) { TempData["StatusMessage"] = Localize("A valid future cutoff and reason are required."); return RedirectToPage(new { id }); } try { item.ReopenSubmissions(ReopenUntil.Value, timeProvider.GetUtcNow()); await dbContext.SaveChangesAsync(ct); await AuditAsync("event.submissions_reopened", item, $"Until {ReopenUntil:O}; {StateReason}", ct); TempData["StatusMessage"] = Localize("Submissions reopened until {0}.", ReopenUntil.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)); } catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; } return RedirectToPage(new { id }); }
     public Task<IActionResult> OnPostEnableEvidenceCodesAsync(Guid id, CancellationToken ct) => SetEvidenceCodeMode(id, true, ct);
     public Task<IActionResult> OnPostDisableEvidenceCodesAsync(Guid id, CancellationToken ct) => SetEvidenceCodeMode(id, false, ct);
     private async Task<IActionResult> SetEvidenceCodeMode(Guid id, bool enabled, CancellationToken ct)
@@ -300,7 +300,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     private string CompetitionRefreshFailure(EventCompetitionRefreshResult result)
     {
-        var retryAt = result.RetryAt?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+        var retryAt = result.RetryAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
         return result.ErrorKind switch
         {
             "RateLimited" when retryAt is not null => Localize("Wise Old Man refresh is temporarily rate-limited. Try again after {0}.", retryAt),

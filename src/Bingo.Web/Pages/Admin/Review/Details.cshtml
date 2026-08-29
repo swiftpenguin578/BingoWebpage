@@ -26,7 +26,7 @@
                 <span class="admin-status-pill @statusModifier">@T[Model.Details.Status.ToString()]</span>
             </div>
             <h1>@Model.Details.Tile</h1>
-            <p>@(T["Submitted {0} by {1}", Model.Details.SubmittedAt.ToLocalTime().ToString("g"), Model.Details.Player]) · @Model.Details.SubmittedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'")</p>
+            <p>@(T["Submitted {0} by {1}", Model.Details.SubmittedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture), Model.Details.Player]) · @Model.Details.SubmittedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'")</p>
         </div>
     </header>
 
@@ -38,7 +38,7 @@
             <ul>
                 @foreach (var match in Model.ChecksumMatches)
                 {
-                    <li><a asp-page="Details" asp-route-id="@match.Id">@match.SubmittedAt.ToLocalTime().ToString("g") · @match.Tile · @T[match.Status.ToString()]</a></li>
+                    <li><a asp-page="Details" asp-route-id="@match.Id">@match.SubmittedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) · @match.Tile · @T[match.Status.ToString()]</a></li>
                 }
             </ul>
             <small>@T["This is a warning only; the review decision remains Approve or reasoned Reject."]</small>
@@ -206,7 +206,7 @@
                         <ul class="admin-review-operational-list">
                             @foreach (var item in Model.PriorApproved)
                             {
-                                <li><a asp-page="Details" asp-route-id="@item.Id">@item.SubmittedAt.ToLocalTime().ToString("g") · @item.Player</a><span>@item.Amount @T["Contribution"]</span></li>
+                                <li><a asp-page="Details" asp-route-id="@item.Id">@item.SubmittedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) · @item.Player</a><span>@item.Amount @T["Contribution"]</span></li>
                             }
                         </ul>
                     }
@@ -223,7 +223,7 @@
                             @foreach (var item in Model.Assets)
                             {
                                 var checksum = item.Checksum[..Math.Min(12, item.Checksum.Length)];
-                                <li><a href="/Evidence/@item.Id" target="_blank" rel="noopener">@item.UploadedAt.ToLocalTime().ToString("g") · @item.Role</a><span>@(item.Active ? T["current"] : T["Historical"]) · @checksum</span></li>
+                                <li><a href="/Evidence/@item.Id" target="_blank" rel="noopener">@item.UploadedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) · @item.Role</a><span>@(item.Active ? T["current"] : T["Historical"]) · @checksum</span></li>
                             }
                         </ul>
                     }
@@ -239,7 +239,7 @@
                         <ul class="admin-review-operational-list admin-review-history-list">
                             @foreach (var item in Model.History)
                             {
-                                <li><strong>@T[item.Action.ToString()]</strong><span>@item.At.ToLocalTime().ToString("g") · @item.Actor</span>@if (item.Note is not null) { <small>@item.Note</small> }</li>
+                                <li><strong>@T[item.Action.ToString()]</strong><span>@item.At.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) · @item.Actor</span>@if (item.Note is not null) { <small>@item.Note</small> }</li>
                             }
                         </ul>
                     }

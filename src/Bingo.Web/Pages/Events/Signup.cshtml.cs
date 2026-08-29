@@ -135,9 +135,9 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     private string LookupFailure(WiseOldManPlayerLookupResult result) => result.Status switch
     {
         WiseOldManLookupStatus.NotFound => text?["Wise Old Man could not find that character."].Value ?? "Wise Old Man could not find that character.",
-        WiseOldManLookupStatus.RateLimited when result.RetryAt is { } retryAt => text?["Wise Old Man is temporarily busy. Try again after {0}.", retryAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)].Value ?? $"Wise Old Man is temporarily busy. Try again after {retryAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)}.",
+        WiseOldManLookupStatus.RateLimited when result.RetryAt is { } retryAt => text?["Wise Old Man is temporarily busy. Try again after {0}.", retryAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)].Value ?? $"Wise Old Man is temporarily busy. Try again after {retryAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)}.",
         WiseOldManLookupStatus.RateLimited => text?["Wise Old Man is temporarily busy. Try again in about 1 minute."].Value ?? "Wise Old Man is temporarily busy. Try again in about 1 minute.",
-        _ when result.RetryAt is { } retryAt => text?["Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {0}.", retryAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)].Value ?? $"Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {retryAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)}.",
+        _ when result.RetryAt is { } retryAt => text?["Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {0}.", retryAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)].Value ?? $"Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {retryAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)}.",
         _ => text?["Wise Old Man is unavailable right now. Your current EHB was kept."].Value ?? "Wise Old Man is unavailable right now. Your current EHB was kept."
     };
     private async Task<IActionResult?> RedirectForPublishedSurfaceAsync(string slug, CancellationToken ct)

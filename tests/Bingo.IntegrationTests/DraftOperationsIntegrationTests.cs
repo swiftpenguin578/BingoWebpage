@@ -601,7 +601,7 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         Assert.Equal(frozenNames.Order(), persistedFrozenNames.Order());
         var page = new Bingo.Web.Pages.Events.TeamsModel(read, new FixedTimeProvider(now));
         Assert.IsType<PageResult>(await page.OnGetAsync(slug, CancellationToken.None));
-        Assert.Empty(page.Teams.SelectMany(x => x.Members));
+        Assert.Equal(frozenNames.Order(), page.Teams.SelectMany(x => x.Members).Select(x => x.Name).Order());
     }
 
     [Fact]

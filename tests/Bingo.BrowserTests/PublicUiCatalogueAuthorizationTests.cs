@@ -59,14 +59,14 @@ public sealed class PublicUiCatalogueAuthorizationTests : IClassFixture<WebAppli
         Assert.Contains("Public UI Catalogue", content, StringComparison.Ordinal);
         Assert.Contains("public-ui-surface", content, StringComparison.Ordinal);
         Assert.Contains("public-ui-surface--flat", content, StringComparison.Ordinal);
-        Assert.Equal(4, content.Split("public-ui-surface--accent", StringSplitOptions.None).Length - 1);
+        Assert.Equal(6, content.Split("public-ui-surface--accent", StringSplitOptions.None).Length - 1);
         Assert.Equal(2, content.Split("public-ui-surface--neutral", StringSplitOptions.None).Length - 1);
         Assert.Contains("Visualization accent", content, StringComparison.Ordinal);
         Assert.Contains("Leaderboards", content, StringComparison.Ordinal);
         Assert.Contains("EHB", content, StringComparison.Ordinal);
         Assert.Contains("Drop EHB", content, StringComparison.Ordinal);
-        Assert.Contains("public-ui-view-switcher public-ui-view-switcher--two", content, StringComparison.Ordinal);
-        Assert.Contains("public-ui-view-switcher-item is-current", content, StringComparison.Ordinal);
+        Assert.Contains("public-ui-view-switcher", content, StringComparison.Ordinal);
+        Assert.Contains("data-public-leaderboard-switcher", content, StringComparison.Ordinal);
         Assert.DoesNotContain("public-ui-table-nav", content, StringComparison.Ordinal);
         Assert.DoesNotContain("Activity EHB", content, StringComparison.Ordinal);
         Assert.Contains("Total drops", content, StringComparison.Ordinal);
@@ -94,16 +94,21 @@ public sealed class PublicUiCatalogueAuthorizationTests : IClassFixture<WebAppli
         Assert.DoesNotContain("bingo-standings", content, StringComparison.Ordinal);
         Assert.DoesNotContain("performance-", content, StringComparison.Ordinal);
 
-        using var cssResponse = await client.GetAsync("/css/site.css");
-        var css = await cssResponse.Content.ReadAsStringAsync();
-        cssResponse.EnsureSuccessStatusCode();
+        var cssParts = new List<string>();
+        foreach (var stylesheet in new[] { "site.transitional.foundation.css", "site.public-ui.css", "site.transitional.application.css" })
+        {
+            using var cssResponse = await client.GetAsync($"/css/{stylesheet}");
+            cssResponse.EnsureSuccessStatusCode();
+            cssParts.Add(await cssResponse.Content.ReadAsStringAsync());
+        }
+        var css = string.Join("\n", cssParts);
         Assert.Contains("--public-ui-flat-surface: rgb(28, 29, 31);", css, StringComparison.Ordinal);
-        Assert.Contains("background: var(--public-ui-flat-surface); background-image: none;", css, StringComparison.Ordinal);
-        Assert.Contains(".public-ui-surface { --public-ui-text-muted: rgba(255, 255, 255, 0.56); --public-ui-text-supporting: rgba(255, 255, 255, 0.6);", css, StringComparison.Ordinal);
+        Assert.Contains(".public-ui-surface--flat { background: var(--public-ui-charcoal-surface); background-image: none;", css, StringComparison.Ordinal);
+        Assert.Contains(".public-ui-surface { --public-ui-text-supporting: rgba(255, 255, 255, 0.6);", css, StringComparison.Ordinal);
         Assert.Contains(".public-ui-overline, .public-ui-role-label { color: var(--public-ui-text-muted);", css, StringComparison.Ordinal);
         Assert.Contains(".public-ui-component-header .public-ui-supporting-text { color: var(--public-ui-text-supporting);", css, StringComparison.Ordinal);
         Assert.Contains(".public-ui-catalogue-type-sample--supporting strong { color: var(--public-ui-text-muted);", css, StringComparison.Ordinal);
-        Assert.Contains(".public-ui-data-example .public-ui-data-label { color: var(--public-ui-text-muted);", css, StringComparison.Ordinal);
+        Assert.Contains(".public-ui-data-example .public-ui-data-label { color: #fff;", css, StringComparison.Ordinal);
         Assert.Contains(".public-ui-data-row .public-ui-supporting-text { overflow: hidden; color: var(--public-ui-text-muted);", css, StringComparison.Ordinal);
         Assert.DoesNotContain("--public-ui-flat-text-muted", css, StringComparison.Ordinal);
         Assert.DoesNotContain("--public-ui-flat-text-supporting", css, StringComparison.Ordinal);

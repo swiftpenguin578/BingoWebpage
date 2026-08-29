@@ -28,7 +28,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_submission_tests").WithUsername("bingo").WithPassword("bingo_test_password").Build();
     private DbContextOptions<ApplicationDbContext> options = null!;
-    private readonly DateTimeOffset now = new(2026, 7, 13, 18, 0, 0, TimeSpan.Zero);
+    private readonly DateTimeOffset now = DateTimeOffset.UtcNow;
 
     public async Task InitializeAsync()
     {
@@ -377,6 +377,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         var owner = Account.CreateWebsite(Guid.NewGuid(), "neutral-owner", "NEUTRAL OWNER", now.AddDays(-2));
         owner.SetPassword(new PasswordHasher<Account>().HashPassword(owner, "password"), false, now, false);
+        db.Accounts.Add(owner);
         (await db.EventParticipants.SingleAsync(x => x.Id == setup.ParticipantId)).AssignOwner(owner);
         await db.SaveChangesAsync();
 
@@ -468,7 +469,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var approved = await submissions.CreateAsync(Command(setup));
         await submissions.ApproveAsync(approved.SubmissionId, setup.AdminId);
         await submissions.CreateAsync(Command(setup));
-        var publicBoards = new PublicBoardService(db);
+        var publicBoards = new PublicBoardService(db, new FixedTimeProvider(now));
 
         var initial = await publicBoards.GetEventBoardAsync($"event-{setup.EventId:N}");
 
@@ -526,21 +527,28 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         team.Finalize(now.AddMinutes(-30));
         await db.SaveChangesAsync();
 
-        var publicBoards = new PublicBoardService(db);
+        var clock = new MutableTimeProvider(now);
+        var publicBoards = new PublicBoardService(db, clock);
         var open = await publicBoards.GetEventBoardAsync($"event-{setup.EventId:N}");
         Assert.True(open!.SubmissionsOpen);
         Assert.Null(open.EventResult);
 
         var bingoEvent = await db.Events.SingleAsync(value => value.Id == setup.EventId);
+        var reviewCycleId = Guid.NewGuid();
         bingoEvent.EndEvent(now);
+        db.EventStateTransitions.Add(new EventStateTransition(
+            reviewCycleId, bingoEvent.Id, EventState.Live, EventState.AwaitingFinalReview, setup.AdminId, now,
+            "Test event ended", effectiveAt: now));
         await db.SaveChangesAsync();
 
+        clock.Set(bingoEvent.SubmissionCutoffAt!.Value.AddTicks(1));
         var awaitingReview = await publicBoards.GetEventBoardAsync(bingoEvent.Slug);
         Assert.False(awaitingReview!.SubmissionsOpen);
         Assert.Equal(new PublicEventResult("Team One", $"team-{setup.TeamId:N}", false), awaitingReview.EventResult);
 
-        bingoEvent.FinalizeResults(now.AddMinutes(1));
-        var finalization = new EventFinalizationSnapshot(Guid.NewGuid(), bingoEvent.Id, 1, now.AddMinutes(1), setup.AdminId, Guid.NewGuid());
+        var finalizedAt = clock.GetUtcNow().AddMinutes(1);
+        bingoEvent.FinalizeResults(finalizedAt);
+        var finalization = new EventFinalizationSnapshot(Guid.NewGuid(), bingoEvent.Id, 1, finalizedAt, setup.AdminId, reviewCycleId);
         db.EventFinalizations.Add(finalization);
         db.OfficialPlacements.Add(new OfficialPlacementSnapshot(
             Guid.NewGuid(), finalization.Id, bingoEvent.Id, setup.TeamId, "Historic Team One", 1,
@@ -568,7 +576,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
             clock.Set(clock.GetUtcNow().AddMinutes(1));
         }
 
-        var board = await new PublicBoardService(db).GetEventBoardAsync($"event-{setup.EventId:N}", 25);
+        var board = await new PublicBoardService(db, clock).GetEventBoardAsync($"event-{setup.EventId:N}", 25);
 
         Assert.Equal(25, board!.RecentDrops.Count);
         Assert.Equal(Enumerable.Range(2, 25).OrderByDescending(value => value), board.RecentDrops.Select(value => value.ProgressAfter));
@@ -592,9 +600,9 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
             clock.Set(clock.GetUtcNow().AddMinutes(1));
         }
 
-        var singleTermBoard = await new PublicBoardService(db).GetEventBoardAsync(
+        var singleTermBoard = await new PublicBoardService(db, clock).GetEventBoardAsync(
             $"event-{setup.EventId:N}", 25, "test drop", $"team-{setup.TeamId:N}");
-        var board = await new PublicBoardService(db).GetEventBoardAsync(
+        var board = await new PublicBoardService(db, clock).GetEventBoardAsync(
             $"event-{setup.EventId:N}", 25, "test drop + no matching term", $"team-{setup.TeamId:N}");
 
         Assert.Equal(26, board!.RecentDropFilteredTotal!.Value);
@@ -615,7 +623,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var submissions = Service(db);
         var first = await submissions.CreateAsync(Command(setup));
         await submissions.ApproveAsync(first.SubmissionId, setup.AdminId);
-        var publicBoards = new PublicBoardService(db);
+        var publicBoards = new PublicBoardService(db, new FixedTimeProvider(now));
 
         var partial = await publicBoards.GetEventBoardAsync($"event-{setup.EventId:N}");
 
@@ -644,7 +652,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var submissions = Service(db);
         var result = await submissions.CreateAsync(Command(setup));
         await submissions.ApproveAsync(result.SubmissionId, setup.AdminId);
-        var publicBoards = new PublicBoardService(db);
+        var publicBoards = new PublicBoardService(db, new FixedTimeProvider(now));
 
         var board = await publicBoards.GetEventBoardAsync($"event-{setup.EventId:N}");
         var details = await publicBoards.GetTileAsync($"event-{setup.EventId:N}", $"team-{setup.TeamId:N}", setup.TileId);

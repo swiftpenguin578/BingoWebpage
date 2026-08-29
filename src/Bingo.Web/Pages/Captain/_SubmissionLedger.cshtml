@@ -26,7 +26,7 @@ else
                     <td>@(submission.Drop ?? "—")</td>
                     <td>@submission.Tile@if (submission.HasFeedback) { <small>@T["Reviewer feedback available"]</small> }</td>
                     <td>@submission.Player</td>
-                    <td>@submission.SubmittedAt.ToLocalTime().ToString("g")</td>
+                    <td>@submission.SubmittedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</td>
                     <td><a class="public-ui-action public-ui-action--text public-ui-action--hyperlink captain-ledger-detail" asp-page="@Model.DetailPage" asp-route-id="@submission.Id" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId">@(submission.HasFeedback ? T["View feedback"] : T["View details"])</a></td>
                 </tr>
             }

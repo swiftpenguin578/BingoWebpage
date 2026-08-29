@@ -80,13 +80,14 @@ public sealed class Slice1MigrationRehearsalTests : IAsyncLifetime
             Assert.Equal(adminId, await migrated.AuditEntries.Select(entry => entry.ActorAccountId).SingleAsync());
 
             var cutoff = created.AddHours(2);
+            var persistedCutoff = cutoff.AddTicks(-(cutoff.Ticks % TimeSpan.TicksPerMicrosecond));
             captain.Enable(); access.Enable();
             await migrated.SaveChangesAsync();
-            var clock = new FixedTimeProvider(cutoff.AddTicks(-1));
+            var clock = new FixedTimeProvider(persistedCutoff.AddMicroseconds(-1));
             var lifecycle = new EmergencyCredentialLifecycleService(migrated, clock);
             await lifecycle.ApplyAsync(CancellationToken.None);
             Assert.True((await migrated.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
-            clock.Set(cutoff);
+            clock.Set(persistedCutoff);
             await lifecycle.ApplyAsync(CancellationToken.None);
             migrated.ChangeTracker.Clear();
             Assert.False((await migrated.Accounts.SingleAsync(item => item.Id == captainId)).Active);

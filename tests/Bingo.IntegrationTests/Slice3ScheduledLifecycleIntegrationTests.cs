@@ -410,8 +410,8 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
         var readyHtml = await client.GetStringAsync($"/Admin/Events/Manage/{eventId}");
         Assert.Contains("data-manage-overview", readyHtml, StringComparison.Ordinal);
         Assert.Contains("Readiness checks", readyHtml, StringComparison.Ordinal);
-        Assert.Contains("Important information", readyHtml, StringComparison.Ordinal);
-        Assert.Contains("Review teams and draft", readyHtml, StringComparison.Ordinal);
+        Assert.Contains("Event information", readyHtml, StringComparison.Ordinal);
+        Assert.Contains("Start the bingo when the board and teams are ready.", readyHtml, StringComparison.Ordinal);
         Assert.Contains("All start blockers are resolved. Confirm to start the event now.", readyHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("Finalize the team draft. <a", readyHtml, StringComparison.Ordinal);
         var eventVersion = InputValue(readyHtml, "EventVersion");
@@ -434,7 +434,7 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
 
         var freshHtml = await client.GetStringAsync($"/Admin/Events/Manage/{eventId}");
         Assert.Contains("Review submissions", freshHtml, StringComparison.Ordinal);
-        Assert.Contains("Effective event end", freshHtml, StringComparison.Ordinal);
+        Assert.Contains("Event ends", freshHtml, StringComparison.Ordinal);
         Assert.Contains("The bingo is currently live.", freshHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("<h3>Automatic start postponed</h3>", freshHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("Start event now", freshHtml, StringComparison.Ordinal);

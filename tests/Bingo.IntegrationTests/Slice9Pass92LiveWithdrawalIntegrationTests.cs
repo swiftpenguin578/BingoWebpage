@@ -233,11 +233,11 @@ public sealed class Slice9Pass92LiveWithdrawalIntegrationTests : IAsyncLifetime
         }));
         Assert.Equal(HttpStatusCode.Redirect, loggedIn.StatusCode);
 
-        var manage = await client.GetStringAsync($"/Admin/Events/Manage/{seed.EventId}");
-        Assert.DoesNotContain("Locked for draft", manage, StringComparison.Ordinal);
-        Assert.Contains($"/Admin/Events/Participant/{seed.EventId}/Participants/{externalParticipantId}", manage, StringComparison.Ordinal);
-        Assert.Contains("External roster member", manage, StringComparison.Ordinal);
-        Assert.Contains("Manage live participant", manage, StringComparison.Ordinal);
+        var participants = await client.GetStringAsync($"/Admin/Events/Participants/{seed.EventId}");
+        Assert.DoesNotContain("Locked for draft", participants, StringComparison.Ordinal);
+        Assert.Contains($"/Admin/Events/Participant/{seed.EventId}/Participants/{externalParticipantId}", participants, StringComparison.Ordinal);
+        Assert.Contains("External roster member", participants, StringComparison.Ordinal);
+        Assert.Contains("Manage live participant", participants, StringComparison.Ordinal);
 
         var liveParticipant = await client.GetStringAsync($"/Admin/Events/Participant/{seed.EventId}/Participants/{externalParticipantId}");
         Assert.Equal(externalMembershipVersion.ToString(CultureInfo.InvariantCulture), InputValue(liveParticipant, "ExpectedMembershipVersion"));
@@ -257,7 +257,7 @@ public sealed class Slice9Pass92LiveWithdrawalIntegrationTests : IAsyncLifetime
         using var withdrawalDestination = await client.GetAsync(withdrawalRead.Headers.Location!.OriginalString);
         Assert.Equal(HttpStatusCode.OK, withdrawalDestination.StatusCode);
 
-        var vacancyLink = Regex.Match(notificationsAfterWithdrawal, "<a[^>]*href=\"([^\"]+)\"[^>]*><strong>Open vacancy</strong>").Groups[1].Value;
+        var vacancyLink = Regex.Match(notificationsAfterWithdrawal, "<a[^>]*href=\"([^\"]+)\"[^>]*>(?:(?!</a>).)*<strong>Open vacancy</strong>", RegexOptions.Singleline).Groups[1].Value;
         Assert.False(string.IsNullOrWhiteSpace(vacancyLink));
         var vacancyParticipant = await client.GetStringAsync(vacancyLink);
         Assert.Contains("Fill open vacancy", vacancyParticipant, StringComparison.Ordinal);
@@ -271,7 +271,7 @@ public sealed class Slice9Pass92LiveWithdrawalIntegrationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Redirect, fillVacancy.StatusCode);
 
         var notificationsAfterReplacement = await client.GetStringAsync("/notifications");
-        var followUpLink = Regex.Match(notificationsAfterReplacement, "<a[^>]*href=\"([^\"]+)\"[^>]*><strong>Waiting-list follow-up</strong>").Groups[1].Value;
+        var followUpLink = Regex.Match(notificationsAfterReplacement, "<a[^>]*href=\"([^\"]+)\"[^>]*>(?:(?!</a>).)*<strong>Waiting-list follow-up</strong>", RegexOptions.Singleline).Groups[1].Value;
         Assert.False(string.IsNullOrWhiteSpace(followUpLink));
         var promotedParticipant = await client.GetStringAsync(followUpLink);
         Assert.Contains("Mark follow-up complete", promotedParticipant, StringComparison.Ordinal);

@@ -684,8 +684,9 @@ passes as product or UI approval.
 
 ## Explicit unresolved decisions
 
-- **F-04:** decide Live identity correction versus fail-closed alignment before
-  changing that behavior.
+- **F-04:** resolved; while Live, Admin may correct only the display timezone
+  with explicit confirmation and an audit reason. Other identity values and UTC
+  schedule/cutoff instants remain immutable.
 - **F-06:** decide whether permanent Rules/how-to work precedes or follows
   Milestone 9 before implementing that feature work.
 
@@ -958,9 +959,10 @@ Before implementing a materially different page structure, hierarchy, or
 interaction geometry that existing references do not resolve, stop and request a
 new picture reference from the user instead of inventing the composition.
 
-The Board behavior approval and replacement-identity decision do not resolve
-F-04 or the future permanent-content question in F-06 and do not imply
-whole-application production readiness. The currently shipped masthead-only
+The Board behavior approval and replacement-identity decision leave only the
+future permanent-content question in F-06 unresolved and do not imply
+whole-application production readiness. F-04 is resolved by the narrow Live
+display-timezone correction described above. The currently shipped masthead-only
 `/HowTo` WIP placeholder is deployment ready, not approved, and remains
 unchanged until F-06 is separately reopened.
 Regression and remaining deployment gates remain sequenced as above.

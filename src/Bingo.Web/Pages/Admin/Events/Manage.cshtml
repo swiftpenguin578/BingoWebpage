@@ -93,7 +93,7 @@
             </article>
             <article class="event-overview-metric">
                 <header class="event-overview-metric-header">
-                        <span class="event-overview-metric-label"><svg class="event-overview-metric-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 13h8M8 17h6" /></svg><span>@T["submissions"]</span></span>
+                        <span class="event-overview-metric-label"><svg class="event-overview-metric-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 13h8M8 17h6" /></svg><span>@T["Submissions"]</span></span>
                     <svg class="event-overview-metric-arrow" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path d="M7 17 17 7M7 7h10v10" /></svg>
                 </header>
                 <div class="event-overview-metric-body">
@@ -402,7 +402,7 @@
                     }
                     else
                     {
-                        <p class="event-control-status event-wom-status"><strong>@T["Status:"]</strong> <span class="event-wom-status-value @integrationStatusClass"><strong>@integration.CompetitionTitle</strong> · @integration.CompetitionId · @(integration.Complete == true ? T["Complete"] : integration.Complete == false && integration.MissingAccounts.Count > 0 ? T["Partial"] : integration.Complete == false ? T["Incomplete"] : T["Waiting"])@(integration.LastSuccessfulAt is { } synced ? $" · {synced.ToLocalTime():g}" : string.Empty)@(integration.RetryDueAt is not null ? $" · {T["Retry scheduled"]}" : string.Empty)@(integration.MissingAccounts.Count > 0 ? $" · {T["{0} accounts missing", integration.MissingAccounts.Count]}" : string.Empty)@(!string.IsNullOrWhiteSpace(integration.LastError) ? $" · {integration.LastError}" : string.Empty)</span></p>
+                        <p class="event-control-status event-wom-status"><strong>@T["Status:"]</strong> <span class="event-wom-status-value @integrationStatusClass"><strong>@integration.CompetitionTitle</strong> · @integration.CompetitionId · @(integration.Complete == true ? T["Complete"] : integration.Complete == false && integration.MissingAccounts.Count > 0 ? T["Partial"] : integration.Complete == false ? T["Incomplete"] : T["Waiting"])@(integration.LastSuccessfulAt is { } synced ? $" · {synced.ToLocalTime():dd MMM yyyy, HH:mm}" : string.Empty)@(integration.RetryDueAt is not null ? $" · {T["Retry scheduled"]}" : string.Empty)@(integration.MissingAccounts.Count > 0 ? $" · {T["{0} accounts missing", integration.MissingAccounts.Count]}: {string.Join(", ", integration.MissingAccounts)}" : string.Empty)@(!string.IsNullOrWhiteSpace(integration.LastError) ? $" · {integration.LastError}" : string.Empty)</span></p>
                     }
                     </div>
                     <div class="event-control-static">
@@ -432,7 +432,7 @@
                     }
                     @if (hasRequestBudget)
                     {
-                        <p class="event-wom-budget"><small>@T["Request budget:"] @(integration?.RequestStatus.ObservedRemaining?.ToString() ?? "—") @T["remaining"]@(integration?.RequestStatus.ObservedLimit is { } limit ? $" {T["of {0}", limit]}" : string.Empty)@(integration?.RequestStatus.ResetAt is { } reset ? $" · {T["reset"]} {reset.ToLocalTime():g}" : string.Empty)</small></p>
+                        <p class="event-wom-budget"><small>@T["Request budget:"] @(integration?.RequestStatus.ObservedRemaining?.ToString() ?? "—") @T["remaining"]@(integration?.RequestStatus.ObservedLimit is { } limit ? $" {T["of {0}", limit]}" : string.Empty)@(integration?.RequestStatus.ResetAt is { } reset ? $" · {T["reset"]} {reset.ToLocalTime():dd MMM yyyy, HH:mm}" : string.Empty)</small></p>
                     }
                     </div>
                 </section>

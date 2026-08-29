@@ -936,10 +936,10 @@ uncommitted and must be packaged before publishing the candidate.
   `AGENTS.md`. Ordinary UI passes use the lean sequence: agree page/result,
   bounded implementation, one independent review when appropriate, focused
   remediation, and manual acceptance.
-- F-04 (Live identity correction versus fail-closed alignment) and the future
-  permanent Rules/how-to content decision in F-06 remain unresolved. The user
-  marked the currently shipped `/HowTo` route deployment ready on 2026-08-24;
-  stop for direction before replacing that content or resolving F-06.
+- F-04 is resolved by the narrow Live display-timezone correction, while the
+  future permanent Rules/how-to content decision in F-06 remains unresolved.
+  The user marked the currently shipped `/HowTo` route deployment ready on
+  2026-08-24; stop for direction before replacing that content or resolving F-06.
 - Stop before adding product behavior, changing an approved rule, adding
   unbudgeted persistence/routes/policies/jobs/abstractions, or fixing an
   unrelated defect. Preserve existing routes for deep links, reload/history,

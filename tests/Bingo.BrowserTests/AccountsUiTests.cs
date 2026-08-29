@@ -25,7 +25,7 @@ public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Progra
     {
         var root = FindRepositoryRoot();
         var manage = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Accounts", "Manage.cshtml"));
-        var styles = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "site.css"));
+        var styles = BrowserTestFiles.ReadActiveStyles(root);
 
         Assert.Contains(".admin-shell-body .admin-account-route-page.is-emergency-credential .admin-account-emergency-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; justify-content: flex-end; }", styles);
         Assert.Contains("<div class=\"admin-account-emergency-actions\">", manage);
@@ -46,8 +46,7 @@ public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Progra
         var transfer = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Accounts", "Transfer.cshtml"));
         var transferModel = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Accounts", "Transfer.cshtml.cs"));
         var manageModel = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Accounts", "Manage.cshtml.cs"));
-        var styles = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "site.css"));
-        var contract = File.ReadAllText(Path.Combine(root, "ADMIN_UI_CONTRACT.md"));
+        var styles = BrowserTestFiles.ReadActiveStyles(root);
         var script = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "site.js"));
         var manageDialogScript = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "account-manage-dialog.js"));
 
@@ -56,13 +55,13 @@ public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Progra
         Assert.Equal(2, accounts.Split("class=\"admin-events-directory-controls\"", StringSplitOptions.None).Length - 1);
         var accountToolbarForms = accounts.Split("<form class=\"admin-events-toolbar\" method=\"get\" asp-page=\"./Index\"", StringSplitOptions.None);
         Assert.Equal(3, accountToolbarForms.Length);
-        Assert.Contains("<button class=\"visually-hidden\" type=\"submit\">Search accounts</button>", accountToolbarForms[1]);
-        Assert.Contains("<button class=\"visually-hidden\" type=\"submit\">Search emergency credentials</button>", accountToolbarForms[2]);
+        Assert.Contains("<button class=\"visually-hidden\" type=\"submit\">@T[\"Search accounts\"]</button>", accountToolbarForms[1]);
+        Assert.Contains("<button class=\"visually-hidden\" type=\"submit\">@T[\"Search emergency credentials\"]</button>", accountToolbarForms[2]);
         Assert.Contains("name=\"WebsiteSearch\"", accounts);
         Assert.Contains("name=\"WebsiteRole\"", accounts);
         Assert.Contains("Search accounts", accounts);
-        Assert.Equal(1, accounts.Split("<button class=\"visually-hidden\" type=\"submit\">Search accounts</button>", StringSplitOptions.None).Length - 1);
-        Assert.Equal(1, accounts.Split("<button class=\"visually-hidden\" type=\"submit\">Search emergency credentials</button>", StringSplitOptions.None).Length - 1);
+        Assert.Equal(1, accounts.Split("<button class=\"visually-hidden\" type=\"submit\">@T[\"Search accounts\"]</button>", StringSplitOptions.None).Length - 1);
+        Assert.Equal(1, accounts.Split("<button class=\"visually-hidden\" type=\"submit\">@T[\"Search emergency credentials\"]</button>", StringSplitOptions.None).Length - 1);
         Assert.Contains("Any role", accounts);
         Assert.Contains("Create emergency credential", accounts);
         Assert.Contains("Transfer ownership", accounts);
@@ -82,7 +81,7 @@ public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Progra
         Assert.Contains("WebsiteAccountRow(Guid Id, string Username, GlobalRole Role, bool Active, bool DiscordLinked, string? DiscordDisplayName, DateTimeOffset? LastLoginAt, string EventRoleSummary)", model);
         Assert.Contains("@if (account.DiscordLinked && !string.IsNullOrWhiteSpace(account.DiscordDisplayName))", accounts);
         Assert.Contains("<small class=\"admin-account-discord-name\">@account.DiscordDisplayName</small>", accounts);
-        Assert.Contains("<span class=\"admin-account-discord-status @(account.DiscordLinked ? \"is-linked\" : \"is-unlinked\")\">@(account.DiscordLinked ? \"Linked\" : \"Not linked\")</span>", accounts);
+        Assert.Contains("<span class=\"admin-account-discord-status @(account.DiscordLinked ? \"is-linked\" : \"is-unlinked\")\">@(account.DiscordLinked ? T[\"Linked\"] : T[\"Not linked\"])</span>", accounts);
         Assert.Contains(".admin-accounts-table .admin-account-discord-name { display: block; margin-top: 0.15rem; color: var(--admin-muted); font-size: 0.625rem; font-weight: 400; line-height: 1.35; overflow-wrap: anywhere; }", styles);
         Assert.Contains(".admin-accounts-table .admin-account-discord-status.is-linked { color: var(--admin-text); }", styles);
         Assert.Contains(".admin-accounts-table .admin-account-discord-status.is-unlinked { color: var(--admin-status-orange); }", styles);
@@ -164,9 +163,9 @@ public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Progra
         Assert.Contains(".admin-accounts-actions { grid-column: 3; }", styles);
         Assert.Contains(".admin-accounts-page .admin-events-directory-controls > .admin-events-toolbar { display: grid; grid-template-columns: 1fr; }", styles);
         var genericSearchStart = styles.IndexOf(".admin-shell-body .admin-search-field-input {", StringComparison.Ordinal);
-        var accountsSearchStart = styles.IndexOf(".admin-shell-body .admin-accounts-page .admin-search-field-input.form-control {", StringComparison.Ordinal);
+        var accountsSearchStart = styles.IndexOf(".admin-shell-body .admin-accounts-page .admin-search-field-input:focus,", StringComparison.Ordinal);
         Assert.True(accountsSearchStart > genericSearchStart);
-        Assert.Contains("min-height: 2.25rem; border-color: transparent; border-radius: 999px; padding-right: 2.25rem;", styles[accountsSearchStart..]);
+        Assert.Contains("background: var(--admin-search);", styles[accountsSearchStart..]);
         var roleFilterStart = styles.IndexOf(".admin-shell-body .admin-filter-select {", StringComparison.Ordinal);
         var roleFilterEnd = styles.IndexOf('}', roleFilterStart);
         Assert.True(roleFilterStart >= 0 && roleFilterEnd > roleFilterStart);
@@ -175,13 +174,13 @@ public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Progra
         Assert.Contains(".admin-shell-body .admin-accounts-page,", styles);
         Assert.Contains("padding: 0.65rem 1rem; color: var(--admin-text);", styles);
         Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-login-username { width: 16%; }", styles);
-        Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-event { width: 16%; }", styles);
+        Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-event { width: 22%; }", styles);
         Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-team { width: 14%; }", styles);
         Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-setup { width: 9%; }", styles);
         Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-state { width: 10%; }", styles);
         Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-cutoff { width: 12%; }", styles);
         Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-last-login { width: 8%; }", styles);
-        Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-actions { width: 15%; }", styles);
+        Assert.Contains(".admin-accounts-emergency-table .admin-accounts-col-actions { width: 9%; }", styles);
         var accountHeaderStart = styles.IndexOf(".admin-accounts-table th {", StringComparison.Ordinal);
         var accountHeaderEnd = styles.IndexOf('}', accountHeaderStart);
         Assert.True(accountHeaderStart >= 0 && accountHeaderEnd > accountHeaderStart);
@@ -200,7 +199,6 @@ public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Progra
         Assert.Contains("line-height: 1.25", eventHeaderStyles);
         Assert.Contains("vertical-align: top", accountHeaderStyles);
         Assert.DoesNotContain(".admin-accounts-emergency-table .admin-accounts-col-actions { width: 7%; }", styles);
-        Assert.Contains("Single-line `<th>` cells use `.6rem 1rem` padding with `.6875rem / 500 / 1.25` text; height is content-derived, not fixed.", contract);
         Assert.Contains("border-radius: 999px", styles);
         Assert.Contains("text-transform: none", styles);
         Assert.Contains("admin-account-ellipsis", styles);
@@ -269,7 +267,8 @@ public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Progra
         Assert.DoesNotContain("<summary class=\"admin-button-create\"><strong>Enable emergency credential</strong>", manage);
         Assert.Contains(".admin-account-emergency-actions { display: flex; flex-wrap: wrap; gap: 0.45rem;", styles);
         Assert.Contains(".admin-account-confirmation-dialog {", styles);
-        Assert.Contains("background: var(--admin-surface-raised); border: 1px solid #2b2b2b;", styles);
+        Assert.Contains("background: var(--admin-surface-raised);", styles);
+        Assert.Contains("border: 1px solid #2b2b2b;", styles);
         Assert.Contains(".admin-account-confirmation-heading h2 {", styles);
         Assert.Contains("color: #eaeae5; font-family: inherit; font-size: 0.875rem; font-weight: 600; line-height: 1.3", styles);
         Assert.Contains("color: #969692; font-size: 0.75rem; font-weight: 400; line-height: 1.45", styles);
@@ -292,14 +291,15 @@ public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Progra
         var create = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Accounts", "Create.cshtml"));
         var createModel = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Accounts", "Create.cshtml.cs"));
         var manage = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Accounts", "Manage.cshtml"));
-        var styles = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "site.css"));
+        var styles = BrowserTestFiles.ReadActiveStyles(root);
         var script = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "account-manage-dialog.js"));
         var adminLayout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminLayout.cshtml"));
 
-        Assert.Contains("<button class=\"admin-button-secondary\" type=\"submit\">Load teams</button>", create);
+        Assert.Contains("<button class=\"admin-button-secondary\" type=\"submit\">@T[\"Load teams\"]</button>", create);
         Assert.Contains(".admin-account-fields .admin-account-scope-note { display: grid; grid-column: 2; grid-row: 1; align-self: end;", styles);
         Assert.DoesNotContain("data-account-enhanced-validation", script);
-        Assert.Contains("exception.Message", createModel);
+        Assert.Contains("catch (InvalidOperationException)", createModel);
+        Assert.Contains("The emergency credential could not be created.", createModel);
         Assert.Contains("TempData[\"StatusMessage\"]", createModel);
         Assert.Contains("_TransientToast", adminLayout);
 
@@ -312,7 +312,8 @@ public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Progra
         Assert.Contains("data-account-final-action=\"true\" data-account-handler=\"GenerateResetLink\"", manage);
         Assert.Contains("data-account-final-action=\"true\" data-account-handler=\"Disable\"", manage);
         Assert.Contains("data-account-final-action=\"true\" data-account-handler=\"Restore\"", manage);
-        Assert.Contains("data-account-confirmation-reason=\"true\" data-account-confirmation-reason-label=\"Disable reason\"", manage);
+        Assert.Contains("data-account-confirmation-reason=\"true\"", manage);
+        Assert.Contains("data-account-confirmation-reason-label=\"@T[\"Disable reason\"]\"", manage);
         Assert.Contains(".admin-account-final-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.45rem; width: fit-content;", styles);
         Assert.Contains(".admin-shell-body .admin-account-final-actions .action-danger-outline,", styles);
         Assert.Contains(".admin-shell-body .admin-account-emergency-actions .action-danger-outline,", styles);

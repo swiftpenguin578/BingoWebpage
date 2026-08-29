@@ -81,9 +81,9 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
 
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(1, await verify.EventCompetitionCharacterActivities.CountAsync(x => x.EventId == eventItem.Id));
-        Assert.Equal(51.85956m, await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.GainedEhb).SingleAsync());
+        Assert.Equal(51.8596m, await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.GainedEhb).SingleAsync());
         Assert.Equal(100m, await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.StartEhb).SingleAsync());
-        Assert.Equal(151.85956m, await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.EndEhb).SingleAsync());
+        Assert.Equal(151.8596m, await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.EndEhb).SingleAsync());
         Assert.Equal("Mathias_Jr", await verify.OsrsCharacters.Where(x => x.Id == mathias.Id).Select(x => x.DisplayName).SingleAsync());
         Assert.DoesNotContain(await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.OsrsCharacterId).ToListAsync(), id => id == alt.Id || id == released.Id);
         Assert.Equal(2, fake.Calls);

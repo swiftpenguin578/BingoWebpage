@@ -288,6 +288,8 @@
   <data name="Account settings" xml:space="preserve"><value>Kontoindstillinger</value></data>
   <data name="Security and Discord" xml:space="preserve"><value>Sikkerhed og Discord</value></data>
   <data name="Discord" xml:space="preserve"><value>Discord</value></data>
+  <data name="Discord linked" xml:space="preserve"><value>Discord tilknyttet</value></data>
+  <data name="Discord unlinked" xml:space="preserve"><value>Discord ikke tilknyttet</value></data>
   <data name="Linked" xml:space="preserve"><value>Tilknyttet</value></data>
   <data name="Not linked" xml:space="preserve"><value>Ikke tilknyttet</value></data>
   <data name="Change linked Discord" xml:space="preserve"><value>Skift tilknyttet Discord</value></data>

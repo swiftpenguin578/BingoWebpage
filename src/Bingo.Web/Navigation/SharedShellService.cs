@@ -306,15 +306,15 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
     {
         try
         {
-            return TimeZoneInfo.ConvertTime(value, TimeZoneInfo.FindSystemTimeZoneById(timezoneId)).ToString("g", CultureInfo.CurrentCulture);
+            return TimeZoneInfo.ConvertTime(value, TimeZoneInfo.FindSystemTimeZoneById(timezoneId)).ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
         }
         catch (TimeZoneNotFoundException)
         {
-            return value.ToString("g", CultureInfo.CurrentCulture);
+            return value.ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
         }
         catch (InvalidTimeZoneException)
         {
-            return value.ToString("g", CultureInfo.CurrentCulture);
+            return value.ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
         }
     }
 

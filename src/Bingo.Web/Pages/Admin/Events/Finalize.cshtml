@@ -26,7 +26,7 @@
                 <h1 id="finalize-page-heading">@Model.Readiness.EventName</h1>
                 <span class="admin-status-pill @statePill.Modifier">@statePill.Label</span>
             </div>
-            <p class="finalize-page-meta">@Model.Readiness.State · @T["Event ended"] @(Model.Readiness.EventEndsAt?.ToLocalTime().ToString("g") ?? T["Not set"])</p>
+            <p class="finalize-page-meta">@Model.Readiness.State · @T["Event ended"] @(Model.Readiness.EventEndsAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) ?? T["Not set"])</p>
         </div>
         <a class="admin-button-secondary finalize-back-link" asp-page="Manage" asp-route-id="@Model.Readiness.EventId">@T["Back to event workspace"]</a>
     </header>
@@ -135,11 +135,11 @@
                             <td data-label="@T["Completion"]">
                                 @if (row.CorrectedCompletedAt is not null)
                                 {
-                                    <span class="finalize-completion-value"><small>@T["Originally"] @row.CalculatedCompletedAt?.ToLocalTime().ToString("g")</small><strong>@T["Corrected to"] @row.CorrectedCompletedAt.Value.ToLocalTime().ToString("g")</strong></span>
+                                    <span class="finalize-completion-value"><small>@T["Originally"] @row.CalculatedCompletedAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</small><strong>@T["Corrected to"] @row.CorrectedCompletedAt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</strong></span>
                                 }
                                 else
                                 {
-                                    <span>@(row.CalculatedCompletedAt?.ToLocalTime().ToString("g") ?? "—")</span>
+                                    <span>@(row.CalculatedCompletedAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) ?? "—")</span>
                                 }
                             </td>
                             <td data-label="@T["Lines"]"><span>@row.CompletedLines</span></td>
@@ -255,13 +255,13 @@
                 {
                     <details class="finalize-history-entry" open="@version.Active">
                         <summary>
-                            <span class="finalize-history-summary-main"><strong>@T["Version {0}", version.Version]</strong><span>@version.FinalizedAt.ToLocalTime().ToString("g")</span></span>
+                            <span class="finalize-history-summary-main"><strong>@T["Version {0}", version.Version]</strong><span>@version.FinalizedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</span></span>
                             <span class="admin-status-pill @(version.Active ? "is-green" : "is-muted")">@(version.Active ? T["Active"] : T["Historical"])</span>
                         </summary>
                         <div class="finalize-history-body">
                             @if (version.UnfinalizedAt is not null)
                             {
-                                <p class="finalize-history-reopened">@T["Reopened"] @version.UnfinalizedAt.Value.ToLocalTime().ToString("g"): @version.UnfinalizeReason</p>
+                                <p class="finalize-history-reopened">@T["Reopened"] @version.UnfinalizedAt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture): @version.UnfinalizeReason</p>
                             }
                             <div class="finalize-history-table-wrap">
                                 <table class="finalize-history-table">
@@ -275,7 +275,7 @@
                                                 <td data-label="@T["Place"]"><span>#@row.Placement</span></td>
                                                 <td data-label="@T["Team"]"><strong>@row.TeamName</strong></td>
                                                 <td data-label="@T["board"]"><span>@(row.BoardComplete ? T["Complete"] : T["Incomplete"])</span></td>
-                                                <td data-label="@T["Completion"]"><span>@(row.BoardCompletedAt?.ToLocalTime().ToString("g") ?? "—")</span></td>
+                                                <td data-label="@T["Completion"]"><span>@(row.BoardCompletedAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) ?? "—")</span></td>
                                                 <td data-label="@T["Lines"]"><span>@row.CompletedLines</span></td>
                                                 <td data-label="@T["Tiles"]"><span>@row.CompletedTiles</span></td>
                                                 <td data-label="EHB"><span>@row.EhbTiebreak.ToString("0.##")</span></td>

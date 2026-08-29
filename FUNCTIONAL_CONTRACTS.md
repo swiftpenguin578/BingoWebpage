@@ -172,11 +172,11 @@ Each durable capability/journey below has one owning contract section. Shared cr
 
 **Entry and reachability:** Use the event Identity route from Admin Manage or the setup progression. The same server contract supports normal form fallback.
 
-**Authoritative happy path:** Select a supported timezone (Copenhagen is the default), save the public description, manage a stored banner, and retain the stable slug after first public exposure. Display-name changes preserve the URL.
+**Authoritative happy path:** Before Live, select a supported timezone (Copenhagen is the default), save the public description, manage a stored banner, and retain the stable slug after first public exposure. Display-name changes preserve the URL; while Live, only the display timezone may be corrected.
 
 **Permissions and history:** Identity changes are Admin-authorized and audited. Banner absence is optional and never a readiness blocker. Stored UTC instants do not change merely because the display timezone changes.
 
-**Failure and recovery:** Unsupported timezone, slug conflict, stale confirmation, or banner failure leaves the prior valid value active and returns retryable feedback. A post-signup timezone change previews participant-facing local times; schedule edits remain a separate capability. The exact policy for an ordinary Live identity correction remains unresolved under F-04 and is not silently authorized here.
+**Failure and recovery:** Unsupported timezone, slug conflict, stale confirmation, or banner failure leaves the prior valid value active and returns retryable feedback. A post-signup timezone change previews participant-facing local times; while Live, an Admin may correct only the display timezone with explicit confirmation and an audit reason, while slug, name, description, banner, schedule instants, and other identity values remain immutable. Schedule edits remain a separate capability.
 
 **Acceptance outcome:** Admins can identify an event and make it understandable before signup without requiring decorative artwork, changing historical instants, or exposing a private draft.
 
@@ -588,7 +588,7 @@ unchanged.
 
 ## 10. Unresolved and deferred decisions
 
-- **F-04 — unresolved:** decide whether a narrow Live identity-correction workflow is intended or the domain allowance must align fail-closed with the ordinary pre-Live route policy. This contract does not change either boundary.
+- **F-04 — resolved:** while an event is Live, an Admin may correct only its display timezone with explicit confirmation and an audit reason. The slug, name, description, banner, UTC schedule/cutoff instants, and every other identity value remain immutable; no broader Live identity editing is authorized.
 - **F-06 — unresolved sequencing:** the permanent Rules/how-to slice remains a distinct functional boundary, but whether it precedes or follows Milestone 9 is not decided. No implementation scope is added here.
 - External feedback remains deferred to the community Discord path; no version-one application feedback form is added.
 - Wise Old Man availability, cache completeness, and integration configuration remain non-blocking for event lifecycle; detailed API/operational limits stay in the technical and data authorities.
@@ -605,4 +605,4 @@ The version-one functional foundation described here defines the following outco
 - Captain/co-captain, Super Admin, ordinary Admin, participant, emergency credential, and public projections each receive only their intended scope.
 - Notifications resolve to valid destinations and remain supplementary to the underlying event, roster, evidence, account, or lifecycle record.
 - Development reset provides explicit, bounded manual-acceptance journeys; production does not inherit the fixture exemption.
-- F-04 and F-06 remain visible unresolved classifications. F-05 is resolved by documentation reconciliation only; no implementation or product decision changed. Wise Old Man remains optional/supplementary, manual signup EHB remains authoritative, and no lifecycle action depends on it.
+- F-06 remains a visible unresolved classification. F-04 is resolved by the narrow Live display-timezone correction above; F-05 is resolved by documentation reconciliation. Wise Old Man remains optional/supplementary, manual signup EHB remains authoritative, and no lifecycle action depends on it.

@@ -125,7 +125,8 @@ public sealed class SignupUiTests
         Assert.DoesNotContain("table-page", signups);
 
         var confirmation = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages/Events/Confirmation.cshtml"));
-        Assert.DoesNotContain("ConfirmLifecycleAction", confirmation);
+        Assert.Contains("name=\"ConfirmLifecycleAction\" value=\"false\"", confirmation);
+        Assert.Contains("this.elements['ConfirmLifecycleAction'].value = 'true';", confirmation);
         Assert.DoesNotContain("I understand that", confirmation);
         Assert.Contains("data-confirm-message=", confirmation);
         Assert.Contains("window.confirm(this.dataset.confirmMessage)", confirmation);
@@ -140,13 +141,13 @@ public sealed class SignupUiTests
         var publicCss = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot/css/site.public-ui.css"));
         Assert.Contains("public-teams-directory", teams);
         Assert.Contains("public-teams-directory__picks", teams);
-        Assert.Contains("public-teams-directory__mark--dark", teams);
+        Assert.Contains("landing-hero__mark--dark", teams);
         Assert.Contains("public-teams-directory__meta", teams);
         Assert.Contains("@T[\"Event starts\"]", teams);
         Assert.Contains("@T[\"Event ends\"]", teams);
-        Assert.Contains("@T[\"Players\"]", teams);
+        Assert.Contains("@T[\"players\"]", teams);
         Assert.Contains("?? T[\"Not set\"]", teams);
-        Assert.Contains("public-teams-directory__masthead-rule", teams);
+        Assert.Contains("public-teams-directory__art", teams);
         Assert.DoesNotContain("ImageUrl", teams);
         Assert.DoesNotContain("public-ui-table", teams);
         Assert.DoesNotContain("PublicTeamImageService", teamsModel);
@@ -160,9 +161,9 @@ public sealed class SignupUiTests
         Assert.Contains("public-teams-directory__meta { display: flex; flex-wrap: wrap;", publicCss);
         Assert.Contains("public-teams-directory__meta div + div { padding-left: 1.35rem; border-left: 1px solid var(--public-directory-rule); }", publicCss);
         Assert.Contains("right: calc(100% + var(--public-page-gutter) - 100vw)", publicCss);
-        Assert.Contains("public-teams-directory__masthead-rule { width: calc(100vw - var(--public-page-gutter));", publicCss);
+        Assert.Contains("public-teams-directory__masthead::after", publicCss);
         Assert.Contains("public-teams-directory__section-heading::after", publicCss);
-        Assert.Contains("public-teams-directory__masthead) { grid-template-columns: minmax(0, 1fr);", publicCss);
+        Assert.Contains("body.public-ui-pass1 .public-teams-directory__masthead { grid-template-columns: minmax(0, 1fr);", publicCss);
         Assert.Contains("public-teams-directory__art { display: none; }", publicCss);
     }
 

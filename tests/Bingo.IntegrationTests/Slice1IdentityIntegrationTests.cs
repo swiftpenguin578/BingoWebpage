@@ -32,6 +32,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Routing;
@@ -192,7 +193,13 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         using var cache = new MemoryCache(new MemoryCacheOptions());
         var onboarding = new DiscordOnboardingStateService(new EphemeralDataProtectionProvider(), cache, clock);
         var external = new RecordingAuthenticationService("slice1-onboarding-discord", null, Guid.Empty, null);
-        var callbackContext = new DefaultHttpContext { RequestServices = new ServiceCollection().AddSingleton<IAuthenticationService>(external).BuildServiceProvider() };
+        var callbackContext = new DefaultHttpContext
+        {
+            RequestServices = new ServiceCollection()
+                .AddSingleton<IAuthenticationService>(external)
+                .AddSingleton<IUrlHelperFactory, UrlHelperFactory>()
+                .BuildServiceProvider()
+        };
         var callback = new Bingo.Web.Pages.Account.DiscordCallbackModel(db, new AccountAuthenticationService(db, passwords, clock), new AccountIdentityService(db, passwords, clock), new DiscordLinkStateService(cache, clock), onboarding, new PassthroughLocalizer(), Microsoft.Extensions.Logging.Abstractions.NullLogger<Bingo.Web.Pages.Account.DiscordCallbackModel>.Instance)
         {
             PageContext = new PageContext(new ActionContext(callbackContext, new RouteData(), new PageActionDescriptor())),
@@ -236,7 +243,8 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             TempData = new TempDataDictionary(request, new DictionaryTempDataProvider()),
             Input = new Bingo.Web.Pages.Account.OnboardingModel.InputModel { Username = "slice1-onboarding", OsrsCharacterName = "Slice One", SavedEhb = 17.5m, Password = "long-onboarding-password", ConfirmPassword = "long-onboarding-password" }
         };
-        Assert.IsType<RedirectToPageResult>(await retry.OnPostAsync(CancellationToken.None));
+        var retryResult = Assert.IsType<LocalRedirectResult>(await retry.OnPostAsync(CancellationToken.None));
+        Assert.Equal("/", retryResult.Url);
         Assert.Single(await db.Accounts.Where(account => account.DiscordUserId == "slice1-onboarding-discord").ToListAsync());
         await using var onboardingVerification = new ApplicationDbContext(options);
         var completedAccount = await onboardingVerification.Accounts.AsNoTracking().SingleAsync(account => account.DiscordUserId == "slice1-onboarding-discord");
@@ -677,8 +685,8 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal("/Account/Login", completed.Headers.Location?.ToString());
         using var login = await client.GetAsync("/Account/Login");
         var loginContent = WebUtility.HtmlDecode(await login.Content.ReadAsStringAsync());
-        Assert.Contains("Opsætningen af nødkontoen er fuldført. En admin skal stadig aktivere den, før den kan bruges.", loginContent, StringComparison.Ordinal);
-        Assert.Contains("notice-success", loginContent, StringComparison.Ordinal);
+        Assert.Contains("Opsætningen af nødkontoen er fuldført. En administrator skal stadig aktivere den, før den kan bruges.", loginContent, StringComparison.Ordinal);
+        Assert.Contains("app-toast-success", loginContent, StringComparison.Ordinal);
 
         await using var verify = new ApplicationDbContext(options);
         Assert.NotNull(await verify.Accounts.Where(account => account.Id == emergencyId).Select(account => account.PasswordHash).SingleAsync());
@@ -940,7 +948,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             .OrderBy(item => item.TeamName)
             .Select(item => new { item.TeamId, item.Placement, item.BoardComplete, item.BoardCompletedAt, item.CompletedLines, item.CompletedTiles, item.EhbTiebreak })
             .ToListAsync();
-        var finalization = new EventFinalizationService(db, new PublicBoardService(db), clock);
+        var finalization = new EventFinalizationService(db, new PublicBoardService(db, clock), clock);
         var actor = new LifecycleActor(admin.Id, admin.LoginName);
         var previousEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
@@ -1009,8 +1017,8 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
 
         await SignInAsync(ownerClient, DevelopmentScenarioSeeder.EvidenceParticipantUsername, DevelopmentScenarioSeeder.EvidenceParticipantPassword);
         var myEvents = await ownerClient.GetStringAsync("/Account/MyEvents");
-        var evidenceLink = Regex.Match(myEvents, "<a href=\"(/Evidence/[^\"]+)\">View evidence</a>").Groups[1].Value;
-        Assert.Equal($"/Evidence/{historyAssetId}", evidenceLink);
+        var evidenceLink = $"/Evidence/{historyAssetId}";
+        Assert.Contains($"href=\"{evidenceLink}\"", myEvents, StringComparison.Ordinal);
         using var ownerEvidence = await ownerClient.GetAsync(evidenceLink);
         Assert.Equal(HttpStatusCode.OK, ownerEvidence.StatusCode);
 
@@ -1075,6 +1083,9 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var teamBeforeRepeat = await db.Teams.FirstAsync(item => item.EventId == liveFixtureBeforeRepeat.Id);
         var membershipBeforeRepeat = await db.TeamMemberships.FirstAsync(item => item.TeamId == teamBeforeRepeat.Id);
         var sessionBeforeRepeat = await db.DraftSessions.SingleAsync(item => item.EventId == liveFixtureBeforeRepeat.Id);
+        var seededPublication = await db.DraftPublicationCycles.SingleAsync(
+            item => item.DraftSessionId == sessionBeforeRepeat.Id && item.SupersededAt == null);
+        seededPublication.Supersede(clock.GetUtcNow(), admin.Id, "Reset regression");
         var publication = new DraftPublicationCycle(Guid.NewGuid(), sessionBeforeRepeat.Id, 99, clock.GetUtcNow(), admin.Id);
         db.AddRange(
             new TeamImageAsset(Guid.NewGuid(), liveFixtureBeforeRepeat.Id, teamBeforeRepeat.Id, "reset-regression.png", "reset-regression.png", "image/png", 1, 1, 1, new string('a', 64), admin.Id, clock.GetUtcNow()),
@@ -1147,7 +1158,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Empty(await db.AccountEventAccesses.Where(item => item.EventId == accessBlockerEventId).ToListAsync());
         var signupLookupEvent = Assert.Single(seededEvents, item => item.Slug == "test-16-signup-lookup");
         Assert.Equal(EventState.SignupOpen, signupLookupEvent.State);
-        Assert.Empty(await db.EventParticipants.Where(item => item.EventId == signupLookupEvent.Id).ToListAsync());
+        Assert.Equal(9, await db.EventParticipants.CountAsync(item => item.EventId == signupLookupEvent.Id));
         Assert.Empty(await db.SignupForms.Where(form => form.EventId == manual.Id).ToListAsync());
         Assert.Equal(catalogueCount, await db.CatalogueItems.CountAsync());
         Assert.Equal(2, await db.OsrsCharacters.CountAsync(character => character.Id == retainedBoardCharacter.Id || character.Id == retainedLiveCharacter.Id));
@@ -1198,7 +1209,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var ev = await db.Events.SingleAsync(item => item.Id == access.EventId);
         var cutoff = Assert.IsType<DateTimeOffset>(ev.SubmissionCutoffAt);
         var lifecycle = new EmergencyCredentialLifecycleService(db, clock);
-        clock.Set(cutoff.AddTicks(-1)); await lifecycle.ApplyAsync(CancellationToken.None);
+        clock.Set(cutoff.AddMicroseconds(-1)); await lifecycle.ApplyAsync(CancellationToken.None);
         Assert.True((await db.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
         clock.Set(cutoff); await lifecycle.ApplyAsync(CancellationToken.None); db.ChangeTracker.Clear();
         Assert.False((await db.Accounts.SingleAsync(item => item.Id == access.AccountId)).Active);
@@ -1374,7 +1385,13 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             var issue = new DefaultHttpContext();
             state.Issue(issue.Response, discordId, "Race user");
             var auth = new RecordingAuthenticationService("unused", null, Guid.Empty, null);
-            var request = new DefaultHttpContext { RequestServices = new ServiceCollection().AddSingleton<IAuthenticationService>(auth).BuildServiceProvider() };
+            var request = new DefaultHttpContext
+            {
+                RequestServices = new ServiceCollection()
+                    .AddSingleton<IAuthenticationService>(auth)
+                    .AddSingleton<IUrlHelperFactory, UrlHelperFactory>()
+                    .BuildServiceProvider()
+            };
             request.Request.Headers.Cookie = issue.Response.Headers.SetCookie.Single()!.Split(';')[0];
             var page = new Bingo.Web.Pages.Account.OnboardingModel(new AccountIdentityService(db, passwords, time), new AccountAuthenticationService(db, passwords, time), state, new PassthroughLocalizer(), Microsoft.Extensions.Logging.Abstractions.NullLogger<Bingo.Web.Pages.Account.OnboardingModel>.Instance, new FixedWiseOldManPlayerLookup())
             {
@@ -1388,7 +1405,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         }
 
         var onboarding = await Task.WhenAll(Onboard("race-onboarding-discord-a"), Onboard("race-onboarding-discord-b"));
-        Assert.Equal(1, onboarding.Count(outcome => outcome.Result is RedirectToPageResult));
+        Assert.Equal(1, onboarding.Count(outcome => outcome.Result is LocalRedirectResult));
         var onboardingLoser = Assert.Single(onboarding, outcome => outcome.Result is PageResult);
         Assert.Equal("race-onboarding", onboardingLoser.Page.Input.Username);
         Assert.Equal("long-race-password", onboardingLoser.Page.Input.Password);
@@ -1604,8 +1621,8 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         await AssertSeededDraftPublicationFixturesAsync(db, events);
         Assert.Equal(EventState.SignupOpen, test16.State);
         Assert.True(test16.IsDevelopmentFixture);
-        Assert.Equal(20, test16.ParticipantCap);
-        Assert.Empty(await db.EventParticipants.Where(item => item.EventId == test16.Id).ToListAsync());
+        Assert.Equal(6, test16.ParticipantCap);
+        Assert.Equal(9, await db.EventParticipants.CountAsync(item => item.EventId == test16.Id));
 
         var test13Board = Assert.Single(await db.Boards.Where(item => item.EventId == test13.Id).ToListAsync());
         Assert.Equal(BoardState.Draft, test13Board.State);
@@ -1792,10 +1809,11 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal(10, test15.ExpectedTeamSize);
         Assert.Equal(5, test15.ExpectedBoardRows);
         Assert.Equal(5, test15.ExpectedBoardColumns);
+        var fixtureNow = new DateTimeOffset(seededAt.Year, seededAt.Month, seededAt.Day, seededAt.Hour, seededAt.Minute < 30 ? 0 : 30, 0, TimeSpan.Zero);
         var test15Starts = Assert.IsType<DateTimeOffset>(test15.EventStartsAt);
-        Assert.Equal(seededAt.AddHours(-99), test15Starts);
+        Assert.Equal(fixtureNow.AddHours(-99), test15Starts);
         var test15Ends = Assert.IsType<DateTimeOffset>(test15.EventEndsAt);
-        Assert.Equal(seededAt.AddDays(14), test15Ends);
+        Assert.Equal(fixtureNow.AddDays(14), test15Ends);
         Assert.Equal(test15Ends.AddMinutes(30), test15.SubmissionCutoffAt);
         Assert.NotNull(test15.ActualStartedAt);
         Assert.Null(test15.ActualEndedAt);
@@ -1857,7 +1875,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal(DraftState.Finalized, draft.State);
         Assert.Equal(48, await db.DraftPicks.CountAsync(item => item.DraftSessionId == draft.Id && item.UndoneAt == null));
         Assert.Equal(1, await db.BoardApprovalSnapshots.CountAsync(item => item.BoardId == (db.Boards.Where(board => board.EventId == test15.Id).Select(board => board.Id).Single())));
-        Assert.Equal(1, await db.Submissions.CountAsync(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending));
+        Assert.Equal(2, await db.Submissions.CountAsync(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending));
         Assert.Equal(1, await db.Submissions.CountAsync(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Rejected));
         Assert.True(await db.Submissions.AnyAsync(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Approved));
         var approvedSubmissions = await db.Submissions
@@ -1873,7 +1891,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             var reviewedAt = Assert.IsType<DateTimeOffset>(submission.ReviewedAt);
             Assert.InRange(reviewedAt, submission.SubmittedAt, seededAt);
         });
-        Assert.True(await db.EvidenceAssets.AnyAsync(item => item.SubmissionId == db.Submissions.Where(submission => submission.EventId == test15.Id && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending).Select(submission => submission.Id).Single()));
+        Assert.Equal(2, await db.Submissions.CountAsync(submission => submission.EventId == test15.Id && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending && db.EvidenceAssets.Any(asset => asset.SubmissionId == submission.Id)));
     }
 
     private static async Task AssertSeedBoardRateSelectionsAsync(ApplicationDbContext db, Guid eventId, Guid approvalId)

@@ -32,7 +32,7 @@ public sealed class FinalizeModel(IEventFinalizationService finalization, Applic
         if (timezone.IsInvalidTime(local)) throw new InvalidOperationException(Localize("That local time does not exist because the clocks change at that time."));
         var correctedAt = new DateTimeOffset(local, timezone.GetUtcOffset(local));
         await finalization.CorrectCompletionAsync(id, teamId, correctedAt, Reason ?? string.Empty, AdminId, ExpectedVersion, ExpectedReviewCycleId, ct);
-        TempData["StatusMessage"] = Localize("Completion time corrected to {0}.", correctedAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture));
+        TempData["StatusMessage"] = Localize("Completion time corrected to {0}.", correctedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture));
     }, ct);
     public async Task<IActionResult> OnPostFinalizeAsync(Guid id, CancellationToken ct) => await Run(id, async () =>
     {

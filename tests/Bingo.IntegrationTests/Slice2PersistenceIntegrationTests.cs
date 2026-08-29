@@ -11,8 +11,11 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
@@ -581,6 +584,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
 
         var participant = new Bingo.Web.Pages.Admin.Events.ParticipantModel(db, characters)
         {
+            PageContext = new PageContext(new ActionContext(new DefaultHttpContext(), new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(new DefaultHttpContext(), new EmptyTempDataProvider())
         };
         Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await participant.OnGetAsync(seed.EventId, withdrawnId, CancellationToken.None));

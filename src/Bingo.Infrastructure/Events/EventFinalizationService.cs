@@ -41,7 +41,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         var boardView = await publicBoards.GetEventBoardAsync(ev.Slug, ct);
         if (boardView is null) blockers.Add(new("published-board", "Published board and teams required", "The event needs a published board and finalized active teams.", $"/Admin/Events/Board/{eventId}", false, false, null));
         if (effectiveCutoff is null) blockers.Add(new("submission-cutoff", "Submission cutoff required", "Configure a submission cutoff before final review.", null, false, false, null));
-        else if (now <= effectiveCutoff && ev.State == EventState.AwaitingFinalReview) blockers.Add(new("submission-window", "Submission window is still open", $"Captains can submit until {effectiveCutoff.Value.ToLocalTime():g} local time.", null, true, false, null));
+        else if (now <= effectiveCutoff && ev.State == EventState.AwaitingFinalReview) blockers.Add(new("submission-window", "Submission window is still open", $"Captains can submit until {effectiveCutoff.Value.ToLocalTime():dd MMM yyyy, HH:mm} local time.", null, true, false, null));
         var pending = await db.Submissions.AsNoTracking().Where(x => x.EventId == eventId && x.Status == SubmissionStatus.Pending).Select(x => x.Id).ToListAsync(ct);
         if (pending.Count > 0) blockers.Add(new(BlockerKey("pending-submissions", pending), "Pending submissions", $"{pending.Count} submission(s) still need a decision.", "/Admin/Review?status=Pending", true, false, null));
 

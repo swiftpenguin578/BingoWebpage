@@ -588,7 +588,7 @@ else
                         </td>
                         <td data-label="EHB" data-sort-value="@participant.Ehb.ToString(System.Globalization.CultureInfo.InvariantCulture)">@participant.Ehb.ToString("0.##")</td>
                         <td data-label="Payment" data-sort-value="@paymentLabel"><span class="admin-status-pill participant-status-pill @(payment == PaymentStatus.Paid ? "is-green" : "is-danger")">@paymentLabel</span></td>
-                        <td data-label="Signed up" data-sort-value="@participant.SignedUpAt.ToUnixTimeSeconds()">@participant.SignedUpAt.ToLocalTime().ToString("g")</td>
+                        <td data-label="Signed up" data-sort-value="@participant.SignedUpAt.ToUnixTimeSeconds()">@participant.SignedUpAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</td>
                         <td data-label="Draft status" data-sort-value="@(participant.TeamName ?? "Available")">
                             @(participant.TeamName ?? "Available")
                             @if (participant.SignupStatus != SignupStatus.Confirmed)

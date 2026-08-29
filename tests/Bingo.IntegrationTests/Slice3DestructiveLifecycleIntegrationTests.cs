@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Testcontainers.PostgreSql;
 
@@ -423,7 +424,13 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
             await setup.SaveChangesAsync();
         }
 
-        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString());
+                builder.ConfigureServices(services =>
+                    services.AddSingleton<TimeProvider>(new FixedClock(now)));
+            });
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var login = await client.GetStringAsync("/Account/Login");
         using var loggedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -435,17 +442,21 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         Assert.Equal(System.Net.HttpStatusCode.Redirect, loggedIn.StatusCode);
 
         var awaitingPage = await client.GetStringAsync($"/Admin/Events/Manage/{awaitingId}");
-        var replacementEnd = DateTimeOffset.UtcNow.AddHours(3);
+        long currentEventVersion;
+        await using (var versionCheck = new ApplicationDbContext(options))
+        {
+            currentEventVersion = await versionCheck.Events.Where(value => value.Id == awaitingId).Select(value => value.Version).SingleAsync();
+        }
+        var replacementEnd = now.AddHours(3);
         using var resumeResponse = await client.PostAsync($"/Admin/Events/Manage/{awaitingId}?handler=ResumeEvent", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["EventVersion"] = InputValue(awaitingPage, "EventVersion"),
+            ["EventVersion"] = currentEventVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["ConfirmResumeEvent"] = "true",
             ["ResumeReason"] = "The event ended prematurely during the route test.",
             ["ReplacementEventEndsAt"] = replacementEnd.ToString("O"),
             ["__RequestVerificationToken"] = AntiforgeryToken(awaitingPage)
         }));
         Assert.Equal(System.Net.HttpStatusCode.Redirect, resumeResponse.StatusCode);
-
         await AssertReadOnlyPostAsync(client, archivedId, $"/Admin/Events/Manage/{archivedId}?handler=ResumeEvent");
 
         await using var verify = new ApplicationDbContext(options);

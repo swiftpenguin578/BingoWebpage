@@ -114,6 +114,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
             throw new MyAccountsConfirmationRequiredException();
         var now = time.GetUtcNow();
         link.Unlink(now);
+        await SaveChangesSafelyAsync(ct);
         await NormalizePreferredAsync(accountId, now, ct);
         await SaveAndCommitAsync(transaction, ct);
     }
