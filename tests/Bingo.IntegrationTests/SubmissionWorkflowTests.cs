@@ -115,7 +115,8 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var scheduledPage = new DetailsModel(db, Service(db));
         Assert.IsType<PageResult>(await scheduledPage.OnGetAsync(scheduledSubmission.SubmissionId, CancellationToken.None));
         Assert.Equal(60, scheduledPage.Details.MinutesAfterEventEnd);
-        Assert.Equal(now.AddHours(4), scheduledPage.Details.EventEndsAt);
+        var expectedScheduledEnd = now.AddHours(4);
+        Assert.Equal(expectedScheduledEnd.AddTicks(-(expectedScheduledEnd.Ticks % TimeSpan.TicksPerMicrosecond)), scheduledPage.Details.EventEndsAt);
 
         var earlySubmission = await Service(db).CreateAsync(Command(scheduled));
         var earlyEnd = now.AddHours(1);

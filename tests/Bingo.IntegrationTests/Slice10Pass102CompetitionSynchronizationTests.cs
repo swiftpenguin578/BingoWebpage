@@ -172,7 +172,8 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         await using (var verifyStart = new ApplicationDbContext(options))
         {
             var scheduled = await verifyStart.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id);
-            Assert.Equal(now.AddHours(2), scheduled.NormalDueAt);
+            var expectedScheduledDue = now.AddHours(2);
+            Assert.Equal(expectedScheduledDue.AddTicks(-(expectedScheduledDue.Ticks % TimeSpan.TicksPerMicrosecond)), scheduled.NormalDueAt);
         }
         await using (var beforeDue = new ApplicationDbContext(options))
         {
@@ -189,7 +190,7 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         var firstNormalDue = clock.GetUtcNow().AddHours(2);
         await using (var afterFirstFetch = new ApplicationDbContext(options))
         {
-            Assert.Equal(firstNormalDue, (await new EventCompetitionSynchronizationService(afterFirstFetch, fake, new FixedStatus(), clock).GetAsync(eventItem.Id))!.NormalDueAt);
+            Assert.Equal(firstNormalDue.AddTicks(-(firstNormalDue.Ticks % TimeSpan.TicksPerMicrosecond)), (await new EventCompetitionSynchronizationService(afterFirstFetch, fake, new FixedStatus(), clock).GetAsync(eventItem.Id))!.NormalDueAt);
         }
 
         await using (var end = new ApplicationDbContext(options))
@@ -206,7 +207,7 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         }
         await using (var verifyResume = new ApplicationDbContext(options))
         {
-            Assert.Equal(firstNormalDue, (await verifyResume.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id)).NormalDueAt);
+            Assert.Equal(firstNormalDue.AddTicks(-(firstNormalDue.Ticks % TimeSpan.TicksPerMicrosecond)), (await verifyResume.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id)).NormalDueAt);
         }
 
         await using (var makeOverdue = new ApplicationDbContext(options))
@@ -231,7 +232,8 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         }
         Assert.Equal(2, fake.Calls);
         await using var verifyRecovery = new ApplicationDbContext(options);
-        Assert.Equal(clock.GetUtcNow().AddHours(2), (await verifyRecovery.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id)).NormalDueAt);
+        var expectedRecoveryDue = clock.GetUtcNow().AddHours(2);
+        Assert.Equal(expectedRecoveryDue.AddTicks(-(expectedRecoveryDue.Ticks % TimeSpan.TicksPerMicrosecond)), (await verifyRecovery.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id)).NormalDueAt);
     }
 
     [Fact]
@@ -357,13 +359,15 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
             var view = await service.GetAsync(eventItem.Id);
             Assert.Equal(4, view!.RetryCount);
             Assert.Null(view.RetryDueAt);
-            Assert.Equal(now.AddHours(2), view.NormalDueAt);
+            var expectedAnchor = now.AddHours(2);
+            Assert.Equal(expectedAnchor.AddTicks(-(expectedAnchor.Ticks % TimeSpan.TicksPerMicrosecond)), view.NormalDueAt);
             Assert.Equal(5, fake.Calls);
             clock.Advance(TimeSpan.FromHours(2));
             await service.ProcessDueAsync();
             view = await service.GetAsync(eventItem.Id);
             Assert.Equal(1, view!.RetryCount);
-            Assert.Equal(clock.GetUtcNow().AddHours(2), view.NormalDueAt);
+            var expectedRetryAnchor = clock.GetUtcNow().AddHours(2);
+            Assert.Equal(expectedRetryAnchor.AddTicks(-(expectedRetryAnchor.Ticks % TimeSpan.TicksPerMicrosecond)), view.NormalDueAt);
             Assert.Equal(6, fake.Calls);
         }
     }
