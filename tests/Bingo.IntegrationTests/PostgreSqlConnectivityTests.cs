@@ -49,7 +49,7 @@ public sealed class PostgreSqlConnectivityTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task VersionedCatalogueSnapshotRestoresIntoFreshMigratedDatabase()
+    public async Task VersionedCatalogueSnapshotRestoresAndValidatesInFreshMigratedDatabase()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql(_database.GetConnectionString())
@@ -60,6 +60,7 @@ public sealed class PostgreSqlConnectivityTests : IAsyncLifetime
         var path = Path.Combine(AppContext.BaseDirectory, "data", "osrs-catalogue.json");
         var service = new CatalogueSnapshotService(context, TimeProvider.System);
         var result = await service.ApplyAsync(path);
+        await service.ValidateBaselineAsync(path);
 
         Assert.Equal(68, result.Bosses);
         Assert.Equal(311, result.Items);

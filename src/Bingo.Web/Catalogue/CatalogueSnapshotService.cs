@@ -117,13 +117,30 @@ public sealed class CatalogueSnapshotService(ApplicationDbContext db, TimeProvid
         if (snapshot.SchemaVersion != 1 || snapshot.Bosses.Length == 0 || snapshot.Items.Length == 0 || snapshot.Drops.Length == 0)
             throw new InvalidOperationException("The catalogue baseline is invalid.");
 
-        var activeBossIds = snapshot.Bosses.Where(x => x.Active).Select(x => x.Id).ToArray();
-        var activeItemIds = snapshot.Items.Where(x => x.Active).Select(x => x.Id).ToArray();
-        var activeDropIds = snapshot.Drops.Where(x => x.Active).Select(x => x.Id).ToArray();
-        if (await db.BossActivities.CountAsync(x => x.Active && activeBossIds.Contains(x.Id), cancellationToken) != activeBossIds.Length ||
-            await db.CatalogueItems.CountAsync(x => x.Active && activeItemIds.Contains(x.Id), cancellationToken) != activeItemIds.Length ||
-            await db.SourceDrops.CountAsync(x => x.Active && activeDropIds.Contains(x.Id), cancellationToken) != activeDropIds.Length)
+        var bosses = await db.BossActivities.AsNoTracking().ToListAsync(cancellationToken);
+        var items = await db.CatalogueItems.AsNoTracking().ToListAsync(cancellationToken);
+        var drops = await db.SourceDrops.AsNoTracking().ToListAsync(cancellationToken);
+        var bossesBySlug = bosses.ToDictionary(x => x.Slug, StringComparer.Ordinal);
+        var itemsByNormalizedName = items.ToDictionary(x => x.NormalizedName, StringComparer.Ordinal);
+        var activeDropKeys = drops.Where(x => x.Active).Select(x => (x.BossActivityId, x.ItemId)).ToHashSet();
+
+        if (snapshot.Bosses.Where(x => x.Active).Any(record => !bossesBySlug.TryGetValue(record.Slug, out var boss) || !boss.Active) ||
+            snapshot.Items.Where(x => x.Active).Any(record => !itemsByNormalizedName.TryGetValue(record.NormalizedName, out var item) || !item.Active))
             throw new InvalidOperationException("The catalogue baseline is incomplete.");
+
+        var snapshotBossesById = snapshot.Bosses.ToDictionary(x => x.Id);
+        var snapshotItemsById = snapshot.Items.ToDictionary(x => x.Id);
+        foreach (var record in snapshot.Drops.Where(x => x.Active))
+        {
+            if (!snapshotBossesById.TryGetValue(record.BossActivityId, out var bossRecord) ||
+                !snapshotItemsById.TryGetValue(record.ItemId, out var itemRecord) ||
+                !bossesBySlug.TryGetValue(bossRecord.Slug, out var boss) ||
+                !boss.Active ||
+                !itemsByNormalizedName.TryGetValue(itemRecord.NormalizedName, out var item) ||
+                !item.Active ||
+                !activeDropKeys.Contains((boss.Id, item.Id)))
+                throw new InvalidOperationException("The catalogue baseline is incomplete.");
+        }
     }
 
     public sealed record CatalogueSnapshot(int SchemaVersion, DateTimeOffset ExportedAt, BossRecord[] Bosses, ItemRecord[] Items, DropRecord[] Drops)
