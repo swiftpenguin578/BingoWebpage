@@ -10,8 +10,8 @@
                 <p class="public-masthead-support">@(string.IsNullOrWhiteSpace(Model.EventDescription) ? T["Confirmed participants and the waiting list."] : Model.EventDescription)</p>
             </div>
             <dl class="signup-sheet__meta">
-                <div><dt>@T["Event starts"]</dt><dd>@(Model.EventStartsAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? T["Not set"])</dd></div>
-                <div><dt>@T["Signup closes"]</dt><dd>@(Model.SignupClosesAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? T["Not set"])</dd></div>
+                <div><dt>@T["Event starts"]</dt><dd>@(Model.EventStartsAt is { } starts ? DateTimePresentation.Format(starts, "dd/MM/yyyy", Model.EventTimezone) : T["Not set"])</dd></div>
+                <div><dt>@T["Signup closes"]</dt><dd>@(Model.SignupClosesAt is { } closes ? DateTimePresentation.Format(closes, "dd/MM/yyyy", Model.EventTimezone) : T["Not set"])</dd></div>
                 <div><dt>@T["Capacity"]</dt><dd>@(Model.ParticipantCap?.ToString() ?? T["Not set"])</dd></div>
             </dl>
         </div>

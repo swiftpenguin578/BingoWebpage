@@ -11,8 +11,8 @@
             </div>
             <a class="public-teams-directory__back" asp-page="/Index">← @T["All events"]</a>
             <dl class="public-teams-directory__meta">
-                <div><dt>@T["Event starts"]</dt><dd>@(Model.EventStartsAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? T["Not set"])</dd></div>
-                <div><dt>@T["Event ends"]</dt><dd>@(Model.EventEndsAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? T["Not set"])</dd></div>
+                <div><dt>@T["Event starts"]</dt><dd>@(Model.EventStartsAt is { } starts ? DateTimePresentation.Format(starts, "dd/MM/yyyy", Model.EventTimezone) : T["Not set"])</dd></div>
+                <div><dt>@T["Event ends"]</dt><dd>@(Model.EventEndsAt is { } ends ? DateTimePresentation.Format(ends, "dd/MM/yyyy", Model.EventTimezone) : T["Not set"])</dd></div>
                 <div><dt>@T["players"]</dt><dd>@Model.PlayerCount</dd></div>
             </dl>
         </div>
@@ -34,7 +34,7 @@
                     <div><dt>@T["Planned starting account"]</dt><dd>@context.PlannedCharacterName</dd></div>
                     @if (context.EventEndsAt is { } contextEnd)
                     {
-                        <div><dt>@T["Event ends"]</dt><dd><time datetime="@contextEnd.ToUniversalTime().ToString("O")">@contextEnd.ToUniversalTime().ToString("dd MMM yyyy HH:mm 'UTC'")</time></dd></div>
+                        <div><dt>@T["Event ends"]</dt><dd><time datetime="@contextEnd.ToUniversalTime().ToString("O")">@DateTimePresentation.Format(contextEnd, "dd MMM yyyy HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)</time></dd></div>
                     }
                 </dl>
             </section>

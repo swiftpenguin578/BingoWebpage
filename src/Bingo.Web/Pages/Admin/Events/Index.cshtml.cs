@@ -8,6 +8,7 @@ using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Events;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -149,19 +150,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
     public string FormatDate(DateTimeOffset? value, string timezoneId)
     {
         if (value is null) return localizer["Not set"];
-        try
-        {
-            var timezone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
-            return TimeZoneInfo.ConvertTime(value.Value, timezone).ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            return value.Value.ToUniversalTime().ToString("dd MMM yyyy, HH:mm 'UTC'", CultureInfo.CurrentCulture);
-        }
-        catch (InvalidTimeZoneException)
-        {
-            return value.Value.ToUniversalTime().ToString("dd MMM yyyy, HH:mm 'UTC'", CultureInfo.CurrentCulture);
-        }
+        return DateTimePresentation.Format(value.Value, "dd MMM yyyy, HH:mm", timezoneId, CultureInfo.CurrentCulture);
     }
 
     public string SignupSummary(EventRow item)

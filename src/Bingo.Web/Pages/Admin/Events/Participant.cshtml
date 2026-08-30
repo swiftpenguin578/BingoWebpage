@@ -37,7 +37,7 @@
             <dl class="event-overview-dates">
                 <div class="event-overview-date-row"><div class="event-overview-date-copy"><dt>@T["Event"]</dt><dd>@Model.EventName</dd></div></div>
                 <div class="event-overview-date-row"><div class="event-overview-date-copy"><dt>@T["Status"]</dt><dd><span class="admin-status-pill @(Model.Status switch { SignupStatus.Confirmed => "is-green", SignupStatus.WaitingList => "is-orange", SignupStatus.Withdrawn => "is-danger", _ => "is-muted" })">@T[Model.StatusLabel]</span></dd></div></div>
-                <div class="event-overview-date-row"><div class="event-overview-date-copy"><dt>@T["Signed up"]</dt><dd>@Model.SignedUpAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</dd></div></div>
+                <div class="event-overview-date-row"><div class="event-overview-date-copy"><dt>@T["Signed up"]</dt><dd>@DateTimePresentation.Format(Model.SignedUpAt, "dd MMM yyyy, HH:mm", Model.EventTimezone)</dd></div></div>
                 <div class="event-overview-date-row"><div class="event-overview-date-copy"><dt>@T["Signup order"]</dt><dd>#@Model.SignupSequence</dd></div></div>
                 <div class="event-overview-date-row"><div class="event-overview-date-copy"><dt>@T["Signup source"]</dt><dd>@T[Model.SourceLabel]</dd></div></div>
                 <div class="event-overview-date-row"><div class="event-overview-date-copy"><dt>@T["Team"]</dt><dd>@(Model.TeamName ?? T["Not assigned"])</dd></div></div>
@@ -140,7 +140,7 @@
                 <dl class="participant-detail-rows">
                     <div><dt>@T["Event"]</dt><dd>@Model.EventName</dd></div>
                     <div><dt>@T["Status"]</dt><dd>@T[Model.StatusLabel]</dd></div>
-                    <div><dt>@T["Signed up"]</dt><dd>@Model.SignedUpAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</dd></div>
+                    <div><dt>@T["Signed up"]</dt><dd>@DateTimePresentation.Format(Model.SignedUpAt, "dd MMM yyyy, HH:mm", Model.EventTimezone)</dd></div>
                     <div><dt>@T["Signup order"]</dt><dd>#@Model.SignupSequence</dd></div>
                     <div><dt>@T["Signup source"]</dt><dd>@T[Model.SourceLabel]</dd></div>
                     <div><dt>@T["Team"]</dt><dd>@(Model.TeamName ?? T["Not assigned"])</dd></div>
@@ -217,7 +217,7 @@
                         <p>@T["Contact the participant manually, then mark this follow-up complete."]</p>
                         <form method="post" asp-page-handler="CompletePromotionFollowUp" data-update-targets="@partialTargets"><input type="hidden" name="overlay" value="@overlayValue" /><input type="hidden" name="followUpId" value="@followUp.Id" /><button class="admin-button-secondary" type="submit">@T["Mark follow-up complete"]</button></form>
                     }
-                    else { <p>@T["Completed at {0}.", followUp.CompletedAt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm")]</p> }
+                    else { <p>@T["Completed at {0}.", DateTimePresentation.Format(followUp.CompletedAt.Value, "dd MMM yyyy, HH:mm", Model.EventTimezone)]</p> }
                 }
                 </section>
                 }

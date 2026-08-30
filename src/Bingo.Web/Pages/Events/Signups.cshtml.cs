@@ -5,6 +5,7 @@ using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web;
 using Bingo.Web.Events;
+using Bingo.Web.UI;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -19,6 +20,7 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
     public string EventDescription { get; private set; } = string.Empty;
     public DateTimeOffset? EventStartsAt { get; private set; }
     public DateTimeOffset? SignupClosesAt { get; private set; }
+    public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId;
     public string EventStatus { get; private set; } = string.Empty;
     public int? ParticipantCap { get; private set; }
     public int ConfirmedCount { get; private set; }
@@ -52,6 +54,7 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
         EventDescription = item.Description ?? string.Empty;
         EventStartsAt = item.EventStartsAt;
         SignupClosesAt = item.SignupClosesAt;
+        EventTimezone = item.Timezone;
         EventStatus = item.State switch
         {
             EventState.Draft => text["Setup"].Value,

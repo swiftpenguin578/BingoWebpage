@@ -1,3 +1,5 @@
+using Bingo.Web.UI;
+
 namespace Bingo.Web.Pages.Captain;
 
 public sealed record SubmissionLedgerViewModel(
@@ -10,4 +12,5 @@ public sealed record SubmissionLedgerViewModel(
     int TotalPages,
     int TotalSubmissionCount,
     string? Search,
-    Guid? PlayerFilter);
+    Guid? PlayerFilter,
+    string EventTimezone = DateTimePresentation.DefaultTimezoneId);

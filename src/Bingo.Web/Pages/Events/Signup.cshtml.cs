@@ -6,6 +6,7 @@ using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Events;
 using Bingo.Web.Security;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -142,7 +143,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
             Confirmed = group.Count(participant => participant.SignupStatus == SignupStatus.Confirmed),
             Waiting = group.Count(participant => participant.SignupStatus == SignupStatus.WaitingList)
         }).SingleOrDefaultAsync(ct);
-        EventView = new EventInfo(item.Id, item.Slug, item.Name, item.Description ?? string.Empty, item.SignupClosesAt, item.EventStartsAt, item.EventEndsAt, item.RequireSignupCode, !cancelled && item.AcceptsSignups(timeProvider.GetUtcNow()), cancelled, EventDestinationPolicy.MayUseSignupTable(EventDestinationPolicy.From(item, rosterExists), User.IsInRole("Admin")), item.ParticipantCap, signupCounts?.Confirmed ?? 0, signupCounts?.Waiting ?? 0);
+        EventView = new EventInfo(item.Id, item.Slug, item.Name, item.Description ?? string.Empty, item.SignupClosesAt, item.EventStartsAt, item.EventEndsAt, item.RequireSignupCode, !cancelled && item.AcceptsSignups(timeProvider.GetUtcNow()), cancelled, EventDestinationPolicy.MayUseSignupTable(EventDestinationPolicy.From(item, rosterExists), User.IsInRole("Admin")), item.ParticipantCap, signupCounts?.Confirmed ?? 0, signupCounts?.Waiting ?? 0, item.Timezone);
         var accountId = User.GetAccountId();
         var links = accountId is null ? [] : await (from link in dbContext.AccountOsrsCharacters.AsNoTracking() join character in dbContext.OsrsCharacters.AsNoTracking() on link.OsrsCharacterId equals character.Id where link.AccountId == accountId && link.Active orderby link.Preferred descending, link.Position select new AccountOption(character.Id, character.DisplayName, link.SavedEhb, link.Preferred, false)).ToListAsync(ct);
         var questions = cancelled ? [] : await dbContext.SignupQuestions.AsNoTracking().Where(q => q.EventId == item.Id && q.Active).OrderBy(q => q.Position).ToListAsync(ct);
@@ -151,9 +152,9 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     private string LookupFailure(WiseOldManPlayerLookupResult result) => result.Status switch
     {
         WiseOldManLookupStatus.NotFound => text?["Wise Old Man could not find that character."].Value ?? "Wise Old Man could not find that character.",
-        WiseOldManLookupStatus.RateLimited when result.RetryAt is { } retryAt => text?["Wise Old Man is temporarily busy. Try again after {0}.", retryAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)].Value ?? $"Wise Old Man is temporarily busy. Try again after {retryAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)}.",
+        WiseOldManLookupStatus.RateLimited when result.RetryAt is { } retryAt => text?["Wise Old Man is temporarily busy. Try again after {0}.", DateTimePresentation.Format(retryAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)].Value ?? $"Wise Old Man is temporarily busy. Try again after {DateTimePresentation.Format(retryAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)}.",
         WiseOldManLookupStatus.RateLimited => text?["Wise Old Man is temporarily busy. Try again in about 1 minute."].Value ?? "Wise Old Man is temporarily busy. Try again in about 1 minute.",
-        _ when result.RetryAt is { } retryAt => text?["Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {0}.", retryAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)].Value ?? $"Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {retryAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)}.",
+        _ when result.RetryAt is { } retryAt => text?["Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {0}.", DateTimePresentation.Format(retryAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)].Value ?? $"Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {DateTimePresentation.Format(retryAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)}.",
         _ => text?["Wise Old Man is unavailable right now. Your current EHB was kept."].Value ?? "Wise Old Man is unavailable right now. Your current EHB was kept."
     };
     private async Task<IActionResult?> RedirectForPublishedSurfaceAsync(string slug, CancellationToken ct)
@@ -200,7 +201,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     private string SignupReturnUrl(string slug, bool edit) => Url.Page("/Events/Signup", new { slug, edit = edit ? true : (bool?)null })!;
     private static bool IsResponseConflict(string? error) => error?.Contains("changed while you were editing", StringComparison.OrdinalIgnoreCase) == true;
     private string Localize(string message) => text?[message].Value ?? message;
-    public sealed record EventInfo(Guid Id, string Slug, string Name, string Description, DateTimeOffset? SignupClosesAt, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, bool RequireCode, bool Accepting, bool Cancelled, bool TableAvailable, int? ParticipantCap, int ConfirmedCount, int WaitingCount);
+    public sealed record EventInfo(Guid Id, string Slug, string Name, string Description, DateTimeOffset? SignupClosesAt, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, bool RequireCode, bool Accepting, bool Cancelled, bool TableAvailable, int? ParticipantCap, int ConfirmedCount, int WaitingCount, string Timezone = DateTimePresentation.DefaultTimezoneId);
     public sealed record AccountOption(Guid Id, string Name, decimal? SavedEhb, bool Preferred, bool Historical);
     public sealed record QuestionView(Guid Id, string Label, SignupQuestionType Type, bool Required, string[] OptionList, EventCharacterRole? AccountRole, SignupSystemField SystemField, IReadOnlyList<AccountOption> Accounts);
     public sealed class SignupInput

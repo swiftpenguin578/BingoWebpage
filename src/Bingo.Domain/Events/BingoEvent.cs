@@ -181,7 +181,7 @@ public sealed class BingoEvent
             throw new InvalidOperationException("Event end must be after event start.");
         if (signupClosesAt is { } closing && eventStartsAt is { } eventStart && closing > eventStart)
             throw new InvalidOperationException("Signup closing must be no later than event start.");
-        if (signupOpensAt is { } opening && signupClosesAt is { } closes && closes <= opening)
+        if ((ActualSignupOpenedAt ?? signupOpensAt) is { } opening && signupClosesAt is { } closes && closes <= opening)
             throw new InvalidOperationException("Signup closing must be after signup opening.");
         SignupOpensAt = Utc(signupOpensAt);
         SignupClosesAt = Utc(signupClosesAt);

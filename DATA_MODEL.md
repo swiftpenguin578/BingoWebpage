@@ -188,10 +188,11 @@ Description may be null while the event remains a private draft and is required 
 
 Timezone defaults to `Europe/Copenhagen` and stores a supported canonical timezone ID. Changing timezone changes only how stored UTC instants are displayed; it never rewrites those instants. Changes after signup publication require explicit confirmation, and changes after event start also require an audit reason.
 
-Schedule fields may be null in an incomplete private draft. Signup publication requires `signup_closes_at`, `event_starts_at`, and `event_ends_at`; `signup_opens_at` is required only for scheduled opening and is set to the actual opening instant for manual opening. `draft_at` is optional and informational. The invariants are:
+Schedule fields may be null in an incomplete private draft. Signup publication requires `signup_closes_at`, `event_starts_at`, and `event_ends_at`; `signup_opens_at` is required only for scheduled opening and retains the configured/scheduled opening instant as historical data. `actual_signup_opened_at` records the actual opening and becomes the effective lower boundary once signups have opened; manual opening records it without overwriting `signup_opens_at`. `draft_at` is optional and informational. The invariants are:
 
 ```text
-signup_opens_at < signup_closes_at <= event_starts_at < event_ends_at <= submission_cutoff_at
+effective_signup_opening_at = actual_signup_opened_at ?? signup_opens_at
+effective_signup_opening_at < signup_closes_at <= event_starts_at < event_ends_at <= submission_cutoff_at
 ```
 
 An unchanged stored timestamp remains valid. A changed or newly entered timestamp must be future, and a stored boundary at or before the authoritative current time cannot be changed or cleared. Signup opening and `scheduled_signup_opening_enabled` lock at the opening boundary; `SIGNUP_CLOSED` makes closing read-only and Reopen owns any replacement. Published start/end are non-nullable through Schedule. No additional ordering rule applies to optional `draft_at`. Normal `submission_cutoff_at` is rederived as `event_ends_at + 30 minutes` whenever event end changes. Schedule mutations of `SIGNUP_OPEN` or `SIGNUP_CLOSED` retain the event-window non-overlap invariant, and a linked competition's stored start/end must remain within five minutes of the proposed event interval.

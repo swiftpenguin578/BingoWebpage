@@ -4,6 +4,7 @@ using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +34,7 @@ public class SubmissionModel(
     public Guid TeamId { get; private set; }
     public string EventSlug { get; private set; } = string.Empty;
     public string TeamSlug { get; private set; } = string.Empty;
+    public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId;
     public bool CanOpenTeamLedger { get; private set; }
     public IReadOnlyList<RequirementView> Requirements { get; private set; } = [];
     public IReadOnlyList<DropView> Drops { get; private set; } = [];
@@ -108,8 +110,9 @@ public class SubmissionModel(
         var context = await (from eventRow in db.Events.AsNoTracking()
                              join team in db.Teams.AsNoTracking() on eventRow.Id equals team.EventId
                              where eventRow.Id == s.EventId && team.Id == s.TeamId
-                             select new { EventSlug = eventRow.Slug, TeamSlug = team.Slug }).SingleAsync(ct);
+                             select new { EventSlug = eventRow.Slug, eventRow.Timezone, TeamSlug = team.Slug }).SingleAsync(ct);
         EventSlug = context.EventSlug;
+        EventTimezone = context.Timezone;
         TeamSlug = context.TeamSlug;
         var tile = await db.BoardTiles.AsNoTracking().SingleAsync(x => x.Id == s.BoardTileId, ct); var req = await db.BoardRequirementSnapshots.AsNoTracking().SingleAsync(x => x.Id == s.RequirementId, ct); var drop = s.DropSnapshotId is Guid dropId ? await db.BoardRequirementDropSnapshots.AsNoTracking().Where(x => x.Id == dropId).Select(x => new { x.ItemName, x.DisplayRate }).SingleOrDefaultAsync(ct) : null; var asset = await db.EvidenceAssets.AsNoTracking().Where(x => x.SubmissionId == id && x.Active).OrderByDescending(x => x.UploadedAt).FirstOrDefaultAsync(ct);
         var replacementId = await db.Submissions.AsNoTracking()

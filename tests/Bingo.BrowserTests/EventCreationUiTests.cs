@@ -190,7 +190,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
             Assert.Contains($"name=\"{confirmation.Name}\" value=\"true\"", manage);
         }
 
-        Assert.Contains("asp-for=\"ReplacementEventEndsAt\"", manage);
+        Assert.Contains("asp-for=\"ReplacementEventEndsAtLocal\"", manage);
         Assert.Contains("<textarea asp-for=\"ResumeReason\" class=\"form-control\" rows=\"3\" required>", manage);
         Assert.Contains("aria-labelledby=\"resume-event-heading\"", manage);
         Assert.Contains("id=\"resume-event-heading\"", manage);
@@ -209,7 +209,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
 
         Assert.Contains("eventLifecycle.StartNowAsync(id, EventVersion, ConfirmStartEvent, StartReason, Actor, ct)", manageHandler);
         Assert.Contains("eventLifecycle.EndNowAsync(id, EventVersion, ConfirmEndEvent, EndReason, Actor, ct)", manageHandler);
-        Assert.Contains("eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, ReplacementEventEndsAt, Actor, ct)", manageHandler);
+        Assert.Contains("eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, replacementEnd.Value, Actor, ct)", manageHandler);
         Assert.Contains("destructiveLifecycle.DiscardAsync(id, EventVersion, ConfirmDestructiveAction, Actor, ct)", manageHandler);
         Assert.Contains("destructiveLifecycle.CancelAsync(id, EventVersion, ConfirmDestructiveAction, CancellationReason, Actor, ct)", manageHandler);
         Assert.Contains("ConfigureAsync(id, EventVersion, CompetitionId, SynchronizeCompetitionSchedule, Actor, ct)", manageHandler);
@@ -470,11 +470,18 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         var repositoryRoot = FindRepositoryRoot();
         var manage = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Manage.cshtml"));
         var manageHandler = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Manage.cshtml.cs"));
+        var eventManageScript = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "event-manage.js"));
         var siteCss = BrowserTestFiles.ReadActiveStyles(repositoryRoot);
 
         Assert.Contains("<p class=\"event-control-status event-control-supporting is-yellow\">@T[\"Confirmation required\"]</p>", manage);
         Assert.Contains("class=\"admin-signup-warning-ack\"", manage);
         Assert.Contains("class=\"admin-signup-warning-list\"", manage);
+        Assert.Contains("root.querySelectorAll(\"[data-confirmation-box]\")", eventManageScript);
+        Assert.Contains("confirmation.dataset.confirmationFocusReady === \"true\"", eventManageScript);
+        Assert.Contains("requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() =>", eventManageScript);
+        Assert.Contains("if (!confirmation.isConnected) return;", eventManageScript);
+        Assert.Contains("confirmation.focus({ preventScroll: true });", eventManageScript);
+        Assert.Contains("confirmation.scrollIntoView({ block: \"nearest\" });", eventManageScript);
         Assert.Contains("class=\"event-control-copy\"", manage);
         Assert.DoesNotContain("admin-signup-warning-heading", manage);
         Assert.Contains("@foreach (var warning in Model.SignupReadiness!.Warnings)", manage);

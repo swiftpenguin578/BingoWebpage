@@ -394,6 +394,65 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         }
     }
 
+    [Theory]
+    [InlineData("2026-03-29T02:30")]
+    [InlineData("2026-10-25T02:30")]
+    public async Task ScheduleHandlerRejectsInvalidOrAmbiguousLocalWallTimeWithoutChangingScheduleVersionOrAudit(string localTime)
+    {
+        var actor = Guid.NewGuid();
+        var eventId = await SeedEventAsync("schedule-dst-rejection", actor);
+        var opens = new DateTimeOffset(2026, 8, 1, 8, 10, 0, TimeSpan.Zero);
+        var closes = new DateTimeOffset(2026, 8, 2, 9, 20, 0, TimeSpan.Zero);
+        var draft = new DateTimeOffset(2026, 8, 3, 10, 30, 0, TimeSpan.Zero);
+        var starts = new DateTimeOffset(2026, 8, 4, 11, 40, 0, TimeSpan.Zero);
+        var ends = new DateTimeOffset(2026, 8, 5, 12, 50, 0, TimeSpan.Zero);
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var item = await db.Events.SingleAsync(x => x.Id == eventId);
+            item.ConfigureSchedule(opens, closes, draft, starts, ends, 20);
+            await db.SaveChangesAsync();
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var before = await verify.Events.AsNoTracking().Where(x => x.Id == eventId).Select(x => new
+        {
+            x.Version,
+            x.SignupOpensAt,
+            x.SignupClosesAt,
+            x.DraftAt,
+            x.EventStartsAt,
+            x.EventEndsAt,
+            x.SubmissionCutoffAt,
+            x.ParticipantCap,
+            x.ScheduledSignupOpeningEnabled
+        }).SingleAsync();
+        var auditCount = await verify.AuditEntries.CountAsync(x => x.EventId == eventId);
+        var model = Schedule(verify, actor);
+
+        Assert.IsType<PageResult>(await model.OnGetAsync(eventId, CancellationToken.None));
+        model.Input.EventStartsLocal = localTime;
+
+        Assert.IsType<PageResult>(await model.OnPostAsync(eventId, CancellationToken.None));
+        Assert.False(model.ModelState.IsValid);
+        Assert.True(model.ModelState.ContainsKey("Input.EventStartsLocal"));
+
+        var after = await verify.Events.AsNoTracking().Where(x => x.Id == eventId).Select(x => new
+        {
+            x.Version,
+            x.SignupOpensAt,
+            x.SignupClosesAt,
+            x.DraftAt,
+            x.EventStartsAt,
+            x.EventEndsAt,
+            x.SubmissionCutoffAt,
+            x.ParticipantCap,
+            x.ScheduledSignupOpeningEnabled
+        }).SingleAsync();
+        Assert.Equal(before, after);
+        Assert.Equal(auditCount, await verify.AuditEntries.CountAsync(x => x.EventId == eventId));
+    }
+
     [Fact]
     public async Task PublicSchedulePreviewPreservesLockedSignupOpeningWhenPostOmitsIt()
     {

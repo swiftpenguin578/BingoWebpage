@@ -27,7 +27,7 @@ namespace Bingo.Web.Pages.Admin.Events;
 [Authorize(Policy = AuthorizationPolicies.Admin)]
 public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, ISignupService signupService, EventParticipantCharacterService characterService, IEvidenceStorage? storage = null, PreformedRosterCsvImportService? csvImport = null, ITeamCaptainAuthorityService? captainAuthority = null, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
-    public string EventName { get; private set; } = string.Empty; public string Sort { get; private set; } = "ehb"; public DraftView? Draft { get; private set; }
+    public string EventName { get; private set; } = string.Empty; public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId; public string Sort { get; private set; } = "ehb"; public DraftView? Draft { get; private set; }
     public Guid EventId { get; private set; }
     public IReadOnlyList<TeamView> Teams { get; private set; } = []; public IReadOnlyList<ParticipantView> Participants { get; private set; } = [];
     public IReadOnlyDictionary<Guid, PaymentStatus> ParticipantPayments { get; private set; } = new Dictionary<Guid, PaymentStatus>();
@@ -531,6 +531,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         if (ev is null) return false;
         EventId = id;
         EventName = ev.Name;
+        EventTimezone = ev.Timezone;
         Sort = sort is "name" or "signup" or "status" ? sort : "ehb";
         var draft = await db.DraftSessions.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == id, ct);
         if (draft is null) { ConfirmedCount = await db.EventParticipants.CountAsync(x => x.EventId == id && x.Source != SignupSource.AdminCreated && x.SignupStatus == SignupStatus.Confirmed, ct); Distribution = DraftRosterDistribution.Derive(ConfirmedCount, 0); return true; }

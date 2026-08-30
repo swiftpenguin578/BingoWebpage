@@ -4,6 +4,7 @@ using Bingo.Domain.Evidence;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Pages.Captain;
 using Bingo.Web.Security;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -18,6 +19,7 @@ public sealed class IndexModel(ApplicationDbContext db, IEvidenceAuthority evide
     public string TeamName { get; private set; } = string.Empty;
     public string EventSlug { get; private set; } = string.Empty;
     public string TeamSlug { get; private set; } = string.Empty;
+    public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId;
     public Guid EventId { get; private set; }
     public Guid TeamId { get; private set; }
     public IReadOnlyList<Captain.IndexModel.PlayerOption> PlayerOptions { get; private set; } = [];
@@ -35,7 +37,7 @@ public sealed class IndexModel(ApplicationDbContext db, IEvidenceAuthority evide
     [BindProperty(SupportsGet = true, Name = "ledgerPage")]
     public int RequestedLedgerPage { get; set; } = 1;
 
-    public SubmissionLedgerViewModel Ledger => new(EventId, TeamId, "/Submissions/Index", "/Submissions/Submission", Submissions, PageNumber, TotalPages, TotalSubmissionCount, Search, PlayerFilter);
+    public SubmissionLedgerViewModel Ledger => new(EventId, TeamId, "/Submissions/Index", "/Submissions/Submission", Submissions, PageNumber, TotalPages, TotalSubmissionCount, Search, PlayerFilter, EventTimezone);
 
     public async Task<IActionResult> OnGetAsync(Guid? eventId, Guid? teamId, CancellationToken cancellationToken)
     {
@@ -83,9 +85,10 @@ public sealed class IndexModel(ApplicationDbContext db, IEvidenceAuthority evide
         var context = await (from eventItem in db.Events.AsNoTracking()
                              join team in db.Teams.AsNoTracking() on eventItem.Id equals team.EventId
                              where eventItem.Id == scope.EventId && team.Id == scope.TeamId && team.Active
-                             select new { eventItem.Name, eventItem.Slug, TeamName = team.Name, TeamSlug = team.Slug }).SingleOrDefaultAsync(cancellationToken);
+                             select new { eventItem.Name, eventItem.Slug, eventItem.Timezone, TeamName = team.Name, TeamSlug = team.Slug }).SingleOrDefaultAsync(cancellationToken);
         if (context is null) return false;
         EventName = context.Name;
+        EventTimezone = context.Timezone;
         EventSlug = context.Slug;
         TeamName = context.TeamName;
         TeamSlug = context.TeamSlug;

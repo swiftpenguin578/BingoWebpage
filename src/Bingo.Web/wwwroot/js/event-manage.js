@@ -22,6 +22,7 @@
   });
 
   function initialize(root) {
+    initializeConfirmationFocus(root);
     initializeCopyLinks(root);
     initializeDatePickers(root);
     initializeDraftInteractions(root);
@@ -103,6 +104,18 @@
         if (type === "number" || type === "date") return Number(left) - Number(right);
         return left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
       }
+    });
+  }
+
+  function initializeConfirmationFocus(root) {
+    root.querySelectorAll("[data-confirmation-box]").forEach((confirmation) => {
+      if (!(confirmation instanceof HTMLElement) || confirmation.dataset.confirmationFocusReady === "true") return;
+      confirmation.dataset.confirmationFocusReady = "true";
+      requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (!confirmation.isConnected) return;
+        confirmation.focus({ preventScroll: true });
+        confirmation.scrollIntoView({ block: "nearest" });
+      })));
     });
   }
 
@@ -783,7 +796,7 @@
     root.querySelectorAll("[data-event-manage-datetime-picker]").forEach((input) => {
       if (input._flatpickr) return;
       window.initializeBingoDateTimePicker(input, {
-        dateFormat: "Z",
+        dateFormat: "Y-m-d\\TH:i",
         altInput: true,
         altFormat: "d/m/Y H:i",
         defaultDate: input.value,

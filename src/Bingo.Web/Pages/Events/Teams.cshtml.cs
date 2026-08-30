@@ -2,6 +2,7 @@ using Bingo.Application.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
+using Bingo.Web.UI;
 using Bingo.Web.Teams;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -14,6 +15,7 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, IPart
     public string EventName { get; private set; } = string.Empty;
     public DateTimeOffset? EventStartsAt { get; private set; }
     public DateTimeOffset? EventEndsAt { get; private set; }
+    public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId;
     public int PlayerCount { get; private set; }
     public string? CurrentEvidenceCode { get; private set; }
     public IReadOnlyList<TeamView> Teams { get; private set; } = [];
@@ -51,6 +53,7 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, IPart
         EventName = ev.Name;
         EventStartsAt = ev.EventStartsAt;
         EventEndsAt = ev.EventEndsAt;
+        EventTimezone = ev.Timezone;
         PlayerCount = rosterEntries.Count(x => displayedTeamIds.Contains(x.TeamId));
         Teams = teams.Select(t => new TeamView(
                 t.Name,

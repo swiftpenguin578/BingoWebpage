@@ -303,20 +303,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
     private string StatusLabel(EventState state) => AdminEventStatePresentation.For(state, text).Label;
 
     private static string FormatDate(DateTimeOffset value, string timezoneId)
-    {
-        try
-        {
-            return TimeZoneInfo.ConvertTime(value, TimeZoneInfo.FindSystemTimeZoneById(timezoneId)).ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            return value.ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
-        }
-        catch (InvalidTimeZoneException)
-        {
-            return value.ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
-        }
-    }
+        => DateTimePresentation.Format(value, "dd MMM yyyy, HH:mm", timezoneId, CultureInfo.CurrentCulture);
 
     private static bool TryGuid(RouteValueDictionary values, string key, out Guid value) => Guid.TryParse(values[key]?.ToString(), out value);
 }

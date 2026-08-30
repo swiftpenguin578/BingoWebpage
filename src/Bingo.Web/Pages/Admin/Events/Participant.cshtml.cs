@@ -47,6 +47,7 @@ public sealed class ParticipantModel(
     public Guid RouteParticipantId { get; private set; }
     public PaymentStatus Payment { get; private set; }
     public string EventName { get; private set; } = string.Empty;
+    public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId;
     public string Name { get; private set; } = string.Empty;
     public SignupStatus Status { get; private set; }
     public string StatusLabel { get; private set; } = string.Empty;
@@ -192,6 +193,7 @@ public sealed class ParticipantModel(
         RouteParticipantId = participantId;
         Payment = participant.PaymentStatus;
         EventName = bingoEvent.Name;
+        EventTimezone = bingoEvent.Timezone;
         var authority = await dbContext.AdminPrimaryCharacters().AsNoTracking().SingleOrDefaultAsync(x => x.ParticipantId == participantId, ct);
         var secondName = await (from assignment in dbContext.EventParticipantCharacters.AsNoTracking()
                                 join character in dbContext.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id

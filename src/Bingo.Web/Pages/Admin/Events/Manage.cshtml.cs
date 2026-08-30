@@ -51,8 +51,10 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     [BindProperty, StringLength(1000), Display(Name = "Reason for reopening")] public string? StateReason { get; set; }
     [BindProperty, StringLength(100), Display(Name = "Evidence code")] public string? NewEvidenceCode { get; set; }
     [BindProperty, DataType(DataType.DateTime), Display(Name = "Activates at")] public DateTimeOffset? EvidenceCodeActivatesAt { get; set; }
+    [BindProperty, Display(Name = "Activates at")] public string? EvidenceCodeActivatesAtLocal { get; set; }
     [BindProperty, StringLength(1000), Display(Name = "Code note")] public string? EvidenceCodeNote { get; set; }
     [BindProperty, DataType(DataType.DateTime), Display(Name = "Reopen until")] public DateTimeOffset? ReopenUntil { get; set; }
+    [BindProperty, Display(Name = "Reopen until")] public string? ReopenUntilLocal { get; set; }
     [BindProperty] public long EventVersion { get; set; }
     [BindProperty, Range(1, long.MaxValue)] public long? CompetitionId { get; set; }
     [BindProperty] public bool SynchronizeCompetitionSchedule { get; set; }
@@ -64,6 +66,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     [BindProperty, StringLength(2000)] public string? EndReason { get; set; }
     [BindProperty] public bool ConfirmResumeEvent { get; set; }
     [BindProperty, DataType(DataType.DateTime), Display(Name = "Replacement event end")] public DateTimeOffset ReplacementEventEndsAt { get; set; }
+    [BindProperty, Display(Name = "Replacement event end")] public string? ReplacementEventEndsAtLocal { get; set; }
     [BindProperty, StringLength(2000), Display(Name = "Reason for resuming")]
     public string? ResumeReason { get; set; }
     [BindProperty] public bool ConfirmDestructiveAction { get; set; }
@@ -146,7 +149,16 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     }
     public async Task<IActionResult> OnPostResumeEventAsync(Guid id, CancellationToken ct)
     {
-        var result = await eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, ReplacementEventEndsAt, Actor, ct);
+        var timezoneId = await dbContext.Events.AsNoTracking().Where(x => x.Id == id).Select(x => x.Timezone).SingleOrDefaultAsync(ct);
+        if (timezoneId is null) return NotFound();
+        var replacementEnd = ParseEventLocal(ReplacementEventEndsAtLocal, timezoneId, nameof(ReplacementEventEndsAtLocal), "Replacement event end")
+            ?? (string.IsNullOrWhiteSpace(ReplacementEventEndsAtLocal) && ReplacementEventEndsAt != default ? ReplacementEventEndsAt.ToUniversalTime() : null);
+        if (replacementEnd is null)
+        {
+            SetStatus(Localize("Choose a valid replacement event end."), UiMessageType.Error);
+            return RedirectToPage(new { id });
+        }
+        var result = await eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, replacementEnd.Value, Actor, ct);
         SetStatus(result.Succeeded ? Localize("Event resumed and returned to live play.") : result.Error ?? Localize("The event could not be resumed."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToPage(new { id });
     }
@@ -210,7 +222,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostReopenSubmissionsAsync(Guid id, CancellationToken ct)
-    { var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); if (HasBindingErrors(nameof(ReopenUntil), nameof(StateReason)) || ReopenUntil is null || string.IsNullOrWhiteSpace(StateReason)) { TempData["StatusMessage"] = Localize("A valid future cutoff and reason are required."); return RedirectToPage(new { id }); } try { item.ReopenSubmissions(ReopenUntil.Value, timeProvider.GetUtcNow()); await dbContext.SaveChangesAsync(ct); await AuditAsync("event.submissions_reopened", item, $"Until {ReopenUntil:O}; {StateReason}", ct); TempData["StatusMessage"] = Localize("Submissions reopened until {0}.", ReopenUntil.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)); } catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; } return RedirectToPage(new { id }); }
+    { var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); var reopenUntil = ParseEventLocal(ReopenUntilLocal, item.Timezone, nameof(ReopenUntilLocal), "Reopen cutoff") ?? (string.IsNullOrWhiteSpace(ReopenUntilLocal) ? ReopenUntil?.ToUniversalTime() : null); if (reopenUntil is null || string.IsNullOrWhiteSpace(StateReason)) { TempData["StatusMessage"] = Localize("A valid future cutoff and reason are required."); return RedirectToPage(new { id }); } try { item.ReopenSubmissions(reopenUntil.Value, timeProvider.GetUtcNow()); await dbContext.SaveChangesAsync(ct); await AuditAsync("event.submissions_reopened", item, $"Until {reopenUntil:O}; {StateReason}", ct); TempData["StatusMessage"] = Localize("Submissions reopened until {0}.", DateTimePresentation.Format(reopenUntil.Value, "dd MMM yyyy, HH:mm", item.Timezone, CultureInfo.CurrentCulture)); } catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; } return RedirectToPage(new { id }); }
     public Task<IActionResult> OnPostEnableEvidenceCodesAsync(Guid id, CancellationToken ct) => SetEvidenceCodeMode(id, true, ct);
     public Task<IActionResult> OnPostDisableEvidenceCodesAsync(Guid id, CancellationToken ct) => SetEvidenceCodeMode(id, false, ct);
     private async Task<IActionResult> SetEvidenceCodeMode(Guid id, bool enabled, CancellationToken ct)
@@ -220,11 +232,11 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public Task<IActionResult> OnPostCreateEvidenceCodeAsync(Guid id, CancellationToken ct) => CreateEvidenceCode(id, NewEvidenceCode, ct);
     private async Task<IActionResult> CreateEvidenceCode(Guid id, string? code, CancellationToken ct)
     {
-        var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); if (HasBindingErrors(nameof(NewEvidenceCode), nameof(EvidenceCodeActivatesAt), nameof(EvidenceCodeNote))) { TempData["StatusMessage"] = Localize("Check the verification code details and try again."); return RedirectToPage(new { id }); }
+        var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); if (HasBindingErrors(nameof(NewEvidenceCode), nameof(EvidenceCodeActivatesAtLocal), nameof(EvidenceCodeNote))) { TempData["StatusMessage"] = Localize("Check the verification code details and try again."); return RedirectToPage(new { id }); }
         if (!item.EvidenceCodeEnabled) { TempData["StatusMessage"] = Localize("Enable evidence codes first."); return RedirectToPage(new { id }); }
         if (string.IsNullOrWhiteSpace(code)) { TempData["StatusMessage"] = Localize("Enter or generate a code first."); return RedirectToPage(new { id }); }
-        var activates = (EvidenceCodeActivatesAt ?? timeProvider.GetUtcNow()).ToUniversalTime(); if (await dbContext.EvidenceCodes.AnyAsync(x => x.EventId == id && x.ActivatesAt == activates, ct)) { TempData["StatusMessage"] = Localize("Another code already activates at that exact time."); return RedirectToPage(new { id }); }
-        var created = new EvidenceCode(Guid.NewGuid(), id, code, activates, User.GetAccountId()!.Value, timeProvider.GetUtcNow(), EvidenceCodeNote); dbContext.EvidenceCodes.Add(created); var codes = await dbContext.EvidenceCodes.Where(x => x.EventId == id).OrderBy(x => x.ActivatesAt).ToListAsync(ct); codes.Add(created); codes = codes.OrderBy(x => x.ActivatesAt).ToList(); for (var index = 0; index < codes.Count; index++) codes[index].SetRetiresAt(index + 1 < codes.Count ? codes[index + 1].ActivatesAt : null); await dbContext.SaveChangesAsync(ct); await AuditAsync("evidence_code.created", item, $"{created.Code}; activates {activates:O}", ct); TempData["StatusMessage"] = Localize("Evidence code {0} saved.", created.Code); return RedirectToPage(new { id });
+        var activates = ParseEventLocal(EvidenceCodeActivatesAtLocal, item.Timezone, nameof(EvidenceCodeActivatesAtLocal), "Activation time"); if (!string.IsNullOrWhiteSpace(EvidenceCodeActivatesAtLocal) && activates is null) { TempData["StatusMessage"] = Localize("Check the verification code details and try again."); return RedirectToPage(new { id }); } activates ??= EvidenceCodeActivatesAt?.ToUniversalTime() ?? timeProvider.GetUtcNow(); var activatedAt = activates.Value; if (await dbContext.EvidenceCodes.AnyAsync(x => x.EventId == id && x.ActivatesAt == activatedAt, ct)) { TempData["StatusMessage"] = Localize("Another code already activates at that exact time."); return RedirectToPage(new { id }); }
+        var created = new EvidenceCode(Guid.NewGuid(), id, code, activatedAt, User.GetAccountId()!.Value, timeProvider.GetUtcNow(), EvidenceCodeNote); dbContext.EvidenceCodes.Add(created); var codes = await dbContext.EvidenceCodes.Where(x => x.EventId == id).OrderBy(x => x.ActivatesAt).ToListAsync(ct); codes.Add(created); codes = codes.OrderBy(x => x.ActivatesAt).ToList(); for (var index = 0; index < codes.Count; index++) codes[index].SetRetiresAt(index + 1 < codes.Count ? codes[index + 1].ActivatesAt : null); await dbContext.SaveChangesAsync(ct); await AuditAsync("evidence_code.created", item, $"{created.Code}; activates {activatedAt:O}", ct); TempData["StatusMessage"] = Localize("Evidence code {0} saved.", created.Code); return RedirectToPage(new { id });
     }
     private async Task<bool> LoadAsync(Guid id, CancellationToken ct)
     {
@@ -291,16 +303,16 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         if (ScheduledAction is not null)
             overviewBlockers.AddRange(ScheduledAction.Blockers);
         OverviewBlockers = overviewBlockers.DistinctBy(x => (x.Code, x.Description, x.Route)).ToList();
-        EventVersion = item.Version; CompetitionId = CompetitionIntegration?.CompetitionId; NewCap = item.ParticipantCap ?? 0; NewSignupOpening = item.SignupOpensAt ?? timeProvider.GetUtcNow(); NewSignupClosing = item.SignupClosesAt ?? timeProvider.GetUtcNow().AddDays(1); EvidenceCodeActivatesAt = timeProvider.GetUtcNow(); ReopenUntil = timeProvider.GetUtcNow().AddHours(1); ReplacementEventEndsAt = item.EventEndsAt ?? timeProvider.GetUtcNow().AddHours(1); return true;
+        EventVersion = item.Version; CompetitionId = CompetitionIntegration?.CompetitionId; NewCap = item.ParticipantCap ?? 0; NewSignupOpening = item.SignupOpensAt ?? timeProvider.GetUtcNow(); NewSignupClosing = item.SignupClosesAt ?? timeProvider.GetUtcNow().AddDays(1); EvidenceCodeActivatesAt = timeProvider.GetUtcNow(); EvidenceCodeActivatesAtLocal = DateTimePresentation.Format(EvidenceCodeActivatesAt.Value, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); ReopenUntil = timeProvider.GetUtcNow().AddHours(1); ReopenUntilLocal = DateTimePresentation.Format(ReopenUntil.Value, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); ReplacementEventEndsAt = item.EventEndsAt ?? timeProvider.GetUtcNow().AddHours(1); ReplacementEventEndsAtLocal = DateTimePresentation.Format(ReplacementEventEndsAt, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); return true;
     }
     private LifecycleActor Actor => new(User.GetAccountId()!.Value, User.Identity!.Name!);
     private Task<IActionResult> SignupResult(SignupLifecycleResult result, Guid id, string success)
-    { TempData["StatusMessage"] = result.Succeeded ? Localize(success) : result.ProposedClose is { } close ? $"{result.Error} Proposed close: {close.ToLocalTime():dd MMM yyyy, HH:mm}." : result.Error; if (result.Succeeded) TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString(); return Task.FromResult<IActionResult>(RedirectToPage(new { id })); }
+    { TempData["StatusMessage"] = result.Succeeded ? Localize(success) : result.ProposedClose is { } close ? $"{result.Error} Proposed close: {DateTimePresentation.Format(close, "dd MMM yyyy, HH:mm", EventView?.Timezone, CultureInfo.CurrentCulture)}." : result.Error; if (result.Succeeded) TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString(); return Task.FromResult<IActionResult>(RedirectToPage(new { id })); }
     private Task AuditAsync(string action, BingoEvent item, string details, CancellationToken ct) => auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, action, "event", item.Id.ToString(), details, ct);
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     private string CompetitionRefreshFailure(EventCompetitionRefreshResult result)
     {
-        var retryAt = result.RetryAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
+        var retryAt = result.RetryAt is { } value ? DateTimePresentation.Format(value, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture) : null;
         return result.ErrorKind switch
         {
             "RateLimited" when retryAt is not null => Localize("Wise Old Man refresh is temporarily rate-limited. Try again after {0}.", retryAt),
@@ -321,6 +333,20 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         return RedirectToPage(new { id, confirm = action });
     }
     private bool HasBindingErrors(params string[] fields) => fields.Any(field => ModelState.TryGetValue(field, out var entry) && entry.Errors.Count > 0);
+    private DateTimeOffset? ParseEventLocal(string? value, string timezoneId, string field, string label)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        if (!DateTime.TryParseExact(value, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var entered) || entered.Minute % 5 != 0)
+        {
+            ModelState.AddModelError(field, Localize("Choose a valid local date and time."));
+            return null;
+        }
+        var timezone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
+        var local = DateTime.SpecifyKind(entered, DateTimeKind.Unspecified);
+        if (timezone.IsInvalidTime(local)) { ModelState.AddModelError(field, Localize("That local time does not exist because the clocks change at that time.")); return null; }
+        if (timezone.IsAmbiguousTime(local)) { ModelState.AddModelError(field, Localize("{0} is ambiguous because of daylight-saving time. Choose another time.", label)); return null; }
+        return new DateTimeOffset(local, timezone.GetUtcOffset(local)).ToUniversalTime();
+    }
     public string EventDate(DateTimeOffset? value, string missing = "Not set")
     {
         return FormatEventDate(value, "dd MMM yyyy, HH:mm", missing);
@@ -329,8 +355,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     private string FormatEventDate(DateTimeOffset? value, string format, string missing)
     {
         if (value is null) return missing;
-        var timezone = TimeZoneInfo.FindSystemTimeZoneById(EventView?.Timezone ?? "UTC");
-        return TimeZoneInfo.ConvertTime(value.Value, timezone).ToString(format, CultureInfo.CurrentCulture);
+        return DateTimePresentation.Format(value.Value, format, EventView?.Timezone, CultureInfo.CurrentCulture);
     }
     public static IReadOnlyList<TimelineRow> EffectiveTimelineFor(EffectiveTimelineInput input)
     {

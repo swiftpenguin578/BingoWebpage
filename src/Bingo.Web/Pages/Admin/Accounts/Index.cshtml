@@ -79,7 +79,7 @@
                             <td data-label="Role"><span class="admin-status-pill @roleModifier">@RoleLabel(account.Role)</span></td>
                             <td data-label="State"><span class="admin-status-pill @(account.Active ? "is-green" : "is-muted")">@(account.Active ? T["Active"] : T["Disabled"])</span></td>
                             <td data-label="Discord"><span class="admin-account-discord-status @(account.DiscordLinked ? "is-linked" : "is-unlinked")">@(account.DiscordLinked ? T["Linked"] : T["Not linked"])</span></td>
-                            <td data-label="Last login"><span class="admin-account-support">@(account.LastLoginAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) ?? T["Never"].Value)</span></td>
+                            <td data-label="Last login"><span class="admin-account-support">@(account.LastLoginAt is { } ? DateTimePresentation.Format(account.LastLoginAt.Value, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture) : T["Never"].Value)</span></td>
                             <td data-label="Current event roles"><span class="admin-account-support admin-account-ellipsis" title="@account.EventRoleSummary">@account.EventRoleSummary</span></td>
                             <td class="event-row-action" data-label="Actions"><a class="event-overview-row-action" data-account-manage-trigger="true" asp-page="Manage" asp-route-id="@account.Id">@T["Manage"]</a></td>
                         </tr>
@@ -137,7 +137,7 @@
                             <td data-label="Setup"><span class="admin-status-pill @(account.SetupComplete ? "is-green" : "is-yellow")">@(account.SetupComplete ? T["Complete"] : T["Pending"])</span></td>
                             <td data-label="State"><span class="admin-status-pill @(account.Enabled ? "is-green" : "is-muted")">@(account.Enabled ? T["Enabled"] : T["Disabled"])</span></td>
                             <td data-label="Cutoff"><span class="admin-status-pill @(account.CutoffDisabled ? "is-muted" : "is-green")">@(account.CutoffDisabled ? T["Disabled at cutoff"] : T["Open"])</span></td>
-                            <td data-label="Last login"><span class="admin-account-support">@(account.LastLoginAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) ?? T["Never"].Value)</span></td>
+                            <td data-label="Last login"><span class="admin-account-support">@(account.LastLoginAt is { } ? DateTimePresentation.Format(account.LastLoginAt.Value, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture) : T["Never"].Value)</span></td>
                             <td class="event-row-action" data-label="Actions"><a class="event-overview-row-action" data-account-manage-trigger="true" asp-page="Manage" asp-route-id="@account.Id">@T["Manage"]</a></td>
                         </tr>
                     }

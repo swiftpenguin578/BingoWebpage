@@ -21,6 +21,7 @@ namespace Bingo.Web.Pages.Admin.Events;
 public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService signupService, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     public EventView? Event { get; private set; }
+    public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId;
     public IReadOnlyList<ParticipantRow> Participants { get; private set; } = [];
     public IReadOnlyList<TeamOption> ParticipantTeams { get; private set; } = [];
     public IReadOnlyList<ParticipantModel.QuestionView> ActiveSignupQuestions { get; private set; } = [];
@@ -115,6 +116,7 @@ public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService si
     {
         var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id && item.State != EventState.Discarded, ct);
         if (bingoEvent is null) return false;
+        EventTimezone = bingoEvent.Timezone;
 
         var allParticipants = await db.EventParticipants.AsNoTracking()
             .Where(item => item.EventId == id &&

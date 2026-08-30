@@ -196,7 +196,7 @@
                                     <span class="admin-status-pill participant-status-pill @StatusClass(participant.Payment == PaymentStatus.Paid ? SignupStatus.Confirmed : SignupStatus.Withdrawn)">@paymentLabel</span>
                                 }
                             </td>
-                            <td data-label="@T["Signed up"]"><span class="participant-primary-value">@participant.SignedUpAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</span><small>@T[participant.Source.ToString()]</small></td>
+                            <td data-label="@T["Signed up"]"><span class="participant-primary-value">@DateTimePresentation.Format(participant.SignedUpAt, "dd MMM yyyy, HH:mm", Model.EventTimezone)</span><small>@T[participant.Source.ToString()]</small></td>
                             <td data-label="@T["Team"]"><span class="participant-primary-value">@(participant.TeamName ?? T["Unassigned"])</span>@if (participant.CaptainVolunteer) { <small>@T["Volunteered to captain"]</small> }</td>
                             <td class="event-row-action participant-actions-cell">
                                 <div class="participant-row-actions">

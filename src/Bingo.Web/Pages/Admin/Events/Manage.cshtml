@@ -181,7 +181,7 @@
                 {
                     var scheduledBlockerCount = Model.ScheduledAction?.Blockers.Count ?? 0;
                     <section class="event-admin-control-group @(scheduledBlockerCount == 0 ? "event-control-group-success" : "event-control-group-warning")">
-                        <div><h3>@(Model.ScheduledAction?.Title ?? T["Scheduled lifecycle action"].Value)</h3><p>@(Model.ScheduledAction is null ? T["Visual preview of the scheduled lifecycle action."].Value : $"{T["Scheduled for"]} {Model.ScheduledAction.ScheduledFor.ToLocalTime():dd MMM yyyy, HH:mm}; {T["attempted"]} {Model.ScheduledAction.AttemptedAt.ToLocalTime():dd MMM yyyy, HH:mm}.")</p></div>
+                        <div><h3>@(Model.ScheduledAction?.Title ?? T["Scheduled lifecycle action"].Value)</h3><p>@(Model.ScheduledAction is null ? T["Visual preview of the scheduled lifecycle action."].Value : $"{T["Scheduled for"]} {DateTimePresentation.Format(Model.ScheduledAction.ScheduledFor, "dd MMM yyyy, HH:mm", eventView.Timezone)}; {T["attempted"]} {DateTimePresentation.Format(Model.ScheduledAction.AttemptedAt, "dd MMM yyyy, HH:mm", eventView.Timezone)}.")</p></div>
                         @if (Model.ScheduledAction is null)
                         {
                             <p class="event-control-status is-green">@T["Scheduled action preview"]</p>
@@ -204,8 +204,8 @@
                             <h3>@T["Manual signup control"]</h3>
                             <p>@(eventView.State == EventState.SignupOpen ? T["Close signups now. Players already on the list are not affected."] : T["Open signups now after completing the schedule and readiness checks."])</p>
                             <p class="event-control-status event-control-supporting"><a asp-page="Schedule" asp-route-id="@eventView.Id">@T["Edit the event schedule and review signup readiness"]</a></p>
-                            @if (eventView.ActualSignupOpenedAt is { } actualOpening) { <p class="event-control-status event-control-supporting is-green"><strong>@T["Actual signup opening:"]</strong> @actualOpening.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</p> }
-                            else if (eventView.ScheduledSignupOpeningEnabled && eventView.SignupOpensAt is { } scheduledOpening) { <p class="event-control-status event-control-supporting is-cyan"><strong>@T["Automatic signup opening scheduled for:"]</strong> @scheduledOpening.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</p> }
+                            @if (eventView.ActualSignupOpenedAt is { } actualOpening) { <p class="event-control-status event-control-supporting is-green"><strong>@T["Actual signup opening:"]</strong> @DateTimePresentation.Format(actualOpening, "dd MMM yyyy, HH:mm", eventView.Timezone)</p> }
+                            else if (eventView.ScheduledSignupOpeningEnabled && eventView.SignupOpensAt is { } scheduledOpening) { <p class="event-control-status event-control-supporting is-cyan"><strong>@T["Automatic signup opening scheduled for:"]</strong> @DateTimePresentation.Format(scheduledOpening, "dd MMM yyyy, HH:mm", eventView.Timezone)</p> }
                             else { <p class="event-control-status event-control-supporting is-yellow"><strong>@T["No automatic signup opening scheduled."]</strong></p> }
                         </div>
                         <div class="event-admin-event-actions">
@@ -321,11 +321,11 @@
                     @if (showFinalReviewControls)
                     {
                         <form method="post" asp-page-handler="ReopenSubmissions" class="event-reopen-form" data-update-targets="@partialUpdateTargets">
-                            <div class="event-create-field"><label asp-for="ReopenUntil"><span>@T["Reopen submissions until"]</span></label><input asp-for="ReopenUntil" asp-format="{0:yyyy-MM-ddTHH:mm:ss.fffzzz}" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" /></div>
+                            <div class="event-create-field"><label asp-for="ReopenUntilLocal"><span>@T["Reopen submissions until"]</span></label><input asp-for="ReopenUntilLocal" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" required /></div>
                             <div class="event-create-field"><label asp-for="StateReason"><span>@T["Reason"]</span></label><input asp-for="StateReason" class="form-control" required /></div>
                             <button class="btn event-create-cancel" type="submit">@T["Reopen submissions"]</button>
                         </form>
-                        @if (eventView.ReopenedCutoff is not null) { <small class="event-reopened-note">@T["Submissions reopened until"] @eventView.ReopenedCutoff.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</small> }
+                        @if (eventView.ReopenedCutoff is not null) { <small class="event-reopened-note">@T["Submissions reopened until"] @DateTimePresentation.Format(eventView.ReopenedCutoff.Value, "dd MMM yyyy, HH:mm", eventView.Timezone)</small> }
                         <section class="event-admin-control-group event-control-subsection" aria-labelledby="resume-event-heading">
                             <div class="event-control-copy">
                                 <h3 id="resume-event-heading">@T["Resume premature end"]</h3>
@@ -334,7 +334,7 @@
                             <div class="event-admin-event-actions">
                                 @if (Model.ConfirmationAction == "resume")
                                 {
-                                    <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["The prior end remains in immutable history. Confirm the replacement end to resume live play."]</p><form method="post" asp-page-handler="ResumeEvent" class="form-stack event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="ReplacementEventEndsAt"><span>@T["Replacement event end"]</span></label><input asp-for="ReplacementEventEndsAt" asp-format="{0:yyyy-MM-ddTHH:mm:ss.fffzzz}" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" required /></div><div class="event-create-field"><label asp-for="ResumeReason"><span>@T["Reason (required)"]</span></label><textarea asp-for="ResumeReason" class="form-control" rows="3" required></textarea></div><div class="event-confirmation-actions"><button class="btn event-create-cancel" type="submit" name="ConfirmResumeEvent" value="true">@T["Confirm resume"]</button><a class="btn event-create-cancel" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a></div></form></div>
+                                    <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["The prior end remains in immutable history. Confirm the replacement end to resume live play."]</p><form method="post" asp-page-handler="ResumeEvent" class="form-stack event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="ReplacementEventEndsAtLocal"><span>@T["Replacement event end"]</span></label><input asp-for="ReplacementEventEndsAtLocal" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" required /></div><div class="event-create-field"><label asp-for="ResumeReason"><span>@T["Reason (required)"]</span></label><textarea asp-for="ResumeReason" class="form-control" rows="3" required></textarea></div><div class="event-confirmation-actions"><button class="btn event-create-cancel" type="submit" name="ConfirmResumeEvent" value="true">@T["Confirm resume"]</button><a class="btn event-create-cancel" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a></div></form></div>
                                 }
                                 else
                                 {
@@ -370,7 +370,7 @@
                         <div class="event-evidence-content">
                             <form method="post" asp-page-handler="CreateEvidenceCode" class="event-evidence-form" data-update-targets="@partialUpdateTargets">
                                 <div class="event-create-field"><label asp-for="NewEvidenceCode">@T["Code"]</label><input asp-for="NewEvidenceCode" class="form-control" placeholder="@T["Your custom code"]" /></div>
-                                <div class="event-create-field"><label asp-for="EvidenceCodeActivatesAt">@T["Active from"]</label><input asp-for="EvidenceCodeActivatesAt" asp-format="{0:yyyy-MM-ddTHH:mm:ss.fffzzz}" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" /></div>
+                                <div class="event-create-field"><label asp-for="EvidenceCodeActivatesAtLocal">@T["Active from"]</label><input asp-for="EvidenceCodeActivatesAtLocal" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" /></div>
                                 <div class="event-evidence-note event-create-field"><label asp-for="EvidenceCodeNote">@T["Note"]</label><input asp-for="EvidenceCodeNote" class="form-control" /></div>
                                 <div class="event-evidence-actions"><button class="btn event-create-cancel" type="submit">@T["Save code"]</button><button class="btn event-create-cancel" type="button" onclick="var field=this.closest('form').querySelector('[name=&quot;NewEvidenceCode&quot;]');var chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';field.value='';for(var i=0;i&lt;6;i++)field.value+=chars.charAt(Math.floor(Math.random()*chars.length));field.focus();">@T["Generate code"]</button></div>
                             </form>
@@ -379,7 +379,7 @@
                                 @if (Model.EvidenceCodes.Count == 0) { <p>@T["No codes have been added yet."]</p> }
                                 else
                                 {
-                                    <ul>@foreach (var code in Model.EvidenceCodes) { <li><strong>@code.Code</strong><span>@code.ActivatesAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</span><small>@(code.RetiresAt is null ? T["Currently active"] : $"{T["Ended"]} {code.RetiresAt.Value.ToLocalTime():dd MMM yyyy, HH:mm}")</small>@if (!string.IsNullOrWhiteSpace(code.Note)) { <small>@code.Note</small> }</li> }</ul>
+                                    <ul>@foreach (var code in Model.EvidenceCodes) { <li><strong>@code.Code</strong><span>@DateTimePresentation.Format(code.ActivatesAt, "dd MMM yyyy, HH:mm", eventView.Timezone)</span><small>@(code.RetiresAt is null ? T["Currently active"] : $"{T["Ended"]} {DateTimePresentation.Format(code.RetiresAt.Value, "dd MMM yyyy, HH:mm", eventView.Timezone)}")</small>@if (!string.IsNullOrWhiteSpace(code.Note)) { <small>@code.Note</small> }</li> }</ul>
                                 }
                             </div>
                         </div>
@@ -402,7 +402,7 @@
                     }
                     else
                     {
-                        <p class="event-control-status event-wom-status"><strong>@T["Status:"]</strong> <span class="event-wom-status-value @integrationStatusClass"><strong>@integration.CompetitionTitle</strong> · @integration.CompetitionId · @(integration.Complete == true ? T["Complete"] : integration.Complete == false && integration.MissingAccounts.Count > 0 ? T["Partial"] : integration.Complete == false ? T["Incomplete"] : T["Waiting"])@(integration.LastSuccessfulAt is { } synced ? $" · {synced.ToLocalTime():dd MMM yyyy, HH:mm}" : string.Empty)@(integration.RetryDueAt is not null ? $" · {T["Retry scheduled"]}" : string.Empty)@(integration.MissingAccounts.Count > 0 ? $" · {T["{0} accounts missing", integration.MissingAccounts.Count]}: {string.Join(", ", integration.MissingAccounts)}" : string.Empty)@(!string.IsNullOrWhiteSpace(integration.LastError) ? $" · {integration.LastError}" : string.Empty)</span></p>
+                        <p class="event-control-status event-wom-status"><strong>@T["Status:"]</strong> <span class="event-wom-status-value @integrationStatusClass"><strong>@integration.CompetitionTitle</strong> · @integration.CompetitionId · @(integration.Complete == true ? T["Complete"] : integration.Complete == false && integration.MissingAccounts.Count > 0 ? T["Partial"] : integration.Complete == false ? T["Incomplete"] : T["Waiting"])@(integration.LastSuccessfulAt is { } synced ? $" · {DateTimePresentation.Format(synced, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)}" : string.Empty)@(integration.RetryDueAt is not null ? $" · {T["Retry scheduled"]}" : string.Empty)@(integration.MissingAccounts.Count > 0 ? $" · {T["{0} accounts missing", integration.MissingAccounts.Count]}: {string.Join(", ", integration.MissingAccounts)}" : string.Empty)@(!string.IsNullOrWhiteSpace(integration.LastError) ? $" · {integration.LastError}" : string.Empty)</span></p>
                     }
                     </div>
                     <div class="event-control-static">
@@ -432,7 +432,7 @@
                     }
                     @if (hasRequestBudget)
                     {
-                        <p class="event-wom-budget"><small>@T["Request budget:"] @(integration?.RequestStatus.ObservedRemaining?.ToString() ?? "—") @T["remaining"]@(integration?.RequestStatus.ObservedLimit is { } limit ? $" {T["of {0}", limit]}" : string.Empty)@(integration?.RequestStatus.ResetAt is { } reset ? $" · {T["reset"]} {reset.ToLocalTime():dd MMM yyyy, HH:mm}" : string.Empty)</small></p>
+                        <p class="event-wom-budget"><small>@T["Request budget:"] @(integration?.RequestStatus.ObservedRemaining?.ToString() ?? "—") @T["remaining"]@(integration?.RequestStatus.ObservedLimit is { } limit ? $" {T["of {0}", limit]}" : string.Empty)@(integration?.RequestStatus.ResetAt is { } reset ? $" · {T["reset"]} {DateTimePresentation.Format(reset, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)}" : string.Empty)</small></p>
                     }
                     </div>
                 </section>

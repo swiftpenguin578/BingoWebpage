@@ -113,7 +113,7 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
 
     public string EventDate(DateTimeOffset value)
     {
-        return TimeZoneInfo.ConvertTime(value, TimeZoneInfo.FindSystemTimeZoneById(DisplayTimezone)).ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
+        return DateTimePresentation.Format(value, "dd MMM yyyy, HH:mm", DisplayTimezone, CultureInfo.CurrentCulture);
     }
 
     public async Task<IActionResult> OnPostRemoveBannerAsync(Guid id, CancellationToken ct)
@@ -203,7 +203,7 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
     }
     private static List<TimePreview> Preview(BingoEvent item, string oldId, string newId) => Instants(item).Select(value => new TimePreview(value.Label, Format(value.Value, oldId), Format(value.Value, newId))).ToList();
     private static IEnumerable<(string Label, DateTimeOffset? Value)> Instants(BingoEvent item) { yield return ("Signup opens", item.SignupOpensAt); yield return ("Signup closes", item.SignupClosesAt); yield return ("Draft time", item.DraftAt); yield return ("Event starts", item.EventStartsAt); yield return ("Event ends", item.EventEndsAt); }
-    private static string Format(DateTimeOffset? value, string timezone) { if (value is null) return "Not set"; return TimeZoneInfo.ConvertTime(value.Value, TimeZoneInfo.FindSystemTimeZoneById(timezone)).ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture); }
+    private static string Format(DateTimeOffset? value, string timezone) => value is null ? "Not set" : DateTimePresentation.Format(value.Value, "dd MMM yyyy, HH:mm", timezone, CultureInfo.CurrentCulture);
     private static object AuditState(BingoEvent item) => new { item.Name, item.Slug, Description = AuditDescription(item.Description), item.Timezone, item.BannerAssetId };
     private static string? AuditDescription(string? description) => description is null ? null : description.Length <= 500 ? description : $"{description[..500]}…";
     private static bool IsSlugCollision(DbUpdateException exception) => exception.InnerException?.Message.Contains("events_slug", StringComparison.OrdinalIgnoreCase) == true || exception.InnerException?.Message.Contains("slug", StringComparison.OrdinalIgnoreCase) == true;

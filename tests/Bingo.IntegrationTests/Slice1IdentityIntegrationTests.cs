@@ -24,6 +24,7 @@ using Bingo.Web.Navigation;
 using Bingo.Web.Pages.Admin.Events;
 using Bingo.Web.Security;
 using Bingo.Web.TestData;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
@@ -847,6 +848,72 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Contains(await db.AuditEntries.ToListAsync(), x => x.Action == "account.emergency_enabled");
         Assert.Contains(await db.AuditEntries.ToListAsync(), x => x.Action == "event.submissions_reopened");
         Assert.Equal(2, await db.AuditEntries.CountAsync(x => x.Action == "account.emergency_cutoff_disabled" && x.TargetId == emergency.Id.ToString()));
+    }
+
+    [Fact]
+    public async Task ManageReopenParsesEventLocalWallTimeAsUtc()
+    {
+        var now = new DateTimeOffset(2026, 8, 30, 12, 0, 0, TimeSpan.Zero).AddMicroseconds(123456);
+        var clock = new MutableTimeProvider(now);
+        await using var db = new ApplicationDbContext(options);
+        var admin = Website("slice1-event-local-admin", GlobalRole.Admin);
+        var ev = new BingoEvent(Guid.NewGuid(), "Event-local parsing", $"event-local-{Guid.NewGuid():N}", "Europe/Copenhagen", admin.Id, now.AddDays(-3));
+        ev.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(-2), now.AddHours(-1), 10);
+        ev.OpenSignups();
+        ev.CloseSignups();
+        ev.StartEvent(now.AddHours(-2));
+        ev.EndEvent();
+        db.AddRange(admin, ev);
+        await db.SaveChangesAsync();
+
+        var context = new DefaultHttpContext { User = new AccountAuthenticationService(db, passwords, clock).CreatePrincipal(admin) };
+        var model = new Bingo.Web.Pages.Admin.Events.ManageModel(db, new NoopSignupService(), new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, clock), new AuditWriter(db, clock), null!, null!, null!, null!, clock)
+        {
+            PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
+            TempData = new TempDataDictionary(context, new DictionaryTempDataProvider()),
+            ReopenUntilLocal = "2026-08-30T15:00",
+            StateReason = "Event-local parsing coverage."
+        };
+
+        Assert.IsType<RedirectToPageResult>(await model.OnPostReopenSubmissionsAsync(ev.Id, CancellationToken.None));
+        Assert.Equal(new DateTimeOffset(2026, 8, 30, 13, 0, 0, TimeSpan.Zero), await db.Events.Where(x => x.Id == ev.Id).Select(x => x.ReopenedSubmissionCutoffAt).SingleAsync());
+    }
+
+    [Theory]
+    [InlineData("2026-03-29T02:30")]
+    [InlineData("2026-10-25T02:30")]
+    public async Task ManageRejectsInvalidOrAmbiguousEventLocalWallTimeWithoutChangingCutoffOrAuditing(string localTime)
+    {
+        var now = new DateTimeOffset(2026, 8, 30, 12, 0, 0, TimeSpan.Zero);
+        var clock = new MutableTimeProvider(now);
+        await using var db = new ApplicationDbContext(options);
+        var admin = Website("slice1-event-local-dst-admin", GlobalRole.Admin);
+        var ev = new BingoEvent(Guid.NewGuid(), "Event-local DST parsing", $"event-local-dst-{Guid.NewGuid():N}", "Europe/Copenhagen", admin.Id, now.AddDays(-3));
+        ev.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(-2), now.AddHours(-1), 10);
+        ev.OpenSignups();
+        ev.CloseSignups();
+        ev.StartEvent(now.AddHours(-2));
+        ev.EndEvent();
+        var existingCutoff = now.AddHours(1);
+        ev.ReopenSubmissions(existingCutoff, now);
+        db.AddRange(admin, ev);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        var auditCount = await db.AuditEntries.CountAsync();
+
+        var context = new DefaultHttpContext { User = new AccountAuthenticationService(db, passwords, clock).CreatePrincipal(admin) };
+        var model = new Bingo.Web.Pages.Admin.Events.ManageModel(db, new NoopSignupService(), new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, clock), new AuditWriter(db, clock), null!, null!, null!, null!, clock)
+        {
+            PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
+            TempData = new TempDataDictionary(context, new DictionaryTempDataProvider()),
+            ReopenUntilLocal = localTime,
+            StateReason = "Event-local DST parsing coverage."
+        };
+
+        Assert.IsType<RedirectToPageResult>(await model.OnPostReopenSubmissionsAsync(ev.Id, CancellationToken.None));
+        Assert.False(model.ModelState.IsValid);
+        Assert.Equal(existingCutoff, await db.Events.Where(x => x.Id == ev.Id).Select(x => x.ReopenedSubmissionCutoffAt).SingleAsync());
+        Assert.Equal(auditCount, await db.AuditEntries.CountAsync());
     }
 
     [Fact]

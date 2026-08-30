@@ -162,6 +162,64 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ManualOpeningUsesActualBoundaryWithoutRewritingScheduledOpening()
+    {
+        var actor = new LifecycleActor(Guid.NewGuid(), "schedule-admin");
+        var eventId = await SeedReadyDraftAsync("manual-opening-boundary", waitingList: true);
+        DateTimeOffset scheduledOpening;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var item = await db.Events.SingleAsync(x => x.Id == eventId);
+            scheduledOpening = item.SignupOpensAt!.Value;
+            Assert.True(scheduledOpening > now);
+            item.ConfigureScheduledSignupOpening(true, []);
+            Assert.True(item.ScheduledSignupOpeningEnabled);
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new FixedTimeProvider(now));
+            var item = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+            var opened = await service.OpenAsync(eventId, item.Version, true, false, actor);
+            Assert.True(opened.Succeeded, opened.Error);
+        }
+
+        var proposedClose = now.AddMinutes(30);
+        await using var lifecycleDb = new ApplicationDbContext(options);
+        var evaluator = new EventReadinessEvaluator(lifecycleDb, configuration);
+        var serviceAfterOpening = new EventSignupLifecycleService(lifecycleDb, evaluator, new FixedTimeProvider(now));
+        var openedItem = await lifecycleDb.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        Assert.Equal(scheduledOpening, openedItem.SignupOpensAt);
+        Assert.Equal(now, openedItem.ActualSignupOpenedAt);
+
+        var values = Values(openedItem, openedItem.EventEndsAt!.Value) with { SignupClosesAt = proposedClose };
+        var readiness = await evaluator.GetSignupReadinessAsync(eventId, SignupOpeningMode.OpenNow, now, values);
+        Assert.DoesNotContain(readiness!.Blockers, blocker => blocker.Code == "PROPOSED_SCHEDULE_INVALID");
+        Assert.True(readiness.CloseDecision.IsValid);
+
+        var saved = await serviceAfterOpening.SaveScheduleAsync(eventId, openedItem.Version, values, true, actor);
+        Assert.True(saved.Succeeded, saved.Error);
+        lifecycleDb.ChangeTracker.Clear();
+        var persisted = await lifecycleDb.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        Assert.Equal(scheduledOpening, persisted.SignupOpensAt);
+        Assert.Equal(now, persisted.ActualSignupOpenedAt);
+        Assert.Equal(proposedClose, persisted.SignupClosesAt);
+
+        foreach (var rejectedClose in new[] { now, now.AddMinutes(-1) })
+        {
+            var rejected = await serviceAfterOpening.SaveScheduleAsync(eventId, persisted.Version, values with { SignupClosesAt = rejectedClose }, true, actor);
+            Assert.False(rejected.Succeeded);
+            lifecycleDb.ChangeTracker.Clear();
+            var unchanged = await lifecycleDb.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+            Assert.Equal(persisted.Version, unchanged.Version);
+            Assert.Equal(persisted.SignupOpensAt, unchanged.SignupOpensAt);
+            Assert.Equal(persisted.ActualSignupOpenedAt, unchanged.ActualSignupOpenedAt);
+            Assert.Equal(persisted.SignupClosesAt, unchanged.SignupClosesAt);
+        }
+    }
+
+    [Fact]
     public async Task NonOverlappingSignupWindowsAreAllowedButOverlapAndPastReopenNeedSafeConfirmation()
     {
         var actor = new LifecycleActor(Guid.NewGuid(), "schedule-admin");

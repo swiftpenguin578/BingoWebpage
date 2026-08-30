@@ -181,9 +181,9 @@ public sealed class MyAccountsModel(
     private string LookupFailure(WiseOldManPlayerLookupResult result) => result.Status switch
     {
         WiseOldManLookupStatus.NotFound => text["Wise Old Man could not find that character."].Value,
-        WiseOldManLookupStatus.RateLimited when result.RetryAt is { } retryAt => text["Wise Old Man is temporarily busy. Try again after {0}.", retryAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)].Value,
+        WiseOldManLookupStatus.RateLimited when result.RetryAt is { } retryAt => text["Wise Old Man is temporarily busy. Try again after {0}.", DateTimePresentation.Format(retryAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)].Value,
         WiseOldManLookupStatus.RateLimited => text["Wise Old Man is temporarily busy. Try again in about 1 minute."].Value,
-        _ when result.RetryAt is { } retryAt => text["Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {0}.", retryAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)].Value,
+        _ when result.RetryAt is { } retryAt => text["Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {0}.", DateTimePresentation.Format(retryAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)].Value,
         _ => text["Wise Old Man is unavailable right now. Your current EHB was kept."].Value
     };
 

@@ -31,8 +31,8 @@
                 <p class="public-masthead-support">@(string.IsNullOrWhiteSpace(Model.EventView.Description) ? T["Choose your account, answer the event questions and reserve your place."] : Model.EventView.Description)</p>
             </div>
             <dl class="signup-sheet__meta">
-                <div><dt>@T["Event starts"]</dt><dd>@(Model.EventView.EventStartsAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? T["Not set"])</dd></div>
-                <div><dt>@T["Signup closes"]</dt><dd>@(Model.EventView.SignupClosesAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? T["Not set"])</dd></div>
+                <div><dt>@T["Event starts"]</dt><dd>@(Model.EventView.EventStartsAt is { } starts ? DateTimePresentation.Format(starts, "dd/MM/yyyy", Model.EventView.Timezone) : T["Not set"])</dd></div>
+                <div><dt>@T["Signup closes"]</dt><dd>@(Model.EventView.SignupClosesAt is { } closes ? DateTimePresentation.Format(closes, "dd/MM/yyyy", Model.EventView.Timezone) : T["Not set"])</dd></div>
                 <div><dt>@T["Capacity"]</dt><dd>@(Model.EventView.ParticipantCap?.ToString() ?? T["Not set"])</dd></div>
             </dl>
         </div>
@@ -64,7 +64,7 @@
                 <h2>@T["Your signup"]</h2>
                 <dl>
                     <div><dt>@T["Event"]</dt><dd>@Model.EventView.Name</dd></div>
-                    <div><dt>@T["Event ends"]</dt><dd>@(Model.EventView.EventEndsAt?.ToLocalTime().ToString("dd/MM/yyyy") ?? T["Not set"])</dd></div>
+                    <div><dt>@T["Event ends"]</dt><dd>@(Model.EventView.EventEndsAt is { } ends ? DateTimePresentation.Format(ends, "dd/MM/yyyy", Model.EventView.Timezone) : T["Not set"])</dd></div>
                 </dl>
                 @if (Model.EventView.TableAvailable)
                 {
@@ -139,7 +139,7 @@
                                 <input id="lookup-@question.Id" type="hidden" name="Input.AccountAnswers[@question.Id].WiseOldManLookupToken" value="@accountInput.WiseOldManLookupToken" />
                                 @if (Model.LookupQuestionId == question.Id && Model.LookupFetchedAt is { } fetchedAt)
                                 {
-                                    <span class="signup-sheet__hint">@T["Fetched from Wise Old Man"]: @fetchedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</span>
+                                    <span class="signup-sheet__hint">@T["Fetched from Wise Old Man"]: @DateTimePresentation.Format(fetchedAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)</span>
                                 }
                                 <span class="signup-sheet__error">@Html.ValidationMessage($"Input.AccountAnswers[{question.Id}].Ehb")</span>
                             </fieldset>

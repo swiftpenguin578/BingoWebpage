@@ -344,7 +344,7 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
         return new PublicEventBoard(bingoEvent.Id, bingoEvent.Name, bingoEvent.Slug, bingoEvent.State,
             approval.Rows, approval.Columns, approval.TotalEhbEstimate, publicTeams, playerLeaderboard, recentDrops,
             bingoEvent.EventStartsAt, bingoEvent.EventEndsAt, recentDropSummary, filteredRows.Count, eventResult, submissionsOpen,
-            rankedDropEhbTeams, rosterPlayers, wiseOldManCompetitionId);
+            rankedDropEhbTeams, rosterPlayers, wiseOldManCompetitionId, bingoEvent.Timezone);
     }
 
     public async Task<PublicTileDetails?> GetTileAsync(string eventSlug, string teamSlug, Guid tileId, CancellationToken cancellationToken = default)
@@ -400,6 +400,6 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                     .Select(drop => new PublicEligibleDrop(
                         drop.BossName, drop.ItemName, drop.DisplayRate, drop.CreditedWeight))
                     .ToList())).ToList(),
-            evidence);
+            evidence, boardView.Timezone);
     }
 }

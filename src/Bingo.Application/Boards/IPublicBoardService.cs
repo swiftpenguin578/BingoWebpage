@@ -23,7 +23,7 @@ public sealed record PublicEventBoard(
     PublicEventResult? EventResult = null, bool SubmissionsOpen = false,
     IReadOnlyList<PublicDropEhbTeam>? DropEhbTeams = null,
     IReadOnlyList<PublicRosterPlayer>? RosterPlayers = null,
-    long? WiseOldManCompetitionId = null);
+    long? WiseOldManCompetitionId = null, string Timezone = "Europe/Copenhagen");
 
 public sealed record PublicEventResult(string TeamName, string? TeamSlug, bool IsOfficial);
 
@@ -72,7 +72,8 @@ public sealed record PublicTileDetails(
     Guid TileId, string TileName, string Description, string EvidenceInstructions,
     int Approved, int Target, bool Complete, DateTimeOffset? CompletedAt,
     IReadOnlyList<PublicRequirementProgress> Requirements,
-    IReadOnlyList<PublicApprovedEvidence> Evidence);
+    IReadOnlyList<PublicApprovedEvidence> Evidence,
+    string Timezone = "Europe/Copenhagen");
 
 public sealed record PublicRequirementProgress(
     Guid RequirementId, string Description, int Approved, int Target, bool Complete,

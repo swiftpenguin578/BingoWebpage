@@ -95,13 +95,13 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
         var participation = await (from participant in db.EventParticipants.AsNoTracking()
                                    join bingoEvent in db.Events.AsNoTracking() on participant.EventId equals bingoEvent.Id
                                    where participant.AccountId == id
-                                   select new { participant.Id, EventName = bingoEvent.Name, participant.SignupStatus }).ToListAsync(ct);
+                                   select new { participant.Id, EventName = bingoEvent.Name, EventTimezone = bingoEvent.Timezone, participant.SignupStatus }).ToListAsync(ct);
         var participantIds = participation.Select(x => x.Id).ToArray();
         var memberships = await (from membership in db.TeamMemberships.AsNoTracking()
                                  join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
                                  where participantIds.Contains(membership.EventParticipantId)
                                  select new { membership.EventParticipantId, TeamName = team.Name, membership.Role, membership.JoinedAt, membership.LeftAt }).ToListAsync(ct);
-        var roles = participation.Select(p => new EventRoleView(p.EventName, p.SignupStatus.ToString(), memberships.Where(m => m.EventParticipantId == p.Id).Select(m => new TeamRoleView(m.TeamName, m.Role, m.JoinedAt, m.LeftAt)).ToList())).ToList();
+        var roles = participation.Select(p => new EventRoleView(p.EventName, p.EventTimezone, p.SignupStatus.ToString(), memberships.Where(m => m.EventParticipantId == p.Id).Select(m => new TeamRoleView(m.TeamName, m.Role, m.JoinedAt, m.LeftAt)).ToList())).ToList();
         var disableHistory = await db.AuditEntries.AsNoTracking().Where(x => x.TargetType == "account" && x.TargetId == id.ToString() && (x.Action == "account.disabled" || x.Action == "account.restored")).OrderByDescending(x => x.OccurredAt).Select(x => new DisableHistoryView(x.Action == "account.disabled" ? "Disabled" : "Restored", x.OccurredAt, x.ActorUsername)).ToListAsync(ct);
         AccountView = new AccountDetails(account.Id, account.LoginName, account.AccountType, account.GlobalRole, account.Active, account.DiscordUserId is not null, account.DiscordDisplayName, account.LastLoginAt, account.DisabledAt, account.PasswordHash is not null, scope, characters, roles, disableHistory);
         return true;
@@ -120,7 +120,7 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
     public sealed record AccountDetails(Guid Id, string Username, AccountType AccountType, GlobalRole? Role, bool Active, bool DiscordLinked, string? DiscordDisplayName, DateTimeOffset? LastLoginAt, DateTimeOffset? DisabledAt, bool HasPassword, EmergencyScope? Scope, IReadOnlyList<CharacterView> Characters, IReadOnlyList<EventRoleView> EventRoles, IReadOnlyList<DisableHistoryView> DisableHistory);
     public sealed record EmergencyScope(string EventName, string TeamName, bool Enabled, bool CutoffDisabled);
     public sealed record CharacterView(string DisplayName, bool Active, bool Preferred) { public string NormalizedName => AccountAuthenticationService.NormalizeUsername(DisplayName); }
-    public sealed record EventRoleView(string EventName, string ParticipationState, IReadOnlyList<TeamRoleView> TeamRoles);
+    public sealed record EventRoleView(string EventName, string Timezone, string ParticipationState, IReadOnlyList<TeamRoleView> TeamRoles);
     public sealed record TeamRoleView(string TeamName, TeamMembershipRole Role, DateTimeOffset JoinedAt, DateTimeOffset? LeftAt);
     public sealed record DisableHistoryView(string State, DateTimeOffset OccurredAt, string ActorName);
 }

@@ -163,7 +163,7 @@
                 <div class="public-ui-evidence-gallery public-ui-auto-hide-scrollbar" tabindex="0" aria-label="@T["Approved submissions"]">
                     @foreach (var evidence in Model.Tile.Evidence)
                     {
-                        var localSubmittedAt = evidence.SubmittedAt.ToLocalTime();
+                        var localSubmittedAt = DateTimePresentation.ToTimezone(evidence.SubmittedAt, Model.Tile.Timezone);
                         var age = DateTimeOffset.UtcNow - evidence.SubmittedAt.ToUniversalTime();
                         var minutesAgo = (int)age.TotalMinutes;
                         var hoursAgo = (int)age.TotalHours;

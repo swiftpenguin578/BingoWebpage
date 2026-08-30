@@ -26,7 +26,7 @@
                 <h1 id="finalize-page-heading">@Model.Readiness.EventName</h1>
                 <span class="admin-status-pill @statePill.Modifier">@statePill.Label</span>
             </div>
-            <p class="finalize-page-meta">@Model.Readiness.State · @T["Event ended"] @(Model.Readiness.EventEndsAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) ?? T["Not set"])</p>
+            <p class="finalize-page-meta">@Model.Readiness.State · @T["Event ended"] @(Model.Readiness.EventEndsAt is { } eventEnd ? DateTimePresentation.Format(eventEnd, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) : T["Not set"])</p>
         </div>
         <a class="admin-button-secondary finalize-back-link" asp-page="Manage" asp-route-id="@Model.Readiness.EventId">@T["Back to event workspace"]</a>
     </header>
@@ -127,7 +127,7 @@
                 <tbody>
                     @foreach (var row in Model.Readiness.Placements)
                     {
-                        var shownAt = (row.CorrectedCompletedAt ?? row.CalculatedCompletedAt)?.ToLocalTime();
+                        var shownAt = (row.CorrectedCompletedAt ?? row.CalculatedCompletedAt) is { } completion ? (DateTimeOffset?)DateTimePresentation.ToTimezone(completion, Model.EventTimezone) : null;
                         <tr>
                             <td data-label="@T["Place"]"><strong>#@row.Placement</strong></td>
                             <td data-label="@T["Team"]"><strong>@row.TeamName</strong></td>
@@ -135,11 +135,11 @@
                             <td data-label="@T["Completion"]">
                                 @if (row.CorrectedCompletedAt is not null)
                                 {
-                                    <span class="finalize-completion-value"><small>@T["Originally"] @row.CalculatedCompletedAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</small><strong>@T["Corrected to"] @row.CorrectedCompletedAt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</strong></span>
+                                    <span class="finalize-completion-value"><small>@T["Originally"] @(row.CalculatedCompletedAt is { } calculated ? DateTimePresentation.Format(calculated, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) : null)</small><strong>@T["Corrected to"] @DateTimePresentation.Format(row.CorrectedCompletedAt.Value, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)</strong></span>
                                 }
                                 else
                                 {
-                                    <span>@(row.CalculatedCompletedAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) ?? "—")</span>
+                                    <span>@(row.CalculatedCompletedAt is { } calculated ? DateTimePresentation.Format(calculated, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) : "—")</span>
                                 }
                             </td>
                             <td data-label="@T["Lines"]"><span>@row.CompletedLines</span></td>
@@ -154,7 +154,7 @@
                                         <input type="hidden" name="ExpectedReviewCycleId" value="@Model.Readiness.ReviewCycleId" />
                                         <div class="finalize-field">
                                             <label for="completion-@row.TeamId">@T["Completion date and time"]</label>
-                                            <input id="completion-@row.TeamId" class="form-control" type="datetime-local" step="300" name="correctedAtLocal" value="@shownAt.Value.ToString("yyyy-MM-ddTHH:mm")" data-date-time-picker data-min-date="@Model.Readiness.EventStartsAt.Value.ToLocalTime().ToString("yyyy-MM-ddTHH:mm")" data-max-date="@Model.Readiness.EventEndsAt.Value.ToLocalTime().ToString("yyyy-MM-ddTHH:mm")" autocomplete="off" required />
+                                            <input id="completion-@row.TeamId" class="form-control" type="datetime-local" step="300" name="correctedAtLocal" value="@shownAt.Value.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture)" data-date-time-picker data-min-date="@DateTimePresentation.Format(Model.Readiness.EventStartsAt.Value, "yyyy-MM-ddTHH:mm", Model.EventTimezone, CultureInfo.InvariantCulture)" data-max-date="@DateTimePresentation.Format(Model.Readiness.EventEndsAt.Value, "yyyy-MM-ddTHH:mm", Model.EventTimezone, CultureInfo.InvariantCulture)" autocomplete="off" required />
                                         </div>
                                         <div class="finalize-field">
                                             <label for="correction-reason-@row.TeamId">@T["Reason"]</label>
@@ -255,13 +255,13 @@
                 {
                     <details class="finalize-history-entry" open="@version.Active">
                         <summary>
-                            <span class="finalize-history-summary-main"><strong>@T["Version {0}", version.Version]</strong><span>@version.FinalizedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</span></span>
+                            <span class="finalize-history-summary-main"><strong>@T["Version {0}", version.Version]</strong><span>@DateTimePresentation.Format(version.FinalizedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)</span></span>
                             <span class="admin-status-pill @(version.Active ? "is-green" : "is-muted")">@(version.Active ? T["Active"] : T["Historical"])</span>
                         </summary>
                         <div class="finalize-history-body">
                             @if (version.UnfinalizedAt is not null)
                             {
-                                <p class="finalize-history-reopened">@T["Reopened"] @version.UnfinalizedAt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture): @version.UnfinalizeReason</p>
+                                <p class="finalize-history-reopened">@T["Reopened"] @DateTimePresentation.Format(version.UnfinalizedAt.Value, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture): @version.UnfinalizeReason</p>
                             }
                             <div class="finalize-history-table-wrap">
                                 <table class="finalize-history-table">
@@ -275,7 +275,7 @@
                                                 <td data-label="@T["Place"]"><span>#@row.Placement</span></td>
                                                 <td data-label="@T["Team"]"><strong>@row.TeamName</strong></td>
                                                 <td data-label="@T["board"]"><span>@(row.BoardComplete ? T["Complete"] : T["Incomplete"])</span></td>
-                                                <td data-label="@T["Completion"]"><span>@(row.BoardCompletedAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) ?? "—")</span></td>
+                                                <td data-label="@T["Completion"]"><span>@(row.BoardCompletedAt is { } completedAt ? DateTimePresentation.Format(completedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) : "—")</span></td>
                                                 <td data-label="@T["Lines"]"><span>@row.CompletedLines</span></td>
                                                 <td data-label="@T["Tiles"]"><span>@row.CompletedTiles</span></td>
                                                 <td data-label="EHB"><span>@row.EhbTiebreak.ToString("0.##")</span></td>

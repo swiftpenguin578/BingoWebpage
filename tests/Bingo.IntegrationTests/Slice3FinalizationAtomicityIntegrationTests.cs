@@ -119,6 +119,58 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         Assert.Empty(await verify.EventFinalizations.Where(x => x.EventId == eventId).ToListAsync());
     }
 
+    [Theory]
+    [InlineData("2026-01-15T13:00", 1)]
+    [InlineData("2026-07-15T14:00", 7)]
+    public async Task FinalizeCorrectionParsesEventLocalWinterAndSummerWallTime(string correctedAtLocal, int month)
+    {
+        var eventId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+        var createdAt = new DateTimeOffset(2026, month, 1, 12, 0, 0, TimeSpan.Zero).AddMicroseconds(123456);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.Events.Add(new BingoEvent(eventId, "Local completion", $"local-completion-{Guid.NewGuid():N}", "Europe/Copenhagen", actorId, createdAt));
+            await setup.SaveChangesAsync();
+        }
+
+        var service = new RecordingFinalizationService();
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var page = FinalizeHandler(db, actorId, teamId, finalization: service);
+            page.Reason = "Event-local correction coverage.";
+            Assert.IsType<RedirectToPageResult>(await page.OnPostCorrectCompletionAsync(eventId, teamId, correctedAtLocal, CancellationToken.None));
+        }
+
+        Assert.Equal(new DateTimeOffset(2026, month, 15, 12, 0, 0, TimeSpan.Zero), service.CorrectedAt);
+    }
+
+    [Theory]
+    [InlineData("2026-03-29T02:30", "does not exist")]
+    [InlineData("2026-10-25T02:30", "ambiguous")]
+    public async Task FinalizeCorrectionRejectsInvalidAndAmbiguousEventLocalWallTime(string correctedAtLocal, string expectedMessage)
+    {
+        var eventId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+        var createdAt = new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.Zero).AddMicroseconds(234567);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.Events.Add(new BingoEvent(eventId, "Invalid local completion", $"invalid-local-{Guid.NewGuid():N}", "Europe/Copenhagen", actorId, createdAt));
+            await setup.SaveChangesAsync();
+        }
+
+        var service = new RecordingFinalizationService();
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var page = FinalizeHandler(db, actorId, teamId, finalization: service);
+            Assert.IsType<RedirectToPageResult>(await page.OnPostCorrectCompletionAsync(eventId, teamId, correctedAtLocal, CancellationToken.None));
+            Assert.Contains(expectedMessage, page.TempData["StatusMessage"]?.ToString());
+        }
+
+        Assert.Null(service.CorrectedAt);
+    }
+
     [Fact]
     public async Task ReviewAcknowledgementRollsBackWithoutAuditWhenAuditSaveFails()
     {
@@ -267,14 +319,14 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         return await FinalizeHandler(db, actorId, teamId).OnPostFinalizeAsync(eventId, CancellationToken.None);
     }
 
-    private FinalizeModel FinalizeHandler(ApplicationDbContext db, Guid actorId, Guid teamId, bool withConfirmation = true)
+    private FinalizeModel FinalizeHandler(ApplicationDbContext db, Guid actorId, Guid teamId, bool withConfirmation = true, IEventFinalizationService? finalization = null)
     {
         var context = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(
                 [new Claim(ClaimTypes.NameIdentifier, actorId.ToString()), new Claim(ClaimTypes.Name, "finalization-admin")], "test"))
         };
-        return new FinalizeModel(new EventFinalizationService(db, new ReadyBoard(teamId), new FixedClock(now)), db, null!)
+        return new FinalizeModel(finalization ?? new EventFinalizationService(db, new ReadyBoard(teamId), new FixedClock(now)), db, null!)
         {
             FinalizeConfirmation = withConfirmation ? "PUBLISH_OFFICIAL_RESULTS" : null,
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
@@ -320,6 +372,18 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
                 [new PublicTeamBoard(teamId, "Winners", "winners", null, null, 1, false,
                     new([], 0, [], [], completed, completed ? new DateTimeOffset(2026, 7, 27, 19, 0, 0, TimeSpan.Zero) : null, completed ? 1 : 0, []), [])], [], []));
         public Task<PublicTileDetails?> GetTileAsync(string eventSlug, string teamSlug, Guid tileId, CancellationToken cancellationToken = default) => Task.FromResult<PublicTileDetails?>(null);
+    }
+
+    private sealed class RecordingFinalizationService : IEventFinalizationService
+    {
+        public DateTimeOffset? CorrectedAt { get; private set; }
+        public Task<FinalReviewReadiness?> GetReadinessAsync(Guid eventId, CancellationToken ct = default) => Task.FromResult<FinalReviewReadiness?>(null);
+        public Task ResolveBlockerAsync(Guid eventId, string blockerKey, string reason, bool confirmed, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default) => Task.CompletedTask;
+        public Task AcknowledgeCompletionTimeAsync(Guid eventId, Guid teamId, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default) => Task.CompletedTask;
+        public Task CorrectCompletionAsync(Guid eventId, Guid teamId, DateTimeOffset correctedAt, string reason, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default) { CorrectedAt = correctedAt; return Task.CompletedTask; }
+        public Task FinalizeAsync(Guid eventId, LifecycleActor actor, long? expectedVersion = null, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UnfinalizeAsync(Guid eventId, string reason, bool confirmed, LifecycleActor actor, long? expectedVersion = null, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ArchiveAsync(Guid eventId, bool confirmed, LifecycleActor actor, CancellationToken ct = default) => Task.CompletedTask;
     }
 
     private sealed class ThrowOnFinalizationAudit : SaveChangesInterceptor

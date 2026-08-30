@@ -90,6 +90,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         if (local.Minute % 5 != 0) { ModelState.AddModelError(field, Localize("Choose a time in five-minute increments.")); return null; }
         local = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
         if (timezone.IsInvalidTime(local)) { ModelState.AddModelError(field, Localize("That local time does not exist because the clocks change at that time.")); return null; }
+        if (timezone.IsAmbiguousTime(local)) { ModelState.AddModelError(field, Localize("That local time is ambiguous because the clocks change at that time. Choose another time.")); return null; }
         return new DateTimeOffset(local, timezone.GetUtcOffset(local)).ToUniversalTime();
     }
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
@@ -145,8 +146,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     }
     public string EventDate(DateTimeOffset value)
     {
-        var timezone = TryTimezone(EventTimezone, out var resolved) ? resolved : TimeZoneInfo.Utc;
-        return TimeZoneInfo.ConvertTime(value, timezone).ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
+        return DateTimePresentation.Format(value, "dd MMM yyyy, HH:mm", EventTimezone, CultureInfo.CurrentCulture);
     }
     private static bool Changed(BingoEvent item, EventScheduleValues values) => item.SignupOpensAt != values.SignupOpensAt || item.SignupClosesAt != values.SignupClosesAt || item.DraftAt != values.DraftAt || item.EventStartsAt != values.EventStartsAt || item.EventEndsAt != values.EventEndsAt || item.ParticipantCap != values.ParticipantCap || item.ScheduledSignupOpeningEnabled != values.ScheduledSignupOpeningEnabled;
     private EventScheduleValues RestoreLockedValues(BingoEvent item, EventScheduleValues values) => values with
@@ -186,8 +186,8 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         return preview;
         void Add(string label, DateTimeOffset? current, DateTimeOffset? proposed) { if (current != proposed) preview.Add(new(label, Display(current, timezone), Display(proposed, timezone))); }
     }
-    private static string? FormValue(DateTimeOffset? value, TimeZoneInfo timezone) => value is null ? null : TimeZoneInfo.ConvertTime(value.Value, timezone).ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture);
-    private string Display(DateTimeOffset? value, TimeZoneInfo timezone) => value is null ? Localize("Not set") : TimeZoneInfo.ConvertTime(value.Value, timezone).ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture);
+    private static string? FormValue(DateTimeOffset? value, TimeZoneInfo timezone) => value is null ? null : DateTimePresentation.Format(value.Value, "yyyy-MM-ddTHH:mm", timezone.Id, CultureInfo.InvariantCulture);
+    private string Display(DateTimeOffset? value, TimeZoneInfo timezone) => value is null ? Localize("Not set") : DateTimePresentation.Format(value.Value, "dd MMM yyyy, HH:mm", timezone.Id, CultureInfo.CurrentCulture);
     private static bool TryTimezone(string id, out TimeZoneInfo timezone) { try { timezone = TimeZoneInfo.FindSystemTimeZoneById(id); return true; } catch (TimeZoneNotFoundException) { timezone = null!; return false; } catch (InvalidTimeZoneException) { timezone = null!; return false; } }
     public sealed record ScheduleChangePreview(string Label, string Current, string New);
     public sealed class InputModel

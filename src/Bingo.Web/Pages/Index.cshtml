@@ -84,16 +84,16 @@
                         };
                         var statusTone = bingoEvent.DisplayPhase == Bingo.Web.Events.EventDisplayPhase.Live ? "live" : bingoEvent.Destination == Bingo.Web.Events.EventDestination.Signup ? "signup" : bingoEvent.DisplayPhase == Bingo.Web.Events.EventDisplayPhase.StartPostponed ? "postponed" : "upcoming";
                         var eventDate = bingoEvent.StartsAt ?? bingoEvent.EndsAt;
-                        var eventDateLocal = eventDate?.ToLocalTime();
+                        var eventDateLocal = eventDate is { } date ? (DateTimeOffset?)DateTimePresentation.ToTimezone(date, bingoEvent.Timezone) : null;
                         var details = new List<string>();
                         if (bingoEvent.DisplayPhase == Bingo.Web.Events.EventDisplayPhase.Live)
                         {
-                            if (bingoEvent.EndsAt is { } liveEnd) details.Add(T["Ends {0}", liveEnd.ToLocalTime().ToString("d MMM yyyy, HH:mm")].Value);
+                            if (bingoEvent.EndsAt is { } liveEnd) details.Add(T["Ends {0}", DateTimePresentation.Format(liveEnd, "d MMM yyyy, HH:mm", bingoEvent.Timezone)].Value);
                         }
                         else
                         {
                             if (bingoEvent.Rows is int rows && bingoEvent.Columns is int columns) details.Add(T["{0} × {1} board", rows, columns].Value);
-                            if (bingoEvent.StartsAt is { } start) details.Add(T["Starts {0}", start.ToLocalTime().ToString("d MMM yyyy, HH:mm")].Value);
+                            if (bingoEvent.StartsAt is { } start) details.Add(T["Starts {0}", DateTimePresentation.Format(start, "d MMM yyyy, HH:mm", bingoEvent.Timezone)].Value);
                             if (bingoEvent.Destination == Bingo.Web.Events.EventDestination.Roster) details.Insert(0, T["Roster available"].Value);
                         }
                         <a class="landing-event landing-event--@statusTone" href="@eventUrl">

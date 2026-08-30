@@ -78,7 +78,7 @@
                     @foreach (var entry in Model.Entries)
                     {
                         <tr>
-                            <td data-label="Time">@entry.OccurredAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</td>
+                            <td data-label="Time">@DateTimePresentation.Format(entry.OccurredAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)</td>
                             <td data-label="Actor">@entry.ActorUsername</td>
                             <td data-label="Action"><code class="admin-audit-action">@entry.Action</code></td>
                             <td data-label="Target"><span class="admin-audit-target-type">@entry.TargetType</span><span class="admin-audit-target-id">@entry.TargetId</span></td>

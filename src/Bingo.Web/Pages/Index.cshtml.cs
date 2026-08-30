@@ -2,6 +2,7 @@ using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Events;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
@@ -37,7 +38,7 @@ public sealed class IndexModel(ApplicationDbContext db, IHostEnvironment environ
         Events = candidates.Select(value =>
         {
             var route = EventDestinationPolicy.From(value.bingoEvent, rosterExists: value.RosterPublished, boardPublished: value.BoardPublished);
-            return new PublicEventLink(value.bingoEvent.Name, value.bingoEvent.Slug, value.bingoEvent.State, value.bingoEvent.EventStartsAt, value.bingoEvent.EventEndsAt, value.Rows, value.Columns, EventDestinationPolicy.PublicOverview(route), EventDisplayPhaseProjection.From(new(value.bingoEvent.State, value.RosterPublished || value.BoardPublished, value.BoardPublished)));
+            return new PublicEventLink(value.bingoEvent.Name, value.bingoEvent.Slug, value.bingoEvent.State, value.bingoEvent.EventStartsAt, value.bingoEvent.EventEndsAt, value.Rows, value.Columns, EventDestinationPolicy.PublicOverview(route), EventDisplayPhaseProjection.From(new(value.bingoEvent.State, value.RosterPublished || value.BoardPublished, value.BoardPublished)), value.bingoEvent.Timezone);
         }).ToList();
 
         PreviousEvents = await (from bingoEvent in db.Events.AsNoTracking()
@@ -45,11 +46,11 @@ public sealed class IndexModel(ApplicationDbContext db, IHostEnvironment environ
                                 where bingoEvent.State == EventState.Archived && board.State == BoardState.Published
                                 orderby bingoEvent.ArchivedAt descending
                                 select new PublicEventLink(bingoEvent.Name, bingoEvent.Slug, bingoEvent.State,
-                                    bingoEvent.EventStartsAt, bingoEvent.EventEndsAt, board.Rows, board.Columns, EventDestination.Board, EventDisplayPhase.Lifecycle))
+                                    bingoEvent.EventStartsAt, bingoEvent.EventEndsAt, board.Rows, board.Columns, EventDestination.Board, EventDisplayPhase.Lifecycle, bingoEvent.Timezone))
             .ToListAsync(cancellationToken);
     }
 
     public sealed record PublicEventLink(
         string Name, string Slug, Bingo.Domain.Events.EventState State,
-        DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, int? Rows, int? Columns, EventDestination Destination, EventDisplayPhase DisplayPhase);
+        DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, int? Rows, int? Columns, EventDestination Destination, EventDisplayPhase DisplayPhase, string Timezone = DateTimePresentation.DefaultTimezoneId);
 }

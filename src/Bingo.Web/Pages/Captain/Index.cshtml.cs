@@ -7,6 +7,7 @@ using Bingo.Domain.Evidence;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,7 @@ public sealed class IndexModel(
     public const int PageSize = 25;
 
     public string EventName { get; private set; } = string.Empty;
+    public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId;
     public string TeamName { get; private set; } = string.Empty;
     public string EventSlug { get; private set; } = string.Empty;
     public string TeamSlug { get; private set; } = string.Empty;
@@ -44,7 +46,7 @@ public sealed class IndexModel(
     public int PageNumber { get; private set; }
     public int TotalPages { get; private set; }
     public int TotalSubmissionCount { get; private set; }
-    public SubmissionLedgerViewModel Ledger => new(EventId, TeamId, "/Captain/Index", "/Captain/Submission", Submissions, PageNumber, TotalPages, TotalSubmissionCount, Search, PlayerFilter);
+    public SubmissionLedgerViewModel Ledger => new(EventId, TeamId, "/Captain/Index", "/Captain/Submission", Submissions, PageNumber, TotalPages, TotalSubmissionCount, Search, PlayerFilter, EventTimezone);
 
     [BindProperty(SupportsGet = true, Name = "search")]
     public string? Search { get; set; }
@@ -178,6 +180,7 @@ public sealed class IndexModel(
         EventSlug = eventItem.Slug;
         TeamSlug = team.Slug;
         EventName = eventItem.Name;
+        EventTimezone = eventItem.Timezone;
         TeamName = team.Name;
         CodeEnabled = eventItem.EvidenceCodeEnabled;
         NewSubmissionsOpen = eventItem.AcceptsNewSubmissions(now);
