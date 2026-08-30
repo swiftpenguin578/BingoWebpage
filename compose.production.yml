@@ -26,7 +26,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
-      AllowedHosts: ${BINGO_DOMAIN:?Set BINGO_DOMAIN in the production environment}
+      AllowedHosts: ${BINGO_DOMAIN:?Set BINGO_DOMAIN in the production environment};127.0.0.1
       ConnectionStrings__Database: Host="postgres";Port=5432;Database="${BINGO_POSTGRES_DB}";Username="${BINGO_POSTGRES_USER}";Password="${BINGO_POSTGRES_PASSWORD}"
       EvidenceStorage__Provider: R2
       EvidenceStorage__R2__AccountId: ${BINGO_R2_ACCOUNT_ID:?Set BINGO_R2_ACCOUNT_ID in the production environment}
