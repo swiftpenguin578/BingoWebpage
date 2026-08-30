@@ -798,6 +798,34 @@ not a completed rehearsal: candidate deployment, end-to-end journeys, evidence,
 Discord, SignalR, load/capacity, interruption measurement, and recovery against
 the deployed candidate remain required.
 
+Pass 5 closes only after all of the following are recorded against the same
+candidate:
+
+- A green pull request is merged to `main`; the successful `main` CI run
+  publishes the immutable `linux/amd64` digest and candidate receipt; the
+  explicit manual `mode: deploy` workflow deploys only that exact digest.
+- Key-only restricted deployment is verified with password and direct-root SSH
+  disabled. Docker and the backup timer survive reboot, PostgreSQL/Caddy image
+  identities are controlled, and one naturally scheduled backup completes with
+  successful retention.
+- The bootstrap owner changes the initial password before public signup, and
+  fictional rehearsal data remains separate with an explicit cleanup or
+  retained-test disposition.
+- The operator confirms R2 accidental-deletion/versioning behavior or records
+  another accepted evidence recovery path; evidence integrity detection alone
+  is not treated as recovery.
+- The operator decides and verifies Cloudflare DNS-only versus proxied traffic,
+  end-to-end TLS, the apex hostname, and whether `www.dklegacy.dk` redirects
+  to the apex.
+- One external public-health monitor and an alert destination cover public
+  health, failed scheduled backups, and low disk space.
+- The deployed-candidate rehearsal covers Discord OAuth, R2 evidence
+  round-trip/integrity, SignalR, intended-load measurements, the complete
+  fictional application journey, backup/full restore, rollback, interruption
+  timing, and public/Admin/Captain post-recovery smoke checks. Asset requests,
+  cache behavior, and transfer size are observed during the same rehearsal;
+  optimization work is added only for a measured launch problem.
+
 The revised production/release order is frozen:
 
 1. Independently re-review the bounded release-blocker correction, then accept/push. **Complete.**
@@ -809,8 +837,9 @@ The revised production/release order is frozen:
 The whole-application review deliberately follows Pass 5 so real VPS/provider,
 backup/restore, load, Discord, R2, SignalR, and health evidence replaces
 assumptions. It must not reopen approved UI or become an unfocused line-by-line
-audit. The separately reviewed GitHub Free release-control adjustment remains
-uncommitted and must be packaged before publishing the candidate.
+audit. The separately reviewed GitHub Free release-control adjustment is
+packaged on `production-release-pipeline`; candidate publication still requires
+the green pull-request merge and successful `main` CI run above.
 
 ## 4. Dependencies, approvals, and stop rules
 
