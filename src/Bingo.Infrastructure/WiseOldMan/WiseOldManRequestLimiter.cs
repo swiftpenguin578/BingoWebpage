@@ -22,9 +22,13 @@ public sealed class WiseOldManRequestLimiter(TimeProvider time, ILogger<WiseOldM
     private static readonly Action<ILogger, DateTimeOffset?, bool, bool, bool, Exception?> LogFailedClosed =
         LoggerMessage.Define<DateTimeOffset?, bool, bool, bool>(LogLevel.Warning, new EventId(10101), "Wise Old Man limiter failed closed until {NextPermittedAt}; transport={TransportFailure}, headers={HeadersValid}, payload={PayloadValid}");
 
-    public WiseOldManRequestStatus GetStatus() => new(
-        observedLimit, observedRemaining, resetAt, lastRequestAt, lastSuccessAt,
-        lastErrorAt, lastRateLimitedAt, nextPermittedAt);
+    public WiseOldManRequestStatus GetStatus()
+    {
+        var observedWindowActive = hasObservedWindow && resetAt is { } knownReset && knownReset > time.GetUtcNow();
+        return new(
+            observedWindowActive ? observedLimit : null, observedWindowActive ? observedRemaining : null, observedWindowActive ? resetAt : null, lastRequestAt, lastSuccessAt,
+            lastErrorAt, lastRateLimitedAt, nextPermittedAt);
+    }
 
     public async Task<WiseOldManAdmission> AdmitAsync(CancellationToken cancellationToken)
     {

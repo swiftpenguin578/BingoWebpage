@@ -68,6 +68,74 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SubmissionDetailsCanonicalizeByActorAndKeepNotificationReadState()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var participantOwner = Website("submission-canonical-participant", now);
+        var captain = Website("submission-canonical-captain", now);
+        var unrelated = Website("submission-canonical-unrelated", now);
+        foreach (var account in new[] { participantOwner, captain, unrelated })
+            account.SetPassword(new PasswordHasher<Account>().HashPassword(account, "password"), false, now, false);
+        var live = LiveEvent(participantOwner.Id, "Submission canonical", "submission-canonical", now);
+        var team = new Team(Guid.NewGuid(), live.Id, "Submission canonical team", "submission-canonical-team", TeamFormationType.Drafted, null, true);
+        var participant = new EventParticipant(Guid.NewGuid(), live.Id, SignupStatus.Confirmed, 1, now.AddDays(-1), SignupSource.Website);
+        participant.AssignOwner(participantOwner);
+        var captainParticipant = new EventParticipant(Guid.NewGuid(), live.Id, SignupStatus.Confirmed, 2, now.AddDays(-1), SignupSource.AdminCreated);
+        captainParticipant.AssignOwner(captain);
+        var participantMembership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now.AddDays(-1), null, "test");
+        var captainMembership = new TeamMembership(Guid.NewGuid(), team.Id, captainParticipant.Id, TeamMembershipRole.Captain, now.AddDays(-1), null, "test");
+        var character = new OsrsCharacter(Guid.NewGuid(), "Submission canonical player", "SUBMISSION CANONICAL PLAYER", now);
+        var captainCharacter = new OsrsCharacter(Guid.NewGuid(), "Submission canonical captain", "SUBMISSION CANONICAL CAPTAIN", now);
+        var assignment = new EventParticipantCharacter(Guid.NewGuid(), live.Id, participant.Id, character.Id, 0, now, null, null, EventCharacterRole.Playing, 10m, EhbSource.Manual, null);
+        var captainAssignment = new EventParticipantCharacter(Guid.NewGuid(), live.Id, captainParticipant.Id, captainCharacter.Id, 0, now, null, null, EventCharacterRole.Playing, 10m, EhbSource.Manual, null);
+        var board = new Board(Guid.NewGuid(), live.Id, "Submission canonical board", 1, 1);
+        var tile = new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 0, 0, "Submission canonical tile", "Description", "", 1m);
+        var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 0, 1, true, false, "Requirement", true);
+        var submission = new Submission(Guid.NewGuid(), live.Id, team.Id, tile.Id, requirement.Id, null, participant.Id, character.Id, character.DisplayName, participantOwner.Id, 1, now, null, null);
+        var overlappingOwnerSubmission = new Submission(Guid.NewGuid(), live.Id, team.Id, tile.Id, requirement.Id, null, captainParticipant.Id, captainCharacter.Id, captainCharacter.DisplayName, captain.Id, 1, now, null, null);
+        var notification = new PersonalNotification(Guid.NewGuid(), participantOwner.Id, "evidence.rejected", "Please review the submission.", $"/Submissions/{submission.Id}", now);
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(participantOwner, captain, unrelated, live, team, participant, captainParticipant,
+                participantMembership, captainMembership, character, captainCharacter, assignment, captainAssignment,
+                board, tile, requirement, submission, overlappingOwnerSubmission, notification);
+            await db.SaveChangesAsync();
+            await BoardApprovalFixture.PublishAsync(db, board, now, [tile], [requirement]);
+        }
+
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var participantClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var captainClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var unrelatedClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(participantClient, participantOwner.LoginName);
+        await LoginAsync(captainClient, captain.LoginName);
+        await LoginAsync(unrelatedClient, unrelated.LoginName);
+
+        var scope = $"?eventId={live.Id}&teamId={team.Id}";
+        using var participantRoute = await participantClient.GetAsync($"/Captain/Submissions/{submission.Id}{scope}");
+        Assert.Equal(HttpStatusCode.Redirect, participantRoute.StatusCode);
+        Assert.Equal($"/Submissions/{submission.Id}{scope}", participantRoute.Headers.Location?.OriginalString);
+
+        using var captainRoute = await captainClient.GetAsync($"/Submissions/{submission.Id}{scope}");
+        Assert.Equal(HttpStatusCode.Redirect, captainRoute.StatusCode);
+        Assert.Equal($"/Captain/Submissions/{submission.Id}{scope}", captainRoute.Headers.Location?.OriginalString);
+
+        using var overlappingOwnerRoute = await captainClient.GetAsync($"/Captain/Submissions/{overlappingOwnerSubmission.Id}{scope}");
+        Assert.Equal(HttpStatusCode.Redirect, overlappingOwnerRoute.StatusCode);
+        Assert.Equal($"/Submissions/{overlappingOwnerSubmission.Id}{scope}", overlappingOwnerRoute.Headers.Location?.OriginalString);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await unrelatedClient.GetAsync($"/Captain/Submissions/{submission.Id}{scope}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await unrelatedClient.GetAsync($"/Submissions/{submission.Id}{scope}")).StatusCode);
+
+        using var notificationRoute = await participantClient.GetAsync($"/notifications?read={notification.Id}");
+        Assert.Equal(HttpStatusCode.Redirect, notificationRoute.StatusCode);
+        Assert.Equal($"/Submissions/{submission.Id}", notificationRoute.Headers.Location?.OriginalString);
+        await using var verify = new ApplicationDbContext(options);
+        Assert.NotNull(await verify.PersonalNotifications.Where(item => item.Id == notification.Id).Select(item => item.ReadAt).SingleAsync());
+    }
+
+    [Fact]
     public async Task ParticipantHistoryDetailsAndWithdrawalPreserveSelectedEventAndTeamScope()
     {
         var now = DateTimeOffset.UtcNow;

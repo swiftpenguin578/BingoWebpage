@@ -342,6 +342,45 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task LivePrepareEndConfirmationReachesConfirmationHandler()
+    {
+        var admin = Account.CreateWebsite(Guid.NewGuid(), "Prepare end Admin", "PREPARE END ADMIN", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "prepare-end-password"), false, now, incrementVersion: false);
+        var eventItem = Draft(Guid.NewGuid(), "prepare-end", admin.Id);
+        eventItem.ConfigureSchedule(now.AddHours(-3), now.AddHours(-2), null, now.AddHours(-1), now.AddHours(1), 20);
+        eventItem.OpenSignups(now.AddHours(-3));
+        eventItem.CloseSignups(now.AddHours(-2));
+        eventItem.StartEvent(now.AddHours(-1));
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(admin, eventItem);
+            await setup.SaveChangesAsync();
+        }
+
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var login = await client.GetStringAsync("/Account/Login");
+        using var loggedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = admin.PublicUsername!,
+            ["Input.Password"] = "prepare-end-password",
+            ["__RequestVerificationToken"] = AntiforgeryToken(login)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, loggedIn.StatusCode);
+
+        var path = $"/Admin/Events/Manage/{eventItem.Id}";
+        var manage = await client.GetStringAsync(path);
+        using var prepareResponse = await client.PostAsync($"{path}?handler=PrepareEndConfirmation", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = AntiforgeryToken(manage)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, prepareResponse.StatusCode);
+        Assert.Equal($"{path}?confirm=end", prepareResponse.Headers.Location!.OriginalString);
+    }
+
+    [Fact]
     public async Task TerminalEventRoutesRejectEveryAuditedAdminMutationBeforeAnySideEffect()
     {
         var admin = Account.CreateWebsite(Guid.NewGuid(), "Terminal route Admin", "TERMINAL ROUTE ADMIN", now);

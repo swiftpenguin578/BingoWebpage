@@ -42,10 +42,13 @@ public class SubmissionModel(
     public bool CanResubmit { get; private set; }
     [BindProperty] public EditInput Input { get; set; } = new();
     [BindProperty] public ResubmitInput Resubmission { get; set; } = new();
+    private string? canonicalDetailPagePath;
 
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
     {
         if (!await Load(id, ct)) return NotFound();
+        if (canonicalDetailPagePath is not null && !string.Equals(canonicalDetailPagePath, DetailPagePath, StringComparison.Ordinal))
+            return RedirectToPage(canonicalDetailPagePath, new { id, eventId = EventId, teamId = TeamId, handler = (string?)null });
         Input = new() { BoardTileId = Details.TileId, RequirementId = Details.RequirementId, DropSnapshotId = Details.DropId, CreditedParticipantId = Details.PlayerId, ClaimedWeight = Details.ClaimedWeight, Note = Details.CaptainNote, ExpectedVersion = Details.Version };
         Resubmission = new() { BoardTileId = Details.TileId, RequirementId = Details.RequirementId, DropSnapshotId = Details.DropId, Note = Details.CaptainNote, ExpectedVersion = Details.Version };
         return Page();
@@ -107,6 +110,12 @@ public class SubmissionModel(
         EventId = scope.EventId; TeamId = scope.TeamId;
         CanOpenTeamLedger = CanOpenLedger(scope);
         if (!CanReadSubmission(scope, s)) return false;
+        canonicalDetailPagePath = scope.Kind switch
+        {
+            EvidenceActorKind.Participant or EvidenceActorKind.Captain when scope.CreditedParticipantId == s.CreditedParticipantId => "/Submissions/Submission",
+            EvidenceActorKind.Captain => "/Captain/Submission",
+            _ => null
+        };
         var context = await (from eventRow in db.Events.AsNoTracking()
                              join team in db.Teams.AsNoTracking() on eventRow.Id equals team.EventId
                              where eventRow.Id == s.EventId && team.Id == s.TeamId

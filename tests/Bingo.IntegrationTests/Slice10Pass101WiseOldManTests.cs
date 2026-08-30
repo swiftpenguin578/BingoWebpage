@@ -146,6 +146,13 @@ public sealed class Slice10Pass101WiseOldManTests
         Assert.True(recovered.Succeeded);
         Assert.Equal(4, calls);
         Assert.Equal(9m, recovered.Ehb);
+
+        clock.Advance(TimeSpan.FromSeconds(61));
+        var expired = client.GetStatus();
+        Assert.Null(expired.ObservedLimit);
+        Assert.Null(expired.ObservedRemaining);
+        Assert.Null(expired.ResetAt);
+        Assert.NotNull(expired.LastRequestAt);
     }
 
     [Fact]
