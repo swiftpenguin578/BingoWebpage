@@ -130,7 +130,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var earlyPage = new DetailsModel(db, Service(db));
         Assert.IsType<PageResult>(await earlyPage.OnGetAsync(earlySubmission.SubmissionId, CancellationToken.None));
         Assert.Equal(60, earlyPage.Details.MinutesAfterEventEnd);
-        Assert.Equal(earlyEnd, earlyPage.Details.EventEndsAt);
+        Assert.Equal(earlyEnd.AddTicks(-(earlyEnd.Ticks % TimeSpan.TicksPerMicrosecond)), earlyPage.Details.EventEndsAt);
     }
 
     [Fact]

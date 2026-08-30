@@ -991,10 +991,14 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
                                     join submission in db.Submissions on asset.SubmissionId equals submission.Id
                                     where submission.EventId == test84ForReopen.Id && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Rejected
                                     select asset.Id).SingleAsync();
+        var historicalEvent = await db.Events.SingleAsync(item => item.Slug == DevelopmentScenarioSeeder.HistoricalFixtureSlug);
+        var workerClock = new MutableTimeProvider(Assert.IsType<DateTimeOffset>(historicalEvent.EventEndsAt).AddTicks(-1));
         using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString())
                 .ConfigureServices(services =>
                 {
+                    services.RemoveAll<TimeProvider>();
+                    services.AddSingleton<TimeProvider>(workerClock);
                     services.RemoveAll<IEvidenceStorage>();
                     services.AddSingleton<IEvidenceStorage, SeedEvidenceStorage>();
                 }));
