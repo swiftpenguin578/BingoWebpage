@@ -146,7 +146,7 @@ public sealed class SignupUiTests
         Assert.Contains("@T[\"Event starts\"]", teams);
         Assert.Contains("@T[\"Event ends\"]", teams);
         Assert.Contains("@T[\"players\"]", teams);
-        Assert.Contains("?? T[\"Not set\"]", teams);
+        Assert.Contains("DateTimePresentation.Format", teams);
         Assert.Contains("public-teams-directory__art", teams);
         Assert.DoesNotContain("ImageUrl", teams);
         Assert.DoesNotContain("public-ui-table", teams);
