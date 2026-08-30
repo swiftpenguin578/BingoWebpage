@@ -1,3 +1,7 @@
+www.{$BINGO_DOMAIN} {
+    redir https://{$BINGO_DOMAIN}{uri} permanent
+}
+
 {$BINGO_DOMAIN} {
     encode zstd gzip
     respond /health/ready 404
