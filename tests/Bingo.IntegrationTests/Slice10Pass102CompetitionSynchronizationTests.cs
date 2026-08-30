@@ -9,6 +9,7 @@ using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
@@ -399,6 +400,28 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         clock.Advance(TimeSpan.FromHours(1));
         await service.ProcessDueAsync();
         Assert.Equal(3, fake.Calls);
+    }
+
+    [Fact]
+    public async Task ScheduleEditRejectsAMismatchWithTheLinkedCompetition()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var actor = new LifecycleActor(Guid.NewGuid(), "schedule-admin");
+        var item = new BingoEvent(Guid.NewGuid(), "Linked schedule", $"linked-schedule-{Guid.NewGuid():N}", "UTC", actor.Id, now);
+        item.ConfigureSchedule(now.AddHours(1), now.AddHours(2), null, now.AddDays(1), now.AddDays(2), 20);
+        var state = new EventCompetitionSynchronization(Guid.NewGuid(), item.Id, 1, 99, "Linked competition", item.EventStartsAt, item.EventEndsAt, "", now);
+        await using var db = new ApplicationDbContext(options);
+        db.AddRange(item, state);
+        await db.SaveChangesAsync();
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>()).Build();
+        var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new TestClock(now));
+        var values = new EventScheduleValues(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt!.Value.AddMinutes(10), item.ParticipantCap, false);
+
+        var result = await service.SaveScheduleAsync(item.Id, item.Version, values, false, actor);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("within five minutes", result.Error);
+        Assert.Equal(now.AddDays(2), (await db.Events.AsNoTracking().SingleAsync(x => x.Id == item.Id)).EventEndsAt);
     }
 
     private sealed class FakeCompetitionClient(IReadOnlyList<WiseOldManCompetitionResult> results) : IWiseOldManCompetitionClient

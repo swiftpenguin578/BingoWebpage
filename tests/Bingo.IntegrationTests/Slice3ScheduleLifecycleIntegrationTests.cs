@@ -1,4 +1,5 @@
 using Bingo.Application.Events;
+using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Events;
@@ -100,8 +101,8 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
             var item = await db.Events.SingleAsync(x => x.Id == second);
             var originalVersion = item.Version;
             var values = Values(item, item.EventEndsAt!.Value.AddDays(1));
-            Assert.True((await service.SaveScheduleAsync(second, originalVersion, values, false, false, null, actor)).Succeeded);
-            var stale = await service.SaveScheduleAsync(second, originalVersion, values, false, false, null, actor);
+            Assert.True((await service.SaveScheduleAsync(second, originalVersion, values, false, actor)).Succeeded);
+            var stale = await service.SaveScheduleAsync(second, originalVersion, values, false, actor);
             Assert.False(stale.Succeeded); Assert.Contains("changed", stale.Error);
 
             var current = await db.Events.AsNoTracking().SingleAsync(x => x.Id == first);
@@ -152,10 +153,11 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
 
             var evaluator = new EventReadinessEvaluator(db, configuration);
             var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
-            var values = new EventScheduleValues(now.AddHours(1), item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ParticipantCap);
-            Assert.False((await service.SaveScheduleAsync(publicEvent, item.Version, values, false, false, null, actor)).Succeeded);
-            Assert.False((await service.SaveScheduleAsync(publicEvent, item.Version, values, false, true, null, actor)).Succeeded);
-            Assert.True((await service.SaveScheduleAsync(publicEvent, item.Version, values, false, true, "Correcting the announced schedule.", actor)).Succeeded);
+            var values = new EventScheduleValues(now.AddHours(1), item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ParticipantCap, true);
+            Assert.False((await service.SaveScheduleAsync(publicEvent, item.Version, values, false, actor)).Succeeded);
+            var locked = await service.SaveScheduleAsync(publicEvent, item.Version, values, true, actor);
+            Assert.False(locked.Succeeded);
+            Assert.Contains("locked", locked.Error);
         }
     }
 
@@ -201,17 +203,114 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
         var eventId = await SeedReadyDraftAsync("closed-capacity", waitingList: true, startDays: 20, endDays: 22);
         await using var db = new ApplicationDbContext(options);
         var item = await db.Events.SingleAsync(x => x.Id == eventId);
+        var admin = Account.CreateWebsite(actor.Id, actor.Username, actor.Username.ToUpperInvariant(), now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var owner = Account.CreateWebsite(Guid.NewGuid(), "waiting-owner", "WAITING-OWNER", now);
         item.OpenSignups(now);
         item.CloseSignups(now);
-        db.EventParticipants.AddRange(new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.Website), new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.WaitingList, 2, now.AddMinutes(1), SignupSource.Website));
+        var waiting = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.WaitingList, 2, now.AddMinutes(1), SignupSource.Website);
+        waiting.TransferOwner(owner);
+        db.AddRange(admin, owner, new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.Website), waiting);
         item.ConfigureSchedule(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, 1);
         await db.SaveChangesAsync();
         var evaluator = new EventReadinessEvaluator(db, configuration);
         var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
-        var result = await service.SaveScheduleAsync(eventId, item.Version, Values(item, item.EventEndsAt!.Value) with { ParticipantCap = 2 }, false, false, null, actor);
+        var result = await service.SaveScheduleAsync(eventId, item.Version, Values(item, item.EventEndsAt!.Value) with { ParticipantCap = 2 }, false, actor);
         Assert.True(result.Succeeded);
         Assert.Equal(1, result.PromotedParticipants);
         Assert.Equal(2, await db.EventParticipants.CountAsync(x => x.EventId == eventId && x.SignupStatus == SignupStatus.Confirmed));
+        Assert.Single(await db.AuditEntries.Where(x => x.EventId == eventId && x.Action == "participant.promoted").ToListAsync());
+        Assert.Equal(2, await db.PersonalNotifications.CountAsync(x => x.Title == "participant.promoted"));
+    }
+
+    [Fact]
+    public async Task HistoricalBoundariesStayUnchangedAndDirectMutationsFailClosed()
+    {
+        var actor = new LifecycleActor(Guid.NewGuid(), "schedule-admin");
+        var eventId = await SeedReadyDraftAsync("historical-boundaries", waitingList: true);
+        await using var db = new ApplicationDbContext(options);
+        var item = await db.Events.SingleAsync(x => x.Id == eventId);
+        item.ConfigureSchedule(now.AddHours(-1), item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ParticipantCap);
+        item.ConfigureScheduledSignupOpening(true, []);
+        await db.SaveChangesAsync();
+        var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new FixedTimeProvider(now));
+
+        var unchangedHistory = Values(item, item.EventEndsAt!.Value) with { ParticipantCap = 21 };
+        Assert.True((await service.SaveScheduleAsync(eventId, item.Version, unchangedHistory, false, actor)).Succeeded);
+        var current = await db.Events.SingleAsync(x => x.Id == eventId);
+        Assert.True(current.ScheduledSignupOpeningEnabled);
+        Assert.Equal(now.AddHours(-1), current.SignupOpensAt);
+
+        var changedPastBoundary = Values(current, current.EventEndsAt!.Value) with { SignupOpensAt = now.AddHours(1) };
+        var rejected = await service.SaveScheduleAsync(eventId, current.Version, changedPastBoundary, true, actor);
+        Assert.False(rejected.Succeeded);
+        Assert.Contains("locked", rejected.Error);
+
+        var publishedId = await SeedReadyDraftAsync("published-boundaries", waitingList: true, startDays: 10, endDays: 12);
+        var published = await db.Events.SingleAsync(x => x.Id == publishedId);
+        published.MarkFirstPublic(now);
+        await db.SaveChangesAsync();
+        var clearedEnd = Values(published, published.EventEndsAt!.Value) with { EventEndsAt = null };
+        var clearRejected = await service.SaveScheduleAsync(publishedId, published.Version, clearedEnd, true, actor);
+        Assert.False(clearRejected.Succeeded);
+        Assert.Contains("cannot be cleared", clearRejected.Error);
+    }
+
+    [Fact]
+    public async Task UnchangedOverdueAutomaticOpeningRequiresCurrentWarningConfirmationForDirectScheduleChanges()
+    {
+        var actor = new LifecycleActor(Guid.NewGuid(), "schedule-admin");
+        var eventId = await SeedReadyDraftAsync("overdue-opening-warning", waitingList: false);
+        var scheduledFor = now.AddHours(-1);
+        var attemptId = Guid.NewGuid();
+        var attemptedAt = now.AddMinutes(-30);
+        await using var db = new ApplicationDbContext(options);
+        var item = await db.Events.SingleAsync(x => x.Id == eventId);
+        item.ConfigureSchedule(scheduledFor, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ParticipantCap);
+        item.ConfigureScheduledSignupOpening(true, ["ORIGINAL_WARNING"]);
+        db.ScheduledSignupOpeningAttempts.Add(new ScheduledSignupOpeningAttempt(attemptId, eventId, scheduledFor, attemptedAt, false, ["ORIGINAL_BLOCKER"]));
+        await db.SaveChangesAsync();
+        var version = item.Version;
+        var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new FixedTimeProvider(now));
+        var changedValues = Values(item, item.EventEndsAt!.Value) with { ParticipantCap = item.ParticipantCap + 1 };
+
+        var unconfirmed = await service.SaveScheduleAsync(eventId, version, changedValues, false, actor);
+        Assert.False(unconfirmed.Succeeded);
+        Assert.Contains("active signup warnings", unconfirmed.Error);
+
+        db.ChangeTracker.Clear();
+        var confirmed = await service.SaveScheduleAsync(eventId, version, changedValues, true, actor);
+        Assert.True(confirmed.Succeeded);
+        db.ChangeTracker.Clear();
+        var saved = await db.Events.SingleAsync(x => x.Id == eventId);
+        Assert.Equal(scheduledFor, saved.SignupOpensAt);
+        Assert.True(saved.ScheduledSignupOpeningEnabled);
+        Assert.Equal("ORIGINAL_WARNING", saved.ScheduledSignupWarningCodes);
+        var attempt = Assert.Single(await db.ScheduledSignupOpeningAttempts.Where(x => x.EventId == eventId).ToListAsync());
+        Assert.Equal(attemptId, attempt.Id);
+        Assert.Equal(scheduledFor, attempt.ScheduledFor);
+        Assert.Equal(attemptedAt, attempt.AttemptedAt);
+        Assert.False(attempt.Opened);
+        Assert.Null(attempt.ResolvedAt);
+        Assert.Equal("ORIGINAL_BLOCKER", attempt.BlockerCodes);
+    }
+
+    [Fact]
+    public async Task ScheduleEditCannotCreateAnOperationalEventOverlap()
+    {
+        var actor = new LifecycleActor(Guid.NewGuid(), "schedule-admin");
+        var first = await SeedReadyDraftAsync("schedule-overlap-first", waitingList: true, startDays: 2, endDays: 4);
+        var second = await SeedReadyDraftAsync("schedule-overlap-second", waitingList: true, startDays: 5, endDays: 7);
+        await using var db = new ApplicationDbContext(options);
+        var evaluator = new EventReadinessEvaluator(db, configuration);
+        var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
+        Assert.True((await service.OpenAsync(first, (await db.Events.SingleAsync(x => x.Id == first)).Version, true, false, actor)).Succeeded);
+        Assert.True((await service.OpenAsync(second, (await db.Events.SingleAsync(x => x.Id == second)).Version, true, false, actor)).Succeeded);
+        var item = await db.Events.SingleAsync(x => x.Id == second);
+        var overlapping = Values(item, now.AddDays(5)) with { SignupClosesAt = now.AddDays(3), EventStartsAt = now.AddDays(3).AddHours(12) };
+        var rejected = await service.SaveScheduleAsync(second, item.Version, overlapping, true, actor);
+        Assert.False(rejected.Succeeded);
+        Assert.Contains("overlaps", rejected.Error);
     }
 
     [Fact]
@@ -271,6 +370,6 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
         await db.SaveChangesAsync();
         return item.Id;
     }
-    private static EventScheduleValues Values(BingoEvent item, DateTimeOffset end) => new(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, end, item.ParticipantCap);
+    private static EventScheduleValues Values(BingoEvent item, DateTimeOffset end) => new(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, end, item.ParticipantCap, item.ScheduledSignupOpeningEnabled);
     private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider { public override DateTimeOffset GetUtcNow() => value; }
 }

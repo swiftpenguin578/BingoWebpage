@@ -20,7 +20,7 @@ public sealed record SignupCloseDecision(bool IsValid, DateTimeOffset? ProposedC
 }
 public sealed record SignupReadiness(IReadOnlyList<ReadinessItem> Blockers, IReadOnlyList<ReadinessItem> Warnings, IReadOnlyList<ReadinessItem> LaterTasks, SignupCloseDecision CloseDecision)
 { public bool CanProceed => Blockers.Count == 0; }
-public sealed record EventScheduleValues(DateTimeOffset? SignupOpensAt, DateTimeOffset? SignupClosesAt, DateTimeOffset? DraftAt, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, int? ParticipantCap);
+public sealed record EventScheduleValues(DateTimeOffset? SignupOpensAt, DateTimeOffset? SignupClosesAt, DateTimeOffset? DraftAt, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, int? ParticipantCap, bool ScheduledSignupOpeningEnabled);
 public sealed record LifecycleActor(Guid Id, string Username);
 public sealed record SignupLifecycleResult(bool Succeeded, string? Error = null, DateTimeOffset? ProposedClose = null, int PromotedParticipants = 0);
 public sealed record EventStartReadiness(IReadOnlyList<ReadinessItem> Blockers) { public bool CanProceed => Blockers.Count == 0; }
@@ -29,11 +29,12 @@ public sealed record EventStartResult(bool Succeeded, string? Error = null, IRea
 public interface IEventReadinessEvaluator
 {
     Task<SignupReadiness?> GetSignupReadinessAsync(Guid eventId, SignupOpeningMode mode, DateTimeOffset now, CancellationToken ct = default);
+    Task<SignupReadiness?> GetSignupReadinessAsync(Guid eventId, SignupOpeningMode mode, DateTimeOffset now, EventScheduleValues proposedValues, CancellationToken ct = default);
 }
 
 public interface IEventSignupLifecycleService
 {
-    Task<SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, EventScheduleValues values, bool acknowledgeScheduledWarnings, bool confirmPublicChange, string? reason, LifecycleActor actor, CancellationToken ct = default);
+    Task<SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, EventScheduleValues values, bool confirmChanges, LifecycleActor actor, CancellationToken ct = default);
     Task<SignupLifecycleResult> OpenAsync(Guid eventId, long version, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default);
     Task<SignupLifecycleResult> CloseAsync(Guid eventId, long version, LifecycleActor actor, CancellationToken ct = default);
     Task<SignupLifecycleResult> ReopenAsync(Guid eventId, long version, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default);

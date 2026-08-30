@@ -228,6 +228,12 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.Contains("value=\"17.5\"", fetchedPage, StringComparison.Ordinal);
         var tokenMatch = Regex.Match(fetchedPage, $"name=\"Input.AccountAnswers\\[{Regex.Escape(regularId.ToString())}\\]\\.WiseOldManLookupToken\" value=\"([^\"]*)\"");
         Assert.True(tokenMatch.Success);
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            Assert.Equal(17.5m, await verify.AccountOsrsCharacters.Where(x => x.Id == linkId).Select(x => x.SavedEhb).SingleAsync());
+            Assert.Empty(await verify.EventParticipants.Where(x => x.EventId == eventId).ToListAsync());
+            Assert.Empty(await verify.EventParticipantCharacters.Where(x => x.EventId == eventId).ToListAsync());
+        }
         var normalSave = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             [$"Input.AccountAnswers[{regularId}].OsrsCharacterId"] = characterId.ToString(),
@@ -504,9 +510,9 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             second.SetPassword(new PasswordHasher<Account>().HashPassword(second, "second-password"), false, now, incrementVersion: false);
             var bingoEvent = Event(admin.Id, now);
             var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
-            var primary = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Main account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
-            var optionalRegular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "optional_regular", "Optional regular account", SignupQuestionType.Account, false, 1, null, SignupSystemField.None, EventCharacterRole.Playing);
-            var optionalAlt = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "optional_alt", "Optional alt account", SignupQuestionType.Account, false, 2, null, SignupSystemField.None, EventCharacterRole.Informational);
+            var primary = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Main account", SignupQuestionType.Account, true, 2, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+            var optionalRegular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "optional_regular", "Optional regular account", SignupQuestionType.Account, false, 0, null, SignupSystemField.None, EventCharacterRole.Playing);
+            var optionalAlt = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "optional_alt", "Optional alt account", SignupQuestionType.Account, false, 1, null, SignupSystemField.None, EventCharacterRole.Informational);
             var text = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "comment", "Comment", SignupQuestionType.Text, false, 3, null, SignupSystemField.None);
             var firstCharacter = new OsrsCharacter(Guid.NewGuid(), "First rendered main", $"FIRST RENDERED MAIN {Guid.NewGuid():N}", now);
             var secondCharacter = new OsrsCharacter(Guid.NewGuid(), "Second rendered main", $"SECOND RENDERED MAIN {Guid.NewGuid():N}", now);
@@ -554,6 +560,10 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var signupPage = await firstClient.GetStringAsync($"/Events/{slug}/Signup");
         Assert.Contains($"Input.AccountAnswers[{optionalRegularQuestionId}].OsrsCharacterId", signupPage, StringComparison.Ordinal);
         Assert.Contains($"Input.AccountAnswers[{optionalAltQuestionId}].OsrsCharacterId", signupPage, StringComparison.Ordinal);
+        Assert.True(signupPage.IndexOf("<legend>Main account", StringComparison.Ordinal) < signupPage.IndexOf("<legend>Optional regular account", StringComparison.Ordinal));
+        Assert.True(signupPage.IndexOf("<legend>Optional regular account", StringComparison.Ordinal) < signupPage.IndexOf("<legend>Optional alt account", StringComparison.Ordinal));
+        Assert.Contains($"id=\"question-{optionalRegularQuestionId}-none\"", signupPage, StringComparison.Ordinal);
+        Assert.Contains($"id=\"question-{optionalAltQuestionId}-none\"", signupPage, StringComparison.Ordinal);
 
         using (var missingCode = await firstClient.PostAsync($"/Events/{slug}/Signup", RenderedSignupPost(signupPage, primaryQuestionId, firstCharacterId, optionalRegularQuestionId, optionalAltQuestionId, textQuestionId, null)))
         {
@@ -584,7 +594,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await AssertNoFirstResponseAsync();
 
         signupPage = await firstClient.GetStringAsync($"/Events/{slug}/Signup");
-        using (var duplicate = await firstClient.PostAsync($"/Events/{slug}/Signup", RenderedSignupPost(signupPage, primaryQuestionId, firstCharacterId, optionalRegularQuestionId, optionalAltQuestionId, textQuestionId, signupCode, firstCharacterId)))
+        using (var duplicate = await firstClient.PostAsync($"/Events/{slug}/Signup", RenderedSignupPost(signupPage, primaryQuestionId, firstCharacterId, optionalRegularQuestionId, optionalAltQuestionId, textQuestionId, signupCode, firstCharacterId, "18")))
         {
             Assert.Equal(HttpStatusCode.OK, duplicate.StatusCode);
             Assert.Contains("Choose each account only once.", await duplicate.Content.ReadAsStringAsync(), StringComparison.Ordinal);
@@ -1369,12 +1379,12 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         ["__RequestVerificationToken"] = AntiforgeryToken(page)
     });
 
-    private static FormUrlEncodedContent RenderedSignupPost(string page, Guid primaryQuestionId, Guid? primaryCharacterId, Guid optionalRegularQuestionId, Guid optionalAltQuestionId, Guid textQuestionId, string? signupCode, Guid? optionalRegularCharacterId = null) => new(new Dictionary<string, string>
+    private static FormUrlEncodedContent RenderedSignupPost(string page, Guid primaryQuestionId, Guid? primaryCharacterId, Guid optionalRegularQuestionId, Guid optionalAltQuestionId, Guid textQuestionId, string? signupCode, Guid? optionalRegularCharacterId = null, string optionalRegularEhb = "") => new(new Dictionary<string, string>
     {
         [$"Input.AccountAnswers[{primaryQuestionId}].OsrsCharacterId"] = primaryCharacterId?.ToString() ?? string.Empty,
         [$"Input.AccountAnswers[{primaryQuestionId}].Ehb"] = "18",
         [$"Input.AccountAnswers[{optionalRegularQuestionId}].OsrsCharacterId"] = optionalRegularCharacterId?.ToString() ?? string.Empty,
-        [$"Input.AccountAnswers[{optionalRegularQuestionId}].Ehb"] = string.Empty,
+        [$"Input.AccountAnswers[{optionalRegularQuestionId}].Ehb"] = optionalRegularEhb,
         [$"Input.AccountAnswers[{optionalAltQuestionId}].OsrsCharacterId"] = string.Empty,
         [$"Input.Answers[{textQuestionId}]"] = "A retained answer",
         ["Input.SignupCode"] = signupCode ?? string.Empty,

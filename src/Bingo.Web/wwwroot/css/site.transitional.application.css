@@ -4453,14 +4453,7 @@ body.admin-shell-body {
 .admin-shell-body .schedule-editor-panel .schedule-draft-field { margin-top: 0.75rem; }
 .admin-shell-body .schedule-editor-panel .schedule-capacity-warning-grid { display: grid; grid-template-columns: 1fr; grid-template-areas: "capacity-label" "capacity-control"; gap: 0.75rem 1.25rem; align-items: stretch; }
 .admin-shell-body .schedule-editor-panel .schedule-capacity-warning-grid .schedule-capacity-label { grid-area: capacity-label; }
-.admin-shell-body .schedule-editor-panel .schedule-capacity-warning-grid .schedule-warning-label { grid-area: warning-label; }
 .admin-shell-body .schedule-editor-panel .schedule-capacity-warning-grid .schedule-capacity-control { grid-area: capacity-control; min-width: 0; }
-.admin-shell-body .schedule-editor-panel .schedule-capacity-warning-grid .schedule-warning-row { display: grid; grid-template-rows: minmax(0, 1fr) auto; grid-area: warning-row; min-width: 0; }
-.admin-shell-body .schedule-editor-panel .schedule-warning-row .admin-signup-warning-list { align-self: stretch; }
-.admin-shell-body .schedule-editor-panel .schedule-warning-row .admin-signup-warning-list li { box-sizing: border-box; display: flex; align-items: center; }
-.admin-shell-body .schedule-editor-panel .schedule-capacity-warning-grid .schedule-warning-action { display: flex; grid-area: warning-action; justify-content: flex-end; }
-.admin-shell-body .schedule-editor-panel .schedule-reason-field { margin-top: 1rem; }
-.admin-shell-body .schedule-editor-panel .schedule-reason-field .event-schedule-group-heading label { display: block; margin: 0; color: var(--admin-text); font-family: inherit; font-size: 0.75rem; font-weight: 650; line-height: 1.25; }
 .admin-shell-body .schedule-editor-panel .schedule-editor-actions { margin-top: 0.75rem; padding-top: 0.25rem; border-top: 0; }
 .admin-shell-body .schedule-event-information-rail { min-width: 0; }
 .admin-shell-body .schedule-editor-layout > .schedule-event-information-rail { grid-area: auto; }
@@ -4484,11 +4477,10 @@ body.admin-shell-body {
   .admin-shell-body .schedule-editor-panel .event-create-fields { grid-template-columns: 1fr; }
   .admin-shell-body .schedule-editor-panel .schedule-editor-actions { justify-content: flex-start; }
   .admin-shell-body .schedule-editor-panel .schedule-editor-actions > * { min-height: 2.25rem; }
-  .admin-shell-body .schedule-editor-panel .schedule-capacity-warning-grid.has-schedule-warning { grid-template-areas: "capacity-label" "capacity-control" "warning-label" "warning-row" "warning-action"; }
 }
 
 @media (min-width: 601px) {
-  .admin-shell-body .schedule-editor-panel .schedule-capacity-warning-grid { grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr); grid-template-areas: "capacity-label warning-label" "capacity-control warning-row" ". warning-action"; align-items: stretch; }
+  .admin-shell-body .schedule-editor-panel .schedule-capacity-warning-grid { grid-template-columns: minmax(12rem, 18rem); }
 }
 .admin-shell-body .event-datetime-visual { display: none; }
 .admin-shell-body .has-event-datetime-adapters .event-datetime-visual { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.625rem; }
@@ -4547,7 +4539,6 @@ body.admin-shell-body {
 .admin-shell-body .schedule-confirmation-box { margin-top: 1rem; }
 .admin-shell-body .schedule-confirmation-box > ul { margin: 0.5rem 0 0; padding-left: 1rem; color: var(--admin-muted); font-size: 0.6875rem; line-height: 1.4; }
 .admin-shell-body .schedule-confirmation-box .event-confirmation-actions { justify-content: flex-end; }
-.admin-shell-body .schedule-editor-panel .schedule-reason-field { margin-top: 1rem; }
 .admin-shell-body .schedule-editor-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--admin-border); }
 .admin-shell-body .schedule-editor-actions .event-create-cancel { align-self: auto; }
 .admin-shell-body .event-wom-link { margin: 1rem 0 0; padding: 0 0.75rem; background: var(--admin-surface-soft); border: 0; border-radius: 0.5rem; }

@@ -1085,6 +1085,8 @@
   <data name="Audit" xml:space="preserve"><value>Audit</value></data>
   <data name="Authoritative submission metadata" xml:space="preserve"><value>Autoritative metadata for indsendelsen</value></data>
   <data name="Automatic signup opening scheduled for" xml:space="preserve"><value>Automatisk åbning af tilmelding planlagt til</value></data>
+  <data name="Automatic signup opening" xml:space="preserve"><value>Automatisk åbning af tilmelding</value></data>
+  <data name="{0} waiting participant(s) will be promoted" xml:space="preserve"><value>{0} deltager(e) på ventelisten bliver forfremmet</value></data>
   <data name="Available events" xml:space="preserve"><value>Tilgængelige events</value></data>
   <data name="Back to participants" xml:space="preserve"><value>Tilbage til deltagere</value></data>
   <data name="Back to queue" xml:space="preserve"><value>Tilbage til køen</value></data>
@@ -1305,7 +1307,6 @@
   <data name="Reason (required before the configured end)" xml:space="preserve"><value>Begrundelse (påkrævet før den konfigurerede afslutning)</value></data>
   <data name="Reason (required before the configured start)" xml:space="preserve"><value>Begrundelse (påkrævet før den konfigurerede start)</value></data>
   <data name="Reason for a post-start timezone change" xml:space="preserve"><value>Begrundelse for ændring af tidszone efter start</value></data>
-  <data name="Reason for retroactive change" xml:space="preserve"><value>Begrundelse for tilbagevirkende ændring</value></data>
   <data name="Recent Admin activity" xml:space="preserve"><value>Seneste Admin-aktivitet</value></data>
   <data name="Registration capacity" xml:space="preserve"><value>Tilmeldingskapacitet</value></data>
   <data name="Reject evidence" xml:space="preserve"><value>Afvis bevis</value></data>
@@ -1320,7 +1321,6 @@
   <data name="Required" xml:space="preserve"><value>Påkrævet</value></data>
   <data name="Required Regular account selector. EHB belongs to this account answer." xml:space="preserve"><value>Påkrævet Regular account-vælger. EHB tilhører dette kontosvar.</value></data>
   <data name="Required for the audit record." xml:space="preserve"><value>Påkrævet til auditposten.</value></data>
-  <data name="Required only when changing a time that has already passed." xml:space="preserve"><value>Påkrævet kun ved ændring af et tidspunkt, der allerede er passeret.</value></data>
   <data name="Required rejection reason" xml:space="preserve"><value>Påkrævet afvisningsårsag</value></data>
   <data name="Required reversal reason" xml:space="preserve"><value>Påkrævet tilbageførelsesårsag</value></data>
   <data name="Required signup fields" xml:space="preserve"><value>Påkrævede tilmeldingsfelter</value></data>
@@ -1335,12 +1335,21 @@
   <data name="Review and correct this player&#x27;s signup details while preserving signup history." xml:space="preserve"><value>Gennemgå og ret denne spillers tilmeldingsdetaljer, mens tilmeldingshistorikken bevares.</value></data>
   <data name="Review readiness" xml:space="preserve"><value>Gennemgå parathed</value></data>
   <data name="Review signup warnings" xml:space="preserve"><value>Gennemgå tilmeldingsadvarsler</value></data>
+  <data name="Review schedule changes" xml:space="preserve"><value>Gennemgå ændringer i tidsplanen</value></data>
+  <data name="Review and confirm these schedule changes." xml:space="preserve"><value>Gennemgå og bekræft disse ændringer i tidsplanen.</value></data>
   <data name="Review submissions" xml:space="preserve"><value>Gennemgå indsendelser</value></data>
   <data name="Review submitted evidence and resolve contribution decisions." xml:space="preserve"><value>Gennemgå indsendt bevis, og afgør bidragene.</value></data>
   <data name="Review teams and draft" xml:space="preserve"><value>Gennemgå hold og draft</value></data>
   <data name="Review the evidence record, contribution, and eligibility warnings from each row." xml:space="preserve"><value>Gennemgå bevisposten, bidraget og kvalifikationsadvarslerne for hver række.</value></data>
   <data name="Review the signup consequences below before continuing." xml:space="preserve"><value>Gennemgå konsekvenserne for tilmeldingen nedenfor, før du fortsætter.</value></data>
   <data name="Review these changes before saving the schedule." xml:space="preserve"><value>Gennemgå disse ændringer, før du gemmer tidsplanen.</value></data>
+  <data name="Review these changes and warnings before saving the schedule." xml:space="preserve"><value>Gennemgå disse ændringer og advarsler, før du gemmer tidsplanen.</value></data>
+  <data name="Previously: {0}" xml:space="preserve"><value>Tidligere: {0}</value></data>
+  <data name="Open signup automatically at this time" xml:space="preserve"><value>Åbn tilmelding automatisk på dette tidspunkt</value></data>
+  <data name="On" xml:space="preserve"><value>Til</value></data>
+  <data name="Off" xml:space="preserve"><value>Fra</value></data>
+  <data name="Signup opening (read-only)" xml:space="preserve"><value>Åbning af tilmelding (skrivebeskyttet)</value></data>
+  <data name="Signup closing (read-only)" xml:space="preserve"><value>Lukning af tilmelding (skrivebeskyttet)</value></data>
   <data name="Review {0}" xml:space="preserve"><value>Gennemgå {0}</value></data>
   <data name="Reviewer actions" xml:space="preserve"><value>Reviewerhandlinger</value></data>
   <data name="Reviewer note" xml:space="preserve"><value>Reviewernote</value></data>
