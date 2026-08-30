@@ -3687,7 +3687,8 @@ body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer__body { pad
 body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer .public-ui-submission-form { gap: 0.7rem; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
 body.public-event-shell.public-ui-pass1 .public-ui-pass1-main .public-ui-control-visual,
 body.public-event-shell.public-ui-pass1 .public-ui-pass1-main .public-ui-select { min-height: 2.45rem; box-sizing: border-box; color: var(--board-ink); background: var(--board-field); border: 1px solid var(--board-rule); border-radius: 0; font: 400 0.86rem/1.25 "Geist Public UI", sans-serif; }
-body.public-event-shell.public-ui-pass1 .public-ui-submission-form textarea.public-ui-control-visual { min-height: 2.45rem; }
+body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer .public-ui-submission-form textarea.public-ui-control-visual { height: 2.45rem; min-height: 2.45rem; }
+body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer .public-ui-submission-form input.public-ui-control-visual[readonly] { height: 2.45rem; min-height: 2.45rem; }
 body.public-event-shell.public-ui-pass1 .public-ui-submission-validation { color: var(--board-coral); background: color-mix(in srgb, var(--board-coral) 7%, var(--board-surface)); border-color: var(--board-coral); border-radius: 0; }
 body.public-event-shell.public-ui-pass1 .public-ui-evidence-drop { background: var(--board-field); border-color: var(--board-rule); border-radius: 0; }
 body.public-event-shell.public-ui-pass1 .public-ui-evidence-drop__copy strong { color: var(--board-ink); font: 800 1rem/0.95 "Barlow Condensed ExtraBold", sans-serif; text-transform: uppercase; }
@@ -3760,7 +3761,7 @@ body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer .public-ui-
   border-color: var(--board-coral);
 }
 body.public-event-shell.public-ui-pass1 .public-ui-submission-result { color: var(--board-ink); background: var(--board-surface); }
-body.public-event-shell.public-ui-pass1 .public-ui-submission-result--success > .public-ui-state--success { color: var(--board-sage); border-color: var(--board-sage); }
+body.public-event-shell.public-ui-pass1 .public-ui-submission-result--success > .public-ui-state--success { box-sizing: border-box; padding: 0; color: var(--board-sage); border-color: var(--board-sage); border-radius: 50%; }
 body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer .public-ui-evidence-drop__preview,
 body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer .public-ui-evidence-drop__preview-button { background: var(--board-field); }
 
