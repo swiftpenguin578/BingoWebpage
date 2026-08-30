@@ -12,6 +12,7 @@
         "Withdrawn" => T["Signup status withdrawn"],
         _ => T[Model.Status]
     };
+    var outcomeLabel = Model.Status == "Confirmed" ? T["confirmed"].Value : statusLabel.Value;
 }
 
 <section class="event-confirmation @(isWaiting ? "event-confirmation--waiting" : null) @(isWithdrawn ? "event-confirmation--withdrawn" : null) @(isReadOnly ? "event-confirmation--readonly" : null)" data-signup-confirmation aria-labelledby="confirmation-heading">
@@ -29,19 +30,19 @@
             }
             <p class="confirmation-status"><span class="confirmation-status__mark" aria-hidden="true">@(isWaiting ? "…" : isWithdrawn ? "—" : "✓")</span><span>@statusLabel</span></p>
         </div>
-        <div class="confirmation-outcome" aria-label="@statusLabel"><span>@statusLabel</span>@if (isWaiting) { <strong>#@Model.WaitingPosition</strong> } else if (!isWithdrawn) { <strong>✓</strong> }</div>
+        <div class="confirmation-outcome" aria-label="@outcomeLabel"><span>@outcomeLabel</span>@if (isWaiting) { <strong>#@Model.WaitingPosition</strong> } else if (!isWithdrawn) { <strong>✓</strong> }</div>
     </header>
 
     <div class="confirmation-checkpoints">
         <section class="confirmation-checkpoint confirmation-checkpoint--accounts"><span class="confirmation-checkpoint__number">01</span><div><span class="editorial-kicker">@T["Accounts"]</span>@if (Model.Accounts.Any()) { <div class="confirmation-account-list">@foreach (var account in Model.Accounts) { <p>@account.CharacterName@if (account.Ehb is not null) { <text> · @T["EHB"]: @account.Ehb</text> }</p> }</div> } else { <p>@T["No accounts recorded."]</p> }</div></section>
-        <section class="confirmation-checkpoint"><span class="confirmation-checkpoint__number">02</span><div><span class="editorial-kicker">@T["Answers"]</span>@if (Model.Answers.Any()) { <dl>@foreach (var answer in Model.Answers) { <div><dt>@answer.Label</dt><dd>@answer.Value</dd></div> }</dl> } else { <p>@T["No answers recorded."]</p> }</div></section>
+        <section class="confirmation-checkpoint"><span class="confirmation-checkpoint__number">02</span><div><span class="editorial-kicker">@T["Answers"]</span>@if (Model.Answers.Any()) { <dl>@foreach (var answer in Model.Answers) { var answerValue = string.Equals(answer.Value, "true", StringComparison.OrdinalIgnoreCase) ? T["Yes"].Value : string.Equals(answer.Value, "false", StringComparison.OrdinalIgnoreCase) ? T["No"].Value : answer.Value; <div><dt>@answer.Label</dt><dd>@answerValue</dd></div> } </dl> } else { <p>@T["No answers recorded."]</p> }</div></section>
         <section class="confirmation-checkpoint"><span class="confirmation-checkpoint__number">03</span><div><span class="editorial-kicker">@T["Next"]</span><p>@T[Model.StatusDetail == "" && !isWithdrawn ? "Your signup will appear in the event roster when it is published." : isWithdrawn ? "Contact an Admin if you need to be restored." : "Your signup is saved."]</p></div></section>
     </div>
 
     <nav class="confirmation-action-bar" aria-label="@T["Signup actions"]">
         @if (Model.CanEdit) { <a class="editorial-button editorial-button--coral" asp-page="/Events/Signup" asp-route-slug="@Model.EventSlug" asp-route-edit="true">@T["Edit my signup"]</a> }
-        @if (Model.CanViewTable) { <a class="editorial-link editorial-link--arrow" asp-page="/Events/Signups" asp-route-slug="@Model.EventSlug">@T["View signup table"]</a> }
-        @if (Model.CanWithdraw) { <form method="post" asp-page-handler="Withdraw" data-confirm-message="@T["Withdraw from this event? This will release your place."]" onsubmit="if (!window.confirm(this.dataset.confirmMessage)) return false; this.elements['ConfirmLifecycleAction'].value = 'true';"><input type="hidden" name="ConfirmLifecycleAction" value="false" /><button class="editorial-button editorial-button--coral-outline" type="submit">@T["Withdraw from event"]</button></form> }
+    @if (Model.CanWithdraw) { <form method="post" asp-page-handler="Withdraw" data-confirm-message="@T["Withdraw from this event? This will release your place."]" onsubmit="if (!window.confirm(this.dataset.confirmMessage)) return false; this.elements['ConfirmLifecycleAction'].value = 'true';"><input type="hidden" name="ConfirmLifecycleAction" value="false" /><button class="editorial-button editorial-button--coral-outline" type="submit">@T["Withdraw from event"]</button></form> }
+    @if (Model.CanViewTable) { <a class="editorial-link editorial-link--arrow" asp-page="/Events/Signups" asp-route-slug="@Model.EventSlug"><span>@T["View signup table"]</span></a> }
         @if (Model.CanRejoin) { <form method="post" asp-page-handler="Rejoin" data-confirm-message="@T["Rejoin this event? You will join at the end of the queue."]" onsubmit="if (!window.confirm(this.dataset.confirmMessage)) return false; this.elements['ConfirmLifecycleAction'].value = 'true';"><input type="hidden" name="ConfirmLifecycleAction" value="false" /><button class="editorial-button editorial-button--coral" type="submit">@T["Rejoin signup"]</button></form> }
     </nav>
 </section>

@@ -66,12 +66,13 @@ mode. Selecting `mode: deploy` in the explicit manual dispatch is the user's
 production approval; no GitHub Environment reviewer gate or environment secret
 is used. It then performs the validated SSH deployment.
 
-Passes 1–4 and the accepted release-blocker corrections are committed and pushed
-through `aa1af77` on `production-release-pipeline`. The later GitHub Free
-release-control adjustment—an explicit manual `mode: deploy` dispatch as
-production approval, with no GitHub Environment gate—was independently cleared
-and remains an unstaged six-file workflow/documentation change pending
-packaging.
+Passes 1–4, the GitHub Free release-control adjustment, the accepted
+release-blocker corrections, and the later tested application corrections are
+committed and pushed through `93257bd` on
+`production-release-pipeline`. Integration into `main` uses the existing
+green pull-request path. No production candidate is published until the merge
+and the resulting `main` CI run publishes its immutable image digest and
+candidate receipt.
 
 Provider-backed Pass 5 setup is in progress as of 2026-08-29. The selected
 single VPS is Netcup (Ubuntu 24.04, 2 vCPU, 4 GB RAM, 80 GB); Cloudflare provides
@@ -85,6 +86,33 @@ the active backup timer are verified. `dklegacy.dk` resolves by a DNS-only A
 record to the VPS. No application candidate has been deployed; the candidate
 build, application journeys, load/realtime checks, Discord callback, evidence
 round trip, and full Pass 5 rehearsal remain pending.
+
+The user approved the following concrete Pass 5/6 closure gates on 2026-08-30:
+
+- Merge only a green pull request, let `main` CI publish the immutable
+  `linux/amd64` candidate and receipt, and deploy only that exact digest
+  through the explicit manual `mode: deploy` workflow.
+- Before candidate deployment, verify key-only `bingo-deploy` access, disabled
+  password/direct-root SSH, Docker and the backup timer after reboot, controlled
+  PostgreSQL/Caddy image identities, and one naturally scheduled backup whose
+  receipt reports successful retention.
+- Change the bootstrap owner's initial password before public signup. Keep
+  rehearsal data separate and record its cleanup or retained-test disposition.
+- Resolve the evidence-storage protection wording before launch: confirm the
+  actual R2 accidental-deletion/versioning behavior or explicitly accept and
+  document another recovery path. The integrity command detects loss but is not
+  by itself a recovery mechanism.
+- Decide and verify the production edge contract: Cloudflare DNS-only versus
+  proxied traffic, end-to-end TLS, the apex hostname, and whether
+  `www.dklegacy.dk` redirects to the apex.
+- Configure the minimum operational visibility: one external public-health
+  monitor and an alert destination for public health, failed scheduled backups,
+  and low disk space.
+- Complete the provider-backed rehearsal against the deployed candidate,
+  including Discord, R2 evidence round trip/integrity, SignalR and intended-load
+  measurements, application journeys, backup/full restore, rollback,
+  interruption timing, and post-recovery smoke checks. Then follow the frozen
+  whole-application review, bounded remediation, and Pass 6 release gate.
 
 Retain the complete infrastructure and operational checklist, including
 optional but prudent safety items. At the deployment step where an item becomes
@@ -684,8 +712,9 @@ passes as product or UI approval.
 
 ## Explicit unresolved decisions
 
-- **F-04:** decide Live identity correction versus fail-closed alignment before
-  changing that behavior.
+- **F-04:** resolved; while Live, Admin may correct only the display timezone
+  with explicit confirmation and an audit reason. Other identity values and UTC
+  schedule/cutoff instants remain immutable.
 - **F-06:** decide whether permanent Rules/how-to work precedes or follows
   Milestone 9 before implementing that feature work.
 
@@ -958,9 +987,10 @@ Before implementing a materially different page structure, hierarchy, or
 interaction geometry that existing references do not resolve, stop and request a
 new picture reference from the user instead of inventing the composition.
 
-The Board behavior approval and replacement-identity decision do not resolve
-F-04 or the future permanent-content question in F-06 and do not imply
-whole-application production readiness. The currently shipped masthead-only
+The Board behavior approval and replacement-identity decision leave only the
+future permanent-content question in F-06 unresolved and do not imply
+whole-application production readiness. F-04 is resolved by the narrow Live
+display-timezone correction described above. The currently shipped masthead-only
 `/HowTo` WIP placeholder is deployment ready, not approved, and remains
 unchanged until F-06 is separately reopened.
 Regression and remaining deployment gates remain sequenced as above.

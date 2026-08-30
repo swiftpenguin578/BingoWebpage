@@ -75,9 +75,12 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         await LoginAsync(superClient, superAdmin.LoginName);
 
         var adminPage = await adminClient.GetStringAsync($"/Admin/Catalogue?bossId={boss.Id}");
-        var dropForm = Regex.Match(adminPage, $"<form[^>]*id=\"drop-edit-{drop.Id}\".*?</form>", RegexOptions.Singleline).Value;
+        var dropForm = Regex.Match(adminPage, $"<form[^>]*id=\"catalogue-drop-form-{drop.Id}\".*?</form>", RegexOptions.Singleline).Value;
         Assert.NotEmpty(dropForm);
-        Assert.Contains($"drop-edit-{destroyDrop.Id}", adminPage, StringComparison.Ordinal);
+        Assert.Contains($"catalogue-drop-form-{destroyDrop.Id}", adminPage, StringComparison.Ordinal);
+        Assert.DoesNotContain($"delete-drop-{drop.Id}", adminPage, StringComparison.Ordinal);
+        var superAdminPage = await superClient.GetStringAsync($"/Admin/Catalogue?bossId={boss.Id}");
+        Assert.Contains($"delete-drop-{drop.Id}", superAdminPage, StringComparison.Ordinal);
         Assert.DoesNotContain("RateVariant", adminPage, StringComparison.Ordinal);
         Assert.DoesNotContain("<h2 id=\"catalogue-items-heading\">Items", adminPage, StringComparison.Ordinal);
         Assert.DoesNotContain("handler=UpdateItem", adminPage, StringComparison.Ordinal);
@@ -458,7 +461,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         mutableTemplate.Update("Manual tile", "Frozen", ObjectiveType.Manual, string.Empty, 99m);
         await verify.SaveChangesAsync();
         verify.ChangeTracker.Clear();
-        var publicBoard = await new Bingo.Infrastructure.Boards.PublicBoardService(verify).GetEventBoardAsync(bingoEvent.Slug);
+        var publicBoard = await new Bingo.Infrastructure.Boards.PublicBoardService(verify, TimeProvider.System).GetEventBoardAsync(bingoEvent.Slug);
         Assert.NotNull(publicBoard);
         Assert.Equal("Manual tile", Assert.Single(publicBoard!.Teams.Single().Tiles).Name);
         Assert.Equal($"/Events/{bingoEvent.Slug}/Board/Tiles/{tile.Id}/Image", publicBoard.Teams.Single().Tiles.Single().ImageUrl);
@@ -491,7 +494,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         Assert.True(correction.PublishedCorrectionInProgress);
         Assert.Equal(originalApprovalId, correction.ActiveApprovalSnapshotId);
         Assert.Single(await verify.BoardApprovalSnapshots.Where(x => x.BoardId == board.Id).ToListAsync());
-        var stillPublicBoard = await new Bingo.Infrastructure.Boards.PublicBoardService(verify).GetEventBoardAsync(bingoEvent.Slug);
+        var stillPublicBoard = await new Bingo.Infrastructure.Boards.PublicBoardService(verify, TimeProvider.System).GetEventBoardAsync(bingoEvent.Slug);
         Assert.Equal("Manual tile", Assert.Single(stillPublicBoard!.Teams.Single().Tiles).Name);
 
         Assert.Equal(admin.Id, correction.EditorAccountId);
@@ -515,7 +518,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         }
 
         verify.ChangeTracker.Clear();
-        var afterEditPublicBoard = await new Bingo.Infrastructure.Boards.PublicBoardService(verify).GetEventBoardAsync(bingoEvent.Slug);
+        var afterEditPublicBoard = await new Bingo.Infrastructure.Boards.PublicBoardService(verify, TimeProvider.System).GetEventBoardAsync(bingoEvent.Slug);
         Assert.Equal("Manual tile", Assert.Single(afterEditPublicBoard!.Teams.Single().Tiles).Name);
 
         await using (var replaceApproval = new ApplicationDbContext(options))
@@ -536,7 +539,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         Assert.Equal(BoardState.Published, replacement.LifecycleState);
         Assert.Equal(2, await verify.BoardApprovalSnapshots.CountAsync(x => x.BoardId == board.Id));
         Assert.Single(await verify.AuditEntries.Where(x => x.EventId == bingoEvent.Id && x.Action == "board.published_corrected").ToListAsync());
-        var correctedPublicBoard = await new Bingo.Infrastructure.Boards.PublicBoardService(verify).GetEventBoardAsync(bingoEvent.Slug);
+        var correctedPublicBoard = await new Bingo.Infrastructure.Boards.PublicBoardService(verify, TimeProvider.System).GetEventBoardAsync(bingoEvent.Slug);
         Assert.Equal("Corrected public tile", Assert.Single(correctedPublicBoard!.Teams.Single().Tiles).Name);
         Assert.Equal(55m, Assert.Single(correctedPublicBoard.Teams.Single().Tiles).EstimatedEhb);
         var afterPublicationReadiness = await new Bingo.Infrastructure.Events.EventLifecycleService(verify, null!, TimeProvider.System).GetStartReadinessAsync(bingoEvent.Id);
@@ -546,7 +549,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         retiredImageAsset.Replace(now.AddMinutes(1));
         await verify.SaveChangesAsync();
         verify.ChangeTracker.Clear();
-        var withoutRetiredArtwork = await new Bingo.Infrastructure.Boards.PublicBoardService(verify).GetEventBoardAsync(bingoEvent.Slug);
+        var withoutRetiredArtwork = await new Bingo.Infrastructure.Boards.PublicBoardService(verify, TimeProvider.System).GetEventBoardAsync(bingoEvent.Slug);
         Assert.Equal($"/Events/{bingoEvent.Slug}/Board/Tiles/{tile.Id}/Image", Assert.Single(withoutRetiredArtwork!.Teams.Single().Tiles).ImageUrl);
         var retiredStorage = new TestStorage();
         var retiredImage = await new PublicBoardImageService(verify, retiredStorage).OpenAsync(bingoEvent.Slug, tile.Id, CancellationToken.None);

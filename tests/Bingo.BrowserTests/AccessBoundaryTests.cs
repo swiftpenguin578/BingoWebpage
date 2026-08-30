@@ -205,8 +205,8 @@ public sealed class AccessBoundaryTests : IClassFixture<WebApplicationFactory<Pr
         {
             CultureInfo.CurrentUICulture = new CultureInfo("da");
             var text = _factory.Services.GetRequiredService<IStringLocalizer<Bingo.Web.SharedResource>>();
-            Assert.Equal("Administratoradgang givet", text["Admin access granted"]);
-            Assert.Equal("En administrator gav din konto administratoradgang.", text["An administrator granted your account Admin access."]);
+            Assert.Equal("Admin-adgang givet", text["Admin access granted"]);
+            Assert.Equal("En administrator gav din konto Admin-adgang.", text["An administrator granted your account Admin access."]);
             Assert.Equal("Du er logget ind.", text["Signed in successfully."]);
             Assert.Equal("Du er logget ind med Discord.", text["Signed in with Discord."]);
             Assert.Equal("Din konto er klar.", text["Your account is ready."]);

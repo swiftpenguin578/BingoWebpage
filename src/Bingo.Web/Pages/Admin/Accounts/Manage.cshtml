@@ -44,7 +44,7 @@
             <div><span class="admin-account-label">@T["Account type"]</span><strong>@(item.AccountType == AccountType.WebsiteAccount ? T["Website account"] : T["Emergency credential"])</strong></div>
             <div><span class="admin-account-label">@T["Role"]</span>@if (item.AccountType == AccountType.WebsiteAccount) { <span class="admin-status-pill @roleModifier">@roleLabel</span> } else { <span class="admin-status-pill is-muted">@T["Team scoped"]</span> }</div>
             <div><span class="admin-account-label">@T["State"]</span><span class="admin-status-pill @(item.Active ? "is-green" : "is-muted")">@(item.Active ? T["Active"] : T["Disabled"])</span></div>
-            <div><span class="admin-account-label">@T["Last login"]</span><strong>@(item.LastLoginAt?.ToLocalTime().ToString("g") ?? T["Never"].Value)</strong></div>
+            <div><span class="admin-account-label">@T["Last login"]</span><strong>@(item.LastLoginAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) ?? T["Never"].Value)</strong></div>
         </div>
     </section>
 
@@ -76,7 +76,7 @@
                             <strong>@role.EventName</strong>
                             @if (role.TeamRoles.Any())
                             {
-                                <span class="admin-account-event-support">@string.Join("; ", role.TeamRoles.Select(teamRole => $"{teamRole.TeamName}: {teamRole.Role} ({teamRole.JoinedAt.ToLocalTime().ToString("g")} — {teamRole.LeftAt?.ToLocalTime().ToString("g") ?? T["current"]})"))</span>
+                                <span class="admin-account-event-support">@string.Join("; ", role.TeamRoles.Select(teamRole => $"{teamRole.TeamName}: {teamRole.Role} ({teamRole.JoinedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)} — {teamRole.LeftAt?.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) ?? T["current"]})"))</span>
                             }
                             else
                             {
@@ -90,7 +90,7 @@
         </section>
         <section class="admin-account-route-panel">
             <div class="admin-account-route-panel-heading"><h2>@T["Disable history"]</h2><p>@T["Recorded state changes for this website account."]</p></div>
-            <ul class="admin-account-history-list">@foreach (var history in item.DisableHistory) { <li><strong>@history.State</strong><span>@history.ActorName · @history.OccurredAt.ToLocalTime().ToString("g")</span></li> }@if (!item.DisableHistory.Any()) { <li>@T["No disable history."]</li> }</ul>
+            <ul class="admin-account-history-list">@foreach (var history in item.DisableHistory) { <li><strong>@history.State</strong><span>@history.ActorName · @history.OccurredAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</span></li> }@if (!item.DisableHistory.Any()) { <li>@T["No disable history."]</li> }</ul>
         </section>
         @if (TempData["CredentialLink"] is string link && TempData["CredentialLinkTargetId"]?.ToString() == item.Id.ToString() && TempData["CredentialLinkPurpose"]?.ToString() == "reset")
         {

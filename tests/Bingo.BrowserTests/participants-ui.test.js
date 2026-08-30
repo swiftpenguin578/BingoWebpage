@@ -6,13 +6,15 @@ const repositoryRoot = path.resolve(__dirname, "../..");
 const participantsMarkup = fs.readFileSync(path.join(repositoryRoot, "src/Bingo.Web/Pages/Admin/Events/Participants.cshtml"), "utf8");
 const participantForm = fs.readFileSync(path.join(repositoryRoot, "src/Bingo.Web/Pages/Admin/Events/_InternalParticipantForm.cshtml"), "utf8");
 const manageScript = fs.readFileSync(path.join(repositoryRoot, "src/Bingo.Web/wwwroot/js/event-manage.js"), "utf8");
-const siteCss = fs.readFileSync(path.join(repositoryRoot, "src/Bingo.Web/wwwroot/css/site.css"), "utf8");
+const siteCss = ["site.transitional.foundation.css", "site.public-ui.css", "site.transitional.application.css"]
+  .map(file => fs.readFileSync(path.join(repositoryRoot, "src/Bingo.Web/wwwroot/css", file), "utf8"))
+  .join("\n");
 const desktopPlacement = siteCss.indexOf(".participant-capacity-region .participant-settings-form .participant-capacity-fields { width: 100%; max-width: none; display: grid;");
 const narrowReset = siteCss.indexOf("@media (max-width: 700px)", desktopPlacement);
 const narrowCss = siteCss.slice(narrowReset);
 
 assert.match(participantsMarkup, /participant-capacity-field[\s\S]*Maximum players[\s\S]*SignupAdministration\.ParticipantCap/);
-assert.match(participantsMarkup, /participant-shared-row[\s\S]*participant-shared-row-heading[\s\S]*Waiting list enabled[\s\S]*participant-shared-row-content[\s\S]*Keep accepting signups after capacity is reached\./);
+assert.match(participantsMarkup, /participant-shared-row[\s\S]*participant-shared-row-heading[\s\S]*waiting list enabled[\s\S]*participant-shared-row-content[\s\S]*Keep accepting signups after capacity is reached\./);
 assert.ok(participantsMarkup.includes('aria-labelledby="waiting-list-enabled-heading" aria-describedby="waiting-list-enabled-support"'));
 assert.match(participantsMarkup, /<tr class="participant-table-empty" hidden="@\(group\.Rows\.Count > 0 \? "hidden" : null\)"><td colspan="8">/);
 assert.ok(siteCss.includes("grid-template-areas: \"capacity-heading waiting-heading\" \"capacity-control waiting-control\" \"capacity-error .\" \"confirm confirm\";"));

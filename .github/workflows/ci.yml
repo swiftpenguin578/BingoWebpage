@@ -10,7 +10,7 @@ permissions: {}
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     permissions:
       contents: read
 
@@ -50,8 +50,37 @@ jobs:
       - name: Prepare browser-test database
         run: dotnet run --project src/Bingo.Web --configuration Release --no-build -- --apply-catalogue-snapshot
 
-      - name: Test
-        run: dotnet test Bingo.slnx --configuration Release --no-build --logger trx --collect "XPlat Code Coverage"
+      - name: Test Domain
+        id: test_domain
+        continue-on-error: true
+        run: dotnet test tests/Bingo.Domain.Tests/Bingo.Domain.Tests.csproj --configuration Release --no-build --logger trx --collect "XPlat Code Coverage"
+
+      - name: Test Application
+        id: test_application
+        continue-on-error: true
+        run: dotnet test tests/Bingo.Application.Tests/Bingo.Application.Tests.csproj --configuration Release --no-build --logger trx --collect "XPlat Code Coverage"
+
+      - name: Test Browser
+        id: test_browser
+        continue-on-error: true
+        run: dotnet test tests/Bingo.BrowserTests/Bingo.BrowserTests.csproj --configuration Release --no-build --logger trx --collect "XPlat Code Coverage"
+
+      - name: Test Integration
+        id: test_integration
+        continue-on-error: true
+        timeout-minutes: 30
+        run: dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-build --logger trx --collect "XPlat Code Coverage"
+
+      - name: Fail if any test project failed
+        env:
+          DOMAIN_OUTCOME: ${{ steps.test_domain.outcome }}
+          APPLICATION_OUTCOME: ${{ steps.test_application.outcome }}
+          BROWSER_OUTCOME: ${{ steps.test_browser.outcome }}
+          INTEGRATION_OUTCOME: ${{ steps.test_integration.outcome }}
+        run: |
+          if [[ "$DOMAIN_OUTCOME" == "failure" || "$APPLICATION_OUTCOME" == "failure" || "$BROWSER_OUTCOME" == "failure" || "$INTEGRATION_OUTCOME" == "failure" ]]; then
+            exit 1
+          fi
 
   publish-image:
     needs: build-and-test

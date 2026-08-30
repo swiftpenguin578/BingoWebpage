@@ -147,7 +147,14 @@ public sealed class BingoEvent
 
     public void UpdateIdentity(string name, string? slug, string? description, string timezone)
     {
-        EnsureIdentityEditable();
+        if (State == EventState.Live)
+        {
+            if (!string.Equals(Name, name.Trim(), StringComparison.Ordinal) ||
+                !string.Equals(Slug, slug?.Trim(), StringComparison.Ordinal) ||
+                !string.Equals(Description, Clean(description), StringComparison.Ordinal))
+                throw new InvalidOperationException("Only the display timezone can change while the event is Live.");
+        }
+        else EnsureIdentityEditable();
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("An event name is required.", nameof(name));
         if (string.IsNullOrWhiteSpace(timezone)) throw new ArgumentException("A timezone is required.", nameof(timezone));
         if (FirstPublicAt is not null && !string.IsNullOrWhiteSpace(slug) && !string.Equals(Slug, slug.Trim(), StringComparison.Ordinal))

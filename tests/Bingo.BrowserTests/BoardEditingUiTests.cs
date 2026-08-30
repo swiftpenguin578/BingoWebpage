@@ -47,7 +47,7 @@ public sealed class BoardEditingUiTests
         Assert.Contains("event.target.closest('.edit-tile-button')", boardMarkup);
         Assert.Contains("event.target.closest('.tile-details-button')", boardMarkup);
         var dialogInteraction = boardMarkup[boardMarkup.IndexOf("const createDialog", StringComparison.Ordinal)..];
-        Assert.Contains("createDialog.showModal();", dialogInteraction);
+        Assert.Contains("showBoardDialog(createDialog);", dialogInteraction);
         Assert.DoesNotContain("window.location", dialogInteraction, StringComparison.Ordinal);
         Assert.Contains("(() => {", boardMarkup);
         Assert.Contains("})();", boardMarkup);
@@ -62,15 +62,15 @@ public sealed class BoardEditingUiTests
         var requirementMarkup = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "_BoardRequirementEditor.cshtml"));
         var draftCode = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml.cs"));
         var previewMarkup = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Events", "BoardPreview.cshtml"));
-        var siteStyles = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "css", "site.css"));
+        var siteStyles = BrowserTestFiles.ReadActiveStyles(repositoryRoot);
 
-        Assert.Contains("One objective is one target", boardMarkup);
-        Assert.Contains("Select multiple bosses", boardMarkup);
-        Assert.Contains("class=\"tile-editor-section-heading\"><h3>Tile details</h3>", boardMarkup);
+        Assert.Contains("@T[\"One objective, one target\"]", boardMarkup);
+        Assert.Contains("@T[\"Select one or more bosses or activities when their drops share the same total. Add another objective only when this tile needs separate totals.\"]", boardMarkup);
+        Assert.Contains("class=\"tile-editor-section-heading\"><h3>@T[\"Tile details\"]</h3>", boardMarkup);
         Assert.Contains("class=\"information-callout tile-objective-guide\" role=\"note\"", boardMarkup);
         Assert.Contains("Add another objective", boardMarkup);
         Assert.Contains("class=\"btn admin-button-secondary add-objective-button\"", boardMarkup);
-        Assert.Contains("class=\"manual-ehb-override\"><summary><span>Manual EHB override</span>", boardMarkup);
+        Assert.Contains("class=\"manual-ehb-override\"><summary><span>@T[\"Manual EHB override\"]</span>", boardMarkup);
         Assert.Contains("Bosses or activities", requirementMarkup);
         Assert.Contains("class=\"boss-picker-label\"", requirementMarkup);
         Assert.Contains("bossPickerLabel.textContent", boardMarkup);
@@ -81,8 +81,8 @@ public sealed class BoardEditingUiTests
         Assert.DoesNotContain("<details class=\"objective-counting-options\"", requirementMarkup, StringComparison.Ordinal);
         Assert.Contains("individual-drop-weights-toggle", requirementMarkup);
         Assert.Contains("DropWeights", requirementMarkup);
-        Assert.Contains("Counts for @drop.CreditedWeight", boardMarkup);
-        Assert.Contains("tile-dialog-drop-list", boardMarkup);
+        Assert.Contains("@T[\"Counts for {0}\", drop.CreditedWeight]", boardMarkup);
+        Assert.Contains("tile-dialog-drop-grid", boardMarkup);
         Assert.Contains("Custom tile image", boardMarkup);
         Assert.Contains("Optional managed upload", boardMarkup);
         Assert.Contains("enctype=\"multipart/form-data\"", boardMarkup);
@@ -108,11 +108,11 @@ public sealed class BoardEditingUiTests
         Assert.Contains("class=\"btn admin-button-secondary\" asp-page=\"BoardPreview\"", boardMarkup);
         Assert.Contains("Publish board? The approved board is ready.", draftCode);
         Assert.Contains("color-scheme: dark", siteStyles);
-        Assert.Contains("admin-button-secondary\">Edit board", boardMarkup);
-        Assert.Contains("admin-button-secondary\">Approve board", boardMarkup);
-        Assert.Contains("admin-button-secondary\">Finish editing", boardMarkup);
-        Assert.Contains("admin-button-secondary\">Take over editing", boardMarkup);
-        Assert.Contains("admin-button-secondary action-danger-outline\">Remove tile", boardMarkup);
+        Assert.Contains("@T[\"Edit board\"]", boardMarkup);
+        Assert.Contains("@T[\"Approve board\"]", boardMarkup);
+        Assert.Contains("@T[\"Finish editing\"]", boardMarkup);
+        Assert.Contains("@T[\"Take over editing\"]", boardMarkup);
+        Assert.Contains("@T[\"Remove tile\"]", boardMarkup);
         Assert.Contains(".board-page .board-editor", siteStyles);
         Assert.Contains("align-items: stretch", siteStyles);
         Assert.DoesNotContain("Optional settings for reviewing proof", boardMarkup);
@@ -130,7 +130,7 @@ public sealed class BoardEditingUiTests
         Assert.Contains(".admin-shell-body .board-page .eligible-drop-group {\n  color: var(--admin-text-soft);\n  background: var(--admin-surface-raised);\n  border: 0;\n  border-radius: 0.75rem;\n  padding: 1.25rem;\n  gap: 0.75rem;\n}", siteStyles);
         Assert.Contains(".admin-shell-body .board-page .eligible-drop-option {\n  display: flex;", siteStyles);
         Assert.Contains("border: 1px solid var(--admin-border-strong);", siteStyles);
-        Assert.Contains("class=\"eligible-drop-heading\"><strong>Eligible drops</strong><div class=\"eligible-drop-actions\"", requirementMarkup);
+        Assert.Contains("class=\"eligible-drop-heading\"><strong>@T[\"Eligible drops\"]</strong><div class=\"eligible-drop-actions\"", requirementMarkup);
         Assert.Contains(".admin-shell-body .board-page .eligible-drop-option:has(input:checked)", siteStyles);
         Assert.Contains("position: absolute", siteStyles);
         Assert.Contains("color: var(--admin-muted);\n  font-size: 0.625rem;\n  font-weight: 700;\n  letter-spacing: 0.1em;\n  line-height: 1.2;\n  text-transform: uppercase;", siteStyles);

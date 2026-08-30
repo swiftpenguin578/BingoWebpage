@@ -14,7 +14,7 @@ using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Events;
 
-public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService signupService, TimeProvider timeProvider, IStringLocalizer<SharedResource>? text = null, IWiseOldManPlayerLookup? wiseOldMan = null, ISignupLookupTokenService? lookupTokens = null) : PageModel
+public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService signupService, TimeProvider timeProvider, IStringLocalizer<SharedResource>? text = null, IWiseOldManPlayerLookup? wiseOldMan = null, ISignupLookupTokenService? lookupTokens = null, MyAccountsService? myAccounts = null) : PageModel
 {
     public EventInfo? EventView { get; private set; }
     public IReadOnlyList<QuestionView> Questions { get; private set; } = [];
@@ -111,8 +111,24 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
         }
         var fetchedAt = result.FetchedAt!.Value;
         var issuedAt = timeProvider.GetUtcNow();
-        input.Ehb = result.Ehb;
-        input.WiseOldManLookupToken = lookupTokens.Create(normalizedCharacterName, result.Ehb!.Value, fetchedAt, issuedAt, issuedAt.AddMinutes(5));
+        var fetchedEhb = MyAccountsService.RoundEhb(result.Ehb!.Value);
+        var lookupToken = lookupTokens.Create(normalizedCharacterName, fetchedEhb, fetchedAt, issuedAt, issuedAt.AddMinutes(5));
+        if (myAccounts is null)
+        {
+            ModelState.AddModelError(string.Empty, Localize("Wise Old Man is unavailable right now. Your current EHB was kept."));
+            return;
+        }
+        try
+        {
+            await myAccounts.UpdateSavedEhbAsync(User.GetAccountId()!.Value, characterId, fetchedEhb, ct);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ModelState.AddModelError(string.Empty, Localize(exception.Message));
+            return;
+        }
+        input.Ehb = fetchedEhb;
+        input.WiseOldManLookupToken = lookupToken;
         LookupQuestionId = questionId;
         LookupFetchedAt = fetchedAt;
     }
@@ -135,9 +151,9 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     private string LookupFailure(WiseOldManPlayerLookupResult result) => result.Status switch
     {
         WiseOldManLookupStatus.NotFound => text?["Wise Old Man could not find that character."].Value ?? "Wise Old Man could not find that character.",
-        WiseOldManLookupStatus.RateLimited when result.RetryAt is { } retryAt => text?["Wise Old Man is temporarily busy. Try again after {0}.", retryAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)].Value ?? $"Wise Old Man is temporarily busy. Try again after {retryAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)}.",
+        WiseOldManLookupStatus.RateLimited when result.RetryAt is { } retryAt => text?["Wise Old Man is temporarily busy. Try again after {0}.", retryAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)].Value ?? $"Wise Old Man is temporarily busy. Try again after {retryAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)}.",
         WiseOldManLookupStatus.RateLimited => text?["Wise Old Man is temporarily busy. Try again in about 1 minute."].Value ?? "Wise Old Man is temporarily busy. Try again in about 1 minute.",
-        _ when result.RetryAt is { } retryAt => text?["Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {0}.", retryAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)].Value ?? $"Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {retryAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)}.",
+        _ when result.RetryAt is { } retryAt => text?["Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {0}.", retryAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)].Value ?? $"Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {retryAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)}.",
         _ => text?["Wise Old Man is unavailable right now. Your current EHB was kept."].Value ?? "Wise Old Man is unavailable right now. Your current EHB was kept."
     };
     private async Task<IActionResult?> RedirectForPublishedSurfaceAsync(string slug, CancellationToken ct)

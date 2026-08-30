@@ -224,7 +224,7 @@
                 {
                     <article>
                         <div class="admin-dashboard-event-copy"><strong>@item.EventName</strong><small>@T["Competition"] @item.CompetitionId</small></div>
-                        <div class="admin-dashboard-sync-facts"><span>@T["last success"]: @(item.LastSuccessfulAt is { } last ? last.ToLocalTime().ToString("g") : T["Not yet"])</span><span>@T["Next due"]: @Model.SynchronizationDueLabel(item)</span></div>
+                        <div class="admin-dashboard-sync-facts"><span>@T["last success"]: @(item.LastSuccessfulAt is { } last ? last.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture) : T["Not yet"])</span><span>@T["Next due"]: @Model.SynchronizationDueLabel(item)</span></div>
                         @if (!string.IsNullOrWhiteSpace(item.LastError) || item.MissingAccounts.Count > 0 || item.Complete == false)
                         {
                             <p class="admin-dashboard-warning">@Model.SynchronizationWarning(item)</p>
@@ -251,7 +251,7 @@
                     <li>
                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M20 13c0 5-3.5 7.5-8 8.5-4.5-1-8-3.5-8-8.5V6a1 1 0 0 1 1-1c2 0 4.5-1.2 7-3 2.5 1.8 5 3 7 3a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>
                         <div class="admin-dashboard-audit-copy"><strong>@audit.Action</strong><span>@(string.IsNullOrWhiteSpace(audit.Details) ? audit.ActorUsername : audit.Details)</span><small>@(audit.EventName ?? T["Global administration"]) · @audit.ActorUsername</small></div>
-                        <time datetime="@audit.OccurredAt.ToString("O")">@audit.OccurredAt.ToLocalTime().ToString("g")</time>
+                        <time datetime="@audit.OccurredAt.ToString("O")">@audit.OccurredAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</time>
                     </li>
                 }
             </ul>

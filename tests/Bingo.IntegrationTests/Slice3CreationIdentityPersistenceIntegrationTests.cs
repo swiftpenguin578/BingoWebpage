@@ -241,7 +241,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             await using (var winnerDb = new ApplicationDbContext(options))
             {
                 var winner = await winnerDb.Events.SingleAsync(x => x.Id == eventId);
-                winner.UpdateIdentity("Winner", "renamed", "Description", "UTC");
+                winner.UpdateIdentity(winner.Name, winner.Slug, winner.Description, "Europe/Copenhagen");
                 await winnerDb.SaveChangesAsync();
             }
             var stale = Identity(staleDb, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = "Stale", Slug = "renamed", Description = "Description", Timezone = "UTC", Version = staleVersion });
@@ -350,7 +350,9 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             model = Schedule(db, actor);
             Assert.IsType<PageResult>(await model.OnGetAsync(eventId, CancellationToken.None));
             model.Input.EventEndsLocal = "2026-08-06T14:50";
-            model.Input.AcknowledgeScheduledWarnings = true;
+            model.Input.ParticipantCap = 25;
+            model.Input.ScheduledSignupOpeningEnabled = true;
+            model.Input.ConfirmChanges = true;
             Assert.IsType<RedirectToPageResult>(await model.OnPostAsync(eventId, CancellationToken.None));
         }
 
@@ -362,6 +364,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
             Assert.Equal(draft, saved.DraftAt);
             Assert.Equal(starts, saved.EventStartsAt);
             Assert.Equal(new DateTimeOffset(2026, 8, 6, 12, 50, 0, TimeSpan.Zero), saved.EventEndsAt);
+            Assert.Equal(25, saved.ParticipantCap);
             Assert.True(saved.ScheduledSignupOpeningEnabled);
 
             var model = Schedule(db, actor);
@@ -417,10 +420,10 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
 
             Assert.IsType<PageResult>(await model.OnPostAsync(eventId, CancellationToken.None));
 
-            var opening = Assert.Single(model.PublicPreview, value => value.Label == "Signup opens");
-            Assert.Equal(opening.Current, opening.New);
-            Assert.NotEqual("Not set", opening.New);
-            Assert.True(model.ModelState.ContainsKey("Input.ConfirmPublicScheduleChange"));
+            Assert.DoesNotContain(model.ChangePreview, value => value.Label == "Signup opens");
+            Assert.Contains(model.ChangePreview, value => value.Label == "Event ends");
+            Assert.Contains(model.ChangePreview, value => value.Label == "Submission cutoff");
+            Assert.True(model.ModelState.ContainsKey("Input.ConfirmChanges"));
         }
     }
 

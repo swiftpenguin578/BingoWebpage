@@ -172,11 +172,11 @@ Each durable capability/journey below has one owning contract section. Shared cr
 
 **Entry and reachability:** Use the event Identity route from Admin Manage or the setup progression. The same server contract supports normal form fallback.
 
-**Authoritative happy path:** Select a supported timezone (Copenhagen is the default), save the public description, manage a stored banner, and retain the stable slug after first public exposure. Display-name changes preserve the URL.
+**Authoritative happy path:** Before Live, select a supported timezone (Copenhagen is the default), save the public description, manage a stored banner, and retain the stable slug after first public exposure. Display-name changes preserve the URL; while Live, only the display timezone may be corrected.
 
 **Permissions and history:** Identity changes are Admin-authorized and audited. Banner absence is optional and never a readiness blocker. Stored UTC instants do not change merely because the display timezone changes.
 
-**Failure and recovery:** Unsupported timezone, slug conflict, stale confirmation, or banner failure leaves the prior valid value active and returns retryable feedback. A post-signup timezone change previews participant-facing local times; schedule edits remain a separate capability. The exact policy for an ordinary Live identity correction remains unresolved under F-04 and is not silently authorized here.
+**Failure and recovery:** Unsupported timezone, slug conflict, stale confirmation, or banner failure leaves the prior valid value active and returns retryable feedback. A post-signup timezone change previews participant-facing local times; while Live, an Admin may correct only the display timezone with explicit confirmation and an audit reason, while slug, name, description, banner, schedule instants, and other identity values remain immutable. Schedule edits remain a separate capability.
 
 **Acceptance outcome:** Admins can identify an event and make it understandable before signup without requiring decorative artwork, changing historical instants, or exposing a private draft.
 
@@ -186,11 +186,11 @@ Each durable capability/journey below has one owning contract section. Shared cr
 
 **Entry and reachability:** Use Schedule from Admin Manage. Open-now, scheduled, close, reopen, and schedule-edit actions remain route-backed form actions.
 
-**Authoritative happy path:** Validate event start before end, establish a valid signup closing no later than start, use a configured future opening for scheduled mode, or record the actual current opening for manual mode. Default submission cutoff is 30 minutes after event end and cannot precede that end.
+**Authoritative happy path:** Validate event start before end, establish a valid signup closing no later than start, use a configured future opening plus the persisted automatic-opening toggle for scheduled mode, or record the actual current opening for manual mode. Default submission cutoff is 30 minutes after event end and cannot precede that end. Capacity uses the posted value and an eligible increase atomically promotes the waiting queue with its ordinary audit and notifications.
 
-**Permissions and history:** Schedule changes after signup opens require a participant-facing time confirmation and audit. Changes affecting a past time need the applicable lifecycle rule and reason. Draft time is planning information and never starts the draft.
+**Permissions and history:** An unchanged historical timestamp is accepted, but a passed boundary cannot be changed or cleared and every newly entered or changed timestamp must be future. Signup opening and automatic-opening enablement lock once that boundary passes; Signup-closed closing is read-only and Reopen alone establishes its replacement. Published start/end cannot be cleared. Draft time is optional planning information and never starts the draft. Routine Schedule mutations retain automatic actor/time/before/after audit evidence and require no written reason.
 
-**Failure and recovery:** A missing/invalid schedule blocks the transition; manual-opening defaults are previewed and committed only inside the successful transaction. Scheduled readiness failure leaves signup closed and alerts Admins. Timezone changes alter display only; explicit schedule edits alter stored instants and retain before/after history.
+**Failure and recovery:** A missing/invalid schedule blocks the transition; manual-opening defaults are previewed and committed only inside the successful transaction. Schedule shows one server-recomputed confirmation containing only actual changes, derived cutoff/capacity-promotion effects, and current warnings when the event is public or warnings exist; private warning-free changes save immediately. Scheduled readiness failure leaves signup closed and alerts Admins. Signup-open/closed edits recheck non-overlap, and a linked Wise Old Man competition must remain within five minutes of the proposed event interval. Timezone changes alter display only; explicit schedule edits alter stored instants and retain before/after history.
 
 **Acceptance outcome:** Manual and scheduled opening share one readiness contract, closing and cutoff boundaries remain valid, and delayed processing never backdates or extends competitive eligibility.
 
@@ -278,7 +278,7 @@ unchanged.
 
 **Entry and reachability:** Public event discovery lists public signup-open events and routes them to the existing signup page; the exact-link signup route and authenticated My events destination also reach the form or confirmation. A returning owner is sent to their existing record rather than a duplicate form. Signed-out signup entry uses the existing Login route with a validated local ReturnUrl.
 
-**Authoritative happy path:** The participant selects linked characters, enters the primary and optional custom answers, submits, and receives Confirmed or Waiting list with exact position. The transaction validates answers, reserves all named characters, stores event EHB snapshots, and preserves original queue order on ordinary edits.
+**Authoritative happy path:** The participant selects linked characters, enters the primary and optional custom answers, submits, and receives Confirmed or Waiting list with exact position. The signup presentation places the required/system primary regular account first, then additional playing accounts in configured order, then informational/alt accounts in configured order; optional account answers expose a clear/none choice while the required primary cannot be cleared. The transaction validates answers, reserves all named characters, stores event EHB snapshots, and preserves original queue order on ordinary edits.
 
 **Permissions and history:** Normal edit is available only while signup is open. Separate confirmed withdrawal while signup is open releases reservations and may promote the earliest waiting participant. Rejoin while open reacquires accounts with a new queue position. After close and before draft, self-withdrawal remains available but self-restore does not. Admin restoration uses current capacity and end-of-queue rules and never displaces a promoted participant.
 
@@ -578,17 +578,17 @@ unchanged.
 
 **Entry and reachability:** Fetch from Wise Old Man is an explicit control after an account name is present. It never runs on render, typing, selection, save, public viewing, or event lifecycle transition. Admin competition configuration links one existing competition to an event through its event setup/Manage route; public pages read only the cached projection.
 
-**Authoritative happy path:** A successful account lookup fills the current EHB control while manual entry remains available. A submitted signup stores the manual or freshly fetched event EHB snapshot; manual signup data remains authoritative. During Live, one cached competition-details synchronization fetches all relevant data no more often than the approved interval and derives participant/team activity locally.
+**Authoritative happy path:** A successful explicit signup/edit account lookup fills the current EHB control and immediately updates the authenticated owner's existing linked My Accounts character with the fetched EHB before signup submission; it creates or changes no event participant or assignment. Manual entry remains available, and a submitted signup stores the manual or freshly fetched event EHB snapshot. During Live, one cached competition-details synchronization fetches all relevant data no more often than the approved interval and derives participant/team activity locally.
 
 **Permissions and history:** Wise Old Man is read-only and supplementary. Every regular `PLAYING` event assignment may contribute full cached competition delta; informational/alts are excluded. Cached activity is not official results and never changes signup snapshots, evidence credit, lifecycle readiness, or finalization authority. Public/team projections expose only privacy-safe matched totals, provisional/partial state, and coverage counts; exact missing names remain Admin-only.
 
-**Failure and recovery:** Rate limit, unavailable, malformed, not-found, or partial responses produce accurate retry/incomplete/manual-entry feedback and never clear a valid entered EHB or block an event transition. Missing accounts have no zero or carried-forward value; zero matches show no rankings. Sync stops outside Live, retains readable cache, and resumes only on a legitimate return to Live. No Wise Old Man notification family or per-viewer request is introduced.
+**Failure and recovery:** Rate limit, unavailable, malformed, not-found, or partial responses produce accurate retry/incomplete/manual-entry feedback and never clear a valid entered EHB or the owner-linked My Accounts value or block an event transition. Missing accounts have no zero or carried-forward value; zero matches show no rankings. Sync stops outside Live, retains readable cache, and resumes only on a legitimate return to Live. No Wise Old Man notification family or per-viewer request is introduced.
 
 **Acceptance outcome:** WoM provides only explicit account lookup and cached Live competition activity, with manual EHB and the Bingo event model remaining authoritative and public output privacy-safe.
 
 ## 10. Unresolved and deferred decisions
 
-- **F-04 — unresolved:** decide whether a narrow Live identity-correction workflow is intended or the domain allowance must align fail-closed with the ordinary pre-Live route policy. This contract does not change either boundary.
+- **F-04 — resolved:** while an event is Live, an Admin may correct only its display timezone with explicit confirmation and an audit reason. The slug, name, description, banner, UTC schedule/cutoff instants, and every other identity value remain immutable; no broader Live identity editing is authorized.
 - **F-06 — unresolved sequencing:** the permanent Rules/how-to slice remains a distinct functional boundary, but whether it precedes or follows Milestone 9 is not decided. No implementation scope is added here.
 - External feedback remains deferred to the community Discord path; no version-one application feedback form is added.
 - Wise Old Man availability, cache completeness, and integration configuration remain non-blocking for event lifecycle; detailed API/operational limits stay in the technical and data authorities.
@@ -605,4 +605,4 @@ The version-one functional foundation described here defines the following outco
 - Captain/co-captain, Super Admin, ordinary Admin, participant, emergency credential, and public projections each receive only their intended scope.
 - Notifications resolve to valid destinations and remain supplementary to the underlying event, roster, evidence, account, or lifecycle record.
 - Development reset provides explicit, bounded manual-acceptance journeys; production does not inherit the fixture exemption.
-- F-04 and F-06 remain visible unresolved classifications. F-05 is resolved by documentation reconciliation only; no implementation or product decision changed. Wise Old Man remains optional/supplementary, manual signup EHB remains authoritative, and no lifecycle action depends on it.
+- F-06 remains a visible unresolved classification. F-04 is resolved by the narrow Live display-timezone correction above; F-05 is resolved by documentation reconciliation. Wise Old Man remains optional/supplementary, manual signup EHB remains authoritative, and no lifecycle action depends on it.

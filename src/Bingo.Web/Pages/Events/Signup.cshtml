@@ -4,11 +4,14 @@
 @using System.Globalization
 @{
     ViewData["Title"] = Model.EventView?.Name ?? T["Signup"];
-    var accountQuestions = Model.Questions.Where(question => question.Type == SignupQuestionType.Account).ToList();
+    var accountQuestions = Model.Questions
+        .Where(question => question.Type == SignupQuestionType.Account)
+        .OrderBy(question => question.SystemField == SignupSystemField.PrimaryRegularAccount ? 0 : question.AccountRole == EventCharacterRole.Playing ? 1 : 2)
+        .ToList();
     var preferenceQuestions = Model.Questions.Where(question => question.Type != SignupQuestionType.Account && (question.SystemField == SignupSystemField.CaptainVolunteer || question.Type == SignupQuestionType.Text)).ToList();
     var eventQuestions = Model.Questions.Where(question => question.Type != SignupQuestionType.Account && !preferenceQuestions.Contains(question)).ToList();
     var statusLabel = Model.EventView!.Cancelled ? T["Event cancelled"] : Model.EventView.Accepting ? T["Signups open"] : T["Signups are not currently open"];
-    var primaryAccountQuestion = accountQuestions.FirstOrDefault(question => question.AccountRole == EventCharacterRole.Playing);
+    var primaryAccountQuestion = accountQuestions.FirstOrDefault(question => question.SystemField == SignupSystemField.PrimaryRegularAccount);
     var primaryAccountInput = primaryAccountQuestion is null ? null : Model.Input.AccountAnswers.GetValueOrDefault(primaryAccountQuestion.Id);
     var selectedAccount = primaryAccountQuestion is null || primaryAccountInput?.OsrsCharacterId is not { } selectedId
         ? null
@@ -115,6 +118,17 @@
                                             }
                                         </div>
                                     }
+                                    @if (question.SystemField != SignupSystemField.PrimaryRegularAccount && !question.Required)
+                                    {
+                                        var noneSelected = accountInput.OsrsCharacterId is null;
+                                        <div class="signup-sheet__account-option signup-sheet__account-option--clear @(noneSelected ? "is-selected" : null)">
+                                            <label class="signup-sheet__account-choice" for="question-@question.Id-none">
+                                                <input id="question-@question.Id-none" type="radio" name="Input.AccountAnswers[@question.Id].OsrsCharacterId" value="" checked="@(noneSelected ? "checked" : null)" data-saved-ehb="" data-ehb-input="ehb-@question.Id" data-lookup-token-input="lookup-@question.Id" />
+                                                <span class="signup-sheet__radio" aria-hidden="true"></span>
+                                                <span class="signup-sheet__account-name">@T["None"]</span>
+                                            </label>
+                                        </div>
+                                    }
                                     @if (!question.Accounts.Any())
                                     {
                                         <p class="signup-sheet__empty">@T["No accounts recorded."]</p>
@@ -125,7 +139,7 @@
                                 <input id="lookup-@question.Id" type="hidden" name="Input.AccountAnswers[@question.Id].WiseOldManLookupToken" value="@accountInput.WiseOldManLookupToken" />
                                 @if (Model.LookupQuestionId == question.Id && Model.LookupFetchedAt is { } fetchedAt)
                                 {
-                                    <span class="signup-sheet__hint">@T["Fetched from Wise Old Man"]: @fetchedAt.ToLocalTime().ToString("g")</span>
+                                    <span class="signup-sheet__hint">@T["Fetched from Wise Old Man"]: @fetchedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</span>
                                 }
                                 <span class="signup-sheet__error">@Html.ValidationMessage($"Input.AccountAnswers[{question.Id}].Ehb")</span>
                             </fieldset>

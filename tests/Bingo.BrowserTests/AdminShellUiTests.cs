@@ -12,13 +12,15 @@ public sealed class AdminShellUiTests
         var shellService = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Navigation", "SharedShellService.cs"));
         var questions = File.ReadAllText(Path.Combine(adminRoot, "Events", "Questions.cshtml"));
         var overlayLayout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminOverlayLayout.cshtml"));
-        var styles = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "site.css"));
+        var styles = BrowserTestFiles.ReadActiveStyles(root);
 
         Assert.Contains("Layout = \"_AdminLayout\"", viewStart);
         foreach (var page in Directory.EnumerateFiles(adminRoot, "*.cshtml", SearchOption.AllDirectories))
         {
             var markup = File.ReadAllText(page);
-            if (markup.Contains("@page", StringComparison.Ordinal) && !page.EndsWith(Path.Combine("Events", "Questions.cshtml"), StringComparison.Ordinal))
+            if (markup.Contains("@page", StringComparison.Ordinal)
+                && !page.EndsWith(Path.Combine("Events", "Questions.cshtml"), StringComparison.Ordinal)
+                && !page.EndsWith("PublicUi.cshtml", StringComparison.Ordinal))
                 Assert.DoesNotContain("Layout =", markup);
         }
 
@@ -111,25 +113,27 @@ public sealed class AdminShellUiTests
         var board = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Events", "Board.cshtml"));
         var teamBoard = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Events", "TeamBoard.cshtml"));
         var adminLayout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminLayout.cshtml"));
-        var siteCss = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "site.css"));
+        var siteCss = BrowserTestFiles.ReadActiveStyles(root);
 
         Assert.Contains("Layout = \"_Layout\"", publicViewStart);
-        Assert.Contains("app-nav", publicLayout);
+        Assert.Contains("landing-shell-header", publicLayout);
+        Assert.Contains("landing-shell-nav", publicLayout);
+        Assert.Contains("aria-label=\"@T[\"Public navigation\"]\"", publicLayout);
         Assert.Contains("dk-legacy-public-mark.png", publicLayout);
-        Assert.Contains("public-brand-mark", publicLayout);
-        Assert.Contains("<span>DK Legacy</span>", publicLayout);
+        Assert.Contains("landing-shell-brand-mark", publicLayout);
+        Assert.Contains("landing-shell-links", publicLayout);
+        Assert.Contains("landing-shell-link", publicLayout);
+        Assert.Contains("asp-page=\"/Index\"", publicLayout);
         Assert.DoesNotContain("admin-layout", publicLayout);
         Assert.Contains("breadcrumb-bar", publicLayout);
         Assert.Contains("shell.Breadcrumbs", publicLayout);
         Assert.Contains("User.IsInRole(\"Admin\")", publicLayout);
         Assert.Contains("User.IsInRole(\"SuperAdmin\")", publicLayout);
-        Assert.Contains("User.IsInRole(\"Captain\")", publicLayout);
-        Assert.Contains("@T[\"Public boards\"]", publicLayout);
-        Assert.Contains("@T[\"Admin tools\"]", publicLayout);
-        Assert.Contains("@T[\"Captain board\"]", publicLayout);
+        Assert.Contains("captainNavigation", publicLayout);
         Assert.Contains("data-notification-inbox", publicLayout);
         Assert.Contains("@T[\"Notifications\"]", publicLayout);
         Assert.Contains("public-ui-header-popover", publicLayout);
+        Assert.Contains("data-public-ui-popover", publicLayout);
         Assert.Contains("@T[\"Settings\"]", publicLayout);
         Assert.Contains("@T[\"Language\"]", publicLayout);
         Assert.Contains("@T[\"Account settings\"]", publicLayout);
@@ -138,38 +142,23 @@ public sealed class AdminShellUiTests
         Assert.Contains("<noscript>", publicLayout);
         Assert.Contains("currentPage", publicLayout);
         Assert.Contains("isPublicBoardsPage", publicLayout);
-        Assert.Contains("isCaptainBoardPage", publicLayout);
+        Assert.Contains("isCaptainPage", publicLayout);
+        Assert.Contains("isSubmissionsPage", publicLayout);
         Assert.Contains("StartsWith(\"/Events/\"", publicLayout);
         Assert.Contains("StartsWith(\"/Evidence\"", publicLayout);
         Assert.Contains("aria-current=\"@(isPublicBoardsPage ? \"page\" : null)\"", publicLayout);
-        Assert.Contains("aria-current=\"@(isCaptainBoardPage ? \"page\" : null)\"", publicLayout);
-        Assert.Contains("selected", publicLayout);
+        Assert.Contains("aria-current=\"@(isSubmissionsPage ? \"page\" : null)\"", publicLayout);
         Assert.DoesNotContain("navbar navbar-expand-sm navbar-toggleable-sm border-bottom", publicLayout);
-        Assert.DoesNotContain("body.public-event-shell .app-nav", siteCss);
-        Assert.Contains(".app-nav {\n  min-height: 4.25rem;\n  background: transparent;", siteCss);
-        Assert.DoesNotContain("border-bottom: 1px solid rgba(255, 255, 255, 0.06)", siteCss);
-        Assert.Contains(".app-nav .navbar-brand { margin-right: 7.5rem; }", siteCss);
-        Assert.Contains(".app-nav .navbar-collapse > .navbar-nav:first-child { gap: 1.5rem; }", siteCss);
-        Assert.Contains(".app-nav .navbar-collapse, .app-nav .navbar-nav { align-items: center; }", siteCss);
-        Assert.Contains("body.public-event-shell {\n  --page: #000;", siteCss);
-        Assert.Contains(".public-brand-mark", siteCss);
-        Assert.Contains(".nav-link.selected", siteCss);
-        Assert.DoesNotContain("border-bottom-color: var(--public-ui-data-blue)", siteCss);
-        Assert.Contains("background: var(--public-ui-flat-surface)", siteCss);
-        Assert.Contains("box-shadow: none", siteCss);
-        Assert.Contains("@media (max-width: 575.98px)", siteCss);
-        Assert.Contains(".app-nav .header-notification", siteCss);
-        Assert.Contains(".app-nav .navbar-toggler", siteCss);
-        Assert.Contains(".navbar-collapse.nav-authenticated", siteCss);
-        Assert.Contains("data-bs-toggle=\"collapse\"", publicLayout);
+        Assert.Contains("body.public-ui-page-canvas", siteCss);
+        Assert.Contains(".landing-shell-header", siteCss);
+        Assert.Contains("body.public-ui-page-canvas .landing-shell-link", siteCss);
+        Assert.Contains(".landing-shell-menu-panel", siteCss);
+        Assert.Contains(".landing-shell-header :is(a, summary, button):focus-visible", siteCss);
         Assert.Contains("admin-shell", adminLayout);
         Assert.DoesNotContain("app-nav", adminLayout);
-        Assert.Contains("ViewData[\"BodyClass\"] = \"public-event-shell public-board-page\"", board);
+        Assert.Contains("ViewData[\"BodyClass\"] = \"public-event-shell public-ui-pass1 public-board-page public-board-overview\"", board);
         Assert.DoesNotContain("public-board-page", teamBoard);
-        Assert.Contains("--public-ui-page-canvas: rgb(21, 21, 22);", siteCss);
-        Assert.Contains("body.public-board-page {\n  --page: var(--public-ui-page-canvas);", siteCss);
-        Assert.Contains(".public-ui-catalogue-document { background: var(--public-ui-page-canvas); }", siteCss);
-        Assert.DoesNotContain("body.public-event-shell {\n  --page: var(--public-ui-page-canvas);", siteCss);
+        Assert.Contains("public-ui-header-context-nav", publicLayout);
     }
 
     [Fact]
@@ -181,7 +170,7 @@ public sealed class AdminShellUiTests
         var events = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Index.cshtml"));
         var eventsModel = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Index.cshtml.cs"));
         var siteJs = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "site.js"));
-        var siteCss = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "site.css"));
+        var siteCss = BrowserTestFiles.ReadActiveStyles(root);
         var roadmap = File.ReadAllText(Path.Combine(root, "UI_OVERHAUL_ROADMAP.md"));
 
         Assert.Contains("admin-dashboard-page", dashboard);
@@ -258,7 +247,7 @@ public sealed class AdminShellUiTests
         Assert.Contains("data-event-name", events);
         Assert.Contains("data-event-slug", events);
         Assert.Contains("data-event-state", events);
-        var directoryJs = siteJs[siteJs.IndexOf("function initializeAdminEventDirectorySearch", StringComparison.Ordinal)..siteJs.IndexOf("document.addEventListener(\"bingo:content-updated\"", StringComparison.Ordinal)];
+        var directoryJs = siteJs[siteJs.IndexOf("function initializeAdminEventDirectorySearch", StringComparison.Ordinal)..];
         Assert.Contains("input.addEventListener(\"input\", apply)", directoryJs);
         Assert.Contains("data-admin-search-clear", directoryJs);
         Assert.Contains("input.focus()", directoryJs);

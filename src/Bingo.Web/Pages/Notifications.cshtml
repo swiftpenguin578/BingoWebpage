@@ -36,7 +36,7 @@
                         <span class="public-pass2-notification-mark" aria-hidden="true"></span>
                         <span class="public-pass2-notification-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5v5M12 16.5h.01" /></svg></span>
                         <span class="public-pass2-notification-copy">@Model.Detail(notification.Type, notification.Detail)</span>
-                        <time datetime="@notification.CreatedAt.ToUniversalTime().ToString("O")" title="@notification.CreatedAt.ToLocalTime().ToString("g")">@Model.RelativeAge(notification.CreatedAt)</time>
+                        <time datetime="@notification.CreatedAt.ToUniversalTime().ToString("O")" title="@notification.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)">@Model.RelativeAge(notification.CreatedAt)</time>
                         <span class="public-pass2-notification-arrow" aria-hidden="true">→</span>
                     </a>
                 }

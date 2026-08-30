@@ -100,7 +100,7 @@ public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
             Assert.True(link.Active);
             Assert.True(link.Preferred);
             Assert.Equal(0, link.SortOrder);
-            Assert.Equal(created, link.LinkedAt);
+            Assert.Equal(created.AddTicks(-(created.Ticks % TimeSpan.TicksPerMicrosecond)), link.LinkedAt);
             Assert.Equal(accountId, link.LinkedByAccountId);
             Assert.Null(link.UnlinkedAt);
             Assert.Null(link.SavedEhb);

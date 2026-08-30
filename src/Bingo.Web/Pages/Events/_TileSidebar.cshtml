@@ -169,7 +169,7 @@
                         var hoursAgo = (int)age.TotalHours;
                         var daysAgo = (int)age.TotalDays;
                         var relativeAge = age.TotalMinutes < 1 ? T["Just now"] : age.TotalHours < 1 ? minutesAgo == 1 ? T["1 minute ago"] : T["{0} minutes ago", minutesAgo] : age.TotalDays < 1 ? hoursAgo == 1 ? T["1 hour ago"] : T["{0} hours ago", hoursAgo] : daysAgo == 1 ? T["1 day ago"] : T["{0} days ago", daysAgo];
-                        var submittedTitle = localSubmittedAt.ToString("f");
+                        var submittedTitle = localSubmittedAt.ToString($"{CultureInfo.CurrentCulture.DateTimeFormat.LongDatePattern} HH:mm", CultureInfo.CurrentCulture);
                         var submittedIso = evidence.SubmittedAt.ToUniversalTime().ToString("O");
                         var source = evidence.BossName ?? T["Manual completion"];
                         if (evidence.EvidenceAssetId is Guid assetId)

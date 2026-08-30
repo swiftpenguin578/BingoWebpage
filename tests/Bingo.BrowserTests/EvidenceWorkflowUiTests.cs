@@ -64,18 +64,22 @@ public sealed class EvidenceWorkflowUiTests
         var teamBoard = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Events", "TeamBoard.cshtml"));
         var forms = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Captain", "_SubmissionForms.cshtml"));
         var submission = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Captain", "Submission.cshtml"));
+        var submissionDetail = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Captain", "_SubmissionDetail.cshtml"));
         var upload = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Captain", "_EvidenceUpload.cshtml"));
         var review = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Review", "Details.cshtml"));
         var site = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "site.js"));
+        var teamBoardScript = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "team-board-drawer.js"));
 
-        Assert.Contains("Team submission history", teamBoard);
+        Assert.Contains("@T[\"Team history\"]", teamBoard);
         Assert.Contains("href=\"@Url.Page(\"/Captain/Index\", new { eventId = Model.Board.EventId, teamId = Model.Team.TeamId })\"", teamBoard);
         Assert.Contains("data-submission-history-link", teamBoard);
         Assert.Contains("<partial name=\"_EvidenceUpload\" model=\"@(\"Input.Evidence\")\" />", forms);
-        Assert.Contains("<partial name=\"_EvidenceUpload\" model=\"@(\"Resubmission.Evidence\")\" />", submission);
-        Assert.Contains("data-submission-result", File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "team-board-overlay.js")));
+        Assert.Contains("<partial name=\"_SubmissionDetail\" model=\"Model\" />", submission);
+        Assert.Contains("<partial name=\"_EvidenceUpload\" model=\"@(\"Resubmission.Evidence\")\" />", submissionDetail);
+        Assert.Contains("data-submission-drawer", teamBoardScript);
+        Assert.Contains("window.history.pushState", teamBoardScript);
         Assert.Contains("Model.Details.SubmittedAt.UtcDateTime.ToString(\"yyyy-MM-dd HH:mm 'UTC'\")", review);
-        Assert.Contains("data-requirement-id=\"@d.RequirementId\"", review);
+        Assert.Contains("data-requirement-id=\"@drop.RequirementId\"", review);
         Assert.Contains("Model.Drops.Where(x => x.RequirementId == Model.Input.RequirementId)", review);
         Assert.Contains("data-correction-drop-catalogue", review);
         Assert.DoesNotContain("@section Scripts", review);
@@ -90,7 +94,7 @@ public sealed class EvidenceWorkflowUiTests
         Assert.DoesNotContain("correctionDropListener", site);
         Assert.DoesNotContain("option.disabled", site);
         Assert.Contains("ValidateTarget", File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Infrastructure", "Evidence", "SubmissionService.cs")));
-        Assert.Contains("compact-evidence-drop", upload);
+        Assert.Contains("class=\"public-ui-evidence-drop", upload);
         Assert.Contains("name=\"@Model\"", upload);
     }
 

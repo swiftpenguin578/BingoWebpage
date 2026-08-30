@@ -128,7 +128,7 @@
                                 };
                                 <tr>
                                     <td data-label='@T["Submitted"]'>
-                                        <a class="admin-review-cell-value admin-review-submission-link" asp-page="Details" asp-route-id="@row.Id">@row.SubmittedAt.ToLocalTime().ToString("g")</a>
+                                        <a class="admin-review-cell-value admin-review-submission-link" asp-page="Details" asp-route-id="@row.Id">@row.SubmittedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm", CultureInfo.CurrentCulture)</a>
                                         <small>@row.SubmittedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'")</small>
                                         @if (row.DuringGrace)
                                         {

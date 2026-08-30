@@ -194,6 +194,8 @@ Schedule fields may be null in an incomplete private draft. Signup publication r
 signup_opens_at < signup_closes_at <= event_starts_at < event_ends_at <= submission_cutoff_at
 ```
 
+An unchanged stored timestamp remains valid. A changed or newly entered timestamp must be future, and a stored boundary at or before the authoritative current time cannot be changed or cleared. Signup opening and `scheduled_signup_opening_enabled` lock at the opening boundary; `SIGNUP_CLOSED` makes closing read-only and Reopen owns any replacement. Published start/end are non-nullable through Schedule. No additional ordering rule applies to optional `draft_at`. Normal `submission_cutoff_at` is rederived as `event_ends_at + 30 minutes` whenever event end changes. Schedule mutations of `SIGNUP_OPEN` or `SIGNUP_CLOSED` retain the event-window non-overlap invariant, and a linked competition's stored start/end must remain within five minutes of the proposed event interval.
+
 For manual opening with no explicit closing time:
 
 ```text
@@ -259,7 +261,7 @@ When the scheduled instant arrives, the event may enter `LIVE` only if draft fin
 
 ### 5.3.2 ScheduledSignupOpeningAttempt
 
-`scheduled_signup_opening_enabled` distinguishes an intentional future opening from an informational `signup_opens_at` value. `scheduled_signup_warning_codes` stores the stable warning codes acknowledged for that purpose. One `ScheduledSignupOpeningAttempt` per `(event_id, scheduled_for)` records the actual attempt time, success, stable blocker/unacknowledged-warning codes, and optional resolution time. The unique boundary plus the lifecycle transaction makes worker retries and manual/scheduled races idempotent without making notification read state authoritative.
+`scheduled_signup_opening_enabled` is the explicit automatic-opening control. Event creation defaults it on when an opening time is supplied and off otherwise; Schedule may turn it off only before the boundary passes, while an unchanged enabled overdue value remains historical. `scheduled_signup_warning_codes` stores the stable warning codes confirmed for that purpose. One `ScheduledSignupOpeningAttempt` per `(event_id, scheduled_for)` records the actual attempt time, success, stable blocker/unconfirmed-warning codes, and optional resolution time. The unique boundary plus the lifecycle transaction makes worker retries and manual/scheduled races idempotent without making notification read state authoritative.
 
 ## 5A. Global public content
 
@@ -557,6 +559,8 @@ When capacity increases or a confirmed place becomes available before the draft 
 open_places = participant_cap - confirmed_count
 promote the first open_places waiting-list records
 ```
+
+The capacity value is the submitted authoritative value. Before first publication any positive value is allowed; afterward it may only increase. Promotion, each participant status audit entry, participant notification, Admin notification, capacity mutation, and schedule audit commit atomically.
 
 The participant cap can be increased but not lowered. If signups close below the cap, the confirmed participants at that time are simply the available participant pool.
 

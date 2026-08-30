@@ -82,6 +82,18 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         await SaveAndCommitAsync(transaction, ct);
     }
 
+    public async Task UpdateSavedEhbAsync(Guid accountId, Guid characterId, decimal savedEhb, CancellationToken ct)
+    {
+        var normalizedEhb = NormalizeEhb(savedEhb);
+        await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
+        var link = await db.AccountOsrsCharacters.SingleOrDefaultAsync(
+            item => item.AccountId == accountId && item.OsrsCharacterId == characterId && item.Active, ct)
+            ?? throw new InvalidOperationException("That character is no longer available in your My Accounts list.");
+        var now = time.GetUtcNow();
+        link.UpdatePreferences(link.PersonalLabel, link.Position, link.Preferred, normalizedEhb, now);
+        await SaveAndCommitAsync(transaction, ct);
+    }
+
     public async Task MoveAsync(Guid accountId, Guid linkId, int direction, CancellationToken ct)
     {
         if (direction is not (-1 or 1)) throw new InvalidOperationException("That move is not available.");
@@ -114,6 +126,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
             throw new MyAccountsConfirmationRequiredException();
         var now = time.GetUtcNow();
         link.Unlink(now);
+        await SaveChangesSafelyAsync(ct);
         await NormalizePreferredAsync(accountId, now, ct);
         await SaveAndCommitAsync(transaction, ct);
     }

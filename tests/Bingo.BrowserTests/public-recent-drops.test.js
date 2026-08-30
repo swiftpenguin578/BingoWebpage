@@ -177,7 +177,9 @@ initialize(root);
   const catalogueMarkup = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/Pages/Admin/PublicUi.cshtml"), "utf8");
   assert.match(catalogueMarkup, /In the lead[\s\S]*public-ui-masthead-rank[^>]*>#1<\/strong>[\s\S]*Provisional result/, "PublicUi demonstrates the result callout composition");
   assert.match(catalogueMarkup, /class="public-ui-action public-ui-action--text public-ui-recent-drop-back" href="#recent-drops-specimen-latest"/, "PublicUi Back to latest uses the specimen feed fragment");
-  const siteCss = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/wwwroot/css/site.css"), "utf8");
+  const siteCss = ["site.transitional.foundation.css", "site.public-ui.css", "site.transitional.application.css"]
+    .map(file => fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/wwwroot/css", file), "utf8"))
+    .join("\n");
   assert.match(siteCss, /\.public-event-dashboard \.public-ui-masthead-result \.public-ui-component-header > \.public-ui-masthead-rank \{[^}]*color: #d8b65d !important;/, "result rank uses the public leading-rank color");
   assert.doesNotMatch(boardMarkup, /public-ui-masthead-team-link|public-ui-action--hyperlink[\s\S]*eventResult\.TeamName/, "closed result team is not rendered as a hyperlink");
   assert.match(siteCss, /body\.public-board-page > \.container[\s\S]*?width: min\(calc\(100% - 1\.5rem\), 80rem\);[\s\S]*?max-width: none;/, "public Board content uses the fluid 80rem max-width container");

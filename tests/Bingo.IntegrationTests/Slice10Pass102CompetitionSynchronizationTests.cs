@@ -9,6 +9,7 @@ using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
@@ -81,9 +82,9 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
 
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(1, await verify.EventCompetitionCharacterActivities.CountAsync(x => x.EventId == eventItem.Id));
-        Assert.Equal(51.85956m, await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.GainedEhb).SingleAsync());
+        Assert.Equal(51.8596m, await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.GainedEhb).SingleAsync());
         Assert.Equal(100m, await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.StartEhb).SingleAsync());
-        Assert.Equal(151.85956m, await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.EndEhb).SingleAsync());
+        Assert.Equal(151.8596m, await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.EndEhb).SingleAsync());
         Assert.Equal("Mathias_Jr", await verify.OsrsCharacters.Where(x => x.Id == mathias.Id).Select(x => x.DisplayName).SingleAsync());
         Assert.DoesNotContain(await verify.EventCompetitionCharacterActivities.Where(x => x.EventId == eventItem.Id).Select(x => x.OsrsCharacterId).ToListAsync(), id => id == alt.Id || id == released.Id);
         Assert.Equal(2, fake.Calls);
@@ -172,7 +173,8 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         await using (var verifyStart = new ApplicationDbContext(options))
         {
             var scheduled = await verifyStart.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id);
-            Assert.Equal(now.AddHours(2), scheduled.NormalDueAt);
+            var expectedScheduledDue = now.AddHours(2);
+            Assert.Equal(expectedScheduledDue.AddTicks(-(expectedScheduledDue.Ticks % TimeSpan.TicksPerMicrosecond)), scheduled.NormalDueAt);
         }
         await using (var beforeDue = new ApplicationDbContext(options))
         {
@@ -189,7 +191,7 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         var firstNormalDue = clock.GetUtcNow().AddHours(2);
         await using (var afterFirstFetch = new ApplicationDbContext(options))
         {
-            Assert.Equal(firstNormalDue, (await new EventCompetitionSynchronizationService(afterFirstFetch, fake, new FixedStatus(), clock).GetAsync(eventItem.Id))!.NormalDueAt);
+            Assert.Equal(firstNormalDue.AddTicks(-(firstNormalDue.Ticks % TimeSpan.TicksPerMicrosecond)), (await new EventCompetitionSynchronizationService(afterFirstFetch, fake, new FixedStatus(), clock).GetAsync(eventItem.Id))!.NormalDueAt);
         }
 
         await using (var end = new ApplicationDbContext(options))
@@ -206,7 +208,7 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         }
         await using (var verifyResume = new ApplicationDbContext(options))
         {
-            Assert.Equal(firstNormalDue, (await verifyResume.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id)).NormalDueAt);
+            Assert.Equal(firstNormalDue.AddTicks(-(firstNormalDue.Ticks % TimeSpan.TicksPerMicrosecond)), (await verifyResume.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id)).NormalDueAt);
         }
 
         await using (var makeOverdue = new ApplicationDbContext(options))
@@ -231,7 +233,8 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         }
         Assert.Equal(2, fake.Calls);
         await using var verifyRecovery = new ApplicationDbContext(options);
-        Assert.Equal(clock.GetUtcNow().AddHours(2), (await verifyRecovery.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id)).NormalDueAt);
+        var expectedRecoveryDue = clock.GetUtcNow().AddHours(2);
+        Assert.Equal(expectedRecoveryDue.AddTicks(-(expectedRecoveryDue.Ticks % TimeSpan.TicksPerMicrosecond)), (await verifyRecovery.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id)).NormalDueAt);
     }
 
     [Fact]
@@ -357,13 +360,15 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
             var view = await service.GetAsync(eventItem.Id);
             Assert.Equal(4, view!.RetryCount);
             Assert.Null(view.RetryDueAt);
-            Assert.Equal(now.AddHours(2), view.NormalDueAt);
+            var expectedAnchor = now.AddHours(2);
+            Assert.Equal(expectedAnchor.AddTicks(-(expectedAnchor.Ticks % TimeSpan.TicksPerMicrosecond)), view.NormalDueAt);
             Assert.Equal(5, fake.Calls);
             clock.Advance(TimeSpan.FromHours(2));
             await service.ProcessDueAsync();
             view = await service.GetAsync(eventItem.Id);
             Assert.Equal(1, view!.RetryCount);
-            Assert.Equal(clock.GetUtcNow().AddHours(2), view.NormalDueAt);
+            var expectedRetryAnchor = clock.GetUtcNow().AddHours(2);
+            Assert.Equal(expectedRetryAnchor.AddTicks(-(expectedRetryAnchor.Ticks % TimeSpan.TicksPerMicrosecond)), view.NormalDueAt);
             Assert.Equal(6, fake.Calls);
         }
     }
@@ -395,6 +400,29 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         clock.Advance(TimeSpan.FromHours(1));
         await service.ProcessDueAsync();
         Assert.Equal(3, fake.Calls);
+    }
+
+    [Fact]
+    public async Task ScheduleEditRejectsAMismatchWithTheLinkedCompetition()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var actor = new LifecycleActor(Guid.NewGuid(), "schedule-admin");
+        var item = new BingoEvent(Guid.NewGuid(), "Linked schedule", $"linked-schedule-{Guid.NewGuid():N}", "UTC", actor.Id, now);
+        item.ConfigureSchedule(now.AddHours(1), now.AddHours(2), null, now.AddDays(1), now.AddDays(2), 20);
+        var state = new EventCompetitionSynchronization(Guid.NewGuid(), item.Id, 1, 99, "Linked competition", item.EventStartsAt, item.EventEndsAt, "", now);
+        await using var db = new ApplicationDbContext(options);
+        db.AddRange(item, state);
+        await db.SaveChangesAsync();
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>()).Build();
+        var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new TestClock(now));
+        var values = new EventScheduleValues(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt!.Value.AddMinutes(10), item.ParticipantCap, false);
+
+        var result = await service.SaveScheduleAsync(item.Id, item.Version, values, false, actor);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("within five minutes", result.Error);
+        var expectedEnd = now.AddDays(2);
+        Assert.Equal(expectedEnd.AddTicks(-(expectedEnd.Ticks % TimeSpan.TicksPerMicrosecond)), (await db.Events.AsNoTracking().SingleAsync(x => x.Id == item.Id)).EventEndsAt);
     }
 
     private sealed class FakeCompetitionClient(IReadOnlyList<WiseOldManCompetitionResult> results) : IWiseOldManCompetitionClient

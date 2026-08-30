@@ -183,7 +183,7 @@
                         var paymentNext = participant.Payment == PaymentStatus.Paid ? PaymentStatus.Unpaid : PaymentStatus.Paid;
                         <tr id="participant-row-@participant.Id" data-participant-row data-participant-id="@participant.Id" data-participant-sequence="@participant.Sequence" data-participant-name="@participant.Name" data-participant-ehb="@participant.Ehb.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-participant-status="@participant.Status" data-participant-payment="@participant.Payment" data-participant-signed-up="@participant.SignedUpAt.ToUnixTimeMilliseconds()" data-participant-ownership="@(participant.TeamName ?? "Unassigned")">
                             <td data-label="#">@participant.Sequence</td>
-                            <td data-label="@T["Participant"]"><span class="participant-primary-value">@participant.Name</span><small>@(participant.WebsiteUsername ?? T["Unlinked"])</small></td>
+                            <td data-label="@T["Participant"]"><span class="participant-primary-value">@participant.Name</span><small>@(participant.WebsiteUsername ?? T["Unlinked"])</small><small>@(participant.DiscordLinked ? T["Discord linked"] : T["Discord unlinked"])</small></td>
                             <td data-label="@T["EHB"]">@participant.Ehb.ToString("0.##")</td>
                             <td data-label="@T["Status"]"><span class="admin-status-pill participant-status-pill @StatusClass(participant.Status)">@participantStatus</span></td>
                             <td data-label="@T["Payment"]">

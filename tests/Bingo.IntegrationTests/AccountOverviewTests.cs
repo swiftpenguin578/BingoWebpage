@@ -25,7 +25,7 @@ public sealed class AccountOverviewTests : IAsyncLifetime
         var ev = new BingoEvent(Guid.NewGuid(), "Overview event", "overview", "test", "UTC", now, now.AddDays(1), now.AddDays(2), now.AddDays(3), now.AddDays(3).AddMinutes(30), 100, Guid.NewGuid(), now);
         var team = new Team(Guid.NewGuid(), ev.Id, "Overview team", "overview-team", TeamFormationType.Drafted, null, true);
         db.Events.Add(ev); db.Teams.Add(team);
-        for (var index = 0; index < 26; index++)
+        for (var index = 0; index < 27; index++)
         {
             var username = $"overview-user-{index:D2}";
             var web = Account.CreateWebsite(Guid.NewGuid(), username, AccountAuthenticationService.NormalizeUsername(username), now);

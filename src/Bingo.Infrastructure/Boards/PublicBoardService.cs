@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Infrastructure.Boards;
 
-public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardService
+public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider time) : IPublicBoardService
 {
     public async Task<PublicEventBoard?> GetEventBoardAsync(string eventSlug, CancellationToken cancellationToken = default)
         => await GetEventBoardAsync(eventSlug, 24, cancellationToken);
@@ -166,7 +166,7 @@ public sealed class PublicBoardService(ApplicationDbContext db) : IPublicBoardSe
             return new UnrankedTeamProgress(team.Id, team.Name, progress with { Players = players });
         }).ToList();
         var ranked = PublicProgressCalculator.Rank(unranked);
-        var now = DateTimeOffset.UtcNow;
+        var now = time.GetUtcNow();
         var activeFinalization = bingoEvent.ResultsPublished
             ? await db.EventFinalizations.AsNoTracking().Where(value => value.EventId == bingoEvent.Id && value.UnfinalizedAt == null).OrderByDescending(value => value.Version).FirstOrDefaultAsync(cancellationToken)
             : null;
