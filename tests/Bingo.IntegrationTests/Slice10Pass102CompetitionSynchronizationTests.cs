@@ -421,7 +421,8 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
 
         Assert.False(result.Succeeded);
         Assert.Contains("within five minutes", result.Error);
-        Assert.Equal(now.AddDays(2), (await db.Events.AsNoTracking().SingleAsync(x => x.Id == item.Id)).EventEndsAt);
+        var expectedEnd = now.AddDays(2);
+        Assert.Equal(expectedEnd.AddTicks(-(expectedEnd.Ticks % TimeSpan.TicksPerMicrosecond)), (await db.Events.AsNoTracking().SingleAsync(x => x.Id == item.Id)).EventEndsAt);
     }
 
     private sealed class FakeCompetitionClient(IReadOnlyList<WiseOldManCompetitionResult> results) : IWiseOldManCompetitionClient
