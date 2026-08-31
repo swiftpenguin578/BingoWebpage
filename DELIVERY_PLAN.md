@@ -1,6 +1,6 @@
 # Delivery plan
 
-**Active plan:** 2026-08-14. This document owns remaining delivery,
+**Active plan:** 2026-08-31. This document owns remaining delivery,
 documentation/UI order, and release gates. Current page approval/status is
 owned solely by [`UI_PAGE_MATRIX.md`](UI_PAGE_MATRIX.md).
 [`CURRENT_STATUS.md`](CURRENT_STATUS.md) remains the authority for checkout
@@ -62,15 +62,15 @@ ordinary team-board page rather than opening a team-board popup. Its old visual
 identity is superseded and is reopened only for the ordered structural migration
 below. Admin is outside this experiment. The frozen pass order is:
 
-Before Pass 4 resumes, complete the user-authorized bounded masthead
-normalization prerequisite for the existing left-side text roles in Signup
-create/edit, Signups, Teams, the three Board views (View Bingo, Recent Drops,
-and Leaderboards), and Captain operations/detail. Use Privacy as the shared
+The user-authorized bounded masthead normalization prerequisite for the existing
+left-side text roles in Signup create/edit, Signups, Teams, the three Board
+views (View Bingo, Recent Drops, and Leaderboards), and Captain operations/detail
+was completed before the accepted Board and canonical submission work. Use Privacy as the shared
 implementation authority for kicker/title/support typography, `.65rem` internal
 stack rhythm, and the ordinary versus Board-only reduced shell gap. Preserve
 each family's right-side additions, metadata, artwork, rails, actions, and lower
-geometry. This prerequisite does not change the frozen pass order or grant
-manual approval; the affected pages return to the user for visual recheck.
+geometry. This normalization did not change the frozen pass order or grant
+manual approval; page-specific approvals remain authoritative.
 
 1. **Pass 0 — authority and non-breaking foundation:** reconcile the active
    public visual authorities and define the reusable light/dark tokens, theme
@@ -150,36 +150,32 @@ manual approval; the affected pages return to the user for visual recheck.
      Leaderboards, their empty/filter/narrow states, and shared evidence
      presentation against PUB-REF-04, PUB-REF-14, and PUB-REF-15 without data,
      query, service, Admin Preview, overview-grid, or TeamBoard behavior changes.
-7. **Pass 5 — canonical submission workspace consolidation:** consolidate the
-   Captain and participant submission workspaces into one implementation owned by
-   `/Submissions` and `/Submissions/{id:guid}`. The team-wide overview includes
-   the complete retained ledger; Captains/co-captains see the two Captain-only
-   sections for team focus and team submission status and retain server-authorized
-   broader editing of eligible team submissions; ordinary participants see
-   neither section and may edit only their own eligible non-read-only rows. Keep
-   the detail composition visually equivalent to the approved Captain detail.
-   `/Captain` and `/Captain/Submissions/{id:guid}` become thin compatibility
-   redirects/aliases, not separate rendered implementations. Personal
-   submission/evidence notifications resolve to the canonical detail route;
-   relevant general submission navigation resolves to the overview. The shared
-   team-board drawer remains the submission entry point, `/Captain/Submit` remains
-   drawer transport/compatibility only, and Admin review remains authoritative.
-   Preserve all owner/team/captain authorization, retained-state read-only,
-   cutoff, privacy, evidence-integrity, and Admin boundaries. PUB-REF-17 remains
-   the visual language, not a redesign authorization.
-8. **Remaining Admin UI families** — resume only after Captain is complete and
-   outside this experiment.
+7. **Pass 5 — canonical submission workspace consolidation, complete:** the
+   Captain and participant submission workspaces are consolidated into one
+   implementation owned by `/Submissions` and `/Submissions/{id:guid}`. The
+   accepted implementation preserves the complete retained ledger, Captain-only
+   focus/status sections, server-authorized role boundaries, canonical
+   notification destinations, compatibility aliases, drawer transport, and
+   Admin authority. It was independently reviewed, remediated, manually
+   accepted, and committed in `88cd8f8d6014e947e2a5e97717be460ca2ea9d66`.
+8. **Remaining Admin UI families** — deployment-ready implementation remains
+   subject to the recorded page-specific manual-approval state, but that manual
+   approval is not a gating task before whole-application regression or release.
    Currently unapproved Admin visual debt is non-blocking while functionality
    works; security, authorization, privacy/data-loss/data-integrity, and
    workflow-blocking defects may still interrupt launch-critical work.
-9. **Dashboard/action inbox** — late, after the resumed Admin work.
-10. **Whole-application regression and release gates** — after the UI order.
+9. **Dashboard/action inbox** — deployment-ready intentional shell-owned WIP
+   presentation; it is not a gating manual-approval task and does not precede
+   whole-application regression or release.
+10. **Whole-application regression and release gates** — after resolution or
+    explicit deferral of the named UNKNOWN corrections, then follow the frozen
+    production/release sequence below.
 
-### Pass 5 implementation contract — canonical submission workspace
+### Pass 5 completion record — canonical submission workspace
 
-**Approved outcome and frozen scope — 2026-08-31.** This is an implementation
-consolidation and routing/authorization correction, not a visual redesign. Keep
-one canonical overview at `/Submissions` and one canonical detail at
+**Approved outcome and completion — 2026-08-31.** This was an implementation
+consolidation and routing/authorization correction, not a visual redesign. The
+canonical overview is `/Submissions` and the canonical detail is
 `/Submissions/{id:guid}`. The overview is team-wide for authorized current
 members and includes retained rows credited to departed teammates. Captains and
 co-captains see team focus and team submission status as the two Captain-only top
@@ -198,7 +194,8 @@ general submission navigation resolves to `/Submissions`. Admin review
 notifications remain `/Admin/Review/Details/{id}`. `/Captain/Submit/{tileId?}`
 remains only the shared drawer transport/handler plus compatibility redirect.
 
-**Explicit non-goals.** Do not redesign accepted submission UI, add a second
+**Protected boundaries and diagnostic.** The implementation did not redesign
+accepted submission UI, add a second
 workspace, weaken owner/team/captain authorization, alter retained-state
 read-only or cutoff rules, change privacy/evidence-integrity/Admin authority,
 change persistence or submission query semantics, add no-JavaScript-only parity,
@@ -206,28 +203,23 @@ or broaden into unrelated cleanup. The reported absence of a linked resubmission
 from Admin Evidence Review remains a bounded diagnostic uncertainty: source
 inspection found no query exclusion, so no query change is approved by this plan.
 
-**Frozen implementation order and gates.** The next and only permitted action
-before production implementation is exactly one fresh independent Terra High
-read-only implementation-readiness review. It must validate route reachability,
-Development-reset accounts/records, compatibility alias behavior, owner/team/
-captain authorization, notification destinations, the relative `_EvidenceUpload`
-partial regression, and the bounded Admin-review diagnostic; it must also confirm
-the zero-budget complexity boundary. After that review and resolution of any
-named product decision, use one bounded Luna High implementation pass, then the
-smallest focused route/authorization/privacy/notification checks,
-`git diff --check`, and the relevant targeted tests. Follow the normal
-independent post-implementation review/remediation and user manual acceptance
-gates before whole-application regression. No broad test suite, build, packaging,
-commit, push, or deployment is part of this documentation pass.
+**Verification and acceptance.** The implementation was independently reviewed,
+remediated, manually accepted, and committed in
+`88cd8f8d6014e947e2a5e97717be460ca2ea9d66`. Verification included Release
+builds, 7/7 navigation/integration tests, notification workflow, UI assertions,
+focus helper, ledger JavaScript, diff checks, independent review, and user
+acceptance. The relative `_EvidenceUpload` partial 500 is fixed. The linked
+resubmission Admin Review journey still requires manual confirmation; source
+inspection found no query exclusion and no query change is authorized.
 
-**Complexity budget and stop rule.** Add zero tables, migrations, jobs, NuGet
-dependencies, navigation frameworks, or generalized abstractions; add no new
-rendered page family. Reuse the existing submission services, persistence,
+**Complexity budget and stop rule.** The completed pass added zero tables,
+migrations, jobs, NuGet dependencies, navigation frameworks, generalized
+abstractions, or new rendered page families. Reuse the existing submission services, persistence,
 drawer transport, notification model, policies, and approved detail composition;
-only the canonical route owner, compatibility aliases, role-conditioned sections,
-and directly required focused tests/source fixes are in budget. Stop for user
-direction before changing any approved product rule, persistence/query
-semantics, Admin authority, or this scope.
+the canonical route owner, compatibility aliases, role-conditioned sections, and
+directly required focused tests/source fixes were the only additions in budget.
+Future changes stop for user direction before changing any approved product
+rule, persistence/query semantics, Admin authority, or this scope.
 
 ### Pass 1B implementation contract — signup, authentication, and status
 
@@ -785,8 +777,7 @@ by default, the repository remains private on GitHub Free, and no Environment
 reviewer or environment secret is required.
 
 **Production Release Pass 4 — repository-side deployment and recovery contract,
-committed through `329e04adaa98a444f69d20aa41385b4ca7426bd3` on 2026-08-28, but
-not yet cleared for push as the production release candidate or for Pass 5.**
+committed through `329e04adaa98a444f69d20aa41385b4ca7426bd3` on 2026-08-28.**
 The existing promotion workflow has explicit `promote` and `deploy` modes.
 Candidate validation runs before either action; the explicit manual
 `workflow_dispatch` selecting `mode: deploy` is the user's production approval.
@@ -824,7 +815,12 @@ complete: the password is bootstrap-only and root-file supplied, absent from
 the long-running web container and durable backup/config payloads, retained on
 failed initialization, and removed after successful initialization or safe
 resume. Passes 2–3 otherwise cleared, and no P0, secret, or unapproved-scope
-issue was found. The correction is committed and pushed through `aa1af77`.
+issue was found. The correction is committed and pushed through `aa1af77`. Later
+application corrections are committed locally on the release branch: `182b84f`
+fixed production routing/live controls, `cd83c36` polished submission drawer
+controls, `88cd8f8` consolidated the canonical submission workspace, and
+`e75ec57` polished notification-popup and Board-family progress notices. The
+deployed `dklegacy.dk` candidate predates those latest local commits.
 
 Provider-backed Pass 5 setup began on 2026-08-28 with the user's explicit
 approval. Netcup supplies the Ubuntu 24.04 single VPS; Cloudflare supplies DNS
@@ -832,10 +828,11 @@ and private R2 evidence storage; Backblaze B2 supplies the encrypted restic
 repository. Host bootstrap, restricted deployment access, root-only production
 configuration, named volumes, controlled host images, R2 reachability, an
 encrypted baseline backup, isolated restore verification, the scheduled backup
-timer, and apex DNS resolution are verified. This is infrastructure readiness,
-not a completed rehearsal: candidate deployment, end-to-end journeys, evidence,
-Discord, SignalR, load/capacity, interruption measurement, and recovery against
-the deployed candidate remain required.
+timer, and apex DNS resolution are verified. A reviewed candidate is deployed
+for rehearsal, but it predates the latest local commits and does not close
+Pass 5. The capacity sub-gate is complete; authenticated journeys, the
+remaining provider-backed rehearsal evidence, and release packaging remain
+required.
 
 Pass 5 closes only after all of the following are recorded against the same
 candidate:
@@ -843,13 +840,17 @@ candidate:
 - A green pull request is merged to `main`; the successful `main` CI run
   publishes the immutable `linux/amd64` digest and candidate receipt; the
   explicit manual `mode: deploy` workflow deploys only that exact digest.
-- Key-only restricted deployment is verified with password and direct-root SSH
-  disabled. Docker and the backup timer survive reboot, PostgreSQL/Caddy image
-  identities are controlled, and one naturally scheduled backup completes with
-  successful retention.
+- Before candidate deployment, verify key-only restricted deployment with
+  password and direct-root SSH disabled. Verify Docker and the backup timer
+  survive reboot, PostgreSQL/Caddy image identities are controlled, and one
+  naturally scheduled backup completes with successful retention.
 - The bootstrap owner changes the initial password before public signup, and
-  fictional rehearsal data remains separate with an explicit cleanup or
-  retained-test disposition.
+  fictional rehearsal data remains separate. The rehearsal event must follow
+  `Live -> AwaitingFinalReview -> Finalized -> Archived` to preserve history;
+  Live or formerly Live events cannot be cancelled. Ordinary archive remains
+  public historical content, so removing it from public visibility is not
+  proven by the existing lifecycle and remains an unresolved
+  product/implementation decision.
 - The operator confirms R2 accidental-deletion/versioning behavior or records
   another accepted evidence recovery path; evidence integrity detection alone
   is not treated as recovery.
@@ -864,21 +865,59 @@ candidate:
   timing, and public/Admin/Captain post-recovery smoke checks. Asset requests,
   cache behavior, and transfer size are observed during the same rehearsal;
   optimization work is added only for a measured launch problem.
+- **Capacity sub-gate complete (2026-08-30):** the production rehearsal held
+  100/100 concurrent SignalR viewers and completed 400/400 public Board, team,
+  tile, and evidence requests with zero failures. Full-run HTTP latency was p50
+  702.4 ms, p95 2516.4 ms, p99 3066.3 ms, and max 3749.8 ms; SignalR connection
+  latency was p50 250.5 ms, p95 344.1 ms, p99 377.5 ms, and max 410 ms. A short
+  repeat produced HTTP p50 266.0 ms, p95 1027.9 ms, p99 1278.3 ms, and max
+  1451.1 ms. Brief 2-vCPU saturation during synchronized arrival caused no
+  request failures, swap pressure, or persistent health issue. This clears the
+  documented 100-connected-viewer launch target for the 2-vCPU/4-GB tier. Do
+  not repeat this capacity run unless infrastructure or performance-sensitive
+  behavior changes materially. This evidence covers anonymous public reads and SignalR
+  subscriptions; it does not replace the authenticated application-journey
+  evidence required elsewhere in this gate.
 
 The revised production/release order is frozen:
 
-1. Independently re-review the bounded release-blocker correction, then accept/push. **Complete.**
-2. Select a provider and run the provider-backed Pass 5 rehearsal. **In progress.**
-3. Run one Sol High whole-application release-risk review using Pass 5 evidence.
-4. Remediate only concrete findings and rerun affected rehearsal scenarios.
-5. Run the Pass 6 final release gate.
+1. Commit this documentation reconciliation when separately authorized; this
+   pass prepares the exact three-file diff.
+2. Resolve or explicitly defer event-title overflow layering, favicon,
+   font-loading flash, toast visibility, Leaderboard drawer SVG, Live event-banner
+   editability, and linked-resubmission Admin Review manual confirmation.
+3. Run whole-application regression across desktop/mobile, keyboard/focus,
+   permissions, errors, privacy, realtime, masthead account/notification
+   popups, and Admin/Captain/participant journeys; remediate only concrete
+   critical/high findings.
+4. Push through the green PR/CI path, merge, and publish the immutable
+   `linux/amd64` digest and candidate receipt.
+5. Before candidate deployment, verify restricted key-only deploy access,
+   disabled password/direct-root SSH, Docker and the backup timer surviving
+   reboot, controlled PostgreSQL/Caddy image identities, and one naturally
+   scheduled backup with a receipt reporting successful retention.
+6. Explicitly deploy the exact digest manually.
+7. After deployment, complete the remaining operational gates: bootstrap-owner
+   password change; R2 deletion/versioning or accepted recovery; Cloudflare
+   proxy/DNS/TLS/apex/www; public-health, failed-backup, and low-disk alerts;
+   Discord OAuth, R2 round-trip/integrity, authenticated journeys, restore,
+   rollback, interruption timing, and post-recovery smoke.
+8. Run the provider-evidence release-risk review, bounded remediation/rechecks,
+   Pass 6, and final launch smoke.
+9. Only with explicit authorization, perform production-data cleanup, historical
+   import, or any public-visibility mutation; archive the rehearsal only through
+   `Live -> AwaitingFinalReview -> Finalized -> Archived`. Run the multi-day
+   bingo rehearsal after deployment; findings from that post-deployment
+   rehearsal become ordinary bug fixes.
 
-The whole-application review deliberately follows Pass 5 so real VPS/provider,
-backup/restore, load, Discord, R2, SignalR, and health evidence replaces
-assumptions. It must not reopen approved UI or become an unfocused line-by-line
-audit. The separately reviewed GitHub Free release-control adjustment is
-packaged on `production-release-pipeline`; candidate publication still requires
-the green pull-request merge and successful `main` CI run above.
+The whole-application regression and provider-evidence release-risk review
+deliberately follow the completed submission consolidation and capacity
+sub-gate so real VPS/provider, backup/restore, load, Discord, R2, SignalR, and
+health evidence replaces assumptions. They must not reopen approved UI or become
+an unfocused line-by-line audit. The separately reviewed GitHub Free
+release-control adjustment is packaged on `production-release-pipeline`; current
+candidate publication still requires the green pull-request merge and
+successful `main` CI run above.
 
 ## 4. Dependencies, approvals, and stop rules
 

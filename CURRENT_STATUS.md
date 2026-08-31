@@ -1,6 +1,6 @@
 # Current project status
 
-**Active handoff:** 2026-08-28. This is the concise current-state handoff;
+**Active handoff:** 2026-08-31. This is the concise current-state handoff;
 historical material is preserved separately and is non-authoritative.
 
 ## Canonical checkout
@@ -8,7 +8,8 @@ historical material is preserved separately and is non-authoritative.
 - Path: `/Users/christopher/Documents/BingoWebpage`
 - Branch: `production-release-pipeline`
 - Base commit: `329e04adaa98a444f69d20aa41385b4ca7426bd3` (Passes 1–4)
-- Tracking: no upstream is configured for the release-planning branch.
+- Tracking: `origin/production-release-pipeline`; the local branch is ahead by
+  nine commits.
 - The UI overhaul is merged and pushed to `main` at `52ec8494c6792f1f1f4ccd5893ac0cdb11cb74a3`.
 - Preserve the local developer-only `launchSettings.json` override and `tmp/`,
   including the quarantined duplicate files moved under
@@ -68,13 +69,16 @@ is used. It then performs the validated SSH deployment.
 
 Passes 1–4, the GitHub Free release-control adjustment, the accepted
 release-blocker corrections, and the later tested application corrections are
-committed and pushed through `93257bd` on
-`production-release-pipeline`. Integration into `main` uses the existing
-green pull-request path. No production candidate is published until the merge
-and the resulting `main` CI run publishes its immutable image digest and
-candidate receipt.
+committed locally on `production-release-pipeline`. The latest local commits
+are `182b84f` (production routing/live controls), `cd83c36` (submission drawer
+controls), `88cd8f8` (canonical submissions workspace), and `e75ec57`
+(notification-popup and Board-family progress notices). Integration into
+`main` still uses the existing green pull-request path. The deployed
+`dklegacy.dk` candidate predates these latest local commits; no current local
+candidate is published until the merge and resulting `main` CI run publish its
+immutable image digest and candidate receipt.
 
-Provider-backed Pass 5 setup is in progress as of 2026-08-29. The selected
+Provider-backed Pass 5 setup is in progress as of 2026-08-30. The selected
 single VPS is Netcup (Ubuntu 24.04, 2 vCPU, 4 GB RAM, 80 GB); Cloudflare provides
 authoritative DNS and private R2 evidence storage, while Backblaze B2 holds the
 encrypted restic repository. The root-only production, operations, GHCR, R2,
@@ -82,10 +86,66 @@ Discord, bootstrap, and restic configuration is installed without repository
 secrets. Docker/Compose, UFW, the restricted `bingo-deploy` account, reviewed
 host scripts, five named volumes, cached PostgreSQL/Caddy images, R2 bucket
 reachability, an encrypted baseline backup, isolated restore verification, and
-the active backup timer are verified. `dklegacy.dk` resolves by a DNS-only A
-record to the VPS. No application candidate has been deployed; the candidate
-build, application journeys, load/realtime checks, Discord callback, evidence
-round trip, and full Pass 5 rehearsal remain pending.
+the active backup timer are verified. `dklegacy.dk` resolves to the VPS and the
+reviewed application candidate is deployed. The provider-backed capacity
+sub-gate passed on 2026-08-30 against the production rehearsal event: 100/100
+SignalR viewers connected and remained open, while 400/400 public Board, team,
+tile, and evidence requests completed with zero failures. Full-run HTTP latency
+was p50 702.4 ms, p95 2516.4 ms, p99 3066.3 ms, and max 3749.8 ms; SignalR
+connection latency was p50 250.5 ms, p95 344.1 ms, p99 377.5 ms, and max 410
+ms. A short repeat improved to HTTP p50 266.0 ms, p95 1027.9 ms, p99 1278.3
+ms, and max 1451.1 ms. The 2-vCPU VPS briefly saturated during synchronized
+arrival, with no swap pressure or failed requests. This clears the documented
+100-connected-viewer launch target for the 2-vCPU/4-GB tier and need not be
+repeated unless infrastructure or
+performance-sensitive behavior changes materially. The automated run covered
+anonymous reads and SignalR subscriptions, not authenticated
+submission/Admin/Captain mutations; those journeys remain separate manual
+evidence and this result does not by itself close the full Pass 5 rehearsal.
+The rehearsal event remains isolated test data and must follow
+`Live -> AwaitingFinalReview -> Finalized -> Archived` to preserve history;
+Live or formerly Live events cannot be cancelled. Ordinary archive remains
+public historical content, so removal from public visibility is not proven by
+the existing lifecycle and remains an unresolved product/implementation
+decision. Historical summer-event import and any visibility mutation are
+deferred until the end of the correction batch or separate explicit
+production-data authorization; this handoff does not authorize data mutation.
+
+## Submission workspace consolidation handoff — 2026-08-31
+
+The user approved and accepted consolidating the Captain and participant
+submission workspaces into one canonical implementation. `/Submissions` is the
+authenticated, team-wide overview and `/Submissions/{id:guid}` is the detail
+route. Captains/co-captains see the Captain-only team-focus and team-submission-
+status sections and retain server-authorized broader editing of eligible team
+submissions; ordinary participants see neither section and may edit only their
+own eligible non-read-only submissions. The detail remains visually equivalent
+to the approved Captain detail.
+
+`/Captain` and `/Captain/Submissions/{id:guid}` are thin compatibility
+redirects/aliases, never separate rendered implementations. Personal
+submission/evidence notifications, including Captain/co-captain recipients,
+resolve to `/Submissions/{id}`; relevant general submission navigation resolves
+to `/Submissions`; Admin review notifications remain
+`/Admin/Review/Details/{id}`. The shared team-board drawer and
+`/Captain/Submit` transport remain unchanged. Authorization, retained-state
+read-only, cutoff, privacy, evidence-integrity, and Admin authority remain
+protected. The relative `_EvidenceUpload` partial reference that could cause a
+`/Submissions/{id}` 500 is fixed and covered by acceptance.
+
+The canonical implementation was independently reviewed, remediated, manually
+accepted, and committed in
+`88cd8f8d6014e947e2a5e97717be460ca2ea9d66`. Verification included Release
+builds, 7/7 navigation/integration tests, notification workflow, UI assertions,
+focus helper, ledger JavaScript, diff checks, independent review, and user
+acceptance. Current teammates may read retained teammate details while
+former/cross-team users receive 404; owner/Captain/co-captain/emergency
+mutation boundaries remain server-authorized.
+
+The reported absence of a linked resubmission from Admin Evidence Review remains
+an unresolved bounded diagnostic only: source inspection found no query
+exclusion, so no query change is approved. Its linked-resubmission journey still
+needs manual confirmation in the later release sequence.
 
 The user approved the following concrete Pass 5/6 closure gates on 2026-08-30:
 
@@ -97,7 +157,9 @@ The user approved the following concrete Pass 5/6 closure gates on 2026-08-30:
   PostgreSQL/Caddy image identities, and one naturally scheduled backup whose
   receipt reports successful retention.
 - Change the bootstrap owner's initial password before public signup. Keep
-  rehearsal data separate and record its cleanup or retained-test disposition.
+  rehearsal data separate; take it through `Live -> AwaitingFinalReview ->
+  Finalized -> Archived` to preserve history, and separately decide whether
+  any public-visibility mutation is possible and authorized.
 - Resolve the evidence-storage protection wording before launch: confirm the
   actual R2 accidental-deletion/versioning behavior or explicitly accept and
   document another recovery path. The integrity command detects loss but is not
@@ -122,6 +184,36 @@ omitting it. Do not silently remove an optional item. No external account,
 subscription, purchase, paid tier, credential, DNS change, or production
 mutation beyond the already approved setup above is authorized without the
 user's explicit approval.
+
+Current remaining sequence:
+
+1. Commit this documentation reconciliation when separately authorized.
+2. Resolve or explicitly defer the event-title overflow layering, favicon,
+   font-loading flash, toast visibility, Leaderboard drawer SVG, Live event-banner
+   editability, and linked-resubmission Admin Review manual-confirmation UNKNOWNs.
+3. Run whole-application regression across desktop/mobile, keyboard/focus,
+   permissions, errors, privacy, realtime, masthead account/notification
+   popups, and Admin/Captain/participant journeys; remediate only concrete
+   critical/high findings.
+4. Push through the green PR/CI path, merge, and publish the immutable
+   `linux/amd64` digest and candidate receipt.
+5. Before candidate deployment, verify restricted key-only deploy access,
+   disabled password/direct-root SSH, Docker and the backup timer surviving
+   reboot, controlled PostgreSQL/Caddy image identities, and one naturally
+   scheduled backup with a receipt reporting successful retention.
+6. Explicitly deploy the exact digest manually.
+7. After deployment, complete the remaining operational gates: bootstrap-owner
+   password change; R2 deletion/versioning or accepted recovery; Cloudflare
+   proxy/DNS/TLS/apex/www; public-health, failed-backup, and low-disk alerts;
+   Discord OAuth, R2 round-trip/integrity, authenticated journeys, restore,
+   rollback, interruption timing, and post-recovery smoke.
+8. Run the provider-evidence release-risk review, bounded remediation/rechecks,
+   Pass 6, and final launch smoke.
+9. Only with explicit authorization, perform production-data cleanup, historical
+   import, or any public-visibility mutation; archive the rehearsal only through
+   `Live -> AwaitingFinalReview -> Finalized -> Archived`. Run the multi-day
+   bingo rehearsal after deployment; findings from that post-deployment
+   rehearsal become ordinary bug fixes.
 
 ## Pre-commit audit and direct-to-main integration plan
 
@@ -209,9 +301,9 @@ merged. The review initially classified `/Admin/UiReferences` as unapproved
 material scope. The user explicitly approved retaining it on 2026-08-27, and
 `UI_PAGE_MATRIX.md` now records it as a direct-link internal historical-reference
 gallery that is not a product-page approval target or active authority source.
-That finding is resolved. Pass 4 is committed, but its six integrated review
-blockers remain a release-candidate and Pass 5 gate, not permission for
-remediation or provider work.
+That finding is resolved. Pass 4 and its bounded release-blocker corrections are
+committed; the provider-backed Pass 5 setup and capacity sub-gate now have
+separate recorded evidence, while the remaining release gates stay open.
 
 The read-only commit-scope inventory and final Ponytail gate also completed on
 2026-08-27. The accepted candidate includes the active authority consolidation,
@@ -260,26 +352,25 @@ dispatch, which is the user's production approval.
 ## Pass 4 repository handoff — 2026-08-28
 
 Pass 4 is committed through `329e04adaa98a444f69d20aa41385b4ca7426bd3`; the
-bounded release-blocker correction is currently uncommitted for independent
-review. It closes exact PostgreSQL restore, `none`/`none` baseline recovery,
+bounded release-blocker correction was accepted and committed through `aa1af77`.
+It closes exact PostgreSQL restore, `none`/`none` baseline recovery,
 post-backup failure classification, and contradictory `new` marker/history
 handling. The separate bootstrap-password correction is also complete: the
 password is bootstrap-only and root-file supplied, absent from the long-running
 web container and durable backup/config payloads, retained on failed
-initialization, and removed after successful initialization or safe resume. It
-does not include provider work, production mutation, or Pass 5.
-The revised order is owned by the production/release section
-of `DELIVERY_PLAN.md`: independently re-review this correction, then accept/push;
-select a provider and run the provider-backed Pass 5 rehearsal; run one Sol
-High whole-application release-risk review using that evidence; remediate only
-concrete findings and rerun affected scenarios; then run the Pass 6 final
-release gate.
+initialization, and removed after successful initialization or safe resume. The
+later local commits add the production routing/live-control correction, drawer
+controls, canonical submission workspace, and notification/progress notices;
+their current branch and deployment status are recorded in the active
+production handoff above. The revised remaining order is owned by the
+production/release section of `DELIVERY_PLAN.md`.
 
-The whole-application review is deliberately after Pass 5 so real VPS,
-provider, backup/restore, load, Discord, R2, SignalR, and health evidence
-replaces assumptions. It must not reopen approved UI or become an unfocused
-line-by-line audit. Existing dirty `UI_PAGE_MATRIX.md`, `launchSettings.json`,
-and `tmp/` remain outside this release handoff.
+The whole-application review remains after the completed submission correction
+and capacity sub-gate so real VPS, provider, backup/restore, load, Discord, R2,
+SignalR, and health evidence replaces assumptions. It must not reopen approved
+UI or become an unfocused line-by-line audit. Existing dirty
+`UI_PAGE_MATRIX.md`, `launchSettings.json`, and `tmp/` remain outside this
+release handoff.
 
 The bounded correction touches only the approved release surface: Compose and
 production env examples; host operations/backup/restore/deploy/validation;
@@ -516,14 +607,11 @@ screenshots are the next gate.
 
 Production deployment is due 2026-08-31. Live production testing is planned
 for 2026-09-01 through 2026-09-05, with public signup opening 2026-09-06.
-Launch-critical work is the public signup journey and only the authentication,
-onboarding, and error states required to complete it, followed by focused
-signup-launch and deployment verification. Remaining public and participant-
-facing UI follows; Captain team operations is last in that group and requires
-functional correction before its visual reference. Resume
-remaining Admin UI only after Captain is complete. Dashboard and whole-
-application regression remain late gates. This ordering does not claim the
-whole application is production-ready.
+The canonical submission workspace correction is complete and manually
+accepted. Resolve or explicitly defer the recorded UI/manual UNKNOWN decisions,
+then run whole-application regression before the remaining release and
+operational gates. Dashboard/action-inbox work remains intentional WIP. This
+ordering does not claim the whole application is production-ready.
 
 ## Current UI approval snapshot (non-authoritative)
 
@@ -541,9 +629,7 @@ and immediate ownership.
 | Board | Approved — user manual approval, 2026-08-14 |
 | Signup Questions route/dialog | Approved — user manual approval as the Participants/signup-form popup, 2026-08-24; CSV is not owned by this route |
 | Teams/Draft, including advanced pre-formed-roster CSV import | Approved — user manual approval, 2026-08-16 |
-| Captain team operations / `/Captain` | Partially approved, deployment ready — user decision, 2026-08-26 |
-| Captain submission detail / `/Captain/Submissions/{id}` | Partially approved, deployment ready — user decision, 2026-08-26 |
-| Participant submissions / `/Submissions`, `/Submissions/{id}` | Partially approved, deployment ready — user decision, 2026-08-26 |
+| Canonical submission workspace / `/Submissions`, `/Submissions/{id}` | Approved — independently reviewed, remediated, manually accepted, and committed in `88cd8f8`; whole-application regression remains |
 | Admin evidence review | Deployment ready, not approved — user decision, 2026-08-26 |
 | Public board/evidence | Approved — Board overview, TeamBoard, nested Tile view, attached submission drawer, evidence lightbox, Recent Drops, Leaderboards, and final TeamBoard corrections manually approved by 2026-08-26 |
 | Finalize/closeout | Deployment ready, not approved — user decision, 2026-08-26 |
@@ -564,9 +650,9 @@ tile-detail sidebars, approved submissions/lightbox, submission drawer/form, and
 responsive behavior—was manually accepted on 2026-08-20 and remains the
 protected behavior/interaction baseline. Its former visual identity is
 superseded by the approved Public UI rebuild and will be migrated only in the
-ordered Board pass. The Captain workspace and participant submission routes are
-partially approved and deployment ready; remaining manual approval is deferred
-to whole-application regression. Current unapproved
+ordered Board pass. The canonical submission workspace is approved and
+deployment ready; its consolidation is complete, independently reviewed,
+remediated, manually accepted, and committed. Current unapproved
 Admin UI visual debt is non-blocking for launch because its functionality works;
 it must not be described as UI-approved or as whole-application production
 readiness. Only security, authorization, privacy/data-loss/data-integrity, or
@@ -671,10 +757,10 @@ passes as product or UI approval.
   Teams routes become reachable.
 
 - The complete public Board ecosystem and its responsive team-board/submission
-  interaction model are manually accepted. `/Captain`,
-  `/Captain/Submissions/{id}`, `/Submissions`, and `/Submissions/{id}` are
-  partially approved and deployment ready as of 2026-08-26; remaining manual
-  approval is deferred to whole-application regression.
+  interaction model are manually accepted. The canonical submission workspace
+  is independently reviewed, remediated, manually accepted, and committed in
+  `88cd8f8d6014e947e2a5e97717be460ca2ea9d66`; final whole-application
+  regression remains.
 - This pass's focused Submit direct-route/drawer-contract assertions passed with
   the bundled Node runtime. The broader team-board overlay script test stops on
   an existing shared-layout assertion, and the focused EvidenceWorkflowUiTests
@@ -692,10 +778,12 @@ passes as product or UI approval.
   later CSS-only remediation tasks unless the environment changes. Use bounded
   source/cascade inspection and `git diff --check`; reserve executable .NET
   verification for a host where MSBuild can start.
-- Full solution regression, cross-application verification, production
-  rehearsal, and release packaging remain unverified. Launch-critical work is
-  the public signup journey and only the auth/onboarding/error states it needs,
-  followed by focused signup-launch and deployment verification.
+- Full solution regression, cross-application verification, the complete
+  provider-backed rehearsal, and release packaging remain unverified. The
+  capacity sub-gate is complete: 100/100 SignalR viewers and 400/400 Board,
+  team, tile, and evidence requests succeeded with zero failures; repeat it only
+  after material infrastructure or performance-sensitive changes. The deployed
+  candidate predates the latest local commits.
 - Archive hashes match the captured pre-consolidation sources:
   `ADMIN_UI_CONTRACT.md` / archive `be0679c744604c0e1a75f26244e75e38631ea28b0e8462f15bb4e77f979f3360`;
   `UI_OVERHAUL_ROADMAP.md` / archive `d3a93ee2b4e67a690820d5a2875cf20454e5483c37e250cf0613308b453ac950`;
@@ -717,6 +805,12 @@ passes as product or UI approval.
   schedule/cutoff instants remain immutable.
 - **F-06:** decide whether permanent Rules/how-to work precedes or follows
   Milestone 9 before implementing that feature work.
+- **UNKNOWN — bounded UI/manual decisions:** resolve or explicitly defer event-
+  title overflow layering, favicon, font-loading flash, toast visibility,
+  Leaderboard drawer SVG, and whether the event banner is editable while Live.
+- **UNKNOWN — linked resubmission Admin Review journey:** manually confirm the
+  linked-resubmission journey in Admin Review. Source inspection found no query
+  exclusion, and no query change is authorized without new evidence.
 
 ## Immediate ownership and stop rules
 
@@ -802,8 +896,8 @@ passes as product or UI approval.
    fresh Luna High remediator completed that page-isolated correction; scoped
    selector/isolation and diff checks pass. A Release build was not repeated due
    the documented MSBuild sandbox limitation. Change Password light/dark user
-   acceptance is deferred under the continuous-run authorization; proceed to the
-   next remaining Public UI implementation task unless a genuine blocker appears.
+   acceptance is deferred under the continuous-run authorization; do not start
+   another Public UI family without explicit authorization.
 2. Verifier/reviewer: keep approval, regression, and environment limitations
    explicit; do not promote historical evidence to current verification.
 3. UI owner: Account overview, Notifications, Guidance/editorial, public Signups,
@@ -852,13 +946,13 @@ passes as product or UI approval.
    the user clarified that small visual corrections should not trigger unrelated
    .NET gates or named-pipe escalation unless their actual risk requires one.
    The masthead-only HowTo WIP placeholder is deployment ready but not approved; F-06 now
-   governs only a future permanent content replacement. Pass 5 Captain team operations now implements the approved
+   governs only a future permanent content replacement. The accepted Captain
    focus controls, status totals, complete filtered/paged ledger, scoped
-   Captain/co-captain/emergency authority, and PUB-REF-17 composition. Current
-   screenshots, strict review, and the bounded structural/paging/detail/fixture
-   remediation are complete; focused PostgreSQL, Release build, format, and diff
-   checks pass. The user marked Captain team operations and Captain submission
-   detail partially approved and deployment ready on 2026-08-26. Setup, Change
+   Captain/co-captain/emergency authority, and PUB-REF-17 detail composition are
+   the baseline for the canonical submission workspace. The submission workspace
+   is approved and deployment ready; its route/ownership consolidation
+   was independently reviewed, remediated,
+   manually accepted, and committed in `88cd8f8`. Setup, Change
    Password, Forgot Password, Reset Password, Notifications, and Privacy are
    manually approved. Admin evidence
    review now has its compact queue/detail implementation, rule-based independent
@@ -935,48 +1029,19 @@ passes as product or UI approval.
   local boss-art fallback is removed; only the three exact-name local mappings
   remain, while ordinary bosses use their existing authoritative artwork again.
   The current TeamBoard correction removes duplicate participant and focus-operation panels and TeamBoard focus mutation endpoints, while retaining compact active-account/swap context, read-only tile focus projection, explicit Super Admin inspection, and Captain-only focus mutation. Focused source assertions, diff checks, and the requested Web Release build pass. Recent Drops and Leaderboards received user manual approval on 2026-08-26; Leaderboards retains the final Drops-matched standings-heading spacing correction.
-  The user
-   had previously authorized proceeding to Pass 5. The user approved the Captain functional redefinition and then
-   approved PUB-REF-17 on 2026-08-24 before its functional correction. `/Captain`
-   must become a team-operations page ordered as team focus
-   controls, pending/rejected/approved counts, and a complete team submission
-   ledger with status/player/tile filters, details, and reviewer feedback. It
-   must not duplicate the board, submission experience, or Admin review controls;
-   submission stays in the shared team-board drawer. The standalone
-   `/Captain/Submit/{tileId?}` page is retired; its route remains only as drawer
-   transport/handler plus a compatibility redirect for old direct links.
-   Captain/co-captain and valid
-   emergency-captain team scope remains unchanged. Current source already has
-   focus persistence/team-board display, the shared captain-aware drawer,
-   submission detail/feedback and mutation routes, and no Captain review
-   controls. Missing work is `/Captain` focus integration, summary counts,
-   status/player/tile filters, complete-ledger paging, derived replaced-chain
-   presentation, Captain-only page authorization, and valid emergency-captain
-   focus authority. The current duplicate tile grid/submission links must be
-   removed. The reference's empty upper-right space may receive one restrained
-   existing fact such as current evidence code or cutoff. No Public UI reference
-   family remains missing; page implementation and approval gates remain.
-   The user added one bounded participant submission workspace before final
-   regression: `/Submissions` contains the authenticated current team's
-   complete retained ledger, including departed credited members, and omits
-   Captain-only focus/status sections. `/Submissions/{id}` owns current-team
-   detail reads; only the credited owner may mutate through the existing cutoff,
-   version, and linked-resubmission rules, while teammate-owned and all other
-   states are read-only. Rejection notifications route credited owners to the
-   neutral detail and current linked Captains/co-captains to the Captain detail,
-   with owner precedence. This decision is recorded in the active product,
-   workflow, UI, delivery, and manual-test authorities. The user marked both
-   participant submission routes partially approved and deployment ready on
-   2026-08-26; remaining manual approval stays in the late whole-application
-   regression gate.
-   The user may request the accumulated manual walkthrough at any time. If not,
-   perform it after the remaining Public UI implementation sequence, covering
-   light/dark desktop, narrow/mobile, shared navigation, responsive composition,
-   and cross-page CSS regressions before any approval or packaging claim. The
-   each remaining pass must still complete implementation, current screenshots,
-   independent reference/screenshot review, and focused remediation. Then mark
-   it `awaiting manual approval` and continue. The user may supply screenshots
-   and corrections during this sequence; final hands-on approval is deferred.
+  The prior separate Captain team-operations and participant-submission plans
+  are superseded by the completed 2026-08-31 canonical-workspace decision
+  recorded above.
+  The accepted Captain detail composition remains the visual baseline, but
+  `/Submissions` and `/Submissions/{id:guid}` now own both roles' overview/detail
+  behavior. The Admin Evidence Review linked-resubmission journey remains a
+  manual-confirmation UNKNOWN; the relative `_EvidenceUpload` 500 regression is
+  fixed and covered by acceptance. The next permitted work is whole-application
+  regression and the release sequence above. The user may request the
+  accumulated manual walkthrough at any time; it must cover light/dark desktop,
+  narrow/mobile, shared navigation, responsive composition, keyboard/focus,
+  permissions, errors, privacy, realtime, masthead account/notification
+  popups, and Admin/Captain/participant journeys before any final launch claim.
 4. Packager: stage, commit, push, or deploy only after acceptance and explicit
    authorization.
 
