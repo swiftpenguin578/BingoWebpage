@@ -3093,7 +3093,7 @@ body.public-event-shell.public-ui-pass1 .public-board-masthead::after { position
 body.public-event-shell.public-ui-pass1 .public-board-masthead__hero { position: relative; display: grid; gap: 0; min-width: 0; }
 body.public-event-shell.public-ui-pass1 .public-board-masthead__identity { display: grid; min-width: 0; max-width: 70%; padding: 0 0 1.35rem; }
 body.public-event-shell.public-ui-pass1 .public-board-masthead__identity > div:first-child { min-width: 0; }
-body.public-event-shell.public-ui-pass1 .public-board-masthead__identity .public-board-masthead__title { max-width: 100%; margin: 0; color: var(--board-ink); }
+body.public-event-shell.public-ui-pass1 .public-board-masthead__identity .public-board-masthead__title { z-index: 2; max-width: 100%; margin: 0; color: var(--board-ink); }
 body.public-event-shell.public-ui-pass1 .public-board-masthead__art { position: absolute; z-index: 1; top: calc(-1 * (1.15rem + 1.15rem + 0.55rem + 0.8rem + 2.5rem + 1rem)); right: calc((100% - 100vw) / 2); bottom: 0; width: 43%; overflow: hidden; background: var(--landing-art-field); container-type: size; }
 body.public-event-shell.public-ui-pass1 .public-board-masthead__art .landing-hero__background { position: absolute; inset: 0; --board-art-diagonal: min(65.5cqh, 15.1vw); --board-art-stripe: min(0.72cqh, 0.1665vw); }
 body.public-event-shell.public-ui-pass1 .public-board-masthead__art .landing-hero__background::before { clip-path: polygon(0 0, var(--board-art-diagonal) 0, 0 100%); }

@@ -2582,7 +2582,7 @@ th {
 .event-overview-information-summary > div { min-width: 0; }
 .event-overview-information-summary dd { margin: 0; }
 .event-overview-information-name { overflow: hidden; }
-.event-overview-information-name dd { overflow: hidden; color: var(--admin-text); font-size: 0.8125rem; font-weight: 500; white-space: normal; overflow-wrap: anywhere; }
+.event-overview-information-name dd { overflow: hidden; color: var(--admin-text); font-size: 0.8125rem; font-weight: 500; text-align: left; white-space: normal; overflow-wrap: anywhere; }
 .event-overview-information-status { display: flex; flex: 0 0 auto; justify-content: flex-end; }
 .admin-status-pill { display: inline-flex; width: fit-content; min-height: 1.6rem; align-items: center; padding: 0.25rem 0.65rem; color: var(--admin-muted); background: color-mix(in srgb, var(--admin-muted) 12%, transparent); border: 0; border-radius: 999px; font-size: 0.6875rem; font-weight: 400; letter-spacing: normal; line-height: 1.2; text-transform: none; white-space: nowrap; overflow-wrap: normal; }
 .admin-status-pill.is-cyan { color: var(--admin-status-cyan); background: color-mix(in srgb, var(--admin-status-cyan) 14%, transparent); }
