@@ -18,7 +18,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
 {
     public async Task<FinalReviewReadiness?> GetReadinessAsync(Guid eventId, CancellationToken ct = default)
     {
-        var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId, ct);
+        var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
         if (ev is null) return null;
 
         var now = time.GetUtcNow();
@@ -151,13 +151,13 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
     {
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7303004)", ct);
-        var ev = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId, ct) ?? throw new InvalidOperationException("Event not found.");
+        var ev = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct) ?? throw new InvalidOperationException("Event not found.");
         var activeFinal = await db.EventFinalizations.AnyAsync(x => x.EventId == eventId && x.UnfinalizedAt == null, ct);
         if ((ev.State is EventState.Finalized or EventState.Archived) && activeFinal) { await tx.CommitAsync(ct); return; }
         if (expectedVersion is { } supplied && supplied != ev.Version) throw new InvalidOperationException("This event changed in another session. Reload before finalizing.");
         if (ev.State != EventState.AwaitingFinalReview) throw new InvalidOperationException("Only an event in final review can be finalized.");
         var development = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
-        var current = await db.Events.AsNoTracking().Where(value => value.Id != eventId && (value.State == EventState.Live || value.State == EventState.AwaitingFinalReview || value.State == EventState.Finalized) && !(development && value.IsDevelopmentFixture)).OrderBy(value => value.Name).Select(value => value.Name).FirstOrDefaultAsync(ct);
+        var current = await db.Events.AsNoTracking().Where(value => value.Id != eventId && value.HiddenAt == null && (value.State == EventState.Live || value.State == EventState.AwaitingFinalReview || value.State == EventState.Finalized) && !(development && value.IsDevelopmentFixture)).OrderBy(value => value.Name).Select(value => value.Name).FirstOrDefaultAsync(ct);
         if (current is not null) throw new InvalidOperationException($"{current} is already the current event. Archive it before finalizing this event.");
         var readiness = await GetReadinessAsync(eventId, ct) ?? throw new InvalidOperationException("Event not found.");
         if (readiness.EventVersion != ev.Version || !readiness.CanFinalize) throw new InvalidOperationException("Resolve every final-review item before finalizing.");
@@ -183,7 +183,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
     {
         if (expectedVersion is not > 0 || expectedReviewCycleId is not { } suppliedCycle || suppliedCycle == Guid.Empty)
             throw new InvalidOperationException("This final-review form is stale or incomplete. Reload the current final-review cycle.");
-        var ev = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} FOR UPDATE").SingleOrDefaultAsync(ct)
+        var ev = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct)
             ?? throw new InvalidOperationException("Event not found.");
         var actorName = await db.Accounts.AsNoTracking().Where(x => x.Id == adminId && x.Active && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin)).Select(x => x.LoginName).SingleOrDefaultAsync(ct)
             ?? throw new InvalidOperationException("Administrator access is required.");
@@ -213,13 +213,13 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         if (string.IsNullOrWhiteSpace(reason)) throw new InvalidOperationException("A reason is required.");
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7303004)", ct);
-        var ev = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId, ct) ?? throw new InvalidOperationException("Event not found.");
+        var ev = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct) ?? throw new InvalidOperationException("Event not found.");
         if (expectedVersion is { } supplied && supplied != ev.Version) throw new InvalidOperationException("This event changed in another session. Reload before reopening it.");
         if (ev.State is not (EventState.Finalized or EventState.Archived)) throw new InvalidOperationException("Only finalized or archived results can be reopened.");
         if (ev.State == EventState.Archived || ev.State == EventState.Finalized)
         {
             var development = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
-            var current = await db.Events.AsNoTracking().Where(x => x.Id != eventId && (x.State == EventState.Live || x.State == EventState.AwaitingFinalReview || x.State == EventState.Finalized) && !(development && x.IsDevelopmentFixture)).OrderBy(x => x.Name).Select(x => x.Name).FirstOrDefaultAsync(ct);
+            var current = await db.Events.AsNoTracking().Where(x => x.Id != eventId && x.HiddenAt == null && (x.State == EventState.Live || x.State == EventState.AwaitingFinalReview || x.State == EventState.Finalized) && !(development && x.IsDevelopmentFixture)).OrderBy(x => x.Name).Select(x => x.Name).FirstOrDefaultAsync(ct);
             if (current is not null) throw new InvalidOperationException($"{current} is already the current event. Archive it before reopening this event.");
         }
         var active = await db.EventFinalizations.Where(x => x.EventId == eventId && x.UnfinalizedAt == null).OrderByDescending(x => x.Version).FirstOrDefaultAsync(ct) ?? throw new InvalidOperationException("No active official result exists.");
@@ -237,7 +237,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         if (!confirmed) throw new InvalidOperationException("Confirm that you want to archive this finalized event.");
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7303004)", ct);
-        var ev = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId, ct) ?? throw new InvalidOperationException("Event not found.");
+        var ev = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct) ?? throw new InvalidOperationException("Event not found.");
         if (ev.State == EventState.Archived) { await tx.CommitAsync(ct); return; }
         if (ev.State != EventState.Finalized) throw new InvalidOperationException("Only finalized results can be archived.");
         var now = time.GetUtcNow();
@@ -254,7 +254,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         foreach (var owner in owners)
         {
             var id = DeterministicId("event-results", ev.Id, owner);
-            if (!await db.PersonalNotifications.AnyAsync(x => x.Id == id, ct)) db.PersonalNotifications.Add(new PersonalNotification(id, owner, "event.results_published", $"Official results are available for {ev.Name}.", $"/Events/{Uri.EscapeDataString(ev.Slug)}/Board", now));
+            if (!await db.PersonalNotifications.AnyAsync(x => x.Id == id, ct)) db.PersonalNotifications.Add(new PersonalNotification(id, owner, "event.results_published", $"Official results are available for {ev.Name}.", $"/Events/{Uri.EscapeDataString(ev.Slug)}/Board", now, ev.Id));
         }
     }
 

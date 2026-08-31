@@ -54,7 +54,7 @@ public sealed partial class EventBannerCleanupService(
         if (!item.StorageKey.StartsWith($"{item.EventId:N}/", StringComparison.Ordinal))
             return Task.FromResult(false);
         return db.Events.AsNoTracking().AnyAsync(value =>
-            value.Id == item.EventId && value.State == EventState.Discarded && value.BannerAssetId == null, ct);
+            value.Id == item.EventId && value.HiddenAt == null && value.State == EventState.Discarded && value.BannerAssetId == null, ct);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Managed banner cleanup for discarded event {EventId} remains pending.")]

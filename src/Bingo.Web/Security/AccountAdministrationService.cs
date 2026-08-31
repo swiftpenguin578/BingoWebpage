@@ -57,22 +57,25 @@ public sealed class AccountAdministrationService(ApplicationDbContext db, IPassw
             throw new InvalidOperationException("Only an administrator can manage an emergency credential.");
         var accesses = await db.AccountEventAccesses.Where(x => x.AccountId == target.Id).ToListAsync(ct);
         if (accesses.Count == 0) throw new InvalidOperationException("This emergency credential has no event access scope.");
+        var eventId = accesses.Select(access => access.EventId).Distinct().SingleOrDefault();
+        var events = await db.Events.Where(x => accesses.Select(access => access.EventId).Contains(x.Id)).ToListAsync(ct);
+        if (events.Count != accesses.Count || events.Any(bingoEvent => bingoEvent.HiddenAt is not null))
+            throw new InvalidOperationException("This emergency credential is not available.");
         if (enabled)
         {
             if (target.PasswordHash is null) throw new InvalidOperationException("Create and use a setup link before enabling this credential.");
             var now = time.GetUtcNow();
-            var events = await db.Events.Where(x => accesses.Select(access => access.EventId).Contains(x.Id)).ToListAsync(ct);
             if (events.Count != accesses.Count || events.Any(bingoEvent => !bingoEvent.AcceptsEmergencySubmissions(now)))
                 throw new InvalidOperationException("Submissions must be explicitly open before enabling an emergency credential.");
             target.Enable();
             foreach (var access in accesses) access.Enable();
-            Audit(actor, "account.emergency_enabled", target, "Disabled", "Enabled");
+            Audit(actor, "account.emergency_enabled", target, "Disabled", "Enabled", eventId);
         }
         else
         {
             target.Disable(time.GetUtcNow(), actor.Id, "Disabled by administrator");
             foreach (var access in accesses) access.Disable();
-            Audit(actor, "account.emergency_disabled", target, "Enabled", "Disabled");
+            Audit(actor, "account.emergency_disabled", target, "Enabled", "Disabled", eventId);
         }
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
@@ -80,9 +83,10 @@ public sealed class AccountAdministrationService(ApplicationDbContext db, IPassw
     private async Task<(Account Actor, Account Target)> LoadPair(Guid actorId, Guid targetId, CancellationToken ct) => (await db.Accounts.SingleAsync(x => x.Id == actorId, ct), await db.Accounts.SingleAsync(x => x.Id == targetId, ct));
     private static void RequireOwner(Account account) { if (account.GlobalRole != GlobalRole.SuperAdmin || !account.Active) throw new InvalidOperationException("Only the active Super Admin can perform this action."); }
     private static void RequireWebsite(Account account) { if (account.AccountType != AccountType.WebsiteAccount) throw new InvalidOperationException("Emergency credentials cannot hold global roles."); }
-    private void Audit(Account actor, string action, Account target, string before, string after) => db.AuditEntries.Add(new AuditEntry(
+    private void Audit(Account actor, string action, Account target, string before, string after, Guid? eventId = null) => db.AuditEntries.Add(new AuditEntry(
         Guid.NewGuid(), time.GetUtcNow(), actor.Id, actor.LoginName, action, "account", target.Id.ToString(),
         $"Role/state changed from {before} to {after}.",
+        eventId: eventId,
         beforeState: JsonSerializer.Serialize(new { roleOrState = before }),
         afterState: JsonSerializer.Serialize(new { roleOrState = after })));
     private void Notify(Account target, string type, string route) =>

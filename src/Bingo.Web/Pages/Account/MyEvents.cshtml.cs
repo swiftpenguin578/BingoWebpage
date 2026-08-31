@@ -26,7 +26,7 @@ public sealed class MyEventsModel(ApplicationDbContext db, IStringLocalizer<Shar
         if (accountId is null || !await db.Accounts.AsNoTracking().AnyAsync(x => x.Id == accountId && x.AccountType == AccountType.WebsiteAccount, ct)) return Forbid();
         var rows = await (from participant in db.EventParticipants.AsNoTracking()
                           join item in db.Events.AsNoTracking() on participant.EventId equals item.Id
-                          where participant.AccountId == accountId
+                          where participant.AccountId == accountId && item.HiddenAt == null
                           orderby item.EventStartsAt descending, participant.SignedUpAt descending
                           select new EventRow(item.Id, item.Name, item.Slug, item.State, item.FirstPublicAt, item.ActualSignupOpenedAt, item.DraftLocked, item.TeamRostersPublished, item.DraftResultsPublished, item.BoardPublished, item.ResultsPublished, db.DraftPublicationCycles.Any(cycle => cycle.SupersededAt == null && db.DraftSessions.Any(draft => draft.Id == cycle.DraftSessionId && draft.EventId == item.Id)), db.Boards.Any(board => board.EventId == item.Id && board.State == BoardState.Published), participant.Id, participant.SignupStatus, participant.SignedUpAt,
                               db.TeamMemberships.Where(membership => membership.EventParticipantId == participant.Id && membership.LeftAt == null)
@@ -39,7 +39,7 @@ public sealed class MyEventsModel(ApplicationDbContext db, IStringLocalizer<Shar
             var evidenceRows = await (from asset in db.EvidenceAssets.AsNoTracking()
                                       join submission in db.Submissions.AsNoTracking() on asset.SubmissionId equals submission.Id
                                       join bingoEvent in db.Events.AsNoTracking() on submission.EventId equals bingoEvent.Id
-                                      where historyEventIds.Contains(submission.EventId) && bingoEvent.State == EventState.Archived && submission.CreditedParticipantId != Guid.Empty &&
+                                      where historyEventIds.Contains(submission.EventId) && bingoEvent.HiddenAt == null && bingoEvent.State == EventState.Archived && submission.CreditedParticipantId != Guid.Empty &&
                                             (submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Rejected || submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Withdrawn) &&
                                             db.EventParticipants.Any(participant => participant.Id == submission.CreditedParticipantId && participant.AccountId == accountId.Value)
                                       select new { submission.EventId, asset.Id }).ToListAsync(ct);

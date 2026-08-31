@@ -106,13 +106,16 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
         var target = await db.Accounts.SingleAsync(x => x.Id == targetId, ct);
         if (actor.GlobalRole is not (GlobalRole.Admin or GlobalRole.SuperAdmin) || target.AccountType != AccountType.EmergencyCaptain)
             throw new InvalidOperationException("Only an administrator can create an emergency credential link.");
+        var eventId = await db.AccountEventAccesses.Where(access => access.AccountId == targetId).Select(access => (Guid?)access.EventId).SingleOrDefaultAsync(ct);
+        if (eventId is null || await db.Events.AnyAsync(bingoEvent => bingoEvent.Id == eventId && bingoEvent.HiddenAt != null, ct))
+            throw new InvalidOperationException("This emergency credential is not available.");
 
         var now = time.GetUtcNow();
         var purpose = target.PasswordHash is null ? PasswordCredentialTokenPurpose.EmergencySetup : PasswordCredentialTokenPurpose.EmergencyReset;
         foreach (var token in await db.PasswordCredentialTokens.Where(x => x.AccountId == targetId && x.UsedAt == null && x.SupersededAt == null).ToListAsync(ct)) token.Supersede(now);
         var raw = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         db.PasswordCredentialTokens.Add(new PasswordCredentialToken(Guid.NewGuid(), targetId, purpose, Hash(raw), now.AddMinutes(60), now, actorId));
-        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.LoginName, "account.emergency_credential_link_created", "account", target.Id.ToString(), "One-time emergency credential link created."));
+        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.LoginName, "account.emergency_credential_link_created", "account", target.Id.ToString(), "One-time emergency credential link created.", eventId));
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return raw;
@@ -125,6 +128,14 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
         var account = await db.Accounts.SingleAsync(x => x.Id == token.AccountId, ct);
         if (token.Purpose == PasswordCredentialTokenPurpose.OwnerRecovery && (!account.Active || account.GlobalRole != GlobalRole.SuperAdmin))
             throw new InvalidOperationException("This link is no longer valid.");
+        var isEmergency = token.Purpose is PasswordCredentialTokenPurpose.EmergencySetup or PasswordCredentialTokenPurpose.EmergencyReset;
+        Guid? eventId = null;
+        if (isEmergency)
+        {
+            eventId = await db.AccountEventAccesses.Where(access => access.AccountId == account.Id).Select(access => (Guid?)access.EventId).SingleOrDefaultAsync(ct);
+            if (eventId is null || await db.Events.AnyAsync(bingoEvent => bingoEvent.Id == eventId && bingoEvent.HiddenAt != null, ct))
+                throw new InvalidOperationException("This link is no longer valid.");
+        }
         account.SetPassword(passwords.HashPassword(account, password), false, now); token.Use(now);
         var isOwnerRecovery = token.Purpose == PasswordCredentialTokenPurpose.OwnerRecovery;
         db.AuditEntries.Add(new AuditEntry(
@@ -137,7 +148,8 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
             account.Id.ToString(),
             isOwnerRecovery
                 ? "Operator-only owner password reset completed through a single-use credential link."
-                : "Password reset completed through a single-use credential link."));
+                : "Password reset completed through a single-use credential link.",
+            eventId));
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return token.Purpose;
     }
     public async Task ChangePasswordAsync(Account account, string password, CancellationToken ct) { ValidatePassword(password); var now = time.GetUtcNow(); account.SetPassword(passwords.HashPassword(account, password), false, now); db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, account.Id, account.LoginName, "account.password_changed", "account", account.Id.ToString(), "Password changed.")); await db.SaveChangesAsync(ct); }

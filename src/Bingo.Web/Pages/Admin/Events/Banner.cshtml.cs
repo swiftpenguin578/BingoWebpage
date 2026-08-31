@@ -14,7 +14,7 @@ public sealed class BannerModel(ApplicationDbContext db, IEvidenceStorage storag
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
     {
         var asset = await db.Events.AsNoTracking()
-            .Where(item => item.Id == id && item.BannerAssetId != null)
+            .Where(item => item.Id == id && item.HiddenAt == null && item.BannerAssetId != null)
             .Join(db.EventBannerAssets.AsNoTracking(), item => item.BannerAssetId, banner => banner.Id, (_, banner) => banner)
             .SingleOrDefaultAsync(ct);
         if (asset is null || asset.ReplacedAt is not null) return NotFound();

@@ -12,7 +12,7 @@ public sealed class EmergencyCredentialLifecycleService(ApplicationDbContext db,
         var now = time.GetUtcNow();
         await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         var accesses = await db.AccountEventAccesses
-            .FromSqlInterpolated($"SELECT a.* FROM account_event_accesses a JOIN events e ON e.id = a.\"EventId\" WHERE a.\"Enabled\" AND CASE WHEN e.reopened_submission_cutoff_at > e.submission_cutoff_at THEN e.reopened_submission_cutoff_at ELSE e.submission_cutoff_at END <= {now} FOR UPDATE")
+            .FromSqlInterpolated($"SELECT a.* FROM account_event_accesses a JOIN events e ON e.id = a.\"EventId\" WHERE a.\"Enabled\" AND e.hidden_at IS NULL AND CASE WHEN e.reopened_submission_cutoff_at > e.submission_cutoff_at THEN e.reopened_submission_cutoff_at ELSE e.submission_cutoff_at END <= {now} FOR UPDATE")
             .ToListAsync(ct);
 
         foreach (var access in accesses)

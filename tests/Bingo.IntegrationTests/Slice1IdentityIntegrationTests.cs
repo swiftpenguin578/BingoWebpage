@@ -2071,7 +2071,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         public Task<Stream> OpenReadAsync(string storageKey, CancellationToken cancellationToken = default) => Task.FromResult<Stream>(new MemoryStream([1, 2, 3]));
         public Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
-    private sealed class NoopCollaborationNotifier : IAdminCollaborationNotifier { public Task NotifyDraftChangedAsync(Guid eventId, CancellationToken cancellationToken = default) => Task.CompletedTask; public Task NotifyBoardChangedAsync(Guid eventId, CancellationToken cancellationToken = default) => Task.CompletedTask; }
+    private sealed class NoopCollaborationNotifier : IAdminCollaborationNotifier { public Task NotifyDraftChangedAsync(Guid eventId, CancellationToken cancellationToken = default) => Task.CompletedTask; public Task NotifyBoardChangedAsync(Guid eventId, CancellationToken cancellationToken = default) => Task.CompletedTask; public Task NotifyEventsControlChangedAsync(CancellationToken cancellationToken = default) => Task.CompletedTask; }
     private sealed class NoopSignupService : ISignupService { public Task<int> IncreaseCapacityAndPromoteAsync(Guid eventId, int newCap, CancellationToken cancellationToken = default) => Task.FromResult(0); public Task<int> PromoteAvailablePlacesAsync(Guid eventId, CancellationToken cancellationToken = default) => Task.FromResult(0); }
     private sealed class DevelopmentEnvironment : IWebHostEnvironment
     {

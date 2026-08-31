@@ -162,7 +162,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         });
 
         modelBuilder.Entity<AccountEventAccess>(entity => { entity.ToTable("account_event_accesses"); entity.HasKey(x => x.Id); entity.HasIndex(x => x.AccountId); entity.HasIndex(x => new { x.EventId, x.TeamId }); entity.Property(x => x.ActiveFrom).HasColumnName("active_from"); entity.Property(x => x.CorrectionOnlyFrom).HasColumnName("correction_only_from"); entity.Property(x => x.ExpiresAt).HasColumnName("expires_at"); entity.Property(x => x.CutoffDisabled).HasColumnName("cutoff_disabled"); });
-        modelBuilder.Entity<PersonalNotification>(entity => { entity.ToTable("personal_notifications"); entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.RecipientAccountId, x.ReadAt, x.CreatedAt }); entity.Property(x => x.Title).HasMaxLength(200); entity.Property(x => x.Detail).HasMaxLength(1_000); entity.Property(x => x.Route).HasMaxLength(500); });
+        modelBuilder.Entity<PersonalNotification>(entity => { entity.ToTable("personal_notifications"); entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.RecipientAccountId, x.ReadAt, x.CreatedAt }); entity.HasIndex(x => new { x.EventId, x.RecipientAccountId, x.CreatedAt }); entity.Property(x => x.Title).HasMaxLength(200); entity.Property(x => x.Detail).HasMaxLength(1_000); entity.Property(x => x.Route).HasMaxLength(500); entity.Property(x => x.EventId).HasColumnName("event_id"); entity.HasOne<BingoEvent>().WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict); });
         modelBuilder.Entity<WaitingListPromotionFollowUp>(entity =>
         {
             entity.ToTable("waiting_list_promotion_follow_ups");

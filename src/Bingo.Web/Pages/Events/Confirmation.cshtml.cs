@@ -29,6 +29,7 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
 
     public async Task<IActionResult> OnGetAsync(string slug, Guid? participantId, CancellationToken ct)
     {
+        if (!await db.Events.AsNoTracking().AnyAsync(item => item.Slug == slug && item.HiddenAt == null, ct)) return NotFound();
         if (participantId is not null)
         {
             var accountId = User.GetAccountId();
@@ -36,7 +37,7 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
                 return RedirectToPage("/Account/Login", new { ReturnUrl = Url.Page("/Events/Confirmation", new { slug, participantId }) });
             var row = await (from participant in db.EventParticipants.AsNoTracking()
                              join item in db.Events.AsNoTracking() on participant.EventId equals item.Id
-                             where participant.Id == participantId && participant.AccountId == accountId && item.Slug == slug
+                             where participant.Id == participantId && participant.AccountId == accountId && item.HiddenAt == null && item.Slug == slug
                              select new { Participant = participant, Event = item }).SingleOrDefaultAsync(ct);
             if (row is null) return Forbid();
             var rosterExists = await db.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && db.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == row.Event.Id), ct);
@@ -104,6 +105,7 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
 
     public async Task<IActionResult> OnPostWithdrawAsync(string slug, CancellationToken ct)
     {
+        if (!await db.Events.AsNoTracking().AnyAsync(item => item.Slug == slug && item.HiddenAt == null, ct)) return NotFound();
         var accountId = User.GetAccountId();
         if (accountId is null) return Challenge();
         var participant = await OwnedParticipantAsync(slug, accountId.Value, ct);
@@ -116,6 +118,7 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
 
     public async Task<IActionResult> OnPostRejoinAsync(string slug, CancellationToken ct)
     {
+        if (!await db.Events.AsNoTracking().AnyAsync(item => item.Slug == slug && item.HiddenAt == null, ct)) return NotFound();
         var accountId = User.GetAccountId();
         if (accountId is null) return Challenge();
         var participant = await OwnedParticipantAsync(slug, accountId.Value, ct);
@@ -129,7 +132,7 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
     private async Task<OwnedParticipant?> OwnedParticipantAsync(string slug, Guid accountId, CancellationToken ct) =>
         await (from participant in db.EventParticipants
                join bingoEvent in db.Events on participant.EventId equals bingoEvent.Id
-               where bingoEvent.Slug == slug && participant.AccountId == accountId
+               where bingoEvent.HiddenAt == null && bingoEvent.Slug == slug && participant.AccountId == accountId
                select new OwnedParticipant(participant.EventId, participant.Id)).SingleOrDefaultAsync(ct);
     private static string DisplayStatus(string status) => status == nameof(SignupStatus.WaitingList) ? "Waiting list" : status;
     private void SetStatus(string message, bool success) { TempData["StatusMessage"] = message; TempData[Bingo.Web.UI.UiMessage.TypeKey] = (success ? Bingo.Web.UI.UiMessageType.Success : Bingo.Web.UI.UiMessageType.Error).ToString(); }

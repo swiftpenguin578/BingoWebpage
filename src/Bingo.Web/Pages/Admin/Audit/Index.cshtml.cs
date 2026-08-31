@@ -28,7 +28,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext) : PageModel
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
-        var query = dbContext.AuditEntries.AsNoTracking();
+        var query = dbContext.AuditEntries.AsNoTracking().Where(entry => entry.EventId == null || dbContext.Events.Any(eventItem => eventItem.Id == entry.EventId && eventItem.HiddenAt == null));
         if (!string.IsNullOrWhiteSpace(Action))
         {
             query = query.Where(entry => entry.Action.Contains(Action));

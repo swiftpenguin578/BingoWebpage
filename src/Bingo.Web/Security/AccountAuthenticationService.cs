@@ -34,7 +34,8 @@ public sealed class AccountAuthenticationService(
         if (account.AccountType == AccountType.EmergencyCaptain)
         {
             emergencyAccess = await dbContext.AccountEventAccesses.SingleOrDefaultAsync(access => access.AccountId == account.Id, cancellationToken);
-            if (emergencyAccess?.GetAccessMode(timeProvider.GetUtcNow()) == AccountAccessMode.Disabled) return null;
+            if (emergencyAccess?.GetAccessMode(timeProvider.GetUtcNow()) == AccountAccessMode.Disabled ||
+                emergencyAccess is not null && !await dbContext.Events.AsNoTracking().AnyAsync(x => x.Id == emergencyAccess.EventId && x.HiddenAt == null, cancellationToken)) return null;
         }
 
         var result = passwordHasher.VerifyHashedPassword(account, account.PasswordHash, password);
@@ -50,7 +51,7 @@ public sealed class AccountAuthenticationService(
 
         account.RecordLogin(timeProvider.GetUtcNow());
         if (account.AccountType == AccountType.EmergencyCaptain)
-            dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), account.Id, account.LoginName, "account.emergency_login", "account", account.Id.ToString(), "Emergency credential login succeeded."));
+            dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), account.Id, account.LoginName, "account.emergency_login", "account", account.Id.ToString(), "Emergency credential login succeeded.", emergencyAccess?.EventId));
         await dbContext.SaveChangesAsync(cancellationToken);
         return account;
     }

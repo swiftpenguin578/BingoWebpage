@@ -3,7 +3,7 @@
 ## Technical Architecture
 
 **Status:** Approved architecture v1.1 with Planning Pass 2 target changes documented
-**Last updated:** 2026-07-25
+**Last updated:** 2026-08-31
 **Companion documents:** `PRODUCT_REQUIREMENTS.md`, `DATA_MODEL.md`
 
 ## 1. Architecture decision
@@ -147,6 +147,8 @@ SignalR publishes small invalidation/update messages after:
 - Catalogue changes that affect an open draft-board editor
 - Draft pick
 - Event state change
+- Event hide/restore produces only authorized Events Control invalidation; it
+  emits no personal notification and never broadcasts hidden event data.
 
 Clients then update the affected view or request fresh data. SignalR messages do not contain authoritative secret data and do not replace database transactions.
 
@@ -170,6 +172,7 @@ PostgreSQL stores:
 - Accounts and event access
 - Audit entries
 - Asset metadata
+- Event-linked notification metadata used to filter hidden-event destinations
 
 Screenshot binary data is not stored in PostgreSQL.
 
@@ -199,6 +202,8 @@ The following operations require a database transaction:
 - Board publication from the active approval snapshot
 - Event finalization
 - Event unfinalization
+- Event hide and restore, including metadata, audit, and visible-event
+  projection invalidation
 
 Submission review uses a concurrency token or row lock so two admins cannot apply the same evidence twice.
 
@@ -308,6 +313,27 @@ Authorization policies enforce:
 
 Authorization is checked on every server mutation. Hiding an interface control is not a security boundary.
 
+Hidden-event access is a separate fail-closed boundary. Existing
+`RequireSuperAdmin` authorization is reused; no new policy, route, page, or
+table is introduced. Events Control applies an explicit visible/hidden
+predicate and exposes hidden rows only in its clearly separated SuperAdmin
+Hidden area. Its limited Manage inspection may show retained lifecycle data,
+hide/restore audit history, and Restore, but every ordinary event workspace,
+public route, account/history projection, submission/evidence route,
+notification/action/audit projection, and realtime subscription rejects a hidden
+event with 404 or an absent projection, including for Super Admins. Queries
+must not depend on a global EF query filter: each event-scoped read and
+mutation applies the appropriate explicit predicate/guard.
+
+One narrow application service owns Hide and Restore. It validates the
+post-Live eligibility states, exact ordinal event-name confirmation, mandatory
+reason, SuperAdmin authority, and optimistic concurrency, then atomically
+updates `HiddenAt`, `HiddenByAccountId`, and `HiddenReason` with the audit
+entry. Restore clears only those fields. No lifecycle scheduler, signup/live
+singleton check, active-event processing, notification, or competitive
+snapshot/data rewrite is involved because hidden events are never eligible
+before Live.
+
 The captain draft-information view reuses the signup-board projection with a role-aware column set. It exposes participant-submitted answers, including fields hidden from the public projection, but never joins paid/unpaid status, private admin notes, identity-recovery/security metadata, or audit data. Only captains/co-captains of drafted teams may load it, and only until draft finalization. After finalization, the signup route remains an admin-authorized signup page; non-admin requests redirect to the published team-roster route rather than rendering roster content through the signup page.
 
 Team-focus queries do not inherit ordinary admin visibility. A current team membership grants read access; captain/co-captain on that team grants mutation. For another team, the designated Super Admin must explicitly enable a team-scoped inspection mode before a read projection or realtime subscription is authorized. The default page, API response, and SignalR subscription contain no cross-team focus data. Inspection is read-only, visibly identified, limited to the current team/page session, and not persisted as a show-all preference. Realtime focus invalidations remain authorized and team-scoped rather than broadcast as public board events. Focus writes use optimistic concurrency and have no path into competitive progress calculations.
@@ -321,6 +347,9 @@ Website-account disable/enable uses a separate application command from global-r
 The global Accounts area uses separate sanitized, server-paginated projections for website accounts and emergency credentials, with 25 rows per page. Website search/filters cover normalized username, global role, active state, Discord-link state, and event participation; rows include username, role, state, link state, last login, and current event-role summary. Detail queries include every linked OSRS character, non-authoritative last-known Discord display metadata, event participation, current/historical event-team roles, and disable history. Emergency projections include login username, event/team, setup/enabled/cutoff state, last login, and only currently authorized controls. Neither projection returns password hashes, OAuth tokens, setup/reset-token material, or unnecessary raw Discord identifiers. Version one provides neither website-account merge nor permanent account deletion.
 
 Audit history is an immutable newest-first server query with a fixed page size of 25 and filters for event, actor, action, entity, and date range. Pagination preserves filters and can traverse the complete retained history; it is not a retention cap. Detail rendering converts structured before/after fields into human-readable values without mutating the stored event. Version one has no audit export. Routine successful website login updates `last_login_at` only; failed attempts and throttling use security logs. Emergency-credential success and security-sensitive password, Discord-link, role, disable/restore, ownership, and emergency-access mutations write durable audit events.
+
+Event-linked audit records for hidden events are omitted from ordinary-Admin
+projections and are shown only in the limited SuperAdmin quarantine inspection.
 
 Grant/revoke Admin and restore commands append a personal notification for the target. Disable keeps its written reason private to Admin/audit projections; a stale or attempted authenticated route returns neutral contact-an-admin guidance without disclosing the reason.
 
@@ -559,6 +588,14 @@ deployment keeps writes stopped through migration and readiness; only an
 available, unchanged pre/post migration history permits restoration of the
 captured prior immutable image. Changed or unknown history requires the
 confirmed full restore procedure.
+
+The hidden-event migration is additive, but an older application version would
+ignore the new metadata and re-expose hidden rows. Therefore rollback or image
+reversion must fail closed while any event has non-null `HiddenAt`: the
+deployment preflight reports the affected event IDs/names and requires the
+operator either to restore those events through a compatible application or to
+remain on the new image before retrying. No automatic data-clearing or
+visibility rewrite is permitted.
 
 Initial production provisioning uses an empty PostgreSQL database and a root-only
 explicit bootstrap-state marker (`new`, `interrupted`, or `completed`). After
@@ -803,9 +840,13 @@ No real participant comments or evidence screenshots belong in seed data.
 - PostgreSQL constraints and transactions
 - Concurrent evidence approval
 - Captain team authorization
+- Hidden-event hide/restore authorization, eligibility, route privacy, and
+  ordinary-Admin/SuperAdmin boundary
 - Event snapshot immutability
 - Finalization blockers and overrides
 - Audit creation
+- Event-linked notification filtering and absence of hide/restore notifications
+- Migration/preflight refusal to roll back while hidden rows exist
 - R2 storage adapter against a test-compatible endpoint
 
 ### Browser tests
@@ -814,6 +855,7 @@ No real participant comments or evidence screenshots belong in seed data.
 - Signup, private editing, capacity, and waiting list
 - Captain submission and pending-submission editing
 - Admin review and reversal
+- SuperAdmin hidden-event inspection/restore and fail-closed direct routes
 - Board building and resizing
 - Snake draft
 - Pre-formed team creation and roster correction before and after draft finalization

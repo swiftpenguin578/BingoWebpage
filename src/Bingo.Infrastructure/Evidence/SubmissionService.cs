@@ -25,7 +25,7 @@ public sealed class SubmissionService(
     public async Task<SubmissionResult> CreateAsync(CreateSubmissionCommand command, CancellationToken cancellationToken = default)
     {
         var now = time.GetUtcNow(); var actor = await db.Accounts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == command.ActorAccountId, cancellationToken) ?? throw new InvalidOperationException("Account not found.");
-        var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == command.EventId, cancellationToken) ?? throw new InvalidOperationException("Event not found.");
+        var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == command.EventId && x.HiddenAt == null, cancellationToken) ?? throw new InvalidOperationException("Event not found.");
         var actorScope = await Authority.AuthorizeAsync(command.ActorAccountId, command.EventId, command.TeamId, command.CreditedParticipantId, now, cancellationToken);
         var isAdmin = actorScope.Kind == EvidenceActorKind.Administrator;
         if (isAdmin) throw new InvalidOperationException("Administrators cannot create evidence submissions.");
@@ -58,7 +58,7 @@ public sealed class SubmissionService(
     public async Task<SubmissionResult> CorrectAsync(CorrectSubmissionCommand command, CancellationToken cancellationToken = default)
     {
         var now = time.GetUtcNow(); var submission = await db.Submissions.SingleOrDefaultAsync(x => x.Id == command.SubmissionId, cancellationToken) ?? throw new InvalidOperationException("Submission not found.");
-        var ev = await db.Events.AsNoTracking().SingleAsync(x => x.Id == submission.EventId, cancellationToken);
+        var ev = await db.Events.AsNoTracking().SingleAsync(x => x.Id == submission.EventId && x.HiddenAt == null, cancellationToken);
         var actorScope = command.OwnerOnly
             ? await Authority.AuthorizeOwnerAsync(command.ActorAccountId, submission.EventId, submission.TeamId, submission.CreditedParticipantId, now, cancellationToken)
             : await Authority.AuthorizeAsync(command.ActorAccountId, submission.EventId, submission.TeamId, submission.CreditedParticipantId, now, cancellationToken);
@@ -98,7 +98,7 @@ public sealed class SubmissionService(
 
     public async Task WithdrawAsync(Guid submissionId, Guid actorAccountId, CancellationToken cancellationToken = default, int? expectedVersion = null, bool ownerOnly = false)
     {
-        var now = time.GetUtcNow(); var s = await db.Submissions.SingleAsync(x => x.Id == submissionId, cancellationToken); var ev = await db.Events.AsNoTracking().SingleAsync(x => x.Id == s.EventId, cancellationToken); var actorScope = ownerOnly ? await Authority.AuthorizeOwnerAsync(actorAccountId, s.EventId, s.TeamId, s.CreditedParticipantId, now, cancellationToken) : await Authority.AuthorizeAsync(actorAccountId, s.EventId, s.TeamId, s.CreditedParticipantId, now, cancellationToken); if (actorScope.Kind is EvidenceActorKind.Administrator) throw new InvalidOperationException("Administrators cannot withdraw submissions through the captain path."); EnsureMutationWindow(ev, actorScope.Kind, now, "Submissions are not currently open."); EnsureExpectedVersion(s, expectedVersion); var before = Snapshot(s); s.Withdraw(now); db.ReviewActions.Add(Action(s.Id, ReviewActionType.Withdraw, actorAccountId, now, null, before, Snapshot(s))); await db.SaveChangesAsync(cancellationToken);
+        var now = time.GetUtcNow(); var s = await db.Submissions.SingleAsync(x => x.Id == submissionId, cancellationToken); var ev = await db.Events.AsNoTracking().SingleAsync(x => x.Id == s.EventId && x.HiddenAt == null, cancellationToken); var actorScope = ownerOnly ? await Authority.AuthorizeOwnerAsync(actorAccountId, s.EventId, s.TeamId, s.CreditedParticipantId, now, cancellationToken) : await Authority.AuthorizeAsync(actorAccountId, s.EventId, s.TeamId, s.CreditedParticipantId, now, cancellationToken); if (actorScope.Kind is EvidenceActorKind.Administrator) throw new InvalidOperationException("Administrators cannot withdraw submissions through the captain path."); EnsureMutationWindow(ev, actorScope.Kind, now, "Submissions are not currently open."); EnsureExpectedVersion(s, expectedVersion); var before = Snapshot(s); s.Withdraw(now); db.ReviewActions.Add(Action(s.Id, ReviewActionType.Withdraw, actorAccountId, now, null, before, Snapshot(s))); await db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<SubmissionResult> ResubmitAsync(ResubmitSubmissionCommand command, CancellationToken cancellationToken = default)
@@ -107,7 +107,7 @@ public sealed class SubmissionService(
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         var predecessor = await db.Submissions.FromSqlInterpolated($"SELECT * FROM submissions WHERE id = {command.PredecessorSubmissionId} FOR UPDATE").SingleOrDefaultAsync(cancellationToken)
             ?? throw new InvalidOperationException("Submission not found.");
-        var ev = await db.Events.AsNoTracking().SingleAsync(x => x.Id == predecessor.EventId, cancellationToken);
+        var ev = await db.Events.AsNoTracking().SingleAsync(x => x.Id == predecessor.EventId && x.HiddenAt == null, cancellationToken);
         var scope = command.OwnerOnly
             ? await Authority.AuthorizeOwnerAsync(command.ActorAccountId, predecessor.EventId, predecessor.TeamId, predecessor.CreditedParticipantId, now, cancellationToken)
             : await Authority.AuthorizeAsync(command.ActorAccountId, predecessor.EventId, predecessor.TeamId, predecessor.CreditedParticipantId, now, cancellationToken);
@@ -232,7 +232,7 @@ public sealed class SubmissionService(
 
     private static void EnsureEvidenceReviewCapability(BingoEvent item)
     {
-        if (!EventStatePolicy.Allows(item.State, EventCapability.ReviewEvidence))
+        if (item.IsHidden || !EventStatePolicy.Allows(item.State, EventCapability.ReviewEvidence))
             throw new InvalidOperationException("Evidence can only be reviewed while the event is Live or awaiting final review.");
     }
     private async Task<int> ValidateTarget(Guid eventId, Guid teamId, Guid tileId, Guid requirementId, Guid? dropId, Guid participantId, CancellationToken cancellationToken)
@@ -270,7 +270,7 @@ public sealed class SubmissionService(
     {
         var context = await (from eventItem in db.Events.AsNoTracking()
                              join tile in db.BoardTiles.AsNoTracking() on submission.BoardTileId equals tile.Id
-                             where eventItem.Id == submission.EventId
+                             where eventItem.Id == submission.EventId && eventItem.HiddenAt == null
                              select new { EventName = eventItem.Name, TileName = tile.NameSnapshot }).SingleAsync(cancellationToken);
         var dropName = submission.DropSnapshotId is Guid dropId
             ? await db.BoardRequirementDropSnapshots.AsNoTracking().Where(x => x.Id == dropId).Select(x => x.ItemName).SingleOrDefaultAsync(cancellationToken)
@@ -289,7 +289,7 @@ public sealed class SubmissionService(
             var notificationId = DeterministicNotificationId(submission.Id, recipient);
             if (!await db.PersonalNotifications.AnyAsync(x => x.Id == notificationId, cancellationToken))
                 db.PersonalNotifications.Add(new Bingo.Domain.Access.PersonalNotification(notificationId, recipient, "evidence.rejected", detail,
-                    $"/Submissions/{submission.Id}", now));
+                    $"/Submissions/{submission.Id}", now, submission.EventId));
         }
     }
 

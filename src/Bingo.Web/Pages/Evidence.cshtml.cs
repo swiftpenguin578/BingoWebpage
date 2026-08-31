@@ -13,6 +13,7 @@ public sealed class EvidenceModel(ApplicationDbContext db, IEvidenceStorage stor
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
     {
         var asset = await db.EvidenceAssets.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct); if (asset is null) return NotFound(); var submission = await db.Submissions.AsNoTracking().SingleAsync(x => x.Id == asset.SubmissionId, ct);
+        if (!await db.Events.AsNoTracking().AnyAsync(x => x.Id == submission.EventId && x.HiddenAt == null, ct)) return NotFound();
         var allowed = submission.Status == SubmissionStatus.Approved && asset.Active;
         if (!allowed)
         {

@@ -105,11 +105,49 @@ evidence and this result does not by itself close the full Pass 5 rehearsal.
 The rehearsal event remains isolated test data and must follow
 `Live -> AwaitingFinalReview -> Finalized -> Archived` to preserve history;
 Live or formerly Live events cannot be cancelled. Ordinary archive remains
-public historical content, so removal from public visibility is not proven by
-the existing lifecycle and remains an unresolved product/implementation
-decision. Historical summer-event import and any visibility mutation are
-deferred until the end of the correction batch or separate explicit
-production-data authorization; this handoff does not authorize data mutation.
+public historical content. The hidden-event quarantine implementation is now
+complete in the working tree but is uncommitted and unpushed; it was not part of
+this provider rehearsal. Historical summer-event import remains separate: after
+deployment, hide the production rehearsal and separately import the genuine
+older event as visible `Archived` history. This handoff authorizes neither
+production mutation.
+
+## Hidden-event quarantine implementation handoff — 2026-08-31
+
+Implementation is complete in the working tree, uncommitted and unpushed. The
+additive migration
+`20260831142836_AddEventQuarantine` exists but has not been applied to
+application data. Focused gates passed: affected Web Release build; domain
+quarantine 10; destination-policy 20; quarantine integration initially 2 and
+then focused remediation suite 6; migration rehearsal 1; architecture;
+Bash-syntax; and `git diff --check`.
+
+An independent Sol High review initially found four blockers: Hide
+reachability/rendering, emergency-credential access/audit, realtime
+access/invalidation, and legacy notification backfill/index. Focused Luna
+xhigh remediation closed them. Follow-up review found and closed two
+migration-only emergency-audit classification issues. Final independent
+closure verdict: PASS.
+
+The final contract remains: only `AwaitingFinalReview`, `Finalized`, and
+`Archived` are eligible; SuperAdmin access is limited to the separated Hidden
+area and limited Manage inspection; all other paths fail closed; and no
+production hide or historical import is authorized.
+
+Manual-acceptance preflight is BLOCKED by the environment, not an
+implementation verdict: Docker/Testcontainers are unavailable, no `psql` or
+`createdb` tools are available, and only the user's normal Bingo.Web
+instance/database is available and was not touched. Rendered navigation and
+Hide/Restore journeys remain unverified. The smallest unblocker is a disposable
+PostgreSQL/Testcontainers host or an isolated Development-reset database.
+Source inspection indicates reset fixtures for eligible post-Live events
+`test-21-final-review`, `test-84-evidence-history`, and
+`test-85-archived-results`; this is source evidence, not rendered verification.
+
+Next permitted action: provide or enable the disposable database for the
+bounded rendered preflight, then obtain user manual inspection/acceptance.
+Packaging, commit, push, production hide, and historical import remain
+unauthorized.
 
 ## Submission workspace consolidation handoff — 2026-08-31
 
@@ -158,8 +196,11 @@ The user approved the following concrete Pass 5/6 closure gates on 2026-08-30:
   receipt reports successful retention.
 - Change the bootstrap owner's initial password before public signup. Keep
   rehearsal data separate; take it through `Live -> AwaitingFinalReview ->
-  Finalized -> Archived` to preserve history, and separately decide whether
-  any public-visibility mutation is possible and authorized.
+  Finalized -> Archived` to preserve history. The post-Live hidden-event
+  quarantine implementation is complete but its rendered preflight is blocked
+  pending a disposable database; after deployment hide the rehearsal and
+  separately import the genuine older event as visible `Archived` history,
+  with neither production mutation included here.
 - Resolve the evidence-storage protection wording before launch: confirm the
   actual R2 accidental-deletion/versioning behavior or explicitly accept and
   document another recovery path. The integrity command detects loss but is not

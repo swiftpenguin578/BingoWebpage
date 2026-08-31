@@ -39,7 +39,9 @@ public sealed class AccountCookieEvents(ApplicationDbContext dbContext, TimeProv
         if (account.AccountType == AccountType.EmergencyCaptain)
         {
             var access = await dbContext.AccountEventAccesses.AsNoTracking().SingleOrDefaultAsync(x => x.AccountId == accountId, context.HttpContext.RequestAborted);
-            if (access?.GetAccessMode(time.GetUtcNow()) == AccountAccessMode.Disabled) await RejectAsync(context);
+            if (access?.GetAccessMode(time.GetUtcNow()) == AccountAccessMode.Disabled ||
+                access is not null && !await dbContext.Events.AsNoTracking().AnyAsync(x => x.Id == access.EventId && x.HiddenAt == null, context.HttpContext.RequestAborted))
+                await RejectAsync(context);
         }
     }
 

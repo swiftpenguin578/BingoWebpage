@@ -187,6 +187,8 @@ public sealed class TeamFocusService(
         bool inspectEnabled,
         CancellationToken cancellationToken)
     {
+        var eventItem = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId, cancellationToken);
+        if (eventItem is null || eventItem.HiddenAt is not null) return null;
         var account = await db.Accounts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == viewerAccountId, cancellationToken);
         if (account is null || !account.Active || account.AccountType is not (AccountType.WebsiteAccount or AccountType.EmergencyCaptain)) return null;
         var membership = await (from item in db.EventParticipants.AsNoTracking()
@@ -204,8 +206,7 @@ public sealed class TeamFocusService(
         var canInspect = isSuperAdmin && !isMember;
         var isInspection = canInspect && inspectEnabled;
         var visible = isMember || emergency || isInspection;
-        var eventItem = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId, cancellationToken);
-        var canMutate = (isCaptain || emergency) && eventItem is not null &&
+        var canMutate = (isCaptain || emergency) &&
                         (eventItem.State is EventState.SignupClosed or EventState.Live) &&
                         eventItem.EventEndsAt is { } eventEnd && time.GetUtcNow() < eventEnd;
         return new FocusAccess(visible, isInspection, canInspect, canMutate);

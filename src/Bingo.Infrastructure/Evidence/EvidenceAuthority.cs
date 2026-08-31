@@ -13,6 +13,8 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
     {
         var account = await db.Accounts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == actorAccountId && x.Active, cancellationToken)
             ?? throw new InvalidOperationException("The submitting account is not active.");
+        if (eventId is Guid visibleEventId && !await db.Events.AsNoTracking().AnyAsync(x => x.Id == visibleEventId && x.HiddenAt == null, cancellationToken))
+            throw new InvalidOperationException("The event was not found.");
         if (account.AccountType == AccountType.EmergencyCaptain)
         {
             if (eventId is not Guid emergencyEventId || teamId is not Guid emergencyTeamId)
@@ -26,7 +28,8 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         var memberships = from participant in db.EventParticipants.AsNoTracking()
                           join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
                           join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
-                          where participant.AccountId == actorAccountId && team.Active && membership.LeftAt == null && participant.EventId == team.EventId
+                          join bingoEvent in db.Events.AsNoTracking() on participant.EventId equals bingoEvent.Id
+                          where participant.AccountId == actorAccountId && team.Active && membership.LeftAt == null && bingoEvent.HiddenAt == null && participant.EventId == team.EventId
                           select new { participant.EventId, TeamId = team.Id, ParticipantId = participant.Id, membership.Role };
         if (eventId is Guid selectedEvent) memberships = memberships.Where(x => x.EventId == selectedEvent);
         if (teamId is Guid selectedTeam) memberships = memberships.Where(x => x.TeamId == selectedTeam);

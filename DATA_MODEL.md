@@ -3,7 +3,7 @@
 ## Data Model and Calculation Specification
 
 **Status:** Planning Pass 2 target model v0.2; implementation and migration details are maintained in the current checkout
-**Last updated:** 2026-07-25
+**Last updated:** 2026-08-31
 **Companion document:** `PRODUCT_REQUIREMENTS.md`
 
 ## 1. Purpose
@@ -136,6 +136,9 @@ Optional fields:
 - `submissions_closed_at`
 - `finalized_at`
 - `archived_at`
+- `hidden_at`
+- `hidden_by_account_id`
+- `hidden_reason`
 - `cancelled_at`
 - `cancelled_by_account_id`
 - `cancellation_reason`
@@ -217,6 +220,32 @@ Each authoritative transition into `AWAITING_FINAL_REVIEW` identifies one immuta
 Evidence eligibility is derived from the append-only lifecycle transitions. If an event resumes from `AWAITING_FINAL_REVIEW` to `LIVE`, the interval between those authoritative effective times remains ineligible; review projections identify evidence timestamps in that gap without rewriting the submission or asset timestamp. Normal finalization also requires an explicit server-validated confirmation value; browser confirmation is only an enhancement.
 
 Production permits multiple `SIGNUP_OPEN` and `SIGNUP_CLOSED` events only when their configured half-open event windows `[event_starts_at, event_ends_at)` do not overlap; an end exactly equal to another start is allowed. Only `LIVE`, `AWAITING_FINAL_REVIEW`, and `FINALIZED` are singleton current states. Drafts do not reserve a window, and cancelled, discarded, or archived events do not block a new one. `is_development_fixture` is an internal persisted marker set only by the Development scenario seeder; ordinary Admin input cannot set it and Production lifecycle commands never honor it.
+
+### 5.1.1 Event quarantine metadata
+
+Hidden is not an `EventState` value. It is derived from the nullable
+`hidden_at` field and is therefore reversible administrative quarantine:
+
+```text
+is_hidden = hidden_at != null
+```
+
+`hidden_by_account_id` references the Super Admin account that performed the
+current hide, and `hidden_reason` is mandatory when `hidden_at` is set. The
+database retains the event's unchanged lifecycle state and every event-owned
+relationship. Hiding is valid only for `AWAITING_FINAL_REVIEW`, `FINALIZED`, or
+`ARCHIVED`; all pre- and active-event states, plus `CANCELLED` and `DISCARDED`,
+are ineligible. Hide and restore are audited mutations, not lifecycle
+transitions, and Restore clears only these three metadata fields.
+
+Visible-event queries and guards must explicitly require `is_hidden = false`
+where a public, participant, Captain, emergency-authority, ordinary-Admin,
+notification, action, audit, evidence, or realtime projection is allowed. There is no
+global EF query filter. A hidden event is available only to the separated
+SuperAdmin Events Control Hidden projection and its limited Manage inspection;
+all other event routes fail closed with 404, including for Super Admins.
+Snapshots, rankings, submissions, evidence, audit history, assets, storage
+objects, and all other database relations remain retained and unchanged.
 
 ### 5.2 Event publication controls
 
@@ -881,6 +910,7 @@ An admin identity transfer updates the event participant's owning `account_id` a
 Fields:
 
 - `Id`
+- `EventId`, nullable for global/non-event notifications
 - `RecipientAccountId`
 - `Title`
 - `Detail`
@@ -888,7 +918,16 @@ Fields:
 - `CreatedAt`
 - `ReadAt`, nullable
 
-The table has a primary key on `Id` and an index over `(RecipientAccountId, ReadAt, CreatedAt)`. It does not carry the richer event/participant/type/path foreign-key shape or a universal recipient-transition uniqueness constraint. `Route` is a supplementary direct destination and must still resolve under the recipient's current authorization and scope; an empty route falls back to the notification page.
+The table has a primary key on `Id`, an optional foreign key from `EventId` to
+`Event`, and indexes over `(RecipientAccountId, ReadAt, CreatedAt)` and
+`(EventId, RecipientAccountId, CreatedAt)` when the event association is used.
+It does not carry the richer event/participant/type/path foreign-key shape or a
+universal recipient-transition uniqueness constraint. `Route` is a
+supplementary direct destination and must still resolve under the recipient's
+current authorization and scope; an empty route falls back to the notification
+page. Event-linked notifications are filtered through `EventId` plus the
+explicit visible-event predicate so hiding cannot leak stale event actions or
+destinations.
 
 Reading a notification is recipient-scoped and marks `ReadAt` only when it is not already set, so repeated reads are idempotent. Notifications are retained, and reading or following a destination never resolves the underlying workflow or Admin action. Pending review, waiting-list follow-up, postponed start, vacancy, missing-Captain, and other operational state disappears only when its authoritative record is resolved.
 
@@ -1610,6 +1649,7 @@ Fields:
 Audited actions include:
 
 - Event creation and discard
+- Event hide and restore, including actor, reason, and before/after quarantine metadata
 - Event state changes
 - Signup deadline and capacity changes
 - Waiting-list promotions and manual status changes
@@ -1642,6 +1682,7 @@ The implementation must enforce these rules atomically:
 10. Historical snapshots are not rewritten by catalogue updates.
 11. Pre-formed teams do not receive draft turns or alter snake-draft calculations.
 12. A participant assigned to a pre-formed team is excluded from the available draft pool.
+13. Hide/restore authorization, eligibility, confirmation, metadata, and audit are atomic; hidden events cannot be returned by ordinary event projections or routes, and Restore does not rewrite lifecycle or retained competitive data.
 
 ## 21. Representative tile mappings
 
@@ -1751,3 +1792,4 @@ The data model is ready for architecture planning when it can represent and expl
 20. Auditable corrections without destructive history deletion.
 21. Pre-formed internal or external teams added before or after a draft without altering draft history.
 22. A partially built private board that remains editable while event signups are open.
+23. Orthogonal post-Live event quarantine metadata, retained relations, event-linked notification filtering, and fail-closed hide/restore access semantics.

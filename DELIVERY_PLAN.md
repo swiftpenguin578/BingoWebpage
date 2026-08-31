@@ -53,6 +53,33 @@ rules and implementation ownership are defined by [`UI_SYSTEM.md`](UI_SYSTEM.md)
    `git diff --check` passed for the documentation/archive changes. The current
    UI order is owned by section 2 below. No release-readiness claim is included.
 
+8. **Hidden-event quarantine implementation — complete in the working tree,
+   uncommitted and unpushed (2026-08-31):** migration
+   `20260831142836_AddEventQuarantine` exists but has not been applied to
+   application data. The affected Web Release build, domain quarantine (10),
+   destination policy (20), quarantine integration (initially 2, then focused
+   remediation suite 6), migration rehearsal (1), architecture, Bash syntax,
+   and `git diff --check` gates passed. An independent Sol High review found
+   four initial blockers—Hide reachability/rendering, emergency-credential
+   access/audit, realtime access/invalidation, and legacy notification
+   backfill/index—which focused Luna xhigh remediation closed. Follow-up review
+   closed two migration-only emergency-audit classification issues; final
+   independent closure verdict is PASS.
+
+   The contract remains limited to `AwaitingFinalReview`, `Finalized`, and
+   `Archived` eligibility, the separated SuperAdmin Hidden area/limited Manage
+   inspection, and fail-closed ordinary paths. No production hide or historical
+   import is included. Manual-acceptance preflight is blocked by the environment
+   rather than the implementation verdict: Docker/Testcontainers and `psql`/
+   `createdb` are unavailable, and the only available database is the user's
+   normal Bingo.Web instance, which was not touched. The rendered journeys are
+   unverified. The smallest unblocker is a disposable PostgreSQL/Testcontainers
+   host or isolated Development-reset database; source fixtures appear to
+   include `test-21-final-review`, `test-84-evidence-history`, and
+   `test-85-archived-results`, but that is not rendered verification. After the
+   preflight passes, obtain user manual acceptance before any separately
+   authorized packaging or production operation.
+
 ## 2. Launch and UI order
 
 The user approved a complete Public UI identity replacement on 2026-08-22.
@@ -848,9 +875,12 @@ candidate:
   fictional rehearsal data remains separate. The rehearsal event must follow
   `Live -> AwaitingFinalReview -> Finalized -> Archived` to preserve history;
   Live or formerly Live events cannot be cancelled. Ordinary archive remains
-  public historical content, so removing it from public visibility is not
-  proven by the existing lifecycle and remains an unresolved
-  product/implementation decision.
+  public historical content. Hidden-event quarantine implementation is complete
+  in the uncommitted, unpushed working tree; migration
+  `20260831142836_AddEventQuarantine` has not been applied to application data.
+  Its rendered manual-acceptance preflight is blocked by the unavailable
+  disposable database, and production use is not part of this repository
+  implementation.
 - The operator confirms R2 accidental-deletion/versioning behavior or records
   another accepted evidence recovery path; evidence integrity detection alone
   is not treated as recovery.

@@ -3,7 +3,7 @@
 ## Product Requirements Document
 
 **Status:** Planning Pass 2 target requirements v0.3; selected capability decisions recorded
-**Last updated:** 2026-07-25
+**Last updated:** 2026-08-31
 **Audience:** Community bingo organizers, reviewers, captains, and developers
 
 ## 1. Product summary
@@ -191,6 +191,12 @@ They can:
 
 Ordinary admins cannot grant or revoke the global Admin role. That owner-level action belongs only to the designated Super Admin.
 
+Ordinary Admins cannot see or operate hidden events. A Super Admin may inspect
+hidden events only through the clearly separated Hidden area of Events Control,
+where the limited Manage surface shows retained lifecycle information and
+hide/restore audit history. Super Admin status never bypasses hidden-event
+protection on public routes or ordinary event workspaces.
+
 ### 5.4 Super Admin
 
 The product has exactly one active global owner-level role distinct from ordinary event administration. Super Admin is assigned to a normal website account and inherits ordinary Admin capabilities. The initial owner is selected during controlled setup or migration; first public signup, first login, and onboarding can never claim ownership.
@@ -256,6 +262,34 @@ An event has the following states:
 6. **Finalized:** An admin confirms official placements and statistics.
 7. **Archived:** The event remains publicly viewable as history.
 8. **Cancelled:** A populated pre-live event that will not take place is preserved without continuing scheduled or participant activity.
+
+Hidden is an orthogonal, reversible administrative quarantine and is not an
+event state. Only a Super Admin may hide or restore an event from Events Control
+or the Manage Danger Zone. Hide and Restore each require the exact ordinal
+event-name confirmation, a mandatory reason, and a complete audit entry. Hiding
+is allowed only when the lifecycle state is `AWAITING_FINAL_REVIEW`,
+`FINALIZED`, or `ARCHIVED`; `DRAFT`, `SIGNUP_OPEN`, `SIGNUP_CLOSED`, `LIVE`,
+`CANCELLED`, and `DISCARDED` events cannot be hidden.
+
+While hidden, an event cannot transition lifecycle or use any ordinary event
+workspace. It is absent from all public, participant, Captain/co-captain,
+emergency-authority, and ordinary-Admin discovery, history, account,
+submission, evidence, notification, action, audit, and realtime surfaces.
+Guessed or
+direct event URLs return 404, including for Super Admins. The only exception is
+the separated Super Admin Events Control Hidden area and its limited Manage
+inspection, which exposes retained lifecycle details, quarantine audit history,
+and Restore. Restore clears only the hiding metadata and returns the unchanged
+lifecycle and data; it does not rewrite dates, snapshots, rankings, evidence,
+history, assets, or storage. Hide and Restore emit no notification. Hidden is
+retention, never deletion, and because eligibility begins after Live, hidden
+events have no active-event scheduler, signup, singleton/window-collision, or
+active realtime processing.
+
+This slice adds no lifecycle enum value, deletion, global EF query filter,
+ordinary-Admin visibility, public Super Admin bypass, or full hidden-event
+tooling. Historical-event import and unrelated Admin/UI redesign remain out of
+scope.
 
 The event does not finalize automatically. Admin confirmation is required.
 
@@ -947,6 +981,10 @@ Import is scoped to the selected pre-formed team, previews all validation before
 
 Public boards is an overview of the current public event and previous archived events. Selecting a current event does not automatically redirect visitors into its board; visitors choose the relevant public event surface from the overview.
 
+Hidden events are excluded from every public listing, event history, account
+history, submission/evidence view, notification/action destination, and
+realtime projection. Their guessed or direct public event URLs return 404.
+
 Archived events keep the same public board/team/tile/result routes. Signed-in current members of an archived event team may read that team's complete retained submission history through `/Submissions` and its detail route, including rows credited to departed teammates; former members without current membership, anonymous users, and cross-team viewers fail closed, and every event mutation is removed. There is no separate archived-participant dashboard.
 
 ### 19.2 Canonical authenticated submission pages
@@ -978,6 +1016,7 @@ Archived events keep the same public board/team/tile/result routes. Signed-in cu
 - Results and placement finalization
 - Audit log
 - Admin account manager
+- Events Control Hidden area and limited hidden-event Manage inspection/Restore
 
 ## 20. Audit requirements
 
@@ -989,6 +1028,7 @@ The audit log records at minimum:
 - Approval reversals
 - Manual progress or placement corrections
 - Event state changes
+- Event hide and restore, including the mandatory reason and exact confirmation
 - Submission reopening and event unfinalization
 - Board changes after publication
 - Emergency captain credential creation, activation, automatic cutoff disablement, and explicit re-enabling
@@ -1000,7 +1040,14 @@ Automatic audit history does not imply that the administrator must type a reason
 
 Historical audit data must not be casually deletable through the normal admin interface.
 
-Every enabled Admin may read the audit log. It is a newest-first, server-paginated table with 25 entries per page and filters for event, actor, action, entity, and date range. Pagination retains filters and reaches the complete retained history; the 25-row page size is not a retention limit. Entries cannot be edited or deleted, and version one has no audit export.
+Every enabled Admin may read the audit log, except event-linked records for a
+hidden event are omitted from ordinary-Admin audit projections. The limited
+SuperAdmin Manage inspection exposes that event's quarantine audit history. The
+audit log is a newest-first, server-paginated table with 25 entries per page
+and filters for event, actor, action, entity, and date range. Pagination retains
+filters and reaches the complete retained history; the 25-row page size is not
+a retention limit. Entries cannot be edited or deleted, and version one has no
+audit export.
 
 Audit-entry details present structured before/after data in human-readable form while retaining the immutable structured record. Routine successful website-account login updates `last_login_at` but does not create a main-audit entry. Failed attempts and throttling remain security logs. Successful emergency-credential use and security-sensitive password, Discord-link, role, disable/restore, ownership, and emergency-access mutations remain durable audit events.
 
@@ -1068,6 +1115,8 @@ Detailed visual design and wireframes will be produced after this requirements d
 - Passwords are stored using an appropriate modern password hash.
 - Uploads are validated and served safely.
 - Sensitive admin actions require authorization and auditing.
+- Hidden-event quarantine is SuperAdmin-only, fails closed on every ordinary
+  event route/workspace, and never grants a public SuperAdmin bypass.
 - Rate limiting protects login and upload endpoints.
 
 ### 22.3 Performance
@@ -1120,6 +1169,7 @@ Version one is ready for a live event when:
 21. Competitive corrections and administrative changes are auditable.
 22. Concurrent board edits cannot silently overwrite one another.
 23. Only the active draft controller can mutate a running draft; other admins can observe or explicitly take over with an audit trail.
+24. A Super Admin can hide and restore only eligible post-Live events with exact ordinal-name confirmation, a mandatory reason, complete audit history, no notification, and no lifecycle/data rewrite; hidden events are retained and unavailable outside the separated Events Control Hidden area.
 
 ## 24. Decisions deferred to later planning
 

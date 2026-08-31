@@ -54,7 +54,7 @@ public sealed class IndexModel(ApplicationDbContext db) : PageModel
         var ids = WebsiteAccounts.Select(x => x.Id).ToArray();
         var participations = await (from participant in db.EventParticipants.AsNoTracking()
                                     join bingoEvent in db.Events.AsNoTracking() on participant.EventId equals bingoEvent.Id
-                                    where participant.AccountId != null && ids.Contains(participant.AccountId.Value)
+                                    where participant.AccountId != null && ids.Contains(participant.AccountId.Value) && bingoEvent.HiddenAt == null
                                     select new Participation(participant.Id, participant.AccountId ?? Guid.Empty, bingoEvent.Name)).ToListAsync(ct);
         var participantIds = participations.Select(x => x.Id).ToArray();
         var roles = await (from membership in db.TeamMemberships.AsNoTracking()
@@ -71,7 +71,7 @@ public sealed class IndexModel(ApplicationDbContext db) : PageModel
                     join access in db.AccountEventAccesses.AsNoTracking() on account.Id equals access.AccountId
                     join bingoEvent in db.Events.AsNoTracking() on access.EventId equals bingoEvent.Id
                     join team in db.Teams.AsNoTracking() on access.TeamId equals team.Id
-                    where account.AccountType == AccountType.EmergencyCaptain
+                    where account.AccountType == AccountType.EmergencyCaptain && bingoEvent.HiddenAt == null
                     select new { account, access, EventName = bingoEvent.Name, TeamName = team.Name };
         if (EmergencySearch is { Length: > 0 }) { var normalized = EmergencySearch.ToUpperInvariant(); query = query.Where(x => x.account.NormalizedLoginName.Contains(normalized)); }
         var rows = await query.OrderBy(x => x.account.LoginName).ThenBy(x => x.account.Id).Skip((EmergencyPage - 1) * PageSize).Take(PageSize + 1)

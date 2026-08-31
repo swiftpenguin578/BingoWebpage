@@ -27,6 +27,7 @@ public sealed class EventCompetitionSynchronizationService(
 
     public async Task<EventCompetitionView?> GetAsync(Guid eventId, CancellationToken cancellationToken = default)
     {
+        if (!await db.Events.AsNoTracking().AnyAsync(x => x.Id == eventId && x.HiddenAt == null, cancellationToken)) return null;
         var state = await db.EventCompetitionSynchronizations.AsNoTracking()
             .Where(x => x.EventId == eventId)
             .OrderByDescending(x => x.Generation)
@@ -52,7 +53,7 @@ public sealed class EventCompetitionSynchronizationService(
         try
         {
             await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
-            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId, cancellationToken);
+            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, cancellationToken);
             if (item is null) return new(false, "The event was not found.");
             if (item.Version != expectedEventVersion) return new(false, "This event changed in another request. Reload before changing its competition.");
             if (item.State is EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived or EventState.Cancelled or EventState.Discarded)
@@ -117,7 +118,7 @@ public sealed class EventCompetitionSynchronizationService(
     public async Task<EventCompetitionRefreshResult> RefreshAsync(Guid eventId, LifecycleActor actor, CancellationToken cancellationToken = default)
     {
         await RequireAdminAsync(actor, cancellationToken);
-        var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId, cancellationToken);
+        var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, cancellationToken);
         if (item is null) return new(false, true, "The event was not found.");
         if (item.State != EventState.Live) return new(false, true, "Competition refresh is available only while the event is Live.");
         return await SynchronizeOneAsync(eventId, manual: true, cancellationToken);
@@ -127,7 +128,7 @@ public sealed class EventCompetitionSynchronizationService(
     {
         await RequireAdminAsync(actor, cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId, cancellationToken);
+        var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, cancellationToken);
         if (item is null || !item.IsDevelopmentFixture || item.Slug != DevelopmentTest15Slug || item.State != EventState.Live)
             return false;
 
@@ -147,7 +148,7 @@ public sealed class EventCompetitionSynchronizationService(
         var now = time.GetUtcNow();
         var eventIds = await db.EventCompetitionSynchronizations.AsNoTracking()
             .Where(x => x.CompetitionId != null && (x.NormalDueAt <= now || x.RetryDueAt <= now))
-            .Join(db.Events.AsNoTracking().Where(x => x.State == EventState.Live), x => x.EventId, x => x.Id, (x, _) => x.EventId)
+            .Join(db.Events.AsNoTracking().Where(x => x.HiddenAt == null && x.State == EventState.Live), x => x.EventId, x => x.Id, (x, _) => x.EventId)
             .Distinct().ToListAsync(cancellationToken);
         foreach (var eventId in eventIds)
         {
@@ -175,7 +176,7 @@ public sealed class EventCompetitionSynchronizationService(
     {
         var now = time.GetUtcNow();
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId, cancellationToken);
+        var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, cancellationToken);
         if (item is null || item.State != EventState.Live) return null;
         var state = await db.EventCompetitionSynchronizations
             .FromSqlInterpolated($"SELECT * FROM event_competition_synchronizations WHERE event_id = {eventId} FOR UPDATE")
@@ -212,7 +213,7 @@ public sealed class EventCompetitionSynchronizationService(
     {
         var now = time.GetUtcNow();
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        var item = await db.Events.SingleOrDefaultAsync(x => x.Id == lease.EventId, cancellationToken);
+        var item = await db.Events.SingleOrDefaultAsync(x => x.Id == lease.EventId && x.HiddenAt == null, cancellationToken);
         var state = await db.EventCompetitionSynchronizations.SingleOrDefaultAsync(x => x.Id == lease.StateId, cancellationToken);
         if (item is null || state is null || item.State != EventState.Live || state.Generation != lease.Generation || state.CompetitionId != lease.CompetitionId || state.LeaseOwner != lease.Owner || state.AssignmentFingerprint != lease.AssignmentFingerprint)
         {

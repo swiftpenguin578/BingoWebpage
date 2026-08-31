@@ -23,19 +23,40 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
             return;
         }
 
-        var state = await db.Events.AsNoTracking().Where(item => item.Id == eventId).Select(item => (EventState?)item.State).SingleOrDefaultAsync(context.HttpContext.RequestAborted);
-        if (state is null || state == EventState.Discarded)
+        var eventView = await db.Events.AsNoTracking().Where(item => item.Id == eventId).Select(item => new { item.State, item.HiddenAt }).SingleOrDefaultAsync(context.HttpContext.RequestAborted);
+        if (eventView is null || eventView.State == EventState.Discarded)
         {
             context.Result = new NotFoundResult();
             return;
         }
+        if (eventView.HiddenAt is not null)
+        {
+            var limitedInspection = IsLimitedHiddenManage(context);
+            if (!limitedInspection || (HttpMethods.IsPost(context.HttpContext.Request.Method) && !string.Equals(context.HandlerMethod?.Name, "RestoreHidden", StringComparison.Ordinal)))
+            {
+                context.Result = new NotFoundResult();
+                return;
+            }
+            await next();
+            return;
+        }
+        if (context.HandlerMethod is null)
+        {
+            await next();
+            return;
+        }
         if (!HttpMethods.IsPost(context.HttpContext.Request.Method))
         {
-            if (IsTerminalReadOnlyRoute(path, state.Value))
+            if (IsTerminalReadOnlyRoute(path, eventView.State))
             {
                 context.Result = new RedirectResult($"/Admin/Events/Manage/{eventId}");
                 return;
             }
+            await next();
+            return;
+        }
+        if (IsExactHideHandler(context))
+        {
             await next();
             return;
         }
@@ -55,7 +76,7 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
             await next();
             return;
         }
-        if (!EventStatePolicy.Allows(state.Value, capability))
+        if (!EventStatePolicy.Allows(eventView.State, capability))
         {
             if (context.HandlerInstance is PageModel page)
                 page.TempData["StatusMessage"] = text["This event is read-only in its current lifecycle state."].Value;
@@ -77,6 +98,18 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         eventId = default;
         return false;
     }
+
+    private static bool IsLimitedHiddenManage(PageHandlerExecutingContext context) =>
+        context.ActionDescriptor.RelativePath is { } path &&
+        path.EndsWith("/Manage.cshtml", StringComparison.OrdinalIgnoreCase) &&
+        context.HttpContext.User.IsInRole("SuperAdmin") &&
+        string.Equals(context.HttpContext.Request.Query["hidden"].ToString(), "true", StringComparison.Ordinal);
+
+    private static bool IsExactHideHandler(PageHandlerExecutingContext context) =>
+        context.ActionDescriptor.RelativePath is { } path &&
+        path.EndsWith("/Manage.cshtml", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(context.HttpContext.Request.Query["handler"].ToString(), "Hide", StringComparison.Ordinal) &&
+        string.Equals(context.HandlerMethod?.Name, "Hide", StringComparison.Ordinal);
 
     private static bool TryCapability(string path, string? method, out EventCapability capability)
     {

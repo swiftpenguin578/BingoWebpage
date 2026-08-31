@@ -61,7 +61,7 @@ public sealed class CaptainAccountProvisioner(
         if (account is null) return;
         account.Disable(time.GetUtcNow());
         await db.SaveChangesAsync(ct);
-        await auditWriter.WriteAsync(actorId, actorName, "account.captain_auto_disabled", "account", account.Id.ToString(), reason, ct);
+        await auditWriter.WriteAsync(actorId, actorName, "account.captain_auto_disabled", "account", account.Id.ToString(), reason, access.EventId, ct);
     }
 
     private async Task<GeneratedCaptainCredential?> ProvisionAsync(
@@ -74,7 +74,7 @@ public sealed class CaptainAccountProvisioner(
         string actorName,
         CancellationToken ct)
     {
-        var ev = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId, ct);
+        var ev = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
         var teamName = await db.Teams.AsNoTracking().Where(x => x.Id == teamId).Select(x => x.Name).SingleAsync(ct);
         var existingAccess = await db.AccountEventAccesses.SingleOrDefaultAsync(x => x.ParticipantId == participantId, ct);
         if (existingAccess is not null)
@@ -91,7 +91,7 @@ public sealed class CaptainAccountProvisioner(
         var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         db.PasswordCredentialTokens.Add(new PasswordCredentialToken(Guid.NewGuid(), account.Id, PasswordCredentialTokenPurpose.EmergencySetup, AccountIdentityService.Hash(token), now.AddMinutes(60), now, actorId));
         await db.SaveChangesAsync(ct);
-        await auditWriter.WriteAsync(actorId, actorName, "account.captain_auto_created", "account", account.Id.ToString(), $"{role}: {playerName}; team {teamName}", ct);
+        await auditWriter.WriteAsync(actorId, actorName, "account.captain_auto_created", "account", account.Id.ToString(), $"{role}: {playerName}; team {teamName}", eventId, ct);
         return new GeneratedCaptainCredential(playerName, teamName, role, username, token);
     }
 

@@ -27,7 +27,7 @@ public sealed class TeamCaptainAuthorityService(ApplicationDbContext db, TimePro
                              join team in db.Teams on membership.TeamId equals team.Id
                              join participant in db.EventParticipants on membership.EventParticipantId equals participant.Id
                              join item in db.Events on team.EventId equals item.Id
-                             where membership.Id == change.MembershipId && membership.LeftAt == null
+                             where membership.Id == change.MembershipId && membership.LeftAt == null && item.HiddenAt == null
                              select new { membership, team, participant, item }).SingleOrDefaultAsync(ct);
             if (row is null || row.team.EventId != change.EventId || row.participant.EventId != change.EventId)
                 return new(false, "That current team membership no longer exists.");
@@ -47,7 +47,7 @@ public sealed class TeamCaptainAuthorityService(ApplicationDbContext db, TimePro
                 ? await db.Accounts.SingleOrDefaultAsync(x => x.Id == ownerId && x.Active && x.AccountType == AccountType.WebsiteAccount, ct)
                 : null;
             if (owner is not null)
-                db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), owner.Id, "Team role updated", "Your team role was updated by an administrator.", $"/Events/{row.item.Slug}/Teams", now));
+                db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), owner.Id, "Team role updated", "Your team role was updated by an administrator.", $"/Events/{row.item.Slug}/Teams", now, row.item.Id));
 
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -67,7 +67,8 @@ public sealed class TeamCaptainAuthorityService(ApplicationDbContext db, TimePro
          join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
          join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
          join account in db.Accounts.AsNoTracking() on participant.AccountId equals account.Id
-         where participant.EventId == eventId && participant.AccountId == accountId && account.Active && account.AccountType == AccountType.WebsiteAccount &&
+         join bingoEvent in db.Events.AsNoTracking() on participant.EventId equals bingoEvent.Id
+         where participant.EventId == eventId && bingoEvent.HiddenAt == null && participant.AccountId == accountId && account.Active && account.AccountType == AccountType.WebsiteAccount &&
                membership.LeftAt == null && team.Active && (teamId == null || team.Id == teamId) &&
                (membership.Role == TeamMembershipRole.Captain || membership.Role == TeamMembershipRole.CoCaptain)
          select membership.Id).AnyAsync(ct);

@@ -536,7 +536,7 @@ function initializeAdminEventDirectorySearch() {
     if (table instanceof HTMLTableElement && empty instanceof HTMLElement) {
       table.querySelectorAll("[data-admin-event-row]").forEach(row => {
         const matchesSearch = !search || row.dataset.eventName?.toLowerCase().includes(search) || row.dataset.eventSlug?.toLowerCase().includes(search);
-        const matchesState = selectedState === "all" || row.dataset.eventState === selectedState;
+        const matchesState = selectedState === "all" || row.dataset.eventState === selectedState || selectedState === "hidden" && row.dataset.eventHidden === "true";
         row.hidden = !(matchesSearch && matchesState);
         if (!row.hidden) visible++;
       });

@@ -10,6 +10,7 @@ public sealed class PublicTeamImageService(ApplicationDbContext db, IEvidenceSto
     public async Task<IReadOnlySet<Guid>> CurrentTeamIdsAsync(Guid eventId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken)
     {
         if (teamIds.Count == 0) return new HashSet<Guid>();
+        if (!await db.Events.AsNoTracking().AnyAsync(item => item.Id == eventId && item.HiddenAt == null, cancellationToken)) return new HashSet<Guid>();
         return await (from team in db.Teams.AsNoTracking()
                       join image in db.TeamImageAssets.AsNoTracking() on team.ActiveImageAssetId equals image.Id
                       where team.EventId == eventId && teamIds.Contains(team.Id) && team.Active &&
@@ -22,7 +23,7 @@ public sealed class PublicTeamImageService(ApplicationDbContext db, IEvidenceSto
         var asset = await (from item in db.Events.AsNoTracking()
                            join team in db.Teams.AsNoTracking() on item.Id equals team.EventId
                            join image in db.TeamImageAssets.AsNoTracking() on team.ActiveImageAssetId equals image.Id
-                           where item.Slug == slug && team.Id == teamId && team.Active &&
+                           where item.Slug == slug && item.HiddenAt == null && team.Id == teamId && team.Active &&
                                  image.EventId == item.Id && image.TeamId == team.Id && image.ReplacedAt == null
                            select image).SingleOrDefaultAsync(cancellationToken);
         if (asset is null) return Results.NotFound();

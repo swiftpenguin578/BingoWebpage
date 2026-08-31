@@ -20,7 +20,7 @@ namespace Bingo.Web.Pages.Admin.Events;
 [Authorize(Policy = AuthorizationPolicies.Admin)]
 public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleService eventLifecycle, TimeProvider timeProvider, IStringLocalizer<SharedResource> localizer) : PageModel
 {
-    private static readonly string[] KnownStates = ["all", "draft", "signupopen", "signupclosed", "live", "awaitingfinalreview", "finalized", "archived", "cancelled"];
+    private static readonly string[] KnownStates = ["all", "draft", "signupopen", "signupclosed", "live", "awaitingfinalreview", "finalized", "archived", "cancelled", "hidden"];
     private static readonly string[] KnownSorts = ["identity", "state", "dates", "signups", "attention"];
 
     [BindProperty(SupportsGet = true, Name = "filter")]
@@ -46,7 +46,8 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
-        ActiveFilter = KnownStates.Contains(Filter ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+        var isSuperAdmin = User.IsInRole("SuperAdmin");
+        ActiveFilter = KnownStates.Contains(Filter ?? string.Empty, StringComparer.OrdinalIgnoreCase) && (isSuperAdmin || !string.Equals(Filter, "hidden", StringComparison.OrdinalIgnoreCase))
             ? Filter!.ToLowerInvariant()
             : "all";
         ActiveSearch = Search?.Trim() ?? string.Empty;
@@ -55,7 +56,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
             : string.Empty;
         ActiveSortDirection = string.Equals(Direction, "desc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc";
 
-        var allEvents = await dbContext.Events.AsNoTracking().Where(item => item.State != EventState.Discarded)
+        var allEvents = await dbContext.Events.AsNoTracking().Where(item => item.State != EventState.Discarded && (item.HiddenAt == null || isSuperAdmin && ActiveFilter == "hidden"))
             .Select(item => new EventRow(
                 item.Id,
                 item.Name,
@@ -75,7 +76,8 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
                 dbContext.DraftSessions.Any(session => session.EventId == item.Id && session.State == DraftState.Finalized),
                 dbContext.Boards.Any(board => board.EventId == item.Id && board.State == BoardState.Published),
                 dbContext.ScheduledEventStartAttempts.Any(attempt => attempt.EventId == item.Id && attempt.ScheduledFor <= now && !attempt.Started && attempt.ResolvedAt == null),
-                EventDisplayPhase.Lifecycle))
+                EventDisplayPhase.Lifecycle,
+                item.HiddenAt != null))
             .ToListAsync(cancellationToken);
 
         for (var index = 0; index < allEvents.Count; index++)
@@ -101,6 +103,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
             new("archived", localizer["Archived"]),
             new("cancelled", localizer["Cancelled"])
         ];
+        if (isSuperAdmin) StateOptions = StateOptions.Append(new("hidden", localizer["Hidden · quarantine"])).ToList();
     }
 
     public string StatusLabel(EventRow item) => item.DisplayPhase switch
@@ -111,7 +114,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
         EventDisplayPhase.BoardPublished => localizer["Board published · Not ready"],
         EventDisplayPhase.StartPostponed => localizer["Start postponed"],
         EventDisplayPhase.Live => localizer["Live"],
-        _ => item.State switch
+        _ => item.IsHidden ? localizer["Hidden"] : item.State switch
         {
             EventState.Draft => localizer["Setup"],
             EventState.SignupOpen => localizer["Signups open"],
@@ -172,6 +175,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
         "finalized" => item.State == EventState.Finalized,
         "archived" => item.State == EventState.Archived,
         "cancelled" => item.State == EventState.Cancelled,
+        "hidden" => item.IsHidden,
         _ => true
     };
 
@@ -240,7 +244,8 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
         bool DraftFinalized,
         bool BoardPublished,
         bool StartPostponed,
-        EventDisplayPhase DisplayPhase);
+        EventDisplayPhase DisplayPhase,
+        bool IsHidden = false);
 
     public sealed record StateOption(string Value, string Label);
 }

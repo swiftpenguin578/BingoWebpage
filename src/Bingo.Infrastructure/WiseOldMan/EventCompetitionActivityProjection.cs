@@ -34,6 +34,9 @@ public sealed class CachedEventCompetitionActivityProjection(
         Guid? teamId,
         CancellationToken cancellationToken)
     {
+        if (!await db.Events.AsNoTracking().AnyAsync(value => value.Id == eventId && value.HiddenAt == null, cancellationToken))
+            return new(EventCompetitionActivityState.NotConfigured, 0, null, null, []);
+
         var state = await db.EventCompetitionSynchronizations.AsNoTracking()
             .Where(value => value.EventId == eventId)
             .FirstOrDefaultAsync(cancellationToken);

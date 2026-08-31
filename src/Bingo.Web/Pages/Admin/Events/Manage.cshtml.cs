@@ -25,7 +25,7 @@ using Microsoft.Extensions.Localization;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService signupService, EventParticipantCharacterService characterService, IAuditWriter auditWriter, IEventReadinessEvaluator readinessEvaluator, IEventSignupLifecycleService signupLifecycle, IEventLifecycleService eventLifecycle, IEventDestructiveLifecycleService destructiveLifecycle, TimeProvider timeProvider, IEventCompetitionSynchronizationService? competitionSynchronization = null, IStringLocalizer<SharedResource>? text = null, IHostEnvironment? environment = null, IEventFinalizationService? finalizationService = null) : PageModel
+public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService signupService, EventParticipantCharacterService characterService, IAuditWriter auditWriter, IEventReadinessEvaluator readinessEvaluator, IEventSignupLifecycleService signupLifecycle, IEventLifecycleService eventLifecycle, IEventDestructiveLifecycleService destructiveLifecycle, TimeProvider timeProvider, IEventCompetitionSynchronizationService? competitionSynchronization = null, IStringLocalizer<SharedResource>? text = null, IHostEnvironment? environment = null, IEventFinalizationService? finalizationService = null, IEventQuarantineService? quarantine = null) : PageModel
 {
     public EventDetails? EventView { get; private set; }
     public IReadOnlyList<EvidenceCodeRow> EvidenceCodes { get; private set; } = [];
@@ -42,6 +42,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public bool ShowAllControlStages { get; private set; }
     public EventCompetitionView? CompetitionIntegration { get; private set; }
     public string? PrivateCancellationReason { get; private set; }
+    public IReadOnlyList<QuarantineAuditRow> QuarantineAuditHistory { get; private set; } = [];
     public bool SignupWarningAcknowledged => EventView is not null && TempData.Peek(SignupConfirmationKey(EventView.Id, "warnings")) is not null;
     public bool SignupCloseAcknowledged => EventView is not null && TempData.Peek(SignupConfirmationKey(EventView.Id, "close")) is not null;
     public bool SignupCloseRequiresAcceptance => (EventView?.State is EventState.Draft or EventState.SignupClosed) && SignupReadiness?.CloseDecision.RequiresAcceptance == true;
@@ -71,6 +72,9 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public string? ResumeReason { get; set; }
     [BindProperty] public bool ConfirmDestructiveAction { get; set; }
     [BindProperty, StringLength(2000)] public string? CancellationReason { get; set; }
+    [BindProperty(SupportsGet = true, Name = "hidden")] public bool HiddenInspection { get; set; }
+    [BindProperty, StringLength(200), Display(Name = "Event name confirmation")] public string? EventNameConfirmation { get; set; }
+    [BindProperty, Required, StringLength(2000), Display(Name = "Reason")] public string? QuarantineReason { get; set; }
     [BindProperty(SupportsGet = true, Name = "confirm")] public string? ConfirmationAction { get; set; }
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct) { _ = characterService; return await LoadAsync(id, ct) ? Page() : NotFound(); }
     public static OverviewMilestone NextMilestoneFor(EventDetails eventView) => eventView.State switch
@@ -221,6 +225,18 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         SetStatus(result.Succeeded ? Localize("Event cancelled.") : result.Error ?? Localize("The event could not be cancelled."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToPage(new { id });
     }
+    public async Task<IActionResult> OnPostHideAsync(Guid id, CancellationToken ct)
+    {
+        var result = await (quarantine ?? throw new InvalidOperationException("Event quarantine is not configured.")).HideAsync(id, EventVersion, EventNameConfirmation, QuarantineReason, Actor, ct);
+        SetStatus(result.Succeeded ? Localize("Event hidden from all ordinary surfaces.") : result.Error ?? Localize("The event could not be hidden."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return result.Succeeded ? RedirectToPage("Index", new { filter = "hidden" }) : RedirectToPage(new { id });
+    }
+    public async Task<IActionResult> OnPostRestoreHiddenAsync(Guid id, CancellationToken ct)
+    {
+        var result = await (quarantine ?? throw new InvalidOperationException("Event quarantine is not configured.")).RestoreAsync(id, EventVersion, EventNameConfirmation, QuarantineReason, Actor, ct);
+        SetStatus(result.Succeeded ? Localize("Event restored with its lifecycle and retained history unchanged.") : result.Error ?? Localize("The event could not be restored."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        return result.Succeeded ? RedirectToPage("Index") : RedirectToPage(new { id, hidden = true });
+    }
     public async Task<IActionResult> OnPostReopenSubmissionsAsync(Guid id, CancellationToken ct)
     { var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); var reopenUntil = ParseEventLocal(ReopenUntilLocal, item.Timezone, nameof(ReopenUntilLocal), "Reopen cutoff") ?? (string.IsNullOrWhiteSpace(ReopenUntilLocal) ? ReopenUntil?.ToUniversalTime() : null); if (reopenUntil is null || string.IsNullOrWhiteSpace(StateReason)) { TempData["StatusMessage"] = Localize("A valid future cutoff and reason are required."); return RedirectToPage(new { id }); } try { item.ReopenSubmissions(reopenUntil.Value, timeProvider.GetUtcNow()); await dbContext.SaveChangesAsync(ct); await AuditAsync("event.submissions_reopened", item, $"Until {reopenUntil:O}; {StateReason}", ct); TempData["StatusMessage"] = Localize("Submissions reopened until {0}.", DateTimePresentation.Format(reopenUntil.Value, "dd MMM yyyy, HH:mm", item.Timezone, CultureInfo.CurrentCulture)); } catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; } return RedirectToPage(new { id }); }
     public Task<IActionResult> OnPostEnableEvidenceCodesAsync(Guid id, CancellationToken ct) => SetEvidenceCodeMode(id, true, ct);
@@ -241,7 +257,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     }
     private async Task<bool> LoadAsync(Guid id, CancellationToken ct)
     {
-        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.State != EventState.Discarded, ct); if (item is null) return false;
+        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.State != EventState.Discarded, ct); if (item is null || item.IsHidden && (!HiddenInspection || !User.IsInRole("SuperAdmin"))) return false;
         var allParticipants = await dbContext.EventParticipants.AsNoTracking().Where(p => p.EventId == id).OrderBy(p => p.SignedUpAt).ThenBy(p => p.SignupSequence).ToListAsync(ct);
         var activeTeamIds = await dbContext.Teams.AsNoTracking().Where(team => team.EventId == id && team.Active).Select(team => team.Id).ToListAsync(ct);
         var membershipCounts = activeTeamIds.Count == 0
@@ -263,7 +279,18 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         SubmissionCount = await dbContext.Submissions.CountAsync(x => x.EventId == id, ct);
         PendingReviewCount = await dbContext.Submissions.CountAsync(x => x.EventId == id && x.Status == SubmissionStatus.Pending, ct);
         FinalReviewReadiness = item.State == EventState.AwaitingFinalReview && finalizationService is not null ? await finalizationService.GetReadinessAsync(id, ct) : null;
-        EventView = new EventDetails(item.Id, item.Name, item.Slug, item.Description, item.Timezone, item.State, item.FirstPublicAt, item.BoardPublished, item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ActualSignupOpenedAt, item.ActualSignupClosedAt, item.ActualStartedAt, item.ActualEndedAt, item.ActualEndedAt ?? item.EventEndsAt, item.SubmissionCutoffAt, item.SubmissionsClosedAt, item.ScheduledSignupOpeningEnabled, item.ReopenedSubmissionCutoffAt, item.ParticipantCap ?? 0, allParticipants.Count(p => p.SignupStatus == SignupStatus.Confirmed), allParticipants.Count(p => p.SignupStatus == SignupStatus.WaitingList), item.DraftLocked, item.EvidenceCodeEnabled, activeTeamIds.Count, actualTeamSize, boardSize, boardRows, boardColumns, configuredBoardTileCount, expectedBoardCellCount, item.ExpectedTeamCount, item.ExpectedTeamSize, item.ExpectedBoardRows is not null && item.ExpectedBoardColumns is not null ? $"{item.ExpectedBoardRows} × {item.ExpectedBoardColumns}" : null, canStartEvent, item.FinalizedAt, item.ArchivedAt, item.CancelledAt);
+        EventView = new EventDetails(item.Id, item.Name, item.Slug, item.Description, item.Timezone, item.State, item.FirstPublicAt, item.BoardPublished, item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ActualSignupOpenedAt, item.ActualSignupClosedAt, item.ActualStartedAt, item.ActualEndedAt, item.ActualEndedAt ?? item.EventEndsAt, item.SubmissionCutoffAt, item.SubmissionsClosedAt, item.ScheduledSignupOpeningEnabled, item.ReopenedSubmissionCutoffAt, item.ParticipantCap ?? 0, allParticipants.Count(p => p.SignupStatus == SignupStatus.Confirmed), allParticipants.Count(p => p.SignupStatus == SignupStatus.WaitingList), item.DraftLocked, item.EvidenceCodeEnabled, activeTeamIds.Count, actualTeamSize, boardSize, boardRows, boardColumns, configuredBoardTileCount, expectedBoardCellCount, item.ExpectedTeamCount, item.ExpectedTeamSize, item.ExpectedBoardRows is not null && item.ExpectedBoardColumns is not null ? $"{item.ExpectedBoardRows} × {item.ExpectedBoardColumns}" : null, canStartEvent, item.FinalizedAt, item.ArchivedAt, item.CancelledAt, item.IsHidden, item.HiddenAt, item.HiddenByAccountId, item.HiddenReason);
+        if (item.IsHidden)
+        {
+            EventNameConfirmation = item.Name;
+            QuarantineAuditHistory = await dbContext.AuditEntries.AsNoTracking()
+                .Where(entry => entry.EventId == id && (entry.Action == "event.hidden" || entry.Action == "event.restored"))
+                .OrderByDescending(entry => entry.OccurredAt)
+                .Select(entry => new QuarantineAuditRow(entry.Action, entry.OccurredAt, entry.ActorUsername, entry.Details))
+                .ToListAsync(ct);
+            EventVersion = item.Version;
+            return true;
+        }
         EffectiveTimeline = EffectiveTimelineFor(new(
             item.SignupOpensAt,
             item.SignupClosesAt,
@@ -379,7 +406,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     {
         if (scheduled is { } scheduledAt && (cancelledAt is null || scheduledAt <= cancelledAt)) rows.Add(new(label, scheduledAt));
     }
-    public sealed record EventDetails(Guid Id, string Name, string Slug, string? Description, string Timezone, EventState State, DateTimeOffset? FirstPublicAt, bool BoardPublished, DateTimeOffset? SignupOpensAt, DateTimeOffset? SignupClosesAt, DateTimeOffset? DraftAt, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, DateTimeOffset? ActualSignupOpenedAt, DateTimeOffset? ActualSignupClosedAt, DateTimeOffset? ActualStartedAt, DateTimeOffset? ActualEndedAt, DateTimeOffset? EffectiveEndsAt, DateTimeOffset? SubmissionCutoffAt, DateTimeOffset? SubmissionsClosedAt, bool ScheduledSignupOpeningEnabled, DateTimeOffset? ReopenedCutoff, int ParticipantCap, int Confirmed, int Waiting, bool DraftLocked, bool EvidenceCodeEnabled, int ActualTeamCount, string? ActualTeamSize, string? ActualBoardSize, int? BoardRows, int? BoardColumns, int? ConfiguredBoardTileCount, int? ExpectedBoardCellCount, int? ExpectedTeamCount, int? ExpectedTeamSize, string? ExpectedBoardSize, bool CanStartEvent, DateTimeOffset? FinalizedAt, DateTimeOffset? ArchivedAt, DateTimeOffset? CancelledAt);
+    public sealed record EventDetails(Guid Id, string Name, string Slug, string? Description, string Timezone, EventState State, DateTimeOffset? FirstPublicAt, bool BoardPublished, DateTimeOffset? SignupOpensAt, DateTimeOffset? SignupClosesAt, DateTimeOffset? DraftAt, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, DateTimeOffset? ActualSignupOpenedAt, DateTimeOffset? ActualSignupClosedAt, DateTimeOffset? ActualStartedAt, DateTimeOffset? ActualEndedAt, DateTimeOffset? EffectiveEndsAt, DateTimeOffset? SubmissionCutoffAt, DateTimeOffset? SubmissionsClosedAt, bool ScheduledSignupOpeningEnabled, DateTimeOffset? ReopenedCutoff, int ParticipantCap, int Confirmed, int Waiting, bool DraftLocked, bool EvidenceCodeEnabled, int ActualTeamCount, string? ActualTeamSize, string? ActualBoardSize, int? BoardRows, int? BoardColumns, int? ConfiguredBoardTileCount, int? ExpectedBoardCellCount, int? ExpectedTeamCount, int? ExpectedTeamSize, string? ExpectedBoardSize, bool CanStartEvent, DateTimeOffset? FinalizedAt, DateTimeOffset? ArchivedAt, DateTimeOffset? CancelledAt, bool IsHidden = false, DateTimeOffset? HiddenAt = null, Guid? HiddenByAccountId = null, string? HiddenReason = null);
     public sealed record EffectiveTimelineInput(DateTimeOffset? SignupOpensAt, DateTimeOffset? SignupClosesAt, DateTimeOffset? DraftAt, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, DateTimeOffset? ActualSignupOpenedAt, DateTimeOffset? ActualSignupClosedAt, DateTimeOffset? ActualStartedAt, DateTimeOffset? ActualEndedAt, DateTimeOffset? SubmissionCutoffAt, DateTimeOffset? SubmissionsClosedAt, DateTimeOffset? CancelledAt);
     public sealed record TimelineRow(string Label, DateTimeOffset At);
     public sealed record OverviewMilestone(string Label, DateTimeOffset? At);
@@ -420,4 +447,5 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     };
     public sealed record ScheduledActionView(string Title, DateTimeOffset ScheduledFor, DateTimeOffset AttemptedAt, IReadOnlyList<ReadinessItem> Blockers);
     public sealed record EvidenceCodeRow(Guid Id, string Code, DateTimeOffset ActivatesAt, DateTimeOffset? RetiresAt, string? Note);
+    public sealed record QuarantineAuditRow(string Action, DateTimeOffset OccurredAt, string ActorUsername, string? Details);
 }

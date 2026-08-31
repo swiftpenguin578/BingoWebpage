@@ -106,7 +106,7 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
                join item in db.Events.AsNoTracking() on participant.EventId equals item.Id
                join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
                join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
-               where item.Id == eventId && participant.Id == participantId && membership.LeftAt == null && team.Active
+               where item.Id == eventId && item.HiddenAt == null && participant.Id == participantId && membership.LeftAt == null && team.Active
                select new ParticipantRow(item, participant, membership, team)).SingleOrDefaultAsync(cancellationToken);
 
     private async Task<bool> MayViewAsync(ParticipantRow row, Guid viewerAccountId, CancellationToken cancellationToken)

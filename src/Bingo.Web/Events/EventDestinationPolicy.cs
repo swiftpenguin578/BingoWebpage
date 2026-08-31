@@ -7,7 +7,7 @@ public static class EventDestinationPolicy
 {
     public static EventDestination Decide(EventRouteState item, bool administrator)
     {
-        if (item.State == EventState.Discarded || item.FirstPublicAt is null)
+        if (item.IsHidden || item.State == EventState.Discarded || item.FirstPublicAt is null)
             return EventDestination.Unavailable;
 
         // The historical signup record remains an Admin operational surface after teams publish.
@@ -24,19 +24,20 @@ public static class EventDestinationPolicy
     }
 
     public static bool MayUseSignupTable(EventRouteState item, bool administrator) =>
-        item.SignupPublished && (administrator || Decide(item, false) == EventDestination.SignupTable);
+        !item.IsHidden && item.SignupPublished && (administrator || Decide(item, false) == EventDestination.SignupTable);
 
     public static EventDestination PublicOverview(EventRouteState item) =>
-        item.BoardAvailable ? EventDestination.Board : item.RosterAvailable ? EventDestination.Roster : item.State == EventState.SignupOpen && item.FirstPublicAt is not null ? EventDestination.Signup : EventDestination.Unavailable;
+        item.IsHidden ? EventDestination.Unavailable : item.BoardAvailable ? EventDestination.Board : item.RosterAvailable ? EventDestination.Roster : item.State == EventState.SignupOpen && item.FirstPublicAt is not null ? EventDestination.Signup : EventDestination.Unavailable;
 
     public static EventRouteState From(BingoEvent item, bool rosterExists = false, bool boardPublished = false) => new(
         item.State, item.FirstPublicAt, item.ActualSignupOpenedAt is not null || item.State is EventState.SignupOpen or EventState.SignupClosed || item.DraftLocked,
         rosterExists || item.TeamRostersPublished || item.DraftResultsPublished,
         item.BoardPublished || boardPublished,
-        item.ResultsPublished);
+        item.ResultsPublished,
+        item.IsHidden);
 }
 
-public sealed record EventRouteState(EventState State, DateTimeOffset? FirstPublicAt, bool SignupPublished, bool RosterAvailable, bool BoardAvailable, bool ResultsAvailable);
+public sealed record EventRouteState(EventState State, DateTimeOffset? FirstPublicAt, bool SignupPublished, bool RosterAvailable, bool BoardAvailable, bool ResultsAvailable, bool IsHidden = false);
 public enum EventDestination { Unavailable, SignupTable, Signup, Roster, Board }
 
 /// <summary>

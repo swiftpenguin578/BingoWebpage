@@ -763,11 +763,12 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
     private sealed record MutationSnapshot(string Memberships, string Assignments, string Cycles, string Roster, int AuditCount, int NotificationCount);
     private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider { public override DateTimeOffset GetUtcNow() => value; }
     private sealed class EmptyTempDataProvider : ITempDataProvider { public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>(); public void SaveTempData(HttpContext context, IDictionary<string, object> values) { } }
-    private sealed class ThrowingAuditWriter : Bingo.Application.Auditing.IAuditWriter { public Task WriteAsync(Guid? actorAccountId, string actorUsername, string action, string targetType, string? targetId = null, string? details = null, CancellationToken cancellationToken = default) => throw new InvalidOperationException("Injected audit failure"); }
+    private sealed class ThrowingAuditWriter : Bingo.Application.Auditing.IAuditWriter { public Task WriteAsync(Guid? actorAccountId, string actorUsername, string action, string targetType, string? targetId = null, string? details = null, CancellationToken cancellationToken = default) => throw new InvalidOperationException("Injected audit failure"); public Task WriteAsync(Guid? actorAccountId, string actorUsername, string action, string targetType, string? targetId, string? details, Guid? eventId, CancellationToken cancellationToken = default) => throw new InvalidOperationException("Injected audit failure"); }
     private sealed class RecordingCollaborationNotifier : IAdminCollaborationNotifier
     {
         public List<Guid> DraftEvents { get; } = [];
         public Task NotifyDraftChangedAsync(Guid eventId, CancellationToken cancellationToken = default) { DraftEvents.Add(eventId); return Task.CompletedTask; }
         public Task NotifyBoardChangedAsync(Guid eventId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task NotifyEventsControlChangedAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

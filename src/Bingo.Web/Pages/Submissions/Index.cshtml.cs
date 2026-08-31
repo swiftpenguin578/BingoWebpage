@@ -168,7 +168,7 @@ public sealed class IndexModel(
 
         var validScope = await (from eventItem in db.Events.AsNoTracking()
                                 join team in db.Teams.AsNoTracking() on eventItem.Id equals team.EventId
-                                where eventItem.Id == scope.EventId && team.Id == scope.TeamId && team.Active
+                                where eventItem.Id == scope.EventId && eventItem.HiddenAt == null && team.Id == scope.TeamId && team.Active
                                 select eventItem.Id).SingleOrDefaultAsync(cancellationToken);
         return validScope == Guid.Empty ? null : scope;
     }
@@ -181,7 +181,7 @@ public sealed class IndexModel(
         var now = time.GetUtcNow();
         var context = await (from eventItem in db.Events.AsNoTracking()
                              join team in db.Teams.AsNoTracking() on eventItem.Id equals team.EventId
-                             where eventItem.Id == scope.EventId && team.Id == scope.TeamId && team.Active
+                             where eventItem.Id == scope.EventId && eventItem.HiddenAt == null && team.Id == scope.TeamId && team.Active
                              select new { eventItem.Name, eventItem.Slug, eventItem.Timezone, TeamName = team.Name, TeamSlug = team.Slug }).SingleOrDefaultAsync(cancellationToken);
         if (context is null) return false;
         EventName = context.Name;
@@ -189,7 +189,7 @@ public sealed class IndexModel(
         EventSlug = context.Slug;
         TeamName = context.TeamName;
         TeamSlug = context.TeamSlug;
-        var eventRecord = await db.Events.AsNoTracking().SingleAsync(value => value.Id == scope.EventId, cancellationToken);
+        var eventRecord = await db.Events.AsNoTracking().SingleAsync(value => value.Id == scope.EventId && value.HiddenAt == null, cancellationToken);
         CodeEnabled = eventRecord.EvidenceCodeEnabled;
         NewSubmissionsOpen = eventRecord.AcceptsNewSubmissions(now);
 

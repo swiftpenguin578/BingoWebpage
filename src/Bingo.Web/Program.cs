@@ -265,6 +265,14 @@ if (args.Contains("--production-preflight", StringComparer.Ordinal))
     return;
 }
 
+if (args.Contains("--legacy-image-rollback-preflight", StringComparer.Ordinal))
+{
+    await using var rollbackScope = app.Services.CreateAsyncScope();
+    await rollbackScope.ServiceProvider.GetRequiredService<ProductionPreflight>().ValidateLegacyImageRollbackAsync(CancellationToken.None);
+    Console.WriteLine("Legacy image rollback safety preflight passed.");
+    return;
+}
+
 if (args.Contains("--export-catalogue-snapshot", StringComparer.Ordinal))
 {
     await using var snapshotScope = app.Services.CreateAsyncScope();

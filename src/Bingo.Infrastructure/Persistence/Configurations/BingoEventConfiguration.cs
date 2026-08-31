@@ -1,3 +1,4 @@
+using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Teams;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +20,12 @@ public sealed class BingoEventConfiguration : IEntityTypeConfiguration<BingoEven
         entity.Property(item => item.Description).HasColumnName("description").HasMaxLength(4_000);
         entity.Property(item => item.Timezone).HasColumnName("timezone").HasMaxLength(100);
         entity.Property(item => item.State).HasColumnName("state").HasConversion<string>().HasMaxLength(40);
+        entity.Property(item => item.HiddenAt).HasColumnName("hidden_at");
+        entity.Property(item => item.HiddenByAccountId).HasColumnName("hidden_by_account_id");
+        entity.Property(item => item.HiddenReason).HasColumnName("hidden_reason").HasMaxLength(2_000);
+        entity.HasIndex(item => item.HiddenAt);
+        entity.HasOne<Account>().WithMany().HasForeignKey(item => item.HiddenByAccountId).OnDelete(DeleteBehavior.Restrict);
+        entity.ToTable(table => table.HasCheckConstraint("ck_events_hidden_metadata", "(hidden_at IS NULL AND hidden_by_account_id IS NULL AND hidden_reason IS NULL) OR (hidden_at IS NOT NULL AND hidden_by_account_id IS NOT NULL AND hidden_reason IS NOT NULL AND btrim(hidden_reason) <> '')"));
         entity.Property(item => item.BannerAssetId).HasColumnName("banner_asset_id");
         entity.HasOne<EventBannerAsset>().WithMany().HasForeignKey(item => item.BannerAssetId).OnDelete(DeleteBehavior.SetNull);
         entity.Property(item => item.FirstPublicAt).HasColumnName("first_public_at");

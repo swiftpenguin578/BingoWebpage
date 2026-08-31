@@ -5,7 +5,7 @@ public sealed class PersonalNotification
 {
     private PersonalNotification() { }
 
-    public PersonalNotification(Guid id, Guid recipientAccountId, string title, string detail, string route, DateTimeOffset createdAt)
+    public PersonalNotification(Guid id, Guid recipientAccountId, string title, string detail, string route, DateTimeOffset createdAt, Guid? eventId = null)
     {
         Id = id;
         RecipientAccountId = recipientAccountId;
@@ -13,6 +13,7 @@ public sealed class PersonalNotification
         Detail = detail;
         Route = route;
         CreatedAt = createdAt.ToUniversalTime();
+        EventId = eventId;
     }
 
     public Guid Id { get; private set; }
@@ -22,6 +23,7 @@ public sealed class PersonalNotification
     public string Route { get; private set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? ReadAt { get; private set; }
+    public Guid? EventId { get; private set; }
 
     public void MarkRead(DateTimeOffset now) => ReadAt ??= now.ToUniversalTime();
 }

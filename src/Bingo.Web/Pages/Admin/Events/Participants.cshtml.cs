@@ -114,7 +114,7 @@ public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService si
 
     private async Task<bool> LoadAsync(Guid id, CancellationToken ct)
     {
-        var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id && item.State != EventState.Discarded, ct);
+        var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id && item.HiddenAt == null && item.State != EventState.Discarded, ct);
         if (bingoEvent is null) return false;
         EventTimezone = bingoEvent.Timezone;
 

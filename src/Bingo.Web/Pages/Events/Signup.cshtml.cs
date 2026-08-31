@@ -135,7 +135,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     }
     private async Task<bool> LoadAsync(string slug, CancellationToken ct)
     {
-        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Slug == slug, ct); if (item is null || item.State == Bingo.Domain.Events.EventState.Discarded || item.State == Bingo.Domain.Events.EventState.Cancelled && item.FirstPublicAt is null || User.IsInRole("Admin") == false && item.FirstPublicAt is null) return false;
+        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(e => e.Slug == slug && e.HiddenAt == null, ct); if (item is null || item.State == Bingo.Domain.Events.EventState.Discarded || item.State == Bingo.Domain.Events.EventState.Cancelled && item.FirstPublicAt is null || User.IsInRole("Admin") == false && item.FirstPublicAt is null) return false;
         var cancelled = item.State == Bingo.Domain.Events.EventState.Cancelled;
         var rosterExists = await dbContext.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && dbContext.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == item.Id), ct);
         var signupCounts = await dbContext.EventParticipants.AsNoTracking().Where(participant => participant.EventId == item.Id).GroupBy(participant => participant.EventId).Select(group => new
@@ -159,8 +159,9 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     };
     private async Task<IActionResult?> RedirectForPublishedSurfaceAsync(string slug, CancellationToken ct)
     {
-        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug, ct);
-        if (item is null || User.IsInRole("Admin") || item.FirstPublicAt is null) return null;
+        var item = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug && x.HiddenAt == null, ct);
+        if (item is null) return NotFound();
+        if (User.IsInRole("Admin") || item.FirstPublicAt is null) return null;
         var rosterExists = await dbContext.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && dbContext.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == item.Id), ct);
         return EventDestinationPolicy.Decide(EventDestinationPolicy.From(item, rosterExists), false) switch
         {

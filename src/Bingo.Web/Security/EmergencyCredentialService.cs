@@ -13,7 +13,7 @@ public sealed class EmergencyCredentialService(ApplicationDbContext db, TimeProv
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var actor = await db.Accounts.SingleAsync(account => account.Id == actorId, ct);
         if (!actor.Active || actor.GlobalRole is not (GlobalRole.Admin or GlobalRole.SuperAdmin)) throw new InvalidOperationException("Only an active administrator can create an emergency credential.");
-        var bingoEvent = await db.Events.SingleOrDefaultAsync(item => item.Id == eventId, ct) ?? throw new InvalidOperationException("The event no longer exists.");
+        var bingoEvent = await db.Events.SingleOrDefaultAsync(item => item.Id == eventId && item.HiddenAt == null, ct) ?? throw new InvalidOperationException("The event no longer exists.");
         if (bingoEvent.SubmissionCutoffAt <= time.GetUtcNow()) throw new InvalidOperationException("Emergency credentials cannot be created after the submission cutoff.");
         if (!await db.Teams.AnyAsync(team => team.Id == teamId && team.EventId == eventId && team.Active, ct)) throw new InvalidOperationException("Choose a team belonging to the selected event.");
         var normalized = AccountAuthenticationService.NormalizeUsername(username);

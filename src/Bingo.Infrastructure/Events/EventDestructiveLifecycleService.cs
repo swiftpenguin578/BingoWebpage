@@ -66,7 +66,7 @@ public sealed class EventDestructiveLifecycleService(ApplicationDbContext db, Ti
                 .ToListAsync(ct);
             var route = item.FirstPublicAt is null ? string.Empty : $"/Events/{Uri.EscapeDataString(item.Slug)}/Signup";
             db.PersonalNotifications.AddRange(recipientIds.Select(recipientId =>
-                new PersonalNotification(Guid.NewGuid(), recipientId, "event.cancelled", $"{item.Name} has been cancelled.", route, now)));
+                new PersonalNotification(Guid.NewGuid(), recipientId, "event.cancelled", $"{item.Name} has been cancelled.", route, now, item.Id)));
             AddHistory(item, from, actor, "event.cancelled", reason.Trim(), now);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -81,7 +81,7 @@ public sealed class EventDestructiveLifecycleService(ApplicationDbContext db, Ti
     private async Task<BingoEvent> LockedEventAsync(Guid eventId, long version, CancellationToken ct)
     {
         await db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM events WHERE id = {eventId} FOR UPDATE", ct);
-        var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId, ct) ?? throw new InvalidOperationException("Event not found.");
+        var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct) ?? throw new InvalidOperationException("Event not found.");
         if (item.Version != version) throw new DbUpdateConcurrencyException();
         return item;
     }

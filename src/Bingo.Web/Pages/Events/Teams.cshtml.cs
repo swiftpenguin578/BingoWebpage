@@ -24,7 +24,7 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, IPart
 
     public async Task<IActionResult> OnGetAsync(string slug, Guid? participantId, CancellationToken ct)
     {
-        var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug, ct);
+        var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug && x.HiddenAt == null, ct);
         if (ev is null) return NotFound();
 
         var now = time.GetUtcNow();

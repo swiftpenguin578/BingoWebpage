@@ -28,7 +28,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
             join assignment in db.EventParticipantCharacters.AsNoTracking() on link.OsrsCharacterId equals assignment.OsrsCharacterId
             join participant in db.EventParticipants.AsNoTracking() on assignment.EventParticipantId equals participant.Id
             join bingoEvent in db.Events.AsNoTracking() on assignment.EventId equals bingoEvent.Id
-            where link.AccountId == accountId && link.Active &&
+            where link.AccountId == accountId && bingoEvent.HiddenAt == null && link.Active &&
                   assignment.ReleasedAt == null && participant.AccountId == accountId &&
                   (participant.SignupStatus == SignupStatus.Confirmed || participant.SignupStatus == SignupStatus.WaitingList) &&
                   (bingoEvent.State == EventState.Draft || bingoEvent.State == EventState.SignupOpen || bingoEvent.State == EventState.SignupClosed || bingoEvent.State == EventState.Live)
@@ -154,7 +154,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
             from assignment in db.EventParticipantCharacters
             join participant in db.EventParticipants on assignment.EventParticipantId equals participant.Id
             join bingoEvent in db.Events on assignment.EventId equals bingoEvent.Id
-            where assignment.OsrsCharacterId == link.OsrsCharacterId && assignment.ReleasedAt == null &&
+            where bingoEvent.HiddenAt == null && assignment.OsrsCharacterId == link.OsrsCharacterId && assignment.ReleasedAt == null &&
                   participant.AccountId == accountId && (participant.SignupStatus == SignupStatus.Confirmed || participant.SignupStatus == SignupStatus.WaitingList) &&
                   bingoEvent.State == EventState.SignupOpen && !bingoEvent.DraftLocked && now < bingoEvent.SignupClosesAt
             select new EditableAssignment(assignment, participant.Id, bingoEvent.Id, bingoEvent.Name)).ToListAsync(ct);
@@ -165,7 +165,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
             var conflicts = await (
                 from assignment in db.EventParticipantCharacters
                 join bingoEvent in db.Events on assignment.EventId equals bingoEvent.Id
-                where eventIds.Contains(assignment.EventId) && assignment.OsrsCharacterId == corrected.Id &&
+                where eventIds.Contains(assignment.EventId) && bingoEvent.HiddenAt == null && assignment.OsrsCharacterId == corrected.Id &&
                       assignment.ReleasedAt == null && !editable.Select(item => item.ParticipantId).Contains(assignment.EventParticipantId)
                 select bingoEvent.Name).Distinct().ToListAsync(ct);
             if (conflicts.Count > 0) throw new MyAccountsCorrectionConflictException(conflicts[0]);
@@ -221,7 +221,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
             from assignment in db.EventParticipantCharacters
             join participant in db.EventParticipants on assignment.EventParticipantId equals participant.Id
             join bingoEvent in db.Events on assignment.EventId equals bingoEvent.Id
-            where assignment.OsrsCharacterId == characterId && assignment.ReleasedAt == null && participant.AccountId == accountId &&
+            where bingoEvent.HiddenAt == null && assignment.OsrsCharacterId == characterId && assignment.ReleasedAt == null && participant.AccountId == accountId &&
                   (participant.SignupStatus == SignupStatus.Confirmed || participant.SignupStatus == SignupStatus.WaitingList) &&
                   (bingoEvent.State == EventState.Draft || bingoEvent.State == EventState.SignupOpen || bingoEvent.State == EventState.SignupClosed || bingoEvent.State == EventState.Live)
             select assignment.Id).AnyAsync(ct);

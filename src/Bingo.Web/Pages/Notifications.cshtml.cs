@@ -19,7 +19,10 @@ public sealed class NotificationsModel(Bingo.Infrastructure.Persistence.Applicat
             return await MarkReadAsync(read.Value, cancellationToken);
         var accountId = User.GetAccountId();
         if (accountId is null) return Challenge();
-        Notifications = await db.PersonalNotifications.AsNoTracking().Where(item => item.RecipientAccountId == accountId).OrderByDescending(item => item.CreatedAt).Select(item => new NotificationView(item.Id, item.Title, item.Detail, item.Route, item.CreatedAt, item.ReadAt)).ToListAsync(cancellationToken);
+        Notifications = await db.PersonalNotifications.AsNoTracking()
+            .Where(item => item.RecipientAccountId == accountId && (item.EventId == null || db.Events.Any(eventItem => eventItem.Id == item.EventId && eventItem.HiddenAt == null)))
+            .OrderByDescending(item => item.CreatedAt)
+            .Select(item => new NotificationView(item.Id, item.Title, item.Detail, item.Route, item.CreatedAt, item.ReadAt)).ToListAsync(cancellationToken);
         if (shell is not null && (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))) AdminActions = await shell.GetAdminActionsAsync(cancellationToken);
         return Page();
     }
@@ -34,7 +37,7 @@ public sealed class NotificationsModel(Bingo.Infrastructure.Persistence.Applicat
         var accountId = User.GetAccountId();
         if (accountId is null) return Challenge();
         var now = time.GetUtcNow();
-        var notifications = await db.PersonalNotifications.Where(item => item.RecipientAccountId == accountId && item.ReadAt == null).ToListAsync(cancellationToken);
+        var notifications = await db.PersonalNotifications.Where(item => item.RecipientAccountId == accountId && item.ReadAt == null && (item.EventId == null || db.Events.Any(eventItem => eventItem.Id == item.EventId && eventItem.HiddenAt == null))).ToListAsync(cancellationToken);
         foreach (var notification in notifications)
             notification.MarkRead(now);
         await db.SaveChangesAsync(cancellationToken);
@@ -45,7 +48,7 @@ public sealed class NotificationsModel(Bingo.Infrastructure.Persistence.Applicat
     {
         var accountId = User.GetAccountId();
         if (accountId is null) return Challenge();
-        var notification = await db.PersonalNotifications.SingleOrDefaultAsync(item => item.Id == id && item.RecipientAccountId == accountId, cancellationToken);
+        var notification = await db.PersonalNotifications.SingleOrDefaultAsync(item => item.Id == id && item.RecipientAccountId == accountId && (item.EventId == null || db.Events.Any(eventItem => eventItem.Id == item.EventId && eventItem.HiddenAt == null)), cancellationToken);
         if (notification is null) return NotFound();
         notification.MarkRead(time.GetUtcNow());
         await db.SaveChangesAsync(cancellationToken);

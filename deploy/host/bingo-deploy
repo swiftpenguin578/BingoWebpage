@@ -278,6 +278,18 @@ rollback_after_replace_failure() {
     local trigger_stage=$failure_stage
     failure_stage=rollback
     if histories_equal && [[ "$previous_image" =~ ^ghcr\.io/.+@sha256:[0-9a-f]{64}$ ]]; then
+        rollback_guard_log=$(mktemp /tmp/bingo-hidden-event-rollback.XXXXXX)
+        if compose run --rm --no-deps web --legacy-image-rollback-preflight >"$rollback_guard_log" 2>&1; then
+            rm -f -- "$rollback_guard_log"
+        else
+            redact <"$rollback_guard_log" >>"$LOG_FILE"
+            redact <"$rollback_guard_log" >&2
+            rm -f -- "$rollback_guard_log"
+            rollback_outcome=blocked_by_hidden_events
+            rollback_recovery_required=true
+            failure_stage="rollback_after_${trigger_stage}"
+            die "prior image rollback was refused by hidden-event safety preflight; restore quarantined events through a compatible application or remain on the new image"
+        fi
         export BINGO_WEB_IMAGE="$previous_image"
         if run_rollback_command compose up -d --no-deps web; then
             container=$(compose ps -q web || true)

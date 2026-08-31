@@ -94,7 +94,7 @@ public sealed class PreformedRosterCsvImportService(ApplicationDbContext db, Eve
     }
 
     public static byte[] Template() => new UTF8Encoding(false).GetBytes("Account,EHB\r\n");
-    private async Task<bool> IsEligibleTeamAsync(Guid eventId, Guid teamId, CancellationToken ct) => await db.Teams.AnyAsync(team => team.Id == teamId && team.EventId == eventId && team.Active && team.FormationType == TeamFormationType.Preformed, ct) && !await db.Events.AnyAsync(ev => ev.Id == eventId && ev.ActualStartedAt != null, ct);
+    private async Task<bool> IsEligibleTeamAsync(Guid eventId, Guid teamId, CancellationToken ct) => await db.Teams.AnyAsync(team => team.Id == teamId && team.EventId == eventId && team.Active && team.FormationType == TeamFormationType.Preformed, ct) && await db.Events.AnyAsync(ev => ev.Id == eventId && ev.HiddenAt == null && ev.ActualStartedAt == null, ct);
     private static List<RowError> ValidateShape(Parsed parsed)
     {
         var errors = new List<RowError>();

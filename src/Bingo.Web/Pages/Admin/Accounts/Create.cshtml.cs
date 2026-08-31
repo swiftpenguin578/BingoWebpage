@@ -36,7 +36,7 @@ public sealed class CreateModel(ApplicationDbContext dbContext, EmergencyCredent
     {
         Overlay = ResolveSubmittedOverlay(overlay);
         ValidateCaptainScope();
-        if (Input.EventId is { } eventId && !await dbContext.Events.AnyAsync(bingoEvent => bingoEvent.Id == eventId, cancellationToken)) ModelState.AddModelError("Input.EventId", Localize("Choose an available event."));
+        if (Input.EventId is { } eventId && !await dbContext.Events.AnyAsync(bingoEvent => bingoEvent.Id == eventId && bingoEvent.HiddenAt == null, cancellationToken)) ModelState.AddModelError("Input.EventId", Localize("Choose an available event."));
         if (Input.EventId is not null && Input.TeamId is not null && !await dbContext.Teams.AnyAsync(team => team.Id == Input.TeamId && team.EventId == Input.EventId && team.Active, cancellationToken)) ModelState.AddModelError("Input.TeamId", Localize("Choose a team belonging to the selected event."));
         if (!ModelState.IsValid)
         {
@@ -54,7 +54,7 @@ public sealed class CreateModel(ApplicationDbContext dbContext, EmergencyCredent
 
     private async Task LoadOptions(CancellationToken ct)
     {
-        Events = await dbContext.Events.AsNoTracking().OrderBy(x => x.Name).Select(x => new SelectListItem(x.Name, x.Id.ToString())).ToListAsync(ct);
+        Events = await dbContext.Events.AsNoTracking().Where(x => x.HiddenAt == null).OrderBy(x => x.Name).Select(x => new SelectListItem(x.Name, x.Id.ToString())).ToListAsync(ct);
         Teams = Input.EventId is { } eventId
             ? await dbContext.Teams.AsNoTracking().Where(team => team.EventId == eventId && team.Active).OrderBy(team => team.Name).Select(team => new TeamOption(team.Id, team.Name)).ToListAsync(ct)
             : [];

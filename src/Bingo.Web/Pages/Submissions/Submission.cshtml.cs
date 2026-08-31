@@ -118,7 +118,7 @@ public sealed class SubmissionModel(
         CanOpenTeamLedger = true;
         var context = await (from eventRow in db.Events.AsNoTracking()
                              join team in db.Teams.AsNoTracking() on eventRow.Id equals team.EventId
-                             where eventRow.Id == submission.EventId && team.Id == submission.TeamId && team.Active
+                             where eventRow.Id == submission.EventId && eventRow.HiddenAt == null && team.Id == submission.TeamId && team.Active
                              select new { EventSlug = eventRow.Slug, eventRow.Timezone, TeamSlug = team.Slug }).SingleOrDefaultAsync(ct);
         if (context is null) return false;
         EventSlug = context.EventSlug;
@@ -134,7 +134,7 @@ public sealed class SubmissionModel(
             .Where(x => x.EventId == submission.EventId && x.TeamId == submission.TeamId && x.ResubmissionOfSubmissionId == id)
             .Select(x => (Guid?)x.Id)
             .SingleOrDefaultAsync(ct);
-        var eventItem = await db.Events.AsNoTracking().SingleAsync(x => x.Id == submission.EventId, ct);
+        var eventItem = await db.Events.AsNoTracking().SingleAsync(x => x.Id == submission.EventId && x.HiddenAt == null, ct);
         var windowOpen = scope.Kind == EvidenceActorKind.EmergencyCaptain
             ? eventItem.AcceptsEmergencySubmissions(time.GetUtcNow())
             : eventItem.AcceptsNewSubmissions(time.GetUtcNow());

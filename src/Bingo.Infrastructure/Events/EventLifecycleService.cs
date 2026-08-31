@@ -27,19 +27,19 @@ public sealed class EventLifecycleService(
         await signupLifecycle.ProcessDueSignupAsync(ct);
         var now = time.GetUtcNow();
         var dueStarts = await db.Events.AsNoTracking()
-            .Where(x => PreLiveStates.Contains(x.State) && x.EventStartsAt <= now)
+            .Where(x => x.HiddenAt == null && PreLiveStates.Contains(x.State) && x.EventStartsAt <= now)
             .Select(x => x.Id)
             .ToListAsync(ct);
         foreach (var eventId in dueStarts) await ExecuteScheduledStartAsync(eventId, now, ct);
 
         var dueEnds = await db.Events.AsNoTracking()
-            .Where(x => x.State == EventState.Live && x.EventEndsAt <= now)
+            .Where(x => x.HiddenAt == null && x.State == EventState.Live && x.EventEndsAt <= now)
             .Select(x => x.Id)
             .ToListAsync(ct);
         foreach (var eventId in dueEnds) await ExecuteScheduledEndAsync(eventId, now, ct);
 
         var dueClosures = await db.Events.AsNoTracking()
-            .Where(x => (x.State == EventState.Live || x.State == EventState.AwaitingFinalReview || x.State == EventState.Finalized || x.State == EventState.Archived)
+            .Where(x => x.HiddenAt == null && (x.State == EventState.Live || x.State == EventState.AwaitingFinalReview || x.State == EventState.Finalized || x.State == EventState.Archived)
                 && x.SubmissionsClosedAt == null
                 && x.SubmissionCutoffAt != null
                 && ((x.ReopenedSubmissionCutoffAt != null && x.ReopenedSubmissionCutoffAt > x.SubmissionCutoffAt && x.ReopenedSubmissionCutoffAt <= now)
@@ -51,7 +51,7 @@ public sealed class EventLifecycleService(
 
     public async Task<EventStartReadiness?> GetStartReadinessAsync(Guid eventId, CancellationToken ct = default)
     {
-        var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId, ct);
+        var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
         return item is null ? null : new EventStartReadiness(await EvaluateStartAsync(item, ct));
     }
 
@@ -128,7 +128,7 @@ public sealed class EventLifecycleService(
             if (item.EventStartsAt is not { } startsAt || replacementEventEndsAt <= startsAt)
                 return new(false, "The replacement event end must be after the event start.");
             var singleton = await db.Events.AsNoTracking()
-                .Where(x => x.Id != eventId && CurrentStates.Contains(x.State) && !(IsDevelopmentMode() && x.IsDevelopmentFixture))
+                .Where(x => x.Id != eventId && x.HiddenAt == null && CurrentStates.Contains(x.State) && !(IsDevelopmentMode() && x.IsDevelopmentFixture))
                 .OrderBy(x => x.Name)
                 .Select(x => x.Name)
                 .FirstOrDefaultAsync(ct);
@@ -156,7 +156,7 @@ public sealed class EventLifecycleService(
         try
         {
             await LockCurrentBoundaryAsync(ct);
-            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId, ct);
+            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
             if (item is null || !PreLiveStates.Contains(item.State) || item.EventStartsAt is not { } scheduledFor || scheduledFor > now)
                 return;
             if (await db.ScheduledEventStartAttempts.AnyAsync(x => x.EventId == eventId && x.ScheduledFor == scheduledFor, ct))
@@ -175,7 +175,7 @@ public sealed class EventLifecycleService(
             {
                 db.ScheduledEventStartAttempts.Add(new(Guid.NewGuid(), eventId, scheduledFor, now, false, blockers.Select(x => x.Code)));
                 db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, null, "System", "event.start_postponed", "event", eventId.ToString(), JsonSerializer.Serialize(new { scheduledFor, blockerCodes = blockers.Select(x => x.Code) }), eventId));
-                await NotifyAdminsAsync("Automatic start postponed", $"{item.Name}: {string.Join(" ", blockers.Select(x => x.Description))}", $"/Admin/Events/Manage/{eventId}", now, ct);
+                await NotifyAdminsAsync(eventId, "Automatic start postponed", $"{item.Name}: {string.Join(" ", blockers.Select(x => x.Description))}", $"/Admin/Events/Manage/{eventId}", now, ct);
             }
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -193,7 +193,7 @@ public sealed class EventLifecycleService(
         try
         {
             await LockCurrentBoundaryAsync(ct);
-            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId, ct);
+            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
             if (item is null || item.State != EventState.Live || item.EventEndsAt is not { } scheduledEnd || scheduledEnd > now)
                 return;
             var from = item.State;
@@ -216,7 +216,7 @@ public sealed class EventLifecycleService(
         try
         {
             await LockCurrentBoundaryAsync(ct);
-            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId, ct);
+            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
             if (item is null || !item.CloseSubmissionsIfDue(now)) return;
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -272,7 +272,7 @@ public sealed class EventLifecycleService(
 
         var developmentMode = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
         var current = await db.Events.AsNoTracking()
-            .Where(x => x.Id != item.Id && CurrentStates.Contains(x.State) && !(developmentMode && x.IsDevelopmentFixture))
+            .Where(x => x.Id != item.Id && x.HiddenAt == null && CurrentStates.Contains(x.State) && !(developmentMode && x.IsDevelopmentFixture))
             .OrderBy(x => x.Name)
             .Select(x => new { x.Id, x.Name, x.State })
             .FirstOrDefaultAsync(ct);
@@ -310,7 +310,7 @@ public sealed class EventLifecycleService(
 
     private async Task<BingoEvent> EventAsync(Guid eventId, long version, CancellationToken ct)
     {
-        var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId, ct) ?? throw new InvalidOperationException("Event not found.");
+        var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct) ?? throw new InvalidOperationException("Event not found.");
         if (item.Version != version) throw new DbUpdateConcurrencyException();
         return item;
     }
@@ -318,14 +318,14 @@ public sealed class EventLifecycleService(
     private async Task LockCurrentBoundaryAsync(CancellationToken ct) =>
         await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7303004)", ct);
 
-    private async Task NotifyAdminsAsync(string title, string detail, string route, DateTimeOffset now, CancellationToken ct)
+    private async Task NotifyAdminsAsync(Guid eventId, string title, string detail, string route, DateTimeOffset now, CancellationToken ct)
     {
         var recipients = await db.Accounts.AsNoTracking()
             .Where(x => x.Active && x.AccountType == AccountType.WebsiteAccount && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin))
             .Select(x => x.Id)
             .ToListAsync(ct);
         foreach (var recipient in recipients)
-            db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), recipient, title, detail, route, now));
+            db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), recipient, title, detail, route, now, eventId));
     }
 
     private void AddTransitionAndAudit(BingoEvent item, EventState from, Guid? actorId, string actorName, bool scheduled, string action, string? reason, DateTimeOffset now, DateTimeOffset effectiveAt)
@@ -341,7 +341,7 @@ public sealed class EventLifecycleService(
         var signupOpensAt = item.SignupOpensAt;
         var signupClosesAt = item.SignupClosesAt;
         var overlap = await db.Events.AsNoTracking()
-            .Where(x => x.Id != item.Id && states.Contains(x.State) && !(IsDevelopmentMode() && x.IsDevelopmentFixture))
+            .Where(x => x.Id != item.Id && x.HiddenAt == null && states.Contains(x.State) && !(IsDevelopmentMode() && x.IsDevelopmentFixture))
             .Where(x =>
                 (x.EventStartsAt != null && x.EventEndsAt != null && x.EventStartsAt < replacementEnd && start < x.EventEndsAt)
                 || (signupOpensAt != null && signupClosesAt != null && x.SignupOpensAt != null && x.SignupClosesAt != null && signupOpensAt < x.SignupClosesAt && x.SignupOpensAt < signupClosesAt))

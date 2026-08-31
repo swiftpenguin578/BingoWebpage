@@ -59,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<IEventReadinessEvaluator, EventReadinessEvaluator>();
         services.AddScoped<IEventSignupLifecycleService, EventSignupLifecycleService>();
         services.AddScoped<IEventLifecycleService, EventLifecycleService>();
+        services.AddScoped<IEventQuarantineService, EventQuarantineService>();
         services.AddScoped<IEventDestructiveLifecycleService, EventDestructiveLifecycleService>();
         services.AddScoped<IEventCompetitionSynchronizationService, EventCompetitionSynchronizationService>();
         services.AddScoped<IEventCompetitionActivityProjection, CachedEventCompetitionActivityProjection>();

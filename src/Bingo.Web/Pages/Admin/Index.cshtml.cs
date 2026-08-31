@@ -32,7 +32,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
-        var allEvents = await dbContext.Events.AsNoTracking().Where(item => item.State != EventState.Discarded)
+        var allEvents = await dbContext.Events.AsNoTracking().Where(item => item.HiddenAt == null && item.State != EventState.Discarded)
             .Select(item => new EventSummary(
                 item.Id,
                 item.Name,
@@ -113,6 +113,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
         RecentAudits = await (from audit in dbContext.AuditEntries.AsNoTracking()
                               join bingoEvent in dbContext.Events.AsNoTracking() on audit.EventId equals bingoEvent.Id into events
                               from bingoEvent in events.DefaultIfEmpty()
+                              where audit.EventId == null || bingoEvent.HiddenAt == null
                               orderby audit.OccurredAt descending
                               select new AuditSummary(audit.OccurredAt, audit.ActorUsername, audit.Action, audit.Details, bingoEvent == null ? null : bingoEvent.Name))
             .Take(4)

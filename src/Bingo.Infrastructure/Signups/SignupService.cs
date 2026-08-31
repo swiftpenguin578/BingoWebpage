@@ -92,7 +92,7 @@ public sealed class SignupService(
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         var now = timeProvider.GetUtcNow();
-        var bingoEvent = await dbContext.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {request.EventId} FOR UPDATE").SingleOrDefaultAsync(cancellationToken);
+        var bingoEvent = await dbContext.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {request.EventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(cancellationToken);
         if (bingoEvent is null || !bingoEvent.AcceptsSignups(now)) return new(false, "Signups are not currently open.", null, null, null);
         var account = await dbContext.Accounts.SingleOrDefaultAsync(x => x.Id == request.AccountId && x.AccountType == AccountType.WebsiteAccount && x.Active, cancellationToken);
         if (account is null) return new(false, "Signups require a normal website account.", null, null, null);
@@ -237,9 +237,9 @@ public sealed class SignupService(
             $"{{\"accountId\":{Json(previousOwnerId)}}}", $"{{\"accountId\":{Json(destination.Id)},\"username\":{Json(destination.LoginName)}}}"));
         var route = $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Signup/Confirmation?participantId={participant.Id}";
         if (previousOwnerId is { } oldOwner && oldOwner != destination.Id)
-            dbContext.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), oldOwner, "participant.ownership_transferred", "Your event participant access changed.", route, now));
+            dbContext.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), oldOwner, "participant.ownership_transferred", "Your event participant access changed.", route, now, bingoEvent.Id));
         if (previousOwnerId != destination.Id)
-            dbContext.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), destination.Id, "participant.ownership_transferred", "Your event participant access changed.", route, now));
+            dbContext.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), destination.Id, "participant.ownership_transferred", "Your event participant access changed.", route, now, bingoEvent.Id));
         try { await dbContext.SaveChangesAsync(cancellationToken); await transaction.CommitAsync(cancellationToken); }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation }) { dbContext.ChangeTracker.Clear(); return new(false, "That account already owns a participant in this event."); }
         catch (Exception exception) when (HasSerializationConflict(exception)) { dbContext.ChangeTracker.Clear(); return new(false, "This participant ownership changed elsewhere. Reload before transferring it."); }
@@ -397,7 +397,7 @@ public sealed class SignupService(
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
         var bingoEvent = await dbContext.Events
-            .FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} FOR UPDATE")
+            .FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE")
             .SingleAsync(cancellationToken);
         if (bingoEvent.DraftLocked)
         {
@@ -414,7 +414,7 @@ public sealed class SignupService(
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
         var bingoEvent = await dbContext.Events
-            .FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} FOR UPDATE")
+            .FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE")
             .SingleAsync(cancellationToken);
         var promoted = await PromoteWithinLockedEventAsync(bingoEvent, null, "system", "available place", cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -427,7 +427,7 @@ public sealed class SignupService(
 
     public async Task<ParticipantLifecycleResult> WithdrawAsync(Guid eventId, Guid participantId, Guid? actorAccountId, string actorName, bool byAdmin, string? privateNote, long? expectedMembershipVersion, CancellationToken cancellationToken = default)
     {
-        if (byAdmin && actorAccountId is { } liveActor && await dbContext.Events.AsNoTracking().AnyAsync(x => x.Id == eventId && x.State == Domain.Events.EventState.Live, cancellationToken))
+        if (byAdmin && actorAccountId is { } liveActor && await dbContext.Events.AsNoTracking().AnyAsync(x => x.Id == eventId && x.HiddenAt == null && x.State == Domain.Events.EventState.Live, cancellationToken))
         {
             var live = await WithdrawLiveAsync(new LiveWithdrawalRequest(eventId, participantId, liveActor, actorName, expectedMembershipVersion), cancellationToken);
             return new(live.Succeeded, live.Error, SignupStatus.Withdrawn, null, live.Changed);
@@ -447,7 +447,7 @@ public sealed class SignupService(
         foreach (var assignment in active) assignment.Release(actorAccountId, now);
         participant.Withdraw(now, byAdmin ? "Admin withdrawal" : "Participant withdrawal", byAdmin ? actorAccountId : null);
         AddAudit(actorAccountId, actorName, byAdmin ? "participant.admin_withdrawn" : "participant.withdrawn", participant, bingoEvent.Id, prior.ToString(), SignupStatus.Withdrawn.ToString());
-        if (byAdmin && participant.AccountId is { } owner) AddNotification(owner, "participant.withdrawn", "Your signup was withdrawn by an administrator.", Route(bingoEvent), now);
+        if (byAdmin && participant.AccountId is { } owner) AddNotification(owner, "participant.withdrawn", "Your signup was withdrawn by an administrator.", Route(bingoEvent), now, bingoEvent.Id);
         // The promotion count is a SQL query. Flush the withdrawal first while retaining the enclosing transaction,
         // otherwise PostgreSQL still counts this former confirmed participant as occupying the place.
         if (prior == SignupStatus.Confirmed)
@@ -509,7 +509,7 @@ public sealed class SignupService(
             var recipients = await LiveLeadershipAndAdminRecipientsAsync(request.EventId, membership.TeamId, request.ParticipantId, cancellationToken);
             var detail = $"{bingoEvent.Name}: {participantName} withdrew from {team.Name}. The vacancy is open for Admin follow-up.";
             foreach (var recipient in recipients)
-                await AddNotificationOnceAsync("live-withdrawal", membership.Id, recipient, "participant.live_withdrawn", detail, $"/Admin/Events/Participant/{request.EventId}/Participants/{participant.Id}", now, cancellationToken);
+                await AddNotificationOnceAsync("live-withdrawal", membership.Id, recipient, "participant.live_withdrawn", detail, $"/Admin/Events/Participant/{request.EventId}/Participants/{participant.Id}", now, request.EventId, cancellationToken);
 
             await dbContext.SaveChangesAsync(cancellationToken);
             await tx.CommitAsync(CancellationToken.None);
@@ -604,7 +604,7 @@ public sealed class SignupService(
             if (replacement.AccountId is { } replacementAccount) recipients.Add(replacementAccount);
             var detail = $"{bingoEvent.Name}: {replacementName} joined {team.Name} as a replacement for {departedName}.";
             foreach (var recipient in recipients.Distinct())
-                await AddNotificationOnceAsync("live-replacement", membership.Id, recipient, "participant.live_replaced", detail, $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Teams", now, cancellationToken);
+                await AddNotificationOnceAsync("live-replacement", membership.Id, recipient, "participant.live_replaced", detail, $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Teams", now, bingoEvent.Id, cancellationToken);
 
             await dbContext.SaveChangesAsync(cancellationToken);
             await tx.CommitAsync(CancellationToken.None);
@@ -734,11 +734,11 @@ public sealed class SignupService(
         return admins.Concat(leaders).Distinct().ToList();
     }
 
-    private async Task AddNotificationOnceAsync(string purpose, Guid targetId, Guid recipientId, string title, string detail, string route, DateTimeOffset now, CancellationToken ct)
+    private async Task AddNotificationOnceAsync(string purpose, Guid targetId, Guid recipientId, string title, string detail, string route, DateTimeOffset now, Guid eventId, CancellationToken ct)
     {
         var id = DeterministicNotificationId(purpose, targetId, recipientId);
         if (!await dbContext.PersonalNotifications.AnyAsync(x => x.Id == id, ct))
-            dbContext.PersonalNotifications.Add(new PersonalNotification(id, recipientId, title, detail, route, now));
+            dbContext.PersonalNotifications.Add(new PersonalNotification(id, recipientId, title, detail, route, now, eventId));
     }
 
     private static Guid DeterministicNotificationId(string purpose, Guid targetId, Guid recipientId)
@@ -796,7 +796,7 @@ public sealed class SignupService(
         var next = (await dbContext.EventParticipants.Where(x => x.EventId == eventId).MaxAsync(x => (long?)x.SignupSequence, cancellationToken) ?? 0) + 1;
         participant.Rejoin(status, next, now);
         AddAudit(adminAccountId, adminName, "participant.admin_restored", participant, eventId, SignupStatus.Withdrawn.ToString(), status.ToString());
-        if (participant.AccountId is { } owner) AddNotification(owner, "participant.restored", "Your signup has been restored by an administrator.", Route(bingoEvent), now);
+        if (participant.AccountId is { } owner) AddNotification(owner, "participant.restored", "Your signup has been restored by an administrator.", Route(bingoEvent), now, bingoEvent.Id);
         await dbContext.SaveChangesAsync(cancellationToken); await tx.CommitAsync(cancellationToken);
         return new(true, null, status, status == SignupStatus.WaitingList ? await GetWaitingPositionAsync(participantId, eventId, cancellationToken) : null, true);
     }
@@ -818,9 +818,9 @@ public sealed class SignupService(
         {
             participant.Promote(now);
             AddAudit(actorAccountId, actorName, "participant.promoted", participant, bingoEvent.Id, SignupStatus.WaitingList.ToString(), SignupStatus.Confirmed.ToString());
-            if (participant.AccountId is { } owner) AddNotification(owner, "participant.promoted", $"Your signup for {bingoEvent.Name} is confirmed.", Route(bingoEvent), now);
+            if (participant.AccountId is { } owner) AddNotification(owner, "participant.promoted", $"Your signup for {bingoEvent.Name} is confirmed.", Route(bingoEvent), now, bingoEvent.Id);
             var admins = await dbContext.Accounts.Where(x => x.Active && x.AccountType == AccountType.WebsiteAccount && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin)).Select(x => x.Id).ToListAsync(cancellationToken);
-            foreach (var admin in admins) AddNotification(admin, "participant.promoted", $"A participant was promoted for {bingoEvent.Name} ({trigger}).", $"/Admin/Events/Manage/{bingoEvent.Id}", now);
+            foreach (var admin in admins) AddNotification(admin, "participant.promoted", $"A participant was promoted for {bingoEvent.Name} ({trigger}).", $"/Admin/Events/Manage/{bingoEvent.Id}", now, bingoEvent.Id);
         }
         return waiting.Count;
     }
@@ -830,7 +830,7 @@ public sealed class SignupService(
             !dbContext.TeamMemberships.Any(membership => membership.EventParticipantId == participant.Id && membership.LeftAt == null &&
                 dbContext.Teams.Any(team => team.Id == membership.TeamId && team.EventId == eventId && team.Active && team.FormationType == TeamFormationType.Preformed)));
 
-    private async Task<Domain.Events.BingoEvent?> LockEventAsync(Guid eventId, CancellationToken ct) => await dbContext.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} FOR UPDATE").SingleOrDefaultAsync(ct);
+    private async Task<Domain.Events.BingoEvent?> LockEventAsync(Guid eventId, CancellationToken ct) => await dbContext.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct);
     private async Task<SignupStatus> AdmissionStatusAsync(Domain.Events.BingoEvent bingoEvent, CancellationToken ct) =>
         await SignupParticipants(bingoEvent.Id).CountAsync(x => x.SignupStatus == SignupStatus.Confirmed, ct) < bingoEvent.ParticipantCap ? SignupStatus.Confirmed : SignupStatus.WaitingList;
     private async Task<bool> ReacquireAssignmentsAsync(EventParticipant participant, Guid? actorId, DateTimeOffset now, CancellationToken ct)
@@ -844,7 +844,7 @@ public sealed class SignupService(
         return true;
     }
     private void AddAudit(Guid? actorId, string actorName, string action, EventParticipant participant, Guid eventId, string before, string after) => dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorId, actorName, action, "participant", participant.Id.ToString(), null, eventId, before, after));
-    private void AddNotification(Guid recipientId, string title, string detail, string route, DateTimeOffset now) => dbContext.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), recipientId, title, detail, route, now));
+    private void AddNotification(Guid recipientId, string title, string detail, string route, DateTimeOffset now, Guid eventId) => dbContext.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), recipientId, title, detail, route, now, eventId));
     private static string Route(Domain.Events.BingoEvent bingoEvent) => $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Signup/Confirmation";
 
     private async Task<int> GetWaitingPositionAsync(Guid participantId, Guid eventId, CancellationToken cancellationToken)

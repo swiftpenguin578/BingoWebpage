@@ -25,6 +25,8 @@ public sealed class AccountAuthorizationHandler(ApplicationDbContext dbContext, 
 
         var access = await dbContext.AccountEventAccesses.AsNoTracking().SingleOrDefaultAsync(x => x.AccountId == accountId);
         var accessMode = access?.GetAccessMode(timeProvider.GetUtcNow()) ?? AccountAccessMode.Disabled;
+        if (access is not null && !await dbContext.Events.AsNoTracking().AnyAsync(x => x.Id == access.EventId && x.HiddenAt == null))
+            accessMode = AccountAccessMode.Disabled;
         foreach (var requirement in context.PendingRequirements.ToArray())
         {
             switch (requirement)

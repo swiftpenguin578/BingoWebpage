@@ -6,13 +6,24 @@ namespace Bingo.Infrastructure.Auditing;
 
 public sealed class AuditWriter(ApplicationDbContext dbContext, TimeProvider timeProvider) : IAuditWriter
 {
-    public async Task WriteAsync(
+    public Task WriteAsync(
         Guid? actorAccountId,
         string actorUsername,
         string action,
         string targetType,
         string? targetId = null,
         string? details = null,
+        CancellationToken cancellationToken = default) =>
+        WriteAsync(actorAccountId, actorUsername, action, targetType, targetId, details, null, cancellationToken);
+
+    public async Task WriteAsync(
+        Guid? actorAccountId,
+        string actorUsername,
+        string action,
+        string targetType,
+        string? targetId,
+        string? details,
+        Guid? eventId,
         CancellationToken cancellationToken = default)
     {
         dbContext.AuditEntries.Add(new AuditEntry(
@@ -23,7 +34,8 @@ public sealed class AuditWriter(ApplicationDbContext dbContext, TimeProvider tim
             action,
             targetType,
             targetId,
-            details));
+            details,
+            eventId));
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }

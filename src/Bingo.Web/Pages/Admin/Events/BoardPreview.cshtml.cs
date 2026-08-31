@@ -23,7 +23,7 @@ public sealed class BoardPreviewModel(ApplicationDbContext db) : PageModel
     public async Task<IActionResult> OnGetAsync(Guid id, string? teamSlug, Guid? tileId, CancellationToken ct)
     {
         var board = await db.Boards.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == id, ct);
-        var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
+        var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.HiddenAt == null, ct);
         if (board is null || bingoEvent is null) return NotFound();
         EventName = bingoEvent.Name;
         Rows = board.Rows;

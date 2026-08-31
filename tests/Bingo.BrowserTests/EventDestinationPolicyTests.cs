@@ -37,6 +37,18 @@ public sealed class EventDestinationPolicyTests
         Assert.False(EventDestinationPolicy.MayUseSignupTable(route, false));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void HiddenEventsFailClosedForPublicAndAdministratorDestinations(bool administrator)
+    {
+        var route = new EventRouteState(EventState.Finalized, DateTimeOffset.UtcNow, true, true, true, true, IsHidden: true);
+
+        Assert.Equal(EventDestination.Unavailable, EventDestinationPolicy.Decide(route, administrator));
+        Assert.Equal(EventDestination.Unavailable, EventDestinationPolicy.PublicOverview(route));
+        Assert.False(EventDestinationPolicy.MayUseSignupTable(route, administrator));
+    }
+
     [Fact]
     public void PublicOverviewUsesRosterUntilTheBoardIsPublished()
     {

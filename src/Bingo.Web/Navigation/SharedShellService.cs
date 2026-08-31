@@ -48,7 +48,8 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         var rows = await (from participant in db.EventParticipants.AsNoTracking()
                           join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
                           join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
-                          where participant.AccountId == accountId && team.Active && membership.LeftAt == null &&
+                          join bingoEvent in db.Events.AsNoTracking() on participant.EventId equals bingoEvent.Id
+                          where participant.AccountId == accountId && team.Active && membership.LeftAt == null && bingoEvent.HiddenAt == null &&
                                 membership.Role == Bingo.Domain.Teams.TeamMembershipRole.Participant && participant.EventId == team.EventId
                           select new { EventId = participant.EventId, TeamId = team.Id })
             .Distinct()
@@ -73,7 +74,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
                               join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
                               join bingoEvent in db.Events.AsNoTracking() on participant.EventId equals bingoEvent.Id
                               where participant.AccountId == accountId && team.Active && membership.LeftAt == null &&
-                                    participant.EventId == team.EventId && bingoEvent.State == EventState.Live &&
+                                    participant.EventId == team.EventId && bingoEvent.HiddenAt == null && bingoEvent.State == EventState.Live &&
                                     (membership.Role == Bingo.Domain.Teams.TeamMembershipRole.Captain || membership.Role == Bingo.Domain.Teams.TeamMembershipRole.CoCaptain)
                               select new { EventId = bingoEvent.Id, TeamId = team.Id })
                 .Distinct()
@@ -86,7 +87,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             var rows = await (from access in db.AccountEventAccesses.AsNoTracking()
                               join team in db.Teams.AsNoTracking() on access.TeamId equals team.Id
                               join bingoEvent in db.Events.AsNoTracking() on access.EventId equals bingoEvent.Id
-                              where access.AccountId == accountId && access.Enabled && team.Active && team.EventId == bingoEvent.Id && bingoEvent.State == EventState.Live &&
+                              where access.AccountId == accountId && access.Enabled && team.Active && team.EventId == bingoEvent.Id && bingoEvent.HiddenAt == null && bingoEvent.State == EventState.Live &&
                                     (access.ActiveFrom == null || access.ActiveFrom <= now) && (access.ExpiresAt == null || access.ExpiresAt > now)
                               select new { EventId = bingoEvent.Id, TeamId = team.Id })
                 .Distinct()
@@ -102,28 +103,28 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         var personalItems = new List<ShellNotification>();
         if (Guid.TryParse(user.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier), out var accountId))
         {
-            var unread = db.PersonalNotifications.AsNoTracking().Where(item => item.RecipientAccountId == accountId && item.ReadAt == null);
+            var unread = db.PersonalNotifications.AsNoTracking().Where(item => item.RecipientAccountId == accountId && item.ReadAt == null && (item.EventId == null || db.Events.Any(eventItem => eventItem.Id == item.EventId && eventItem.HiddenAt == null)));
             var personal = await unread.OrderByDescending(item => item.CreatedAt).Take(6).ToListAsync(cancellationToken);
             personalItems = personal.Select(item => new ShellNotification(item.Id, NotificationPresentation.Title(text, item.Title), NotificationPresentation.Detail(text, item.Title, item.Detail), $"/notifications?read={item.Id}")).ToList();
             var personalCount = await unread.CountAsync(cancellationToken);
             var adminActions = user.IsInRole("Admin") || user.IsInRole("SuperAdmin")
                 ? await GetAdminActionsAsync(cancellationToken)
                 : new AdminActionProjection([], [], 0);
-            var eventIds = await db.Events.AsNoTracking().Where(item => item.State == EventState.Live || item.State == EventState.AwaitingFinalReview).Select(item => item.Id).ToListAsync(cancellationToken);
+            var eventIds = await db.Events.AsNoTracking().Where(item => item.HiddenAt == null && (item.State == EventState.Live || item.State == EventState.AwaitingFinalReview)).Select(item => item.Id).ToListAsync(cancellationToken);
             return new NotificationInbox(eventIds, personalCount + adminActions.Count, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personalItems,
                 personalCount, adminActions.Count, text["Admin actions"], text["No unresolved Admin actions."], text["Admin actions"], "/Admin", adminActions.Items);
         }
         var anonymousAdminActions = user.IsInRole("Admin") || user.IsInRole("SuperAdmin")
             ? await GetAdminActionsAsync(cancellationToken)
             : new AdminActionProjection([], [], 0);
-        var anonymousEventIds = await db.Events.AsNoTracking().Where(item => item.State == EventState.Live || item.State == EventState.AwaitingFinalReview).Select(item => item.Id).ToListAsync(cancellationToken);
+        var anonymousEventIds = await db.Events.AsNoTracking().Where(item => item.HiddenAt == null && (item.State == EventState.Live || item.State == EventState.AwaitingFinalReview)).Select(item => item.Id).ToListAsync(cancellationToken);
         return new NotificationInbox(anonymousEventIds, anonymousAdminActions.Count, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personalItems,
             0, anonymousAdminActions.Count, text["Admin actions"], text["No unresolved Admin actions."], text["Admin actions"], "/Admin", anonymousAdminActions.Items);
     }
 
     public async Task<AdminActionProjection> GetAdminActionsAsync(CancellationToken cancellationToken)
     {
-        var activeEvents = await db.Events.AsNoTracking().Where(item => item.State == EventState.Draft || item.State == EventState.SignupOpen || item.State == EventState.SignupClosed || item.State == EventState.Live || item.State == EventState.AwaitingFinalReview).Select(item => new { item.Id, item.Name, item.Timezone }).ToListAsync(cancellationToken);
+        var activeEvents = await db.Events.AsNoTracking().Where(item => item.HiddenAt == null && (item.State == EventState.Draft || item.State == EventState.SignupOpen || item.State == EventState.SignupClosed || item.State == EventState.Live || item.State == EventState.AwaitingFinalReview)).Select(item => new { item.Id, item.Name, item.Timezone }).ToListAsync(cancellationToken);
         var activeEventIds = activeEvents.Select(item => item.Id).ToList();
         var eventMap = activeEvents.ToDictionary(item => item.Id);
         var items = new List<ShellNotification>();
@@ -157,18 +158,18 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         var vacancies = await (from membership in db.TeamMemberships.AsNoTracking()
                                join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
                                join ev in db.Events.AsNoTracking() on participant.EventId equals ev.Id
-                               where (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) && participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && !db.TeamMemberships.Any(replacement => replacement.ReplacesMembershipId == membership.Id)
+                               where ev.HiddenAt == null && (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) && participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && !db.TeamMemberships.Any(replacement => replacement.ReplacesMembershipId == membership.Id)
                                select new { membership.Id, EventId = ev.Id, ParticipantId = participant.Id }).Take(6).ToListAsync(cancellationToken);
         var vacancyCount = await (from membership in db.TeamMemberships.AsNoTracking()
                                   join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
                                   join ev in db.Events.AsNoTracking() on participant.EventId equals ev.Id
-                                  where (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) && participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && !db.TeamMemberships.Any(replacement => replacement.ReplacesMembershipId == membership.Id)
+                                  where ev.HiddenAt == null && (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) && participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && !db.TeamMemberships.Any(replacement => replacement.ReplacesMembershipId == membership.Id)
                                   select membership.Id).CountAsync(cancellationToken);
         items.AddRange(vacancies.Select(x => new ShellNotification(x.Id, "Open vacancy", $"{eventMap[x.EventId].Name} · Review the open team vacancy and choose whether to replace it.", $"/Admin/Events/Participant/{x.EventId}/Participants/{x.ParticipantId}")));
 
         var missingCaptains = await (from team in db.Teams.AsNoTracking()
                                      join ev in db.Events.AsNoTracking() on team.EventId equals ev.Id
-                                     where team.Active && (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) &&
+                                     where team.Active && ev.HiddenAt == null && (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) &&
                                            !db.TeamMemberships.Any(membership => membership.TeamId == team.Id && membership.LeftAt == null && membership.Role == Bingo.Domain.Teams.TeamMembershipRole.Captain &&
                                                db.EventParticipants.Any(participant => participant.Id == membership.EventParticipantId && participant.AccountId != null && participant.EventId == ev.Id &&
                                                    db.Accounts.Any(account => account.Id == participant.AccountId && account.Active && account.AccountType == Bingo.Domain.Access.AccountType.WebsiteAccount))) &&
@@ -177,7 +178,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
                                      select new { team.Id, team.EventId }).Take(6).ToListAsync(cancellationToken);
         var missingCaptainCount = await (from team in db.Teams.AsNoTracking()
                                          join ev in db.Events.AsNoTracking() on team.EventId equals ev.Id
-                                         where team.Active && (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) &&
+                                         where team.Active && ev.HiddenAt == null && (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) &&
                                                !db.TeamMemberships.Any(membership => membership.TeamId == team.Id && membership.LeftAt == null && membership.Role == Bingo.Domain.Teams.TeamMembershipRole.Captain &&
                                                    db.EventParticipants.Any(participant => participant.Id == membership.EventParticipantId && participant.AccountId != null && participant.EventId == ev.Id &&
                                                        db.Accounts.Any(account => account.Id == participant.AccountId && account.Active && account.AccountType == Bingo.Domain.Access.AccountType.WebsiteAccount))) &&
@@ -209,7 +210,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             return null;
 
         var eventView = await db.Events.AsNoTracking()
-            .Where(item => item.Id == eventId)
+            .Where(item => item.Id == eventId && item.HiddenAt == null)
             .Select(item => new { item.Id, item.Name, item.State })
             .SingleOrDefaultAsync(cancellationToken);
 
@@ -253,7 +254,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
     private async Task<IReadOnlyList<AdminEventOption>> GetAdminEventOptionsAsync(CancellationToken cancellationToken)
     {
         var events = await db.Events.AsNoTracking()
-            .Where(item => item.State != EventState.Discarded)
+            .Where(item => item.State != EventState.Discarded && item.HiddenAt == null)
             .OrderBy(item => item.Name)
             .Select(item => new { item.Id, item.Name, item.State })
             .ToListAsync(cancellationToken);
@@ -277,7 +278,8 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         {
             var tile = await (from submission in db.Submissions.AsNoTracking()
                               join boardTile in db.BoardTiles.AsNoTracking() on submission.BoardTileId equals boardTile.Id
-                              where submission.Id == submissionId
+                              join bingoEvent in db.Events.AsNoTracking() on submission.EventId equals bingoEvent.Id
+                              where submission.Id == submissionId && bingoEvent.HiddenAt == null
                               select boardTile.NameSnapshot).SingleOrDefaultAsync(cancellationToken);
             if (tile is not null) items.Add(new(tile, null));
             items.Add(new(text["Submission"], null));
@@ -289,7 +291,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
     {
         var slug = values["slug"]?.ToString();
         if (string.IsNullOrWhiteSpace(slug) || page is "/Events/Teams" or "/Events/Confirmation" || page.Contains("/Signup", StringComparison.Ordinal)) return [];
-        var eventView = await db.Events.AsNoTracking().Where(item => item.Slug == slug).Select(item => new { item.Id, item.Name, item.State }).SingleOrDefaultAsync(cancellationToken);
+        var eventView = await db.Events.AsNoTracking().Where(item => item.Slug == slug && item.HiddenAt == null).Select(item => new { item.Id, item.Name, item.State }).SingleOrDefaultAsync(cancellationToken);
         if (eventView is null) return [];
         var items = new List<BreadcrumbItem> { new(text["Public boards"], "/") };
         if (page == "/Events/Board") { items.Add(new(eventView.Name, null, StatusLabel(eventView.State), eventView.State.ToString().ToLowerInvariant())); return items; }

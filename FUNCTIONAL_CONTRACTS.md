@@ -126,6 +126,7 @@ Each durable capability/journey below has one owning contract section. Shared cr
 | `ADM-REVIEW-01` Evidence review/correction/reversal | 7.5 |
 | `ADM-FINALIZE-01` Final review/results/unfinalize | 7.6 |
 | `ADM-EVENT-ARCHIVE-01`, `ADM-EVENT-CANCEL-01`, `SYS-CURRENT-EVENT-01` Lifecycle/history | 8.1 |
+| `SUPERADMIN-EVENT-QUARANTINE-01` Hidden-event quarantine | 8.1a |
 | `ADM-ACCOUNT-01` Disable/restore | 8.2 |
 | `PART-HISTORY-01` Archived participant history | 8.2 |
 | `PUB-FEEDBACK-01` External feedback | 8.3 |
@@ -474,6 +475,45 @@ unchanged.
 
 **Acceptance outcome:** Official history remains public and stable, populated events are never discarded, production current-event selection is unambiguous, and Development can expose multiple explicit scenarios safely.
 
+### 8.1a `SUPERADMIN-EVENT-QUARANTINE-01` — Hidden-event quarantine
+
+**Actors and outcome:** Only the designated Super Admin may reversibly hide or
+restore an event as an orthogonal administrative quarantine. Hide and Restore
+are available in Events Control and the Manage Danger Zone, and each requires
+exact ordinal event-name confirmation, a mandatory reason, and a complete
+immutable audit entry.
+
+**Entry and reachability:** Events Control has a clearly separated Hidden
+filter/area. A hidden event's only rendered destination is the limited
+SuperAdmin Manage inspection surface reached from that area; it shows retained
+lifecycle information, hide/restore audit history, and Restore. No ordinary
+event workspace or mutation is reachable while hidden.
+
+**Authoritative happy path:** Hide succeeds only for `AWAITING_FINAL_REVIEW`,
+`FINALIZED`, or `ARCHIVED`. It records hiding metadata and removes the event
+from every ordinary discovery, history, account, submission, evidence,
+notification, action, audit, and realtime projection. Restore clears only that
+metadata and returns the unchanged lifecycle and event data.
+
+**Permissions and history:** Draft, SignupOpen, SignupClosed, Live, Cancelled,
+and Discarded events cannot be hidden. Public visitors, participants,
+Captains/co-captains, emergency authority, and ordinary Admins receive 404 or
+an absent projection for hidden events. Super Admin does not bypass the rule on
+public routes. All database relations, snapshots, rankings, evidence, audit
+history, managed assets, and storage objects remain retained. Hide and Restore
+emit no notification.
+
+**Failure and recovery:** Invalid state, non-SuperAdmin authority, missing
+reason, inexact confirmation, stale concurrency, or an attempted ordinary
+workspace access fails without mutation or disclosure. Hidden events have no
+active-event scheduler, signup, singleton/window-collision, or active realtime
+processing because eligibility begins after Live. Restore is the only recovery
+before ordinary event operations resume.
+
+**Acceptance outcome:** A Super Admin can quarantine and restore an eligible
+post-Live event with full accountability while every other role and route is
+fail-closed and the competitive record remains unchanged.
+
 ### 8.2 `ADM-ACCOUNT-01` and `PART-HISTORY-01` — Access lifecycle and archive reading
 
 **Actors and outcome:** An authorized Admin disables/restores website access; an archived participant reads their own permitted evidence history while public visitors read preserved public results.
@@ -538,7 +578,12 @@ unchanged.
 
 **Authoritative happy path:** Filter changes return to page one; pagination retains filters; entry detail renders structured before/after labels and values. The retained history is independent of the display page size.
 
-**Permissions and history:** Audit entries are immutable. Passwords, hashes, tokens, OAuth secrets, evidence credentials, and unnecessary raw Discord IDs do not enter snapshots or request context. Security logs remain distinct where specified.
+**Permissions and history:** Audit entries are immutable. Event-linked audit
+records for hidden events are omitted from ordinary-Admin projections and are
+available only through the limited SuperAdmin quarantine inspection. Passwords,
+hashes, tokens, OAuth secrets, evidence credentials, and unnecessary raw
+Discord IDs do not enter snapshots or request context. Security logs remain
+distinct where specified.
 
 **Failure and recovery:** Stale/invalid filters return safe empty or validation feedback without weakening authorization. Reading detail never mutates the entry or resolves a business action.
 

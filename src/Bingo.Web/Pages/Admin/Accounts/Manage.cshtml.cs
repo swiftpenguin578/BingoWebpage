@@ -82,10 +82,14 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
     {
         var account = await db.Accounts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         if (account is null) return false;
+        if (account.AccountType == AccountType.EmergencyCaptain && await (from access in db.AccountEventAccesses.AsNoTracking()
+                                                                          join bingoEvent in db.Events.AsNoTracking() on access.EventId equals bingoEvent.Id
+                                                                          where access.AccountId == id && bingoEvent.HiddenAt != null
+                                                                          select access.Id).AnyAsync(ct)) return false;
         var scope = await (from access in db.AccountEventAccesses.AsNoTracking()
                            join bingoEvent in db.Events.AsNoTracking() on access.EventId equals bingoEvent.Id
                            join team in db.Teams.AsNoTracking() on access.TeamId equals team.Id
-                           where access.AccountId == id
+                           where access.AccountId == id && bingoEvent.HiddenAt == null
                            select new EmergencyScope(bingoEvent.Name, team.Name, access.Enabled, access.CutoffDisabled)).SingleOrDefaultAsync(ct);
         var characters = await (from link in db.AccountOsrsCharacters.AsNoTracking()
                                 join character in db.OsrsCharacters.AsNoTracking() on link.OsrsCharacterId equals character.Id
@@ -94,7 +98,7 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
                                 select new CharacterView(character.DisplayName, link.Active, link.Preferred)).ToListAsync(ct);
         var participation = await (from participant in db.EventParticipants.AsNoTracking()
                                    join bingoEvent in db.Events.AsNoTracking() on participant.EventId equals bingoEvent.Id
-                                   where participant.AccountId == id
+                                   where participant.AccountId == id && bingoEvent.HiddenAt == null
                                    select new { participant.Id, EventName = bingoEvent.Name, EventTimezone = bingoEvent.Timezone, participant.SignupStatus }).ToListAsync(ct);
         var participantIds = participation.Select(x => x.Id).ToArray();
         var memberships = await (from membership in db.TeamMemberships.AsNoTracking()

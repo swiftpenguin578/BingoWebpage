@@ -43,6 +43,52 @@
     var eventStatus = AdminEventStatePresentation.For(eventView.State, T);
 }
 
+@if (eventView.IsHidden)
+{
+    <section class="table-page event-manage-page" aria-labelledby="hidden-event-heading">
+        <section class="event-danger-zone-container event-danger-zone">
+            <div class="event-danger-zone-copy">
+                <h1 id="hidden-event-heading">@T["Hidden event — limited inspection"]</h1>
+                <p>@T["This event is quarantined. Its lifecycle, data, timestamps, snapshots, rankings, evidence, history, assets, and storage are retained. Ordinary workspaces and actions are unavailable until it is restored."]</p>
+                <dl>
+                    <dt>@T["Retained lifecycle"]</dt><dd>@AdminEventStatePresentation.For(eventView.State, T).Label</dd>
+                    <dt>@T["Hidden at"]</dt><dd>@Model.EventDate(eventView.HiddenAt)</dd>
+                    <dt>@T["Reason"]</dt><dd>@eventView.HiddenReason</dd>
+                </dl>
+            </div>
+            <div class="event-danger-zone-form">
+                <h2>@T["Restore event"]</h2>
+                <p>@T["Restore clears only the hiding metadata. Confirm the exact event name and enter a reason."]</p>
+                <form method="post" asp-page-handler="RestoreHidden" asp-route-hidden="true" class="form-stack">
+                    <input asp-for="EventVersion" type="hidden" />
+                    <input type="hidden" name="hidden" value="true" />
+                    <div class="event-create-field"><label asp-for="EventNameConfirmation">@T["Type the exact event name"]</label><input asp-for="EventNameConfirmation" class="form-control" autocomplete="off" required /></div>
+                    <div class="event-create-field"><label asp-for="QuarantineReason">@T["Reason for restoring"]</label><textarea asp-for="QuarantineReason" class="form-control" rows="3" required></textarea></div>
+                    <button class="btn event-create-cancel action-danger-outline" type="submit">@T["Restore event"]</button>
+                </form>
+            </div>
+        </section>
+        <section class="event-control-group" aria-labelledby="quarantine-history-heading">
+            <h2 id="quarantine-history-heading">@T["Quarantine audit history"]</h2>
+            @if (Model.QuarantineAuditHistory.Count == 0)
+            {
+                <p>@T["No quarantine audit entries are available."]</p>
+            }
+            else
+            {
+                <ul>
+                    @foreach (var entry in Model.QuarantineAuditHistory)
+                    {
+                        <li><strong>@(entry.Action == "event.hidden" ? T["Hidden"] : T["Restored"])</strong> · @entry.ActorUsername · @Model.EventDate(entry.OccurredAt) · @entry.Details</li>
+                    }
+                </ul>
+            }
+        </section>
+        <p><a class="btn event-create-cancel" asp-page="Index" asp-route-filter="hidden">@T["Back to hidden events"]</a></p>
+    </section>
+}
+else
+{
 <section class="table-page event-manage-page">
     <section class="event-manage-layout">
         <div class="event-manage-main">
@@ -437,6 +483,22 @@
                     </div>
                 </section>
 
+    @if (User.IsInRole("SuperAdmin") && eventView.State is (EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived))
+                {
+                    <section class="event-danger-zone-container event-danger-zone" aria-labelledby="event-quarantine-heading">
+                        <div class="event-danger-zone-copy">
+                            <h2 id="event-quarantine-heading">@T["Event quarantine"]</h2>
+                            <p>@T["Hide this post-live event from every ordinary public, participant, Admin, notification, evidence, and realtime surface. The lifecycle and all retained history stay unchanged."]</p>
+                        </div>
+                        <form method="post" asp-page-handler="Hide" class="form-stack event-danger-zone-form">
+                            <input asp-for="EventVersion" type="hidden" />
+                            <div class="event-create-field"><label asp-for="EventNameConfirmation">@T["Type the exact event name"]</label><input asp-for="EventNameConfirmation" class="form-control" autocomplete="off" required /></div>
+                            <div class="event-create-field"><label asp-for="QuarantineReason">@T["Reason for hiding"]</label><textarea asp-for="QuarantineReason" class="form-control" rows="3" required></textarea></div>
+                            <button class="btn event-create-cancel action-danger-outline" type="submit">@T["Hide event"]</button>
+                        </form>
+                    </section>
+                }
+
                 @if (showDestructivePreLiveControl)
                 {
                     <section class="event-danger-zone-container event-danger-zone" aria-labelledby="event-danger-heading">
@@ -462,6 +524,7 @@
         </div>
     </section>
 </section>
+}
 
 @section Scripts {
     <script src="~/js/event-manage.js" asp-append-version="true"></script>

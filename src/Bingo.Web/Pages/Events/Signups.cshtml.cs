@@ -31,7 +31,7 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
 
     public async Task<IActionResult> OnGetAsync(string slug, CancellationToken ct)
     {
-        var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug, ct);
+        var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug && x.HiddenAt == null, ct);
         if (item is null) return NotFound();
         var rosterExists = await db.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && db.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == item.Id), ct);
         var policy = EventDestinationPolicy.From(item, rosterExists);

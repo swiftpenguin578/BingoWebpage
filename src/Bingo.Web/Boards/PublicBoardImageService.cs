@@ -14,7 +14,7 @@ public sealed class PublicBoardImageService(ApplicationDbContext db, IEvidenceSt
                            join board in db.Boards.AsNoTracking() on bingoEvent.Id equals board.EventId
                            join approvalTile in db.BoardApprovalTileSnapshots.AsNoTracking() on board.ActiveApprovalSnapshotId equals approvalTile.ApprovalSnapshotId
                            join image in db.BoardTileImageAssets.AsNoTracking() on approvalTile.BoardTileId equals image.BoardTileId
-                           where bingoEvent.Slug == slug && board.State == BoardState.Published &&
+                           where bingoEvent.Slug == slug && bingoEvent.HiddenAt == null && board.State == BoardState.Published &&
                                  approvalTile.BoardTileId == tileId && approvalTile.ArtworkReference != null &&
                                  image.EventId == bingoEvent.Id && image.StorageKey == approvalTile.ArtworkReference
                            select image).SingleOrDefaultAsync(cancellationToken);

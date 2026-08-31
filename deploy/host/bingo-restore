@@ -181,6 +181,20 @@ if [[ "$full_restore" == true ]]; then
     migration_history "$restored_history"
     cmp -s "$history_file" "$restored_history" || die "restored migration history does not match the backup; refusing application preflight"
 
+    hidden_column_present=$(compose exec -T postgres psql -X -v ON_ERROR_STOP=1 -A -t -U "$BINGO_POSTGRES_USER" -d "$BINGO_POSTGRES_DB" \
+        -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'events' AND column_name = 'hidden_at');" 2>/dev/null) \
+        || die "could not inspect hidden-event rollback safety; web remains stopped"
+    hidden_events=
+    if [[ "$hidden_column_present" == t ]]; then
+        hidden_events=$(compose exec -T postgres psql -X -v ON_ERROR_STOP=1 -A -t -U "$BINGO_POSTGRES_USER" -d "$BINGO_POSTGRES_DB" \
+            -c "SELECT id::text || ' (' || name || ')' FROM events WHERE hidden_at IS NOT NULL ORDER BY name, id;" 2>/dev/null) \
+            || die "could not inspect hidden-event rollback safety; web remains stopped"
+    fi
+    if [[ -n "${hidden_events//[[:space:]]/}" ]]; then
+        hidden_events_one_line=$(printf '%s' "$hidden_events" | paste -sd ';' -)
+        die "restored prior image refused: quarantined events would be re-exposed: $hidden_events_one_line. Restore them through a compatible application or remain on the newer image; web remains stopped"
+    fi
+
     recovery_web_status=stopped
     candidate_retry_required=false
     if [[ "$recorded_image" == none ]]; then

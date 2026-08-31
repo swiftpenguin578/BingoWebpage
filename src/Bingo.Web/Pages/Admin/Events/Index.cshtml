@@ -7,6 +7,15 @@
     ViewData["AdminPageDescription"] = T["Create and manage bingo events."];
 }
 
+@if (User.IsInRole("SuperAdmin"))
+{
+    <span data-admin-events-control hidden></span>
+}
+
+@section Scripts {
+    <script src="~/js/admin-collaboration.js" asp-append-version="true"></script>
+}
+
 <section class="admin-events-page">
     <div class="admin-events-directory-controls">
         <form class="admin-events-toolbar" method="get" data-admin-event-directory-search>
@@ -94,7 +103,7 @@
                             var playerSummary = item.Waiting > 0
                                 ? T["{0} / {1} players · {2} waiting", item.Confirmed, item.ParticipantCap, item.Waiting]
                                 : T["{0} / {1} players", item.Confirmed, item.ParticipantCap];
-                            <tr data-admin-event-row data-event-id="@item.Id" data-event-name="@item.Name" data-event-slug="@item.Slug" data-event-state="@item.State.ToString().ToLowerInvariant()" data-event-state-order="@((int)item.State)" data-event-start="@item.EventStartsAt?.UtcTicks" data-event-end="@item.EventEndsAt?.UtcTicks" data-event-confirmed="@item.Confirmed" data-event-waiting="@item.Waiting" data-event-cap="@item.ParticipantCap" data-event-attention="@item.PendingReviews">
+                            <tr data-admin-event-row data-event-id="@item.Id" data-event-name="@item.Name" data-event-slug="@item.Slug" data-event-state="@item.State.ToString().ToLowerInvariant()" data-event-hidden="@item.IsHidden.ToString().ToLowerInvariant()" data-event-state-order="@((int)item.State)" data-event-start="@item.EventStartsAt?.UtcTicks" data-event-end="@item.EventEndsAt?.UtcTicks" data-event-confirmed="@item.Confirmed" data-event-waiting="@item.Waiting" data-event-cap="@item.ParticipantCap" data-event-attention="@item.PendingReviews">
                                 <td data-label="@T["Event"]"><strong>@item.Name</strong><small>@item.Slug</small></td>
                                 <td class="event-state-cell" data-label="@T["State"]"><span class="admin-status-pill @statePill.Modifier">@statePill.Label</span></td>
                                 <td data-label="@T["Event dates"]" class="event-date-cell @(item.EventStartsAt is null || item.EventEndsAt is null ? "is-incomplete" : null)"><strong>@Model.FormatDate(item.EventStartsAt, item.Timezone)</strong><small>@T["to"] @Model.FormatDate(item.EventEndsAt, item.Timezone)</small></td>
@@ -109,7 +118,7 @@
                                         <span class="muted-value" aria-label="@T["Nothing needs attention"]">—</span>
                                     }
                                 </td>
-                                <td class="event-row-action"><a class="event-overview-row-action" asp-page="Manage" asp-route-id="@item.Id">@T["Workspace"]</a></td>
+                                <td class="event-row-action"><a class="event-overview-row-action" asp-page="Manage" asp-route-id="@item.Id" asp-route-hidden="@(item.IsHidden ? "true" : null)">@(item.IsHidden ? T["Inspect"] : T["Workspace"])</a></td>
                             </tr>
                         }
                     </tbody>

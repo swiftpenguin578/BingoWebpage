@@ -18,13 +18,13 @@ public sealed class EventReadinessEvaluator(ApplicationDbContext db, IConfigurat
 {
     public async Task<SignupReadiness?> GetSignupReadinessAsync(Guid eventId, SignupOpeningMode mode, DateTimeOffset now, CancellationToken ct = default)
     {
-        var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId, ct);
+        var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
         return item is null ? null : await EvaluateAsync(item, mode, now, ct);
     }
 
     public async Task<SignupReadiness?> GetSignupReadinessAsync(Guid eventId, SignupOpeningMode mode, DateTimeOffset now, EventScheduleValues proposedValues, CancellationToken ct = default)
     {
-        var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId, ct);
+        var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
         if (item is null) return null;
         try { item.ConfigureSchedule(proposedValues.SignupOpensAt, proposedValues.SignupClosesAt, proposedValues.DraftAt, proposedValues.EventStartsAt, proposedValues.EventEndsAt, proposedValues.ParticipantCap); }
         catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
@@ -145,13 +145,13 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
     {
         var now = time.GetUtcNow();
         var dueOpenings = await db.Events.AsNoTracking()
-            .Where(x => x.State == EventState.Draft && x.ScheduledSignupOpeningEnabled && x.SignupOpensAt <= now)
+            .Where(x => x.HiddenAt == null && x.State == EventState.Draft && x.ScheduledSignupOpeningEnabled && x.SignupOpensAt <= now)
             .Select(x => x.Id)
             .ToListAsync(ct);
         foreach (var eventId in dueOpenings) await ExecuteScheduledOpeningAsync(eventId, now, ct);
 
         var dueClosings = await db.Events.AsNoTracking()
-            .Where(x => x.State == EventState.SignupOpen && x.SignupClosesAt <= now)
+            .Where(x => x.HiddenAt == null && x.State == EventState.SignupOpen && x.SignupClosesAt <= now)
             .Select(x => x.Id)
             .ToListAsync(ct);
         foreach (var eventId in dueClosings) await ExecuteScheduledClosingAsync(eventId, now, ct);
@@ -163,7 +163,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         try
         {
             await LockCurrentEventBoundary(ct);
-            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId, ct);
+            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
             if (item is null || item.State != EventState.Draft || !item.ScheduledSignupOpeningEnabled || item.SignupOpensAt is not { } scheduledFor || scheduledFor > now)
                 return;
             if (await db.ScheduledSignupOpeningAttempts.AnyAsync(x => x.EventId == eventId && x.ScheduledFor == scheduledFor, ct))
@@ -200,7 +200,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
                     .ToArray();
                 db.ScheduledSignupOpeningAttempts.Add(new(Guid.NewGuid(), eventId, scheduledFor, now, false, blockerCodes, descriptions));
                 db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, null, "System", "event.signup_opening_failed", "event", eventId.ToString(), JsonSerializer.Serialize(new { scheduledFor, blockerCodes }), eventId));
-                await NotifyAdminsAsync("Scheduled signup opening failed", $"{item.Name}: {string.Join(" ", descriptions)}", $"/Admin/Events/Manage/{eventId}", now, ct);
+                await NotifyAdminsAsync(eventId, "Scheduled signup opening failed", $"{item.Name}: {string.Join(" ", descriptions)}", $"/Admin/Events/Manage/{eventId}", now, ct);
             }
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -218,7 +218,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         try
         {
             await LockCurrentEventBoundary(ct);
-            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId, ct);
+            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
             if (item is null || item.State != EventState.SignupOpen || item.SignupClosesAt is not { } scheduledFor || scheduledFor > now)
                 return;
             var from = item.State;
@@ -234,14 +234,14 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         }
     }
 
-    private async Task NotifyAdminsAsync(string title, string detail, string route, DateTimeOffset now, CancellationToken ct)
+    private async Task NotifyAdminsAsync(Guid itemId, string title, string detail, string route, DateTimeOffset now, CancellationToken ct)
     {
         var recipients = await db.Accounts.AsNoTracking()
             .Where(x => x.Active && x.AccountType == AccountType.WebsiteAccount && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin))
             .Select(x => x.Id)
             .ToListAsync(ct);
         foreach (var recipient in recipients)
-            db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), recipient, title, detail, route, now));
+            db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), recipient, title, detail, route, now, itemId));
     }
 
     private void AddScheduledTransitionAndAudit(BingoEvent item, EventState from, string action, string? details, DateTimeOffset effectiveAt)
@@ -303,7 +303,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
     }
 
     private async Task<BingoEvent> EventAsync(Guid id, long version, CancellationToken ct)
-    { var item = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new InvalidOperationException("Event not found."); if (item.Version != version) throw new DbUpdateConcurrencyException(); return item; }
+    { var item = await db.Events.SingleOrDefaultAsync(x => x.Id == id && x.HiddenAt == null, ct) ?? throw new InvalidOperationException("Event not found."); if (item.Version != version) throw new DbUpdateConcurrencyException(); return item; }
     private async Task LockCurrentEventBoundary(CancellationToken ct) => await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7303003)", ct);
     private void AddTransitionAndAudit(BingoEvent item, EventState from, LifecycleActor actor, string action, string? details)
     { var now = time.GetUtcNow(); db.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), item.Id, from, item.State, actor.Id, now, null)); db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.Username, action, "event", item.Id.ToString(), details, item.Id, JsonSerializer.Serialize(new { state = from }), JsonSerializer.Serialize(new { state = item.State, item.ActualSignupOpenedAt, item.ActualSignupClosedAt }))); }
@@ -321,8 +321,8 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         {
             participant.Promote(now);
             db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.Username, "participant.promoted", "participant", participant.Id.ToString(), null, item.Id, SignupStatus.WaitingList.ToString(), SignupStatus.Confirmed.ToString()));
-            if (participant.AccountId is { } owner) db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), owner, "participant.promoted", $"Your signup for {item.Name} is confirmed.", $"/Events/{Uri.EscapeDataString(item.Slug)}/Signup/Confirmation", now));
-            foreach (var admin in admins) db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), admin, "participant.promoted", $"A participant was promoted for {item.Name} (capacity increased).", $"/Admin/Events/Manage/{item.Id}", now));
+            if (participant.AccountId is { } owner) db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), owner, "participant.promoted", $"Your signup for {item.Name} is confirmed.", $"/Events/{Uri.EscapeDataString(item.Slug)}/Signup/Confirmation", now, item.Id));
+            foreach (var admin in admins) db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), admin, "participant.promoted", $"A participant was promoted for {item.Name} (capacity increased).", $"/Admin/Events/Manage/{item.Id}", now, item.Id));
         }
         return waiting.Count;
     }
@@ -371,7 +371,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             return new(Guid.Empty, string.Empty, "Set an event start and end before opening signup.");
         var states = new[] { EventState.SignupOpen, EventState.SignupClosed, EventState.Live, EventState.AwaitingFinalReview, EventState.Finalized };
         var developmentMode = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
-        var candidates = await db.Events.AsNoTracking().Where(x => x.Id != item.Id && states.Contains(x.State) && !(x.IsDevelopmentFixture && developmentMode)).ToListAsync(ct);
+        var candidates = await db.Events.AsNoTracking().Where(x => x.Id != item.Id && x.HiddenAt == null && states.Contains(x.State) && !(x.IsDevelopmentFixture && developmentMode)).ToListAsync(ct);
         var overlap = candidates
             .Where(x => x.EventStartsAt is { } otherStart && x.EventEndsAt is { } otherEnd && start < otherEnd && otherStart < end)
             .OrderBy(x => x.EventStartsAt)

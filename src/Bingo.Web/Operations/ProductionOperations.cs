@@ -119,6 +119,36 @@ public sealed class ProductionPreflight(
             throw new InvalidOperationException("Production preflight failed [ownership]: provision or recover exactly one active Super Admin, then rerun preflight.");
     }
 
+    public async Task ValidateLegacyImageRollbackAsync(CancellationToken cancellationToken)
+    {
+        List<HiddenEventRollbackRow> hiddenEvents;
+        try
+        {
+            var hasHiddenColumn = await db.Database
+                .SqlQueryRaw<bool>("SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'events' AND column_name = 'hidden_at') AS \"Value\"")
+                .SingleAsync(cancellationToken);
+            if (!hasHiddenColumn) return;
+
+            hiddenEvents = await db.Events.AsNoTracking()
+                .Where(item => item.HiddenAt != null)
+                .OrderBy(item => item.Name)
+                .ThenBy(item => item.Id)
+                .Select(item => new HiddenEventRollbackRow(item.Id, item.Name))
+                .ToListAsync(cancellationToken);
+        }
+        catch
+        {
+            throw new InvalidOperationException("Rollback safety preflight failed [postgresql]: verify the database and migration state before attempting an older application image.");
+        }
+
+        if (hiddenEvents.Count == 0) return;
+
+        var affected = string.Join(", ", hiddenEvents.Select(item => $"{item.Id} ({item.Name})"));
+        throw new InvalidOperationException($"Rollback safety preflight failed [hidden-events]: the older application image would re-expose these quarantined events: {affected}. Restore them through a compatible application or remain on the new image, then retry.");
+    }
+
+    private sealed record HiddenEventRollbackRow(Guid Id, string Name);
+
     private async Task ValidateMigrationsAsync(CancellationToken cancellationToken)
     {
         IEnumerable<string> pending;

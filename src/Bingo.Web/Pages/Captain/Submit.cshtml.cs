@@ -30,7 +30,7 @@ public sealed class SubmitModel(ApplicationDbContext db, ISubmissionService subm
 
         var destination = await (from team in db.Teams.AsNoTracking()
                                  join eventItem in db.Events.AsNoTracking() on team.EventId equals eventItem.Id
-                                 where team.Id == TeamId && eventItem.Id == EventId
+                                 where team.Id == TeamId && eventItem.Id == EventId && eventItem.HiddenAt == null
                                  select new { EventSlug = eventItem.Slug, TeamSlug = team.Slug }).SingleOrDefaultAsync(ct);
         if (destination is null) return NotFound();
         return tileId is Guid selectedTileId
