@@ -53,10 +53,12 @@ rules and implementation ownership are defined by [`UI_SYSTEM.md`](UI_SYSTEM.md)
    `git diff --check` passed for the documentation/archive changes. The current
    UI order is owned by section 2 below. No release-readiness claim is included.
 
-8. **Hidden-event quarantine implementation — complete in the working tree,
-   uncommitted and unpushed (2026-08-31):** migration
-   `20260831142836_AddEventQuarantine` exists but has not been applied to
-   application data. The affected Web Release build, domain quarantine (10),
+8. **Hidden-event quarantine implementation — complete, manually accepted, and
+   committed locally as `b2e4bcdef16c63e6356cf6422a0777a7839a2eec` (`Add
+   SuperAdmin event quarantine`), unpushed (2026-08-31):** migration
+   `20260831142836_AddEventQuarantine` was applied only to the user's local
+   Development database for manual inspection and has not been applied to
+   production. The affected Web Release build, domain quarantine (10),
    destination policy (20), quarantine integration (initially 2, then focused
    remediation suite 6), migration rehearsal (1), architecture, Bash syntax,
    and `git diff --check` gates passed. An independent Sol High review found
@@ -64,21 +66,16 @@ rules and implementation ownership are defined by [`UI_SYSTEM.md`](UI_SYSTEM.md)
    access/audit, realtime access/invalidation, and legacy notification
    backfill/index—which focused Luna xhigh remediation closed. Follow-up review
    closed two migration-only emergency-audit classification issues; final
-   independent closure verdict is PASS.
+   independent closure verdict is PASS. The user manually accepted the bounded
+   rendered navigation and Hide/Restore journeys after that remediation.
 
    The contract remains limited to `AwaitingFinalReview`, `Finalized`, and
    `Archived` eligibility, the separated SuperAdmin Hidden area/limited Manage
    inspection, and fail-closed ordinary paths. No production hide or historical
-   import is included. Manual-acceptance preflight is blocked by the environment
-   rather than the implementation verdict: Docker/Testcontainers and `psql`/
-   `createdb` are unavailable, and the only available database is the user's
-   normal Bingo.Web instance, which was not touched. The rendered journeys are
-   unverified. The smallest unblocker is a disposable PostgreSQL/Testcontainers
-   host or isolated Development-reset database; source fixtures appear to
-   include `test-21-final-review`, `test-84-evidence-history`, and
-   `test-85-archived-results`, but that is not rendered verification. After the
-   preflight passes, obtain user manual acceptance before any separately
-   authorized packaging or production operation.
+   import is included. The local Development database application was for
+   manual inspection only; production remains unchanged. Before any GitHub
+   push, run the applicable test/regression gates locally and resolve failures
+   locally before using the remote CI cycle.
 
 ## 2. Launch and UI order
 
@@ -846,8 +843,13 @@ issue was found. The correction is committed and pushed through `aa1af77`. Later
 application corrections are committed locally on the release branch: `182b84f`
 fixed production routing/live controls, `cd83c36` polished submission drawer
 controls, `88cd8f8` consolidated the canonical submission workspace, and
-`e75ec57` polished notification-popup and Board-family progress notices. The
-deployed `dklegacy.dk` candidate predates those latest local commits.
+`e75ec57` polished notification-popup and Board-family progress notices. Four
+added public-UI correction batches were manually approved and culminate in local
+commit `11f3db3971fd499e11ee40182c5d5ee630431079` (`Polish public UI
+interactions`), unpushed; they cover favicon/tab-title and local font-loading
+polish, masthead/title layering, leaderboard/toast corrections, and shared
+public-action interaction, contrast, spacing, and separator refinements. The
+deployed `dklegacy.dk` candidate predates these latest local commits.
 
 Provider-backed Pass 5 setup began on 2026-08-28 with the user's explicit
 approval. Netcup supplies the Ubuntu 24.04 single VPS; Cloudflare supplies DNS
@@ -875,12 +877,12 @@ candidate:
   fictional rehearsal data remains separate. The rehearsal event must follow
   `Live -> AwaitingFinalReview -> Finalized -> Archived` to preserve history;
   Live or formerly Live events cannot be cancelled. Ordinary archive remains
-  public historical content. Hidden-event quarantine implementation is complete
-  in the uncommitted, unpushed working tree; migration
-  `20260831142836_AddEventQuarantine` has not been applied to application data.
-  Its rendered manual-acceptance preflight is blocked by the unavailable
-  disposable database, and production use is not part of this repository
-  implementation.
+  public historical content. Hidden-event quarantine implementation is complete,
+  manually accepted, and committed locally in
+  `b2e4bcdef16c63e6356cf6422a0777a7839a2eec` (unpushed). Migration
+  `20260831142836_AddEventQuarantine` was applied only to the user's local
+  Development database for manual inspection and has not been applied to
+  production. Production use is not part of this repository implementation.
 - The operator confirms R2 accidental-deletion/versioning behavior or records
   another accepted evidence recovery path; evidence integrity detection alone
   is not treated as recovery.
@@ -911,16 +913,18 @@ candidate:
 
 The revised production/release order is frozen:
 
-1. Commit this documentation reconciliation when separately authorized; this
-   pass prepares the exact three-file diff.
-2. Resolve or explicitly defer event-title overflow layering, favicon,
-   font-loading flash, toast visibility, Leaderboard drawer SVG, Live event-banner
-   editability, and linked-resubmission Admin Review manual confirmation.
-3. Run whole-application regression across desktop/mobile, keyboard/focus,
+1. Resolve or explicitly defer the linked-resubmission Admin Review manual
+   confirmation. The four added public-UI correction batches are manually
+   accepted and committed locally; their current candidate remains unpushed.
+2. Run whole-application regression across desktop/mobile, keyboard/focus,
    permissions, errors, privacy, realtime, masthead account/notification
    popups, and Admin/Captain/participant journeys; remediate only concrete
    critical/high findings.
-4. Push through the green PR/CI path, merge, and publish the immutable
+3. Before any GitHub push, run the applicable test/regression gates locally and
+   resolve failures locally so preventable failures do not consume the long
+   remote CI cycle.
+4. With separate authorization, push through the green PR/CI path, merge, and
+   publish the immutable
    `linux/amd64` digest and candidate receipt.
 5. Before candidate deployment, verify restricted key-only deploy access,
    disabled password/direct-root SSH, Docker and the backup timer surviving
@@ -934,11 +938,14 @@ The revised production/release order is frozen:
    rollback, interruption timing, and post-recovery smoke.
 8. Run the provider-evidence release-risk review, bounded remediation/rechecks,
    Pass 6, and final launch smoke.
-9. Only with explicit authorization, perform production-data cleanup, historical
-   import, or any public-visibility mutation; archive the rehearsal only through
-   `Live -> AwaitingFinalReview -> Finalized -> Archived`. Run the multi-day
-   bingo rehearsal after deployment; findings from that post-deployment
-   rehearsal become ordinary bug fixes.
+9. Plan the genuine older-event historical import with the user as the next
+   product/data item. After the new candidate is deployed and only with
+   separate authorization, preserve but hide the production rehearsal through
+   the approved SuperAdmin quarantine workflow and separately add the genuine
+   older event as visible `Archived` history. Neither production mutation is
+   authorized yet. Run the multi-day bingo rehearsal after deployment; findings
+   from that
+   post-deployment rehearsal become ordinary bug fixes.
 
 The whole-application regression and provider-evidence release-risk review
 deliberately follow the completed submission consolidation and capacity

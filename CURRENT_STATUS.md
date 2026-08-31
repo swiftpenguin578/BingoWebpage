@@ -9,7 +9,7 @@ historical material is preserved separately and is non-authoritative.
 - Branch: `production-release-pipeline`
 - Base commit: `329e04adaa98a444f69d20aa41385b4ca7426bd3` (Passes 1–4)
 - Tracking: `origin/production-release-pipeline`; the local branch is ahead by
-  nine commits.
+  15 commits.
 - The UI overhaul is merged and pushed to `main` at `52ec8494c6792f1f1f4ccd5893ac0cdb11cb74a3`.
 - Preserve the local developer-only `launchSettings.json` override and `tmp/`,
   including the quarantined duplicate files moved under
@@ -70,9 +70,14 @@ is used. It then performs the validated SSH deployment.
 Passes 1–4, the GitHub Free release-control adjustment, the accepted
 release-blocker corrections, and the later tested application corrections are
 committed locally on `production-release-pipeline`. The latest local commits
-are `182b84f` (production routing/live controls), `cd83c36` (submission drawer
-controls), `88cd8f8` (canonical submissions workspace), and `e75ec57`
-(notification-popup and Board-family progress notices). Integration into
+include `182b84f` (production routing/live controls), `cd83c36` (submission
+drawer controls), `88cd8f8` (canonical submissions workspace), and `e75ec57`
+(notification-popup and Board-family progress notices). Four added public-UI
+correction batches were manually approved and culminate in local commit
+`11f3db3971fd499e11ee40182c5d5ee630431079` (`Polish public UI interactions`),
+which is unpushed; they cover favicon/tab-title and local font-loading polish,
+masthead/title layering, leaderboard/toast corrections, and shared public-action
+interaction, contrast, spacing, and separator refinements. Integration into
 `main` still uses the existing green pull-request path. The deployed
 `dklegacy.dk` candidate predates these latest local commits; no current local
 candidate is published until the merge and resulting `main` CI run publish its
@@ -105,19 +110,27 @@ evidence and this result does not by itself close the full Pass 5 rehearsal.
 The rehearsal event remains isolated test data and must follow
 `Live -> AwaitingFinalReview -> Finalized -> Archived` to preserve history;
 Live or formerly Live events cannot be cancelled. Ordinary archive remains
-public historical content. The hidden-event quarantine implementation is now
-complete in the working tree but is uncommitted and unpushed; it was not part of
-this provider rehearsal. Historical summer-event import remains separate: after
-deployment, hide the production rehearsal and separately import the genuine
-older event as visible `Archived` history. This handoff authorizes neither
-production mutation.
+public historical content. The hidden-event quarantine implementation is
+complete, manually accepted by the user after focused remediation, and committed
+locally in `b2e4bcdef16c63e6356cf6422a0777a7839a2eec` (`Add SuperAdmin event
+quarantine`); it remains unpushed and was not part of this provider rehearsal.
+Its migration was applied only to the user's local Development database for
+manual inspection and has not been applied to production. Genuine older-event
+historical import remains separate and is the next product/data item to plan
+with the user: after the new candidate is deployed, the intended outcome is to
+preserve but hide the production rehearsal through SuperAdmin quarantine and
+separately add the genuine older event as visible `Archived` history. Neither
+production mutation is authorized.
 
 ## Hidden-event quarantine implementation handoff — 2026-08-31
 
-Implementation is complete in the working tree, uncommitted and unpushed. The
-additive migration
-`20260831142836_AddEventQuarantine` exists but has not been applied to
-application data. Focused gates passed: affected Web Release build; domain
+Implementation is complete, manually accepted by the user after focused
+remediation, and committed locally in
+`b2e4bcdef16c63e6356cf6422a0777a7839a2eec` (`Add SuperAdmin event quarantine`).
+The commit remains unpushed. The additive migration
+`20260831142836_AddEventQuarantine` was applied only to the user's local
+Development database for manual inspection; it has not been applied to
+production. Focused gates passed: affected Web Release build; domain
 quarantine 10; destination-policy 20; quarantine integration initially 2 and
 then focused remediation suite 6; migration rehearsal 1; architecture;
 Bash-syntax; and `git diff --check`.
@@ -134,20 +147,17 @@ The final contract remains: only `AwaitingFinalReview`, `Finalized`, and
 area and limited Manage inspection; all other paths fail closed; and no
 production hide or historical import is authorized.
 
-Manual-acceptance preflight is BLOCKED by the environment, not an
-implementation verdict: Docker/Testcontainers are unavailable, no `psql` or
-`createdb` tools are available, and only the user's normal Bingo.Web
-instance/database is available and was not touched. Rendered navigation and
-Hide/Restore journeys remain unverified. The smallest unblocker is a disposable
-PostgreSQL/Testcontainers host or an isolated Development-reset database.
-Source inspection indicates reset fixtures for eligible post-Live events
-`test-21-final-review`, `test-84-evidence-history`, and
-`test-85-archived-results`; this is source evidence, not rendered verification.
+The bounded rendered navigation and Hide/Restore journeys were manually
+inspected and accepted by the user after focused remediation. The local
+Development migration application was for that inspection only; production
+remains unchanged.
 
-Next permitted action: provide or enable the disposable database for the
-bounded rendered preflight, then obtain user manual inspection/acceptance.
-Packaging, commit, push, production hide, and historical import remain
-unauthorized.
+Next permitted action: run the remaining whole-application regression and
+release gates. Before any GitHub push, run the applicable test/regression gates
+locally and resolve failures locally so preventable failures do not consume the
+long remote CI cycle. The quarantine commit remains local and unpushed; any
+production hide, historical import, or other public-visibility mutation remains
+separately unauthorized.
 
 ## Submission workspace consolidation handoff — 2026-08-31
 
@@ -197,10 +207,13 @@ The user approved the following concrete Pass 5/6 closure gates on 2026-08-30:
 - Change the bootstrap owner's initial password before public signup. Keep
   rehearsal data separate; take it through `Live -> AwaitingFinalReview ->
   Finalized -> Archived` to preserve history. The post-Live hidden-event
-  quarantine implementation is complete but its rendered preflight is blocked
-  pending a disposable database; after deployment hide the rehearsal and
-  separately import the genuine older event as visible `Archived` history,
-  with neither production mutation included here.
+  quarantine implementation is complete, manually accepted, and committed
+  locally in `b2e4bcdef16c63e6356cf6422a0777a7839a2eec` (unpushed). Its migration
+  was applied only to the user's local Development database for manual
+  inspection and has not been applied to production. After the new candidate is
+  deployed and with separate authorization, hide the rehearsal through
+  SuperAdmin quarantine and separately add the genuine older event as visible
+  `Archived` history; neither production mutation is included here.
 - Resolve the evidence-storage protection wording before launch: confirm the
   actual R2 accidental-deletion/versioning behavior or explicitly accept and
   document another recovery path. The integrity command detects loss but is not
@@ -228,15 +241,19 @@ user's explicit approval.
 
 Current remaining sequence:
 
-1. Commit this documentation reconciliation when separately authorized.
-2. Resolve or explicitly defer the event-title overflow layering, favicon,
-   font-loading flash, toast visibility, Leaderboard drawer SVG, Live event-banner
-   editability, and linked-resubmission Admin Review manual-confirmation UNKNOWNs.
-3. Run whole-application regression across desktop/mobile, keyboard/focus,
+1. Resolve or explicitly defer the linked-resubmission Admin Review
+   manual-confirmation UNKNOWN. The four added public-UI correction batches are
+   manually accepted and committed locally; their current candidate remains
+   unpushed.
+2. Run whole-application regression across desktop/mobile, keyboard/focus,
    permissions, errors, privacy, realtime, masthead account/notification
    popups, and Admin/Captain/participant journeys; remediate only concrete
    critical/high findings.
-4. Push through the green PR/CI path, merge, and publish the immutable
+3. Before any GitHub push, run the applicable test/regression gates locally and
+   resolve failures locally so preventable failures do not consume the long
+   remote CI cycle.
+4. With separate authorization, push through the green PR/CI path, merge, and
+   publish the immutable
    `linux/amd64` digest and candidate receipt.
 5. Before candidate deployment, verify restricted key-only deploy access,
    disabled password/direct-root SSH, Docker and the backup timer surviving
@@ -250,11 +267,14 @@ Current remaining sequence:
    rollback, interruption timing, and post-recovery smoke.
 8. Run the provider-evidence release-risk review, bounded remediation/rechecks,
    Pass 6, and final launch smoke.
-9. Only with explicit authorization, perform production-data cleanup, historical
-   import, or any public-visibility mutation; archive the rehearsal only through
-   `Live -> AwaitingFinalReview -> Finalized -> Archived`. Run the multi-day
-   bingo rehearsal after deployment; findings from that post-deployment
-   rehearsal become ordinary bug fixes.
+9. Plan the genuine older-event historical import with the user as the next
+   product/data item. After the new candidate is deployed and only with
+   separate authorization, preserve but hide the production rehearsal through
+   the approved SuperAdmin quarantine workflow and separately add the genuine
+   older event as visible `Archived` history. Neither production mutation is
+   authorized yet. Run the multi-day bingo rehearsal after deployment; findings
+   from that
+   post-deployment rehearsal become ordinary bug fixes.
 
 ## Pre-commit audit and direct-to-main integration plan
 
@@ -846,9 +866,6 @@ passes as product or UI approval.
   schedule/cutoff instants remain immutable.
 - **F-06:** decide whether permanent Rules/how-to work precedes or follows
   Milestone 9 before implementing that feature work.
-- **UNKNOWN — bounded UI/manual decisions:** resolve or explicitly defer event-
-  title overflow layering, favicon, font-loading flash, toast visibility,
-  Leaderboard drawer SVG, and whether the event banner is editable while Live.
 - **UNKNOWN — linked resubmission Admin Review journey:** manually confirm the
   linked-resubmission journey in Admin Review. Source inspection found no query
   exclusion, and no query change is authorized without new evidence.
