@@ -3139,6 +3139,12 @@ th {
   box-shadow: none;
 }
 
+body.public-ui-page-canvas.public-ui-pass2.keyboard-navigation :is(.public-pass2-action, .public-pass2-text-link, .public-pass2-back-link):focus-visible {
+  outline: 2px solid var(--pass2-accent);
+  outline-offset: 3px;
+  border-radius: 0;
+}
+
 .pointer-navigation :is(a, button, input, select, textarea, summary):focus-visible {
   outline: none !important;
   box-shadow: none !important;

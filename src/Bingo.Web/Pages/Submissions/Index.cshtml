@@ -3,6 +3,7 @@
 @using Bingo.Domain.Teams
 @{
     ViewData["Title"] = $"{Model.TeamName} · {(Model.IsCaptainWorkspace ? T["Captain workspace"] : T["submissions"])}";
+    ViewData["HideBreadcrumbs"] = true;
 }
 
 <section class="public-pass2-page captain-operations-page participant-submissions-page" aria-labelledby="submissions-heading">

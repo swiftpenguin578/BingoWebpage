@@ -2,6 +2,7 @@
 
 <div class="identity-login-form" data-login-form>
     <a class="editorial-button editorial-button--provider" asp-page="/Account/DiscordLogin" asp-route-returnUrl="@Model.ReturnUrl"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"><path d="M19.54 5.32A16.7 16.7 0 0 0 15.47 4l-.5 1.02a15.5 15.5 0 0 0-5.94 0L8.53 4a16.7 16.7 0 0 0-4.07 1.32C1.88 9.08 1.18 12.75 1.52 16.37a16.8 16.8 0 0 0 5 2.57l1.2-1.65a10.5 10.5 0 0 1-1.9-.91l.46-.36a11.9 11.9 0 0 0 10.44 0l.46.36c-.6.36-1.24.67-1.9.91l1.2 1.65a16.8 16.8 0 0 0 5-2.57c.4-4.2-.68-7.83-1.94-11.05Z" /><circle cx="8.35" cy="12.38" r="1.05" /><circle cx="15.65" cy="12.38" r="1.05" /></svg><span>@T["Continue with Discord"]</span></a>
+    <p class="login-discord-note">@T["First time here? Start with Discord to create your website account."]</p>
     <div class="identity-divider" role="separator"><span>@T["OR"]</span></div>
     <span id="login-form-description" class="visually-hidden">@T["Use your public username and password, or continue with Discord when it is available."]</span>
     <form method="post" class="identity-form" aria-describedby="login-form-description" asp-page="/Account/Login">

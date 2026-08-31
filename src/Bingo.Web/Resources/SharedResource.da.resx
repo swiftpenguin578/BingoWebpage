@@ -271,6 +271,7 @@
   <data name="Existing links cannot be displayed for security. Create a replacement only if the player lost their link." xml:space="preserve"><value>Det eksisterende link kan af sikkerhedshensyn ikke vises igen. Opret kun et nyt, hvis spilleren har mistet sit link.</value></data>
   <data name="Protected access" xml:space="preserve"><value>Beskyttet adgang</value></data>
   <data name="Use your public username and password, or continue with Discord when it is available." xml:space="preserve"><value>Brug dit offentlige brugernavn og din adgangskode, eller fortsæt med Discord, når det er tilgængeligt.</value></data>
+  <data name="First time here? Start with Discord to create your website account." xml:space="preserve"><value>Første gang her? Start med Discord for at oprette din webkonto.</value></data>
   <data name="Remember me on this device" xml:space="preserve"><value>Husk mig på denne enhed</value></data>
   <data name="Forgot password?" xml:space="preserve"><value>Glemt adgangskode?</value></data>
   <data name="Continue with Discord" xml:space="preserve"><value>Fortsæt med Discord</value></data>

@@ -1078,6 +1078,8 @@ html[data-public-theme="dark"] body.public-ui-pass2 .public-pass2-status--cautio
 .public-pass2-settings-discord-pair > .public-pass2-form-grid { grid-column: 1; grid-row: 2; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 0.85rem; row-gap: 0.8rem; align-items: end; }
 .public-pass2-settings-discord-pair > .public-pass2-form-grid > .public-pass2-field { grid-column: 1; grid-row: 1; }
 .public-pass2-settings-discord-pair > .public-pass2-form-grid > .public-pass2-action { grid-column: 2; grid-row: 1; }
+.public-pass2-settings-discord-pair > .public-pass2-form-grid > .public-pass2-action > svg { width: 1rem; height: 1rem; flex: 0 0 1rem; }
+html[data-public-theme="dark"] body.public-ui-pass2 .public-pass2-settings-discord-pair > .public-pass2-form-grid > .public-pass2-action > svg { fill: var(--public-action-contrast); }
 .public-pass2-settings-discord-pair .public-pass2-field-error:empty { display: none; }
 .public-pass2-settings-discord-pair > .public-pass2-form-grid > .public-pass2-text-link { grid-column: 1; grid-row: 2; align-self: end; justify-self: start; }
 @media (min-width: 901px) {
@@ -1130,9 +1132,9 @@ html[data-public-theme="dark"] .public-pass2-field select { color-scheme: dark; 
 .public-pass2-text-link,
 .public-pass2-back-link { display: inline-flex; width: fit-content; min-height: 2.5rem; box-sizing: border-box; gap: 0.55rem; align-items: center; justify-content: center; padding: 0.65rem 1rem; background: transparent; border: 1px solid transparent; border-radius: 0; cursor: pointer; font-size: 1.08rem; line-height: 1; text-decoration: none; white-space: nowrap; }
 .public-pass2-action--outline { color: var(--pass2-accent); border-color: var(--pass2-accent); }
-.public-pass2-action--outline:hover { color: var(--pass2-canvas); background: var(--pass2-accent); }
+.public-pass2-action--outline:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--pass2-canvas); background: var(--pass2-accent); }
 .public-pass2-action--danger { color: var(--pass2-danger); border-color: var(--pass2-danger); }
-.public-pass2-action--danger:hover { color: var(--pass2-canvas); background: var(--pass2-danger); }
+.public-pass2-action--danger:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--pass2-canvas); background: var(--pass2-danger); }
 .public-pass2-text-link,
 .public-pass2-back-link { min-height: 1.8rem; padding-inline: 0; color: var(--pass2-accent); }
 .public-pass2-text-link:hover,
@@ -1337,7 +1339,8 @@ html[data-public-theme="dark"] .public-pass2-privacy-page .public-pass2-editoria
 
 /* Pass 5 Captain team operations. */
 .captain-operations-page { width: min(100%, var(--public-page-wide)); }
-.captain-operations-masthead { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.captain-operations-masthead { grid-template-columns: minmax(0, 1fr) auto; align-items: end; border-bottom: 0; }
+.captain-submission-masthead { border-bottom: 0; }
 .captain-operations-masthead > div { min-width: 0; }
 .captain-operations-support-row { display: flex; min-width: 0; flex-wrap: wrap; gap: 0.8rem 1.25rem; align-items: baseline; }
 .captain-operations-support-row .public-masthead-support { flex: 1 1 auto; }
@@ -1346,12 +1349,11 @@ html[data-public-theme="dark"] .public-pass2-privacy-page .public-pass2-editoria
 .captain-operations-page .captain-operations-back:hover,
 .captain-operations-page .captain-operations-back:focus-visible { color: var(--pass2-text); }
 .captain-operations-page .captain-operations-back .public-ui-action__directional-glyph { height: auto; color: inherit; line-height: inherit; transform: none; }
-.captain-operations-page .captain-operations-masthead { border-bottom-color: var(--pass2-accent); }
 .captain-operations-fact { min-width: 8rem; margin: 0; padding-inline-start: 1rem; border-inline-start: 1px solid var(--pass2-rule); text-align: right; }
 .captain-operations-fact dt { color: var(--pass2-muted); font: 600 0.9rem/1.1 "Barlow Condensed Public UI", sans-serif; letter-spacing: 0.04em; text-transform: uppercase; }
 .captain-operations-fact dd { margin: 0.35rem 0 0; color: var(--pass2-accent); font: 800 1.4rem/1 "Barlow Condensed Public UI", sans-serif; overflow-wrap: anywhere; }
 .captain-operations-notice { margin: 1rem 0 0; padding: 0.75rem 0.85rem; color: var(--pass2-danger); border: 1px solid var(--pass2-danger); }
-.captain-operations-band { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(20rem, 0.9fr); gap: 2.4rem; margin-top: 2rem; padding: 0 0 1.25rem; border-bottom: 1px solid var(--pass2-rule); }
+.captain-operations-band { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(20rem, 0.9fr); gap: 2.4rem; margin-top: 2rem; padding: 0 0 1.25rem; }
 .captain-focus-panel, .captain-summary-panel { min-width: 0; }
 .captain-focus-panel .public-pass2-ledger-heading { margin-bottom: 0.45rem; }
 .captain-operations-page .public-pass2-ledger-heading h2 { color: var(--pass2-accent); font: 600 1.45rem/1 "Barlow Condensed Public UI", sans-serif; letter-spacing: 0.045em; text-transform: uppercase; }
@@ -1486,10 +1488,9 @@ html[data-public-theme="dark"] body.public-ui-pass2 .captain-submission-page .pu
   .captain-submission-navigation { justify-content: start; }
 }
 
-html[data-public-theme="dark"] .captain-operations-page .captain-operations-masthead { border-bottom-color: var(--pass2-rule); }
 html[data-public-theme="dark"] .captain-operations-page .public-masthead-kicker { color: var(--pass2-text); }
 html[data-public-theme="dark"] .captain-operations-page .captain-operations-support-row > .public-masthead-support { color: var(--pass2-muted); }
-html[data-public-theme="dark"] .captain-operations-page .public-pass2-ledger-heading h2 { color: var(--pass2-text); }
+html[data-public-theme="dark"] .captain-operations-page .public-pass2-ledger-heading h2 { color: var(--pass2-accent); }
 html[data-public-theme="dark"] .captain-operations-page .public-pass2-ledger-heading > span { background: var(--pass2-rule); }
 html[data-public-theme="dark"] .captain-submission-page :is(.public-masthead-kicker, .public-pass2-ledger-heading h2, .captain-submission-feedback h3) { color: var(--pass2-text); }
 html[data-public-theme="dark"] .captain-submission-page .public-pass2-ledger-heading > span { background: var(--pass2-rule); }
@@ -2047,7 +2048,7 @@ body.public-ui-pass2 .public-ui-header-context-nav {
 .landing-hero { position: relative; height: 22.7rem; min-height: 22.7rem; overflow: hidden; background: var(--landing-canvas); }
 .landing-hero::after { position: absolute; z-index: 3; right: 0; bottom: 0; left: max(clamp(1.25rem, 5.7vw, 5.625rem), calc((100% - 88rem) / 2)); height: 1px; background: var(--landing-rule); content: ""; }
 .landing-hero__inner { position: relative; min-height: inherit; }
-.landing-hero__copy { position: relative; z-index: 2; display: flex; width: min(65%, 56rem); height: 22.7rem; min-height: 22.7rem; box-sizing: border-box; flex-direction: column; align-items: flex-start; justify-content: center; padding: 2.7rem clamp(1.25rem, 5.7vw, 5.6rem) 2.5rem; padding-left: max(clamp(1.25rem, 5.7vw, 5.625rem), calc((100% - 88rem) / 2)); }
+.landing-hero__copy { position: relative; z-index: 2; display: flex; width: min(65%, 56rem); height: 22.7rem; min-height: 22.7rem; box-sizing: border-box; flex-direction: column; align-items: flex-start; justify-content: center; margin-left: max(0px, calc((100% - 88rem) / 2 - clamp(1.25rem, 5.7vw, 5.625rem))); padding: 2.7rem clamp(1.25rem, 5.7vw, 5.6rem) 2.5rem; padding-left: clamp(1.25rem, 5.7vw, 5.625rem); }
 .landing-kicker { margin: 0 0 1.25rem; color: var(--landing-content-accent-text); font: 600 1.25rem/1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; }
 .landing-hero h1 { max-width: none; margin: 0; color: var(--landing-text-primary); font: 800 clamp(4rem, 6vw, 6rem)/0.92 "Barlow Condensed ExtraBold", sans-serif; letter-spacing: -0.015em; text-transform: uppercase; white-space: nowrap; }
 html[data-public-theme="dark"] .landing-hero h1 { paint-order: stroke fill; -webkit-text-stroke: 2px var(--landing-art-field); }
@@ -2056,9 +2057,9 @@ html[data-public-theme="dark"] .landing-hero h1 { paint-order: stroke fill; -web
 .landing-button { display: inline-flex; min-height: 3rem; box-sizing: border-box; gap: 0.8rem; align-items: center; justify-content: center; padding: 0.75rem 1.7rem; border: 2px solid transparent; border-radius: 0; font: 600 1.2rem/1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.07em; text-decoration: none; text-transform: uppercase; transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease; }
 .landing-button svg, .landing-event__action svg { width: 1.45rem; height: 1.45rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .landing-button--primary { color: #fff; background: var(--landing-coral); border-color: var(--landing-coral); }
-.landing-button--primary:hover, .landing-button--primary:focus-visible { color: #fff; background: color-mix(in srgb, var(--landing-coral) 84%, #000); border-color: color-mix(in srgb, var(--landing-coral) 84%, #000); text-decoration: none; }
+.landing-button--primary:hover { color: #fff; background: color-mix(in srgb, var(--landing-coral) 84%, #000); border-color: color-mix(in srgb, var(--landing-coral) 84%, #000); text-decoration: none; }
 .landing-button--secondary { color: var(--landing-content-accent-text); background: transparent; border-color: var(--landing-content-accent); }
-.landing-button--secondary:hover, .landing-button--secondary:focus-visible { color: var(--landing-canvas); background: var(--landing-content-accent); text-decoration: none; }
+.landing-button--secondary:hover { color: var(--landing-canvas); background: var(--landing-content-accent); text-decoration: none; }
 .landing-hero :is(a, button):focus-visible, .landing-event:focus-visible { outline: 2px solid var(--landing-focus); outline-offset: 4px; }
 .landing-hero__art { position: absolute; z-index: 1; top: 0; right: 0; bottom: 0; width: 37%; overflow: hidden; }
 .landing-hero__background { position: absolute; inset: 0; overflow: hidden; background: var(--landing-art-field); }
@@ -2122,7 +2123,7 @@ html[data-public-theme="dark"] .landing-hero__mark--dark { display: block; }
 .landing-archive-event__label { min-width: 0; overflow-wrap: anywhere; color: var(--landing-text-primary); font: 800 1.25rem/1.1 "Barlow Condensed ExtraBold", sans-serif; letter-spacing: 0.01em; text-transform: uppercase; }
 .landing-archive-event__state { color: var(--landing-text-muted); }
 .landing-archive-event .landing-event__action { color: var(--landing-content-accent-text); }
-.landing-empty { padding: 1.4rem 0 1.75rem; border-top: 1px solid var(--landing-rule); border-bottom: 1px solid var(--landing-rule); }
+.landing-empty { padding: 1.4rem 0 1.75rem; border-bottom: 1px solid var(--landing-rule); }
 .landing-empty h3 { margin: 0 0 0.4rem; font: 800 1.7rem/1 "Barlow Condensed ExtraBold", sans-serif; text-transform: uppercase; }
 .landing-empty p { margin: 0; font: 400 0.95rem/1.4 "Geist Public UI", system-ui, sans-serif; }
 
@@ -2525,18 +2526,18 @@ html[data-public-theme="dark"] .identity-page--onboarding .editorial-label { col
 .editorial-link { color: var(--editorial-blue); text-decoration: none; }
 .editorial-link:hover, .editorial-link:focus-visible { color: var(--editorial-blue-dark); text-decoration: underline; text-underline-offset: 0.2em; }
 .editorial-link--arrow::after { margin-left: 0.5rem; content: "→"; font-size: 1.2em; }
-.editorial-link--arrow:is(:hover, :focus-visible) { text-decoration: none; }
-.editorial-link--arrow:is(:hover, :focus-visible) > span {
+.editorial-link--arrow:hover { text-decoration: none; }
+.editorial-link--arrow:hover > span {
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
 .editorial-link--small { font-size: 0.78rem; }
 .editorial-button { display: inline-flex; box-sizing: border-box; min-height: 2.6rem; gap: 0.55rem; align-items: center; justify-content: center; padding: 0.65rem 1rem; color: var(--editorial-blue); background: transparent; border: 1px solid var(--editorial-blue); border-radius: 0; font-size: 0.82rem; line-height: 1; text-decoration: none; cursor: pointer; }
-.editorial-button:hover, .editorial-button:focus-visible { color: var(--editorial-blue-dark); background: color-mix(in srgb, var(--editorial-blue) 8%, transparent); text-decoration: none; }
+.editorial-button:hover { color: var(--editorial-blue-dark); background: color-mix(in srgb, var(--editorial-blue) 8%, transparent); text-decoration: none; }
 .editorial-button--coral, .editorial-button--coral-outline { color: var(--editorial-coral); border-color: var(--editorial-coral); }
 .editorial-button--coral { background: var(--editorial-coral); color: #fff; }
-.editorial-button--coral:hover, .editorial-button--coral:focus-visible { color: #fff; background: color-mix(in srgb, var(--editorial-coral) 82%, #000); }
-.editorial-button--coral-outline:hover, .editorial-button--coral-outline:focus-visible { color: var(--editorial-coral); background: color-mix(in srgb, var(--editorial-coral) 9%, transparent); }
+.editorial-button--coral:hover { color: #fff; background: color-mix(in srgb, var(--editorial-coral) 82%, #000); }
+.editorial-button--coral-outline:hover { color: var(--editorial-coral); background: color-mix(in srgb, var(--editorial-coral) 9%, transparent); }
 .editorial-button--provider { width: 100%; }
 :is(.event-signup, .event-confirmation, .identity-page, .status-editorial) :is(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--editorial-focus); outline-offset: 3px; }
 
@@ -2633,7 +2634,7 @@ html[data-public-theme="dark"] .identity-page .identity-input:not([aria-invalid=
 .event-confirmation .confirmation-action-bar a.editorial-button--coral:hover,
 .event-confirmation .confirmation-action-bar a.editorial-button--coral:focus-visible { color: #fff; }
 .event-confirmation .confirmation-action-bar button.editorial-button--coral-outline { color: var(--editorial-coral); background: transparent; border: 1px solid var(--editorial-coral); }
-.event-confirmation .confirmation-action-bar button.editorial-button--coral-outline:hover, .event-confirmation .confirmation-action-bar button.editorial-button--coral-outline:focus-visible { color: var(--editorial-coral); background: color-mix(in srgb, var(--editorial-coral) 9%, transparent); border-color: var(--editorial-coral); }
+.event-confirmation .confirmation-action-bar button.editorial-button--coral-outline:hover { color: var(--editorial-coral); background: color-mix(in srgb, var(--editorial-coral) 9%, transparent); border-color: var(--editorial-coral); }
 
 @media (min-width: 60.01rem) {
   .confirmation-checkpoints { align-items: start; }
@@ -2899,7 +2900,7 @@ html[data-public-theme="dark"] .signup-sheet__number { color: var(--signup-blue-
 .signup-sheet__actions { display: flex; grid-column: 1 / -1; gap: 1.5rem; align-items: center; justify-content: space-between; padding: 1.15rem 0 0; border-top: 3px solid var(--signup-structure); }
 .signup-sheet__actions p { margin: 0; color: var(--signup-muted); font-size: 0.82rem; }
 .signup-sheet__submit { display: inline-flex; min-width: 12rem; min-height: 2.75rem; gap: 0.55rem; align-items: center; justify-content: center; padding: 0.65rem 1.2rem; color: var(--signup-on-coral); background: var(--signup-coral); border: 1px solid var(--signup-coral); border-radius: 0; font-size: 0.84rem; cursor: pointer; }
-.signup-sheet__submit:hover, .signup-sheet__submit:focus-visible { color: var(--signup-on-coral); background: color-mix(in srgb, var(--signup-coral) 86%, var(--signup-ink)); }
+.signup-sheet__submit:hover { color: var(--signup-on-coral); background: color-mix(in srgb, var(--signup-coral) 86%, var(--signup-ink)); }
 .signup-sheet__unavailable { display: grid; grid-template-columns: clamp(3rem, 4.2vw, 4rem) minmax(0, 1fr) minmax(16rem, 0.29fr); gap: clamp(0.85rem, 2vw, 2rem); min-height: 18rem; padding-top: 1.15rem; }
 .signup-sheet__unavailable .signup-sheet__rail { padding-top: 0; }
 .signup-sheet :is(a, button, input, select, textarea):focus-visible, .login-sheet :is(a, button, input):focus-visible { outline: 2px solid var(--signup-blue); outline-offset: 3px; }
@@ -2922,6 +2923,7 @@ html[data-public-theme="dark"] .login-sheet__background::after { background: #6F
 html[data-public-theme="dark"] .login-sheet__mark--light { display: none; }
 html[data-public-theme="dark"] .login-sheet__mark--dark { display: block; }
 .login-sheet .identity-login-form { display: grid; gap: 0.9rem; max-width: 25rem; }
+.login-sheet .login-discord-note { margin: -0.25rem 0 0; color: var(--signup-muted); font-size: 0.8rem; line-height: 1.35; text-align: center; }
 .login-sheet .editorial-label { color: var(--signup-blue); }
 html[data-public-theme="dark"] .login-sheet .editorial-label { color: var(--signup-ink); }
 .login-sheet .identity-divider { color: var(--signup-muted); }
@@ -2936,8 +2938,7 @@ html[data-public-theme="dark"] .login-sheet .identity-input:not([aria-invalid="t
 .login-sheet .editorial-button--coral:visited,
 .login-sheet .editorial-button--coral:hover,
 .login-sheet .editorial-button--coral:focus-visible { color: #fff; background: var(--signup-coral); border-color: var(--signup-coral); }
-.login-sheet .editorial-button--coral:hover:not(:disabled),
-.login-sheet .editorial-button--coral:focus-visible:not(:disabled) { background: color-mix(in srgb, var(--signup-coral) 82%, #000); border-color: color-mix(in srgb, var(--signup-coral) 82%, #000); }
+.login-sheet .editorial-button--coral:hover:not(:disabled) { background: color-mix(in srgb, var(--signup-coral) 82%, #000); border-color: color-mix(in srgb, var(--signup-coral) 82%, #000); }
 .login-sheet .editorial-button--coral:disabled { color: #fff; background: var(--signup-coral); border-color: var(--signup-coral); opacity: 0.55; }
 
 @media (max-width: 66rem) {
@@ -3425,6 +3426,7 @@ html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 .public-u
 html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-divider::after { background: var(--board-rule); }
 body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-grid { grid-template-columns: 1fr; gap: 0; }
 body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-card { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) minmax(10rem, 13rem); column-gap: 0.9rem; min-width: 0; min-height: 5.6rem; margin: 0; padding: 0.78rem 0; background: transparent; border: 0; border-bottom: 1px solid var(--board-rule); border-radius: 0; }
+body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-group > .public-ui-recent-drop-grid > .public-ui-recent-drop-card:last-child { border-bottom: 0; }
 body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-thumbnail { width: 5.5rem; height: 4rem; border-radius: 0; }
 body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-row-content { display: grid; min-width: 0; grid-column: 2 / -1; grid-template-columns: minmax(0, 1fr) max-content; grid-template-rows: auto auto auto; column-gap: 0.9rem; row-gap: 0.15rem; align-self: center; align-items: baseline; }
 body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-title { grid-column: 1; grid-row: 1; color: var(--board-ink); font: 800 1.5rem/1 "Barlow Condensed Public UI", sans-serif; letter-spacing: 0.01em; text-transform: uppercase; }
@@ -3450,7 +3452,7 @@ html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 .public-u
 body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-stats .public-ui-positive-delta { color: var(--board-blue) !important; }
 body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-footer { margin-top: 1rem; padding-top: 0.8rem; border-color: var(--board-blue); }
 body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-load { color: var(--board-blue); border-color: var(--board-blue); border-radius: 0; }
-body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-load:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--board-canvas); background: var(--board-blue); border-color: var(--board-blue); }
+body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-load:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--public-action-contrast); background: var(--board-blue); border-color: var(--board-blue); }
 
 @media (min-width: 1500px) {
   body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 0; }
@@ -3461,7 +3463,7 @@ body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-load:hover:not(:d
   body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-grid > .public-ui-recent-drop-card:nth-child(odd) { padding-right: 1.25rem; }
   body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-grid > .public-ui-recent-drop-card:nth-child(even) { padding-left: 1.25rem; }
   body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-grid > .public-ui-recent-drop-card:nth-child(even)::before { position: absolute; top: 0.78rem; bottom: 0.78rem; left: 0; width: 1px; background: var(--board-rule); content: ""; pointer-events: none; }
-  body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-grid > .public-ui-recent-drop-card:last-child:nth-child(odd)::after { position: absolute; bottom: 0; left: 0; width: 200%; height: 1px; background: var(--board-rule); content: ""; pointer-events: none; }
+  body.public-event-shell.public-ui-pass1 .public-ui-recent-drop-grid > .public-ui-recent-drop-card:last-child:nth-child(odd)::after { display: none; position: absolute; bottom: 0; left: 0; width: 200%; height: 1px; background: var(--board-rule); content: ""; pointer-events: none; }
 }
 
 body.public-event-shell.public-ui-pass1 .public-team-board { width: 100%; max-width: none; padding: 1rem 0 3.5rem; }
@@ -4308,3 +4310,210 @@ body.public-event-shell.public-ui-pass1:is(.public-team-board-route, .public-boa
     width: calc(100% - 1.5rem);
   }
 }
+
+/* Batch 1 visual trial: shared public action hover states. */
+body.public-ui-page-canvas,
+body.public-ui-pass1,
+body.public-ui-pass2 { --public-action-contrast: #FFF9EC; }
+html[data-public-theme="dark"] body.public-ui-page-canvas,
+html[data-public-theme="dark"] body.public-ui-pass1,
+html[data-public-theme="dark"] body.public-ui-pass2 { --public-action-contrast: #F4EEDF; }
+
+:is(a, button).landing-button--primary:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: color-mix(in srgb, var(--landing-coral) 82%, #000);
+  border-color: color-mix(in srgb, var(--landing-coral) 82%, #000);
+  text-decoration: none;
+}
+:is(a, button).editorial-button--coral:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: color-mix(in srgb, var(--editorial-coral) 82%, #000);
+  border-color: color-mix(in srgb, var(--editorial-coral) 82%, #000);
+  text-decoration: none;
+}
+.signup-sheet__submit:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: color-mix(in srgb, var(--signup-coral) 82%, #000);
+  border-color: color-mix(in srgb, var(--signup-coral) 82%, #000);
+  text-decoration: none;
+}
+.event-confirmation .confirmation-action-bar a.editorial-button--coral:hover:not(:disabled):not([aria-disabled="true"]),
+.login-sheet .editorial-button--coral:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: color-mix(in srgb, var(--editorial-coral) 82%, #000);
+  border-color: color-mix(in srgb, var(--editorial-coral) 82%, #000);
+  text-decoration: none;
+}
+
+:is(a, button).landing-button--secondary:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: var(--landing-content-accent);
+  border-color: var(--landing-content-accent);
+  text-decoration: none;
+}
+:is(a, button).editorial-button:not(.editorial-button--coral):not(.editorial-button--coral-outline):not(.editorial-button--provider):hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: var(--editorial-blue);
+  border-color: var(--editorial-blue);
+  text-decoration: none;
+}
+:is(a, button).editorial-button--coral-outline:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: var(--editorial-coral);
+  border-color: var(--editorial-coral);
+  text-decoration: none;
+}
+.event-confirmation .confirmation-action-bar button.editorial-button--coral-outline:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: var(--editorial-coral);
+  border-color: var(--editorial-coral);
+  text-decoration: none;
+}
+.signup-sheet__rail-action:hover:not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: var(--signup-control);
+  border-color: var(--signup-control);
+  text-decoration: none;
+}
+
+body.public-ui-pass1:not(.public-event-shell) :is(a, button).public-ui-action--commit:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: var(--public-ui-accent);
+  border-color: var(--public-ui-accent);
+  text-decoration: none;
+}
+body.public-ui-pass1:not(.public-event-shell) :is(a, button).public-ui-action--destructive:not(.public-ui-evidence-drop__remove):hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: var(--public-ui-coral);
+  border-color: var(--public-ui-coral);
+  text-decoration: none;
+}
+
+body.public-ui-pass2 :is(a, button).public-pass2-action--outline:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: var(--pass2-accent);
+  border-color: var(--pass2-accent);
+  text-decoration: none;
+}
+body.public-ui-pass2 :is(a, button).public-pass2-action--danger:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: var(--pass2-danger);
+  border-color: var(--pass2-danger);
+  text-decoration: none;
+}
+body.public-ui-pass2 .public-pass2-overview-page :is(#add-character-heading, #linked-characters-heading) { color: var(--pass2-accent); }
+
+body.public-event-shell.public-ui-pass1 :is(a, button).public-ui-action--commit:not(.public-ui-submission-confirm):hover:not(:disabled):not([aria-disabled="true"]),
+body.public-event-shell.public-ui-pass1 .public-board-masthead__actions :is(a, button).public-ui-action--standard:hover:not(:disabled):not([aria-disabled="true"]),
+body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-action--secondary:hover:not(:disabled):not([aria-disabled="true"]),
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar__actions .tile-context-sidebar__action--overview:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: var(--board-blue);
+  border-color: var(--board-blue);
+  text-decoration: none;
+}
+body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer :is(a, button).public-ui-submission-confirm:hover:not(:disabled):not([aria-disabled="true"]),
+body.public-event-shell.public-ui-pass1 :is(a, button).public-ui-action--destructive:not(.public-ui-evidence-drop__remove):hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: var(--board-coral);
+  border-color: var(--board-coral);
+  text-decoration: none;
+}
+body.public-event-shell.public-ui-pass1 .public-board-masthead__actions .public-ui-action--commit:hover:not(:disabled):not([aria-disabled="true"]),
+body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-action--primary:hover:not(:disabled):not([aria-disabled="true"]),
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar__actions .public-ui-action--commit:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: color-mix(in srgb, var(--board-coral) 82%, #000);
+  border-color: color-mix(in srgb, var(--board-coral) 82%, #000);
+  text-decoration: none;
+}
+body.public-event-shell.public-ui-pass1 :is(a, button).public-ui-action--commit:is([data-open-submission-drawer], [data-open-submission-workspace]):hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-action-contrast);
+  background: color-mix(in srgb, var(--board-coral) 82%, #000);
+  border-color: color-mix(in srgb, var(--board-coral) 82%, #000);
+  text-decoration: none;
+}
+
+body.public-ui-pass1:not(.public-event-shell) .public-ui-action--text:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--public-ui-text);
+  background: transparent;
+  border-color: transparent;
+  text-decoration: none;
+}
+body.public-ui-pass2 :is(.public-pass2-text-link, .public-pass2-back-link):hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--pass2-text);
+  background: transparent;
+  border-color: transparent;
+  text-decoration: none;
+}
+body.public-event-shell.public-ui-pass1 .public-ui-action--text:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--board-ink);
+  background: transparent;
+  border-color: transparent;
+  text-decoration: none;
+}
+body.public-ui-pass1:not(.public-event-shell) .public-ui-action--text:hover:not(:disabled):not([aria-disabled="true"])::after { color: var(--public-ui-data-blue); }
+body.public-event-shell.public-ui-pass1 .public-ui-action--text:not(.public-ui-recent-drop-team-link)::after,
+body.public-event-shell.public-ui-pass1 .public-ui-action--text:not(.public-ui-recent-drop-team-link):hover:not(:disabled):not([aria-disabled="true"])::after { color: var(--board-blue); }
+body.public-ui-pass2 :is(.public-pass2-action--outline, .public-pass2-text-link, .public-pass2-back-link) > span[aria-hidden="true"] { color: var(--pass2-accent); }
+body.public-ui-pass2 .public-pass2-action--danger > span[aria-hidden="true"] { color: var(--pass2-danger); }
+body.public-ui-pass2 :is(.public-pass2-text-link, .public-pass2-back-link):hover:not(:disabled):not([aria-disabled="true"]) > span[aria-hidden="true"],
+body.public-ui-pass2 .public-pass2-action--outline:hover:not(:disabled):not([aria-disabled="true"]) > span[aria-hidden="true"],
+body.public-ui-pass2 .public-pass2-action--danger:hover:not(:disabled):not([aria-disabled="true"]) > span[aria-hidden="true"] { text-decoration: none; }
+
+.editorial-link.editorial-link--arrow::after { color: var(--editorial-blue); }
+.editorial-link.editorial-link--arrow:hover:not([aria-disabled="true"]) {
+  color: var(--editorial-ink);
+  text-decoration: none;
+}
+.editorial-link.editorial-link--arrow:hover:not([aria-disabled="true"]) > span {
+  color: var(--editorial-ink);
+  text-decoration: none;
+}
+
+.signup-sheet__link > span[aria-hidden="true"] { color: var(--signup-blue-text); }
+.signup-sheet__link:hover:not([aria-disabled="true"]) {
+  color: var(--signup-ink);
+  text-decoration: none;
+}
+.signup-sheet__link:hover:not([aria-disabled="true"]) > span[aria-hidden="true"] {
+  color: var(--signup-blue-text);
+  text-decoration: none;
+}
+
+.landing-event .landing-event__action svg { color: var(--landing-event-tone); }
+.landing-archive-event .landing-event__action svg { color: var(--landing-content-accent-text); }
+:is(.landing-event, .landing-archive-event):hover .landing-event__action {
+  color: var(--landing-text-primary);
+}
+:is(.landing-event):hover .landing-event__action svg {
+  color: var(--landing-event-tone);
+  stroke: currentColor;
+}
+.landing-archive-event:hover .landing-event__action svg {
+  color: var(--landing-content-accent-text);
+  stroke: currentColor;
+}
+
+body.public-event-shell.public-ui-pass1:is(.public-team-board-route, .public-board-page) :is(.public-team-board, .public-event-dashboard) > .progress-update > .public-ui-action--text:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--board-ink);
+}
+body.public-event-shell.public-ui-pass1:is(.public-team-board-route, .public-board-page) :is(.public-team-board, .public-event-dashboard) > .progress-update > .public-ui-action--text::after,
+body.public-event-shell.public-ui-pass1:is(.public-team-board-route, .public-board-page) :is(.public-team-board, .public-event-dashboard) > .progress-update > .public-ui-action--text:hover:not(:disabled):not([aria-disabled="true"])::after { color: var(--board-coral); }
+body.public-event-shell.public-ui-pass1:is(.public-team-board-route, .public-board-page) :is(.public-team-board, .public-event-dashboard) > .progress-update > .public-ui-action--text:hover:not(:disabled):not([aria-disabled="true"]) > span { color: var(--board-ink); text-decoration: none; }
+
+body.public-event-shell.public-ui-pass1 .public-dashboard-view > .public-ui-leaderboards-layout .public-ui-leaderboards-main a.public-ui-action--hyperlink[href^="https://wiseoldman.net/"]:hover:not(:disabled):not([aria-disabled="true"]),
+body.public-event-shell.public-ui-pass1 .public-dashboard-view > .public-ui-leaderboards-layout .public-ui-leaderboards-main [data-public-leaderboard-panel="drops"] a.public-ui-action--hyperlink:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--board-ink);
+  background: transparent;
+  border-color: transparent;
+  text-decoration: none;
+}
+body.public-event-shell.public-ui-pass1 .public-dashboard-view > .public-ui-leaderboards-layout .public-ui-leaderboards-main a.public-ui-action--hyperlink[href^="https://wiseoldman.net/"]::after,
+body.public-event-shell.public-ui-pass1 .public-dashboard-view > .public-ui-leaderboards-layout .public-ui-leaderboards-main a.public-ui-action--hyperlink[href^="https://wiseoldman.net/"]:hover:not(:disabled):not([aria-disabled="true"])::after,
+body.public-event-shell.public-ui-pass1 .public-dashboard-view > .public-ui-leaderboards-layout .public-ui-leaderboards-main [data-public-leaderboard-panel="drops"] a.public-ui-action--hyperlink::after,
+body.public-event-shell.public-ui-pass1 .public-dashboard-view > .public-ui-leaderboards-layout .public-ui-leaderboards-main [data-public-leaderboard-panel="drops"] a.public-ui-action--hyperlink:hover:not(:disabled):not([aria-disabled="true"])::after { color: var(--board-coral); }
+
+.captain-operations-page .captain-ledger-detail:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--pass2-text); background: transparent; border-color: transparent; text-decoration: none; }
+.captain-operations-page .captain-ledger-detail::after,
+.captain-operations-page .captain-ledger-detail:hover:not(:disabled):not([aria-disabled="true"])::after { color: var(--pass2-danger); }
