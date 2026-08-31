@@ -279,7 +279,8 @@ body.public-ui-page-canvas [data-public-ui-popover-panel][hidden] { display: non
 .public-ui-header-popover__panel--notifications { width: min(24rem, calc(100vw - 2rem)); }
 .public-ui-header-popover__heading { display: flex; gap: 0.75rem; justify-content: space-between; align-items: baseline; padding: 0.35rem 0.3rem 0.5rem; border-bottom: 1px solid var(--public-ui-divider); }
 .public-ui-header-popover__list { display: grid; max-height: 22rem; overflow-y: auto; }
-.public-ui-header-popover__item { display: grid; gap: 0.15rem; padding: 0.55rem 0.3rem; color: inherit; border-top: 1px solid var(--public-ui-divider); text-decoration: none; }
+.public-ui-header-popover__item { display: grid; gap: 0.15rem; padding: 0.55rem 0.3rem; color: inherit; text-decoration: none; }
+.public-ui-header-popover__item + .public-ui-header-popover__item { border-top: 1px solid var(--public-ui-divider); }
 .public-ui-header-popover__item:hover, .public-ui-header-popover__item:focus-visible { color: #fff; background: var(--public-ui-flat-surface); text-decoration: none; }
 .public-ui-header-popover__empty { margin: 0; padding: 0.7rem 0.3rem; }
 .public-ui-header-popover__action { width: 100%; justify-content: flex-start; }
@@ -4251,4 +4252,58 @@ body.public-event-shell.public-ui-pass1 .public-event-dashboard { padding-top: 1
   body.public-ui-pass1:has(.signup-sheet) .signup-sheet__masthead,
   body.public-ui-pass1:has(.public-teams-directory) .public-teams-directory__masthead { padding-top: 2rem; }
   body.public-event-shell.public-ui-pass1 .public-event-dashboard { padding-top: 0.75rem; }
+}
+
+/* TeamBoard progress notice: preserve the live-update placement and behavior while matching the board canvas. */
+body.public-event-shell.public-ui-pass1:is(.public-team-board-route, .public-board-page) :is(.public-team-board, .public-event-dashboard) > .progress-update {
+  position: sticky;
+  top: 0.75rem;
+  z-index: 20;
+  width: min(50%, calc(var(--public-board-columns) * 4.5rem + 7.375rem));
+  margin: 0.75rem auto 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0.35rem 0.65rem;
+  color: var(--board-ink);
+  background: var(--board-canvas);
+  border: 1px solid var(--board-sage);
+  border-radius: 0.6rem;
+  text-align: left;
+  font: 600 0.86rem/1 "Barlow Condensed SemiBold", "Arial Narrow", sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+body.public-event-shell.public-ui-pass1:is(.public-team-board-route, .public-board-page) :is(.public-team-board, .public-event-dashboard) > .progress-update > span {
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+body.public-event-shell.public-ui-pass1:is(.public-team-board-route, .public-board-page) :is(.public-team-board, .public-event-dashboard) > .progress-update > .public-ui-action--text {
+  flex: 0 0 auto;
+  min-height: 2rem;
+  padding-block: 0.35rem;
+  color: var(--board-coral);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  text-decoration: none;
+}
+body.public-event-shell.public-ui-pass1:is(.public-team-board-route, .public-board-page) :is(.public-team-board, .public-event-dashboard) > .progress-update > .public-ui-action--text::after {
+  color: var(--board-coral);
+}
+body.public-event-shell.public-ui-pass1:is(.public-team-board-route, .public-board-page) :is(.public-team-board, .public-event-dashboard) > .progress-update > .public-ui-action--text:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--board-coral);
+  background: transparent;
+  border-color: transparent;
+  text-decoration: none;
+}
+body.public-event-shell.public-ui-pass1:is(.public-team-board-route, .public-board-page) :is(.public-team-board, .public-event-dashboard) > .progress-update > .public-ui-action--text:hover:not(:disabled):not([aria-disabled="true"]) > span {
+  text-decoration: underline;
+}
+@media (max-width: 900px) {
+  body.public-event-shell.public-ui-pass1:is(.public-team-board-route, .public-board-page) :is(.public-team-board, .public-event-dashboard) > .progress-update {
+    width: calc(100% - 1.5rem);
+  }
 }

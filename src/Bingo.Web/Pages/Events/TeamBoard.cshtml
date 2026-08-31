@@ -52,7 +52,7 @@
         }
     </header>
 
-    <div class="progress-update" data-progress-update hidden role="status">@T["New approved progress is available."] <button type="button" data-progress-refresh>@T["Refresh now"]</button></div>
+    <div class="progress-update" data-progress-update hidden role="status"><span>@T["New progress is available."]</span> <button type="button" class="public-ui-action public-ui-action--text public-ui-action--forward" data-progress-refresh><span>@T["Refresh now"]</span></button></div>
 
     <div class="public-team-workspace">
         @if (Model.SelectedTile is { } selectedTile)

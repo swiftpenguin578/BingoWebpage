@@ -111,14 +111,14 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
                 : new AdminActionProjection([], [], 0);
             var eventIds = await db.Events.AsNoTracking().Where(item => item.State == EventState.Live || item.State == EventState.AwaitingFinalReview).Select(item => item.Id).ToListAsync(cancellationToken);
             return new NotificationInbox(eventIds, personalCount + adminActions.Count, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personalItems,
-                personalCount, adminActions.Count, text["Admin actions"], text["No unresolved Admin actions."], text["Open Admin actions"], "/Admin", adminActions.Items);
+                personalCount, adminActions.Count, text["Admin actions"], text["No unresolved Admin actions."], text["Admin actions"], "/Admin", adminActions.Items);
         }
         var anonymousAdminActions = user.IsInRole("Admin") || user.IsInRole("SuperAdmin")
             ? await GetAdminActionsAsync(cancellationToken)
             : new AdminActionProjection([], [], 0);
         var anonymousEventIds = await db.Events.AsNoTracking().Where(item => item.State == EventState.Live || item.State == EventState.AwaitingFinalReview).Select(item => item.Id).ToListAsync(cancellationToken);
         return new NotificationInbox(anonymousEventIds, anonymousAdminActions.Count, text["Notifications"], text["No notifications."], text["Notifications"], "/notifications", personalItems,
-            0, anonymousAdminActions.Count, text["Admin actions"], text["No unresolved Admin actions."], text["Open Admin actions"], "/Admin", anonymousAdminActions.Items);
+            0, anonymousAdminActions.Count, text["Admin actions"], text["No unresolved Admin actions."], text["Admin actions"], "/Admin", anonymousAdminActions.Items);
     }
 
     public async Task<AdminActionProjection> GetAdminActionsAsync(CancellationToken cancellationToken)

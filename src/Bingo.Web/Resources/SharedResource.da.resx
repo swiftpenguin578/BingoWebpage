@@ -362,6 +362,7 @@
   <data name="Completed tile" xml:space="preserve"><value>Fuldført felt</value></data>
   <data name="Tile progress" xml:space="preserve"><value>Feltstatus</value></data>
   <data name="New approved progress is available." xml:space="preserve"><value>Ny godkendt fremgang er tilgængelig.</value></data>
+  <data name="New progress is available." xml:space="preserve"><value>Ny fremgang er tilgængelig.</value></data>
   <data name="Refresh now" xml:space="preserve"><value>Opdatér nu</value></data>
   <data name="Requirements" xml:space="preserve"><value>Krav</value></data>
   <data name="Evidence instructions" xml:space="preserve"><value>Instruktioner til bevis</value></data>
@@ -920,7 +921,6 @@
   <data name="Not active yet" xml:space="preserve"><value>Ikke aktiv endnu</value></data>
   <data name="Official results published" xml:space="preserve"><value>Officielle resultater offentliggjort</value></data>
   <data name="Older drops" xml:space="preserve"><value>Ældre drops</value></data>
-  <data name="Open Admin actions" xml:space="preserve"><value>Åbn Admin-handlinger</value></data>
   <data name="Participant ownership transferred" xml:space="preserve"><value>Deltagerejerskab overført</value></data>
   <data name="Planned starting account" xml:space="preserve"><value>Planlagt startkonto</value></data>
   <data name="Player ranking metric" xml:space="preserve"><value>Ranglistemetrik for spillere</value></data>
