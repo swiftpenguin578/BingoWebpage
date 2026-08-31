@@ -357,6 +357,7 @@
       const syncRail = () => {
         const stacked = Boolean(stackedMedia?.matches);
         const collapsed = !stacked && leaderboardsLayout.classList.contains("is-rail-collapsed");
+        railBody.hidden = collapsed;
         railToggle.disabled = stacked;
         railToggle.setAttribute("aria-expanded", String(stacked || !collapsed));
         railToggle.setAttribute("aria-label", collapsed

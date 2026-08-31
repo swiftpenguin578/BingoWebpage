@@ -25,7 +25,7 @@ class Node {
     this.listeners = {};
     this.attributes = {};
     this.hidden = false;
-    this.classList = { values: new Set(), toggle: (name, enabled) => enabled ? this.classList.values.add(name) : this.classList.values.delete(name) };
+    this.classList = { values: new Set(), contains: name => this.classList.values.has(name), toggle: (name, enabled) => enabled ? this.classList.values.add(name) : this.classList.values.delete(name) };
     children.forEach(child => child.parentElement = this);
   }
 
@@ -51,6 +51,9 @@ class Node {
       if (current === "[data-public-leaderboard-panel]") return node.dataset.publicLeaderboardPanel !== undefined;
       if (current === "[data-public-leaderboard-switcher]") return node.dataset.publicLeaderboardSwitcher !== undefined;
       if (current === "[data-public-leaderboard-details]") return node.dataset.publicLeaderboardDetails !== undefined;
+      if (current === "[data-public-leaderboards-layout]") return node.dataset.publicLeaderboardsLayout !== undefined;
+      if (current === "[data-public-leaderboards-rail-toggle]") return node.dataset.publicLeaderboardsRailToggle !== undefined;
+      if (current === "[data-public-leaderboards-rail-body]") return node.dataset.publicLeaderboardsRailBody !== undefined;
       if (current === "[data-public-leaderboard-expand-control]") return node.dataset.publicLeaderboardExpandControl !== undefined;
       if (current === "[data-public-leaderboard-expand-heading]") return node.dataset.publicLeaderboardExpandHeading !== undefined;
       if (current === "[data-public-leaderboard-expand-cell]") return node.dataset.publicLeaderboardExpandCell !== undefined;
@@ -165,12 +168,22 @@ const mastheadEhbMetric = new Node({ dataset: { publicMastheadMetric: "ehb" } })
 const activityMetric = new Node({ dataset: { publicLeaderboardStandingsMetric: "activity" } });
 const dropsMetric = new Node({ dataset: { publicLeaderboardStandingsMetric: "drops" } });
 const standings = new Node({ children: [activityMetric, dropsMetric] });
-const root = new Node({ children: [mastheadMetricSelector, mastheadSpoonedMetric, mastheadDropsMetric, mastheadEhbMetric, switcher, activityPanel, dropsPanel, playersPanel, standings] });
+const railToggle = new Node({ dataset: { publicLeaderboardsRailToggle: "", expandedLabel: "Collapse Bingo standings", collapsedLabel: "Expand Bingo standings" } });
+const railBody = new Node({ dataset: { publicLeaderboardsRailBody: "" } });
+const leaderboardsLayout = new Node({ dataset: { publicLeaderboardsLayout: "" }, children: [railToggle, railBody] });
+const root = new Node({ children: [mastheadMetricSelector, mastheadSpoonedMetric, mastheadDropsMetric, mastheadEhbMetric, switcher, activityPanel, dropsPanel, playersPanel, standings, leaderboardsLayout] });
+const stackedMedia = {
+  matches: false,
+  listeners: [],
+  addEventListener(_type, listener) { this.listeners.push(listener); },
+  setMatches(value) { this.matches = value; this.listeners.forEach(listener => listener()); }
+};
 const window = {
   location: { href: activityLink.href },
   history: { pushState(_state, _title, href) { window.location.href = href; } },
   sessionStorage: { values: new Map(), getItem(key) { return this.values.get(key) ?? null; }, setItem(key, value) { this.values.set(key, String(value)); } },
-  addEventListener(type, listener) { this.listeners ??= {}; (this.listeners[type] ??= []).push(listener); }
+  addEventListener(type, listener) { this.listeners ??= {}; (this.listeners[type] ??= []).push(listener); },
+  matchMedia(query) { assert.equal(query, "(max-width: 900px)"); return stackedMedia; }
 };
 
 initialize(root, window);
@@ -285,6 +298,22 @@ assert.equal(playersPageControls[0].disabled, true);
 assert.equal(playersPageControls[1].disabled, true);
 assert.equal(playersPageControls[2].disabled, false);
 assert.equal(playersPageControls[3].disabled, false);
+assert.equal(railBody.hidden, false);
+assert.equal(railToggle.attributes["aria-expanded"], "true");
+
+railToggle.dispatch("click");
+assert.equal(leaderboardsLayout.classList.values.has("is-rail-collapsed"), true);
+assert.equal(railBody.hidden, true);
+assert.equal(railToggle.attributes["aria-expanded"], "false");
+railToggle.dispatch("click");
+assert.equal(railBody.hidden, false);
+assert.equal(railToggle.attributes["aria-expanded"], "true");
+railToggle.dispatch("click");
+stackedMedia.setMatches(true);
+assert.equal(railBody.hidden, false);
+assert.equal(railToggle.disabled, true);
+assert.equal(railToggle.attributes["aria-expanded"], "true");
+assert.equal(railToggle.attributes["aria-disabled"], "true");
 
 activityControl.dispatch("click");
 assert.equal(activityDetails.open, true);

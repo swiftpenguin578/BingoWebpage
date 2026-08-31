@@ -1664,12 +1664,19 @@
   right: 1rem;
   bottom: 1rem;
   z-index: 2147483000;
-  width: min(24rem, calc(100vw - 2rem));
+  width: min(26rem, calc(100vw - 2rem));
   margin: 0;
   pointer-events: none;
 }
 #app-notice-region:empty { display: none; }
 .status-message { margin: 1rem 0; }
+.admin-shell-body .app-toast {
+  color: var(--admin-text-soft);
+  background: var(--admin-surface-raised);
+  border: 1px solid var(--admin-border);
+  box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.36);
+}
+.admin-shell-body .app-toast-dismiss:focus-visible { outline-color: var(--admin-focus-accent-strong); }
 .app-notice {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
