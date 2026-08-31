@@ -19,8 +19,8 @@
 }
 
 @font-face { font-family: "Geist Public UI"; src: url("/fonts/prototypes/geist/Geist-Variable.woff2") format("woff2"); font-style: normal; font-weight: 100 900; font-display: swap; }
-@font-face { font-family: "Barlow Condensed Public UI"; src: url("/fonts/public/BarlowCondensed-ExtraBold.ttf") format("truetype"); font-style: normal; font-weight: 800; font-display: swap; }
-@font-face { font-family: "Barlow Condensed Public UI"; src: url("/fonts/public/BarlowCondensed-SemiBold.ttf") format("truetype"); font-style: normal; font-weight: 600; font-display: swap; }
+@font-face { font-family: "Barlow Condensed Public UI"; src: url("/fonts/public/BarlowCondensed-ExtraBold.woff2") format("woff2"), url("/fonts/public/BarlowCondensed-ExtraBold.ttf") format("truetype"); font-style: normal; font-weight: 800; font-display: swap; }
+@font-face { font-family: "Barlow Condensed Public UI"; src: url("/fonts/public/BarlowCondensed-SemiBold.woff2") format("woff2"), url("/fonts/public/BarlowCondensed-SemiBold.ttf") format("truetype"); font-style: normal; font-weight: 600; font-display: swap; }
 @font-face { font-family: "Barlow Condensed Public UI"; src: url("/fonts/public/BarlowCondensed-Medium.ttf") format("truetype"); font-style: normal; font-weight: 500; font-display: swap; }
 .public-ui-surface { --public-ui-text-supporting: rgba(255, 255, 255, 0.6); position: relative; width: 50%; min-height: 31rem; margin: 0 0 0.85rem; overflow: hidden; isolation: isolate; font-family: "Geist Public UI", system-ui, sans-serif; background: var(--public-ui-glass-surface); border: 1px solid var(--public-ui-glass-border); border-radius: 0.85rem; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12); -webkit-backdrop-filter: blur(1.1rem) saturate(115%); backdrop-filter: blur(1.1rem) saturate(115%); }
 .public-ui-surface--flat { background: var(--public-ui-charcoal-surface); background-image: none; border-color: transparent; box-shadow: none; filter: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
@@ -1816,8 +1816,8 @@ body.public-ui-pass1 .public-ui-page-width--compact .public-ui-control-visual { 
 /* Atomic public landing presentation. This family owns its markup, frame, and geometry. */
 /* Typography-only A/B trial: Barlow Condensed ExtraBold is an implementation approximation; the AI reference has no recovered font metadata. */
 @font-face { font-family: "Bebas Neue"; src: url("/fonts/public/BebasNeue-Regular.ttf") format("truetype"); font-style: normal; font-weight: 400; font-display: swap; }
-@font-face { font-family: "Barlow Condensed SemiBold"; src: url("/fonts/public/BarlowCondensed-SemiBold.ttf") format("truetype"); font-style: normal; font-weight: 600; font-display: swap; }
-@font-face { font-family: "Barlow Condensed ExtraBold"; src: url("/fonts/public/BarlowCondensed-ExtraBold.ttf") format("truetype"); font-style: normal; font-weight: 800; font-display: swap; }
+@font-face { font-family: "Barlow Condensed SemiBold"; src: url("/fonts/public/BarlowCondensed-SemiBold.woff2") format("woff2"), url("/fonts/public/BarlowCondensed-SemiBold.ttf") format("truetype"); font-style: normal; font-weight: 600; font-display: swap; }
+@font-face { font-family: "Barlow Condensed ExtraBold"; src: url("/fonts/public/BarlowCondensed-ExtraBold.woff2") format("woff2"), url("/fonts/public/BarlowCondensed-ExtraBold.ttf") format("truetype"); font-style: normal; font-weight: 800; font-display: swap; }
 
 body.public-ui-page-canvas {
   --landing-canvas: #FFF9EC;
