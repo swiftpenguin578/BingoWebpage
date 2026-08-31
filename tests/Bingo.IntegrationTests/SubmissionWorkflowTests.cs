@@ -332,7 +332,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         Assert.Equal(2, notifications.Count);
         Assert.Equal(new[] { participantAccount.Id, coCaptainAccount.Id }.OrderBy(x => x), notifications.Select(x => x.RecipientAccountId).OrderBy(x => x));
         Assert.Equal($"/Submissions/{submission.SubmissionId}", notifications.Single(x => x.RecipientAccountId == participantAccount.Id).Route);
-        Assert.Equal($"/Captain/Submissions/{submission.SubmissionId}", notifications.Single(x => x.RecipientAccountId == coCaptainAccount.Id).Route);
+        Assert.Equal($"/Submissions/{submission.SubmissionId}", notifications.Single(x => x.RecipientAccountId == coCaptainAccount.Id).Route);
         Assert.All(notifications, notification =>
         {
             Assert.Contains("Event ", notification.Detail, StringComparison.Ordinal);

@@ -63,7 +63,7 @@ public sealed class EvidenceWorkflowUiTests
         var repositoryRoot = FindRepositoryRoot();
         var teamBoard = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Events", "TeamBoard.cshtml"));
         var forms = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Captain", "_SubmissionForms.cshtml"));
-        var submission = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Captain", "Submission.cshtml"));
+        var submission = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Submissions", "Submission.cshtml"));
         var submissionDetail = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Captain", "_SubmissionDetail.cshtml"));
         var upload = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Captain", "_EvidenceUpload.cshtml"));
         var review = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Review", "Details.cshtml"));
@@ -71,11 +71,11 @@ public sealed class EvidenceWorkflowUiTests
         var teamBoardScript = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "team-board-drawer.js"));
 
         Assert.Contains("@T[\"Team history\"]", teamBoard);
-        Assert.Contains("href=\"@Url.Page(\"/Captain/Index\", new { eventId = Model.Board.EventId, teamId = Model.Team.TeamId })\"", teamBoard);
+        Assert.Contains("href=\"@Url.Page(\"/Submissions/Index\", new { eventId = Model.Board.EventId, teamId = Model.Team.TeamId })\"", teamBoard);
         Assert.Contains("data-submission-history-link", teamBoard);
         Assert.Contains("<partial name=\"_EvidenceUpload\" model=\"@(\"Input.Evidence\")\" />", forms);
-        Assert.Contains("<partial name=\"_SubmissionDetail\" model=\"Model\" />", submission);
-        Assert.Contains("<partial name=\"_EvidenceUpload\" model=\"@(\"Resubmission.Evidence\")\" />", submissionDetail);
+        Assert.Contains("<partial name=\"/Pages/Captain/_SubmissionDetail.cshtml\" model=\"Model\" />", submission);
+        Assert.Contains("<partial name=\"/Pages/Captain/_EvidenceUpload.cshtml\" model=\"@(\"Resubmission.Evidence\")\" />", submissionDetail);
         Assert.Contains("data-submission-drawer", teamBoardScript);
         Assert.Contains("window.history.pushState", teamBoardScript);
         Assert.Contains("Model.Details.SubmittedAt.UtcDateTime.ToString(\"yyyy-MM-dd HH:mm 'UTC'\")", review);

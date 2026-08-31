@@ -100,14 +100,7 @@
                 @if (Model.CanOpenSubmissionWorkspace || Model.Focus is { CanInspect: true, IsVisible: false } || Model.Focus is { IsInspection: true })
                 {
                     <div class="team-progress-actions">
-                        @if (Model.CanOpenSubmissionWorkspace && Model.CanOpenCaptainWorkspace)
-                        {
-                            <a class="public-ui-action public-ui-action--standard public-ui-action--compact team-progress-action team-progress-action--secondary" href="@Url.Page("/Captain/Index", new { eventId = Model.Board.EventId, teamId = Model.Team.TeamId })"
-                               data-submission-history-link>
-                                @T["Team history"]
-                            </a>
-                        }
-                        else if (Model.CanOpenSubmissionWorkspace)
+                        @if (Model.CanOpenSubmissionWorkspace)
                         {
                             <a class="public-ui-action public-ui-action--standard public-ui-action--compact team-progress-action team-progress-action--secondary" href="@Url.Page("/Submissions/Index", new { eventId = Model.Board.EventId, teamId = Model.Team.TeamId })"
                                data-submission-history-link>

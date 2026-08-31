@@ -289,7 +289,7 @@ public sealed class SubmissionService(
             var notificationId = DeterministicNotificationId(submission.Id, recipient);
             if (!await db.PersonalNotifications.AnyAsync(x => x.Id == notificationId, cancellationToken))
                 db.PersonalNotifications.Add(new Bingo.Domain.Access.PersonalNotification(notificationId, recipient, "evidence.rejected", detail,
-                    recipient == creditedAccount ? $"/Submissions/{submission.Id}" : $"/Captain/Submissions/{submission.Id}", now));
+                    $"/Submissions/{submission.Id}", now));
         }
     }
 

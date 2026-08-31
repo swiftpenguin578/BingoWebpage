@@ -101,7 +101,7 @@ function table(rows) {
 
 const documentNode = new Node("document");
 const form = new Node("form", { dataset: { captainLedgerForm: "true" } });
-form.action = "https://example.test/Captain";
+form.action = "https://example.test/Submissions";
 form.elements = { eventId: { value: "event-1" }, teamId: { value: "team-1" } };
 const search = new Node("input", { value: "" });
 search.dataset.captainLedgerSearch = "true";
@@ -128,7 +128,7 @@ replacements[0].append(table([row("Rejected", "Drop D", "Tile D", "Player D", 4)
 replacements[1].append(table([row("Pending", "Drop F", "Tile F", "Player F", 6), row("Approved", "Drop E", "Tile E", "Player E", 5)]));
 replacements[2].append(table([row("Pending", "Drop H", "Tile H", "Player H", 8), row("Approved", "Drop G", "Tile G", "Player G", 7)]));
 replacements[3].append(table([row("Pending", "Drop J", "Tile J", "Player J", 10), row("Approved", "Drop I", "Tile I", "Player I", 9)]));
-const nextPage = new Node("a", { dataset: { captainLedgerPage: "true" }, href: "https://example.test/Captain?eventId=event-1&teamId=team-1&search=ledger&player=player-1&ledgerPage=2" });
+const nextPage = new Node("a", { dataset: { captainLedgerPage: "true" }, href: "https://example.test/Submissions?eventId=event-1&teamId=team-1&search=ledger&player=player-1&ledgerPage=2" });
 replacements[2].append(nextPage);
 
 const fetches = [];

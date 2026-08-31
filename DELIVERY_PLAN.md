@@ -150,45 +150,84 @@ manual approval; the affected pages return to the user for visual recheck.
      Leaderboards, their empty/filter/narrow states, and shared evidence
      presentation against PUB-REF-04, PUB-REF-14, and PUB-REF-15 without data,
      query, service, Admin Preview, overview-grid, or TeamBoard behavior changes.
-7. **Pass 5 — Captain team operations:** redefine
-   `/Captain` as current team focus controls, pending/rejected/approved summary
-   counts, and a complete team submission ledger with status/player/tile filters,
-   details, and reviewer feedback. It must not duplicate the complete board or
-   create another submission form: Captains submit through the same team-board
-   drawer as ordinary members, while review controls remain Admin-only.
-   `/Captain/Submit/{tileId?}` is only the drawer transport/handler plus a
-   compatibility redirect for old direct links; it is not a rendered page or
-   no-JavaScript acceptance surface. Preserve Captain/co-captain and valid emergency-captain
-   team-management scope. PUB-REF-17 was approved before the functional work and
-   now owns this composition; the family remains last in the public/participant/
-   Captain group. Current source already has tile/row/column focus persistence,
-   team-board focus display, shared captain-aware submission drawer, submission
-   details/feedback, pending edit/withdraw, rejected resubmission, and no Captain
-   review controls. Missing work is the `/Captain` focus projection/mutations,
-   pending/rejected/approved totals, status/player/tile filters, an uncapped or
-   paged complete ledger, a derived replaced-chain presentation, Captain-only
-   page authorization, and focus authority for valid emergency credentials if
-   they retain the approved team-management scope. Remove the current duplicate
-   tile grid and its submission links. The reference's open upper-right area may
-   hold one compact existing fact such as current evidence code or cutoff; do
-   not invent another widget.
+7. **Pass 5 — canonical submission workspace consolidation:** consolidate the
+   Captain and participant submission workspaces into one implementation owned by
+   `/Submissions` and `/Submissions/{id:guid}`. The team-wide overview includes
+   the complete retained ledger; Captains/co-captains see the two Captain-only
+   sections for team focus and team submission status and retain server-authorized
+   broader editing of eligible team submissions; ordinary participants see
+   neither section and may edit only their own eligible non-read-only rows. Keep
+   the detail composition visually equivalent to the approved Captain detail.
+   `/Captain` and `/Captain/Submissions/{id:guid}` become thin compatibility
+   redirects/aliases, not separate rendered implementations. Personal
+   submission/evidence notifications resolve to the canonical detail route;
+   relevant general submission navigation resolves to the overview. The shared
+   team-board drawer remains the submission entry point, `/Captain/Submit` remains
+   drawer transport/compatibility only, and Admin review remains authoritative.
+   Preserve all owner/team/captain authorization, retained-state read-only,
+   cutoff, privacy, evidence-integrity, and Admin boundaries. PUB-REF-17 remains
+   the visual language, not a redesign authorization.
 8. **Remaining Admin UI families** — resume only after Captain is complete and
    outside this experiment.
    Currently unapproved Admin visual debt is non-blocking while functionality
    works; security, authorization, privacy/data-loss/data-integrity, and
    workflow-blocking defects may still interrupt launch-critical work.
 9. **Dashboard/action inbox** — late, after the resumed Admin work.
-10. **Participant submission workspace** — add `/Submissions` and
-    `/Submissions/{id:guid}` as the authenticated current-team ledger/detail
-    routes. Reuse the approved Captain ledger/detail visual language without
-    copying its current-focus or team-submission-status sections. Show the
-    complete retained ledger for the authorized current team, including departed
-    credited members; permit mutation only for the credited owner, with pending
-    edit, active screenshot replacement, and withdrawal through cutoff and one
-    rejected linked resubmission. Keep every other state and teammate-owned row
-    read-only. Rejection notifications route credited owners to `/Submissions/{id}`
-    and current linked Captains/co-captains to `/Captain/Submissions/{id}`.
-11. **Whole-application regression and release gates** — after the UI order.
+10. **Whole-application regression and release gates** — after the UI order.
+
+### Pass 5 implementation contract — canonical submission workspace
+
+**Approved outcome and frozen scope — 2026-08-31.** This is an implementation
+consolidation and routing/authorization correction, not a visual redesign. Keep
+one canonical overview at `/Submissions` and one canonical detail at
+`/Submissions/{id:guid}`. The overview is team-wide for authorized current
+members and includes retained rows credited to departed teammates. Captains and
+co-captains see team focus and team submission status as the two Captain-only top
+sections and retain server-authorized broader editing of eligible team
+submissions. Ordinary participants do not see those sections and may edit only
+their own eligible non-read-only submissions. The detail remains visually
+equivalent to the approved Captain submission detail.
+
+**Compatibility and destinations.** `/Captain` and
+`/Captain/Submissions/{id:guid}` are thin compatibility redirects/aliases to the
+canonical routes and never separate rendered implementations. Cross-role legacy
+links must resolve through the canonical route and authoritative server
+authorization. Personal submission/evidence notifications, including those
+received by Captains/co-captains, resolve to `/Submissions/{id:guid}`. Relevant
+general submission navigation resolves to `/Submissions`. Admin review
+notifications remain `/Admin/Review/Details/{id}`. `/Captain/Submit/{tileId?}`
+remains only the shared drawer transport/handler plus compatibility redirect.
+
+**Explicit non-goals.** Do not redesign accepted submission UI, add a second
+workspace, weaken owner/team/captain authorization, alter retained-state
+read-only or cutoff rules, change privacy/evidence-integrity/Admin authority,
+change persistence or submission query semantics, add no-JavaScript-only parity,
+or broaden into unrelated cleanup. The reported absence of a linked resubmission
+from Admin Evidence Review remains a bounded diagnostic uncertainty: source
+inspection found no query exclusion, so no query change is approved by this plan.
+
+**Frozen implementation order and gates.** The next and only permitted action
+before production implementation is exactly one fresh independent Terra High
+read-only implementation-readiness review. It must validate route reachability,
+Development-reset accounts/records, compatibility alias behavior, owner/team/
+captain authorization, notification destinations, the relative `_EvidenceUpload`
+partial regression, and the bounded Admin-review diagnostic; it must also confirm
+the zero-budget complexity boundary. After that review and resolution of any
+named product decision, use one bounded Luna High implementation pass, then the
+smallest focused route/authorization/privacy/notification checks,
+`git diff --check`, and the relevant targeted tests. Follow the normal
+independent post-implementation review/remediation and user manual acceptance
+gates before whole-application regression. No broad test suite, build, packaging,
+commit, push, or deployment is part of this documentation pass.
+
+**Complexity budget and stop rule.** Add zero tables, migrations, jobs, NuGet
+dependencies, navigation frameworks, or generalized abstractions; add no new
+rendered page family. Reuse the existing submission services, persistence,
+drawer transport, notification model, policies, and approved detail composition;
+only the canonical route owner, compatibility aliases, role-conditioned sections,
+and directly required focused tests/source fixes are in budget. Stop for user
+direction before changing any approved product rule, persistence/query
+semantics, Admin authority, or this scope.
 
 ### Pass 1B implementation contract — signup, authentication, and status
 

@@ -134,23 +134,30 @@ They cannot:
 
 Captain and co-captain have the same website permissions. Their expanded draft table includes participant-submitted answers hidden from the public board but excludes paid/unpaid status, private admin notes, identity-recovery/security data, and audit history. External/pre-formed-team captains do not see the internal draft pool.
 
-The Captain page is a team-operations page, not another board or submission
-experience. Its ordered content is current team focus and controls, team
-submission status totals, and the complete team submission ledger. Submission
-starts from the ordinary team board and uses its existing drawer/interface;
-Captain authority may affect the allowed credited teammate, but it does not
-create a second form or flow. Submission review, approval, rejection, reversal,
+Captain and participant submission workspaces are one canonical implementation.
+`/Submissions` is the authenticated team submission overview and
+`/Submissions/{id:guid}` is its detail route. The overview is team-wide for every
+authorized current member. Captains/co-captains see the two Captain-only top
+sections—team focus and team submission status—and retain server-authorized
+broader editing of eligible team submissions; ordinary participants do not see
+those sections and may edit only their own eligible non-read-only submissions.
+The detail composition remains visually equivalent to the approved Captain
+submission detail. Submission starts from the ordinary team board and uses its
+existing drawer/interface; submission review, approval, rejection, reversal,
 and other reviewer controls remain Admin-only.
 
 The `/Captain/Submit/{tileId?}` route is retained only as the shared drawer's
 transport/handler endpoint and as a compatibility redirect for old direct
 links. It is not a rendered submission page or a no-JavaScript acceptance
-surface. `/Captain/Submissions/{id:guid}` belongs to the team-scoped Captain
-ledger/detail family. Ordinary participants use `/Submissions` and
-`/Submissions/{id:guid}` instead. The participant ledger is visually aligned
-with the approved Captain ledger but omits the Captain-only current-focus and
-team-submission-status sections. `/Evidence/{id}` is a protected file-download
-handler consumed by evidence views, not a rendered page family.
+surface. Legacy `/Captain` and `/Captain/Submissions/{id:guid}` are thin
+compatibility redirects/aliases to `/Submissions` and `/Submissions/{id:guid}`;
+they are not separate rendered implementations. Cross-role legacy links must
+resolve through the canonical route and authoritative server authorization.
+Personal submission/evidence notifications, including those received by
+Captains/co-captains, resolve to `/Submissions/{id:guid}`; relevant general
+submission navigation resolves to `/Submissions`. Admin review notifications
+remain `/Admin/Review/Details/{id}`. `/Evidence/{id}` is a protected
+file-download handler consumed by evidence views, not a rendered page family.
 
 At draft finalization, the signup page remains a signup page and stays available to enabled administrators for historical and operational use. Public, participant, and captain requests for that route redirect to published team rosters; roster pages never expose the old signup answers, including a team's expanded draft answers.
 
@@ -642,7 +649,7 @@ Before accepting a submission, the system checks that:
 
 Submission states are:
 
-1. **Pending:** Awaiting admin review; editable and withdrawable by the team's captains.
+1. **Pending:** Awaiting admin review; editable and withdrawable by the credited owner when eligible, and by authorized team captains/co-captains within their broader team scope.
 2. **Approved:** Contribution has been applied to official progress.
 3. **Rejected:** Does not count; includes an admin reason.
 4. **Withdrawn:** Removed by a captain before approval.
@@ -673,7 +680,7 @@ Only when submission occurred after the authoritative event end, the review addi
 
 A duplicate, unusable screenshot, or other invalid attempt is rejected with the required reason. There is no request-changes or special duplicate review state. While the active upload window remains open, the rejected-submission view offers **Resubmit**. It creates a new submission, prefills the rejected attempt's structured values and note, and requires a newly uploaded screenshot. The submitter may correct ordinary structured choices such as tile/requirement or qualifying drop, but the originally credited participant and playing account are copied and read-only even if that participant has since swapped. The new record links to the rejected record, receives its own immutable server submission time and review history, and undergoes normal validation. Rejection never reopens or extends the upload window, and the rejected record remains historical.
 
-Rejection creates an idempotent in-site notification containing the reason for the linked credited participant and every current linked captain/co-captain on the team. It does not notify the whole roster. When the credited participant is unlinked, captains/co-captains remain the notification recipients. A credited recipient is routed to `/Submissions/{id:guid}`; a current linked captain/co-captain recipient is routed to `/Captain/Submissions/{id:guid}`. If one recipient is both, the credited-owner route wins. The destination independently authorizes the credited participant's current-team scope or the existing team-scoped Captain/co-captain/emergency authority.
+Rejection creates an idempotent in-site notification containing the reason for the linked credited participant and every current linked captain/co-captain on the team. It does not notify the whole roster. When the credited participant is unlinked, captains/co-captains remain the notification recipients. Every personal recipient is routed to `/Submissions/{id:guid}`; the destination independently authorizes the credited participant's current-team scope or the existing team-scoped Captain/co-captain/emergency authority. Relevant general submission navigation resolves to `/Submissions`, while Admin review notifications remain `/Admin/Review/Details/{id}`.
 
 ### 13.2 Reversal
 
@@ -695,11 +702,11 @@ Reversing an approval:
 - There is no hidden-but-still-approved evidence state. If an approved image should no longer be public, an admin reverses its approval with a reason; the team may submit a corrected or redacted screenshot through the normal resubmission workflow while the upload window permits it.
 - Version one has no public evidence-report, bug-report, or general-feedback form. Community reports and feedback use the Discord feedback channel; admins handle a valid evidence concern through reversal/resubmission.
 
-After draft finalization, the signed-in participant's primary event destination is their published roster until the board is published, then the existing team-board view. That view retains only compact current active-account context and the authorized next-whole-UTC-minute swap control; it does not duplicate lifecycle, roster, or team-operations panels. Submission access is enforced without ordinarily displaying the internal cutoff. It adds the participant's own evidence actions and private read-only team-focus projection without creating a separate participant board. Captain/co-captain focus mutations belong exclusively to the route-backed Captain workspace.
+After draft finalization, the signed-in participant's primary event destination is their published roster until the board is published, then the existing team-board view. That view retains only compact current active-account context and the authorized next-whole-UTC-minute swap control; it does not duplicate lifecycle, roster, or submission-workspace panels. Submission access is enforced without ordinarily displaying the internal cutoff. It adds the participant's own evidence actions and private read-only team-focus projection without creating a separate participant board. Captain/co-captain focus mutations belong to the Captain-only section of the canonical `/Submissions` workspace.
 
 Before event start, the built-in primary account is only the planned starting account. It becomes active at event start. Participant/captain swaps are available only during `LIVE`, remain unlimited under the approved next-whole-UTC-minute rule, and close at event end. Evidence creation and pending edit/withdraw remain open through the submission cutoff for in-window drops; cutoff then makes participant history read-only while admin review continues.
 
-Current team members see team focus read-only on the existing team board; captains/co-captains mutate it exclusively in the route-backed Captain workspace. Public/opponent projections retain the approved board without focus. A participating Super Admin may explicitly opt into a clearly identified, read-only inspection of another team's focus; no cross-team focus data loads before that opt-in. If the authorized view becomes crowded, a view-only focus visibility toggle or compact summary may hide/show the private layer without changing focus state.
+Current team members see team focus read-only on the existing team board; captains/co-captains mutate it exclusively in the Captain-only section of the canonical `/Submissions` workspace. Public/opponent projections retain the approved board without focus. A participating Super Admin may explicitly opt into a clearly identified, read-only inspection of another team's focus; no cross-team focus data loads before that opt-in. If the authorized view becomes crowded, a view-only focus visibility toggle or compact summary may hide/show the private layer without changing focus state.
 
 The public tile view should show approved drop, player, team, submission time, contribution, and evidence.
 
@@ -942,12 +949,14 @@ Public boards is an overview of the current public event and previous archived e
 
 Archived events keep the same public board/team/tile/result routes. Signed-in current members of an archived event team may read that team's complete retained submission history through `/Submissions` and its detail route, including rows credited to departed teammates; former members without current membership, anonymous users, and cross-team viewers fail closed, and every event mutation is removed. There is no separate archived-participant dashboard.
 
-### 19.2 Captain pages
+### 19.2 Canonical authenticated submission pages
 
-- Submit evidence
-- Team submissions
-- Pending submissions
-- Rejected, withdrawn, and approved submission history
+- `/Submissions` — team-wide retained submission ledger; Captain/co-captain-only
+  team-focus and team-submission-status sections; owner/team-scoped editing
+- `/Submissions/{id:guid}` — visually equivalent Captain submission detail with
+  owner/team-scoped mutation boundaries
+- `/Captain` and `/Captain/Submissions/{id:guid}` — compatibility redirects/aliases
+  only, never separate rendered implementations
 
 ### 19.3 Admin pages
 

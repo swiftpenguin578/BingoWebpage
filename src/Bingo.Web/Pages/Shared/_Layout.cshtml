@@ -10,8 +10,9 @@
         || currentPage?.StartsWith("/Events/", StringComparison.OrdinalIgnoreCase) == true
         || currentPage?.StartsWith("/Evidence", StringComparison.OrdinalIgnoreCase) == true;
     var isAccountPage = currentPage?.StartsWith("/Account/", StringComparison.OrdinalIgnoreCase) == true;
-    var isCaptainPage = currentPage?.StartsWith("/Captain", StringComparison.OrdinalIgnoreCase) == true;
     var isSubmissionsPage = currentPage?.StartsWith("/Submissions", StringComparison.OrdinalIgnoreCase) == true;
+    var isCaptainPage = currentPage?.StartsWith("/Captain", StringComparison.OrdinalIgnoreCase) == true
+        || (isSubmissionsPage && captainNavigation is not null);
     var isAccountSubsectionPage = currentPage is "/Account/Settings" or "/Account/MyAccounts" or "/Account/MyEvents" or "/Account/ChangePassword";
     var isAccountSettingsPage = currentPage is "/Account/Settings" or "/Account/ChangePassword";
     var isHowToPage = string.Equals(currentPage, "/HowTo", StringComparison.OrdinalIgnoreCase);

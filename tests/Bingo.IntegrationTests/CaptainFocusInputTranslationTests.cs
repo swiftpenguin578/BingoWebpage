@@ -1,5 +1,5 @@
 using Bingo.Domain.Teams;
-using Bingo.Web.Pages.Captain;
+using Bingo.Web.Pages.Submissions;
 
 namespace Bingo.IntegrationTests;
 

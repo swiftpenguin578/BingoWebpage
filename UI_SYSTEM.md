@@ -606,14 +606,18 @@ trigger/text visibility, viewport containment and stacking, keyboard traversal,
 focus-visible treatment, outside-click and Escape closure, focus return, and
 reopening without duplicate state. Notification selection must preserve the
 read transition and reach the authorized stored destination; personal evidence
- credited-owner evidence notifications use `/Submissions/{id:guid}` while
- current linked Captain/co-captain recipients use `/Captain/Submissions/{id:guid}`;
- owner routing wins when a recipient has both roles.
+ personal submission/evidence notifications, including those received by current
+ linked Captain/co-captain recipients, use `/Submissions/{id:guid}`. Relevant
+ general submission navigation uses `/Submissions`; Admin review notifications
+ remain `/Admin/Review/Details/{id}`.
 
 - Protected board, team, tile, and draft routes remain real paths for direct
   navigation, reload/history, and failed enhancement. The shared submission
   drawer remains attached to the team-board tile flow; `/Captain/Submit` is
-  only its transport/handler plus a compatibility redirect. Ordinary Admin
+  only its transport/handler plus a compatibility redirect. `/Captain` and
+  `/Captain/Submissions/{id:guid}` are compatibility redirects/aliases to the
+  canonical `/Submissions` routes, never separate rendered implementations.
+  Ordinary Admin
   filter and independent value-save enhancements may degrade to the existing
   form/navigation path; no separate no-JavaScript parity work is required.
 - Every interactive control has an accessible name, visible `:focus-visible`
@@ -751,6 +755,6 @@ navigation, and tile routes remain real destinations. The masthead Submit drop a
 resolves the authenticated actor's own team-board route and opens the same
 drawer with an authoritative Tile selector; the server scopes offered tiles to
 that actor's current event/team.
-Remaining public/participant-facing pages and the standalone Captain workspace
-remain separate approval units; this Board approval does not claim whole-
-application production readiness.
+The canonical submission workspace remains a separate approval unit; legacy
+Captain routes are compatibility aliases rather than a standalone workspace.
+This Board approval does not claim whole-application production readiness.

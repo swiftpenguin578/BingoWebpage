@@ -1,6 +1,6 @@
 using Bingo.Web.UI;
 
-namespace Bingo.Web.Pages.Captain;
+namespace Bingo.Web.Pages.Submissions;
 
 public sealed record SubmissionLedgerViewModel(
     Guid EventId,

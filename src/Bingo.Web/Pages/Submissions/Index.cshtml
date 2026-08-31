@@ -1,30 +1,174 @@
 @page "/Submissions"
 @model Bingo.Web.Pages.Submissions.IndexModel
+@using Bingo.Domain.Teams
 @{
-    ViewData["Title"] = $"{Model.TeamName} · {T["submissions"]}";
+    ViewData["Title"] = $"{Model.TeamName} · {(Model.IsCaptainWorkspace ? T["Captain workspace"] : T["submissions"])}";
 }
 
 <section class="public-pass2-page captain-operations-page participant-submissions-page" aria-labelledby="submissions-heading">
     <header class="public-pass2-masthead captain-operations-masthead">
         <div class="public-masthead-copy">
-            <span class="public-pass2-kicker public-masthead-kicker">@T["Submission history"]</span>
+            <span class="public-pass2-kicker public-masthead-kicker">@(Model.IsCaptainWorkspace ? T["Captain workspace"] : T["Submission history"])</span>
             <h1 id="submissions-heading" class="public-masthead-title">@Model.TeamName</h1>
             <div class="captain-operations-support-row">
                 <a class="public-pass2-back-link captain-operations-back" asp-page="/Events/TeamBoard" asp-route-slug="@Model.EventSlug" asp-route-teamSlug="@Model.TeamSlug"><span class="public-ui-action__directional-glyph" aria-hidden="true">←</span><span>@T["Return to board"]</span></a>
                 <p class="public-masthead-support">@Model.EventName</p>
             </div>
         </div>
+        @if (Model.IsCaptainWorkspace && Model.CodeEnabled)
+        {
+            <dl class="captain-operations-fact">
+                <dt>@T["Current screenshot code"]</dt>
+                <dd>@(Model.CurrentCode ?? T["No active code"])</dd>
+            </dl>
+        }
     </header>
 
-    <section class="captain-ledger" aria-labelledby="submissions-ledger-heading">
-        <header class="public-pass2-ledger-heading"><h2 id="submissions-ledger-heading">@T["All team submissions"]</h2><span aria-hidden="true"></span></header>
+    @if (!Model.NewSubmissionsOpen)
+    {
+        <p class="captain-operations-notice" role="status">@T["New submissions are currently closed. Pending history remains available below."]</p>
+    }
+
+    @if (Model.IsCaptainWorkspace)
+    {
+        <section class="captain-operations-band" aria-label="@T["Team focus and submission status"]">
+            <section class="captain-focus-panel" aria-labelledby="captain-focus-heading">
+                <header class="public-pass2-ledger-heading">
+                    <h2 id="captain-focus-heading">@T["Current team focus"]</h2>
+                    <span aria-hidden="true"></span>
+                </header>
+                <p class="captain-operations-copy">@T["Your team sees these priorities on the normal board. Focus is coordination only and does not change official progress."]</p>
+
+                <div class="captain-current-focus">
+                    <h3>@T["Selected focus"]</h3>
+                    @if (!Model.Focus.Markers.Any(marker => marker.Focused))
+                    {
+                        <p class="captain-focus-empty">@T["No focus selected"]</p>
+                    }
+                    else
+                    {
+                        <ul class="captain-current-focus-list">
+                            @foreach (var marker in Model.Focus.Markers.Where(marker => marker.Focused))
+                            {
+                                <li>
+                                    <strong>
+                                        @if (marker.TargetKind == TeamFocusTargetKind.Tile)
+                                        {
+                                            var tile = Model.FocusTiles.SingleOrDefault(value => value.Id == marker.BoardTileId);
+                                            @($"{tile?.Row + 1:00} · {tile?.Name ?? T["Selected tile"].Value}")
+                                        }
+                                        else if (marker.TargetKind == TeamFocusTargetKind.Row)
+                                        {
+                                            @($"{T["Row"].Value} {(marker.RowIndex ?? 0) + 1:00}")
+                                        }
+                                        else
+                                        {
+                                            @($"{T["Column"].Value} {(marker.ColumnIndex ?? 0) + 1:00}")
+                                        }
+                                    </strong>
+                                    @if (Model.Focus.CanMutate)
+                                    {
+                                        <form method="post" asp-page-handler="ToggleFocus" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId" data-confirm-message="@T["Remove this focus from the team board?"]" onsubmit="return window.confirm(this.dataset.confirmMessage);">
+                                            <input type="hidden" name="FocusInput.TargetKind" value="@marker.TargetKind" />
+                                            <input type="hidden" name="FocusInput.BoardTileId" value="@marker.BoardTileId" />
+                                            <input type="hidden" name="FocusInput.RowIndex" value="@marker.RowIndex" />
+                                            <input type="hidden" name="FocusInput.ColumnIndex" value="@marker.ColumnIndex" />
+                                            <input type="hidden" name="FocusInput.Focused" value="false" />
+                                            <input type="hidden" name="FocusInput.ExpectedVersion" value="@marker.Version" />
+                                            <button type="submit" class="captain-focus-remove">@T["Remove"]</button>
+                                        </form>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+
+                @if (Model.Focus.CanMutate)
+                {
+                    <form method="post" asp-page-handler="AddFocus" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId" class="captain-focus-selector-form public-pass2-form-grid">
+                        <div class="public-pass2-field">
+                            <label for="captain-focus-target-kind">@T["Focus type"]</label>
+                            <select id="captain-focus-target-kind" name="AddFocusInput.TargetKind" data-captain-focus-target-kind required>
+                                <option value="Tile" selected>@T["Tile"]</option>
+                                <option value="Row">@T["Row"]</option>
+                                <option value="Column">@T["Column"]</option>
+                            </select>
+                        </div>
+                        <div class="public-pass2-field">
+                            <label for="captain-focus-target-value" data-label-tile="@T["Priority tile"]" data-label-row="@T["Priority row"]" data-label-column="@T["Priority column"]">@T["Priority tile"]</label>
+                            <select id="captain-focus-target-value" name="AddFocusInput.TargetValue" data-captain-focus-target-value data-placeholder-tile="@T["Select a tile"]" data-placeholder-row="@T["Select a row"]" data-placeholder-column="@T["Select a column"]" required>
+                                <option value="" data-captain-focus-placeholder>@T["Select a tile"]</option>
+                                @foreach (var tile in Model.FocusTiles.Where(value => !value.Focused))
+                                {
+                                    <option value="@($"{tile.Id}|{tile.Version}")" data-captain-focus-target="Tile" data-version="@tile.Version">@($"{tile.Row + 1:00} · {tile.Name}")</option>
+                                }
+                                @foreach (var row in Model.FocusRows.Where(value => !value.Focused))
+                                {
+                                    <option value="@($"{row.Index}|{row.Version}")" data-captain-focus-target="Row" data-version="@row.Version" hidden disabled>@($"{T["Row"].Value} {row.Index + 1:00}")</option>
+                                }
+                                @foreach (var column in Model.FocusColumns.Where(value => !value.Focused))
+                                {
+                                    <option value="@($"{column.Index}|{column.Version}")" data-captain-focus-target="Column" data-version="@column.Version" hidden disabled>@($"{T["Column"].Value} {column.Index + 1:00}")</option>
+                                }
+                            </select>
+                        </div>
+                        <button type="submit" class="public-pass2-action public-pass2-action--outline">@T["Add focus"]</button>
+                    </form>
+                    @if (Model.Focus.Markers.Any(marker => marker.Focused))
+                    {
+                        <form method="post" asp-page-handler="ClearAllFocus" asp-route-eventId="@Model.EventId" asp-route-teamId="@Model.TeamId" class="captain-focus-clear-form" data-confirm-message="@T["Clear every selected focus from the team board?"]" onsubmit="return window.confirm(this.dataset.confirmMessage);">
+                            @for (var index = 0; index < Model.Focus.Markers.Count; index++)
+                            {
+                                <input type="hidden" name="FocusInput.MarkerVersions[@index].Id" value="@Model.Focus.Markers[index].Id" />
+                                <input type="hidden" name="FocusInput.MarkerVersions[@index].Version" value="@Model.Focus.Markers[index].Version" />
+                            }
+                            <button type="submit" class="public-pass2-action public-pass2-action--danger">@T["Clear all focus"]</button>
+                        </form>
+                    }
+                }
+            </section>
+
+            <section class="captain-summary-panel" aria-labelledby="captain-summary-heading">
+                <header class="public-pass2-ledger-heading">
+                    <h2 id="captain-summary-heading">@T["Submission status"]</h2>
+                    <span aria-hidden="true"></span>
+                </header>
+                <div class="captain-summary-grid">
+                    <div class="captain-summary-item captain-summary-item--pending"><strong>@Model.Summary.Pending</strong><span>@T["Pending"]</span></div>
+                    <div class="captain-summary-item captain-summary-item--rejected"><strong>@Model.Summary.Rejected</strong><span>@T["Rejected"]</span></div>
+                    <div class="captain-summary-item captain-summary-item--approved"><strong>@Model.Summary.Approved</strong><span>@T["approved"]</span></div>
+                </div>
+            </section>
+        </section>
+    }
+
+    <section class="captain-ledger" aria-labelledby="captain-ledger-heading">
+        <header class="public-pass2-ledger-heading">
+            <h2 id="captain-ledger-heading">@T["All team submissions"]</h2>
+            <span aria-hidden="true"></span>
+        </header>
         <form method="get" asp-page="/Submissions/Index" class="captain-ledger-filters" aria-label="@T["Search team submissions"]" data-captain-ledger-form data-captain-ledger-request-error="@T["Captain ledger request failed."]" data-captain-ledger-results-error="@T["Captain ledger results were missing from the response."]">
-            <input type="hidden" name="eventId" value="@Model.EventId" /><input type="hidden" name="teamId" value="@Model.TeamId" />
-            <div class="public-pass2-field captain-ledger-search-field"><label for="submissions-ledger-search">@T["SEARCH SUBMISSIONS"]</label><div class="captain-ledger-search-control"><svg class="captain-ledger-search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="m16 16 5 5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" /></svg><input id="submissions-ledger-search" class="captain-ledger-search-input" name="search" type="search" value="@Model.Search" placeholder="@T["Search drops, players or tiles…"]" data-captain-ledger-search autocomplete="off" /><button type="button" class="captain-ledger-search-clear" data-captain-ledger-clear aria-label="@T["Clear search"]" hidden="@(string.IsNullOrEmpty(Model.Search) ? "hidden" : null)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" /></svg></button></div></div>
+            <input type="hidden" name="eventId" value="@Model.EventId" />
+            <input type="hidden" name="teamId" value="@Model.TeamId" />
+            <div class="public-pass2-field captain-ledger-search-field">
+                <label for="submissions-ledger-search">@T["SEARCH SUBMISSIONS"]</label>
+                <div class="captain-ledger-search-control">
+                    <svg class="captain-ledger-search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="m16 16 5 5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" /></svg>
+                    <input id="submissions-ledger-search" class="captain-ledger-search-input" name="search" type="search" value="@Model.Search" placeholder="@T["Search drops, players or tiles…"]" data-captain-ledger-search autocomplete="off" />
+                    <button type="button" class="captain-ledger-search-clear" data-captain-ledger-clear aria-label="@T["Clear search"]" hidden="@(string.IsNullOrEmpty(Model.Search) ? "hidden" : null)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" /></svg></button>
+                </div>
+            </div>
             <div class="public-pass2-field captain-ledger-player-field"><label for="submissions-ledger-player">@T["Player"]</label><div class="captain-ledger-select-wrap"><select id="submissions-ledger-player" class="public-ui-control-visual public-ui-control-visual--select" name="player" data-captain-ledger-player><option value="">@T["All players"]</option>@foreach (var player in Model.PlayerOptions) { <option value="@player.Id" selected="@(Model.PlayerFilter == player.Id ? "selected" : null)">@player.Name</option> }</select><span class="public-ui-select-chevron" aria-hidden="true"></span></div></div>
         </form>
         <partial name="/Pages/Captain/_SubmissionLedger.cshtml" model="Model.Ledger" />
     </section>
 </section>
 
-@section Scripts { <script src="~/js/captain-ledger.js" asp-append-version="true"></script> }
+@section Scripts {
+    @if (Model.IsCaptainWorkspace)
+    {
+        <script src="~/js/captain-focus.js" asp-append-version="true"></script>
+    }
+    <script src="~/js/captain-ledger.js" asp-append-version="true"></script>
+}

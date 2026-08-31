@@ -39,11 +39,20 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
     private async Task<SubmissionNavigation?> GetSubmissionNavigationAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId)) return null;
+        var accountType = await db.Accounts.AsNoTracking()
+            .Where(account => account.Id == accountId && account.Active)
+            .Select(account => (Bingo.Domain.Access.AccountType?)account.AccountType)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (accountType != Bingo.Domain.Access.AccountType.WebsiteAccount) return null;
+
         var rows = await (from participant in db.EventParticipants.AsNoTracking()
                           join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
                           join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
-                          where participant.AccountId == accountId && team.Active && membership.LeftAt == null && participant.EventId == team.EventId
-                          select new { participant.EventId, TeamId = team.Id }).Distinct().ToListAsync(cancellationToken);
+                          where participant.AccountId == accountId && team.Active && membership.LeftAt == null &&
+                                membership.Role == Bingo.Domain.Teams.TeamMembershipRole.Participant && participant.EventId == team.EventId
+                          select new { EventId = participant.EventId, TeamId = team.Id })
+            .Distinct()
+            .ToListAsync(cancellationToken);
         return rows.Count == 1 ? new SubmissionNavigation(rows[0].EventId, rows[0].TeamId) : null;
     }
 
@@ -182,7 +191,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
 
     private async Task<IReadOnlyList<BreadcrumbItem>> BuildBreadcrumbs(string page, RouteValueDictionary values, CancellationToken cancellationToken)
     {
-        if (page.StartsWith("/Captain/", StringComparison.Ordinal) && page != "/Captain/Index")
+        if (page.StartsWith("/Captain/", StringComparison.Ordinal) || page.StartsWith("/Submissions/", StringComparison.Ordinal))
             return await BuildCaptainBreadcrumbs(page, values, cancellationToken);
         if (page.StartsWith("/Events/", StringComparison.Ordinal))
             return await BuildPublicBreadcrumbs(page, values, cancellationToken);
@@ -257,14 +266,14 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
 
     private async Task<IReadOnlyList<BreadcrumbItem>> BuildCaptainBreadcrumbs(string page, RouteValueDictionary values, CancellationToken cancellationToken)
     {
-        var items = new List<BreadcrumbItem> { new(text["Team board"], "/Captain") };
+        var items = new List<BreadcrumbItem> { new(text["Submissions"], "/Submissions") };
         if (page == "/Captain/Submit" && TryGuid(values, "tileId", out var tileId))
         {
             var tile = await db.BoardTiles.AsNoTracking().Where(item => item.Id == tileId).Select(item => item.NameSnapshot).SingleOrDefaultAsync(cancellationToken);
             if (tile is not null) items.Add(new(tile, null));
             items.Add(new(text["Submit drop"], null));
         }
-        else if (page == "/Captain/Submission" && TryGuid(values, "id", out var submissionId))
+        else if ((page is "/Captain/Submission" or "/Submissions/Submission") && TryGuid(values, "id", out var submissionId))
         {
             var tile = await (from submission in db.Submissions.AsNoTracking()
                               join boardTile in db.BoardTiles.AsNoTracking() on submission.BoardTileId equals boardTile.Id
@@ -311,7 +320,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
 public sealed record SharedShellData(IReadOnlyList<BreadcrumbItem> Breadcrumbs, NotificationInbox Notifications, AdminEventContext? AdminEvent, IReadOnlyList<AdminEventOption> AdminEvents, CaptainNavigation? CaptainNavigation, SubmissionNavigation? SubmissionNavigation);
 public sealed record CaptainNavigation(Guid EventId, Guid TeamId)
 {
-    public string Url => $"/Captain?eventId={EventId}&teamId={TeamId}";
+    public string Url => $"/Submissions?eventId={EventId}&teamId={TeamId}";
 }
 public sealed record SubmissionNavigation(Guid EventId, Guid TeamId)
 {
