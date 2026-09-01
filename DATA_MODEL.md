@@ -247,6 +247,51 @@ all other event routes fail closed with 404, including for Super Admins.
 Snapshots, rankings, submissions, evidence, audit history, assets, storage
 objects, and all other database relations remain retained and unchanged.
 
+### 5.1.2 Frozen historical import metadata
+
+The approved historical import uses the existing event, participant, team,
+board, tile, requirement, contribution, ranking, and audit aggregates. It is
+created directly in `ARCHIVED` with `Europe/Copenhagen`, start
+`2026-07-14T16:00Z`, end `2026-07-19T16:00Z`, and `archived_at` equal to the
+event end. The persisted event must retain the source event identifier,
+competition identifier, import hash, and the approved source/synchronization
+metadata needed to explain the frozen read. The source account username is
+stored separately from any current website-account link.
+
+The import retains 90 participants, 93 source accounts, and six public
+board-spelled teams with 15 participants each. The source-to-website-account
+mapping is private, external to Git, deterministic, and never inferred from a
+current link, username, Discord identity, or OSRS name. The secondary mappings
+are fixed as primary `Ezzi → Also Ezzi` and primary `wolles → w olles`, plus the unused zero-gain
+`Coxophobia` attached to an existing Xen participant.
+
+For the approved Maggot King eligibility rule, the existing immutable approval
+requirement-drop snapshot resolves the exact active catalogue-backed `Elder
+venator fang` and `Crimson kisten` source drops, while explicitly excluding
+`Maggot marquess`. The normal catalogue rate and EHB mechanics must produce a
+rounded historical tile estimate of exactly `31.1487`; preflight fails closed
+for any other value. Reconstructed contributions still retain null item
+identity and never assert an item drop.
+
+Versioned public import metadata may retain the approved English 5×5 board
+manifest, the exact corrected 402 counter units across 150 team/tile cells,
+source identifiers, and source hashes, but never the private roster or account
+mapping. The reviewed public manifest SHA-256 is
+`e5297b20fc5e4a842b6a1e5ab378128cbe1c2bad16033fc875c54607c0d49438`. The public
+Wise Old Man competition link is `145197`; the frozen per-account start EHB,
+end EHB, gained EHB, and complete synchronization snapshot are historical
+inputs, not a live cache contract and not refreshed normally. Board standings
+are official placements in the frozen order The Agency, Xen0%_d_rops, Touch
+Kids, not grass, Morytania Monkeys,
+Zalamalikum, Såeh cs?, and archived public team cards follow those snapshots.
+Wise Old Man EHB/activity ranking is a separate projection and cannot alter
+board results.
+
+Import application is preflight-first and transactional: an exact previously
+applied import hash is a no-op, a divergent hash fails closed, and any apply
+failure rolls back the transaction without leaving a partial historical
+aggregate.
+
 ### 5.2 Event publication controls
 
 Event lifecycle and publication are related but not identical. The event stores separate controls for:
@@ -1393,6 +1438,41 @@ When an approved submission is reversed:
 7. Recalculate team placements.
 8. Recalculate the credited player's statistics.
 9. Record before and after values in the audit log.
+
+### 12.9 Historical reconstructed progress
+
+Historical import contributions are approved reconstructed records rather
+than evidence submissions. Their item and evidence associations are null, but
+the approved rows are included in public Recent Drops without fabricating a
+drop identity or evidence asset.
+Participant attribution is deterministic and weighted toward combined starting
+EHB; reconstructed timestamps are deterministically spread across the event
+window. Weighted raid counters represent contribution units and do not assert
+that a named participant received an item drop.
+
+Historical partial units may be assigned only in the fixed requirement order
+approved for the event, and only to reproduce the exact aggregate `x/x`
+counters. This allocation rule does not create an additional public
+disclosure. The event's only disclosure is exactly: “Historical record —
+evidence image not retained; player attribution and timing reconstructed from
+event EHB.”
+
+The approved tile manifest and eligibility rules are immutable import inputs:
+all 20 named catalogue God Wars candidates; ordinary distinct pet drops with
+no joker; any two Duke/Whisperer drops including duplicates; Araxxor Nid
+(Destroy) or Jar of venom only; both Vorkath visages; Superior Slayer's exact
+four-item intent with an explicit manual EHB of `21`; Royal Titans' two AND
+objectives of three Fire crowns and three Ice crowns; Wilderness' three AND
+objectives of one hilt, one blade, and one gem; and no Maggot marquess.
+Board points and ignored CSV EHB/rate columns are not EHB inputs. The Superior
+Slayer value is a manual value, not an inferred conversion.
+
+Superior Slayer remains one manual target-3 objective with a manual tile EHB of
+`21`.
+Its four approved item names are frozen eligibility metadata in the manifest and
+description only. The importer creates no catalogue item, source-drop, live
+requirement-drop snapshot, or immutable approval-drop row for those names, and
+reconstructed contributions retain null drop identity.
 
 ## 13. Ranking calculations
 

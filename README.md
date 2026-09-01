@@ -109,15 +109,44 @@ Stop the running web application, keep PostgreSQL running, and execute:
 dotnet run --project src/Bingo.Web -- --reset-test-data
 ```
 
-The command resets generated workflow data and creates named fixtures for every workflow stage, including the retained `Vinterbingo 2026` live fixture and historical `Det Store Danske Sommerbingo 2026` fixture. Finalized fixtures intended to expose public rosters receive the same active frozen publication snapshot as normal draft finalization, so their `/Events/{slug}/Teams` routes are reachable; deliberately incomplete blocker fixtures remain unpublished. The historical fixture is seeded Live, makes one real Wise Old Man competition-details request for competition `145197`, and is moved to AwaitingFinalReview only after a complete 93-account cache is published. The reset preserves the retained OSRS catalogue, bootstrap/Super Admin, and secondary seeded Admin. All events are internal Development fixtures rather than automatic public current events; obsolete or manually created disposable events are removed.
+The command resets generated workflow data and creates named Development fixtures for ordinary workflow stages. It does not import or synchronize `Det Store Danske Sommerbingo 2026`, does not seed a real historical roster, and does not create a temporary Live historical event. Finalized positive fixtures intended to expose public rosters receive the same active frozen publication snapshot as normal draft finalization, so their `/Events/{slug}/Teams` routes are reachable; deliberately incomplete blocker fixtures remain unpublished. The reset preserves the retained OSRS catalogue, bootstrap/Super Admin, and secondary seeded Admin. All events are internal Development fixtures rather than automatic public current events; obsolete or manually created disposable events are removed.
 
-Use `Sommerbingo 2026` (`test-13-dkl-board`) to review live catalogue derivation, private board editing, approval/unapproval, and the private demonstration preview. `Det Store Danske Vinterbingo 2027` (`test-62-board-publication-setup`) is SignupClosed with finalized rosters and an approved but private board: it is the direct separate-publication, start-blocker, frozen-public-board, and exceptional-correction fixture. `Vinterbingo 2026` (`test-15-dkl-live`) provides the retained full live DKL board, published Teams directory, accounts, evidence, and approved progress behavior. `Det Store Danske Sommerbingo 2026` (`test-101-danish-summer-bingo-2026`) provides the historical six-team roster, dense approved progression, stored Wise Old Man activity, Leaderboards, and Recent Drops state after the reset-only synchronization.
+Use `Sommerbingo 2026` (`test-13-dkl-board`) to review live catalogue derivation, private board editing, approval/unapproval, and the private demonstration preview. `Det Store Danske Vinterbingo 2027` (`test-62-board-publication-setup`) is SignupClosed with finalized rosters and an approved but private board: it is the direct separate-publication, start-blocker, frozen-public-board, and exceptional-correction fixture. `Vinterbingo 2026` (`test-15-dkl-live`) remains the ordinary Development live-board fixture for public interaction checks. The prior `test-101-danish-summer-bingo-2026` historical-fixture claims are stale and must not be treated as the approved historical record; implementation must replace or remove conflicting fixture claims without committing real participant data.
 
 The command prints every seeded captain username. All seeded captain accounts use the local-only password `SeedCaptain!1234`. Your existing administrator username and password are unchanged. It also creates or refreshes the development-only administrator `SeedAdminTwo` with password `SeedAdmin!1234`, the linked waiting-list account `SeedReplacement` with password `SeedReplacement!1234`, and the `Vinterbingo 2026` evidence accounts documented in `MANUAL_TEST_CHECKLIST.md`.
 
 For public-board testing, open `Vinterbingo 2026` directly. Approval, reversal, and evidence-visibility changes invalidate open public pages through SignalR; a 30-second refresh remains as a fallback.
 
 This operation is intentionally unavailable outside the Development environment.
+
+### Import the approved historical event
+
+The historical import is a separate, dormant operator workflow; it is not part
+of Development reset and is not available through a web route. Run the explicit
+CLI preflight first and apply only after preflight succeeds:
+
+```bash
+dotnet run --project src/Bingo.Web -- --preflight-historical-import --historical-import-input /secure/path/historical-input.json
+dotnet run --project src/Bingo.Web -- --apply-historical-import --historical-import-input /secure/path/historical-input.json --historical-import-actor ActiveSuperAdmin --confirm-historical-import "Det Store Danske Sommerbingo 2026"
+```
+
+The operator supplies the private 90-participant/93-account mapping outside
+Git. The checked-in public manifest is pinned to SHA-256
+`e5297b20fc5e4a842b6a1e5ab378128cbe1c2bad16033fc875c54607c0d49438` and carries
+the exact corrected 402 counter units across 150 team/tile cells. The apply
+operation creates **Det Store Danske Sommerbingo 2026** directly as archived
+history using the frozen contract in
+[`PRODUCT_REQUIREMENTS.md`](PRODUCT_REQUIREMENTS.md),
+[`FUNCTIONAL_CONTRACTS.md`](FUNCTIONAL_CONTRACTS.md),
+[`DATA_MODEL.md`](DATA_MODEL.md), and
+[`TECHNICAL_ARCHITECTURE.md`](TECHNICAL_ARCHITECTURE.md). It is transactional,
+audited, fail-closed, and a no-op only for an exact matching import hash; a
+divergent hash fails closed and any apply failure rolls back without partial
+state. Apply also requires the exact event-name confirmation and validates the
+named actor as an active SuperAdmin inside the locked serializable transaction.
+The apply is a separately authorized operation: do not run it against production during
+implementation or local rehearsal; production import and any rehearsal-event
+hide/removal require separate post-deployment authorization.
 
 ### Apply the reviewed OSRS Wiki catalogue
 

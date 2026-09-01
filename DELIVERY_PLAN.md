@@ -1,6 +1,6 @@
 # Delivery plan
 
-**Active plan:** 2026-08-31. This document owns remaining delivery,
+**Active plan:** 2026-09-01. This document owns remaining delivery,
 documentation/UI order, and release gates. Current page approval/status is
 owned solely by [`UI_PAGE_MATRIX.md`](UI_PAGE_MATRIX.md).
 [`CURRENT_STATUS.md`](CURRENT_STATUS.md) remains the authority for checkout
@@ -191,8 +191,7 @@ manual approval; page-specific approvals remain authoritative.
 9. **Dashboard/action inbox** — deployment-ready intentional shell-owned WIP
    presentation; it is not a gating manual-approval task and does not precede
    whole-application regression or release.
-10. **Whole-application regression and release gates** — after resolution or
-    explicit deferral of the named UNKNOWN corrections, then follow the frozen
+10. **Whole-application regression and release gates** — follow the frozen
     production/release sequence below.
 
 ### Pass 5 completion record — canonical submission workspace
@@ -218,23 +217,25 @@ general submission navigation resolves to `/Submissions`. Admin review
 notifications remain `/Admin/Review/Details/{id}`. `/Captain/Submit/{tileId?}`
 remains only the shared drawer transport/handler plus compatibility redirect.
 
-**Protected boundaries and diagnostic.** The implementation did not redesign
+**Protected boundaries and clarification.** The implementation did not redesign
 accepted submission UI, add a second
 workspace, weaken owner/team/captain authorization, alter retained-state
 read-only or cutoff rules, change privacy/evidence-integrity/Admin authority,
 change persistence or submission query semantics, add no-JavaScript-only parity,
 or broaden into unrelated cleanup. The reported absence of a linked resubmission
-from Admin Evidence Review remains a bounded diagnostic uncertainty: source
-inspection found no query exclusion, so no query change is approved by this plan.
+from Admin Evidence Review was a reader/reviewer misinterpretation; source
+inspection found no query exclusion. Existing behavior and tests remain
+protected, and no query change or additional manual release gate is required.
 
 **Verification and acceptance.** The implementation was independently reviewed,
 remediated, manually accepted, and committed in
 `88cd8f8d6014e947e2a5e97717be460ca2ea9d66`. Verification included Release
 builds, 7/7 navigation/integration tests, notification workflow, UI assertions,
 focus helper, ledger JavaScript, diff checks, independent review, and user
-acceptance. The relative `_EvidenceUpload` partial 500 is fixed. The linked
-resubmission Admin Review journey still requires manual confirmation; source
-inspection found no query exclusion and no query change is authorized.
+acceptance. The relative `_EvidenceUpload` partial 500 is fixed. The existing
+linked-resubmission behavior and tests remain protected; the reported absence
+from Admin Evidence Review was a reader/reviewer misinterpretation, not an
+additional release gate.
 
 **Complexity budget and stop rule.** The completed pass added zero tables,
 migrations, jobs, NuGet dependencies, navigation frameworks, generalized
@@ -913,16 +914,16 @@ candidate:
 
 The revised production/release order is frozen:
 
-1. Resolve or explicitly defer the linked-resubmission Admin Review manual
-   confirmation. The four added public-UI correction batches are manually
-   accepted and committed locally; their current candidate remains unpushed.
-2. Run whole-application regression across desktop/mobile, keyboard/focus,
+1. Run whole-application regression across desktop/mobile, keyboard/focus,
    permissions, errors, privacy, realtime, masthead account/notification
    popups, and Admin/Captain/participant journeys; remediate only concrete
    critical/high findings.
-3. Before any GitHub push, run the applicable test/regression gates locally and
+2. Before any GitHub push, run the applicable test/regression gates locally and
    resolve failures locally so preventable failures do not consume the long
    remote CI cycle.
+3. Package the accepted dirty work, including the historical-import and other
+   accepted local commits, without staging private input or unrelated local
+   changes.
 4. With separate authorization, push through the green PR/CI path, merge, and
    publish the immutable
    `linux/amd64` digest and candidate receipt.
@@ -938,14 +939,10 @@ The revised production/release order is frozen:
    rollback, interruption timing, and post-recovery smoke.
 8. Run the provider-evidence release-risk review, bounded remediation/rechecks,
    Pass 6, and final launch smoke.
-9. Plan the genuine older-event historical import with the user as the next
-   product/data item. After the new candidate is deployed and only with
-   separate authorization, preserve but hide the production rehearsal through
-   the approved SuperAdmin quarantine workflow and separately add the genuine
-   older event as visible `Archived` history. Neither production mutation is
-   authorized yet. Run the multi-day bingo rehearsal after deployment; findings
-   from that
-   post-deployment rehearsal become ordinary bug fixes.
+9. Run the multi-day bingo rehearsal after deployment; findings from that
+   post-deployment rehearsal become ordinary bug fixes. The production
+   historical import and any rehearsal-event hide/removal remain separate
+   post-deployment operations requiring explicit authorization.
 
 The whole-application regression and provider-evidence release-risk review
 deliberately follow the completed submission consolidation and capacity
@@ -955,6 +952,58 @@ an unfocused line-by-line audit. The separately reviewed GitHub Free
 release-control adjustment is packaged on `production-release-pipeline`; current
 candidate publication still requires the green pull-request merge and
 successful `main` CI run above.
+
+### Approved historical-event import — complete locally and manually accepted
+
+The product/data slice is the one-time operator-controlled import of **Det Store
+Danske Sommerbingo 2026**. Its approved behavior, frozen source inputs,
+deterministic allocation, privacy boundary, and exact historical disclosure are
+owned by `PRODUCT_REQUIREMENTS.md`,
+`FUNCTIONAL_CONTRACTS.md`, and `DATA_MODEL.md`. The event is imported directly
+as `Archived` for `Europe/Copenhagen`, from `2026-07-14 18:00 CEST` through
+`2026-07-19 18:00 CEST`, with `ArchivedAt` equal to the end; no temporary Live
+state or ongoing synchronization is allowed.
+
+The implementation is one narrow service plus explicit CLI preflight and apply
+control, with zero new tables, pages, routes, policies, jobs, dependencies, or
+generalized frameworks. Versioned metadata may include the public board
+definition, exact corrected 402 counter units across 150 team/tile cells,
+source identifiers, and hashes, but never the private 90-participant/93-account
+mapping. The reviewed public manifest SHA-256 is
+`e5297b20fc5e4a842b6a1e5ab378128cbe1c2bad16033fc875c54607c0d49438`.
+
+Preflight is mandatory, apply is audited and transactional, and an already-
+applied exact import hash is the only no-op case; a divergent hash fails closed
+and any apply failure rolls back without partial state. Apply requires explicit CLI
+invocation, exact event-name confirmation, and an active SuperAdmin actor
+validated inside the locked serializable transaction; it is a separate user
+authorization from implementation or release packaging. Failed preflight and
+divergence identify the affected input or retained record and the operator
+correction required before retrying.
+
+The initial implementation review identified six concrete blockers. The final
+independent Sol High closure review identified three additional blockers:
+Production CLI reachability, the reviewed public manifest pin, and active-
+SuperAdmin authorization inside the locked serializable apply transaction.
+All nine were remediated before local commit
+`c4130f437b82cf5ceb5f130cf8a77a3a05ae2079` (`Add historical 2026 event import`).
+Focused verification passed: `HistoricalBoardReferenceTests` 25/25;
+`Bingo.IntegrationTests` Release compilation with 0 warnings/errors;
+`HistoricalImportIntegrationTests.AppliesFictionalOperatorInputAndExactRerunIsNoOp`
+1/1 using isolated Docker/Testcontainers; and
+`Slice10Pass103ActivityProjectionTests.DevelopmentTest15DueControlIsIdempotentAndResetRemainsCachedOnly`
+1/1 using isolated Docker/Testcontainers. The user applied the corrected import
+only to the local Development database, manually inspected it, and reported
+that everything looks good.
+
+The archived event preserves the exact approved disclosure, itemless
+reconstructed approved rows in Recent Drops without fabricated drops or
+evidence, deterministic within-team EHB-weighted attribution/timing, the
+complete source WoM snapshot without normal refresh, and the approved Maggot
+King and Superior Slayer rules. Production has not been changed. No production
+import, rehearsal-event hide/removal, push, deployment, or production migration
+is authorized or complete; those production operations remain separately
+authorized post-deployment actions.
 
 ## 4. Dependencies, approvals, and stop rules
 

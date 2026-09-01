@@ -631,13 +631,27 @@ distinct where specified.
 
 **Acceptance outcome:** WoM provides only explicit account lookup and cached Live competition activity, with manual EHB and the Bingo event model remaining authoritative and public output privacy-safe.
 
+### 9.7 `ADM-HISTORICAL-IMPORT-01` — Frozen historical event import
+
+**Actors and outcome:** An explicitly authorized operator runs the one-time import of **Det Store Danske Sommerbingo 2026**. The outcome is one audited, publicly readable `Archived` event whose board result and separate Wise Old Man activity ranking reproduce the approved historical record.
+
+**Entry and reachability:** The importer is reached only through explicit operator CLI preflight and apply controls. Preflight must complete before apply. The imported event is created or matched directly in `Archived` with `Europe/Copenhagen`, `2026-07-14 18:00 CEST` (`16:00Z`) through `2026-07-19 18:00 CEST` (`16:00Z`), and `ArchivedAt` equal to event end. No web route, ordinary Admin control, temporary `Live` state, or ongoing synchronization is introduced.
+
+**Authoritative happy path:** The operator validates the private 90-participant/93-account mapping outside Git, the six public board-spelled teams of 15, the public WOM competition link `145197`, the complete frozen per-account start/end/gained EHB and synchronization snapshot, the approved English 5×5 manifest, and the exact corrected 402 counter units across 150 team/tile cells. The reviewed public manifest SHA-256 is `e5297b20fc5e4a842b6a1e5ab378128cbe1c2bad16033fc875c54607c0d49438`. The import applies the fixed eligibility and deterministic contribution rules in `PRODUCT_REQUIREMENTS.md` and `DATA_MODEL.md`, writes the event and retained history atomically, and records the source identifiers/hashes, actor, time, and result in audit history. Apply requires exact event-name confirmation and validates the active SuperAdmin actor inside the locked serializable transaction.
+
+**Permissions and history:** The source-to-website-account mapping is never inferred and is not versioned in Git; its approved secondary direction is primary `Ezzi → Also Ezzi` and primary `wolles → w olles`. Board standings remain official; WOM EHB/activity ranking remains separate and uses the complete frozen source snapshot without normal refresh. Reconstructed contributions have null item/evidence associations, appear in public Recent Drops as approved historical rows, and never fabricate a drop or evidence asset; they use only the exact historical disclosure specified by the product contract. Existing event history, snapshots, audit records, and source identity are retained.
+
+**Failure and recovery:** Preflight fails closed for missing or conflicting source data, invalid counters, unresolved account identity, non-deterministic attribution, a non-matching event, an attempted Live transition, or an unsafe persistence shape. Apply is transactional; any failure rolls back without leaving a partial event, roster, board, contribution, or audit state. A retry is a no-op only for an exact matching import hash; a different hash is not silently merged or overwritten. The operator must identify and correct the reported source/private input or retained-record conflict, then rerun preflight. No production mutation is part of implementation or rehearsal.
+
+**Acceptance outcome:** The dormant importer can be deployed independently, can reproduce the approved archived record deterministically, exposes no private roster data through versioned metadata or public projections, and cannot turn a historical import into live synchronization or an unreviewed production mutation.
+
 ## 10. Unresolved and deferred decisions
 
 - **F-04 — resolved:** while an event is Live, an Admin may correct only its display timezone with explicit confirmation and an audit reason. The slug, name, description, banner, UTC schedule/cutoff instants, and every other identity value remain immutable; no broader Live identity editing is authorized.
 - **F-06 — unresolved sequencing:** the permanent Rules/how-to slice remains a distinct functional boundary, but whether it precedes or follows Milestone 9 is not decided. No implementation scope is added here.
 - External feedback remains deferred to the community Discord path; no version-one application feedback form is added.
 - Wise Old Man availability, cache completeness, and integration configuration remain non-blocking for event lifecycle; detailed API/operational limits stay in the technical and data authorities.
-- **Bounded diagnostic uncertainty:** a linked resubmission was reportedly absent from Admin Evidence Review, but source inspection found no query exclusion. This remains an implementation diagnostic to reproduce and trace; it is not an approved query change or product rule.
+- **Linked-resubmission Admin Review clarification — resolved:** a report that linked resubmission was absent was a reader/reviewer misinterpretation; source inspection found no query exclusion. Existing linked-resubmission behavior and tests remain protected, and no query change or additional manual release gate is required.
 
 ## 11. Whole-workflow acceptance boundary
 

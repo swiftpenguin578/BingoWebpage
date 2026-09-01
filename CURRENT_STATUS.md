@@ -1,6 +1,6 @@
 # Current project status
 
-**Active handoff:** 2026-08-31. This is the concise current-state handoff;
+**Active handoff:** 2026-09-01. This is the concise current-state handoff;
 historical material is preserved separately and is non-authoritative.
 
 ## Canonical checkout
@@ -8,8 +8,8 @@ historical material is preserved separately and is non-authoritative.
 - Path: `/Users/christopher/Documents/BingoWebpage`
 - Branch: `production-release-pipeline`
 - Base commit: `329e04adaa98a444f69d20aa41385b4ca7426bd3` (Passes 1–4)
-- Tracking: `origin/production-release-pipeline`; the local branch is ahead by
-  15 commits.
+- Tracking: `origin/production-release-pipeline`; the branch contains unpushed
+  local commits, including the durable commits named below.
 - The UI overhaul is merged and pushed to `main` at `52ec8494c6792f1f1f4ccd5893ac0cdb11cb74a3`.
 - Preserve the local developer-only `launchSettings.json` override and `tmp/`,
   including the quarantined duplicate files moved under
@@ -115,12 +115,34 @@ complete, manually accepted by the user after focused remediation, and committed
 locally in `b2e4bcdef16c63e6356cf6422a0777a7839a2eec` (`Add SuperAdmin event
 quarantine`); it remains unpushed and was not part of this provider rehearsal.
 Its migration was applied only to the user's local Development database for
-manual inspection and has not been applied to production. Genuine older-event
-historical import remains separate and is the next product/data item to plan
-with the user: after the new candidate is deployed, the intended outcome is to
-preserve but hide the production rehearsal through SuperAdmin quarantine and
-separately add the genuine older event as visible `Archived` history. Neither
-production mutation is authorized.
+manual inspection and has not been applied to production. The one-time frozen
+historical import of `Det Store Danske Sommerbingo 2026` is complete locally
+and committed in `c4130f437b82cf5ceb5f130cf8a77a3a05ae2079` (`Add historical
+2026 event import`). The initial six blockers and the final independent Sol
+High closure review's three additional blockers—Production CLI reachability,
+the reviewed public manifest pin, and active-SuperAdmin authorization inside
+the locked serializable apply transaction—were remediated before that commit.
+The reviewed manifest SHA-256 is
+`e5297b20fc5e4a842b6a1e5ab378128cbe1c2bad16033fc875c54607c0d49438`.
+
+Focused local verification passed: `HistoricalBoardReferenceTests` 25/25;
+`Bingo.IntegrationTests` Release compilation with 0 warnings/errors;
+`HistoricalImportIntegrationTests.AppliesFictionalOperatorInputAndExactRerunIsNoOp`
+1/1 using isolated Docker/Testcontainers; and
+`Slice10Pass103ActivityProjectionTests.DevelopmentTest15DueControlIsIdempotentAndResetRemainsCachedOnly`
+1/1 using isolated Docker/Testcontainers. The user applied the corrected
+import only to the local Development database, manually inspected it, and
+reported that everything looks good. The archived event preserves the exact
+corrected 402 counter units across 150 team/tile cells, itemless reconstructed
+approved rows in Recent Drops without fabricated drops or evidence,
+deterministic within-team EHB-weighted attribution/timing, the exact
+disclosure, the complete source WoM snapshot without normal refresh, and the
+approved Maggot King and Superior Slayer target-3/manual rules. Apply remains
+an explicit CLI operation with exact event-name confirmation, an active
+SuperAdmin actor validated inside the locked serializable transaction, and
+separate user authorization. Production has not been changed: no production
+import, rehearsal hide/removal, push, deployment, or production migration is
+authorized or complete.
 
 ## Hidden-event quarantine implementation handoff — 2026-08-31
 
@@ -190,10 +212,10 @@ acceptance. Current teammates may read retained teammate details while
 former/cross-team users receive 404; owner/Captain/co-captain/emergency
 mutation boundaries remain server-authorized.
 
-The reported absence of a linked resubmission from Admin Evidence Review remains
-an unresolved bounded diagnostic only: source inspection found no query
-exclusion, so no query change is approved. Its linked-resubmission journey still
-needs manual confirmation in the later release sequence.
+The reported absence of a linked resubmission from Admin Evidence Review was a
+reader/reviewer misinterpretation, not an additional release gate. The existing
+linked-resubmission behavior and tests remain protected; no query change is
+approved.
 
 The user approved the following concrete Pass 5/6 closure gates on 2026-08-30:
 
@@ -241,17 +263,16 @@ user's explicit approval.
 
 Current remaining sequence:
 
-1. Resolve or explicitly defer the linked-resubmission Admin Review
-   manual-confirmation UNKNOWN. The four added public-UI correction batches are
-   manually accepted and committed locally; their current candidate remains
-   unpushed.
-2. Run whole-application regression across desktop/mobile, keyboard/focus,
+1. Run whole-application regression across desktop/mobile, keyboard/focus,
    permissions, errors, privacy, realtime, masthead account/notification
    popups, and Admin/Captain/participant journeys; remediate only concrete
    critical/high findings.
-3. Before any GitHub push, run the applicable test/regression gates locally and
+2. Before any GitHub push, run the applicable test/regression gates locally and
    resolve failures locally so preventable failures do not consume the long
    remote CI cycle.
+3. Package the accepted dirty work, including the historical-import and other
+   accepted local commits, without staging private input or unrelated local
+   changes.
 4. With separate authorization, push through the green PR/CI path, merge, and
    publish the immutable
    `linux/amd64` digest and candidate receipt.
@@ -267,14 +288,10 @@ Current remaining sequence:
    rollback, interruption timing, and post-recovery smoke.
 8. Run the provider-evidence release-risk review, bounded remediation/rechecks,
    Pass 6, and final launch smoke.
-9. Plan the genuine older-event historical import with the user as the next
-   product/data item. After the new candidate is deployed and only with
-   separate authorization, preserve but hide the production rehearsal through
-   the approved SuperAdmin quarantine workflow and separately add the genuine
-   older event as visible `Archived` history. Neither production mutation is
-   authorized yet. Run the multi-day bingo rehearsal after deployment; findings
-   from that
-   post-deployment rehearsal become ordinary bug fixes.
+9. Run the multi-day bingo rehearsal after deployment; findings from that
+   post-deployment rehearsal become ordinary bug fixes. The production
+   historical import and any rehearsal-event hide/removal remain separate
+   post-deployment operations requiring explicit authorization.
 
 ## Pre-commit audit and direct-to-main integration plan
 
@@ -817,6 +834,11 @@ passes as product or UI approval.
   expectation. The running local database must be reset before the corrected
   Teams routes become reachable.
 
+- The checked-in DKL Development fixtures/reset use fictional identities and do
+  not seed the frozen historical event or a real historical roster. The
+  operator-private historical input remains external to Git and is not touched
+  by Development reset.
+
 - The complete public Board ecosystem and its responsive team-board/submission
   interaction model are manually accepted. The canonical submission workspace
   is independently reviewed, remediated, manually accepted, and committed in
@@ -866,10 +888,6 @@ passes as product or UI approval.
   schedule/cutoff instants remain immutable.
 - **F-06:** decide whether permanent Rules/how-to work precedes or follows
   Milestone 9 before implementing that feature work.
-- **UNKNOWN — linked resubmission Admin Review journey:** manually confirm the
-  linked-resubmission journey in Admin Review. Source inspection found no query
-  exclusion, and no query change is authorized without new evidence.
-
 ## Immediate ownership and stop rules
 
 1. UI planner/orchestrator: Landing, Signup, Confirmation, standalone Login,
@@ -1092,9 +1110,9 @@ passes as product or UI approval.
   recorded above.
   The accepted Captain detail composition remains the visual baseline, but
   `/Submissions` and `/Submissions/{id:guid}` now own both roles' overview/detail
-  behavior. The Admin Evidence Review linked-resubmission journey remains a
-  manual-confirmation UNKNOWN; the relative `_EvidenceUpload` 500 regression is
-  fixed and covered by acceptance. The next permitted work is whole-application
+  behavior. The Admin Evidence Review linked-resubmission behavior remains
+  protected; the relative `_EvidenceUpload` 500 regression is fixed and covered
+  by acceptance. The next permitted work is whole-application
   regression and the release sequence above. The user may request the
   accumulated manual walkthrough at any time; it must cover light/dark desktop,
   narrow/mobile, shared navigation, responsive composition, keyboard/focus,

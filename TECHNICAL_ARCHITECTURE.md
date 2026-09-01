@@ -240,6 +240,51 @@ Discarding an accidental or experimental event is a server-authoritative transac
 
 Event timezone choices come from the server's supported canonical timezone set, with `Europe/Copenhagen` selected by default. The UI presents friendly labels and offsets but posts the canonical ID for server validation. Changing an event timezone never rewrites stored UTC schedule values; any schedule change is a separate explicit operation.
 
+### 6.5 Historical import boundary
+
+The approved historical import is a narrow operator workflow over the existing
+event, roster, board, contribution, ranking, and audit persistence. It has one
+explicit CLI preflight mode and one explicit CLI apply mode; preflight is
+mandatory and apply is never reachable through a product route or ordinary
+Admin UI. The service validates the private mapping outside Git, the frozen
+source values, the reviewed public manifest SHA-256
+`e5297b20fc5e4a842b6a1e5ab378128cbe1c2bad16033fc875c54607c0d49438`, counters,
+exact import hash, and persistence shape before opening the apply transaction.
+
+Apply requires explicit CLI invocation, exact event-name confirmation, and a
+separately authorized operation. It opens the locked serializable transaction,
+validates the actor is an active website-account SuperAdmin inside that
+transaction, and then creates the event directly as `ARCHIVED`, writes all
+required historical records and audit data in one transaction, and never
+transitions through `LIVE`. A matching previously applied import hash is an
+idempotent no-op; any different hash, source conflict, missing source value,
+invalid aggregate, ambiguous attribution, or unsafe retained-record conflict
+fails closed. Any apply exception rolls back the transaction without leaving a
+partial historical aggregate. The preflight output must identify the affected
+source or retained records and the operator correction needed before retrying.
+
+The importer stores source usernames separately from current website-account
+links and never infers identity from current account links, Discord names,
+website usernames, or OSRS names. Versioned public metadata may contain the
+board definition, the exact corrected 402 counter units across 150 team/tile
+cells, source identifiers, and hashes, but no private roster or account
+mapping. The complete source WoM snapshot is used as frozen archive data without
+normal refresh. Reconstructed contributions remain null of item/evidence
+associations, appear in public Recent Drops as approved historical rows without
+fabricated drop identities or evidence, and no ongoing Wise Old Man
+synchronization, hosted job, realtime mutation, or temporary Live state is
+added. The existing Live
+Wise Old Man integration remains a separate supplementary feature and is not
+used to produce the frozen archive.
+
+This slice adds no tables, pages, routes, policies, jobs, NuGet dependencies,
+or generalized framework. At most one migration is permitted, and only if
+current persistence cannot retain source username separately. The code must be
+dormant and independently deployable; implementation, local rehearsal, and
+verification must not mutate production. The production import, and any later
+rehearsal-event hide/removal, are separately authorized post-deployment
+operations.
+
 ## 7. Object storage
 
 Cloudflare R2 stores:

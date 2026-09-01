@@ -286,10 +286,10 @@ retention, never deletion, and because eligibility begins after Live, hidden
 events have no active-event scheduler, signup, singleton/window-collision, or
 active realtime processing.
 
-This slice adds no lifecycle enum value, deletion, global EF query filter,
-ordinary-Admin visibility, public Super Admin bypass, or full hidden-event
-tooling. Historical-event import and unrelated Admin/UI redesign remain out of
-scope.
+This hidden-event slice adds no lifecycle enum value, deletion, global EF query
+filter, ordinary-Admin visibility, public Super Admin bypass, or full
+hidden-event tooling. The separately approved historical-event import remains
+outside this slice, as does unrelated Admin/UI redesign.
 
 The event does not finalize automatically. Admin confirmation is required.
 
@@ -964,6 +964,31 @@ Each data row represents one roster member. Column one is the required primary r
 
 Import is scoped to the selected pre-formed team, previews all validation before applying, respects event character reservations case-insensitively, and applies atomically and replay-safely. Imported participants remain unowned until an explicit ownership transfer. The primary account supplies event-facing identity and the playing/EHB assignment; later columns register additional accounts without EHB for that same participant. Existing legacy/compatibility CSV code is not repurposed.
 
+### 18.4 One-time frozen historical event import
+
+The platform must support one operator-controlled, one-time import of the archived event **Det Store Danske Sommerbingo 2026**. The imported event uses `Europe/Copenhagen`, runs from `2026-07-14 18:00 CEST` (`2026-07-14T16:00Z`) through `2026-07-19 18:00 CEST` (`2026-07-19T16:00Z`), and has `ArchivedAt` equal to the event end. It is imported directly as `Archived`; it must never pass through a temporary `Live` state and must not use ongoing synchronization.
+
+The public event links to Wise Old Man competition `145197`. The import freezes each source account's approved start EHB, end EHB, gained EHB, and required synchronization metadata. The private mapping contains 90 participants and 93 Wise Old Man accounts across six public board-spelled teams of 15. Secondary account groupings are deterministic: `Ezzi` is primary for secondary `Also Ezzi`, `wolles` is primary for secondary `w olles`, and the unused zero-gain `Coxophobia` is attached to an existing Xen participant. The import never infers current website-account links; source account identity and current website identity remain separate.
+
+Board standings are the official event result. Wise Old Man EHB/activity ranking is a separate supplementary ranking and does not determine board placement; it uses the complete frozen source snapshot without a normal refresh. The frozen official placement order is The Agency, Xen0%_d_rops, Touch Kids, not grass, Morytania Monkeys, Zalamalikum, and Såeh cs?; archived public team cards follow these official snapshots. The board uses the approved English 5×5 tile manifest and the exact corrected 402 counter units across 150 aggregate team/tile cells. The reviewed public manifest SHA-256 is `e5297b20fc5e4a842b6a1e5ab378128cbe1c2bad16033fc875c54607c0d49438`. The eligible-rule manifest is fixed as follows:
+
+- All 20 named catalogue God Wars candidates are eligible.
+- Pets are ordinary distinct drops and never joker progress.
+- Duke and Whisperer accept any two eligible drops, including duplicates.
+- Araxxor accepts only Nid (Destroy) or Jar of venom.
+- Vorkath includes both visages.
+- Superior Slayer remains one manual target-3 objective with the exact descriptive four-item pool and uses the explicit manual tile value of 21 EHB.
+- Royal Titans retains two AND objectives: three Fire crowns and three Ice crowns.
+- Wilderness retains three AND objectives: one hilt, one blade, and one gem.
+- Maggot King accepts only Elder venator fang or Crimson kisten, repeated to five, and its rounded catalogue-backed tile EHB must be exactly 31.1487;
+  Maggot marquess is excluded.
+
+Historical partial units may be assigned in one deterministic fixed requirement order only to reproduce the exact approved aggregate `x/x` values. Reconstructed approved contributions have null item and evidence associations but remain included in public Recent Drops; no drop identity or evidence is fabricated. Their participant attribution is deterministic, weighted toward combined starting EHB, with timestamps spread across the event. Weighted raid counters represent contribution units, not asserted item drops.
+
+The only historical disclosure is exactly: “Historical record — evidence image not retained; player attribution and timing reconstructed from event EHB.” No additional disclosure about multi-requirement allocation is shown. Board points and ignored CSV EHB/rate columns are never converted to EHB; the Superior Slayer value is the explicit approved manual value, not an inferred conversion.
+
+The import is operator-only, audited, transactional, preflight-first, fail-closed, and idempotent only when the import hash exactly matches an already-applied import; a divergent hash fails closed and any apply failure rolls back without a partial event. Apply requires explicit CLI invocation, exact event-name confirmation, and an active SuperAdmin actor validated inside the locked serializable transaction. Versioned public import metadata may contain board definitions, aggregate counters, and source identifiers/hashes, but never the private roster or participant/account mapping. Production import and any later hiding or removal of the production rehearsal are separate post-deployment operations requiring explicit authorization.
+
 ## 19. Page inventory
 
 ### 19.1 Public pages
@@ -1170,6 +1195,7 @@ Version one is ready for a live event when:
 22. Concurrent board edits cannot silently overwrite one another.
 23. Only the active draft controller can mutate a running draft; other admins can observe or explicitly take over with an audit trail.
 24. A Super Admin can hide and restore only eligible post-Live events with exact ordinal-name confirmation, a mandatory reason, complete audit history, no notification, and no lifecycle/data rewrite; hidden events are retained and unavailable outside the separated Events Control Hidden area.
+25. An explicitly authorized operator can preflight and apply the approved historical event import directly as archived history, with deterministic frozen inputs, exact-hash idempotency, private roster protection, and no production mutation during implementation.
 
 ## 24. Decisions deferred to later planning
 
