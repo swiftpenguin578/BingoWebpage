@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+send_heartbeat() {
+    local suffix=$1 url=${BINGO_DISK_HEARTBEAT_URL:-}
+    [[ "$url" =~ ^https://uptime\.betterstack\.com/api/v1/heartbeat/[A-Za-z0-9_-]+$ ]] || return 1
+    command -v curl >/dev/null 2>&1 || return 1
+    printf 'url = "%s%s"\n' "$url" "$suffix" |
+        curl -q --config - --fail --silent --show-error --max-time 10 >/dev/null 2>/dev/null
+}
+
+(( EUID == 0 )) || { printf '%s\n' 'bingo disk monitor: root is required' >&2; exit 1; }
+healthy=true
+seen_mounts=$'\n'
+for path in /var/lib/docker /var/lib/bingo /var/log/bingo /srv/bingo /etc/bingo; do
+    line=$(df -P -- "$path" 2>/dev/null | awk 'NR == 2 { print $5 "\t" $6 }' || true)
+    usage=${line%%$'\t'*}
+    mount=${line#*$'\t'}
+    if [[ "$usage" != *% || -z "$mount" ]]; then
+        healthy=false
+        continue
+    fi
+    usage=${usage%%%}
+    if [[ ! "$usage" =~ ^[0-9]+$ ]]; then
+        healthy=false
+        continue
+    fi
+    case "$seen_mounts" in
+        *$'\n'"$mount"$'\n'*) continue ;;
+    esac
+    seen_mounts+="$mount"$'\n'
+    (( usage < 85 )) || healthy=false
+done
+
+if [[ "$healthy" == true ]]; then
+    status=0
+    suffix=
+else
+    status=1
+    suffix=/fail
+fi
+
+if ! send_heartbeat "$suffix"; then
+    printf '%s\n' 'bingo disk monitor: heartbeat delivery failed' >&2
+    exit 2
+fi
+exit "$status"

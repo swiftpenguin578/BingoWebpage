@@ -5,6 +5,7 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
+EnvironmentFile=/etc/bingo/monitoring.env
 ExecStart=/usr/local/sbin/bingo-backup --reason scheduled
 User=root
 PrivateTmp=true

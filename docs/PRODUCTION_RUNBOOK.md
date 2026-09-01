@@ -12,11 +12,14 @@ or paid tier. Production mutation remains an operator decision.
    Docker at boot. Do not install a deployment framework.
 2. Create `/srv/bingo` as a root-owned checkout containing the reviewed
    `compose.production.yml`, `deploy/Caddyfile`, and the release scripts. Keep
-   `/etc/bingo` root-owned and mode `0700`. Copy the three `deploy/host/*.example`
+   `/etc/bingo` root-owned and mode `0700`. Copy the required `deploy/host/*.example`
    templates to `/etc/bingo/`, replace placeholders, and make every secret file
    `root:root` mode `0600`: `production.env`, `production-ops.env`,
-   `restic.env`, `restic-password`, and `ghcr-readonly.env`. Before a clean
-   first bootstrap, create the temporary root-only file named by
+   `restic.env`, `restic-password`, `ghcr-readonly.env`, and `monitoring.env`.
+   The checked-in monitoring template contains only empty assignments for
+   `BINGO_BACKUP_HEARTBEAT_URL` and `BINGO_DISK_HEARTBEAT_URL`; enter the real
+   Better Stack heartbeat URLs only in `/etc/bingo/monitoring.env`. Before a
+   clean first bootstrap, create the temporary root-only file named by
    `BINGO_BOOTSTRAP_OWNER_PASSWORD_FILE` with the final owner password. It is
    not a production configuration file and is removed after successful owner
    bootstrap; a failed or interrupted owner command leaves it for retry.
@@ -27,11 +30,14 @@ or paid tier. Production mutation remains an operator decision.
 4. Install `deploy/host/bingo-ops-validation.sh` and
    `deploy/host/bingo-ops-lib.sh` as root-owned files under
    `/usr/local/libexec/` (mode `0750`), with the validation helper beside the
-   library. Install `bingo-deploy`,
-   `bingo-backup`, `bingo-restore`, and `bingo-verify-evidence` under
-   `/usr/local/sbin/` as root-owned mode `0750`. Install the systemd unit and
-   timer from `deploy/systemd/`, then enable `bingo-backup.timer` and verify
-   the next run with `systemctl list-timers`.
+   library. Install `bingo-deploy`, `bingo-backup`, `bingo-restore`,
+   `bingo-verify-evidence`, and `bingo-check-disk` under `/usr/local/sbin/` as
+   root-owned mode `0750`. Install the four systemd files from
+   `deploy/systemd/` as root-owned mode `0644` under `/etc/systemd/system/`.
+   The backup and disk services load `/etc/bingo/monitoring.env`; the backup
+   service is the only caller that receives the daily backup heartbeat through
+   that environment. Reload systemd, enable both timers, and verify them with
+   `systemctl list-timers bingo-backup.timer bingo-disk-monitor.timer`.
 5. Create a dedicated SSH deploy user with a key only. It must not be in the
    `docker` group. Disable password SSH and direct root SSH. Restrict UFW to
    TCP 22, 80, and 443. Record the exact host public key in the GitHub
@@ -53,9 +59,10 @@ or paid tier. Production mutation remains an operator decision.
    only after production preflight succeeds. Never infer this state from account
    count.
 
-After a reboot, Docker and the backup timer must be enabled and the named
-volumes must remain present. Check `systemctl is-active docker` and
-`systemctl is-enabled bingo-backup.timer` before any deployment.
+After a reboot, Docker, the backup timer, and the disk-monitor timer must be
+enabled and the named volumes must remain present. Check
+`systemctl is-active docker`, `systemctl is-enabled bingo-backup.timer`, and
+`systemctl is-enabled bingo-disk-monitor.timer` before any deployment.
 
 ## Repeat deployment
 
@@ -139,8 +146,18 @@ image digest and source revision (scheduled backups inspect the running web;
 deployment backups pass the identity captured before quiescence). The durable
 local receipt references only `restic:snapshot:<snapshot-id>` plus checksums and
 metadata; restic retention is the only payload retention mechanism. Evidence
-objects are not copied into the VPS backup: they remain in versioned private
-object storage and are checked separately.
+objects are not copied into the VPS backup: they remain in private object
+storage and are checked separately. This repository does not assume that R2
+object versioning or deletion protection is enabled.
+
+`bingo-backup.service` loads `/etc/bingo/monitoring.env` and invokes
+`bingo-backup --reason scheduled`. Only that scheduled invocation reports the
+daily heartbeat: it sends a normal heartbeat after the complete backup and
+successful retention, and sends `/fail` for every other scheduled nonzero exit.
+Deployment and manual backup reasons do not reset the nightly heartbeat window.
+Reporting is best-effort and cannot change the backup exit status; the URL is
+validated and supplied to `curl` through its config stdin, never as an argument
+or log output.
 
 Run an isolated restore rehearsal with:
 
@@ -206,3 +223,57 @@ The script queries only database-stored object keys and SHA-256 values from
 the evidence/banner/team/board asset tables, downloads each object through the
 configured S3-compatible endpoint, hashes it locally, and fails on any
 mismatch. It never deletes objects or prints credentials/personal data.
+Integrity detection is not deletion recovery. The separate decision about an
+accepted R2 deletion-recovery path remains open; bucket-lock and R2-backup
+design are outside this repository-side monitoring slice.
+
+## Host monitoring
+
+The external Better Stack resources are account-side: a public `/health/live`
+monitor, a nightly backup heartbeat with a daily expectation and one-hour
+grace, and a disk heartbeat with a 15-minute expectation and ten-minute grace.
+Email alerting is configured in Better Stack, not in this repository.
+
+`bingo-check-disk` checks the filesystems covering `/var/lib/docker`,
+`/var/lib/bingo`, `/var/log/bingo`, `/srv/bingo`, and `/etc/bingo`, counting an
+identical mount only once. Usage strictly below 85% is healthy and reports a
+normal heartbeat. Usage at or above 85%, or an inspection failure, reports
+`/fail` and exits nonzero. A later healthy run sends the normal heartbeat for
+recovery. R2 and B2 are external and are not included in this check. If
+heartbeat delivery fails, the script returns a local nonzero result without
+printing the URL.
+
+`bingo-disk-monitor.timer` uses `OnCalendar=*-*-* *:00/15:00 UTC` with
+`Persistent=true`; it runs the oneshot service every 15 minutes and has no
+daemon or application dependency.
+
+Install and activate the host monitoring files with root ownership and the
+following exact modes:
+
+```sh
+sudo install -o root -g root -m 0600 deploy/host/monitoring.env.example /etc/bingo/monitoring.env
+sudo install -o root -g root -m 0750 deploy/host/bingo-check-disk /usr/local/sbin/bingo-check-disk
+sudo install -o root -g root -m 0644 deploy/systemd/bingo-backup.service /etc/systemd/system/bingo-backup.service
+sudo install -o root -g root -m 0644 deploy/systemd/bingo-backup.timer /etc/systemd/system/bingo-backup.timer
+sudo install -o root -g root -m 0644 deploy/systemd/bingo-disk-monitor.service /etc/systemd/system/bingo-disk-monitor.service
+sudo install -o root -g root -m 0644 deploy/systemd/bingo-disk-monitor.timer /etc/systemd/system/bingo-disk-monitor.timer
+sudo systemctl daemon-reload
+sudo systemctl enable bingo-backup.timer bingo-disk-monitor.timer
+sudo systemctl start bingo-backup.timer bingo-disk-monitor.timer
+sudo systemctl list-timers bingo-backup.timer bingo-disk-monitor.timer
+```
+
+After entering the URLs in `/etc/bingo/monitoring.env`, verify the disk path
+with `sudo systemctl start bingo-disk-monitor.service` and inspect only its
+status with `sudo systemctl status bingo-disk-monitor.service --no-pager`.
+Do not print or journal the monitoring environment file. A scheduled backup
+can be observed with `sudo systemctl start bingo-backup.service` followed by
+`sudo systemctl status bingo-backup.service --no-pager`; do not invoke
+`bingo-backup --reason scheduled` manually, because only the systemd service
+should carry the daily heartbeat environment.
+
+The monitoring environment is intentionally not part of the encrypted backup
+payload. When rebuilding or moving the VPS, re-copy the empty template,
+re-enter the existing account-side heartbeat URLs, restore `root:root` mode
+`0600`, reinstall the scripts and units with the modes above, then reload and
+activate both timers. This is deliberate re-provisioning, not backup restore.
