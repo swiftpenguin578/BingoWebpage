@@ -126,10 +126,3 @@
         }
     </div>
 </div>
-
-@if (User.Identity?.IsAuthenticated == true)
-{
-    <script>
-        window.addEventListener("load", () => document.getElementById("current-events")?.scrollIntoView({ block: "start" }), { once: true });
-    </script>
-}

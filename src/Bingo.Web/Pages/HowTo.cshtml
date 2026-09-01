@@ -1,13 +1,238 @@
 @page
 @{
-    ViewData["Title"] = T["How to"];
+    ViewData["Title"] = T["How to take part"];
     ViewData["BodyClass"] = "public-ui-pass2";
 }
 
-<section class="public-pass2-page public-pass2-how-to-page" aria-labelledby="how-to-heading">
+<section class="public-pass2-page public-pass2-how-to-page" data-how-to-page aria-labelledby="how-to-heading">
     <header class="public-pass2-masthead public-masthead-copy">
-        <span class="public-pass2-kicker public-masthead-kicker">@T["HOW TO PAGE"]</span>
-        <h1 id="how-to-heading" class="public-masthead-title">@T["WORK IN PROGRESS"]</h1>
-        <p class="public-masthead-support">@T["Guides for joining events, using bingo boards, submitting drops, and following results will appear here."]</p>
+        <span class="public-pass2-kicker public-masthead-kicker">@T["Player guide"]</span>
+        <h1 id="how-to-heading" class="public-masthead-title">@T["How to take part"]</h1>
+        <p class="public-masthead-support">@T["Five short steps from finding an event to seeing approved progress."]</p>
     </header>
+
+    <div class="public-how-to-layout">
+        <nav class="public-how-to-step-nav" aria-label="@T["Guide steps"]">
+            <ol>
+                <li><a href="#find-an-event" data-how-to-link="find-an-event" aria-current="step"><span class="public-how-to-step-number">01</span><span class="public-how-to-step-label">@T["Find an event"]</span></a></li>
+                <li><a href="#create-your-signup" data-how-to-link="create-your-signup"><span class="public-how-to-step-number">02</span><span class="public-how-to-step-label">@T["Create your signup"]</span></a></li>
+                <li><a href="#follow-the-board" data-how-to-link="follow-the-board"><span class="public-how-to-step-number">03</span><span class="public-how-to-step-label">@T["Follow the board"]</span></a></li>
+                <li><a href="#submit-evidence" data-how-to-link="submit-evidence"><span class="public-how-to-step-number">04</span><span class="public-how-to-step-label">@T["Submit evidence"]</span></a></li>
+                <li><a href="#track-the-review" data-how-to-link="track-the-review"><span class="public-how-to-step-number">05</span><span class="public-how-to-step-label">@T["Track the review"]</span></a></li>
+            </ol>
+        </nav>
+
+        <div class="public-how-to-content">
+            <section id="find-an-event" class="public-how-to-step is-active" data-how-to-step aria-labelledby="find-an-event-heading">
+                <header class="public-how-to-step-header">
+                    <span class="public-how-to-step-kicker">@T["Step 01"]</span>
+                    <h2 id="find-an-event-heading" tabindex="-1">@T["Find an event"]</h2>
+                    <p>@T["Start on the Events page. Current and upcoming events show what is open now and what is coming next; Previous events keeps finalized and archived history available to follow."]</p>
+                </header>
+
+                <div class="public-how-to-copy">
+                    <p>@T["Choose the action that matches the event state:"]</p>
+                    <ul class="public-how-to-action-list">
+                        <li><strong>@T["Sign up"]</strong><span>@T["Use this when registration is open."]</span></li>
+                        <li><strong>@T["View roster"]</strong><span>@T["Use this when the teams and roster are published."]</span></li>
+                        <li><strong>@T["View board"]</strong><span>@T["Use this for the Live play window and later followable history."]</span></li>
+                    </ul>
+                    <p>@T["When registration is open, you can sign up. Live is the play window. After registration closes, Final review, Finished, and Archived events remain available to follow."]</p>
+                </div>
+
+                <aside class="public-how-to-inline-help">
+                    <strong>@T["Need help?"]</strong>
+                    <span><a asp-page="/Account/MyEvents">@T["My events"]</a> @T["gives signed-in users the appropriate destination for their registrations."]</span>
+                </aside>
+
+                <p class="public-how-to-next"><span>@T["Next"]</span><a href="#create-your-signup">@T["Create your signup"] <span aria-hidden="true">→</span></a></p>
+            </section>
+
+            <section id="create-your-signup" class="public-how-to-step" data-how-to-step aria-labelledby="create-your-signup-heading">
+                <header class="public-how-to-step-header">
+                    <span class="public-how-to-step-kicker">@T["Step 02"]</span>
+                    <h2 id="create-your-signup-heading" tabindex="-1">@T["Create your signup"]</h2>
+                    <p>@T["Start with a Discord-first website account and onboarding. Link Discord, then keep your website account and OSRS characters ready for event signup."]</p>
+                </header>
+
+                <div class="public-how-to-copy">
+                    <p>@T["Add OSRS characters with their exact spelling. This links the name you enter; it does not claim ownership, existence, or verification of the character."]</p>
+                    <p>@T["In My accounts, choose Fetch next to a linked character's EHB, then choose Save details to keep the fetched value."]</p>
+                    <p>@T["You can also choose Fetch EHB from WOM for a selected regular account on the event signup form. The fetched EHB fills the form and shows when it was fetched."]</p>
+                    <p>@T["On the event signup page, choose View signup table when it is available. It opens the full signup list with confirmed participants and the waiting list."]</p>
+                    <p>@T["Complete regular character selection, add an optional alt or support character where requested, and answer the event questions."]</p>
+                    <p>@T["The confirmation page says Confirmed or gives you a numbered Waiting list position."]</p>
+                    <p>@T["You may edit while signup remains open. You may withdraw until the draft begins. Rejoining during open signup returns you at the end of the queue."]</p>
+                </div>
+
+                <aside class="public-how-to-inline-help">
+                    <strong>@T["Need help?"]</strong>
+                    <span>@T["Add missing characters in"] <a asp-page="/Account/MyAccounts">@T["My accounts"]</a> @T["first."]</span>
+                </aside>
+
+                <p class="public-how-to-next"><span>@T["Next"]</span><a href="#follow-the-board">@T["Follow the board"] <span aria-hidden="true">→</span></a></p>
+            </section>
+
+            <section id="follow-the-board" class="public-how-to-step" data-how-to-step aria-labelledby="follow-the-board-heading">
+                <header class="public-how-to-step-header">
+                    <span class="public-how-to-step-kicker">@T["Step 03"]</span>
+                    <h2 id="follow-the-board-heading" tabindex="-1">@T["Follow the board"]</h2>
+                    <p>@T["Once the board is published, the event overview leads to team cards, the team board, tile details, and approved evidence."]</p>
+                </header>
+
+                <div class="public-how-to-copy">
+                    <p>@T["Select a team card on the overall Board to open that team's board."]</p>
+                    <p>@T["On your own team's board, select a tile to open its details. When submissions are open and you are authorized, use Team history or Submit drop; an incomplete tile also offers Submit drop in its details."]</p>
+                    <p>@T["Use another team's board to follow its published progress and approved evidence. Submissions are made from your own team's board."]</p>
+                    <p>@T["Drops shows recent approved activity. Select Refresh now when you want to check for new progress."]</p>
+                    <p>@T["Leaderboards compare EHB, Drop EHB, and player results. Drop EHB is estimated credited objective effort, not actual playtime."]</p>
+                    <p>@T["EHB activity depends on the configured and complete Wise Old Man competition cache. It is supplementary to the board's approved progress and standings."]</p>
+                </div>
+
+                <aside class="public-how-to-inline-help">
+                    <strong>@T["Need help?"]</strong>
+                    <span>@T["Pending evidence never changes public progress or standings."]</span>
+                </aside>
+
+                <p class="public-how-to-next"><span>@T["Next"]</span><a href="#submit-evidence">@T["Submit evidence"] <span aria-hidden="true">→</span></a></p>
+            </section>
+
+            <section id="submit-evidence" class="public-how-to-step" data-how-to-step aria-labelledby="submit-evidence-heading">
+                <header class="public-how-to-step-header">
+                    <span class="public-how-to-step-kicker">@T["Step 04"]</span>
+                    <h2 id="submit-evidence-heading" tabindex="-1">@T["Submit evidence"]</h2>
+                    <p>@T["Submit from your team board: choose a tile and the qualifying drop or manual completion, then send clear evidence for review."]</p>
+                </header>
+
+                <ol class="public-how-to-substeps">
+                    <li><strong>@T["Open your team tile"]</strong><span>@T["Go to your team tile on the event board and open the drop you want to submit."]</span></li>
+                    <li><strong>@T["Choose the drop and player"]</strong><span>@T["Ordinary members credit themselves. Captains and co-captains may select a current teammate."]</span></li>
+                    <li><strong>@T["Attach a clear screenshot"]</strong><span>@T["The server records the credited player's active playing character. There is no account selector. Attach one PNG, JPEG, or WebP screenshot up to 10 MB, with an optional note."]</span></li>
+                    <li><strong>@T["Send for review"]</strong><span>@T["Submit drop creates Pending evidence. It counts only after approval."]</span></li>
+                </ol>
+
+                <div class="public-how-to-schematic" role="group" aria-label="@T["Submission form"]">
+                    <p class="public-how-to-schematic-title">@T["Submission form"]</p>
+                    <div class="public-how-to-schematic-grid">
+                        <div class="public-how-to-schematic-field"><span>@T["Tile"]</span><strong>@T["Choose a tile"]</strong></div>
+                        <div class="public-how-to-schematic-field"><span>@T["Eligible drop / completion"]</span><strong>@T["Choose a drop or completion"]</strong></div>
+                        <div class="public-how-to-schematic-field"><span>@T["Player"]</span><strong>@T["Credited player"]</strong></div>
+                        <div class="public-how-to-schematic-field"><span>@T["Optional note"]</span><strong>@T["Add context for the reviewer (optional)"]</strong></div>
+                        <div class="public-how-to-schematic-field public-how-to-schematic-field--wide"><span>@T["Screenshot"]</span><strong>@T["PNG, JPEG or WebP · up to 10 MB"]</strong></div>
+                    </div>
+                    <div class="public-how-to-schematic-submit">@T["Submit drop"] <span aria-hidden="true">→</span></div>
+                </div>
+
+                <figure class="public-how-to-evidence-example">
+                    <img src="~/images/how-to/good-evidence-example.png" alt="@T["Complete-client screenshot showing a clear in-game drop message and player name."]" loading="lazy" />
+                    <figcaption><strong>@T["Good evidence example"]</strong> <span>@T["Keep the full game client visible so the player name, message, and context stay clear."]</span></figcaption>
+                </figure>
+
+                <div class="public-how-to-callouts">
+                    <aside class="public-how-to-callout public-how-to-callout--good">
+                        <strong><span aria-hidden="true">✓</span>@T["Good evidence"]</strong>
+                        <p>@T["Show the player name and game message clearly. Include both the event UTC time and the current screenshot code. The date must be clearly visible on the in-game Report button and match the displayed UTC date. For raids, show the complete team on the raid board."]</p>
+                    </aside>
+                    <aside class="public-how-to-callout public-how-to-callout--mind">
+                        <strong><span aria-hidden="true">!</span>@T["Keep in mind"]</strong>
+                        <p>@T["Keep the entire game client visible. You may close private messages before taking the screenshot, since approved evidence is visible to everyone."]</p>
+                    </aside>
+                </div>
+
+                <aside class="public-how-to-inline-help">
+                    <strong>@T["Need help?"]</strong>
+                    <span>@T["Tile-specific requirements remain on the tile."]</span>
+                </aside>
+
+                <p class="public-how-to-next"><span>@T["Next"]</span><a href="#track-the-review">@T["Track the review"] <span aria-hidden="true">→</span></a></p>
+            </section>
+
+            <section id="track-the-review" class="public-how-to-step" data-how-to-step aria-labelledby="track-the-review-heading">
+                <header class="public-how-to-step-header">
+                    <span class="public-how-to-step-kicker">@T["Step 05"]</span>
+                    <h2 id="track-the-review-heading" tabindex="-1">@T["Track the review"]</h2>
+                    <p>@T["Team history shows retained submissions, their status, and reviewer feedback. It is the authoritative place to follow what happens next."]</p>
+                </header>
+
+                <dl class="public-how-to-status-list">
+                    <div><dt>@T["Pending"]</dt><dd>@T["There is no count yet. When eligible, the credited owner may correct details, replace the screenshot, or withdraw."]</dd></div>
+                    <div><dt>@T["approved"]</dt><dd>@T["The submission counts and its evidence becomes public."]</dd></div>
+                    <div><dt>@T["Rejected"]</dt><dd>@T["The submission does not count. Its detail shows the reviewer's reason."]</dd></div>
+                </dl>
+
+                <div class="public-how-to-copy">
+                    <p>@T["While the upload window is open, one linked resubmission may correct the tile, drop, or note but requires a new screenshot. The credited player and character remain fixed, and the rejected attempt remains in history."]</p>
+                    <p>@T["Rejection notifications link the authorized credited participant and current captains or co-captains to the detail. Notifications are not promised for every approval or status change."]</p>
+                </div>
+
+                <aside class="public-how-to-inline-help">
+                    <strong>@T["Need help?"]</strong>
+                    <span>@T["Team history is authoritative; public progress changes only after approval."]</span>
+                </aside>
+
+                <p class="public-how-to-next"><span>@T["Next"]</span><a href="/Submissions">@T["Open team history"] <span aria-hidden="true">→</span></a></p>
+            </section>
+        </div>
+
+        <aside class="public-how-to-rail" aria-label="@T["Guide progress and help"]">
+            <section class="public-how-to-progress" aria-labelledby="how-to-progress-heading">
+                <h2 id="how-to-progress-heading">@T["Your progress"]</h2>
+                <p data-how-to-current aria-live="polite">@T["Step 1 of 5"]</p>
+                <ol aria-hidden="true">
+                    <li data-how-to-progress="find-an-event" data-how-to-progress-label="@T["Step 1 of 5"]" class="is-active"><span></span></li>
+                    <li data-how-to-progress="create-your-signup" data-how-to-progress-label="@T["Step 2 of 5"]"><span></span></li>
+                    <li data-how-to-progress="follow-the-board" data-how-to-progress-label="@T["Step 3 of 5"]"><span></span></li>
+                    <li data-how-to-progress="submit-evidence" data-how-to-progress-label="@T["Step 4 of 5"]"><span></span></li>
+                    <li data-how-to-progress="track-the-review" data-how-to-progress-label="@T["Step 5 of 5"]"><span></span></li>
+                </ol>
+            </section>
+
+            <section class="public-how-to-help" aria-labelledby="how-to-help-heading">
+                <h2 id="how-to-help-heading">@T["Need help?"]</h2>
+                <div data-how-to-help="find-an-event"><p><a asp-page="/Account/MyEvents">@T["My events"]</a> @T["gives signed-in users the appropriate destination for their registrations."]</p></div>
+                <div data-how-to-help="create-your-signup" hidden><p>@T["Add missing characters in"] <a asp-page="/Account/MyAccounts">@T["My accounts"]</a> @T["first."]</p></div>
+                <div data-how-to-help="follow-the-board" hidden><p>@T["Pending evidence never changes public progress or standings."]</p></div>
+                <div data-how-to-help="submit-evidence" hidden><p>@T["Tile-specific requirements remain on the tile."]</p></div>
+                <div data-how-to-help="track-the-review" hidden><p>@T["Team history is authoritative; public progress changes only after approval."]</p></div>
+            </section>
+        </aside>
+    </div>
 </section>
+
+<script>
+    (() => {
+        const page = document.querySelector("[data-how-to-page]");
+        if (!page) return;
+
+        const steps = [...page.querySelectorAll("[data-how-to-step]")];
+        const links = [...page.querySelectorAll("[data-how-to-link]")];
+        const progress = [...page.querySelectorAll("[data-how-to-progress]")];
+        const help = [...page.querySelectorAll("[data-how-to-help]")];
+        const current = page.querySelector("[data-how-to-current]");
+        const validIds = new Set(steps.map(step => step.id));
+        const firstId = steps[0]?.id;
+        const idFromHash = () => validIds.has(window.location.hash.slice(1)) ? window.location.hash.slice(1) : firstId;
+
+        const setActive = (id, moveFocus) => {
+            const activeId = validIds.has(id) ? id : firstId;
+            const activeIndex = steps.findIndex(step => step.id === activeId);
+            steps.forEach(step => {
+                const active = step.id === activeId;
+                step.hidden = !active;
+                step.classList.toggle("is-active", active);
+            });
+            links.forEach(link => {
+                const active = link.dataset.howToLink === activeId;
+                link.toggleAttribute("aria-current", active);
+                link.classList.toggle("is-active", active);
+            });
+            progress.forEach(item => item.classList.toggle("is-active", item.dataset.howToProgress === activeId));
+            help.forEach(item => item.hidden = item.dataset.howToHelp !== activeId);
+            if (current) current.textContent = progress[activeIndex]?.dataset.howToProgressLabel ?? "";
+            if (moveFocus) steps[activeIndex]?.querySelector("h2")?.focus();
+        };
+
+        setActive(idFromHash(), false);
+        window.addEventListener("hashchange", () => setActive(idFromHash(), true));
+    })();
+</script>
