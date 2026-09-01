@@ -563,6 +563,15 @@ body.public-event-shell .public-ui-team-board-tile--complete:hover { box-shadow:
 .public-ui-team-board-tile__boss-art-grid img { width: 100%; height: 100%; padding: 8%; object-fit: contain; filter: drop-shadow(0 0.35rem 0.6rem rgba(0, 0, 0, 0.5)); }
 .public-ui-team-board-tile__boss-art-grid--count-1 img { grid-area: 1 / 1 / 3 / 3; padding: 12%; }
 .public-ui-team-board-tile__boss-art-grid--count-2 img:first-child { grid-area: 1 / 1 / 3 / 2; }
+
+body.public-event-shell.public-ui-historical-board :is(.public-ui-team-board-tile__art-image, .public-ui-team-board-tile__boss-art-grid img) {
+  animation: public-ui-historical-tile-colour 18s ease-in-out infinite alternate;
+}
+
+@keyframes public-ui-historical-tile-colour {
+  from { filter: drop-shadow(0 0.35rem 0.6rem rgba(0, 0, 0, 0.42)) saturate(0.68) brightness(0.92) sepia(0.04) hue-rotate(-4deg); }
+  to { filter: drop-shadow(0 0.35rem 0.6rem rgba(0, 0, 0, 0.42)) saturate(0.78) brightness(0.95) sepia(0.07) hue-rotate(6deg); }
+}
 .public-ui-team-board-tile__boss-art-grid--count-2 img:last-child { grid-area: 1 / 2 / 3 / 3; }
 .public-ui-team-board-tile__boss-art-grid--count-3, .public-ui-team-board-tile__boss-art-grid--count-4 { width: 82%; height: 60%; align-self: start; justify-self: center; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); transform: translateY(10%); }
 .public-ui-team-board-tile__boss-art-grid--count-3 img, .public-ui-team-board-tile__boss-art-grid--count-4 img { position: relative; width: 100%; height: 100%; padding: 0; object-fit: contain; }
@@ -4211,6 +4220,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__empty-support { f
 }
 @media (prefers-reduced-motion: reduce) {
   body.public-event-shell.public-ui-pass1 *, body.public-event-shell.public-ui-pass1 *::before, body.public-event-shell.public-ui-pass1 *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+  body.public-event-shell.public-ui-historical-board :is(.public-ui-team-board-tile__art-image, .public-ui-team-board-tile__boss-art-grid img) { animation: none !important; }
 }
 @media (max-width: 600px) {
   body.public-event-shell.public-ui-pass1 .public-evidence-viewer__layout { grid-template-columns: 1fr; }

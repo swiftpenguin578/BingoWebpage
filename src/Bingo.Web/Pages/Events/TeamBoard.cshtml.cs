@@ -5,6 +5,7 @@ using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Signups;
 using Bingo.Application.Teams;
 using Bingo.Domain.Teams;
+using Bingo.Web.HistoricalImport;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -76,7 +77,7 @@ public sealed class TeamBoardModel(
         var accountId = User.GetAccountId();
         if (accountId is { } viewerAccountId)
             Focus = await focus.GetContextAsync(Board.EventId, Team.TeamId, viewerAccountId, inspectFocus, cancellationToken);
-        ViewData["BodyClass"] = "public-event-shell public-ui-pass1 public-team-board-route";
+        ViewData["BodyClass"] = $"public-event-shell public-ui-pass1 public-team-board-route {(Board.EventSlug == HistoricalEventImporter.EventSlug ? "public-ui-historical-board" : null)}";
         ViewData["CompactNavigation"] = true;
         ViewData["HideBreadcrumbs"] = true;
         return Page();
