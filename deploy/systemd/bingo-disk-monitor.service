@@ -1,0 +1,9 @@
+[Unit]
+Description=OSRS Community Bingo disk usage monitor
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/bingo/monitoring.env
+ExecStart=/usr/local/sbin/bingo-check-disk
+User=root
+PrivateTmp=true

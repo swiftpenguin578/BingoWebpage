@@ -728,8 +728,8 @@ Reversing an approval:
 
 ## 14. Evidence visibility
 
-- A participant may view only their own pending, withdrawn, and rejected evidence and rejection feedback.
-- Captains/co-captains may view all pending, withdrawn, and rejected evidence for their own team.
+- A current member of an event team may view that team's complete retained submission history, including records credited to departed teammates, when currently authorized; former members and cross-team viewers fail closed.
+- Only the credited owner may mutate their own eligible submission; captains/co-captains retain their server-authorized broader editing scope for eligible submissions in their current team.
 - Approved evidence metadata, credited player, and screenshot are publicly visible from the relevant tile so the community can inspect accepted evidence.
 - Other teams do not see pending progress.
 - Participants and captains cannot request that approved evidence or the credited player be hidden. Submitters are responsible for concealing private messages or other information before upload.

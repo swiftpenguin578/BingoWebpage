@@ -35,13 +35,13 @@ rules and implementation ownership are defined by [`UI_SYSTEM.md`](UI_SYSTEM.md)
 5. **Application Atlas retirement and durable-finding routing — complete
    (2026-08-15):** the exact Markdown/HTML working-tree bytes are preserved in
    `docs/archive/superseded-assessments/`, all durable items are either routed
-   to an active owner or explicitly archive-only, and F-04/F-06 remain
-   unresolved. No broader compression or further archive promotion is
+   to an active owner or explicitly archive-only, and F-04/F-06 are resolved.
+   No broader compression or further archive promotion is
    included.
 6. **Active core-document boundary reconciliation — complete (2026-08-15):**
    active authority boundaries, stale status framing, and cross-document
    routing were reconciled without changing product/UI behavior or promoting
-   archive material. F-04 and F-06 remain unresolved; F-05 remains resolved.
+   archive material. F-04, F-05, and F-06 are resolved.
 7. **Replacement-link/content verification — complete (2026-08-15):** 15
    active root Markdown files and 62 local links were checked with no broken
    targets or anchors; 20 archived files/hashes match
@@ -71,12 +71,10 @@ rules and implementation ownership are defined by [`UI_SYSTEM.md`](UI_SYSTEM.md)
 
    The contract remains limited to `AwaitingFinalReview`, `Finalized`, and
    `Archived` eligibility, the separated SuperAdmin Hidden area/limited Manage
-   inspection, and fail-closed ordinary paths. No production hide or historical
-   import is included. The local Development database application was for
-   manual inspection only; production remains unchanged. The accepted manual
-   and automated whole-application regression and local release gates are
-   recorded below; the next repository action is separately authorized push
-   through green CI and candidate publication.
+   inspection, and fail-closed ordinary paths. The production rehearsal event
+   was hidden by the user; the separate historical import remains pending. The
+   accepted manual and automated whole-application regression is recorded below;
+   the two post-baseline local commits still require pre-push verification.
 
 ## 2. Launch and UI order
 
@@ -115,19 +113,17 @@ manual approval; page-specific approvals remain authoritative.
    line lengths. Preserve product meaning and CTA destination/action semantics;
    dynamic event facts and backend behavior remain frozen. The user manually
    accepted the final landing result.
-3. **Pass 1B — launch-critical signup/auth, next active family:** prepare a
-   fresh bounded plan and implement Signup create/edit states and Confirmation
-   first from their approved references. Then complete Login, Onboarding,
-   AccessDenied, Error, and StatusCode as structural presentation
-   rewrites from the canonical Authentication/status composite at
-   `docs/references/public-ui/authentication-status-reference.png`. The composite
-   is directional for hierarchy and composition rather than a literal condensed
-   scale target. Do not extend the rejected hybrid pass.
-4. **Pass 2 — account and public utilities:** Settings, Change Password,
-   My Accounts, My Events, Forgot/Reset Password, Setup, Notifications, and
-   Privacy. Preserve `/HowTo` without adding or redesigning its body until F-06
-   is resolved.
-5. **Pass 3 — roster/event family:** exact-link Signups and Teams/roster pages,
+3. **Pass 1B — launch-critical signup/auth, complete and accepted:** Signup,
+   Confirmation, Login, Onboarding, AccessDenied, Error, and StatusCode are
+   complete from their approved authentication/status contracts. Preserve their
+   accepted routes, handlers, localization, and standalone Login navigation.
+4. **Pass 2 — account and public utilities, complete and accepted:** Settings,
+   Change Password, My Accounts, My Events, Forgot/Reset Password, Setup,
+   Notifications, and Privacy are complete. The `/HowTo` guide was subsequently
+   implemented and approved in `50077fd`; preserve its five-step content and
+   ordinary anchor fallback.
+5. **Pass 3 — roster/event family, complete and accepted:** exact-link Signups and
+   Teams/roster pages,
    including phase-safe, privacy-safe, empty, and permission states. The user
    approved PUB-REF-16 for Teams/roster on 2026-08-24: use a left title/back/time
    masthead with the existing Landing-family diagonal DK artwork integrated on
@@ -137,8 +133,8 @@ manual approval; page-specific approvals remain authoritative.
    uneven spacing and detached-looking mark are directional artifacts rather
    than pixel targets. This reference approval does not itself authorize Pass 3
    implementation.
-6. **Pass 4 — public Board ecosystem:** perform a structural presentation
-   rewrite of the Board masthead, the ordinary TeamBoard page, Tile/sidebar, approved
+6. **Pass 4 — public Board ecosystem, complete and accepted:** the structural
+   presentation rewrite of the Board masthead, the ordinary TeamBoard page, Tile/sidebar, approved
    Evidence/lightbox, and the shared submission drawer. PUB-REF-02,
    PUB-REF-03, PUB-REF-04, PUB-REF-14, and PUB-REF-15 are explicitly reactivated
    targets for this pass; current user screenshots are rejection evidence only.
@@ -192,19 +188,12 @@ manual approval; page-specific approvals remain authoritative.
 9. **Dashboard/action inbox** — deployment-ready intentional shell-owned WIP
    presentation; it is not a gating manual-approval task and does not precede
    whole-application regression or release.
-10. **Whole-application regression and local release gates — complete
-    2026-09-01:** the user accepted manual whole-application regression based
-    on sustained site use; the planned Admin test event remains the real-world
-    follow-up safety net. Final automated local regression passed after
-    remediation: `dotnet restore`; solution-wide format verification after five
-    mechanical fixes; Release build with zero warnings/errors; Domain 173;
-    Application 83; Browser 119 plus the exact corrected test for one stale
-    static assertion; and Integration 306 with two orphan-event fixtures
-    corrected and exact tests passed, plus the setup Npgsql timeout passing in
-    isolated rerun. No product behavior regression remained. An independent
-    Sol High inspection found no plausible GitHub/Linux/PostgreSQL timestamp or
-    microsecond-precision failure. The next repository action is separately
-    authorized push through the green PR/CI path and candidate publication.
+10. **Whole-application regression and baseline release gates — complete at
+    `c3e43bb`:** the user accepted manual whole-application regression based on
+    sustained site use, and the recorded automated local regression passed. The
+    two commits after that baseline (`50077fd` and `62c4ff6`) still require local
+    pre-push verification. The planned Admin test event remains the real-world
+    follow-up safety net.
 
 ### Pass 5 completion record — canonical submission workspace
 
@@ -712,9 +701,11 @@ claimed production-ready.
 
 ## 3. Production readiness and release gates
 
-Production deployment is due **2026-08-31**. Live production testing is
-planned for **2026-09-01 through 2026-09-05**, and public signup opens
-**2026-09-06**. Launch-critical work takes precedence over deferred UI polish.
+The production baseline is `c3e43bb`, already deployed/live. The previously
+recorded DNS/TLS/OAuth, backup/restore, evidence-integrity, and capacity
+evidence remains valid. The two local commits after that baseline require
+pre-push verification before a new candidate is published. Launch-critical
+release work takes precedence over deferred UI polish.
 
 Keep the complete infrastructure and operational checklist through release,
 including optional but prudent safety items. Evaluate each item when its
@@ -725,11 +716,11 @@ account, purchase a service, enable a paid tier, accept a credential, change DNS
 or mutate production without the user's explicit approval. Keep repository-side
 automation provider-portable where practical until a choice is required.
 
-After the launch-critical journey and the remaining ordered UI work:
+The remaining release work is ordered as follows:
 
 - Whole-application desktop/mobile, keyboard, permission, error, accessibility,
-  and functional regression is complete and accepted through 2026-09-01; the
-  planned Admin test event remains the real-world follow-up safety net.
+  and functional regression was accepted at baseline `c3e43bb`; the two newer
+  local commits are not yet pre-push verified.
 - Prepare and rehearse the production image/Compose and CI workflow,
   controlled migration/rollback, restricted storage, secret/configuration
   inventory, clean initialization, health reporting, backup/restore,
@@ -858,27 +849,22 @@ application corrections are committed locally on the release branch: `182b84f`
 fixed production routing/live controls, `cd83c36` polished submission drawer
 controls, `88cd8f8` consolidated the canonical submission workspace, and
   `e75ec57` polished notification-popup and Board-family progress notices. The
-  accepted final regression/package commits are committed locally and
-  unpushed: `2ff417bdf01d6c1875088ff7acc1cb13a2ece9c9` (`Complete canonical
-  submission routing`), `72990b1acbbc48a845291bd0ebef9d20f89ae34e` (`Style
-  historical event tile art`), and
-  `fcac8ed67008ac807b92d9de2d5a79536889f40c` (`Fix final regression gates`).
-  Earlier historical commits `c4130f437b82cf5ceb5f130cf8a77a3a05ae2079` and
-  `f62c2104af3c9b6f5918e5766b1f186724b55bd3` remain unpushed as already
-  recorded. The deployed `dklegacy.dk` candidate predates these local commits.
+  accepted final regression/package commits are included in the deployed
+  `c3e43bb` baseline. The two newer local commits are `50077fd` (`Add public
+  How To guide`) and `62c4ff6` (`Add production monitoring heartbeats`); they
+  remain unpushed and require local pre-push verification.
 
-Provider-backed Pass 5 setup began on 2026-08-28 with the user's explicit
+Provider-backed Pass 5 evidence is recorded against the live `c3e43bb` baseline.
 approval. Netcup supplies the Ubuntu 24.04 single VPS; Cloudflare supplies DNS
 and private R2 evidence storage; Backblaze B2 supplies the encrypted restic
 repository. Host bootstrap, restricted deployment access, root-only production
 configuration, named volumes, controlled host images, R2 reachability, an
-encrypted baseline backup, isolated restore verification, the scheduled backup
-timer, and apex DNS resolution are verified. A reviewed candidate is deployed
-  for rehearsal, but it predates the latest local commits. The capacity
-  sub-gate and whole-application regression/local release gates are complete;
-  remaining provider-backed rehearsal evidence and post-deployment release
-  gates are separate. Accepted production/test changes are committed locally
-  and unpushed.
+  encrypted baseline backup, isolated restore verification, the scheduled backup
+  timer, and apex DNS resolution are verified. The production baseline is live.
+  The capacity sub-gate and baseline regression gates are complete; remaining
+  candidate smoke, monitoring activation, historical import, and Admin test-event
+  work remain ordered operations. Accepted changes after the baseline are
+  committed locally and unpushed.
 
 Pass 5 closes only after all of the following are recorded against the same
 candidate:
@@ -894,20 +880,21 @@ candidate:
   fictional rehearsal data remains separate. The rehearsal event must follow
   `Live -> AwaitingFinalReview -> Finalized -> Archived` to preserve history;
   Live or formerly Live events cannot be cancelled. Ordinary archive remains
-  public historical content. Hidden-event quarantine implementation is complete,
-  manually accepted, and committed locally in
-  `b2e4bcdef16c63e6356cf6422a0777a7839a2eec` (unpushed). Migration
-  `20260831142836_AddEventQuarantine` was applied only to the user's local
-  Development database for manual inspection and has not been applied to
-  production. Production use is not part of this repository implementation.
+  public historical content. The production rehearsal event was hidden by the
+  user. The genuine older event remains a separate production historical import
+  and has not yet been imported.
 - The operator confirms R2 accidental-deletion/versioning behavior or records
   another accepted evidence recovery path; evidence integrity detection alone
   is not treated as recovery.
 - The operator decides and verifies Cloudflare DNS-only versus proxied traffic,
   end-to-end TLS, the apex hostname, and whether `www.dklegacy.dk` redirects
   to the apex.
-- One external public-health monitor and an alert destination cover public
-  health, failed scheduled backups, and low disk space.
+- Better Stack public-health and heartbeat resources already exist: public
+  `/health/live`, nightly backup (daily expectation, one-hour grace), and disk
+  (15-minute expectation, ten-minute grace). The remaining gate is to enter the
+  private URLs only in root-owned `/etc/bingo/monitoring.env`, install/activate
+  the committed backup/disk host hooks and systemd units on the VPS, and test
+  each alert path.
 - The deployed-candidate rehearsal covers Discord OAuth, R2 evidence
   round-trip/integrity, SignalR, intended-load measurements, the complete
   fictional application journey, backup/full restore, rollback, interruption
@@ -928,30 +915,28 @@ candidate:
   subscriptions; it does not replace the authenticated application-journey
   evidence required elsewhere in this gate.
 
-The revised production/release order is frozen:
+The current production/release order is frozen:
 
-1. With separate authorization, push the accepted local commits through the
-   green PR/CI path and merge; `main` CI then publishes the immutable
-   `linux/amd64` digest and candidate receipt.
-2. Before candidate deployment, verify restricted key-only deploy access,
-   disabled password/direct-root SSH, Docker and the backup timer surviving
-   reboot, controlled PostgreSQL/Caddy image identities, and one naturally
-   scheduled backup with a receipt reporting successful retention.
-3. Explicitly deploy the exact digest manually.
-4. After deployment, complete the remaining operational gates: bootstrap-owner
-   password change; R2 deletion/versioning or accepted recovery; Cloudflare
-   proxy/DNS/TLS/apex/www; public-health, failed-backup, and low-disk alerts;
-   Discord OAuth, R2 round-trip/integrity, authenticated journeys, restore,
-   rollback, interruption timing, and post-recovery smoke.
-5. Run the provider-evidence release-risk review, bounded remediation/rechecks,
-   Pass 6, and final launch smoke.
-6. Run the multi-day bingo rehearsal after deployment; findings from that
-   post-deployment rehearsal become ordinary bug fixes. The production
-   historical import and any rehearsal-event hide/removal remain separate
-   post-deployment operations requiring explicit authorization.
+1. Finish local pre-push verification for `50077fd` and `62c4ff6`; the full
+   regression was accepted at baseline `c3e43bb` and does not cover these two
+   newer commits.
+2. Only with the user's separate authorization, push through the PR/CI/merge
+   path and publish the resulting immutable candidate digest.
+3. With separate deployment authorization, deploy that exact digest.
+4. Run focused production smoke against the deployed candidate.
+5. Install and test the Better Stack monitoring integration: enter the private
+   heartbeat URLs only in root-owned `/etc/bingo/monitoring.env`, then install
+   and activate the committed host hooks/systemd units on the VPS.
+6. Perform the production historical import after candidate smoke and
+   monitoring activation, with a pre-operation backup and mandatory preflight/
+   validation. This remains separately authorized.
+7. Run the Admin test event after the historical import.
 
-Whole-application regression and local release gates are complete and do not
-require another local regression or linked-resubmission manual confirmation.
+The R2 deletion/versioning or accepted-recovery decision remains an explicit
+known operational risk; existing integrity evidence does not silently solve it.
+The provider-evidence release-risk review and any remaining launch smoke remain
+part of the focused production gate, without reopening approved UI. The planned
+Admin test event remains the real-world follow-up safety net.
 The provider-evidence release-risk review follows the completed submission
 consolidation and capacity sub-gate so real VPS/provider, backup/restore, load,
 Discord, R2, SignalR, and health evidence replaces assumptions. It must not
@@ -959,7 +944,7 @@ reopen approved UI or become an unfocused line-by-line audit. Current candidate
 publication still requires the separately authorized green pull-request merge
 and successful `main` CI run above.
 
-### Approved historical-event import — complete locally and manually accepted
+### Approved historical-event import — implementation complete; production pending
 
 The product/data slice is the one-time operator-controlled import of **Det Store
 Danske Sommerbingo 2026**. Its approved behavior, frozen source inputs,
@@ -1002,14 +987,14 @@ Focused verification passed: `HistoricalBoardReferenceTests` 25/25;
 only to the local Development database, manually inspected it, and reported
 that everything looks good.
 
-The archived event preserves the exact approved disclosure, itemless
-reconstructed approved rows in Recent Drops without fabricated drops or
-evidence, deterministic within-team EHB-weighted attribution/timing, the
+The local Development inspection preserves the exact approved disclosure,
+itemless reconstructed approved rows in Recent Drops without fabricated drops
+or evidence, deterministic within-team EHB-weighted attribution/timing, the
 complete source WoM snapshot without normal refresh, and the approved Maggot
-King and Superior Slayer rules. Production has not been changed. No production
-import, rehearsal-event hide/removal, push, deployment, or production migration
-is authorized or complete; those production operations remain separately
-authorized post-deployment actions.
+King and Superior Slayer rules. The production rehearsal event was hidden by
+the user. The production historical import has not yet been performed; it must
+follow candidate smoke and monitoring activation, with a pre-operation backup
+and validation, and remains separately authorized.
 
 ## 4. Dependencies, approvals, and stop rules
 
@@ -1135,10 +1120,9 @@ authorized post-deployment actions.
   `AGENTS.md`. Ordinary UI passes use the lean sequence: agree page/result,
   bounded implementation, one independent review when appropriate, focused
   remediation, and manual acceptance.
-- F-04 is resolved by the narrow Live display-timezone correction, while the
-  future permanent Rules/how-to content decision in F-06 remains unresolved.
-  The user marked the currently shipped `/HowTo` route deployment ready on
-  2026-08-24; stop for direction before replacing that content or resolving F-06.
+- F-04 is resolved by the narrow Live display-timezone correction. F-06 is
+  resolved by the approved five-step `/HowTo` guide in `50077fd`; no Rules
+  editor, sixth step, or in-application HowTo editor is in scope.
 - Stop before adding product behavior, changing an approved rule, adding
   unbudgeted persistence/routes/policies/jobs/abstractions, or fixing an
   unrelated defect. Preserve existing routes for deep links, reload/history,

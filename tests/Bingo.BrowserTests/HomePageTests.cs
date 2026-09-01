@@ -68,7 +68,7 @@ public sealed class HomePageTests : IClassFixture<WebApplicationFactory<Program>
         Assert.Contains("Follow live boards, reviewed submissions and rankings from one place.", markup);
         Assert.Contains("View live event", markup);
         Assert.Contains("How it works", markup);
-        Assert.Contains("scrollIntoView({ block: \"start\" })", markup);
+        Assert.DoesNotContain("scrollIntoView({ block: \"start\" })", markup);
         Assert.Contains("Live boards", markup);
         Assert.Contains("Reviewed drops", markup);
         Assert.Contains("Rankings & stats", markup);

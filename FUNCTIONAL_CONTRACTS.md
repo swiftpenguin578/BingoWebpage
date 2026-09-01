@@ -217,7 +217,7 @@ Each durable capability/journey below has one owning contract section. Shared cr
 
 **Authoritative happy path:** Rules changes use normal Admin authorization, validation, concurrency, and automatic history. How-to changes use the development content workflow. General upload/submission instructions are not copied into each tile.
 
-**Permissions and recovery:** A stale Rules edit is rejected and reloaded. The content never becomes a hidden lifecycle prerequisite. The sequencing question for this permanent guidance work remains unresolved under F-06; this contract does not decide whether it precedes or follows the UI overhaul.
+**Permissions and recovery:** A stale Rules edit is rejected and reloaded. The content never becomes a hidden lifecycle prerequisite. The source-controlled `/HowTo` guide is independently reachable and has no in-application editor or lifecycle dependency.
 
 **Acceptance outcome:** Visitors have one stable guidance destination and objective-specific tile criteria remain local, while no Rules/how-to content silently blocks signup, draft, board, start, or finalization.
 
@@ -648,7 +648,7 @@ distinct where specified.
 ## 10. Unresolved and deferred decisions
 
 - **F-04 — resolved:** while an event is Live, an Admin may correct only its display timezone with explicit confirmation and an audit reason. The slug, name, description, banner, UTC schedule/cutoff instants, and every other identity value remain immutable; no broader Live identity editing is authorized.
-- **F-06 — unresolved sequencing:** the permanent Rules/how-to slice remains a distinct functional boundary, but whether it precedes or follows Milestone 9 is not decided. No implementation scope is added here.
+- **F-06 — resolved:** the source-controlled `/HowTo` guide is implemented as five anchor-linked steps covering event discovery, signup, board progress, evidence submission, and review tracking. The global Rules page remains a separate functional boundary; no in-application editor is added for How To content.
 - External feedback remains deferred to the community Discord path; no version-one application feedback form is added.
 - Wise Old Man availability, cache completeness, and integration configuration remain non-blocking for event lifecycle; detailed API/operational limits stay in the technical and data authorities.
 - **Linked-resubmission Admin Review clarification — resolved:** a report that linked resubmission was absent was a reader/reviewer misinterpretation; source inspection found no query exclusion. Existing linked-resubmission behavior and tests remain protected, and no query change or additional manual release gate is required.
@@ -665,4 +665,4 @@ The version-one functional foundation described here defines the following outco
 - Captain/co-captain, Super Admin, ordinary Admin, participant, emergency credential, and public projections each receive only their intended scope.
 - Notifications resolve to valid destinations and remain supplementary to the underlying event, roster, evidence, account, or lifecycle record.
 - Development reset provides explicit, bounded manual-acceptance journeys; production does not inherit the fixture exemption.
-- F-06 remains a visible unresolved classification. F-04 is resolved by the narrow Live display-timezone correction above; F-05 is resolved by documentation reconciliation. Wise Old Man remains optional/supplementary, manual signup EHB remains authoritative, and no lifecycle action depends on it.
+- F-06 is resolved by the implemented source-controlled How To guide. F-04 is resolved by the narrow Live display-timezone correction above; F-05 is resolved by documentation reconciliation. Wise Old Man remains optional/supplementary, manual signup EHB remains authoritative, and no lifecycle action depends on it.

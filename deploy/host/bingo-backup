@@ -1,17 +1,40 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-source /usr/local/libexec/bingo-ops-lib.sh
 BINGO_REQUIRE_BOOTSTRAP_STATE=true
-
-require_root
-require_command docker; require_command jq; require_command restic; require_command tar; require_command sha256sum
-ensure_layout
 
 reason=scheduled
 requested_source_sha=none
 running_image=__auto__
 running_source_sha=__auto__
 lock_held=false
+backup_complete=false
+stage=
+
+send_heartbeat() {
+    local suffix=$1 url=${BINGO_BACKUP_HEARTBEAT_URL:-}
+    [[ "$url" =~ ^https://uptime\.betterstack\.com/api/v1/heartbeat/[A-Za-z0-9_-]+$ ]] || return 1
+    command -v curl >/dev/null 2>&1 || return 1
+    printf 'url = "%s%s"\n' "$url" "$suffix" |
+        curl -q --config - --fail --silent --show-error --max-time 10 >/dev/null 2>/dev/null
+}
+
+backup_exit_handler() {
+    local exit_code=$?
+    trap - EXIT
+    rm -rf -- "$stage" 2>/dev/null || true
+    if [[ "$reason" == scheduled ]]; then
+        if (( exit_code == 0 )) && [[ "$backup_complete" == true ]]; then
+            send_heartbeat "" || true
+        else
+            send_heartbeat /fail || true
+        fi
+    fi
+    exit "$exit_code"
+}
+trap backup_exit_handler EXIT
+
+source /usr/local/libexec/bingo-ops-lib.sh
+
 while (($#)); do
     case "$1" in
         --reason) reason=${2:-}; shift 2 ;;
@@ -24,6 +47,9 @@ while (($#)); do
 done
 [[ "$reason" =~ ^[A-Za-z0-9._-]+$ ]] || die "invalid backup reason"
 [[ "$requested_source_sha" == none || "$requested_source_sha" =~ ^[0-9a-f]{40}$ ]] || die "invalid source SHA"
+require_root
+require_command docker; require_command jq; require_command restic; require_command tar; require_command sha256sum
+ensure_layout
 [[ "$lock_held" == true ]] || acquire_lock
 
 if [[ "$running_image" == __auto__ || "$running_source_sha" == __auto__ ]]; then
@@ -49,8 +75,6 @@ set -a; source "$BINGO_RESTIC_ENV_FILE"; set +a
 export RESTIC_PASSWORD_FILE="$BINGO_RESTIC_PASSWORD_FILE"
 stamp=$(date -u +%Y%m%dT%H%M%S%NZ)
 stage=$(mktemp -d "$BINGO_BACKUP_ROOT/work.XXXXXX")
-cleanup() { rm -rf -- "$stage" 2>/dev/null || true; }
-trap cleanup EXIT
 mkdir -p "$stage/data-protection-keys"
 chmod 700 "$stage"
 
@@ -142,3 +166,4 @@ tmp_receipt="$stage/receipt.json"
 jq --arg retention "$retention_state" '.retention = $retention' "$receipt" >"$tmp_receipt" && chmod 600 "$tmp_receipt" && mv -f "$tmp_receipt" "$receipt"
 (( retention_status == 0 )) || die "backup retention failed; encrypted snapshot receipt was recorded"
 log_line "backup complete snapshot=$snapshot dump_sha256=$dump_sha"
+backup_complete=true

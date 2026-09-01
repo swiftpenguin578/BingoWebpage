@@ -681,13 +681,15 @@ other state. A `none`/`none` baseline restores data/configuration and leaves
 `web` stopped with a candidate retry required; it does not bootstrap an owner
 or run preflight. A normal image-bound restore pulls the recorded prior digest,
 runs preflight, starts services, checks public health, and writes a recovery
-receipt. R2 evidence remains external/versioned.
+receipt. R2 evidence remains external; its deletion/versioning behavior is an
+open operator decision rather than a repository guarantee.
 
 ### 13.2 Evidence storage protection
 
 - R2 evidence objects are separate from the VPS lifecycle.
 - Database backup and R2 bucket must be sufficient to reconnect evidence metadata to stored objects.
-- Accidental-deletion protection or object versioning should be evaluated before production.
+- The operator must decide whether R2 deletion protection/versioning or another accepted recovery path is required before production; this repository does not assume either.
+- Integrity checks detect missing or changed objects but are not deletion recovery. Bucket-lock and R2-backup design are outside this slice.
 - A finalized-event inventory records expected evidence keys and checksums.
 
 ### 13.3 Recovery objectives
@@ -715,7 +717,21 @@ The application provides:
 
 Logs must not contain passwords, signup edit tokens, storage credentials, or full private evidence URLs.
 
-Low-cost external uptime monitoring should check the public health endpoint more frequently during signup and live event periods.
+External Better Stack monitoring covers the public `/health/live` endpoint, the
+scheduled backup heartbeat, and the disk heartbeat. The host-side backup
+service loads `/etc/bingo/monitoring.env` only for its scheduled invocation;
+deployment and manual backups do not reset the nightly heartbeat. The disk
+service checks filesystems covering `/var/lib/docker`, `/var/lib/bingo`,
+`/var/log/bingo`, `/srv/bingo`, and `/etc/bingo`, deduplicates identical mounts,
+and treats strictly below 85% as healthy. At or above 85% it reports `/fail`
+and exits nonzero; a later healthy run reports normally for recovery. R2 and B2
+are external and excluded. Heartbeat URLs are validated and passed to `curl`
+through config stdin, never argv or logs; delivery failure is a local nonzero
+result for disk monitoring and best-effort for backup reporting. The monitoring
+timer uses `OnCalendar=*-*-* *:00/15:00 UTC` with `Persistent=true`; it is a
+quarter-hourly calendar timer with no daemon or application dependency.
+`/etc/bingo/monitoring.env` is root-owned `0600`, is
+not in the backup payload, and must be re-provisioned after host loss.
 
 ## 15. Security baseline
 

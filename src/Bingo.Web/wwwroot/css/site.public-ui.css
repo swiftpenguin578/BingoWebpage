@@ -2111,7 +2111,7 @@ html[data-public-theme="dark"] .landing-hero__mark--dark { display: block; }
 .landing-event__date strong { color: var(--landing-major-number); font: 800 2.3rem/0.85 "Barlow Condensed ExtraBold", sans-serif; letter-spacing: -0.01em; }
 .landing-event__date small { margin-top: 0.18rem; color: var(--landing-content-accent-text); font: 600 0.8rem/1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.04em; text-transform: uppercase; }
 .landing-event__rule { align-self: stretch; width: 1px; margin-block: var(--landing-event-divider-inset); background: var(--landing-rule); }
-.landing-event__status { display: inline-flex; gap: 0.65rem; align-items: center; color: var(--landing-text-primary); font: 600 1.1rem/1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.landing-event__status { display: inline-flex; gap: 0.65rem; align-items: center; color: var(--landing-text-primary); font: 600 1.1rem/1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.04em; text-transform: uppercase; }
 .landing-event__dot { display: block; width: 1.1rem; height: 1.1rem; flex: 0 0 1.1rem; background: currentColor; border: 1px solid currentColor; border-radius: 50%; }
 .landing-event__status--live { color: var(--landing-coral); }
 .landing-event__status--signup { color: var(--landing-sage); }
@@ -3125,7 +3125,7 @@ body.public-event-shell.public-ui-pass1 .public-board-masthead__countdown.public
 body.public-event-shell.public-ui-pass1 .public-board-masthead__countdown.public-ui-countdown .public-ui-countdown-segment:nth-child(1) { justify-self: start; }
 body.public-event-shell.public-ui-pass1 .public-board-masthead__countdown.public-ui-countdown .public-ui-countdown-segment:nth-child(3) { justify-self: center; }
 body.public-event-shell.public-ui-pass1 .public-board-masthead__countdown.public-ui-countdown .public-ui-countdown-segment:nth-child(5) { justify-self: end; }
-body.public-event-shell.public-ui-pass1 .public-board-masthead__countdown.public-ui-countdown .public-ui-countdown-separator { grid-row: 1; align-self: center; justify-self: center; color: var(--board-ink); font: 400 1rem/1 "Geist Public UI", sans-serif; }
+body.public-event-shell.public-ui-pass1 .public-board-masthead__countdown.public-ui-countdown .public-ui-countdown-separator { grid-row: 1; align-self: center; justify-self: center; color: var(--board-ink); font: 400 1rem/1 "Geist Public UI", sans-serif; transform: translateY(-0.2rem); }
 body.public-event-shell.public-ui-pass1 .public-board-masthead__countdown.public-ui-countdown .public-ui-countdown-value { align-self: center; color: var(--board-ink) !important; font: 600 clamp(2.5rem, 4.5vw, 4.8rem)/0.75 "Barlow Condensed Public UI", sans-serif; text-align: center; }
 body.public-event-shell.public-ui-pass1 .public-board-masthead__countdown.public-ui-countdown .public-ui-countdown-unit-label { color: var(--board-ink); font: 400 0.64rem/1.1 "Geist Public UI", sans-serif; text-align: center; text-transform: uppercase; }
 body.public-event-shell.public-ui-pass1 .public-board-masthead__status-value { color: var(--board-ink); font: 800 2.2rem/0.85 "Barlow Condensed ExtraBold", sans-serif; text-transform: uppercase; }
@@ -4527,3 +4527,266 @@ body.public-event-shell.public-ui-pass1 .public-dashboard-view > .public-ui-lead
 .captain-operations-page .captain-ledger-detail:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--pass2-text); background: transparent; border-color: transparent; text-decoration: none; }
 .captain-operations-page .captain-ledger-detail::after,
 .captain-operations-page .captain-ledger-detail:hover:not(:disabled):not([aria-disabled="true"])::after { color: var(--pass2-danger); }
+
+/* Public How To guide. The page owns its three-column editorial composition. */
+.public-pass2-how-to-page { width: min(100%, var(--public-page-wide)); }
+.public-how-to-layout {
+  display: grid;
+  grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr) minmax(11rem, 16rem);
+  gap: clamp(1.4rem, 3vw, 2.7rem);
+  margin-top: 2rem;
+}
+.public-how-to-layout > * { min-width: 0; }
+@media (min-width: 761px) and (min-height: 32rem) {
+  .public-how-to-step-nav,
+  .public-how-to-rail {
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+  }
+}
+.public-pass2-how-to-page a:focus-visible { outline: 2px solid var(--pass2-accent); outline-offset: 3px; }
+.public-how-to-step-nav { align-self: start; }
+.public-how-to-step-nav ol,
+.public-how-to-progress ol { margin: 0; padding: 0; list-style: none; }
+.public-how-to-step-nav a {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: center;
+  min-width: 0;
+  padding: 1rem 0.35rem;
+  color: var(--pass2-accent);
+  border-bottom: 1px solid var(--pass2-rule);
+  font: 600 1rem/1.1 "Barlow Condensed Public UI", sans-serif;
+  letter-spacing: 0.045em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.public-how-to-step-nav a:hover { color: var(--pass2-text); }
+.public-how-to-step-nav a.is-active,
+.public-how-to-step-nav a[aria-current="step"] {
+  padding-inline-start: 0.65rem;
+  color: var(--pass2-danger);
+  border-inline-start: 3px solid var(--pass2-danger);
+}
+.public-how-to-step-number { font-size: 1.75rem; line-height: 0.85; }
+.public-how-to-step-label { min-width: 0; overflow-wrap: anywhere; }
+.public-how-to-content { min-width: 0; }
+.public-how-to-step {
+  display: grid;
+  min-width: 0;
+  gap: 1.2rem;
+  scroll-margin-top: 2rem;
+}
+.public-how-to-step[hidden] { display: none; }
+.public-how-to-step-header { display: grid; gap: 0.65rem; min-width: 0; }
+.public-how-to-step-kicker {
+  color: var(--pass2-accent);
+  font: 600 0.85rem/1 "Barlow Condensed Public UI", sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.public-how-to-step h2 {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  min-width: 0;
+  margin: 0;
+  padding-bottom: 0.75rem;
+  color: var(--pass2-text);
+  border-bottom: 2px solid var(--pass2-accent);
+  font: 800 clamp(2.15rem, 4vw, 3.5rem)/0.88 "Barlow Condensed Public UI", sans-serif;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+.public-how-to-step h2 span { flex: 0 0 auto; color: var(--pass2-accent); font-size: 0.85em; }
+.public-how-to-step h2:focus-visible { outline: 2px solid var(--pass2-accent); outline-offset: 4px; }
+.public-how-to-step-header > p,
+.public-how-to-copy p,
+.public-how-to-action-list span,
+.public-how-to-substeps span,
+.public-how-to-inline-help span,
+.public-how-to-status-list dd {
+  max-width: 48rem;
+  margin: 0;
+  color: var(--pass2-text);
+  font: 400 1rem/1.42 "Geist Public UI", system-ui, sans-serif;
+}
+.public-how-to-copy { display: grid; gap: 0.9rem; min-width: 0; }
+.public-how-to-action-list,
+.public-how-to-substeps { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.public-how-to-action-list li {
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.35fr) minmax(0, 1fr);
+  gap: 0.8rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--pass2-rule);
+}
+.public-how-to-action-list li:last-child { border-bottom: 1px solid var(--pass2-rule); }
+.public-how-to-action-list strong,
+.public-how-to-substeps strong {
+  color: var(--pass2-accent);
+  font: 600 1rem/1.1 "Barlow Condensed Public UI", sans-serif;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+.public-how-to-substeps { counter-reset: how-to-substep; }
+.public-how-to-substeps li {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  gap: 0.65rem 0.8rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--pass2-rule);
+}
+.public-how-to-substeps li::before {
+  grid-row: 1 / span 2;
+  counter-increment: how-to-substep;
+  content: counter(how-to-substep, decimal-leading-zero);
+  color: var(--pass2-accent);
+  font: 800 1.8rem/0.9 "Barlow Condensed Public UI", sans-serif;
+}
+.public-how-to-inline-help {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.8rem 0;
+  border-block: 1px solid var(--pass2-rule);
+}
+.public-how-to-inline-help strong,
+.public-how-to-rail h2,
+.public-how-to-schematic-title,
+.public-how-to-callout strong,
+.public-how-to-next {
+  color: var(--pass2-accent);
+  font: 600 0.9rem/1.1 "Barlow Condensed Public UI", sans-serif;
+  letter-spacing: 0.065em;
+  text-transform: uppercase;
+}
+.public-how-to-inline-help strong { color: var(--pass2-danger); }
+.public-how-to-inline-help a { font-weight: 600; }
+.public-how-to-next {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: flex-end;
+  margin: 0;
+  padding-top: 0.4rem;
+}
+.public-how-to-next a {
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
+  color: var(--pass2-accent);
+  text-decoration: none;
+}
+.public-how-to-next a:hover { color: var(--pass2-text); }
+.public-how-to-rail { display: grid; align-content: start; gap: 2rem; }
+.public-how-to-progress,
+.public-how-to-help { display: grid; gap: 0.75rem; }
+.public-how-to-rail h2 { margin: 0; }
+.public-how-to-progress > p {
+  margin: 0;
+  color: var(--pass2-text);
+  font: 400 0.95rem/1.35 "Geist Public UI", system-ui, sans-serif;
+}
+.public-how-to-progress ol {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.45rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--pass2-rule);
+}
+.public-how-to-progress li { display: grid; place-items: center; }
+.public-how-to-progress li span {
+  width: 0.7rem;
+  height: 0.7rem;
+  box-sizing: border-box;
+  border: 1px solid var(--pass2-accent);
+  border-radius: 50%;
+}
+.public-how-to-progress li.is-active span { background: var(--pass2-danger); border-color: var(--pass2-danger); }
+.public-how-to-help { padding-top: 1rem; border-top: 1px solid var(--pass2-rule); }
+.public-how-to-help h2 { color: var(--pass2-danger); }
+.public-how-to-help [hidden] { display: none; }
+.public-how-to-help p { margin: 0; color: var(--pass2-text); font: 400 0.95rem/1.42 "Geist Public UI", system-ui, sans-serif; }
+.public-how-to-schematic {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  color: var(--pass2-text);
+  border: 1px solid var(--pass2-accent);
+}
+.public-how-to-schematic-title { margin: 0; }
+.public-how-to-schematic-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
+.public-how-to-schematic-field { display: grid; gap: 0.3rem; min-width: 0; }
+.public-how-to-schematic-field--wide { grid-column: 1 / -1; }
+.public-how-to-schematic-field > span {
+  color: var(--pass2-muted);
+  font: 600 0.72rem/1 "Barlow Condensed Public UI", sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.public-how-to-schematic-field > strong {
+  min-height: 2.35rem;
+  box-sizing: border-box;
+  padding: 0.55rem 0.65rem;
+  color: var(--pass2-text);
+  background: var(--pass2-field);
+  border: 1px solid var(--pass2-rule);
+  font: 400 0.9rem/1.2 "Geist Public UI", system-ui, sans-serif;
+  overflow-wrap: anywhere;
+}
+.public-how-to-schematic-submit {
+  justify-self: end;
+  padding: 0.6rem 0.8rem;
+  color: var(--pass2-accent);
+  border: 1px solid var(--pass2-accent);
+  font: 600 0.9rem/1 "Barlow Condensed Public UI", sans-serif;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+.public-how-to-evidence-example { display: grid; gap: 0.6rem; margin: 0; }
+.public-how-to-evidence-example img { display: block; width: min(100%, 52rem); height: auto; border: 1px solid var(--pass2-accent); }
+.public-how-to-evidence-example figcaption { display: grid; gap: 0.2rem; color: var(--pass2-text); font: 400 0.9rem/1.35 "Geist Public UI", system-ui, sans-serif; }
+.public-how-to-evidence-example figcaption strong { color: var(--pass2-accent); font: 600 0.85rem/1.1 "Barlow Condensed Public UI", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
+.public-how-to-callouts { display: grid; gap: 0; }
+.public-how-to-callout { padding: 0.75rem 0; border-top: 1px solid var(--pass2-success); }
+.public-how-to-callout--mind { border-color: var(--pass2-danger); }
+.public-how-to-callout strong { display: flex; gap: 0.5rem; align-items: center; color: var(--pass2-success); }
+.public-how-to-callout--mind strong { color: var(--pass2-danger); }
+.public-how-to-callout strong span { display: inline-grid; width: 1.25rem; height: 1.25rem; place-items: center; border: 1px solid currentColor; border-radius: 50%; }
+.public-how-to-callout p { max-width: 48rem; margin: 0.35rem 0 0 1.75rem; color: var(--pass2-text); font: 400 0.9rem/1.35 "Geist Public UI", system-ui, sans-serif; }
+.public-how-to-status-list { display: grid; gap: 0; margin: 0; }
+.public-how-to-status-list > div { display: grid; grid-template-columns: minmax(6rem, 0.35fr) minmax(0, 1fr); gap: 0.8rem; padding: 0.8rem 0; border-top: 1px solid var(--pass2-rule); }
+.public-how-to-status-list > div:last-child { border-bottom: 1px solid var(--pass2-rule); }
+.public-how-to-status-list dt { color: var(--pass2-accent); font: 600 1rem/1.1 "Barlow Condensed Public UI", sans-serif; letter-spacing: 0.045em; text-transform: uppercase; }
+.public-how-to-status-list dd { max-width: none; }
+
+@media (max-width: 1000px) {
+  .public-how-to-layout { grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr) minmax(10rem, 13rem); gap: 1.4rem; }
+}
+@media (max-width: 760px) {
+  .public-how-to-layout { grid-template-columns: 1fr; gap: 1.2rem; }
+  .public-how-to-step-nav { order: 0; }
+  .public-how-to-step-nav ol { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-block: 1px solid var(--pass2-rule); }
+  .public-how-to-step-nav li { min-width: 0; }
+  .public-how-to-step-nav a { display: grid; grid-template-columns: 1fr; justify-items: center; gap: 0.25rem; padding: 0.7rem 0.2rem; border-bottom: 0; text-align: center; }
+  .public-how-to-step-nav li + li a { border-inline-start: 1px solid var(--pass2-rule); }
+  .public-how-to-step-nav a.is-active,
+  .public-how-to-step-nav a[aria-current="step"] { padding-inline-start: 0.2rem; border-inline-start: 0; box-shadow: inset 0 -3px 0 var(--pass2-danger); }
+  .public-how-to-step-number { font-size: 1.25rem; }
+  .public-how-to-step-label { font-size: 0.72rem; line-height: 1; }
+  .public-how-to-rail { order: 2; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem; }
+}
+@media (max-width: 520px) {
+  .public-how-to-step-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  .public-how-to-step h2 { font-size: clamp(2rem, 10vw, 2.7rem); }
+  .public-how-to-action-list li,
+  .public-how-to-substeps li,
+  .public-how-to-status-list > div { grid-template-columns: 1fr; gap: 0.35rem; }
+  .public-how-to-substeps li::before { grid-row: auto; }
+  .public-how-to-schematic-grid { grid-template-columns: 1fr; }
+  .public-how-to-schematic-field--wide { grid-column: auto; }
+  .public-how-to-rail { grid-template-columns: 1fr; }
+}
