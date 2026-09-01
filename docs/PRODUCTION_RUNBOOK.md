@@ -88,6 +88,11 @@ Dispatch checklist:
    start deployment; the explicit manual `deploy` dispatch is production
    approval. Candidate and input validation fails closed before either action.
 
+For one-off Compose operator commands, explicitly set `BINGO_WEB_IMAGE` to the
+currently deployed immutable image. The deploy script exports that variable
+transiently, while `/etc/bingo/production.env` may still point to an older
+image.
+
 The remote command is the root-owned `bingo-deploy` script. It fails closed on
 bad IDs/digests, missing or broad permissions, unavailable Docker/Compose,
 missing volumes, malformed configuration, backup/restore failure, migration

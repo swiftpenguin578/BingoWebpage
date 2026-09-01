@@ -7,22 +7,20 @@ historical material is preserved separately and is non-authoritative.
 
 - Path: `/Users/christopher/Documents/BingoWebpage`
 - Branch: `production-release-pipeline`
-- Production baseline: `c3e43bb` (`Record final regression acceptance`), already
-  deployed/live. The previously recorded DNS/TLS/OAuth, backup/restore,
-  evidence-integrity, and capacity evidence remains the production baseline.
-- Tracking: `origin/production-release-pipeline`; this branch is ahead by two
-  accepted, unpushed commits:
-  `50077fd` (`Add public How To guide`) and `62c4ff6` (`Add production
-  monitoring heartbeats`). The full regression was accepted at `c3e43bb`; the
-  two newer local commits have not passed pre-push verification.
+- Production launch: PR #5 is merged and deployed. The deployed source SHA is
+  `1f893133edc26455c41535807633225fdee36292` and the immutable image digest is
+  `sha256:5de9882be6cd63e170b6d68fc1b869ea134e9b67f3bfab6a1b7eb042ed4c1a20`.
+  CI, deployment, and focused production smoke passed.
+- Tracking: `origin/production-release-pipeline`; the current branch matches
+  its remote tracking branch. Preserve the local developer-only changes listed
+  below.
 - `50077fd` includes the manually accepted `/HowTo` guide in English and Danish,
   light/dark themes, responsive layout, sticky desktop rails, full-client
   evidence guidance and image, Board countdown-colon alignment, landing
   logged-in auto-scroll removal, and landing lifecycle-label wrapping.
 - `62c4ff6` contains the reviewed backup/disk Better Stack heartbeat integration
-  and runbook/architecture changes. The external Better Stack resources exist;
-  the committed host scripts/systemd units still need installation and
-  activation on the VPS after deployment. Private heartbeat URLs belong only in
+  and runbook/architecture changes. The production monitoring resources and
+  host timers are now active; private heartbeat URLs remain outside Git in
   root-owned `/etc/bingo/monitoring.env`.
 - The UI overhaul is merged and pushed to `main` at `52ec8494c6792f1f1f4ccd5893ac0cdb11cb74a3`.
 - Preserve the local developer-only `launchSettings.json` override and `tmp/`,
@@ -33,125 +31,37 @@ historical material is preserved separately and is non-authoritative.
 
 ## Active production-release handoff
 
-Production baseline `c3e43bb` is deployed/live. Production Release Pass 1 (provider-neutral topology)
-completed and was independently cleared on 2026-08-27 at commit `11801c5`:
-`compose.production.yml`, the Caddy site configuration,
-the non-secret production environment template, and the topology/operator
-contract are present. Compose renders with safe placeholders and has one web
-replica, PostgreSQL without a published host port, Caddy on 80/443, one private
-network, five persistent volumes, and an immutable web-image input. Caddy image
-syntax validation was skipped because `caddy:2-alpine` was not cached; no image
-was pulled and no production system was touched.
+PR #5 was merged and deployed on 2026-09-01. The deployed source SHA is
+`1f893133edc26455c41535807633225fdee36292`, and the immutable image digest is
+`sha256:5de9882be6cd63e170b6d68fc1b869ea134e9b67f3bfab6a1b7eb042ed4c1a20`.
+CI, deployment, and focused production smoke passed.
 
-Production Release Pass 2 implemented and was independently cleared on
-2026-08-27. The completed pass persists and startup-validates the Production
-data-protection key ring; retains the existing private-Caddy forwarded-header
-model; uses the built-in Production JSON console logger; keeps public
-`/health/live` cheap while making internal
-`/health/ready` gate PostgreSQL, configured R2 reachability, and both hosted
-worker heartbeats; adds explicit migration and read-only production-preflight
-commands without normal-startup migration; and initializes ownership of the two
-writable application volumes for the non-root web image. Wise Old Man remains
-non-blocking. Clean and retained database ordering must preserve the reviewed
-catalogue/preflight rules.
+Better Stack production monitoring is active: the public `/health/live` monitor,
+quarter-hour disk heartbeat, and nightly backup heartbeat are configured, with
+both timers active. Disk success, failure, and recovery paths were verified.
+A scheduled encrypted backup succeeded with snapshot
+`715e2ee745e1fb51f10c510b6b2995aefb5109ea9703dd7f349e8fa37aac70d9`, and
+retention was applied. Heartbeat URLs and credentials remain outside Git.
 
-Pass 2 has a zero budget for tables, schema migrations, product routes, policies,
-jobs, NuGet dependencies, CI/deployment/provider work, and generalized
-frameworks. It may add at most one small startup validator, one worker-heartbeat
-registry, focused readiness checks, one R2 availability method using the
-existing SDK, and minimal Compose volume-permission/runtime health-probe wiring.
-Development and all product/UI/domain behavior remain unchanged.
+The production historical import succeeded for **Det Store Danske Sommerbingo
+2026** (`det-store-danske-sommerbingo-2026`). Preflight found 6 teams, 90
+participants, 93 WOM accounts, 25 tiles, and 150 counters. The reviewed
+combined hash is
+`c8ef4ec0a01ef1779ec3ea358100b91968c942d6f875ec15a7504014b2684df8`.
+Production landing, Board, and Teams returned 200, and the user manually
+accepted the imported event. Private host/staging input copies were removed;
+the ignored local operator input remains outside Git.
 
-The Release Web and IntegrationTests builds, Production Compose rendering,
-scoped diff/secret checks, and the reviewed built-in `dotnet Bingo.Web.dll
---health-probe` command pass. Focused test execution remains unverified because
-this host denies the test runner's TCP listener; immutable-image execution also
-remains unverified because the local Docker API is unavailable. These are
-recorded environment limitations, not known failures. No image was pulled and
-no production system was changed.
+The rehearsal event remains Hidden, not deleted, and is reachable only to
+SuperAdmin through the direct `/Admin/Events?filter=hidden` route.
 
-The one required Terra High implementation-readiness review for Production
-Release Pass 3 cleared on 2026-08-27 with no decision blocking repository-only
-implementation. Pass 3 extends the existing CI so a successful `main` push
-publishes one `linux/amd64` image to a fixed GHCR package and records its source
-commit and immutable digest in a small candidate artifact. A separate manually
-dispatched workflow validates a selected main run, source SHA, digest, and
-candidate artifact, then emits a non-mutating promotion receipt in `promote`
-mode. Selecting `mode: deploy` in the explicit manual dispatch is the user's
-production approval; no GitHub Environment reviewer gate or environment secret
-is used. It then performs the validated SSH deployment.
+Known non-blocking defect, explicitly deferred by the user: selecting Hidden in
+the Events dropdown (and potentially switching other server-filtered states)
+performs client-only filtering/history replacement, so hidden rows absent from
+the normal DOM do not appear. Directly loading `?filter=hidden` works; there is
+no data loss.
 
-Passes 1–4, the GitHub Free release-control adjustment, the accepted
-release-blocker corrections, the canonical submission routing, historical tile
-art, and final regression-gate corrections are included in the deployed
-`c3e43bb` baseline. Integration of the two newer local commits into `main`
-still uses the existing green pull-request path; no current local candidate is
-published until that path and the resulting `main` CI run publish its immutable
-image digest and candidate receipt.
-
-Provider-backed Pass 5 evidence is recorded against the selected
-single VPS is Netcup (Ubuntu 24.04, 2 vCPU, 4 GB RAM, 80 GB); Cloudflare provides
-authoritative DNS and private R2 evidence storage, while Backblaze B2 holds the
-encrypted restic repository. The root-only production, operations, GHCR, R2,
-Discord, bootstrap, and restic configuration is installed without repository
-secrets. Docker/Compose, UFW, the restricted `bingo-deploy` account, reviewed
-host scripts, five named volumes, cached PostgreSQL/Caddy images, R2 bucket
-reachability, an encrypted baseline backup, isolated restore verification, and
-the active backup timer are verified. `dklegacy.dk` resolves to the VPS and the
-`c3e43bb` production baseline is deployed/live. The provider-backed capacity
-sub-gate passed on 2026-08-30 against the production rehearsal event: 100/100
-SignalR viewers connected and remained open, while 400/400 public Board, team,
-tile, and evidence requests completed with zero failures. Full-run HTTP latency
-was p50 702.4 ms, p95 2516.4 ms, p99 3066.3 ms, and max 3749.8 ms; SignalR
-connection latency was p50 250.5 ms, p95 344.1 ms, p99 377.5 ms, and max 410
-ms. A short repeat improved to HTTP p50 266.0 ms, p95 1027.9 ms, p99 1278.3
-ms, and max 1451.1 ms. The 2-vCPU VPS briefly saturated during synchronized
-arrival, with no swap pressure or failed requests. This clears the documented
-100-connected-viewer launch target for the 2-vCPU/4-GB tier and need not be
-repeated unless infrastructure or
-performance-sensitive behavior changes materially. The automated run covered
-anonymous reads and SignalR subscriptions, not authenticated
-submission/Admin/Captain mutations; those journeys remain separate manual
-evidence and this result does not by itself close the full Pass 5 rehearsal.
-External Better Stack resources are created: the public `/health/live` monitor,
-the nightly-backup heartbeat with a daily expectation and one-hour grace, and
-the disk heartbeat with a 15-minute expectation and ten-minute grace. Email
-alerting is account-side. Repository-side host integration is implemented
-locally in the monitoring env template, backup hook, disk check, and systemd
-units/timer, but the real URLs are not committed and `/etc/bingo/monitoring.env`
-plus the VPS hooks are not installed or activated until the operator step.
-The rehearsal event remains isolated test data and must follow
-`Live -> AwaitingFinalReview -> Finalized -> Archived` to preserve history;
-Live or formerly Live events cannot be cancelled. Ordinary archive remains
-public historical content. The production rehearsal event was hidden by the
-user. The hidden-event quarantine implementation is included in the deployed
-baseline. The one-time frozen historical import of `Det Store Danske Sommerbingo
-2026` is implemented and locally inspected, but the production import has not
-yet been performed. The initial six blockers and the final independent Sol
-High closure review's three additional blockers—Production CLI reachability,
-the reviewed public manifest pin, and active-SuperAdmin authorization inside
-the locked serializable apply transaction—were remediated before that commit.
-The reviewed manifest SHA-256 is
-`e5297b20fc5e4a842b6a1e5ab378128cbe1c2bad16033fc875c54607c0d49438`.
-
-Focused local verification passed: `HistoricalBoardReferenceTests` 25/25;
-`Bingo.IntegrationTests` Release compilation with 0 warnings/errors;
-`HistoricalImportIntegrationTests.AppliesFictionalOperatorInputAndExactRerunIsNoOp`
-1/1 using isolated Docker/Testcontainers; and
-`Slice10Pass103ActivityProjectionTests.DevelopmentTest15DueControlIsIdempotentAndResetRemainsCachedOnly`
-1/1 using isolated Docker/Testcontainers. The user applied the corrected
-import only to the local Development database, manually inspected it, and
-reported that everything looks good. The archived event preserves the exact
-corrected 402 counter units across 150 team/tile cells, itemless reconstructed
-approved rows in Recent Drops without fabricated drops or evidence,
-deterministic within-team EHB-weighted attribution/timing, the exact
-disclosure, the complete source WoM snapshot without normal refresh, and the
-approved Maggot King and Superior Slayer target-3/manual rules. Apply remains
-an explicit CLI operation with exact event-name confirmation, an active
-SuperAdmin actor validated inside the locked serializable transaction, and
-separate user authorization. The production import remains pending and must
-follow candidate deployment/smoke and monitoring activation, with a
-pre-operation backup and validation.
+Next operational stage: run the production Admin test event. It has not run.
 
 ## Hidden-event quarantine implementation handoff — 2026-08-31
 
@@ -172,23 +82,20 @@ closure verdict: PASS.
 The final contract remains: only `AwaitingFinalReview`, `Finalized`, and
 `Archived` are eligible; SuperAdmin access is limited to the separated Hidden
 area and limited Manage inspection; all other paths fail closed. The production
-rehearsal event was hidden by the user; the historical import remains pending.
+rehearsal event remains hidden, and the separate historical import was completed
+on 2026-09-01 as recorded in the active launch handoff above.
 
 The bounded rendered navigation and Hide/Restore journeys were manually
 inspected and accepted by the user after focused remediation. The production
-rehearsal event is now hidden; this does not perform or authorize the separate
-historical import.
+rehearsal event remains hidden; the separate historical import was subsequently
+completed and manually accepted by the user.
 
 The full regression was accepted at `c3e43bb` after the user's sustained-site
-manual acceptance and the recorded automated gates. The two commits after that
-baseline have not passed local pre-push verification. The planned Admin test
-event remains the real-world follow-up safety net.
+manual acceptance and the recorded automated gates. The production launch was
+then completed at the source SHA and image digest recorded above. The planned
+Admin test event remains the real-world follow-up safety net.
 
-Next permitted action: finish local pre-push verification, then obtain separate
-authorization for push/PR/CI/merge and the exact-digest deployment. No new local
-whole-application regression or linked-resubmission manual confirmation is
-required before that focused verification. Historical import remains a later
-authorized production operation.
+Next permitted action: run the production Admin test event. It has not run.
 
 ## Submission workspace consolidation handoff — 2026-08-31
 
@@ -239,8 +146,8 @@ The user approved the following concrete Pass 5/6 closure gates on 2026-08-30:
   rehearsal data separate; take it through `Live -> AwaitingFinalReview ->
   Finalized -> Archived` to preserve history. The hidden-event quarantine
   implementation is included in the deployed baseline, and the production
-  rehearsal event was hidden by the user. The genuine older event remains a
-  separate production historical import and has not yet been imported.
+  rehearsal event remains hidden. The separate historical import was completed
+  and accepted on 2026-09-01.
 - Resolve the evidence-storage protection wording before launch: confirm the
   actual R2 accidental-deletion/versioning behavior or explicitly accept and
   document another recovery path. The integrity command detects loss but is not
@@ -248,9 +155,9 @@ The user approved the following concrete Pass 5/6 closure gates on 2026-08-30:
 - Decide and verify the production edge contract: Cloudflare DNS-only versus
   proxied traffic, end-to-end TLS, the apex hostname, and whether
   `www.dklegacy.dk` redirects to the apex.
-- Install and activate the repository-side hooks for the already-created public
-  health, scheduled-backup, and low-disk monitors. The real heartbeat URLs stay
-  uncommitted and must be entered only in root-owned `/etc/bingo/monitoring.env`.
+- Better Stack public-health, scheduled-backup, and low-disk monitoring is
+  active. The real heartbeat URLs remain uncommitted and are entered only in
+  root-owned `/etc/bingo/monitoring.env`.
 - Complete the provider-backed rehearsal against the deployed candidate,
   including Discord, R2 evidence round trip/integrity, SignalR and intended-load
   measurements, application journeys, backup/full restore, rollback,
@@ -268,18 +175,7 @@ user's explicit approval.
 
 Current remaining sequence:
 
-1. Finish local pre-push verification for `50077fd` and `62c4ff6`.
-2. Only with the user's separate authorization, push through the PR/CI/merge
-   path and publish the resulting immutable candidate digest.
-3. With separate deployment authorization, deploy that exact digest.
-4. Run focused production smoke against the deployed candidate.
-5. Install and test the Better Stack monitoring integration: enter the private
-   heartbeat URLs only in root-owned `/etc/bingo/monitoring.env`, then install
-   and activate the committed host hooks/systemd units on the VPS.
-6. Perform the production historical import after candidate smoke and
-   monitoring activation, with a pre-operation backup and mandatory preflight/
-   validation. This remains separately authorized.
-7. Run the Admin test event after the historical import.
+1. Run the production Admin test event. It has not run.
 
 The R2 deletion/versioning or accepted-recovery decision remains an explicit
 known operational risk; it is not silently treated as solved by the existing
@@ -372,8 +268,9 @@ material scope. The user explicitly approved retaining it on 2026-08-27, and
 `UI_PAGE_MATRIX.md` now records it as a direct-link internal historical-reference
 gallery that is not a product-page approval target or active authority source.
 That finding is resolved. Pass 4 and its bounded release-blocker corrections are
-committed; the provider-backed Pass 5 setup and capacity sub-gate now have
-separate recorded evidence, while the remaining release gates stay open.
+committed; provider-backed launch, monitoring, smoke, and historical-import
+evidence are recorded above. The production Admin test event remains the next
+operational stage.
 
 The read-only commit-scope inventory and final Ponytail gate also completed on
 2026-08-27. The accepted candidate includes the active authority consolidation,
@@ -676,11 +573,11 @@ screenshots are the next gate.
 
 ## Launch order and dates
 
-Production is already live on baseline `c3e43bb`; the previously recorded
-DNS/TLS/OAuth, backup/restore, evidence-integrity, and capacity evidence remains
-the production baseline. The full regression was accepted at that commit. The
-two later local commits still require pre-push verification, and the current
-remaining sequence is recorded in the active production-release handoff above.
+Production is live at source SHA
+`1f893133edc26455c41535807633225fdee36292` with immutable image digest
+`sha256:5de9882be6cd63e170b6d68fc1b869ea134e9b67f3bfab6a1b7eb042ed4c1a20`.
+The full regression, CI, deployment, focused smoke, monitoring activation, and
+historical import are recorded in the active production-release handoff above.
 The planned Admin test event remains the real-world follow-up safety net.
 
 ## Current UI approval snapshot (non-authoritative)
@@ -824,13 +721,13 @@ passes as product or UI approval.
 - The complete public Board ecosystem and its responsive team-board/submission
   interaction model are manually accepted. The canonical submission workspace
   is independently reviewed, remediated, manually accepted, and committed in
-  `88cd8f8d6014e947e2a5e97717be460ca2ea9d66`. The full regression was accepted
-  at baseline `c3e43bb`; the two later local commits remain pending pre-push
-  verification.
-- Provider-backed production evidence is recorded against the live baseline.
-  The production rehearsal event was hidden by the user. The production
-  historical import has not yet been performed, and the two newer local commits
-  remain unpushed.
+  `88cd8f8d6014e947e2a5e97717be460ca2ea9d66`. The full regression and PR #5
+  production launch were accepted with passing CI, deployment, and focused
+  production smoke.
+- Provider-backed production evidence is recorded against the deployed source
+  SHA and immutable image digest above. The production rehearsal event remains
+  hidden, the historical import succeeded, and the production Admin test event
+  has not yet run.
 - Archive hashes match the captured pre-consolidation sources:
   `ADMIN_UI_CONTRACT.md` / archive `be0679c744604c0e1a75f26244e75e38631ea28b0e8462f15bb4e77f979f3360`;
   `UI_OVERHAUL_ROADMAP.md` / archive `d3a93ee2b4e67a690820d5a2875cf20454e5483c37e250cf0613308b453ac950`;
@@ -876,11 +773,10 @@ passes as product or UI approval.
    user explicitly deferred that remaining manual acceptance and authorized the
    remaining Public UI passes to proceed sequentially in this exact dirty tree.
    Completed but unseen pages remain `implemented; manual acceptance deferred`;
-   they are not approved. The accepted production/test changes are now
-   committed locally and unpushed; preserve the developer-only
+   they are not approved. The accepted production/test changes are included in
+   the deployed PR #5 candidate; preserve the developer-only
    `launchSettings.json` modification and `tmp/` outside packaging. The next
-   repository action is separately authorized push through green CI and
-   candidate publication.
+   operational action is the production Admin test event, which has not run.
    The latest My Accounts manual correction makes position 01 the sole preferred
    character and removes the separate set-preferred action; it also shortens the
    linked Fetch label, all visible EHB labels, and the registration warning. The
@@ -1081,10 +977,9 @@ passes as product or UI approval.
   behavior. The Admin Evidence Review linked-resubmission behavior remains
   protected; the relative `_EvidenceUpload` 500 regression is fixed and covered
   by acceptance. The full regression was accepted at baseline `c3e43bb`, and no
-  linked-resubmission manual confirmation is pending. The two newer local
-  commits still require pre-push verification before the separately authorized
-  push/green-CI/candidate-publication sequence. The planned Admin test event
-  remains the real-world follow-up safety net before any final launch claim.
+  linked-resubmission manual confirmation is not pending. Production launch is
+  recorded above; the planned Admin test event remains the next operational
+  safety-net step and has not yet run.
 4. Packager: stage, commit, push, or deploy only after acceptance and explicit
    authorization.
 
@@ -1096,8 +991,8 @@ interaction geometry that existing references do not resolve, stop and request a
 new picture reference from the user instead of inventing the composition.
 
 The Board behavior approval and replacement-identity decision do not imply
-whole-application production readiness. F-04 is resolved by the narrow Live
+whole-application UI approval. F-04 is resolved by the narrow Live
 display-timezone correction described above. F-06 is resolved by the approved
 five-step `/HowTo` guide committed in `50077fd`; no future content replacement
-or Rules editor is a current gate.
-Regression and remaining deployment gates remain sequenced as above.
+or Rules editor is a current gate. Production launch is recorded above; the
+production Admin test event remains the next operational stage and has not run.
