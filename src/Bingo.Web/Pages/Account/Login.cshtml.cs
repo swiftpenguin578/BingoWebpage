@@ -82,7 +82,7 @@ public sealed partial class LoginModel(
 
         TempData["StatusMessage"] = text["Signed in successfully."].Value;
         TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();
-        return LocalRedirect(Url.IsLocalUrl(ReturnUrl) ? ReturnUrl : account.AccountType == Bingo.Domain.Access.AccountType.EmergencyCaptain ? "/Captain" : "/");
+        return LocalRedirect(Url.IsLocalUrl(ReturnUrl) ? ReturnUrl : account.AccountType == Bingo.Domain.Access.AccountType.EmergencyCaptain ? "/Submissions" : "/");
     }
 
     public sealed class LoginInput

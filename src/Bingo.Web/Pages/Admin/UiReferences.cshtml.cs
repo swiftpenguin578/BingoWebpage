@@ -49,7 +49,7 @@ public sealed class UiReferencesModel(IWebHostEnvironment environment) : PageMod
         new("PUB-REF-14", "Recent drops", "/Events/{slug}/Board?view=drops", [new("pub-ref-14-main", "Main state"), new("pub-ref-14-states", "States and responsive variants")]),
         new("PUB-REF-15", "Tile detail and evidence viewer", "/Events/{slug}/Board/{teamSlug}/Tiles/{tileId}", [new("pub-ref-15", "Canonical reference")]),
         new("PUB-REF-16", "Public teams and roster", "/Events/{slug}/Teams", [new("pub-ref-16", "Canonical reference")]),
-        new("PUB-REF-17", "Captain team operations", "/Captain", [new("pub-ref-17", "Canonical reference")])
+        new("PUB-REF-17", "Captain team operations", "/Submissions", [new("pub-ref-17", "Canonical reference")])
     ];
 
     public IActionResult OnGetImage(string? key)
