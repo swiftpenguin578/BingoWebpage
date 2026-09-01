@@ -578,13 +578,13 @@ public sealed class HistoricalEventImporter(ApplicationDbContext db, TimeProvide
             teamsWithCounters.All(value => value.Counters is { Count: 25 }))
         {
             for (var teamIndex = 0; teamIndex < teamsWithCounters.Count; teamIndex++)
-            for (var tileIndex = 0; tileIndex < tilesWithRequirements.Count; tileIndex++)
-            {
-                var counter = teamsWithCounters[teamIndex].Counters![tileIndex];
-                var target = tilesWithRequirements[tileIndex].Requirements?.Sum(value => (long)value.Target) ?? 0;
-                if (counter > target)
-                    errors.Add($"Team '{teamsWithCounters[teamIndex].Name}' tile '{tilesWithRequirements[tileIndex].Name}' counter {counter} exceeds the summed requirement target {target}; correct the manifest before retrying.");
-            }
+                for (var tileIndex = 0; tileIndex < tilesWithRequirements.Count; tileIndex++)
+                {
+                    var counter = teamsWithCounters[teamIndex].Counters![tileIndex];
+                    var target = tilesWithRequirements[tileIndex].Requirements?.Sum(value => (long)value.Target) ?? 0;
+                    if (counter > target)
+                        errors.Add($"Team '{teamsWithCounters[teamIndex].Name}' tile '{tilesWithRequirements[tileIndex].Name}' counter {counter} exceeds the summed requirement target {target}; correct the manifest before retrying.");
+                }
         }
         var royal = manifest.Tiles?.SingleOrDefault(value => value.Name == "Royal Titans");
         if (royal is null || royal.Requirements?.Count != 2 || royal.Requirements[0].Target != 3 || royal.Requirements[1].Target != 3 ||

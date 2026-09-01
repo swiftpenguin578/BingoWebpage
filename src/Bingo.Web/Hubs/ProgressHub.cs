@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.SignalR;
 using Bingo.Infrastructure.Persistence;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Web.Hubs;

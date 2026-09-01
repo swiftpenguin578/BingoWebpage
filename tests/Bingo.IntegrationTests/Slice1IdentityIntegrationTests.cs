@@ -1619,6 +1619,9 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var eventId = Guid.NewGuid();
         var otherEventId = Guid.NewGuid();
         var now = time.GetUtcNow();
+        db.Events.AddRange(
+            new BingoEvent(eventId, "Audit event", $"audit-event-{eventId:N}", "UTC", Guid.NewGuid(), now),
+            new BingoEvent(otherEventId, "Other audit event", $"other-audit-event-{otherEventId:N}", "UTC", Guid.NewGuid(), now));
         for (var index = 0; index < 30; index++)
         {
             db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now.AddMinutes(index), null, "admin", "account.changed", "account", index.ToString(CultureInfo.InvariantCulture), "Changed account.", eventId, "{\"role\":\"User\"}", "{\"role\":\"Admin\"}"));

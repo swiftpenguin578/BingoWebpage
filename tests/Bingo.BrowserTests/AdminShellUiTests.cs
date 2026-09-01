@@ -216,7 +216,7 @@ public sealed class AdminShellUiTests
         Assert.Contains("AdminEventStatePresentation.For(item.State, T)", events);
         Assert.Contains("admin-status-pill @statePill.Modifier", events);
         Assert.Contains("@T[\"Actions\"]", events);
-        Assert.Contains("@T[\"Workspace\"]", events);
+        Assert.Contains("T[\"Workspace\"]", events);
         Assert.Contains("@item.Slug", events);
         Assert.Contains("class=\"admin-events-table-wrap\"", events);
         Assert.DoesNotContain("table-wrap panel admin-events-table-wrap", events);

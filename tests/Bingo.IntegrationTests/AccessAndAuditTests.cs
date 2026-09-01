@@ -1,5 +1,6 @@
 using Bingo.Application.Access;
 using Bingo.Domain.Access;
+using Bingo.Domain.Events;
 using Bingo.Infrastructure.Auditing;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
@@ -63,6 +64,7 @@ public sealed class AccessAndAuditTests : IAsyncLifetime
         var teamId = Guid.NewGuid();
         var account = Account.CreateEmergency(Guid.NewGuid(), "captain", "CAPTAIN", now);
         dbContext.Accounts.Add(account);
+        dbContext.Events.Add(new BingoEvent(eventId, "Captain authorization event", $"captain-authorization-{eventId:N}", "UTC", account.Id, now));
         var access = new AccountEventAccess(Guid.NewGuid(), account.Id, eventId, teamId, null, null, null, now.AddDays(1));
         access.Enable();
         dbContext.AccountEventAccesses.Add(access);

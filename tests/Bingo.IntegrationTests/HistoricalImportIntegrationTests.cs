@@ -6,12 +6,12 @@ using Bingo.Application.Boards;
 using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
-using Bingo.Domain.Evidence;
 using Bingo.Domain.Events;
-using Bingo.Infrastructure.Persistence;
-using Bingo.Infrastructure.Boards;
-using Bingo.Infrastructure.WiseOldMan;
+using Bingo.Domain.Evidence;
 using Bingo.Domain.Teams;
+using Bingo.Infrastructure.Boards;
+using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.WiseOldMan;
 using Bingo.Web.Catalogue;
 using Bingo.Web.HistoricalImport;
 using Bingo.Web.Security;
@@ -237,9 +237,9 @@ public sealed class HistoricalImportIntegrationTests : IAsyncLifetime
                 Assert.Contains("Dust battlestaff", slayerTile.DescriptionSnapshot, StringComparison.Ordinal);
                 Assert.Equal(0, await db.CatalogueItems.CountAsync(value => value.Name == "Imbued heart" || value.Name == "Eternal gem" || value.Name == "Mist battlestaff" || value.Name == "Dust battlestaff"));
                 Assert.Equal(0, await (from drop in db.SourceDrops
-                                      join catalogueItem in db.CatalogueItems on drop.ItemId equals catalogueItem.Id
-                                      where catalogueItem.Name == "Imbued heart" || catalogueItem.Name == "Eternal gem" || catalogueItem.Name == "Mist battlestaff" || catalogueItem.Name == "Dust battlestaff"
-                                      select drop).CountAsync());
+                                       join catalogueItem in db.CatalogueItems on drop.ItemId equals catalogueItem.Id
+                                       where catalogueItem.Name == "Imbued heart" || catalogueItem.Name == "Eternal gem" || catalogueItem.Name == "Mist battlestaff" || catalogueItem.Name == "Dust battlestaff"
+                                       select drop).CountAsync());
                 var slayerRequirementIds = await db.BoardRequirementSnapshots.Where(value => value.BoardTileId == slayerTile.Id).Select(value => value.Id).ToListAsync();
                 Assert.Equal(0, await db.BoardRequirementDropSnapshots.CountAsync(value => slayerRequirementIds.Contains(value.RequirementId)));
                 var slayerTemplateRequirementIds = await db.TileTemplateRequirements.Where(value => value.TileTemplateId == slayerTemplate.Id).Select(value => value.Id).ToListAsync();
@@ -344,22 +344,22 @@ public sealed class HistoricalImportIntegrationTests : IAsyncLifetime
         var teams = new[] { "touch-kids-not-grass", "saeh-cs", "morytania-monkeys", "the-agency", "xen0-d-rops", "zalamalikum" };
         var participants = new List<object>();
         for (var teamIndex = 0; teamIndex < teams.Length; teamIndex++)
-        for (var memberIndex = 0; memberIndex < 15; memberIndex++)
-        {
-            var number = teamIndex * 15 + memberIndex + 1;
-            var accounts = new List<object> { Account($"Import Player {number:00}", 100m + number, 101m + number, 1m) };
-            if (teamIndex == 0 && memberIndex == 0)
-                accounts = reverseApprovedMappings
-                    ? [Account("Also Ezzi", 20m, 21m, 1m), Account("Ezzi", 200m, 201m, 1m)]
-                    : [Account("Ezzi", 200m, 201m, 1m), Account("Also Ezzi", 20m, 21m, 1m)];
-            else if (teamIndex == 0 && memberIndex == 1)
-                accounts = reverseApprovedMappings
-                    ? [Account("w olles", 21m, 22m, 1m), Account("wolles", 210m, 211m, 1m)]
-                    : [Account("wolles", 210m, 211m, 1m), Account("w olles", 21m, 22m, 1m)];
-            else if (teamIndex == 4 && memberIndex == 0)
-                accounts = [Account("Xen Import Player", 220m, 221m, 1m), Account("Coxophobia", 0m, 0m, 0m)];
-            participants.Add(new { participantKey = $"import-{number:00}", displayName = $"Import Player {number:00}", teamSlug = teams[teamIndex], accounts });
-        }
+            for (var memberIndex = 0; memberIndex < 15; memberIndex++)
+            {
+                var number = teamIndex * 15 + memberIndex + 1;
+                var accounts = new List<object> { Account($"Import Player {number:00}", 100m + number, 101m + number, 1m) };
+                if (teamIndex == 0 && memberIndex == 0)
+                    accounts = reverseApprovedMappings
+                        ? [Account("Also Ezzi", 20m, 21m, 1m), Account("Ezzi", 200m, 201m, 1m)]
+                        : [Account("Ezzi", 200m, 201m, 1m), Account("Also Ezzi", 20m, 21m, 1m)];
+                else if (teamIndex == 0 && memberIndex == 1)
+                    accounts = reverseApprovedMappings
+                        ? [Account("w olles", 21m, 22m, 1m), Account("wolles", 210m, 211m, 1m)]
+                        : [Account("wolles", 210m, 211m, 1m), Account("w olles", 21m, 22m, 1m)];
+                else if (teamIndex == 4 && memberIndex == 0)
+                    accounts = [Account("Xen Import Player", 220m, 221m, 1m), Account("Coxophobia", 0m, 0m, 0m)];
+                participants.Add(new { participantKey = $"import-{number:00}", displayName = $"Import Player {number:00}", teamSlug = teams[teamIndex], accounts });
+            }
         return new
         {
             sourceEventId = "dkl-sommerbingo-2026",
