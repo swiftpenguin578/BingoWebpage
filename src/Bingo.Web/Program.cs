@@ -19,6 +19,7 @@ using Bingo.Infrastructure.WiseOldMan;
 using Bingo.Web.Boards;
 using Bingo.Web.Catalogue;
 using Bingo.Web.Events;
+using Bingo.Web.HistoricalImport;
 using Bingo.Web.Hubs;
 using Bingo.Web.Navigation;
 using Bingo.Web.Operations;
@@ -144,6 +145,7 @@ builder.Services.AddScoped<OsrsWikiCatalogueDryRunService>();
 builder.Services.AddScoped<CatalogueSnapshotService>();
 builder.Services.AddScoped<ProductionPreflight>();
 builder.Services.AddScoped<DevelopmentScenarioSeeder>();
+builder.Services.AddScoped<HistoricalEventImporter>();
 builder.Services.AddScoped<SharedShellService>();
 builder.Services.AddScoped<PublicTeamImageService>();
 builder.Services.AddScoped<PublicBoardImageService>();
@@ -248,6 +250,28 @@ var catalogueSnapshotPath = Path.Combine(app.Environment.ContentRootPath, Catalo
 
 if (app.Environment.IsProduction())
     ProductionPreflight.ValidateDataProtection(app.Services, app.Configuration);
+
+var historicalImportRequested = args.Contains("--preflight-historical-import", StringComparer.Ordinal) ||
+                                args.Contains("--apply-historical-import", StringComparer.Ordinal);
+if (historicalImportRequested)
+{
+    var inputIndex = Array.IndexOf(args, "--historical-import-input");
+    var actorIndex = Array.IndexOf(args, "--historical-import-actor");
+    var confirmationIndex = Array.IndexOf(args, "--confirm-historical-import");
+    var inputPath = inputIndex >= 0 && inputIndex + 1 < args.Length ? args[inputIndex + 1] : null;
+    var actor = actorIndex >= 0 && actorIndex + 1 < args.Length ? args[actorIndex + 1] : null;
+    var confirmation = confirmationIndex >= 0 && confirmationIndex + 1 < args.Length ? args[confirmationIndex + 1] : null;
+    var apply = args.Contains("--apply-historical-import", StringComparer.Ordinal);
+    await using var historicalScope = app.Services.CreateAsyncScope();
+    var result = await historicalScope.ServiceProvider.GetRequiredService<HistoricalEventImporter>().RunAsync(
+        new HistoricalImportOptions(
+            Path.Combine(app.Environment.ContentRootPath, "data", "historical-import", "det-store-danske-sommerbingo-2026.json"),
+            inputPath, actor, confirmation, apply), CancellationToken.None);
+    Console.WriteLine(result.Summary);
+    foreach (var error in result.Errors) Console.Error.WriteLine($"ERROR: {error}");
+    if (!result.Succeeded) Environment.ExitCode = 2;
+    return;
+}
 
 if (args.Contains("--migrate", StringComparer.Ordinal))
 {
@@ -434,58 +458,12 @@ if (args.Contains("--reset-test-data", StringComparer.Ordinal))
     }
 
     SeedResult result;
-    Guid historicalEventId;
     await using (var seedScope = app.Services.CreateAsyncScope())
     {
         var seedDb = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await seedDb.Database.MigrateAsync();
         var seeder = seedScope.ServiceProvider.GetRequiredService<DevelopmentScenarioSeeder>();
         result = await seeder.ResetAndSeedAsync();
-        historicalEventId = await seedDb.Events
-            .Where(value => value.Slug == DevelopmentScenarioSeeder.HistoricalFixtureSlug)
-            .Select(value => value.Id)
-            .SingleAsync();
-    }
-
-    await using (var syncScope = app.Services.CreateAsyncScope())
-    {
-        var syncDb = syncScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var admin = await syncDb.Accounts.AsNoTracking()
-            .SingleAsync(value => value.LoginName == result.AdminUsername);
-        var actor = new LifecycleActor(admin.Id, admin.LoginName);
-        var refresh = await syncScope.ServiceProvider
-            .GetRequiredService<IEventCompetitionSynchronizationService>()
-            .RefreshAsync(historicalEventId, actor);
-        if (!refresh.Succeeded || refresh.Skipped)
-            throw new InvalidOperationException($"Historical fixture Wise Old Man refresh failed: {refresh.Message ?? refresh.ErrorKind ?? "unknown error"}.");
-
-        var synchronization = await syncDb.EventCompetitionSynchronizations.AsNoTracking()
-            .SingleAsync(value => value.EventId == historicalEventId);
-        var currentRows = await syncDb.EventCompetitionCharacterActivities
-            .CountAsync(value => value.EventId == historicalEventId && value.Generation == synchronization.Generation);
-        if (synchronization.LatestComplete != true || currentRows != 93)
-            throw new InvalidOperationException($"Historical fixture Wise Old Man refresh was incomplete: complete={synchronization.LatestComplete}, current rows={currentRows}.");
-    }
-
-    EventState historicalState;
-    await using (var lifecycleScope = app.Services.CreateAsyncScope())
-    {
-        var lifecycleDb = lifecycleScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var admin = await lifecycleDb.Accounts.AsNoTracking()
-            .SingleAsync(value => value.LoginName == result.AdminUsername);
-        var actor = new LifecycleActor(admin.Id, admin.LoginName);
-        var eventItem = await lifecycleDb.Events.SingleAsync(value => value.Id == historicalEventId);
-        var ended = await lifecycleScope.ServiceProvider
-            .GetRequiredService<IEventLifecycleService>()
-            .EndNowAsync(historicalEventId, eventItem.Version, true, "Seeded historical fixture completed after its published Wise Old Man snapshot.", actor);
-        if (!ended.Succeeded)
-            throw new InvalidOperationException($"Historical fixture lifecycle transition failed: {ended.Error ?? "unknown error"}.");
-        historicalState = await lifecycleDb.Events
-            .Where(value => value.Id == historicalEventId)
-            .Select(value => value.State)
-            .SingleAsync();
-        if (historicalState != EventState.AwaitingFinalReview)
-            throw new InvalidOperationException($"Historical fixture ended in unexpected state: {historicalState}.");
     }
 
     Console.WriteLine($"Test database reset complete. Preserved admin: {result.AdminUsername}");
@@ -494,8 +472,7 @@ if (args.Contains("--reset-test-data", StringComparer.Ordinal))
     Console.WriteLine($"Board blueprint: {result.BoardBlueprint}");
     foreach (var scenario in result.Scenarios)
     {
-        var state = scenario.EventId == historicalEventId ? historicalState : scenario.EventState;
-        Console.WriteLine($"- {scenario.EventName} [{state}; board: {scenario.BoardState?.ToString() ?? "none"}]");
+        Console.WriteLine($"- {scenario.EventName} [{scenario.EventState}; board: {scenario.BoardState?.ToString() ?? "none"}]");
         foreach (var username in scenario.CaptainUsernames)
         {
             Console.WriteLine($"  Captain login: {username} / {result.CaptainPassword}");

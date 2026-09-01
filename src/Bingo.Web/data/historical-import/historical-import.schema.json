@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Private historical WOM input (never commit)",
+  "type": "object",
+  "required": ["sourceEventId", "competitionId", "competitionTitle", "startsAt", "endsAt", "accounts"],
+  "properties": {
+    "sourceEventId": { "type": "string", "minLength": 1 },
+    "competitionId": { "const": 145197 },
+    "competitionTitle": { "const": "Det Store Danske Sommerbingo 2026" },
+    "startsAt": { "const": "2026-07-14T16:00:00Z" },
+    "endsAt": { "const": "2026-07-19T16:00:00Z" },
+    "accounts": {
+      "type": "array", "minItems": 90,
+      "items": { "type": "object", "required": ["participantKey", "displayName", "teamSlug", "accounts"], "properties": {
+        "participantKey": { "type": "string", "minLength": 1 },
+        "displayName": { "type": "string", "minLength": 1 },
+        "teamSlug": { "type": "string", "minLength": 1 },
+        "accounts": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["username", "startEhb", "endEhb", "gainedEhb", "fetchedAt", "upstreamUpdatedAt"], "properties": {
+          "username": { "type": "string", "minLength": 1 }, "startEhb": { "type": "number", "minimum": 0 }, "endEhb": { "type": "number", "minimum": 0 }, "gainedEhb": { "type": "number", "minimum": 0 }, "fetchedAt": { "type": "string", "format": "date-time" }, "upstreamUpdatedAt": { "type": "string", "format": "date-time" }
+        } } }
+      } }
+    }
+  }
+}

@@ -20,6 +20,34 @@ public sealed class BingoEvent
         WaitingListEnabled = true;
     }
 
+    public static BingoEvent CreateArchivedHistorical(
+        Guid id, string name, string slug, string? description, string timezone,
+        DateTimeOffset? signupOpensAt, DateTimeOffset? signupClosesAt,
+        DateTimeOffset eventStartsAt, DateTimeOffset eventEndsAt, Guid createdByAccountId,
+        DateTimeOffset createdAt, string? publicRules, int teamCount, int teamSize,
+        int boardRows, int boardColumns)
+    {
+        var item = new BingoEvent(id, name, slug, description, timezone, signupOpensAt, signupClosesAt,
+            eventStartsAt, eventEndsAt, eventEndsAt, teamCount * teamSize, createdByAccountId, createdAt);
+        item.ConfigureSignup(false, false, null);
+        item.ConfigurePlanning(publicRules, null, null, teamCount, teamSize, boardRows, boardColumns);
+        item.State = EventState.Archived;
+        item.FirstPublicAt = eventStartsAt;
+        item.DraftAt = eventStartsAt;
+        item.ActualStartedAt = eventStartsAt;
+        item.ActualEndedAt = eventEndsAt;
+        item.SubmissionsClosedAt = eventEndsAt;
+        item.ParticipantListPublished = true;
+        item.DraftResultsPublished = true;
+        item.TeamRostersPublished = true;
+        item.BoardPublished = true;
+        item.ResultsPublished = true;
+        item.DraftLocked = true;
+        item.FinalizedAt = eventEndsAt;
+        item.ArchivedAt = eventEndsAt;
+        return item;
+    }
+
     // Compatibility constructor retained until the Slice 3 creation surface moves to the minimal draft command.
     public BingoEvent(Guid id, string name, string slug, string? description, string timezone,
         DateTimeOffset? signupOpensAt, DateTimeOffset? signupClosesAt, DateTimeOffset? eventStartsAt,

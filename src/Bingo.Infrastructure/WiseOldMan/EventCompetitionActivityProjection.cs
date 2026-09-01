@@ -34,7 +34,11 @@ public sealed class CachedEventCompetitionActivityProjection(
         Guid? teamId,
         CancellationToken cancellationToken)
     {
-        if (!await db.Events.AsNoTracking().AnyAsync(value => value.Id == eventId && value.HiddenAt == null, cancellationToken))
+        var eventState = await db.Events.AsNoTracking()
+            .Where(value => value.Id == eventId && value.HiddenAt == null)
+            .Select(value => (EventState?)value.State)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (eventState is null)
             return new(EventCompetitionActivityState.NotConfigured, 0, null, null, []);
 
         var state = await db.EventCompetitionSynchronizations.AsNoTracking()
@@ -43,7 +47,7 @@ public sealed class CachedEventCompetitionActivityProjection(
         if (state is null || state.CompetitionId is null)
             return new(EventCompetitionActivityState.NotConfigured, 0, null, null, []);
 
-        var activityState = GetState(state);
+        var activityState = GetState(state, eventState == EventState.Archived);
         var retainsPartialCache = activityState == EventCompetitionActivityState.TemporarilyUnavailable && HasRetryablePartialCache(state);
         if (state.LatestComplete != true && activityState != EventCompetitionActivityState.Partial && !retainsPartialCache)
             return new(activityState, state.Generation, state.LastSuccessfulAt, state.LastUpstreamUpdatedAt, []);
@@ -163,7 +167,7 @@ public sealed class CachedEventCompetitionActivityProjection(
             currentAssignments.Count, matchedAssignments.Count);
     }
 
-    private EventCompetitionActivityState GetState(EventCompetitionSynchronization state)
+    private EventCompetitionActivityState GetState(EventCompetitionSynchronization state, bool historical)
     {
         if (state.LastAttemptAt is null)
             return EventCompetitionActivityState.WaitingForFirstSync;
@@ -175,7 +179,7 @@ public sealed class CachedEventCompetitionActivityProjection(
                 : EventCompetitionActivityState.TemporarilyUnavailable;
         if (!string.IsNullOrWhiteSpace(state.LastErrorKind))
             return EventCompetitionActivityState.TemporarilyUnavailable;
-        return state.LastSuccessfulAt is { } fetchedAt && fetchedAt.Add(StaleAfter) <= time.GetUtcNow()
+        return !historical && state.LastSuccessfulAt is { } fetchedAt && fetchedAt.Add(StaleAfter) <= time.GetUtcNow()
             ? EventCompetitionActivityState.Stale
             : EventCompetitionActivityState.Complete;
     }

@@ -201,7 +201,7 @@ public sealed class Slice10Pass101WiseOldManTests
             clock,
             NullLogger<WiseOldManClient>.Instance);
 
-        var player = await client.LookupPlayerAsync("Rasmus Zebak");
+        var player = await client.LookupPlayerAsync("Dev Lookup Player");
         var competition = await client.GetCompetitionAsync(1515);
 
         Assert.True(player.Succeeded);

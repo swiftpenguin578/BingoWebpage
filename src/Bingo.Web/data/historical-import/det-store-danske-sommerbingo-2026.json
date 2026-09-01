@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "event": {
+    "name": "Det Store Danske Sommerbingo 2026",
+    "slug": "det-store-danske-sommerbingo-2026",
+    "timezone": "Europe/Copenhagen",
+    "startsAt": "2026-07-14T16:00:00Z",
+    "endsAt": "2026-07-19T16:00:00Z",
+    "archivedAt": "2026-07-19T16:00:00Z",
+    "competitionId": 145197,
+    "competitionTitle": "Det Store Danske Sommerbingo 2026",
+    "sourceEventId": "dkl-sommerbingo-2026",
+    "sourceUrl": "https://wiseoldman.net/competitions/145197"
+  },
+  "disclosure": "Historical record — evidence image not retained; player attribution and timing reconstructed from event EHB.",
+  "teams": [
+    { "name": "The Agency", "slug": "the-agency", "placement": 1, "counters": [3,6,10,2,2,1,3,4,2,1,3,2,6,3,0,5,1,5,6,2,6,3,10,2,6] },
+    { "name": "Xen0%_d_rops", "slug": "xen0-d-rops", "placement": 2, "counters": [3,6,0,0,2,1,3,0,0,1,3,2,0,0,2,5,1,5,6,2,6,3,10,2,6] },
+    { "name": "Touch Kids, not grass", "slug": "touch-kids-not-grass", "placement": 3, "counters": [0,0,10,0,1,1,3,4,2,1,3,2,6,3,3,5,1,5,6,2,0,0,10,0,0] },
+    { "name": "Morytania Monkeys", "slug": "morytania-monkeys", "placement": 4, "counters": [3,1,10,3,2,0,0,0,2,0,3,2,0,3,0,5,1,5,6,2,2,0,0,2,0] },
+    { "name": "Zalamalikum", "slug": "zalamalikum", "placement": 5, "counters": [0,1,10,0,0,0,1,4,0,0,0,0,6,0,0,5,1,5,6,2,0,0,10,0,0] },
+    { "name": "Såeh cs?", "slug": "saeh-cs", "placement": 6, "counters": [3,3,10,0,0,1,0,3,1,1,3,2,6,2,0,5,1,5,2,2,6,0,10,2,0] }
+  ],
+  "tiles": [
+    { "name": "Nex", "ehb": null, "requirements": [{ "bosses": ["Nex"], "target": 3, "duplicates": true, "higherWeights": false, "description": "Collect 3 Nex uniques; the pet does not count", "items": ["Ancient hilt", "Nihil horn", "Torva full helm (damaged)", "Torva platebody (damaged)", "Torva platelegs (damaged)", "Zaryte vambraces"] }] },
+    { "name": "Royal Titans", "ehb": null, "requirements": [{ "bosses": ["The Royal Titans"], "target": 3, "duplicates": true, "higherWeights": false, "description": "Collect 3 fire staff crowns", "items": ["Fire element staff crown"] }, { "bosses": ["The Royal Titans"], "target": 3, "duplicates": true, "higherWeights": false, "description": "Collect 3 ice staff crowns", "items": ["Ice element staff crown"] }] },
+    { "name": "God Wars", "ehb": null, "requirements": [{ "bosses": ["General Graardor", "Kree'Arra", "K'ril Tsutsaroth", "Commander Zilyana"], "target": 10, "duplicates": false, "higherWeights": false, "description": "Collect 10 different eligible God Wars drops", "items": ["Bandos boots", "Bandos chestplate", "Bandos hilt", "Bandos tassets", "Pet general graardor", "Armadyl chainskirt", "Armadyl chestplate", "Armadyl helmet", "Armadyl hilt", "Pet kree'arra", "Staff of the dead", "Steam battlestaff", "Zamorak hilt", "Zamorakian spear", "Pet k'ril tsutsaroth", "Armadyl crossbow", "Saradomin hilt", "Saradomin sword", "Saradomin's light", "Pet zilyana"] }] },
+    { "name": "Wilderness Boss", "ehb": null, "requirements": [{ "bosses": ["Artio", "Callisto"], "target": 1, "duplicates": true, "higherWeights": false, "description": "Collect a Voidwaker hilt", "items": ["Voidwaker hilt"] }, { "bosses": ["Calvar'ion", "Vet'ion"], "target": 1, "duplicates": true, "higherWeights": false, "description": "Collect a Voidwaker blade", "items": ["Voidwaker blade"] }, { "bosses": ["Spindel", "Venenatis"], "target": 1, "duplicates": true, "higherWeights": false, "description": "Collect a Voidwaker gem", "items": ["Voidwaker gem"] }] },
+    { "name": "Duke / Whisperer", "ehb": null, "requirements": [{ "bosses": ["Duke Sucellus", "The Whisperer"], "target": 2, "duplicates": true, "higherWeights": false, "description": "Collect 2 Eye of the duke or Siren's staff drops", "items": ["Eye of the duke", "Siren's staff"] }] },
+    { "name": "Araxxor", "ehb": 25, "requirements": [{ "bosses": ["Araxxor"], "target": 1, "duplicates": true, "higherWeights": false, "description": "Collect Nid (Destroy) or Jar of venom", "items": ["Nid (Destroy)", "Jar of venom"] }] },
+    { "name": "Phosani's Nightmare", "ehb": null, "requirements": [{ "bosses": ["Phosani's Nightmare"], "target": 3, "duplicates": true, "higherWeights": false, "description": "Collect 3 eligible uniques; the pet does not count", "items": ["Eldritch orb", "Harmonised orb", "Volatile orb", "Inquisitor's great helm", "Inquisitor's hauberk", "Inquisitor's plateskirt", "Inquisitor's mace", "Nightmare staff"] }] },
+    { "name": "Yama", "ehb": null, "requirements": [{ "bosses": ["Yama"], "target": 4, "duplicates": true, "higherWeights": false, "description": "Collect 4 Oathplate armour pieces or Soulflame horns", "items": ["Oathplate chest", "Oathplate helm", "Oathplate legs", "Soulflame horn"] }] },
+    { "name": "The Hueycoatl", "ehb": null, "requirements": [{ "bosses": ["The Hueycoatl"], "target": 2, "duplicates": true, "higherWeights": false, "description": "Collect 2 Dragon hunter wands", "items": ["Dragon hunter wand"] }] },
+    { "name": "Vorkath", "ehb": null, "requirements": [{ "bosses": ["Vorkath"], "target": 1, "duplicates": true, "higherWeights": false, "description": "Collect a Dragonbone necklace, either visage, or Vorki", "items": ["Dragonbone necklace", "Draconic visage", "Skeletal visage", "Vorki"] }] },
+    { "name": "Sarachnis", "ehb": null, "requirements": [{ "bosses": ["Sarachnis"], "target": 3, "duplicates": true, "higherWeights": false, "description": "Collect 3 Sarachnis cudgels", "items": ["Sarachnis cudgel"] }] },
+    { "name": "Grotesque Guardians", "ehb": null, "requirements": [{ "bosses": ["Grotesque Guardians"], "target": 2, "duplicates": true, "higherWeights": false, "description": "Collect 2 Granite hammers", "items": ["Granite hammer"] }] },
+    { "name": "Theatre of Blood", "ehb": null, "requirements": [{ "bosses": ["Theatre of Blood"], "target": 6, "duplicates": true, "higherWeights": true, "description": "Collect 6 purples; Scythe of vitur counts for 2", "items": ["Avernic defender hilt", "Ghrazi rapier", "Justiciar chestguard", "Justiciar faceguard", "Justiciar legguards", "Sanguinesti staff (uncharged)", "Scythe of vitur (uncharged)"], "weights": { "Scythe of vitur (uncharged)": 2 } }] },
+    { "name": "Superior Slayer", "ehb": 21, "requirements": [{ "bosses": [], "target": 3, "duplicates": true, "higherWeights": false, "manual": true, "description": "Collect Imbued heart, Eternal gem, Mist battlestaff, or Dust battlestaff", "items": ["Imbued heart", "Eternal gem", "Mist battlestaff", "Dust battlestaff"] }] },
+    { "name": "Corp", "ehb": null, "requirements": [{ "bosses": ["Corporeal Beast"], "target": 3, "duplicates": true, "higherWeights": false, "description": "Collect 3 Spirit shields", "items": ["Spirit shield"] }] },
+    { "name": "Maggot King", "ehb": null, "requirements": [{ "bosses": ["Maggot King"], "target": 5, "duplicates": true, "higherWeights": false, "description": "Collect 5 Elder venator fang or Crimson kisten drops; Maggot marquess is excluded", "items": ["Crimson kisten", "Elder venator fang"] }] },
+    { "name": "Alchemical Hydra", "ehb": null, "requirements": [{ "bosses": ["Alchemical Hydra"], "target": 1, "duplicates": true, "higherWeights": false, "description": "Collect Hydra's claw, Ikkle hydra, or Jar of chemicals", "items": ["Hydra's claw", "Ikkle hydra", "Jar of chemicals"] }] },
+    { "name": "Zulrah", "ehb": null, "requirements": [{ "bosses": ["Zulrah"], "target": 5, "duplicates": true, "higherWeights": false, "description": "Collect 5 eligible uniques; the pet and mutagens do not count", "items": ["Magic fang", "Serpentine visage", "Tanzanite fang", "Uncut onyx"] }] },
+    { "name": "Tombs of Amascut", "ehb": null, "requirements": [{ "bosses": ["Tombs of Amascut (Expert Mode)"], "target": 6, "duplicates": true, "higherWeights": true, "description": "Complete level-300 Expert ToA and collect 6 purples; Tumeken's shadow counts for 2", "items": ["Elidinis' ward", "Lightbearer", "Masori body", "Masori chaps", "Masori mask", "Osmumten's fang", "Tumeken's shadow (uncharged)"], "weights": { "Tumeken's shadow (uncharged)": 2 } }] },
+    { "name": "Doom", "ehb": null, "requirements": [{ "bosses": ["Doom of Mokhaiotl"], "target": 2, "duplicates": true, "higherWeights": false, "description": "Collect 2 eligible Doom uniques", "items": ["Avernic treads", "Eye of ayak (uncharged)", "Mokhaiotl cloth"] }] },
+    { "name": "Fortis Colosseum", "ehb": null, "requirements": [{ "bosses": ["Sol Heredit"], "target": 6, "duplicates": true, "higherWeights": false, "description": "Defeat Sol Heredit and collect 6 Sunfire armour pieces", "items": ["Sunfire fanatic chausses", "Sunfire fanatic cuirass", "Sunfire fanatic helm"] }] },
+    { "name": "Leviathan / Vardorvis", "ehb": null, "requirements": [{ "bosses": ["The Leviathan", "Vardorvis"], "target": 3, "duplicates": true, "higherWeights": false, "description": "Collect 3 Chromium ingots", "items": ["Chromium ingot"] }] },
+    { "name": "Barrows / Moons", "ehb": null, "requirements": [{ "bosses": ["Barrows Chests"], "target": 5, "duplicates": true, "higherWeights": false, "description": "Collect 5 Barrows equipment pieces", "items": [] }, { "bosses": ["Lunar Chests"], "target": 5, "duplicates": true, "higherWeights": false, "description": "Collect 5 Moons equipment pieces", "items": [] }] },
+    { "name": "Cerberus", "ehb": null, "requirements": [{ "bosses": ["Cerberus"], "target": 2, "duplicates": true, "higherWeights": false, "description": "Collect 2 Primordial crystals", "items": ["Primordial crystal"] }] },
+    { "name": "Chambers of Xeric", "ehb": null, "requirements": [{ "bosses": ["Chambers of Xeric"], "target": 6, "duplicates": true, "higherWeights": true, "description": "Collect 6 purples; megarares count for 2", "items": ["Ancestral hat", "Ancestral robe bottom", "Ancestral robe top", "Arcane prayer scroll", "Dexterous prayer scroll", "Dinh's bulwark", "Dragon claws", "Dragon hunter crossbow", "Elder maul", "Kodai insignia", "Twisted bow", "Twisted buckler"], "weights": { "Elder maul": 2, "Kodai insignia": 2, "Twisted bow": 2 } }] }
+  ]
+}

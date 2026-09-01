@@ -247,9 +247,9 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
                 .ToListAsync();
             var fetchedAt = clock.GetUtcNow();
             synchronization.BeginReplacementGeneration(synchronization.AssignmentFingerprint, fetchedAt);
-            synchronization.MarkSuccess(fetchedAt, fetchedAt, false, "[\"Rasmus Activity Main\"]", "The competition response is missing one or more current Playing accounts.");
+            synchronization.MarkSuccess(fetchedAt, fetchedAt, false, "[\"Dev Activity Secondary\"]", "The competition response is missing one or more current Playing accounts.");
             db.EventCompetitionCharacterActivities.AddRange(assignments
-                .Where(value => value.DisplayName != "Rasmus Activity Main")
+                .Where(value => value.DisplayName != "Dev Activity Secondary")
                 .Select(value => new EventCompetitionCharacterActivity(Guid.NewGuid(), live.Id, synchronization.Generation, 1515,
                     value.OsrsCharacterId, 1m, fetchedAt, fetchedAt, synchronization.AssignmentFingerprint)));
             synchronization.MarkFailure(fetchedAt.AddSeconds(1), "Unavailable", "temporary", fetchedAt.AddSeconds(2));
@@ -285,15 +285,15 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         Assert.DoesNotContain("Wise Old Man integration", board, StringComparison.Ordinal);
         Assert.DoesNotContain(">EHB</strong>", board, StringComparison.Ordinal);
         Assert.DoesNotContain("Activity EHB", board, StringComparison.Ordinal);
-        Assert.Contains("Rasmus Zebak", board, StringComparison.Ordinal);
-        Assert.Contains("Rasmus Activity Main", board, StringComparison.Ordinal);
+        Assert.Contains("Dev Player 001", board, StringComparison.Ordinal);
+        Assert.Contains("Dev Activity Secondary", board, StringComparison.Ordinal);
         Assert.Contains("public-ui-leaderboard-detail-row", board, StringComparison.Ordinal);
         Assert.Contains("public-ui-table--nested", board, StringComparison.Ordinal);
         Assert.Contains("Start EHB", board, StringComparison.Ordinal);
         Assert.Contains("End EHB", board, StringComparison.Ordinal);
         Assert.Contains("—", board, StringComparison.Ordinal);
-        Assert.Contains("wiseoldman.net/players/Rasmus%20Zebak", board, StringComparison.Ordinal);
-        Assert.Contains("wiseoldman.net/players/Rasmus%20Activity%20Main", board, StringComparison.Ordinal);
+        Assert.Contains("wiseoldman.net/players/Dev%20Player%20001", board, StringComparison.Ordinal);
+        Assert.Contains("wiseoldman.net/players/Dev%20Activity%20Secondary", board, StringComparison.Ordinal);
         Assert.Contains("Avg. gained", board, StringComparison.Ordinal);
         Assert.Contains("MVP", board, StringComparison.Ordinal);
         Assert.Contains("class=\"public-ui-table\"", board, StringComparison.Ordinal);
@@ -324,10 +324,10 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         Assert.Contains("aria-label=\"EHB\"", team, StringComparison.Ordinal);
         Assert.DoesNotContain("Activity EHB", team, StringComparison.Ordinal);
         Assert.Contains("Team total", team, StringComparison.Ordinal);
-        Assert.Contains("Rasmus Zebak", team, StringComparison.Ordinal);
+        Assert.Contains("Dev Player 001", team, StringComparison.Ordinal);
         Assert.Contains("Provisional coverage", team, StringComparison.Ordinal);
         Assert.Contains("Wise Old Man is temporarily unavailable. Showing the last available cache.", team, StringComparison.Ordinal);
-        Assert.DoesNotContain("Rasmus Activity Main", team, StringComparison.Ordinal);
+        Assert.DoesNotContain("Dev Activity Secondary", team, StringComparison.Ordinal);
         var login = await client.GetStringAsync("/Account/Login");
         using (var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -336,14 +336,14 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             ["__RequestVerificationToken"] = Regex.Match(login, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
         }))) Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
         var manage = await client.GetStringAsync($"/Admin/Events/Manage/{liveId}");
-        Assert.Contains("Rasmus Activity Main", manage, StringComparison.Ordinal);
+        Assert.Contains("Dev Activity Secondary", manage, StringComparison.Ordinal);
         Assert.Contains("Partial", manage, StringComparison.Ordinal);
         Assert.Equal(0, fake.Calls);
 
         await using (var db = new ApplicationDbContext(options))
         {
             var synchronization = await db.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == liveId);
-            var missingCharacter = await db.OsrsCharacters.SingleAsync(value => value.DisplayName == "Rasmus Activity Main");
+            var missingCharacter = await db.OsrsCharacters.SingleAsync(value => value.DisplayName == "Dev Activity Secondary");
             var completedAt = DateTimeOffset.UtcNow;
             synchronization.MarkSuccess(completedAt, completedAt, true, "[]", null);
             db.EventCompetitionCharacterActivities.Add(new EventCompetitionCharacterActivity(
@@ -467,124 +467,9 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             var lookup = await reset.Events.SingleAsync(value => value.Slug == "test-16-signup-lookup");
             Assert.Equal(EventState.SignupOpen, lookup.State);
             Assert.Equal(9, await reset.EventParticipants.CountAsync(value => value.EventId == lookup.Id));
-            Assert.Equal(23, await reset.Events.CountAsync());
+            Assert.Equal(22, await reset.Events.CountAsync());
         }
         Assert.Equal(1, fake.Calls);
-    }
-
-    [Fact]
-    public async Task HistoricalSummerFixturePublishesCompleteWiseOldManRowsAndEndsInFinalReview()
-    {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
-        const string owner = "slice10-pass103-historical-owner";
-        await using (var db = new ApplicationDbContext(options))
-        {
-            await new OperatorRecoveryService(db, clock, new Microsoft.AspNetCore.Identity.PasswordHasher<Account>())
-                .BootstrapOwnerAsync(owner, "slice10-pass103-historical-password", owner, CancellationToken.None);
-            await new CatalogueSnapshotService(db, clock).ApplyAsync(Path.Combine(AppContext.BaseDirectory, "data", "osrs-catalogue.json"));
-            var seeder = new DevelopmentScenarioSeeder(db, new DevelopmentEnvironment(), new Microsoft.AspNetCore.Identity.PasswordHasher<Account>(), new SeedEvidenceStorage(), clock);
-            await seeder.ResetAndSeedAsync();
-
-            var historical = await db.Events.SingleAsync(value => value.Slug == DevelopmentScenarioSeeder.HistoricalFixtureSlug);
-            Assert.Equal("Det Store Danske Sommerbingo 2026", historical.Name);
-            Assert.Equal(new DateTimeOffset(2026, 7, 14, 16, 0, 0, TimeSpan.Zero), historical.EventStartsAt);
-            Assert.Equal(new DateTimeOffset(2026, 7, 19, 16, 0, 0, TimeSpan.Zero), historical.EventEndsAt);
-            Assert.Equal(EventState.Live, historical.State);
-            Assert.Equal(6, await db.Teams.CountAsync(value => value.EventId == historical.Id));
-            Assert.Equal(72, await db.EventParticipants.CountAsync(value => value.EventId == historical.Id && value.SignupStatus == SignupStatus.Confirmed));
-            Assert.Equal(93, await db.EventParticipantCharacters.CountAsync(value => value.EventId == historical.Id && value.EventRole == EventCharacterRole.Playing && value.ReleasedAt == null));
-            var rosterFirstBoard = await new PublicBoardService(db, clock).GetEventBoardAsync(DevelopmentScenarioSeeder.HistoricalFixtureSlug);
-            Assert.NotNull(rosterFirstBoard);
-            Assert.Equal(72, rosterFirstBoard.RosterPlayers!.Count);
-            Assert.NotEmpty(rosterFirstBoard.PlayerLeaderboard);
-            Assert.Contains(rosterFirstBoard.RosterPlayers, value => value.PlayerName == "Mathias_Jr" && value.TeamName == "Xen0%_d_rops");
-            Assert.True(rosterFirstBoard.DropEhbTeams!.Sum(value => value.TotalDrops) > 0);
-
-            var rosterCounts = await (from assignment in db.EventParticipantCharacters
-                                      join membership in db.TeamMemberships on assignment.EventParticipantId equals membership.EventParticipantId
-                                      where assignment.EventId == historical.Id && assignment.EventRole == EventCharacterRole.Playing && assignment.ReleasedAt == null && membership.LeftAt == null
-                                      group assignment by membership.TeamId into grouped
-                                      select grouped.Count()).ToListAsync();
-            Assert.Equal([15, 15, 15, 15, 16, 17], rosterCounts.OrderBy(value => value).ToArray());
-            var expectedRosterByTeam = new Dictionary<string, string[]>(StringComparer.Ordinal)
-            {
-                ["Touch Kids, not grass"] = ["Rasmus Zebak", "ZemaFios", "Raffineret", "Frette", "Crunch7O4", "Detoned", "spacecreator", "Thuebob", "GIMGonduth", "Kongherodes", "zop1", "i use x22", "NoobNicoline", "CorgisIron", "itsmkn"],
-                ["Såeh cs?"] = ["thylegend", "wolles", "zakk0", "Calm Chris", "IM Latry", "Maxzen", "Mikkel IT", "IM Iftic", "zanshock", "Stoltze", "Ezzi", "Bubber", "freakingpand", "Also Ezzi", "Myrupz", "Compleetius", "w olles"],
-                ["Morytania Monkeys"] = ["3lite men x", "siswet19", "MrTopFresh", "N l C K O", "BackShotBoby", "200iq p2W", "MindMySnipe", "gim wemox", "aegget", "Sunny Boy110", "RiceBarrage", "Maxe2968", "Macdroppet", "karl knast", "rallemester"],
-                ["The Agency"] = ["Agent Slidt", "MesterMudder", "Agent Groth", "User IM", "R33c0NN", "Skade", "PapPresseren", "Jern Jakob", "MrDryhard", "Tanzania Tim", "p5a", "kenya kaj", "Uganda Ulrik", "Sanddrage", "Grump Dane"],
-                ["Xen0%_d_rops"] = ["J3ssen", "Mathias_Jr", "Helium bob", "gimdragons", "release d", "olympisk", "SkovHuggerDK", "Tast My Fart", "maldonlyjust", "Xen0phyte", "Ordblin", "YoIronManBtw", "Moq puW", "jernwicked", "Dariolious", "Coxophobia"],
-                ["Zalamalikum"] = ["Iron Yakub", "zalazane", "Kuss IM", "Speedwork", "Dudepet", "bodyplate", "GIM Zimmo", "yankiebarz", "GIM CsBaNaNa", "Flyve Flemse", "NoClueOnGlue", "imlilithbtw", "tissetanten", "Mad Jad Lad", "511alotaibi"]
-            };
-            var actualRosterByTeam = await (from team in db.Teams.AsNoTracking()
-                                            join membership in db.TeamMemberships.AsNoTracking() on team.Id equals membership.TeamId
-                                            join assignment in db.EventParticipantCharacters.AsNoTracking() on membership.EventParticipantId equals assignment.EventParticipantId
-                                            join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
-                                            where team.EventId == historical.Id && team.Active && membership.LeftAt == null && assignment.EventId == historical.Id &&
-                                                  assignment.EventRole == EventCharacterRole.Playing && assignment.ReleasedAt == null
-                                            select new { team.Name, character.NormalizedName }).ToListAsync();
-            foreach (var (teamName, expectedNames) in expectedRosterByTeam)
-            {
-                Assert.Equal(
-                    expectedNames.Select(value => value.Trim().ToUpperInvariant()).OrderBy(value => value, StringComparer.Ordinal).ToArray(),
-                    actualRosterByTeam.Where(value => value.Name == teamName).Select(value => value.NormalizedName).OrderBy(value => value, StringComparer.Ordinal).ToArray());
-            }
-            var historicalParticipantIds = await db.EventParticipants
-                .Where(value => value.EventId == historical.Id && value.SignupStatus == SignupStatus.Confirmed)
-                .Select(value => value.Id)
-                .ToListAsync();
-            var signupAnswerKeys = await db.SignupAnswers
-                .Where(value => historicalParticipantIds.Contains(value.EventParticipantId))
-                .Select(value => new { value.EventParticipantId, value.SignupQuestionId })
-                .ToListAsync();
-            Assert.Equal(signupAnswerKeys.Count, signupAnswerKeys.Distinct().Count());
-
-            var activeAssignments = await (from assignment in db.EventParticipantCharacters.AsNoTracking()
-                                           join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
-                                           where assignment.EventId == historical.Id && assignment.EventRole == EventCharacterRole.Playing && assignment.ReleasedAt == null
-                                           orderby assignment.Id
-                                           select new { assignment.OsrsCharacterId, character.DisplayName }).ToListAsync();
-            var fake = new CountingCompetitionClient(new WiseOldManCompetitionResult(
-                WiseOldManCompetitionStatus.Success,
-                new WiseOldManCompetition(
-                    DevelopmentScenarioSeeder.HistoricalFixtureCompetitionId,
-                    historical.Name,
-                    historical.EventStartsAt!.Value,
-                    historical.EventEndsAt!.Value,
-                    clock.GetUtcNow(),
-                    activeAssignments.Select(value => new WiseOldManCompetitionParticipant(value.DisplayName, "REGULAR", 1m)).ToArray())));
-            var admin = await db.Accounts.SingleAsync(value => value.LoginName == owner);
-            var actor = new LifecycleActor(admin.Id, admin.LoginName);
-            var synchronization = new EventCompetitionSynchronizationService(db, fake, new FixedStatus(), clock);
-            var refreshed = await synchronization.RefreshAsync(historical.Id, actor);
-            Assert.True(refreshed.Succeeded, refreshed.Message);
-            Assert.False(refreshed.Skipped);
-            Assert.Equal(1, fake.Calls);
-            var state = await db.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == historical.Id);
-            Assert.True(state.LatestComplete);
-            Assert.Equal(93, await db.EventCompetitionCharacterActivities.CountAsync(value => value.EventId == historical.Id && value.Generation == state.Generation));
-
-            var publicBoard = await new PublicBoardService(db, clock).GetEventBoardAsync(DevelopmentScenarioSeeder.HistoricalFixtureSlug);
-            Assert.NotNull(publicBoard);
-            Assert.Equal([25, 22, 19, 16, 13, 10], publicBoard.Teams.OrderBy(value => value.TeamName).Select(value => value.Progress.CompletedTiles).OrderByDescending(value => value).ToArray());
-            var secondaryCharacterIds = await db.EventParticipantCharacters
-                .Where(value => value.EventId == historical.Id && value.EventRole == EventCharacterRole.Playing && value.RegistrationOrder > 0 && value.ReleasedAt == null)
-                .Select(value => value.OsrsCharacterId)
-                .ToListAsync();
-            Assert.NotEmpty(await db.Submissions.Where(value => value.EventId == historical.Id && secondaryCharacterIds.Contains(value.CreditedOsrsCharacterId)).ToListAsync());
-
-            var ended = await new EventLifecycleService(db, null!, clock)
-                .EndNowAsync(historical.Id, historical.Version, true, "End seeded historical fixture.", actor);
-            Assert.True(ended.Succeeded, ended.Error);
-            db.ChangeTracker.Clear();
-            Assert.Equal(EventState.AwaitingFinalReview, await db.Events.Where(value => value.Id == historical.Id).Select(value => value.State).SingleAsync());
-            var rejectedRefresh = await new EventCompetitionSynchronizationService(db, fake, new FixedStatus(), clock).RefreshAsync(historical.Id, actor);
-            Assert.True(rejectedRefresh.Skipped);
-            Assert.Equal(1, fake.Calls);
-            var test15 = await db.Events.SingleAsync(value => value.Slug == "test-15-dkl-live");
-            Assert.Equal("Vinterbingo 2026", test15.Name);
-            Assert.Equal(EventState.Live, test15.State);
-            Assert.Equal(1515, await db.EventCompetitionSynchronizations.Where(value => value.EventId == test15.Id).Select(value => value.CompetitionId).SingleAsync());
-        }
     }
 
     private async Task<Seed> SeedAsync(DateTimeOffset now)

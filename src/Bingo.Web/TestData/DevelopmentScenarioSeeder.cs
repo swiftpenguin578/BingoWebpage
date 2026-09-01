@@ -39,8 +39,6 @@ public sealed class DevelopmentScenarioSeeder(
     public const string EvidenceDisabledEmergencyUsername = "SeedEvidenceEmergencyDisabled";
     public const string SecondaryAdminUsername = "SeedAdminTwo";
     public const string SecondaryAdminPassword = "SeedAdmin!1234";
-    public const string HistoricalFixtureSlug = "test-101-danish-summer-bingo-2026";
-    public const long HistoricalFixtureCompetitionId = 145197;
 
     public async Task<SeedResult> ResetAndSeedAsync(CancellationToken cancellationToken = default)
     {
@@ -147,8 +145,6 @@ public sealed class DevelopmentScenarioSeeder(
             now));
         var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, evidenceCaptain, evidenceCoCaptain, evidenceParticipant, now);
         seeded.Add(dklLiveScenario);
-        var historicalScenario = SeedHistoricalDklScenario(dklBlueprint, admin.Id, now);
-        seeded.Add(historicalScenario);
         var currentPublicScenario = await SeedScenario(
             "Forårsbingo 2026",
             "test-90-current-public-event",
@@ -180,12 +176,6 @@ public sealed class DevelopmentScenarioSeeder(
         waitingReplacement.AssignOwner(replacementAccount);
         db.EventParticipants.Add(waitingReplacement);
         await AddDklLiveProgress(dklLiveScenario.EventId, admin.Id, now, cancellationToken);
-        await AddDklLiveProgress(
-            historicalScenario.EventId, admin.Id, now, cancellationToken,
-            [25, 22, 19, 16, 13, 10],
-            new DateTimeOffset(2026, 7, 14, 16, 5, 0, TimeSpan.Zero),
-            "Approved historical summer-bingo progress fixture.",
-            rotateAllPlayingAccounts: true);
         await AddDklReviewStatesAsync(dklLiveScenario.EventId, admin.Id, now, cancellationToken);
         var evidenceHistoryScenario = await SeedScenario(
             "Påskebingo 2026",
@@ -367,11 +357,23 @@ public sealed class DevelopmentScenarioSeeder(
 
     private async Task EnsureDevelopmentLookupCharacterAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var character = seedCharacters.GetValueOrDefault("RASMUS ZEBAK")
-            ?? throw new InvalidOperationException("The Development lookup character was not seeded.");
-        var link = await db.AccountOsrsCharacters.SingleOrDefaultAsync(
-            value => value.AccountId == accountId && value.OsrsCharacterId == character.Id,
-            cancellationToken);
+        const string name = "Dev Lookup Player";
+        var normalized = Normalize(name);
+        if (!seedCharacters.TryGetValue(normalized, out var character))
+        {
+            character = new OsrsCharacter(Guid.NewGuid(), name, normalized, now);
+            db.OsrsCharacters.Add(character);
+            seedCharacters.Add(normalized, character);
+        }
+        var link = await db.AccountOsrsCharacters
+            .Where(value => value.AccountId == accountId)
+            .OrderByDescending(value => value.Active && value.Preferred)
+            .ThenByDescending(value => value.Active)
+            .ThenByDescending(value => value.Preferred)
+            .ThenBy(value => value.Position)
+            .ThenBy(value => value.LinkedAt)
+            .ThenBy(value => value.Id)
+            .FirstOrDefaultAsync(cancellationToken);
         if (link is null)
         {
             db.AccountOsrsCharacters.Add(new AccountOsrsCharacter(
@@ -381,6 +383,7 @@ public sealed class DevelopmentScenarioSeeder(
         }
 
         if (!link.Active) link.Relink(accountId, now);
+        if (link.OsrsCharacterId != character.Id) link.CorrectCharacter(character.Id, now);
         link.UpdatePreferences("Development lookup account", 0, true, 12.5m, now);
     }
 
@@ -617,24 +620,24 @@ public sealed class DevelopmentScenarioSeeder(
         {
             (
                 "Touch kids, not grass",
-                "Rasmus Zebak",
-                "crunch704",
-                ["ZemaFios", "Detoned", "Frette", "Thuebob", "Spacecreator", "Raffineret", "I use x22", "Kongherodes", "itsMKN", "Gimgonduth", "Corgisiron", "NoobNicoline", "Zop1"]),
+                "Large Draft Player 001",
+                "Large Draft Player 002",
+                ["Large Draft Player 003", "Large Draft Player 004", "Large Draft Player 005", "Large Draft Player 006", "Large Draft Player 007", "Large Draft Player 008", "Large Draft Player 009", "Large Draft Player 010", "Large Draft Player 011", "Large Draft Player 012", "Large Draft Player 013", "Large Draft Player 014", "Large Draft Player 015"]),
             (
                 "Såeh cs?",
-                "zakk0",
-                "Mikkel-IT",
-                ["Thylegend", "Ezzi", "W olles", "Completeius", "Calm Chris", "IM Latry", "im iftic", "Zanshock", "stoltze", "Myrupz", "Maxzen", "Bubber", "Freakingpand"]),
+                "Large Draft Player 016",
+                "Large Draft Player 017",
+                ["Large Draft Player 018", "Large Draft Player 019", "Large Draft Player 020", "Large Draft Player 021", "Large Draft Player 022", "Large Draft Player 023", "Large Draft Player 024", "Large Draft Player 025", "Large Draft Player 026", "Large Draft Player 027", "Large Draft Player 028", "Large Draft Player 029", "Large Draft Player 030"]),
             (
                 "Morytania Monkeys",
-                "Karl Knast",
-                "Macdroppet",
-                ["N L C K O", "Siswet19", "Sunny Boy110", "oegget", "3lite men x", "200iq p2W", "Ricebarrage", "Mrtopfresh", "MindMySnipe", "GIM Wemox", "Røllemester", "Maxe2968", "Backshotbaby"]),
+                "Large Draft Player 031",
+                "Large Draft Player 032",
+                ["Large Draft Player 033", "Large Draft Player 034", "Large Draft Player 035", "Large Draft Player 036", "Large Draft Player 037", "Large Draft Player 038", "Large Draft Player 039", "Large Draft Player 040", "Large Draft Player 041", "Large Draft Player 042", "Large Draft Player 043", "Large Draft Player 044", "Large Draft Player 045"]),
             (
                 "The Agency",
-                "Agent Groth",
-                "Agent Slidt",
-                ["R33Con", "pappresseren", "Elite ca", "Jern Jakob", "MesterMudder", "Sanddrage", "MrDryhard", "User IM", "Skade", "Tanzania Tim", "Uganda ulrik", "Kenya Kaj", "BotF"])
+                "Large Draft Player 046",
+                "Large Draft Player 047",
+                ["Large Draft Player 048", "Large Draft Player 049", "Large Draft Player 050", "Large Draft Player 051", "Large Draft Player 052", "Large Draft Player 053", "Large Draft Player 054", "Large Draft Player 055", "Large Draft Player 056", "Large Draft Player 057", "Large Draft Player 058", "Large Draft Player 059", "Large Draft Player 060"])
         };
         var participantNames = rosters
             .SelectMany(roster => new[] { roster.Captain, roster.CoCaptain }.Concat(roster.Picks))
@@ -745,19 +748,21 @@ public sealed class DevelopmentScenarioSeeder(
         const int targetTeamSize = 10;
         var participantNames = new[]
         {
-            "Rasmus Zebak", "crunch704", "ZemaFios", "Detoned", "Frette", "Thuebob", "Spacecreator", "Raffineret", "I use x22", "Kongherodes", "itsMKN", "Gimgonduth", "Corgisiron", "NoobNicoline", "Zop1",
-            "zakk0", "Mikkel-IT", "Thylegend", "Ezzi", "W olles", "Completeius", "Calm Chris", "IM Latry", "im iftic", "Zanshock", "stoltze", "Myrupz", "Maxzen", "Bubber", "Freakingpand",
-            "Karl Knast", "Macdroppet", "N L C K O", "Siswet19", "Sunny Boy110", "oegget", "3lite men x", "200iq p2W", "Ricebarrage", "Mrtopfresh", "MindMySnipe", "GIM Wemox", "Røllemester", "Maxe2968", "Backshotbaby",
-            "Agent Groth", "Agent Slidt", "R33Con", "pappresseren", "Elite ca", "Jern Jakob", "MesterMudder", "Sanddrage", "MrDryhard", "User IM", "Skade", "Tanzania Tim", "Uganda ulrik", "Kenya Kaj", "BotF"
+            "Dev Player 001", "Dev Player 002", "Dev Player 003", "Dev Player 004", "Dev Player 005", "Dev Player 006", "Dev Player 007", "Dev Player 008", "Dev Player 009", "Dev Player 010",
+            "Dev Player 011", "Dev Player 012", "Dev Player 013", "Dev Player 014", "Dev Player 015", "Dev Player 016", "Dev Player 017", "Dev Player 018", "Dev Player 019", "Dev Player 020",
+            "Dev Player 021", "Dev Player 022", "Dev Player 023", "Dev Player 024", "Dev Player 025", "Dev Player 026", "Dev Player 027", "Dev Player 028", "Dev Player 029", "Dev Player 030",
+            "Dev Player 031", "Dev Player 032", "Dev Player 033", "Dev Player 034", "Dev Player 035", "Dev Player 036", "Dev Player 037", "Dev Player 038", "Dev Player 039", "Dev Player 040",
+            "Dev Player 041", "Dev Player 042", "Dev Player 043", "Dev Player 044", "Dev Player 045", "Dev Player 046", "Dev Player 047", "Dev Player 048", "Dev Player 049", "Dev Player 050",
+            "Dev Player 051", "Dev Player 052", "Dev Player 053", "Dev Player 054", "Dev Player 055", "Dev Player 056", "Dev Player 057", "Dev Player 058", "Dev Player 059", "Dev Player 060"
         };
         var teamSeeds = new[]
         {
-            (Name: "Touch kids, not grass", Slug: "touch-kids-not-grass", Captain: "Rasmus Zebak", CoCaptain: "crunch704"),
-            (Name: "Såeh cs?", Slug: "saeh-cs", Captain: "zakk0", CoCaptain: "Mikkel-IT"),
-            (Name: "Morytania Monkeys", Slug: "morytania-monkeys", Captain: "Karl Knast", CoCaptain: "Macdroppet"),
-            (Name: "The Agency", Slug: "the-agency", Captain: "Agent Groth", CoCaptain: "Agent Slidt"),
-            (Name: "Xen0%_d_rops", Slug: "xen0-d-rops", Captain: "ZemaFios", CoCaptain: "Detoned"),
-            (Name: "Zalamalikum", Slug: "zalamalikum", Captain: "Frette", CoCaptain: "Thuebob")
+            (Name: "Touch kids, not grass", Slug: "touch-kids-not-grass", Captain: "Dev Player 001", CoCaptain: "Dev Player 002"),
+            (Name: "Såeh cs?", Slug: "saeh-cs", Captain: "Dev Player 011", CoCaptain: "Dev Player 012"),
+            (Name: "Morytania Monkeys", Slug: "morytania-monkeys", Captain: "Dev Player 021", CoCaptain: "Dev Player 022"),
+            (Name: "The Agency", Slug: "the-agency", Captain: "Dev Player 031", CoCaptain: "Dev Player 032"),
+            (Name: "Xen0%_d_rops", Slug: "xen0-d-rops", Captain: "Dev Player 041", CoCaptain: "Dev Player 042"),
+            (Name: "Zalamalikum", Slug: "zalamalikum", Captain: "Dev Player 051", CoCaptain: "Dev Player 052")
         };
         var leaderNames = teamSeeds
             .SelectMany(team => new[] { team.Captain, team.CoCaptain })
@@ -804,7 +809,7 @@ public sealed class DevelopmentScenarioSeeder(
                 captainVolunteer: leaderNames.Contains(name));
         }).ToList();
         db.EventParticipants.AddRange(participants);
-        AddActivitySecondRegularAccount(participants.Single(value => PrimaryName(value) == "Rasmus Zebak"), now);
+        AddActivitySecondRegularAccount(participants.Single(value => PrimaryName(value) == "Dev Player 001"), now);
         var participantsByName = participants.ToDictionary(
             participant => PrimaryName(participant),
             StringComparer.OrdinalIgnoreCase);
@@ -865,114 +870,6 @@ public sealed class DevelopmentScenarioSeeder(
             bingoEvent.State,
             board.State,
             captainUsernames);
-    }
-
-    private SeededScenario SeedHistoricalDklScenario(BoardBlueprint blueprint, Guid adminId, DateTimeOffset now)
-    {
-        var teams = new[]
-        {
-            (Name: "Touch Kids, not grass", Slug: "touch-kids-not-grass", Accounts: new[]
-            {
-                "Rasmus Zebak", "ZemaFios", "Raffineret", "Frette", "Crunch7O4", "Detoned", "spacecreator", "Thuebob", "GIMGonduth", "Kongherodes", "zop1", "i use x22", "NoobNicoline", "CorgisIron", "itsmkn"
-            }),
-            (Name: "Såeh cs?", Slug: "saeh-cs", Accounts: new[]
-            {
-                "thylegend", "wolles", "zakk0", "Calm Chris", "IM Latry", "Maxzen", "Mikkel IT", "IM Iftic", "zanshock", "Stoltze", "Ezzi", "Bubber", "freakingpand", "Also Ezzi", "Myrupz", "Compleetius", "w olles"
-            }),
-            (Name: "Morytania Monkeys", Slug: "morytania-monkeys", Accounts: new[]
-            {
-                "3lite men x", "siswet19", "MrTopFresh", "N l C K O", "BackShotBoby", "200iq p2W", "MindMySnipe", "gim wemox", "aegget", "Sunny Boy110", "RiceBarrage", "Maxe2968", "Macdroppet", "karl knast", "rallemester"
-            }),
-            (Name: "The Agency", Slug: "the-agency", Accounts: new[]
-            {
-                "Agent Slidt", "MesterMudder", "Agent Groth", "User IM", "R33c0NN", "Skade", "PapPresseren", "Jern Jakob", "MrDryhard", "Tanzania Tim", "p5a", "kenya kaj", "Uganda Ulrik", "Sanddrage", "Grump Dane"
-            }),
-            (Name: "Xen0%_d_rops", Slug: "xen0-d-rops", Accounts: new[]
-            {
-                "J3ssen", "Mathias_Jr", "Helium bob", "gimdragons", "release d", "olympisk", "SkovHuggerDK", "Tast My Fart", "maldonlyjust", "Xen0phyte", "Ordblin", "YoIronManBtw", "Moq puW", "jernwicked", "Dariolious", "Coxophobia"
-            }),
-            (Name: "Zalamalikum", Slug: "zalamalikum", Accounts: new[]
-            {
-                "Iron Yakub", "zalazane", "Kuss IM", "Speedwork", "Dudepet", "bodyplate", "GIM Zimmo", "yankiebarz", "GIM CsBaNaNa", "Flyve Flemse", "NoClueOnGlue", "imlilithbtw", "tissetanten", "Mad Jad Lad", "511alotaibi"
-            })
-        };
-        var roster = teams.SelectMany(team => team.Accounts).ToArray();
-        if (roster.Length != 93 || roster.Select(Normalize).Distinct(StringComparer.Ordinal).Count() != 93 || teams.Any(team => team.Accounts.Length < 12))
-            throw new InvalidOperationException("The historical fixture roster must contain 93 normalized-unique accounts and at least 12 accounts per team.");
-
-        var eventStarts = new DateTimeOffset(2026, 7, 14, 16, 0, 0, TimeSpan.Zero);
-        var eventEnds = new DateTimeOffset(2026, 7, 19, 16, 0, 0, TimeSpan.Zero);
-        var bingoEvent = new BingoEvent(
-            Guid.NewGuid(), "Det Store Danske Sommerbingo 2026", HistoricalFixtureSlug,
-            "Historical six-team summer bingo fixture backed by the Wise Old Man competition snapshot.",
-            "Europe/Copenhagen", eventStarts.AddDays(-7), eventStarts.AddDays(-2),
-            eventStarts, eventEnds, eventEnds.AddMinutes(30), 72, adminId, now);
-        bingoEvent.ConfigureSignup(true, false, null);
-        bingoEvent.ConfigurePlanning(
-            "Historical DKL fixture rules.", null, null, teams.Length, 12, blueprint.Rows, blueprint.Columns);
-        bingoEvent.OpenSignups();
-        bingoEvent.CloseSignups();
-        db.Entry(bingoEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = true;
-        db.Events.Add(bingoEvent);
-        AddSignupFoundation(bingoEvent, now);
-
-        var participantsByTeam = new List<(EventParticipant Participant, string TeamName)>();
-        var participantsByName = new Dictionary<string, EventParticipant>(StringComparer.OrdinalIgnoreCase);
-        var sequence = 1L;
-        foreach (var team in teams)
-        {
-            var owners = team.Accounts.Take(12).Select((name, index) =>
-            {
-                var participant = CreateParticipant(
-                    bingoEvent.Id, name, 100 + sequence * 3, SignupStatus.Confirmed, sequence++,
-                    eventStarts.AddDays(-2).AddMinutes(sequence), SignupSource.Website,
-                    captainVolunteer: index < 2);
-                participantsByName.Add(name, participant);
-                participantsByTeam.Add((participant, team.Name));
-                return participant;
-            }).ToList();
-            for (var index = 12; index < team.Accounts.Length; index++)
-            {
-                var owner = owners[(index - 12) % owners.Count];
-                AddHistoricalPlayingAccount(owner, team.Accounts[index], eventStarts.AddDays(-2));
-            }
-        }
-        db.EventParticipants.AddRange(participantsByTeam.Select(value => value.Participant));
-
-        var board = AddBoard(bingoEvent, blueprint, publish: true, now);
-        var draft = new DraftSession(Guid.NewGuid(), bingoEvent.Id, 12);
-        draft.Start(eventStarts.AddHours(-2));
-        db.DraftSessions.Add(draft);
-        var captainUsernames = new List<string>(teams.Length);
-        var pickNumber = 1;
-        for (var teamIndex = 0; teamIndex < teams.Length; teamIndex++)
-        {
-            var seed = teams[teamIndex];
-            var team = new Team(Guid.NewGuid(), bingoEvent.Id, seed.Name, seed.Slug, TeamFormationType.Drafted, null, true);
-            team.SetDraftPosition(teamIndex + 1);
-            db.Teams.Add(team);
-            var owners = seed.Accounts.Take(12).Select(name => participantsByName[name]).ToList();
-            db.TeamMemberships.AddRange(
-                new TeamMembership(Guid.NewGuid(), team.Id, owners[0].Id, TeamMembershipRole.Captain, eventStarts.AddDays(-1), null, "Historical fixture captain"),
-                new TeamMembership(Guid.NewGuid(), team.Id, owners[1].Id, TeamMembershipRole.CoCaptain, eventStarts.AddDays(-1), null, "Historical fixture co-captain"));
-            foreach (var owner in owners.Skip(2))
-            {
-                AddPick(draft, team, owner, pickNumber, (pickNumber - 1) / teams.Length + 1, eventStarts.AddDays(-1));
-                pickNumber++;
-            }
-            team.Finalize(eventStarts.AddHours(-1));
-            captainUsernames.Add(AddCaptainAccount(bingoEvent, team, owners[0], CaptainDigits(bingoEvent, teamIndex + 1), now));
-        }
-        draft.Finalize(eventStarts.AddHours(-1));
-        AddDraftPublication(bingoEvent, now);
-        bingoEvent.SetDraftRosterPublication(true);
-        bingoEvent.StartEvent(eventStarts);
-        bingoEvent.SetDraftLocked(true);
-        db.EventCompetitionSynchronizations.Add(new EventCompetitionSynchronization(
-            Guid.NewGuid(), bingoEvent.Id, 1, HistoricalFixtureCompetitionId,
-            bingoEvent.Name, eventStarts, eventEnds, string.Empty, now));
-
-        return new SeededScenario(bingoEvent.Id, bingoEvent.Name, bingoEvent.State, board.State, captainUsernames);
     }
 
     private List<EventParticipant> AddParticipants(Guid eventId, ScenarioStage stage, DateTimeOffset now)
@@ -1080,7 +977,7 @@ public sealed class DevelopmentScenarioSeeder(
                 var sequence = progressSequence++;
                 var submittedAt = progressStart is { } historicalStart
                     ? historicalStart.AddMinutes(sequence * 3)
-                    : now.AddMinutes(-15 - sequence * 36);
+                    : now.AddMinutes(-15 - sequence * 33);
                 if (submittedAt < eventStarts || submittedAt > now)
                     throw new InvalidOperationException("Test 15 progress timestamps must remain within the live event window.");
                 var approvedAt = submittedAt.AddMinutes(5 + sequence % 7);
@@ -1191,7 +1088,7 @@ public sealed class DevelopmentScenarioSeeder(
 
     private void AddActivitySecondRegularAccount(EventParticipant participant, DateTimeOffset now)
     {
-        const string name = "Rasmus Activity Main";
+        const string name = "Dev Activity Secondary";
         var normalized = Normalize(name);
         if (!seedCharacters.TryGetValue(normalized, out var character))
         {
@@ -1201,20 +1098,6 @@ public sealed class DevelopmentScenarioSeeder(
         }
         db.EventParticipantCharacters.Add(new EventParticipantCharacter(
             Guid.NewGuid(), participant.EventId, participant.Id, character.Id, 1, now,
-            null, null, EventCharacterRole.Playing, 0, EhbSource.Manual, null));
-    }
-
-    private void AddHistoricalPlayingAccount(EventParticipant participant, string name, DateTimeOffset registeredAt)
-    {
-        var normalized = Normalize(name);
-        if (!seedCharacters.TryGetValue(normalized, out var character))
-        {
-            character = new OsrsCharacter(Guid.NewGuid(), name, normalized, registeredAt);
-            db.OsrsCharacters.Add(character);
-            seedCharacters.Add(normalized, character);
-        }
-        db.EventParticipantCharacters.Add(new EventParticipantCharacter(
-            Guid.NewGuid(), participant.EventId, participant.Id, character.Id, 1, registeredAt,
             null, null, EventCharacterRole.Playing, 0, EhbSource.Manual, null));
     }
 
@@ -1239,9 +1122,9 @@ public sealed class DevelopmentScenarioSeeder(
             var name = characters[assignment.OsrsCharacterId].DisplayName;
             var gained = name switch
             {
-                "Rasmus Zebak" => 12m,
-                "Rasmus Activity Main" => 8m,
-                "crunch704" => 20m,
+                "Dev Player 001" => 12m,
+                "Dev Activity Secondary" => 8m,
+                "Dev Player 002" => 20m,
                 _ => 2m + index % 3
             };
             return new EventCompetitionCharacterActivity(
@@ -1954,7 +1837,7 @@ public sealed class DevelopmentScenarioSeeder(
             new SeedTile("God Wars", null,
             [
                 new(["General Graardor", "Kree'Arra", "K'ril Tsutsaroth", "Commander Zilyana"], 10, false, false, null,
-                    "Collect 10 different God Wars uniques. Review this eligible list against the original board; pets are currently included as joker drops.",
+                    "Collect 10 different eligible God Wars drops; pets count as ordinary distinct drops and no joker is used.",
                     IncludedItems:
                     [
                         "Bandos boots", "Bandos chestplate", "Bandos hilt", "Bandos tassets", "Pet general graardor",
@@ -1972,14 +1855,14 @@ public sealed class DevelopmentScenarioSeeder(
             new SeedTile("Duke / Whisperer", null,
             [
                 new(["Duke Sucellus", "The Whisperer"], 2, true, false, null,
-                    "Collect 2 Soulreaper axe pieces; both may come from the same selected boss",
+                    "Collect any 2 Eye of the duke or Siren's staff drops; duplicates are allowed",
                     IncludedItems: ["Eye of the duke", "Siren's staff"])
             ]),
             new SeedTile("Araxxor", 25m,
             [
                 new(["Araxxor"], 1, true, false, null,
-                    "Collect Nid using the destroy option, or the jar. The retained catalogue currently has the destroy-rate Nid entry only.",
-                    IncludedItems: ["Nid (Destroy)"])
+                    "Collect Nid using the destroy option, or Jar of venom.",
+                    IncludedItems: ["Nid (Destroy)", "Jar of venom"])
             ]),
             new SeedTile("Phosani's Nightmare", null,
             [
@@ -2022,9 +1905,10 @@ public sealed class DevelopmentScenarioSeeder(
                     ],
                     WeightTwoItems: ["Scythe of vitur (uncharged)"])
             ]),
-            new SeedTile("Skilling Slayer", 21,
+            new SeedTile("Superior Slayer", 21,
             [
-                new([], 3, true, false, null, "Collect 3 superior-slayer uniques", Manual: true)
+                new([], 4, true, false, null, "Collect Imbued heart, Eternal gem, Mist battlestaff, or Dust battlestaff", Manual: true,
+                    IncludedItems: ["Imbued heart", "Eternal gem", "Mist battlestaff", "Dust battlestaff"])
             ]),
             new SeedTile("Corp", null,
             [
@@ -2032,7 +1916,8 @@ public sealed class DevelopmentScenarioSeeder(
             ]),
             new SeedTile("Maggot King", null,
             [
-                new(["Maggot King"], 5, true, false, null, "Collect 5 eligible Maggot King drops; review whether the pet should count")
+                new(["Maggot King"], 5, true, false, null, "Collect 5 eligible Maggot King drops; Maggot marquess is excluded",
+                    IncludedItems: ["Crimson kisten", "Elder venator fang"])
             ]),
             new SeedTile("Alchemical Hydra", null,
             [
@@ -2058,7 +1943,7 @@ public sealed class DevelopmentScenarioSeeder(
             new SeedTile("Doom", null,
             [
                 new(["Doom of Mokhaiotl"], 2, true, false, null,
-                    "Collect 2 uniques during full delve 1–16 runs. The EHB override uses the Wiki's aggregate 1–16 unique output.",
+                    "Collect 2 eligible Doom uniques.",
                     IncludedItems: ["Avernic treads", "Eye of ayak (uncharged)", "Mokhaiotl cloth"])
             ]),
             new SeedTile("Fortis Colosseum", null,
@@ -2123,6 +2008,17 @@ public sealed class DevelopmentScenarioSeeder(
                     (requirement.IncludedItems is not null
                         ? requirement.IncludedItems.Contains(row.item.Name, StringComparer.OrdinalIgnoreCase)
                         : requirement.ItemNameContains is null || row.item.Name.Contains(requirement.ItemNameContains, StringComparison.OrdinalIgnoreCase))).ToList();
+                if (requirement.Manual && requirement.IncludedItems is { Length: > 0 })
+                {
+                    var manualDrops = requirement.IncludedItems
+                        .Select(itemName => new DropBlueprint(Guid.NewGuid(), "Historical item pool", itemName, "Historical item pool", null, null, null))
+                        .ToList();
+                    requirements.Add(new RequirementBlueprint(
+                        requirementIndex + 1, requirement.Target, requirement.Duplicates, requirement.HigherWeights,
+                        requirement.Description, true, [], manualDrops));
+                    estimates.Add(null);
+                    continue;
+                }
                 if (!requirement.Manual && selectedDrops.Count == 0)
                 {
                     throw new InvalidOperationException($"The retained catalogue has no eligible drops for seeded tile '{specification.Name}'.");

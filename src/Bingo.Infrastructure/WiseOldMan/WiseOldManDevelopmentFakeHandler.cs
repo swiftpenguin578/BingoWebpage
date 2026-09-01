@@ -10,15 +10,12 @@ public sealed class WiseOldManDevelopmentFakeHandler(
 {
     private static readonly string[] CompetitionPlayers =
     [
-        "Rasmus Zebak", "Rasmus Activity Main", "crunch704", "ZemaFios", "Detoned", "Frette", "Thuebob",
-        "Spacecreator", "Raffineret", "I use x22", "Kongherodes", "itsMKN", "Gimgonduth", "Corgisiron",
-        "NoobNicoline", "Zop1", "zakk0", "Mikkel-IT", "Thylegend", "Ezzi", "W olles", "Completeius",
-        "Calm Chris", "IM Latry", "im iftic", "Zanshock", "stoltze", "Myrupz", "Maxzen", "Bubber",
-        "Freakingpand", "Karl Knast", "Macdroppet", "N L C K O", "Siswet19", "Sunny Boy110", "oegget",
-        "3lite men x", "200iq p2W", "Ricebarrage", "Mrtopfresh", "MindMySnipe", "GIM Wemox", "Røllemester",
-        "Maxe2968", "Backshotbaby", "Agent Groth", "Agent Slidt", "R33Con", "pappresseren", "Elite ca",
-        "Jern Jakob", "MesterMudder", "Sanddrage", "MrDryhard", "User IM", "Skade", "Tanzania Tim",
-        "Uganda ulrik", "Kenya Kaj", "BotF"
+        "Dev Player 001", "Dev Activity Secondary", "Dev Player 002", "Dev Player 003", "Dev Player 004", "Dev Player 005", "Dev Player 006", "Dev Player 007", "Dev Player 008", "Dev Player 009", "Dev Player 010",
+        "Dev Player 011", "Dev Player 012", "Dev Player 013", "Dev Player 014", "Dev Player 015", "Dev Player 016", "Dev Player 017", "Dev Player 018", "Dev Player 019", "Dev Player 020",
+        "Dev Player 021", "Dev Player 022", "Dev Player 023", "Dev Player 024", "Dev Player 025", "Dev Player 026", "Dev Player 027", "Dev Player 028", "Dev Player 029", "Dev Player 030",
+        "Dev Player 031", "Dev Player 032", "Dev Player 033", "Dev Player 034", "Dev Player 035", "Dev Player 036", "Dev Player 037", "Dev Player 038", "Dev Player 039", "Dev Player 040",
+        "Dev Player 041", "Dev Player 042", "Dev Player 043", "Dev Player 044", "Dev Player 045", "Dev Player 046", "Dev Player 047", "Dev Player 048", "Dev Player 049", "Dev Player 050",
+        "Dev Player 051", "Dev Player 052", "Dev Player 053", "Dev Player 054", "Dev Player 055", "Dev Player 056", "Dev Player 057", "Dev Player 058", "Dev Player 059", "Dev Player 060"
     ];
     private int temporaryFailuresRemaining = Math.Max(0, options.DevelopmentFake.TemporaryFailures);
 
@@ -60,11 +57,11 @@ public sealed class WiseOldManDevelopmentFakeHandler(
         if (string.Equals(mode, "RateLimited", StringComparison.OrdinalIgnoreCase))
             return RateLimitedResponse();
         var players = CompetitionPlayers
-            .Where(name => !string.Equals(mode, "Incomplete", StringComparison.OrdinalIgnoreCase) || !string.Equals(name, "Rasmus Activity Main", StringComparison.OrdinalIgnoreCase))
+            .Where(name => !string.Equals(mode, "Incomplete", StringComparison.OrdinalIgnoreCase) || !string.Equals(name, "Dev Activity Secondary", StringComparison.OrdinalIgnoreCase))
             .Select((name, index) => new
             {
                 player = new { username = name, type = "REGULAR" },
-                deltas = new[] { new { metric = "ehb", values = new { gained = name == "Rasmus Zebak" ? 12.0m : name == "Rasmus Activity Main" ? 8.0m : 2.0m + index % 3 } } }
+                deltas = new[] { new { metric = "ehb", values = new { gained = name == "Dev Player 001" ? 12.0m : name == "Dev Activity Secondary" ? 8.0m : name == "Dev Player 002" ? 20.0m : 2.0m + index % 3 } } }
             });
         var now = time.GetUtcNow();
         return Response(HttpStatusCode.OK, JsonSerializer.Serialize(new

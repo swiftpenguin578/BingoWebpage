@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <Content Update="data/osrs-catalogue.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Update="data/historical-import/det-store-danske-sommerbingo-2026.json;data/historical-import/historical-import.schema.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <PropertyGroup>

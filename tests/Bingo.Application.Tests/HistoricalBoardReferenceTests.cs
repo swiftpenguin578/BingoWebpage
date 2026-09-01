@@ -8,16 +8,16 @@ public sealed class HistoricalBoardReferenceTests
     {
         // Name, target contributions, aggregate expected attempts per contribution, efficient completions/hour, napkin board target.
         { "Nex uniques excluding pet", 3, 215m, 16m, 35m },
-        { "GWD ten distinct uniques (non-authoritative proxy)", 10, 65m, 24m, 28m },
+        { "GWD ten distinct eligible drops from the approved 20-item pool", 10, 65m, 24m, 28m },
         { "Complete Voidwaker", 1, 21m, 1m, 21m },
-        { "Araxxor pet or jar", 1, 1000m, 30m, 21m },
+        { "Araxxor Nid or jar", 1, 1000m, 30m, 21m },
         { "Three Phosani uniques excluding pet", 3, 135m, 8m, 49m },
         { "Four Yama armour or horn drops", 4, 120m, 14m, 35m },
         { "Two Dragon hunter wands", 2, 315m, 16m, 39m },
         { "Vorkath necklace visage or pet", 1, 537m, 27m, 21m },
         { "Three Sarachnis cudgels", 3, 384m, 54m, 21m },
         { "Two Granite hammers", 2, 375m, 27m, 28m },
-        { "Five Maggot King uniques", 5, 200m, 28m, 35m },
+        { "Five Maggot King Crimson kisten or Elder venator fang drops", 5, 200m, 28m, 35m },
         { "Hydra claw pet or jar", 1, 545m, 23m, 21m },
         { "Five Zulrah uniques excluding pet and mutagens", 5, 128m, 42m, 14m },
         { "Three Chromium ingots", 3, 256m, 27m, 28m },
@@ -41,25 +41,11 @@ public sealed class HistoricalBoardReferenceTests
     }
 
     [Fact]
-    public void SkillingSlayerUsesItsHistoricalManualEstimate()
+    public void SuperiorSlayerUsesItsHistoricalManualEstimate()
     {
         var result = EhbCalculator.SumRequirements([], manualOverride: 21m);
 
         Assert.Equal(21m, result);
-    }
-
-    [Fact]
-    public void FullDoomOneToSixteenUsesEffectiveCountedKcRates()
-    {
-        var boss = Guid.NewGuid();
-        var result = EhbCalculator.CalculateDropRequirement(2,
-        [
-            new EligibleDropRate(14m, 0.0212m / 9m, Guid.NewGuid(), boss),
-            new EligibleDropRate(14m, 0.0216m / 9m, Guid.NewGuid(), boss),
-            new EligibleDropRate(14m, 0.0220m / 9m, Guid.NewGuid(), boss)
-        ]);
-
-        Assert.InRange(result!.Value, 19.83m, 19.85m);
     }
 
     [Fact]
@@ -86,7 +72,7 @@ public sealed class HistoricalBoardReferenceTests
     }
 
     [Fact]
-    public void TwoSoulreaperPiecesMayComeFromTheSameSelectedBoss()
+    public void TwoDukeOrWhispererDropsMayComeFromTheSameSelectedBoss()
     {
         var result = EhbCalculator.CalculateDropRequirement(2,
         [

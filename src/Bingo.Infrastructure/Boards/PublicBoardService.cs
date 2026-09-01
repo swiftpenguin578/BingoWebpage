@@ -181,7 +181,10 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                 playingAccountNamesByParticipant.GetValueOrDefault(value.PlayerId) ?? [value.PlayerName]))
             .ToList();
         var tileMap = frozenTiles;
-        var publicTeams = ranked.Select(value =>
+        IEnumerable<RankedTeamProgress> displayedTeams = officialPlacements.Count == teams.Count
+            ? ranked.OrderBy(value => officialPlacements[value.TeamId]).ThenBy(value => value.TeamName, StringComparer.OrdinalIgnoreCase)
+            : ranked;
+        var publicTeams = displayedTeams.Select(value =>
         {
             var team = teamMap[value.TeamId];
             var displayedRank = officialPlacements.GetValueOrDefault(value.TeamId, value.Rank);

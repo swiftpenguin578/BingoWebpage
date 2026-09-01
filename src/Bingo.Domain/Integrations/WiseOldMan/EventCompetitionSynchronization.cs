@@ -142,6 +142,24 @@ public sealed class EventCompetitionSynchronization
         RetryCount = 0;
     }
 
+    public void MarkHistoricalSuccess(DateTimeOffset fetchedAt, DateTimeOffset? upstreamUpdatedAt)
+    {
+        fetchedAt = fetchedAt.ToUniversalTime();
+        LastAttemptAt = fetchedAt;
+        LastSuccessfulAt = fetchedAt;
+        LastUpstreamUpdatedAt = upstreamUpdatedAt?.ToUniversalTime();
+        LatestComplete = true;
+        MissingAccountsJson = null;
+        LastErrorKind = null;
+        LastError = null;
+        CycleStartedAt = fetchedAt;
+        NormalDueAt = null;
+        RetryDueAt = null;
+        RetryCount = 0;
+        LeaseOwner = null;
+        LeaseExpiresAt = null;
+    }
+
     public void MarkFailure(DateTimeOffset now, string kind, string error, DateTimeOffset? retryAt)
     {
         now = now.ToUniversalTime();
