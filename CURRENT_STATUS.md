@@ -8,8 +8,15 @@ historical material is preserved separately and is non-authoritative.
 - Path: `/Users/christopher/Documents/BingoWebpage`
 - Branch: `production-release-pipeline`
 - Base commit: `329e04adaa98a444f69d20aa41385b4ca7426bd3` (Passes 1–4)
-- Tracking: `origin/production-release-pipeline`; the branch contains unpushed
-  local commits, including the durable commits named below.
+- Tracking: `origin/production-release-pipeline`; accepted production/test
+  changes are committed locally and remain unpushed. The final regression and
+  packaging commits are `2ff417bdf01d6c1875088ff7acc1cb13a2ece9c9` (`Complete
+  canonical submission routing`), `72990b1acbbc48a845291bd0ebef9d20f89ae34e`
+  (`Style historical event tile art`), and
+  `fcac8ed67008ac807b92d9de2d5a79536889f40c` (`Fix final regression gates`).
+  Earlier historical commits `c4130f437b82cf5ceb5f130cf8a77a3a05ae2079` and
+  `f62c2104af3c9b6f5918e5766b1f186724b55bd3` remain unpushed as already
+  recorded.
 - The UI overhaul is merged and pushed to `main` at `52ec8494c6792f1f1f4ccd5893ac0cdb11cb74a3`.
 - Preserve the local developer-only `launchSettings.json` override and `tmp/`,
   including the quarantined duplicate files moved under
@@ -68,18 +75,13 @@ production approval; no GitHub Environment reviewer gate or environment secret
 is used. It then performs the validated SSH deployment.
 
 Passes 1–4, the GitHub Free release-control adjustment, the accepted
-release-blocker corrections, and the later tested application corrections are
-committed locally on `production-release-pipeline`. The latest local commits
-include `182b84f` (production routing/live controls), `cd83c36` (submission
-drawer controls), `88cd8f8` (canonical submissions workspace), and `e75ec57`
-(notification-popup and Board-family progress notices). Four added public-UI
-correction batches were manually approved and culminate in local commit
-`11f3db3971fd499e11ee40182c5d5ee630431079` (`Polish public UI interactions`),
-which is unpushed; they cover favicon/tab-title and local font-loading polish,
-masthead/title layering, leaderboard/toast corrections, and shared public-action
-interaction, contrast, spacing, and separator refinements. Integration into
-`main` still uses the existing green pull-request path. The deployed
-`dklegacy.dk` candidate predates these latest local commits; no current local
+release-blocker corrections, the canonical submission routing, historical tile
+art, and final regression-gate corrections are committed locally on
+`production-release-pipeline` and remain unpushed as listed above. An
+independent Sol High inspection of the accepted local commit set found no
+plausible GitHub/Linux/PostgreSQL timestamp or microsecond-precision failure.
+Integration into `main` still uses the existing green pull-request path. The
+deployed `dklegacy.dk` candidate predates these local commits; no current local
 candidate is published until the merge and resulting `main` CI run publish its
 immutable image digest and candidate receipt.
 
@@ -174,12 +176,24 @@ inspected and accepted by the user after focused remediation. The local
 Development migration application was for that inspection only; production
 remains unchanged.
 
-Next permitted action: run the remaining whole-application regression and
-release gates. Before any GitHub push, run the applicable test/regression gates
-locally and resolve failures locally so preventable failures do not consume the
-long remote CI cycle. The quarantine commit remains local and unpushed; any
-production hide, historical import, or other public-visibility mutation remains
-separately unauthorized.
+Whole-application regression and local release gates are complete and accepted
+through 2026-09-01. The user accepted the manual whole-application regression
+based on sustained site use; the planned Admin test event remains the real-world
+follow-up safety net. Final automated local regression passed after remediation:
+`dotnet restore`; solution-wide format verification after five mechanical fixes;
+Release build with zero warnings/errors; Domain 173; Application 83; Browser
+119 plus the exact corrected test for one stale static assertion; and
+Integration 306 with two orphan-event fixtures corrected and exact tests passed,
+plus the setup Npgsql timeout passing in isolated rerun. No product behavior
+regression remained.
+
+Next permitted action: separately authorized push through the green PR/CI path,
+merge, and candidate publication. No additional local whole-application
+regression or linked-resubmission manual confirmation is required. The
+quarantine commit remains local and unpushed; production hide, historical
+import, rehearsal-event hide/removal, deployment, and production migration
+remain separately authorized post-deployment operations, and production is
+unchanged.
 
 ## Submission workspace consolidation handoff — 2026-08-31
 
@@ -263,32 +277,22 @@ user's explicit approval.
 
 Current remaining sequence:
 
-1. Run whole-application regression across desktop/mobile, keyboard/focus,
-   permissions, errors, privacy, realtime, masthead account/notification
-   popups, and Admin/Captain/participant journeys; remediate only concrete
-   critical/high findings.
-2. Before any GitHub push, run the applicable test/regression gates locally and
-   resolve failures locally so preventable failures do not consume the long
-   remote CI cycle.
-3. Package the accepted dirty work, including the historical-import and other
-   accepted local commits, without staging private input or unrelated local
-   changes.
-4. With separate authorization, push through the green PR/CI path, merge, and
-   publish the immutable
+1. With separate authorization, push the accepted local commits through the
+   green PR/CI path and merge; `main` CI then publishes the immutable
    `linux/amd64` digest and candidate receipt.
-5. Before candidate deployment, verify restricted key-only deploy access,
+2. Before candidate deployment, verify restricted key-only deploy access,
    disabled password/direct-root SSH, Docker and the backup timer surviving
    reboot, controlled PostgreSQL/Caddy image identities, and one naturally
    scheduled backup with a receipt reporting successful retention.
-6. Explicitly deploy the exact digest manually.
-7. After deployment, complete the remaining operational gates: bootstrap-owner
+3. Explicitly deploy the exact digest manually.
+4. After deployment, complete the remaining operational gates: bootstrap-owner
    password change; R2 deletion/versioning or accepted recovery; Cloudflare
    proxy/DNS/TLS/apex/www; public-health, failed-backup, and low-disk alerts;
    Discord OAuth, R2 round-trip/integrity, authenticated journeys, restore,
    rollback, interruption timing, and post-recovery smoke.
-8. Run the provider-evidence release-risk review, bounded remediation/rechecks,
+5. Run the provider-evidence release-risk review, bounded remediation/rechecks,
    Pass 6, and final launch smoke.
-9. Run the multi-day bingo rehearsal after deployment; findings from that
+6. Run the multi-day bingo rehearsal after deployment; findings from that
    post-deployment rehearsal become ordinary bug fixes. The production
    historical import and any rehearsal-event hide/removal remain separate
    post-deployment operations requiring explicit authorization.
@@ -443,12 +447,13 @@ their current branch and deployment status are recorded in the active
 production handoff above. The revised remaining order is owned by the
 production/release section of `DELIVERY_PLAN.md`.
 
-The whole-application review remains after the completed submission correction
-and capacity sub-gate so real VPS, provider, backup/restore, load, Discord, R2,
-SignalR, and health evidence replaces assumptions. It must not reopen approved
-UI or become an unfocused line-by-line audit. Existing dirty
-`UI_PAGE_MATRIX.md`, `launchSettings.json`, and `tmp/` remain outside this
-release handoff.
+The whole-application regression and local release gates are complete. The
+provider-evidence release-risk review follows the completed submission
+correction and capacity sub-gate so real VPS, provider, backup/restore, load,
+Discord, R2, SignalR, and health evidence replaces assumptions. It must not
+reopen approved UI or become an unfocused line-by-line audit. The preserved
+developer-only `launchSettings.json` modification and `tmp/` remain outside
+the release handoff.
 
 The bounded correction touches only the approved release surface: Compose and
 production env examples; host operations/backup/restore/deploy/validation;
@@ -685,11 +690,13 @@ screenshots are the next gate.
 
 Production deployment is due 2026-08-31. Live production testing is planned
 for 2026-09-01 through 2026-09-05, with public signup opening 2026-09-06.
-The canonical submission workspace correction is complete and manually
-accepted. Resolve or explicitly defer the recorded UI/manual UNKNOWN decisions,
-then run whole-application regression before the remaining release and
-operational gates. Dashboard/action-inbox work remains intentional WIP. This
-ordering does not claim the whole application is production-ready.
+Manual whole-application regression and final local automated regression were
+accepted through 2026-09-01. The planned Admin test event remains the real-world
+follow-up safety net. The next repository action is separately authorized push,
+green CI, and candidate publication; dashboard/action-inbox work remains
+intentional WIP. This ordering does not claim production is unchanged or ready
+for deployment; production remains unchanged until the separate release gates
+and approvals complete.
 
 ## Current UI approval snapshot (non-authoritative)
 
@@ -707,7 +714,7 @@ and immediate ownership.
 | Board | Approved — user manual approval, 2026-08-14 |
 | Signup Questions route/dialog | Approved — user manual approval as the Participants/signup-form popup, 2026-08-24; CSV is not owned by this route |
 | Teams/Draft, including advanced pre-formed-roster CSV import | Approved — user manual approval, 2026-08-16 |
-| Canonical submission workspace / `/Submissions`, `/Submissions/{id}` | Approved — independently reviewed, remediated, manually accepted, and committed in `88cd8f8`; whole-application regression remains |
+| Canonical submission workspace / `/Submissions`, `/Submissions/{id}` | Approved — independently reviewed, remediated, manually accepted, committed in `88cd8f8`, and accepted through local whole-application regression on 2026-09-01 |
 | Admin evidence review | Deployment ready, not approved — user decision, 2026-08-26 |
 | Public board/evidence | Approved — Board overview, TeamBoard, nested Tile view, attached submission drawer, evidence lightbox, Recent Drops, Leaderboards, and final TeamBoard corrections manually approved by 2026-08-26 |
 | Finalize/closeout | Deployment ready, not approved — user decision, 2026-08-26 |
@@ -842,31 +849,21 @@ passes as product or UI approval.
 - The complete public Board ecosystem and its responsive team-board/submission
   interaction model are manually accepted. The canonical submission workspace
   is independently reviewed, remediated, manually accepted, and committed in
-  `88cd8f8d6014e947e2a5e97717be460ca2ea9d66`; final whole-application
-  regression remains.
-- This pass's focused Submit direct-route/drawer-contract assertions passed with
-  the bundled Node runtime. The broader team-board overlay script test stops on
-  an existing shared-layout assertion, and the focused EvidenceWorkflowUiTests
-  run has one unrelated current-checkout assertion failure in Admin Review; the
-  project builds and one test passes. The targeted current Release Web build
-  passed with 0 warnings and 0 errors. The current full-solution Release build
-  is not clean: it reaches the Web and other projects, then stops on four
-  unrelated dirty-checkout integration-test compile errors (three missing
-  `SharedShellService` constructor arguments and one invalid `Guid.Id` access).
-  No server was started here.
-- On the current Codex task host, focused `dotnet` commands invoked by recent
-  visual-only CSS workers cannot start because MSBuild's named-pipe worker is
-  denied by the sandbox (`SocketException: Permission denied`). Treat this as
-  one known unchanged environment blocker: do not repeat the same command in
-  later CSS-only remediation tasks unless the environment changes. Use bounded
-  source/cascade inspection and `git diff --check`; reserve executable .NET
-  verification for a host where MSBuild can start.
-- Full solution regression, cross-application verification, the complete
-  provider-backed rehearsal, and release packaging remain unverified. The
-  capacity sub-gate is complete: 100/100 SignalR viewers and 400/400 Board,
-  team, tile, and evidence requests succeeded with zero failures; repeat it only
-  after material infrastructure or performance-sensitive changes. The deployed
-  candidate predates the latest local commits.
+  `88cd8f8d6014e947e2a5e97717be460ca2ea9d66`; whole-application regression and
+  local release gates were accepted through 2026-09-01.
+- The user accepted manual whole-application regression based on sustained site
+  use; the planned Admin test event remains the real-world follow-up safety net.
+  Final automated local regression passed after remediation: `dotnet restore`;
+  solution-wide format verification after five mechanical fixes; Release build
+  with zero warnings/errors; Domain 173; Application 83; Browser 119 plus the
+  exact corrected test for one stale static assertion; and Integration 306 with
+  two orphan-event fixtures corrected and exact tests passed, plus the setup
+  Npgsql timeout passing in isolated rerun. No product behavior regression
+  remained.
+- Provider-backed post-deployment rehearsal and operational release gates remain
+  separate. The accepted production/test changes are committed locally and
+  unpushed; production is unchanged and no production migration, historical
+  import, rehearsal-event hide/removal, deployment, or push has been performed.
 - Archive hashes match the captured pre-consolidation sources:
   `ADMIN_UI_CONTRACT.md` / archive `be0679c744604c0e1a75f26244e75e38631ea28b0e8462f15bb4e77f979f3360`;
   `UI_OVERHAUL_ROADMAP.md` / archive `d3a93ee2b4e67a690820d5a2875cf20454e5483c37e250cf0613308b453ac950`;
@@ -912,8 +909,11 @@ passes as product or UI approval.
    user explicitly deferred that remaining manual acceptance and authorized the
    remaining Public UI passes to proceed sequentially in this exact dirty tree.
    Completed but unseen pages remain `implemented; manual acceptance deferred`;
-   they are not approved. Do not commit, create worktrees, package, push, or
-   deploy under this authorization.
+   they are not approved. The accepted production/test changes are now
+   committed locally and unpushed; preserve the developer-only
+   `launchSettings.json` modification and `tmp/` outside packaging. The next
+   repository action is separately authorized push through green CI and
+   candidate publication.
    The latest My Accounts manual correction makes position 01 the sole preferred
    character and removes the separate set-preferred action; it also shortens the
    linked Fetch label, all visible EHB labels, and the registration warning. The
@@ -1112,12 +1112,11 @@ passes as product or UI approval.
   `/Submissions` and `/Submissions/{id:guid}` now own both roles' overview/detail
   behavior. The Admin Evidence Review linked-resubmission behavior remains
   protected; the relative `_EvidenceUpload` 500 regression is fixed and covered
-  by acceptance. The next permitted work is whole-application
-  regression and the release sequence above. The user may request the
-  accumulated manual walkthrough at any time; it must cover light/dark desktop,
-  narrow/mobile, shared navigation, responsive composition, keyboard/focus,
-  permissions, errors, privacy, realtime, masthead account/notification
-  popups, and Admin/Captain/participant journeys before any final launch claim.
+  by acceptance. Whole-application regression and local release gates are
+  accepted through 2026-09-01, and no linked-resubmission manual confirmation
+  is pending. The next permitted work is the separately authorized
+  push/green-CI/candidate-publication sequence. The planned Admin test event
+  remains the real-world follow-up safety net before any final launch claim.
 4. Packager: stage, commit, push, or deploy only after acceptance and explicit
    authorization.
 

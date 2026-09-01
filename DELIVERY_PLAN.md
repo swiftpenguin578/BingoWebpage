@@ -73,9 +73,10 @@ rules and implementation ownership are defined by [`UI_SYSTEM.md`](UI_SYSTEM.md)
    `Archived` eligibility, the separated SuperAdmin Hidden area/limited Manage
    inspection, and fail-closed ordinary paths. No production hide or historical
    import is included. The local Development database application was for
-   manual inspection only; production remains unchanged. Before any GitHub
-   push, run the applicable test/regression gates locally and resolve failures
-   locally before using the remote CI cycle.
+   manual inspection only; production remains unchanged. The accepted manual
+   and automated whole-application regression and local release gates are
+   recorded below; the next repository action is separately authorized push
+   through green CI and candidate publication.
 
 ## 2. Launch and UI order
 
@@ -191,8 +192,19 @@ manual approval; page-specific approvals remain authoritative.
 9. **Dashboard/action inbox** — deployment-ready intentional shell-owned WIP
    presentation; it is not a gating manual-approval task and does not precede
    whole-application regression or release.
-10. **Whole-application regression and release gates** — follow the frozen
-    production/release sequence below.
+10. **Whole-application regression and local release gates — complete
+    2026-09-01:** the user accepted manual whole-application regression based
+    on sustained site use; the planned Admin test event remains the real-world
+    follow-up safety net. Final automated local regression passed after
+    remediation: `dotnet restore`; solution-wide format verification after five
+    mechanical fixes; Release build with zero warnings/errors; Domain 173;
+    Application 83; Browser 119 plus the exact corrected test for one stale
+    static assertion; and Integration 306 with two orphan-event fixtures
+    corrected and exact tests passed, plus the setup Npgsql timeout passing in
+    isolated rerun. No product behavior regression remained. An independent
+    Sol High inspection found no plausible GitHub/Linux/PostgreSQL timestamp or
+    microsecond-precision failure. The next repository action is separately
+    authorized push through the green PR/CI path and candidate publication.
 
 ### Pass 5 completion record — canonical submission workspace
 
@@ -715,8 +727,9 @@ automation provider-portable where practical until a choice is required.
 
 After the launch-critical journey and the remaining ordered UI work:
 
-- Complete whole-application desktop/mobile, keyboard, permission, error,
-  accessibility, and functional regression; resolve critical/high defects.
+- Whole-application desktop/mobile, keyboard, permission, error, accessibility,
+  and functional regression is complete and accepted through 2026-09-01; the
+  planned Admin test event remains the real-world follow-up safety net.
 - Prepare and rehearse the production image/Compose and CI workflow,
   controlled migration/rollback, restricted storage, secret/configuration
   inventory, clean initialization, health reporting, backup/restore,
@@ -844,13 +857,15 @@ issue was found. The correction is committed and pushed through `aa1af77`. Later
 application corrections are committed locally on the release branch: `182b84f`
 fixed production routing/live controls, `cd83c36` polished submission drawer
 controls, `88cd8f8` consolidated the canonical submission workspace, and
-`e75ec57` polished notification-popup and Board-family progress notices. Four
-added public-UI correction batches were manually approved and culminate in local
-commit `11f3db3971fd499e11ee40182c5d5ee630431079` (`Polish public UI
-interactions`), unpushed; they cover favicon/tab-title and local font-loading
-polish, masthead/title layering, leaderboard/toast corrections, and shared
-public-action interaction, contrast, spacing, and separator refinements. The
-deployed `dklegacy.dk` candidate predates these latest local commits.
+  `e75ec57` polished notification-popup and Board-family progress notices. The
+  accepted final regression/package commits are committed locally and
+  unpushed: `2ff417bdf01d6c1875088ff7acc1cb13a2ece9c9` (`Complete canonical
+  submission routing`), `72990b1acbbc48a845291bd0ebef9d20f89ae34e` (`Style
+  historical event tile art`), and
+  `fcac8ed67008ac807b92d9de2d5a79536889f40c` (`Fix final regression gates`).
+  Earlier historical commits `c4130f437b82cf5ceb5f130cf8a77a3a05ae2079` and
+  `f62c2104af3c9b6f5918e5766b1f186724b55bd3` remain unpushed as already
+  recorded. The deployed `dklegacy.dk` candidate predates these local commits.
 
 Provider-backed Pass 5 setup began on 2026-08-28 with the user's explicit
 approval. Netcup supplies the Ubuntu 24.04 single VPS; Cloudflare supplies DNS
@@ -859,10 +874,11 @@ repository. Host bootstrap, restricted deployment access, root-only production
 configuration, named volumes, controlled host images, R2 reachability, an
 encrypted baseline backup, isolated restore verification, the scheduled backup
 timer, and apex DNS resolution are verified. A reviewed candidate is deployed
-for rehearsal, but it predates the latest local commits and does not close
-Pass 5. The capacity sub-gate is complete; authenticated journeys, the
-remaining provider-backed rehearsal evidence, and release packaging remain
-required.
+  for rehearsal, but it predates the latest local commits. The capacity
+  sub-gate and whole-application regression/local release gates are complete;
+  remaining provider-backed rehearsal evidence and post-deployment release
+  gates are separate. Accepted production/test changes are committed locally
+  and unpushed.
 
 Pass 5 closes only after all of the following are recorded against the same
 candidate:
@@ -914,44 +930,34 @@ candidate:
 
 The revised production/release order is frozen:
 
-1. Run whole-application regression across desktop/mobile, keyboard/focus,
-   permissions, errors, privacy, realtime, masthead account/notification
-   popups, and Admin/Captain/participant journeys; remediate only concrete
-   critical/high findings.
-2. Before any GitHub push, run the applicable test/regression gates locally and
-   resolve failures locally so preventable failures do not consume the long
-   remote CI cycle.
-3. Package the accepted dirty work, including the historical-import and other
-   accepted local commits, without staging private input or unrelated local
-   changes.
-4. With separate authorization, push through the green PR/CI path, merge, and
-   publish the immutable
+1. With separate authorization, push the accepted local commits through the
+   green PR/CI path and merge; `main` CI then publishes the immutable
    `linux/amd64` digest and candidate receipt.
-5. Before candidate deployment, verify restricted key-only deploy access,
+2. Before candidate deployment, verify restricted key-only deploy access,
    disabled password/direct-root SSH, Docker and the backup timer surviving
    reboot, controlled PostgreSQL/Caddy image identities, and one naturally
    scheduled backup with a receipt reporting successful retention.
-6. Explicitly deploy the exact digest manually.
-7. After deployment, complete the remaining operational gates: bootstrap-owner
+3. Explicitly deploy the exact digest manually.
+4. After deployment, complete the remaining operational gates: bootstrap-owner
    password change; R2 deletion/versioning or accepted recovery; Cloudflare
    proxy/DNS/TLS/apex/www; public-health, failed-backup, and low-disk alerts;
    Discord OAuth, R2 round-trip/integrity, authenticated journeys, restore,
    rollback, interruption timing, and post-recovery smoke.
-8. Run the provider-evidence release-risk review, bounded remediation/rechecks,
+5. Run the provider-evidence release-risk review, bounded remediation/rechecks,
    Pass 6, and final launch smoke.
-9. Run the multi-day bingo rehearsal after deployment; findings from that
+6. Run the multi-day bingo rehearsal after deployment; findings from that
    post-deployment rehearsal become ordinary bug fixes. The production
    historical import and any rehearsal-event hide/removal remain separate
    post-deployment operations requiring explicit authorization.
 
-The whole-application regression and provider-evidence release-risk review
-deliberately follow the completed submission consolidation and capacity
-sub-gate so real VPS/provider, backup/restore, load, Discord, R2, SignalR, and
-health evidence replaces assumptions. They must not reopen approved UI or become
-an unfocused line-by-line audit. The separately reviewed GitHub Free
-release-control adjustment is packaged on `production-release-pipeline`; current
-candidate publication still requires the green pull-request merge and
-successful `main` CI run above.
+Whole-application regression and local release gates are complete and do not
+require another local regression or linked-resubmission manual confirmation.
+The provider-evidence release-risk review follows the completed submission
+consolidation and capacity sub-gate so real VPS/provider, backup/restore, load,
+Discord, R2, SignalR, and health evidence replaces assumptions. It must not
+reopen approved UI or become an unfocused line-by-line audit. Current candidate
+publication still requires the separately authorized green pull-request merge
+and successful `main` CI run above.
 
 ### Approved historical-event import — complete locally and manually accepted
 
