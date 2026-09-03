@@ -2133,6 +2133,7 @@ html[data-public-theme="dark"] .landing-hero__mark--dark { display: block; }
 .landing-archive-event__state { color: var(--landing-text-muted); }
 .landing-archive-event .landing-event__action { color: var(--landing-content-accent-text); }
 .landing-empty { padding: 1.4rem 0 1.75rem; border-bottom: 1px solid var(--landing-rule); }
+.landing-ledger:has(+ .landing-ledger--previous) > .landing-empty { border-bottom: 0; }
 .landing-empty h3 { margin: 0 0 0.4rem; font: 800 1.7rem/1 "Barlow Condensed ExtraBold", sans-serif; text-transform: uppercase; }
 .landing-empty p { margin: 0; font: 400 0.95rem/1.4 "Geist Public UI", system-ui, sans-serif; }
 
@@ -2337,7 +2338,7 @@ html[data-public-theme="dark"] body.public-ui-pass1 .public-signups-directory__s
 body.public-ui-pass1 .public-signups-directory__table-wrap { min-width: 0; overflow-x: auto; }
 body.public-ui-pass1 .public-signups-directory__table {
   width: 100%;
-  min-width: 0;
+  min-width: var(--signup-table-min-width, 0);
   table-layout: fixed;
   border-collapse: collapse;
   color: var(--public-directory-heading);
@@ -2350,7 +2351,7 @@ body.public-ui-pass1 .public-signups-directory__table td {
   border-bottom: 1px solid var(--public-directory-rule);
   overflow-wrap: anywhere;
   text-align: left;
-  vertical-align: middle;
+  vertical-align: top;
 }
 body.public-ui-pass1 .public-signups-directory__table thead th {
   color: var(--public-directory-accent);
@@ -2358,11 +2359,8 @@ body.public-ui-pass1 .public-signups-directory__table thead th {
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-body.public-ui-pass1 .public-signups-directory__table thead th:first-child { width: 22%; }
 body.public-ui-pass1 .public-signups-directory__table tbody th { color: var(--public-directory-accent); font: 600 0.96rem/1.1 "Barlow Condensed Public UI", sans-serif; letter-spacing: 0.04em; text-transform: uppercase; }
 body.public-ui-pass1 .public-signups-directory__table tbody td { color: var(--public-directory-heading); }
-body.public-ui-pass1 .public-signups-directory__section-heading--waiting + .public-signups-directory__table-wrap .public-signups-directory__table thead th:first-child { width: 8%; }
-body.public-ui-pass1 .public-signups-directory__section-heading--waiting + .public-signups-directory__table-wrap .public-signups-directory__table thead th:nth-child(2) { width: 18%; }
 body.public-ui-pass1 .public-signups-directory__empty {
   padding: 1.5rem 0 1.65rem;
   border-bottom: 1px solid var(--public-directory-rule);
@@ -2458,6 +2456,7 @@ body.public-ui-pass1 .public-teams-directory__picks li strong { color: var(--pub
   body.public-ui-pass1 .public-signups-directory__table,
   body.public-ui-pass1 .public-signups-directory__table tbody,
   body.public-ui-pass1 .public-signups-directory__table tr { display: block; width: 100%; }
+  body.public-ui-pass1 .public-signups-directory__table { min-width: 0; }
   body.public-ui-pass1 .public-signups-directory__table tr { padding: 0.65rem 0; border-top: 1px solid var(--public-directory-rule); }
   body.public-ui-pass1 .public-signups-directory__table tbody tr:first-child { border-top: 0; }
   body.public-ui-pass1 .public-signups-directory__table th,

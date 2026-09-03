@@ -25,7 +25,7 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
     public int? ParticipantCap { get; private set; }
     public int ConfirmedCount { get; private set; }
     public int WaitingCount { get; private set; }
-    public IReadOnlyList<string> Headings { get; private set; } = [];
+    public IReadOnlyList<SignupColumn> Columns { get; private set; } = [];
     public IReadOnlyList<ParticipantView> Confirmed { get; private set; } = [];
     public IReadOnlyList<ParticipantView> Waiting { get; private set; } = [];
 
@@ -74,11 +74,11 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
         var accountQuestions = questions.Where(x => x.Type == SignupQuestionType.Account).ToList();
         var regularCount = accountQuestions.Count(x => x.AccountAnswerRole == EventCharacterRole.Playing);
         var altCount = accountQuestions.Count(x => x.AccountAnswerRole == EventCharacterRole.Informational);
-        var columns = accountQuestions.Select((q, index) => new Column(q.Id, AccountHeading(q.AccountAnswerRole, accountQuestions.Where(x => x.AccountAnswerRole == q.AccountAnswerRole).ToList().IndexOf(q) + 1, regularCount, altCount)))
-            .Concat(questions.Where(x => x.SystemField == SignupSystemField.None && x.Type != SignupQuestionType.Account).Select(x => new Column(x.Id, x.Label)))
-            .Append(new Column(null, text["Captain volunteer"].Value))
+        var columns = accountQuestions.Select((q, index) => new SignupColumn(q.Id, AccountHeading(q.AccountAnswerRole, accountQuestions.Where(x => x.AccountAnswerRole == q.AccountAnswerRole).ToList().IndexOf(q) + 1, regularCount, altCount), "account", 208, 15))
+            .Concat(questions.Where(x => x.SystemField == SignupSystemField.None && x.Type != SignupQuestionType.Account).Select(QuestionColumn))
+            .Append(new SignupColumn(null, text["Captain volunteer"].Value, "compact", 128, 7))
             .ToList();
-        Headings = columns.Select(x => x.Heading).ToList();
+        Columns = columns;
 
         var participants = await db.EventParticipants.AsNoTracking().Where(x => x.EventId == item.Id && (captainDraftAccess ? x.SignupStatus == SignupStatus.Confirmed : x.SignupStatus == SignupStatus.Confirmed || x.SignupStatus == SignupStatus.WaitingList)).OrderBy(x => x.SignedUpAt).ThenBy(x => x.SignupSequence).ToListAsync(ct);
         var participantIds = participants.Select(x => x.Id).ToList();
@@ -90,8 +90,7 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
         var views = participants.Select((participant, index) =>
         {
             var values = columns.Select(column => ValueFor(column, participant, assignments, answers, text)).ToList();
-            var name = assignments.FirstOrDefault(x => x.EventParticipantId == participant.Id && x.EventRole == EventCharacterRole.Playing)?.DisplayName ?? text["Unknown account"].Value;
-            return new ParticipantView(name, participant.SignupStatus == SignupStatus.WaitingList ? index - participants.FindIndex(x => x.SignupStatus == SignupStatus.WaitingList) + 1 : null, values);
+            return new ParticipantView(participant.SignupStatus == SignupStatus.WaitingList ? index - participants.FindIndex(x => x.SignupStatus == SignupStatus.WaitingList) + 1 : null, values);
         }).ToList();
         Confirmed = views.Where((_, index) => participants[index].SignupStatus == SignupStatus.Confirmed).ToList();
         Waiting = views.Where((_, index) => participants[index].SignupStatus == SignupStatus.WaitingList).ToList();
@@ -108,7 +107,34 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
             (account.GlobalRole == GlobalRole.Admin || account.GlobalRole == GlobalRole.SuperAdmin), ct);
     }
 
-    private static string ValueFor(Column column, EventParticipant participant, IReadOnlyList<dynamic> assignments, IReadOnlyList<SignupAnswer> answers, IStringLocalizer<SharedResource> text)
+    public int TableMinimumWidthPixels(bool includeWaitingPosition) => Columns.Sum(column => column.MinimumWidthPixels) + (includeWaitingPosition ? 80 : 0);
+
+    public string ColumnWidthStyle(SignupColumn column, bool includeWaitingPosition)
+    {
+        var totalWeight = Columns.Sum(item => item.WidthWeight) + (includeWaitingPosition ? 7 : 0);
+        return FormattableString.Invariant($"width: {column.WidthWeight * 100d / totalWeight:0.##}%;");
+    }
+
+    public string WaitingPositionWidthStyle(bool includeWaitingPosition)
+    {
+        var totalWeight = Columns.Sum(item => item.WidthWeight) + (includeWaitingPosition ? 7 : 0);
+        return FormattableString.Invariant($"width: {7 * 100d / totalWeight:0.##}%;");
+    }
+
+    private static SignupColumn QuestionColumn(SignupQuestion question)
+    {
+        var sizing = question.Type switch
+        {
+            SignupQuestionType.Account => (Kind: "account", MinimumWidthPixels: 208, WidthWeight: 15),
+            SignupQuestionType.YesNo => (Kind: "compact", MinimumWidthPixels: 128, WidthWeight: 7),
+            SignupQuestionType.Number => (Kind: "number", MinimumWidthPixels: 112, WidthWeight: 9),
+            SignupQuestionType.SingleChoice => (Kind: "choice", MinimumWidthPixels: 160, WidthWeight: 13),
+            _ => (Kind: "text", MinimumWidthPixels: 240, WidthWeight: 22)
+        };
+        return new SignupColumn(question.Id, question.Label, sizing.Kind, sizing.MinimumWidthPixels, sizing.WidthWeight);
+    }
+
+    private static string ValueFor(SignupColumn column, EventParticipant participant, IReadOnlyList<dynamic> assignments, IReadOnlyList<SignupAnswer> answers, IStringLocalizer<SharedResource> text)
     {
         if (column.QuestionId is null) return participant.CaptainVolunteer ? text["Yes"].Value : text["No"].Value;
         var assignment = assignments.FirstOrDefault(x => x.EventParticipantId == participant.Id && x.SignupQuestionId == column.QuestionId);
@@ -117,6 +143,6 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
     }
 
     private string AccountHeading(EventCharacterRole? role, int ordinal, int regularCount, int altCount) => role == EventCharacterRole.Playing ? regularCount == 1 ? text["Account"].Value : $"{text["Account"].Value} {ordinal}" : altCount == 1 ? text["Alt account"].Value : $"{text["Alt account"].Value} {ordinal}";
-    private sealed record Column(Guid? QuestionId, string Heading);
-    public sealed record ParticipantView(string Name, int? WaitingPosition, IReadOnlyList<string> Values);
+    public sealed record SignupColumn(Guid? QuestionId, string Heading, string Kind, int MinimumWidthPixels, int WidthWeight);
+    public sealed record ParticipantView(int? WaitingPosition, IReadOnlyList<string> Values);
 }

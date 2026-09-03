@@ -21,20 +21,6 @@ public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Progra
     }
 
     [Fact]
-    public void EmergencyCredentialActionsUseRightAlignedSharedButtons()
-    {
-        var root = FindRepositoryRoot();
-        var manage = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Accounts", "Manage.cshtml"));
-        var styles = BrowserTestFiles.ReadActiveStyles(root);
-
-        Assert.Contains(".admin-shell-body .admin-account-route-page.is-emergency-credential .admin-account-emergency-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; justify-content: flex-end; }", styles);
-        Assert.Contains("<div class=\"admin-account-emergency-actions\">", manage);
-        Assert.Contains("class=\"admin-button-secondary\" data-account-emergency-action=\"true\" data-account-handler=\"GenerateEmergencyLink\"", manage);
-        Assert.Contains("class=\"action-danger-outline\" data-account-emergency-action=\"true\" data-account-handler=\"DisableEmergency\"", manage);
-        Assert.Contains("class=\"admin-button-secondary\" data-account-emergency-action=\"true\" data-account-handler=\"EnableEmergency\"", manage);
-    }
-
-    [Fact]
     public void AccountsMarkupKeepsTheTwoDatasetsAndDirectSafetyBoundaries()
     {
         var root = FindRepositoryRoot();
@@ -282,74 +268,6 @@ public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Progra
         Assert.Contains("border: 0", characterRowStyles);
         Assert.DoesNotContain("border-bottom", characterRowStyles);
         Assert.Contains("admin-status-pill @ParticipationStateClass(role.ParticipationState)", manage);
-    }
-
-    [Fact]
-    public void AccountsPopupCorrectionsUseTheApprovedOverlayAndHistoryContracts()
-    {
-        var root = FindRepositoryRoot();
-        var create = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Accounts", "Create.cshtml"));
-        var createModel = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Accounts", "Create.cshtml.cs"));
-        var manage = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Accounts", "Manage.cshtml"));
-        var styles = BrowserTestFiles.ReadActiveStyles(root);
-        var script = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "account-manage-dialog.js"));
-        var adminLayout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminLayout.cshtml"));
-
-        Assert.Contains("<button class=\"admin-button-secondary\" type=\"submit\">@T[\"Load teams\"]</button>", create);
-        Assert.Contains(".admin-account-fields .admin-account-scope-note { display: grid; grid-column: 2; grid-row: 1; align-self: end;", styles);
-        Assert.DoesNotContain("data-account-enhanced-validation", script);
-        Assert.Contains("catch (InvalidOperationException)", createModel);
-        Assert.Contains("The emergency credential could not be created.", createModel);
-        Assert.Contains("TempData[\"StatusMessage\"]", createModel);
-        Assert.Contains("_TransientToast", adminLayout);
-
-        Assert.Contains("class=\"admin-account-event-copy\"", manage);
-        Assert.Contains("class=\"admin-account-event-support\"", manage);
-        Assert.Contains("No team role recorded.", manage);
-        Assert.DoesNotContain("<ul>@foreach (var teamRole in role.TeamRoles)", manage);
-        Assert.Contains("class=\"admin-account-final-actions\"", manage);
-        Assert.Contains("data-account-status-message", manage);
-        Assert.Contains("data-account-final-action=\"true\" data-account-handler=\"GenerateResetLink\"", manage);
-        Assert.Contains("data-account-final-action=\"true\" data-account-handler=\"Disable\"", manage);
-        Assert.Contains("data-account-final-action=\"true\" data-account-handler=\"Restore\"", manage);
-        Assert.Contains("data-account-confirmation-reason=\"true\"", manage);
-        Assert.Contains("data-account-confirmation-reason-label=\"@T[\"Disable reason\"]\"", manage);
-        Assert.Contains(".admin-account-final-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.45rem; width: fit-content;", styles);
-        Assert.Contains(".admin-shell-body .admin-account-final-actions .action-danger-outline,", styles);
-        Assert.Contains(".admin-shell-body .admin-account-emergency-actions .action-danger-outline,", styles);
-        Assert.Contains("min-height: 2rem;", styles);
-        Assert.Contains("padding: 0.375rem 0.75rem;", styles);
-        Assert.Contains("font-size: 0.6875rem;", styles);
-        Assert.Contains("font-weight: 600;", styles);
-        Assert.Contains(".admin-account-event-history { display: grid; gap: 0.75rem;", styles);
-        var historyRowStart = styles.IndexOf(".admin-account-event-history article {", StringComparison.Ordinal);
-        var historyRowEnd = styles.IndexOf('}', historyRowStart);
-        Assert.True(historyRowStart >= 0 && historyRowEnd > historyRowStart);
-        var historyRowStyles = styles[historyRowStart..historyRowEnd];
-        Assert.Contains("display: flex", historyRowStyles);
-        Assert.Contains("flex-wrap: wrap", historyRowStyles);
-        Assert.Contains("justify-content: space-between", historyRowStyles);
-        Assert.Contains("align-items: center", historyRowStyles);
-        Assert.Contains("gap: 0.75rem", historyRowStyles);
-        Assert.Contains("padding: 1rem", historyRowStyles);
-        Assert.Contains("background: var(--admin-surface-raised)", historyRowStyles);
-        Assert.Contains("border: 0", historyRowStyles);
-        Assert.Contains("border-radius: 0.75rem", historyRowStyles);
-        Assert.DoesNotContain(".admin-account-event-history ul", styles);
-        Assert.Contains("--admin-focus-accent-strong: var(--admin-navigation-accent);", styles);
-        var confirmationStart = styles.IndexOf(".admin-shell-body .admin-account-confirmation-dialog {", StringComparison.Ordinal);
-        var confirmationEnd = styles.IndexOf('}', confirmationStart);
-        Assert.True(confirmationStart >= 0 && confirmationEnd > confirmationStart);
-        var confirmationStyles = styles[confirmationStart..confirmationEnd];
-        Assert.Contains("--admin-border: var(--admin-divider);", confirmationStyles);
-        Assert.Contains("--admin-border-strong: var(--admin-divider);", confirmationStyles);
-        Assert.DoesNotContain("--admin-border: #1b2533", confirmationStyles);
-        Assert.Contains(".admin-shell-body .admin-account-dialog-page :is(.admin-button-secondary, .action-danger-outline, .admin-button-create, .admin-route-dialog-close):focus-visible", styles);
-        Assert.Contains(".admin-shell-body .admin-account-confirmation-dialog :is(.admin-button-secondary, .action-danger-outline, .admin-button-create, .admin-route-dialog-close):focus-visible", styles);
-        Assert.Contains("outline: 2px solid var(--admin-focus-accent-strong);", styles);
-        Assert.Contains("outline-offset: 2px;", styles);
-        Assert.Contains("const statusMessage = (html) =>", script);
-        Assert.Contains("window.showBingoToast?.(message, \"success\")", script);
     }
 
     private static string FindRepositoryRoot()

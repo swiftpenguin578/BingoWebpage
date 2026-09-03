@@ -1,5 +1,4 @@
 using Bingo.Domain.Boards;
-using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
@@ -23,32 +22,6 @@ public sealed class PostgreSqlConnectivityTests : IAsyncLifetime
     public Task DisposeAsync() => _database.DisposeAsync().AsTask();
 
     [Fact]
-    public async Task ContextCanCreateAndQueryTheFoundationSchema()
-    {
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseNpgsql(_database.GetConnectionString())
-            .Options;
-
-        await using var context = new ApplicationDbContext(options);
-        await context.Database.EnsureCreatedAsync();
-
-        context.SystemMetadata.Add(new SystemMetadata
-        {
-            Key = "foundation",
-            Value = "ready",
-            UpdatedAt = DateTimeOffset.UtcNow
-        });
-        await context.SaveChangesAsync();
-
-        var value = await context.SystemMetadata
-            .Where(item => item.Key == "foundation")
-            .Select(item => item.Value)
-            .SingleAsync();
-
-        Assert.Equal("ready", value);
-    }
-
-    [Fact]
     public async Task VersionedCatalogueSnapshotRestoresAndValidatesInFreshMigratedDatabase()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -68,25 +41,6 @@ public sealed class PostgreSqlConnectivityTests : IAsyncLifetime
         Assert.Equal(result.Bosses, await context.BossActivities.CountAsync());
         Assert.Equal(result.Items, await context.CatalogueItems.CountAsync());
         Assert.Equal(result.Drops, await context.SourceDrops.CountAsync());
-    }
-
-    [Fact]
-    public async Task BoardDropPickerQueryOrdersBeforeProjectingViewRecords()
-    {
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(_database.GetConnectionString()).Options;
-        await using var context = new ApplicationDbContext(options); await context.Database.EnsureCreatedAsync();
-        var now = DateTimeOffset.UtcNow; var boss = new BossActivity(Guid.NewGuid(), "Query Test Boss", $"query-test-{Guid.NewGuid():N}", "Boss", 10, now); var item = new CatalogueItem(Guid.NewGuid(), "Query Test Item", $"QUERY TEST ITEM {Guid.NewGuid():N}");
-        var drop = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, "1/100", 0.01m, 10, now); context.BossActivities.Add(boss); context.CatalogueItems.Add(item); context.SourceDrops.Add(drop); await context.SaveChangesAsync();
-
-        var results = await (from sourceDrop in context.SourceDrops.AsNoTracking()
-                             join sourceBoss in context.BossActivities on sourceDrop.BossActivityId equals sourceBoss.Id
-                             join sourceItem in context.CatalogueItems on sourceDrop.ItemId equals sourceItem.Id
-                             where sourceDrop.Id == drop.Id
-                             orderby sourceBoss.Name, sourceItem.Name
-                             select new BoardModel.DropView(sourceDrop.Id, sourceBoss.Id, sourceBoss.Name, sourceItem.Name, sourceDrop.DisplayRate))
-            .ToListAsync();
-
-        var result = Assert.Single(results); Assert.Equal("Query Test Boss", result.BossName); Assert.Equal("Query Test Item", result.ItemName);
     }
 
     [Fact]

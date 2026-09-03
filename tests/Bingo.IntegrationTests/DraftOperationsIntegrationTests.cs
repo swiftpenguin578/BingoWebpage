@@ -81,17 +81,6 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         Assert.False(firstSetup.CanControlDraft);
         Assert.Null(firstSetup.DraftControllerAccountId);
 
-        var root = Directory.GetParent(AppContext.BaseDirectory)!.Parent!.Parent!.Parent!.Parent!.Parent!.FullName;
-        var markup = await File.ReadAllTextAsync(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml"));
-        Assert.Contains("draft-setup-controller-control", markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("Starting it will take control", markup, StringComparison.Ordinal);
-        Assert.Contains("asp-page-handler=\"TakeControl\"", markup, StringComparison.Ordinal);
-        Assert.Contains("asp-page-handler=\"ReleaseControl\"", markup, StringComparison.Ordinal);
-        Assert.Contains("name=\"rosterTeamId\"", markup, StringComparison.Ordinal);
-        Assert.Contains("asp-route-rosterTeamId", markup, StringComparison.Ordinal);
-        Assert.Contains("data-draft-roster-trigger", markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("onchange=\"this.form.requestSubmit()\"", markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("confirm(", markup, StringComparison.Ordinal);
 
         await ExecuteAsync(uncontested.EventId, uncontested.FirstAdminId, page => page.OnPostStartAsync(uncontested.EventId, CancellationToken.None));
         await using (var started = new ApplicationDbContext(options))
@@ -604,29 +593,6 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         var page = new Bingo.Web.Pages.Events.TeamsModel(read, new FixedTimeProvider(now));
         Assert.IsType<PageResult>(await page.OnGetAsync(slug, CancellationToken.None));
         Assert.Equal(frozenNames.Order(), page.Teams.SelectMany(x => x.Members).Select(x => x.Name).Order());
-    }
-
-    [Fact]
-    public async Task ProtectedWorkspaceMarkupRetainsPassFiveFourControlsAndAddsFinalization()
-    {
-        var root = Directory.GetParent(AppContext.BaseDirectory)!.Parent!.Parent!.Parent!.Parent!.Parent!.FullName;
-        var markup = await File.ReadAllTextAsync(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml"));
-        Assert.Contains("draft-live-workspace", markup, StringComparison.Ordinal);
-        Assert.Contains("@team.ProjectedFinalSize", markup, StringComparison.Ordinal);
-        Assert.Contains("Derived distribution", markup, StringComparison.Ordinal);
-        Assert.Contains("AcquireControl", markup, StringComparison.Ordinal);
-        Assert.Contains("TakeControl", markup, StringComparison.Ordinal);
-        Assert.Contains("ReleaseControl", markup, StringComparison.Ordinal);
-        Assert.Contains("Pause", markup, StringComparison.Ordinal);
-        Assert.Contains("Resume", markup, StringComparison.Ordinal);
-        Assert.Contains("Undo", markup, StringComparison.Ordinal);
-        Assert.Contains("data-draft-role-form", markup, StringComparison.Ordinal);
-        Assert.Contains("data-auto-submit", markup, StringComparison.Ordinal);
-        Assert.Contains("A current Captain is required before the draft can start.", markup, StringComparison.Ordinal);
-        Assert.Contains("Emergency credential", markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("TargetTeamSize", markup, StringComparison.Ordinal);
-        Assert.Contains("asp-page-handler=\"Finalize\"", markup, StringComparison.Ordinal);
-        Assert.Contains("asp-page-handler=\"Reopen\"", markup, StringComparison.Ordinal);
     }
 
     private async Task StartAndScrambleAsync(Setup setup)

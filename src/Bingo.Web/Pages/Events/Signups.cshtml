@@ -40,13 +40,18 @@
         else
         {
             <div class="public-signups-directory__table-wrap">
-                <table class="public-signups-directory__table">
+                <table class="public-signups-directory__table" style="--signup-table-min-width: @Model.TableMinimumWidthPixels(false)px">
+                    <colgroup>
+                        @foreach (var column in Model.Columns)
+                        {
+                            <col data-signup-column="@column.Kind" style="@Model.ColumnWidthStyle(column, false)" />
+                        }
+                    </colgroup>
                     <thead>
                         <tr>
-                            <th scope="col">@T["Player"]</th>
-                            @foreach (var heading in Model.Headings)
+                            @foreach (var column in Model.Columns)
                             {
-                                <th scope="col">@heading</th>
+                                <th scope="col" data-signup-column="@column.Kind">@column.Heading</th>
                             }
                         </tr>
                     </thead>
@@ -54,10 +59,9 @@
                         @foreach (var participant in Model.Confirmed)
                         {
                             <tr>
-                                <th scope="row" data-label="@T["Player"]">@participant.Name</th>
                                 @foreach (var value in participant.Values.Select((value, index) => new { value, index }))
                                 {
-                                    <td data-label="@Model.Headings[value.index]">@value.value</td>
+                                    <td data-label="@Model.Columns[value.index].Heading" data-signup-column="@Model.Columns[value.index].Kind">@value.value</td>
                                 }
                             </tr>
                         }
@@ -81,14 +85,20 @@
         else
         {
             <div class="public-signups-directory__table-wrap">
-                <table class="public-signups-directory__table">
+                <table class="public-signups-directory__table" style="--signup-table-min-width: @Model.TableMinimumWidthPixels(true)px">
+                    <colgroup>
+                        <col data-signup-column="position" style="@Model.WaitingPositionWidthStyle(true)" />
+                        @foreach (var column in Model.Columns)
+                        {
+                            <col data-signup-column="@column.Kind" style="@Model.ColumnWidthStyle(column, true)" />
+                        }
+                    </colgroup>
                     <thead>
                         <tr>
                             <th scope="col">@T["Position"]</th>
-                            <th scope="col">@T["Player"]</th>
-                            @foreach (var heading in Model.Headings)
+                            @foreach (var column in Model.Columns)
                             {
-                                <th scope="col">@heading</th>
+                                <th scope="col" data-signup-column="@column.Kind">@column.Heading</th>
                             }
                         </tr>
                     </thead>
@@ -97,10 +107,9 @@
                         {
                             <tr>
                                 <th scope="row" data-label="@T["Position"]">@participant.WaitingPosition?.ToString("00")</th>
-                                <th scope="row" data-label="@T["Player"]">@participant.Name</th>
                                 @foreach (var value in participant.Values.Select((value, index) => new { value, index }))
                                 {
-                                    <td data-label="@Model.Headings[value.index]">@value.value</td>
+                                    <td data-label="@Model.Columns[value.index].Heading" data-signup-column="@Model.Columns[value.index].Kind">@value.value</td>
                                 }
                             </tr>
                         }
