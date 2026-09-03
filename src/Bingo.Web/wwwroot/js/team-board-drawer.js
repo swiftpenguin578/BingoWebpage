@@ -63,6 +63,9 @@
     const focusHref = link.matches("[data-team-sidebar-return]") ? activeSidebarUrl : null;
     if (await replaceSidebar(href, focusHref)) {
       window.history.pushState({ teamBoardSidebar: true }, "", href);
+      if (link.matches("a.public-ui-team-board-tile") && !desktopLayout.matches) {
+        content.querySelector(".tile-context-sidebar")?.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "start" });
+      }
     } else {
       window.location.assign(href);
     }

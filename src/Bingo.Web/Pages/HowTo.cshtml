@@ -212,8 +212,10 @@
         const validIds = new Set(steps.map(step => step.id));
         const firstId = steps[0]?.id;
         const idFromHash = () => validIds.has(window.location.hash.slice(1)) ? window.location.hash.slice(1) : firstId;
+        const narrowLayout = window.matchMedia("(max-width: 760px)");
+        const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-        const setActive = (id, moveFocus) => {
+        const setActive = (id, moveFocus, moveViewport = false) => {
             const activeId = validIds.has(id) ? id : firstId;
             const activeIndex = steps.findIndex(step => step.id === activeId);
             steps.forEach(step => {
@@ -229,10 +231,15 @@
             progress.forEach(item => item.classList.toggle("is-active", item.dataset.howToProgress === activeId));
             help.forEach(item => item.hidden = item.dataset.howToHelp !== activeId);
             if (current) current.textContent = progress[activeIndex]?.dataset.howToProgressLabel ?? "";
-            if (moveFocus) steps[activeIndex]?.querySelector("h2")?.focus();
+            const activeStep = steps[activeIndex];
+            if (moveViewport && narrowLayout.matches) {
+                activeStep?.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "start" });
+            }
+            if (moveFocus) activeStep?.querySelector("h2")?.focus({ preventScroll: true });
         };
 
-        setActive(idFromHash(), false);
-        window.addEventListener("hashchange", () => setActive(idFromHash(), true));
+        const initialId = idFromHash();
+        setActive(initialId, false, initialId !== firstId || Boolean(window.location.hash));
+        window.addEventListener("hashchange", () => setActive(idFromHash(), true, true));
     })();
 </script>
