@@ -358,9 +358,11 @@ public sealed class BingoEvent
         SubmissionsClosedAt = null;
     }
 
-    public void SetEvidenceCodeEnabled(bool enabled)
+    public void SetEvidenceCodeEnabled(bool enabled, DateTimeOffset? now = null)
     {
         EnsureCapability(EventCapability.ConfigureEvidenceCodes);
+        if (State == EventState.AwaitingFinalReview && (now is not { } current || !AcceptsNewSubmissions(current)))
+            throw new InvalidOperationException("Evidence-code configuration is closed after the submission window.");
         EvidenceCodeEnabled = enabled;
     }
 

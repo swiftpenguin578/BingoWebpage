@@ -787,8 +787,12 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
 
         Assert.Equal(2, captainMembershipIds.Length);
         foreach (var membershipId in captainMembershipIds)
+        {
+            await using var membershipDb = new ApplicationDbContext(options);
+            var membershipVersion = await membershipDb.TeamMemberships.Where(membership => membership.Id == membershipId).Select(membership => membership.Version).SingleAsync(cancellationToken);
             Assert.IsType<RedirectToPageResult>(await DraftHandlerAsync(admin, clock,
-                page => page.OnPostChangeRoleAsync(eventId, membershipId, TeamMembershipRole.Captain, cancellationToken)));
+                page => page.OnPostChangeRoleAsync(eventId, membershipId, TeamMembershipRole.Captain, cancellationToken, membershipVersion)));
+        }
 
         Assert.IsType<RedirectToPageResult>(await DraftHandlerAsync(admin, clock,
             page => page.OnPostStartAsync(eventId, cancellationToken)));

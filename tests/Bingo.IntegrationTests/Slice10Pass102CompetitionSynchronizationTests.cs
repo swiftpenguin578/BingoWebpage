@@ -275,6 +275,107 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
     }
 
     [Fact]
+    public async Task LiveCompetitionReplacementInvalidatesOnlyAfterAValidatedSuccess()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var now = clock.GetUtcNow();
+        var admin = Account.CreateWebsite(Guid.NewGuid(), "live-replacement-admin", "LIVE-REPLACEMENT-ADMIN", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var eventItem = new BingoEvent(Guid.NewGuid(), "Live replacement", $"live-replacement-{Guid.NewGuid():N}", "", "UTC",
+            now.AddHours(-4), now.AddHours(-3), now.AddHours(-2), now.AddHours(2), now.AddHours(2), 20, admin.Id, now);
+        eventItem.OpenSignups(now.AddHours(-4));
+        eventItem.CloseSignups(now.AddHours(-3));
+        eventItem.StartEvent(now.AddHours(-2));
+        var prior = new EventCompetitionSynchronization(Guid.NewGuid(), eventItem.Id, 1, 501, "Prior competition",
+            eventItem.EventStartsAt, eventItem.EventEndsAt, "prior-fingerprint", now);
+        prior.MarkSuccess(now, now, true, "[]", null);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(admin, eventItem, prior);
+            await setup.SaveChangesAsync();
+        }
+
+        var replacement = new WiseOldManCompetition(502, "Replacement competition", eventItem.EventStartsAt!.Value, eventItem.EventEndsAt!.Value, now, []);
+        var mismatch = new WiseOldManCompetition(503, "Mismatched competition", eventItem.EventStartsAt.Value.AddMinutes(6), eventItem.EventEndsAt.Value, now, []);
+        var fake = new FakeCompetitionClient([
+            new(WiseOldManCompetitionStatus.Success, replacement),
+            new(WiseOldManCompetitionStatus.Success, replacement),
+            new(WiseOldManCompetitionStatus.Success, mismatch),
+            new(WiseOldManCompetitionStatus.Success, replacement)
+        ]);
+        var actor = new LifecycleActor(admin.Id, admin.LoginName);
+
+        await using (var configureDb = new ApplicationDbContext(options))
+        {
+            var configured = await new EventCompetitionSynchronizationService(configureDb, fake, new FixedStatus(), clock)
+                .ConfigureAsync(eventItem.Id, eventItem.Version, replacement.Id, false, actor);
+            Assert.True(configured.Succeeded, configured.Error);
+            var invalidated = await configureDb.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id);
+            Assert.Equal(replacement.Id, invalidated.CompetitionId);
+            Assert.Null(invalidated.LatestComplete);
+        }
+
+        await using (var refreshDb = new ApplicationDbContext(options))
+        {
+            var refreshed = await new EventCompetitionSynchronizationService(refreshDb, fake, new FixedStatus(), clock).RefreshAsync(eventItem.Id, actor);
+            Assert.True(refreshed.Succeeded, refreshed.Message);
+        }
+
+        DateTimeOffset? successfulAt;
+        DateTimeOffset originalStart;
+        DateTimeOffset originalEnd;
+        long currentVersion;
+        await using (var baselineDb = new ApplicationDbContext(options))
+        {
+            var savedEvent = await baselineDb.Events.AsNoTracking().SingleAsync(x => x.Id == eventItem.Id);
+            var savedState = await baselineDb.EventCompetitionSynchronizations.AsNoTracking().SingleAsync(x => x.EventId == eventItem.Id);
+            currentVersion = savedEvent.Version;
+            originalStart = savedEvent.EventStartsAt!.Value;
+            originalEnd = savedEvent.EventEndsAt!.Value;
+            successfulAt = savedState.LastSuccessfulAt;
+            Assert.Equal(502, savedState.CompetitionId);
+            Assert.Equal(2, savedState.Generation);
+            Assert.Equal(true, savedState.LatestComplete);
+        }
+
+        await using (var mismatchDb = new ApplicationDbContext(options))
+        {
+            var failed = await new EventCompetitionSynchronizationService(mismatchDb, fake, new FixedStatus(), clock)
+                .ConfigureAsync(eventItem.Id, currentVersion, mismatch.Id, false, actor);
+            Assert.False(failed.Succeeded);
+            Assert.Contains("within five minutes", failed.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        await using (var clearDb = new ApplicationDbContext(options))
+        {
+            var failed = await new EventCompetitionSynchronizationService(clearDb, fake, new FixedStatus(), clock)
+                .ConfigureAsync(eventItem.Id, currentVersion, null, false, actor);
+            Assert.False(failed.Succeeded);
+            Assert.Contains("replace", failed.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        await using (var scheduleDb = new ApplicationDbContext(options))
+        {
+            var failed = await new EventCompetitionSynchronizationService(scheduleDb, fake, new FixedStatus(), clock)
+                .ConfigureAsync(eventItem.Id, currentVersion, replacement.Id, true, actor);
+            Assert.False(failed.Succeeded);
+            Assert.Contains("schedule", failed.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var persistedEvent = await verify.Events.AsNoTracking().SingleAsync(x => x.Id == eventItem.Id);
+        var persistedState = await verify.EventCompetitionSynchronizations.AsNoTracking().SingleAsync(x => x.EventId == eventItem.Id);
+        Assert.Equal(originalStart, persistedEvent.EventStartsAt);
+        Assert.Equal(originalEnd, persistedEvent.EventEndsAt);
+        Assert.Equal(currentVersion, persistedEvent.Version);
+        Assert.Equal(502, persistedState.CompetitionId);
+        Assert.Equal(2, persistedState.Generation);
+        Assert.Equal(true, persistedState.LatestComplete);
+        Assert.Equal(successfulAt, persistedState.LastSuccessfulAt);
+        Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.EventId == eventItem.Id && x.Action == "event.competition_changed"));
+    }
+
+    [Fact]
     public async Task CooldownIsSharedAndAssignmentChangeStartsANewAuthoritativeGeneration()
     {
         var clock = new TestClock(DateTimeOffset.UtcNow);

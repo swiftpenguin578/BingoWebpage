@@ -170,7 +170,7 @@ public sealed class EventLifecycleFoundationTests
                     EventCapability.LiveSubmission => state == EventState.Live,
                     EventCapability.CompetitionSynchronization => state == EventState.Live,
                     EventCapability.ReviewEvidence => state is EventState.Live or EventState.AwaitingFinalReview,
-                    EventCapability.ConfigureEvidenceCodes => state is EventState.Draft or EventState.SignupClosed or EventState.Live,
+                    EventCapability.ConfigureEvidenceCodes => state is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview,
                     EventCapability.Finalize => state == EventState.AwaitingFinalReview,
                     EventCapability.Archive => state == EventState.Finalized,
                     EventCapability.Unfinalize => state is EventState.Finalized or EventState.Archived,
@@ -178,6 +178,26 @@ public sealed class EventLifecycleFoundationTests
                 };
                 Assert.Equal(expected, EventStatePolicy.Allows(state, capability));
             }
+    }
+
+    [Fact]
+    public void EvidenceCodeConfigurationUsesTheActiveSubmissionWindowInFinalReview()
+    {
+        var draft = Event();
+        draft.SetEvidenceCodeEnabled(true, Now);
+        draft.OpenSignups(Now);
+        draft.SetEvidenceCodeEnabled(false, Now);
+        draft.CloseSignups(Now.AddHours(1));
+        draft.SetEvidenceCodeEnabled(true, Now.AddHours(1));
+        draft.StartEvent(Now.AddDays(2));
+        draft.SetEvidenceCodeEnabled(false, Now.AddDays(2));
+
+        draft.EndEvent(Now.AddDays(3));
+        draft.SetEvidenceCodeEnabled(true, Now.AddDays(3).AddMinutes(15));
+        Assert.Throws<InvalidOperationException>(() => draft.SetEvidenceCodeEnabled(false, Now.AddDays(4).AddMinutes(31)));
+
+        draft.FinalizeResults(Now.AddDays(5));
+        Assert.Throws<InvalidOperationException>(() => draft.SetEvidenceCodeEnabled(false, Now.AddDays(5)));
     }
 
     [Fact]

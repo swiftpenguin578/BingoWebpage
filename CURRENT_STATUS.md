@@ -48,8 +48,29 @@ historical material is preserved separately and is non-authoritative.
   build, targeted integration test, and `git diff --check` pass. The fixes-only
   independent Sol High re-review passed with no mutation bypass or scope
   expansion. The user authorized local Pass 2 packaging and Pass 3 start on
-  2026-09-04. Nothing has been pushed, merged, or deployed; after the Pass 2
-  commit, the next permitted implementation action is Pass 3 only.
+  2026-09-04. Nothing has been pushed, merged, or deployed.
+- Pass 2 is committed locally as `c00b5d1` (`fix: extend admin participant
+  lifecycle controls`) and has not been pushed.
+- Pass 3 is implemented and stops at its planned boundary: evidence-code and
+  captain/co-captain changes follow the active submission-window lifecycle;
+  stale event and membership versions are enforced; reopen-submissions and
+  evidence-code mutations are atomic with exactly one audit; and the existing
+  Live Wise Old Man replacement behavior is preserved with regression proof.
+  No new infrastructure or Pass 4 scope was added.
+- Pass 3 focused verification passed: Web, DomainTests, IntegrationTests, and
+  BrowserTests Release builds with zero warnings/errors; 100 lifecycle-domain,
+  one Pass 3 atomicity, 6 captain-authority, 12 Wise Old Man synchronization,
+  5 compatibility-filter, and one scheduled-lifecycle test; `git diff --check`
+  also passes. The complete suite, browser execution/inspection, and manual
+  acceptance were not run. The independent Sol High review found one
+  event-history/privacy blocker: the three new Pass 3 audit writes persisted a
+  null `EventId`. Focused remediation now uses the existing event-aware audit
+  overload and asserts the correct event association for all three successful
+  actions; the filtered Release integration test and `git diff --check` pass.
+  The fixes-only independent Sol High re-review passed. All required Pass 3
+  scope is cleared with no scope expansion or unbudgeted infrastructure. The
+  user authorized local Pass 3 packaging on 2026-09-04. Nothing has been pushed,
+  merged, or deployed; the next action requires user direction before Pass 4.
 
 ## Canonical checkout
 

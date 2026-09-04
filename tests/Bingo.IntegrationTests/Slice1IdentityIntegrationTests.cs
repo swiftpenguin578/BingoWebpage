@@ -444,7 +444,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
 
         Assert.IsType<RedirectToPageResult>(await page.OnPostFinalizeAsync(ev.Id, CancellationToken.None));
         Assert.Equal(baseline, (await db.Accounts.CountAsync(), await db.AccountEventAccesses.CountAsync(), await db.PasswordCredentialTokens.CountAsync()));
-        Assert.IsType<RedirectToPageResult>(await page.OnPostChangeRoleAsync(ev.Id, membership.Id, Bingo.Domain.Teams.TeamMembershipRole.Captain, CancellationToken.None));
+        Assert.IsType<RedirectToPageResult>(await page.OnPostChangeRoleAsync(ev.Id, membership.Id, Bingo.Domain.Teams.TeamMembershipRole.Captain, CancellationToken.None, membership.Version));
         Assert.Equal(baseline, (await db.Accounts.CountAsync(), await db.AccountEventAccesses.CountAsync(), await db.PasswordCredentialTokens.CountAsync()));
         Assert.IsType<PageResult>(await page.OnGetAsync(ev.Id, "ehb", CancellationToken.None));
         var projectedMember = Assert.Single(Assert.Single(page.Teams).Members);
@@ -831,6 +831,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         {
             PageContext = new PageContext(new ActionContext(reopenContext, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(reopenContext, new DictionaryTempDataProvider()),
+            EventVersion = ev.Version,
             ReopenUntil = clock.GetUtcNow().AddMinutes(5),
             StateReason = "Focused lifecycle reopening test."
         };
@@ -871,6 +872,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         {
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new DictionaryTempDataProvider()),
+            EventVersion = ev.Version,
             ReopenUntilLocal = "2026-08-30T15:00",
             StateReason = "Event-local parsing coverage."
         };
@@ -906,6 +908,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         {
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new DictionaryTempDataProvider()),
+            EventVersion = ev.Version,
             ReopenUntilLocal = localTime,
             StateReason = "Event-local DST parsing coverage."
         };

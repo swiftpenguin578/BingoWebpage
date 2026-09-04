@@ -380,8 +380,11 @@ else
             {
                 <div class="team-role-form">
                     <span class="team-role-name">@member.Name</span>
+                    @if (Model.CanChangeCaptainRoles)
+                    {
                     <form method="post" asp-page-handler="ChangeRole" asp-route-rosterTeamId="@team.Id" class="team-member-move-form" data-draft-role-form>
                         <input type="hidden" name="membershipId" value="@member.MembershipId" />
+                        <input type="hidden" name="membershipVersion" value="@member.Version" />
                         <input type="hidden" name="rosterTeamId" value="@team.Id" />
                         <label class="visually-hidden" for="role-@member.MembershipId">@T["Role for {0}", member.Name]</label>
                         <select id="role-@member.MembershipId" name="role" class="form-select" data-auto-submit>
@@ -391,6 +394,11 @@ else
                         </select>
                         <button class="admin-button-secondary draft-role-save" type="submit">@T["Save role"]</button>
                     </form>
+                    }
+                    else
+                    {
+                        <span class="team-role-locked">@T["Role changes are frozen after the submission window closes."]</span>
+                    }
                     @if (isPreDraft || (team.FormationType == TeamFormationType.Preformed && member.External))
                     {
                         <details class="admin-destructive-confirmation draft-confirmation team-role-remove-form">

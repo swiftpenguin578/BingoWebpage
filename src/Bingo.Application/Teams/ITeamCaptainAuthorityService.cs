@@ -2,7 +2,7 @@ using Bingo.Domain.Teams;
 
 namespace Bingo.Application.Teams;
 
-public sealed record TeamCaptainRoleChange(Guid EventId, Guid MembershipId, TeamMembershipRole Role, Guid ActorAccountId, string ActorUsername);
+public sealed record TeamCaptainRoleChange(Guid EventId, Guid MembershipId, TeamMembershipRole Role, Guid ActorAccountId, string ActorUsername, long? ExpectedMembershipVersion = null);
 public sealed record TeamCaptainRoleChangeResult(bool Succeeded, string? Error = null, string? ParticipantName = null);
 
 /// <summary>Authoritative event/team captain boundary. Website ownership is explicit participant ownership only.</summary>

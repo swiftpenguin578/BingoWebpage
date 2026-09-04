@@ -38,6 +38,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public int PendingReviewCount { get; private set; }
     public int SubmissionCount { get; private set; }
     public bool CanDiscard { get; private set; }
+    public bool CanConfigureEvidenceCodes { get; private set; }
     public bool ResumeRequiresReplacement { get; private set; }
     public bool ShowDevelopmentCompetitionControl { get; private set; }
     public bool ShowAllControlStages { get; private set; }
@@ -239,22 +240,158 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         return result.Succeeded ? RedirectToPage("Index") : RedirectToPage(new { id, hidden = true });
     }
     public async Task<IActionResult> OnPostReopenSubmissionsAsync(Guid id, CancellationToken ct)
-    { var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); var reopenUntil = ParseEventLocal(ReopenUntilLocal, item.Timezone, nameof(ReopenUntilLocal), "Reopen cutoff") ?? (string.IsNullOrWhiteSpace(ReopenUntilLocal) ? ReopenUntil?.ToUniversalTime() : null); if (reopenUntil is null || string.IsNullOrWhiteSpace(StateReason)) { TempData["StatusMessage"] = Localize("A valid future cutoff and reason are required."); return RedirectToPage(new { id }); } try { item.ReopenSubmissions(reopenUntil.Value, timeProvider.GetUtcNow()); await dbContext.SaveChangesAsync(ct); await AuditAsync("event.submissions_reopened", item, $"Until {reopenUntil:O}; {StateReason}", ct); TempData["StatusMessage"] = Localize("Submissions reopened until {0}.", DateTimePresentation.Format(reopenUntil.Value, "dd MMM yyyy, HH:mm", item.Timezone, CultureInfo.CurrentCulture)); } catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; } return RedirectToPage(new { id }); }
+    {
+        var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (item is null) return NotFound();
+        var reopenUntil = ParseEventLocal(ReopenUntilLocal, item.Timezone, nameof(ReopenUntilLocal), "Reopen cutoff")
+            ?? (string.IsNullOrWhiteSpace(ReopenUntilLocal) ? ReopenUntil?.ToUniversalTime() : null);
+        if (reopenUntil is null || string.IsNullOrWhiteSpace(StateReason))
+        {
+            TempData["StatusMessage"] = Localize("A valid future cutoff and reason are required.");
+            return RedirectToPage(new { id });
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+        try
+        {
+            if (item.Version != EventVersion)
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                dbContext.ChangeTracker.Clear();
+                TempData["StatusMessage"] = Localize("This event changed in another request. Reload before reopening submissions.");
+                return RedirectToPage(new { id });
+            }
+
+            item.ReopenSubmissions(reopenUntil.Value, timeProvider.GetUtcNow());
+            await AuditAsync("event.submissions_reopened", item, $"Until {reopenUntil:O}; {StateReason}", ct);
+            await transaction.CommitAsync(ct);
+            TempData["StatusMessage"] = Localize("Submissions reopened until {0}.", DateTimePresentation.Format(reopenUntil.Value, "dd MMM yyyy, HH:mm", item.Timezone, CultureInfo.CurrentCulture));
+        }
+        catch (InvalidOperationException ex)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            TempData["StatusMessage"] = ex.Message;
+        }
+        catch (DbUpdateException)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            TempData["StatusMessage"] = Localize("The submission window could not be reopened safely. Reload and try again.");
+        }
+        return RedirectToPage(new { id });
+    }
     public Task<IActionResult> OnPostEnableEvidenceCodesAsync(Guid id, CancellationToken ct) => SetEvidenceCodeMode(id, true, ct);
     public Task<IActionResult> OnPostDisableEvidenceCodesAsync(Guid id, CancellationToken ct) => SetEvidenceCodeMode(id, false, ct);
     private async Task<IActionResult> SetEvidenceCodeMode(Guid id, bool enabled, CancellationToken ct)
     {
-        var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); item.SetEvidenceCodeEnabled(enabled); await dbContext.SaveChangesAsync(ct); await AuditAsync("event.evidence_code_mode", item, enabled ? "Enabled" : "Disabled", ct); TempData["StatusMessage"] = enabled ? Localize("Verification codes enabled.") : Localize("Verification codes disabled."); return RedirectToPage(new { id });
+        var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (item is null) return NotFound();
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+        try
+        {
+            if (item.Version != EventVersion)
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                dbContext.ChangeTracker.Clear();
+                TempData["StatusMessage"] = Localize("This event changed in another request. Reload before changing verification codes.");
+                return RedirectToPage(new { id });
+            }
+
+            item.SetEvidenceCodeEnabled(enabled, timeProvider.GetUtcNow());
+            await AuditAsync("event.evidence_code_mode", item, enabled ? "Enabled" : "Disabled", ct);
+            await transaction.CommitAsync(ct);
+            TempData["StatusMessage"] = enabled ? Localize("Verification codes enabled.") : Localize("Verification codes disabled.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            TempData["StatusMessage"] = ex.Message;
+        }
+        catch (DbUpdateException)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            TempData["StatusMessage"] = Localize("Verification codes could not be changed safely. Reload and try again.");
+        }
+        return RedirectToPage(new { id });
     }
     public Task<IActionResult> OnPostCreateEvidenceCodeAsync(Guid id, CancellationToken ct) => CreateEvidenceCode(id, NewEvidenceCode, ct);
     private async Task<IActionResult> CreateEvidenceCode(Guid id, string? code, CancellationToken ct)
     {
-        var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (item is null) return NotFound(); if (HasBindingErrors(nameof(NewEvidenceCode), nameof(EvidenceCodeActivatesAtLocal), nameof(EvidenceCodeNote))) { TempData["StatusMessage"] = Localize("Check the verification code details and try again."); return RedirectToPage(new { id }); }
-        if (!item.EvidenceCodeEnabled) { TempData["StatusMessage"] = Localize("Enable evidence codes first."); return RedirectToPage(new { id }); }
-        if (string.IsNullOrWhiteSpace(code)) { TempData["StatusMessage"] = Localize("Enter or generate a code first."); return RedirectToPage(new { id }); }
-        var activates = ParseEventLocal(EvidenceCodeActivatesAtLocal, item.Timezone, nameof(EvidenceCodeActivatesAtLocal), "Activation time"); if (!string.IsNullOrWhiteSpace(EvidenceCodeActivatesAtLocal) && activates is null) { TempData["StatusMessage"] = Localize("Check the verification code details and try again."); return RedirectToPage(new { id }); }
-        activates ??= EvidenceCodeActivatesAt?.ToUniversalTime() ?? timeProvider.GetUtcNow(); var activatedAt = activates.Value; if (await dbContext.EvidenceCodes.AnyAsync(x => x.EventId == id && x.ActivatesAt == activatedAt, ct)) { TempData["StatusMessage"] = Localize("Another code already activates at that exact time."); return RedirectToPage(new { id }); }
-        var created = new EvidenceCode(Guid.NewGuid(), id, code, activatedAt, User.GetAccountId()!.Value, timeProvider.GetUtcNow(), EvidenceCodeNote); dbContext.EvidenceCodes.Add(created); var codes = await dbContext.EvidenceCodes.Where(x => x.EventId == id).OrderBy(x => x.ActivatesAt).ToListAsync(ct); codes.Add(created); codes = codes.OrderBy(x => x.ActivatesAt).ToList(); for (var index = 0; index < codes.Count; index++) codes[index].SetRetiresAt(index + 1 < codes.Count ? codes[index + 1].ActivatesAt : null); await dbContext.SaveChangesAsync(ct); await AuditAsync("evidence_code.created", item, $"{created.Code}; activates {activatedAt:O}", ct); TempData["StatusMessage"] = Localize("Evidence code {0} saved.", created.Code); return RedirectToPage(new { id });
+        var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (item is null) return NotFound();
+        if (HasBindingErrors(nameof(NewEvidenceCode), nameof(EvidenceCodeActivatesAtLocal), nameof(EvidenceCodeNote)))
+        {
+            TempData["StatusMessage"] = Localize("Check the verification code details and try again.");
+            return RedirectToPage(new { id });
+        }
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            TempData["StatusMessage"] = Localize("Enter or generate a code first.");
+            return RedirectToPage(new { id });
+        }
+        var activates = ParseEventLocal(EvidenceCodeActivatesAtLocal, item.Timezone, nameof(EvidenceCodeActivatesAtLocal), "Activation time");
+        if (!string.IsNullOrWhiteSpace(EvidenceCodeActivatesAtLocal) && activates is null)
+        {
+            TempData["StatusMessage"] = Localize("Check the verification code details and try again.");
+            return RedirectToPage(new { id });
+        }
+        var now = timeProvider.GetUtcNow();
+        var activatedAt = activates ?? EvidenceCodeActivatesAt?.ToUniversalTime() ?? now;
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+        try
+        {
+            if (item.Version != EventVersion)
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                dbContext.ChangeTracker.Clear();
+                TempData["StatusMessage"] = Localize("This event changed in another request. Reload before creating a verification code.");
+                return RedirectToPage(new { id });
+            }
+            if (!item.EvidenceCodeEnabled)
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                dbContext.ChangeTracker.Clear();
+                TempData["StatusMessage"] = Localize("Enable evidence codes first.");
+                return RedirectToPage(new { id });
+            }
+            item.SetEvidenceCodeEnabled(item.EvidenceCodeEnabled, now);
+            if (await dbContext.EvidenceCodes.AnyAsync(x => x.EventId == id && x.ActivatesAt == activatedAt, ct))
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                dbContext.ChangeTracker.Clear();
+                TempData["StatusMessage"] = Localize("Another code already activates at that exact time.");
+                return RedirectToPage(new { id });
+            }
+
+            var created = new EvidenceCode(Guid.NewGuid(), id, code, activatedAt, User.GetAccountId()!.Value, now, EvidenceCodeNote);
+            dbContext.EvidenceCodes.Add(created);
+            var codes = await dbContext.EvidenceCodes.Where(x => x.EventId == id).OrderBy(x => x.ActivatesAt).ToListAsync(ct);
+            codes.Add(created);
+            codes = codes.OrderBy(x => x.ActivatesAt).ToList();
+            for (var index = 0; index < codes.Count; index++)
+                codes[index].SetRetiresAt(index + 1 < codes.Count ? codes[index + 1].ActivatesAt : null);
+            item.AdvanceVersion();
+            await AuditAsync("evidence_code.created", item, $"{created.Code}; activates {activatedAt:O}", ct);
+            await transaction.CommitAsync(ct);
+            TempData["StatusMessage"] = Localize("Evidence code {0} saved.", created.Code);
+        }
+        catch (InvalidOperationException ex)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            TempData["StatusMessage"] = ex.Message;
+        }
+        catch (DbUpdateException)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            TempData["StatusMessage"] = Localize("The verification code could not be saved safely. Reload and try again.");
+        }
+        return RedirectToPage(new { id });
     }
     private async Task<bool> LoadAsync(Guid id, CancellationToken ct)
     {
@@ -281,6 +418,9 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         PendingReviewCount = await dbContext.Submissions.CountAsync(x => x.EventId == id && x.Status == SubmissionStatus.Pending, ct);
         FinalReviewReadiness = item.State == EventState.AwaitingFinalReview && finalizationService is not null ? await finalizationService.GetReadinessAsync(id, ct) : null;
         EventView = new EventDetails(item.Id, item.Name, item.Slug, item.Description, item.Timezone, item.State, item.FirstPublicAt, item.BoardPublished, item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ActualSignupOpenedAt, item.ActualSignupClosedAt, item.ActualStartedAt, item.ActualEndedAt, item.ActualEndedAt ?? item.EventEndsAt, item.SubmissionCutoffAt, item.SubmissionsClosedAt, item.ScheduledSignupOpeningEnabled, item.ReopenedSubmissionCutoffAt, item.ParticipantCap ?? 0, allParticipants.Count(p => p.SignupStatus == SignupStatus.Confirmed), allParticipants.Count(p => p.SignupStatus == SignupStatus.WaitingList), item.DraftLocked, item.EvidenceCodeEnabled, activeTeamIds.Count, actualTeamSize, boardSize, boardRows, boardColumns, configuredBoardTileCount, expectedBoardCellCount, item.ExpectedTeamCount, item.ExpectedTeamSize, item.ExpectedBoardRows is not null && item.ExpectedBoardColumns is not null ? $"{item.ExpectedBoardRows} × {item.ExpectedBoardColumns}" : null, canStartEvent, item.FinalizedAt, item.ArchivedAt, item.CancelledAt, item.IsHidden, item.HiddenAt, item.HiddenByAccountId, item.HiddenReason);
+        var evidenceCodeNow = timeProvider.GetUtcNow();
+        CanConfigureEvidenceCodes = item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live
+            || item.State == EventState.AwaitingFinalReview && item.AcceptsNewSubmissions(evidenceCodeNow);
         if (item.IsHidden)
         {
             EventNameConfirmation = item.Name;
@@ -339,7 +479,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     private LifecycleActor Actor => new(User.GetAccountId()!.Value, User.Identity!.Name!);
     private Task<IActionResult> SignupResult(SignupLifecycleResult result, Guid id, string success)
     { TempData["StatusMessage"] = result.Succeeded ? Localize(success) : result.ProposedClose is { } close ? $"{result.Error} Proposed close: {DateTimePresentation.Format(close, "dd MMM yyyy, HH:mm", EventView?.Timezone, CultureInfo.CurrentCulture)}." : result.Error; if (result.Succeeded) TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString(); return Task.FromResult<IActionResult>(RedirectToPage(new { id })); }
-    private Task AuditAsync(string action, BingoEvent item, string details, CancellationToken ct) => auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, action, "event", item.Id.ToString(), details, ct);
+    private Task AuditAsync(string action, BingoEvent item, string details, CancellationToken ct) => auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, action, "event", item.Id.ToString(), details, item.Id, ct);
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     private string CompetitionRefreshFailure(EventCompetitionRefreshResult result)
     {
