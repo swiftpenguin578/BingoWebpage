@@ -494,6 +494,13 @@ public sealed class BingoEvent
         if (published) MarkFirstPublic(now);
     }
 
+    public void EnsurePublishedBoardCorrectionAllowed()
+    {
+        EnsureNotHidden();
+        if (State is not (EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview))
+            throw new InvalidOperationException($"Published board correction is unavailable while the event is {State}.");
+    }
+
     private DateTimeOffset ActiveSubmissionCutoff()
     {
         var cutoff = ReopenedSubmissionCutoffAt is { } reopened && (SubmissionCutoffAt is null || reopened > SubmissionCutoffAt.Value) ? reopened : SubmissionCutoffAt;

@@ -9,6 +9,7 @@ using Bingo.Application.Teams;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Catalogue;
+using Bingo.Domain.Events;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
@@ -42,6 +43,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     public string? BoardEditorName { get; private set; }
     public DateTimeOffset? BoardEditorLeaseExpiresAt { get; private set; }
     public bool DraftFinalized { get; private set; }
+    public EventState EventState { get; private set; }
 
     [BindProperty, Range(1, 8)] public int Rows { get; set; } = 5;
     [BindProperty, Range(1, 8)] public int Columns { get; set; } = 5;
@@ -291,8 +293,13 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         await db.SaveChangesAsync(ct); await WriteAudit("board.expected_team_size_changed", board.Id, expectedTeamSize.ToString(CultureInfo.InvariantCulture), ct); SetStatus(Localize("Expected team size updated."), UiMessageType.Success); return RedirectToPage(new { id });
     }
 
-    public async Task<IActionResult> OnPostPublishAsync(Guid id, CancellationToken ct)
+    public async Task<IActionResult> OnPostPublishAsync(Guid id, bool confirmed, CancellationToken ct)
     {
+        if (!confirmed)
+        {
+            SetStatus(Localize("Confirmation required"), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
@@ -339,9 +346,11 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         try
         {
             var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct);
-            if (board is null) return NotFound();
+            var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
+            if (board is null || bingoEvent is null) return NotFound();
             if (board.State != BoardState.Published || board.ActiveApprovalSnapshotId is null)
                 throw new InvalidOperationException("Only a published board can be corrected here.");
+            bingoEvent.EnsurePublishedBoardCorrectionAllowed();
             var previousSnapshotId = board.ActiveApprovalSnapshotId.Value;
             board.BeginPublishedCorrection();
             board.AcquireEditing(AdminId, time.GetUtcNow(), BoardEditingLease.Duration);
@@ -366,13 +375,14 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         return RedirectToPage(new { id });
     }
 
-    public async Task<IActionResult> OnPostApproveAsync(Guid id, CancellationToken ct)
+    public async Task<IActionResult> OnPostApproveAsync(Guid id, bool confirmed, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
             var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct);
-            if (board is null) return NotFound();
+            var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
+            if (board is null || bingoEvent is null) return NotFound();
             if (board.Version != BoardVersion)
             {
                 SetStatus(Localize("This board changed after you opened it. Reload before approving it."), UiMessageType.Warning);
@@ -381,6 +391,15 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             board.RequireEditing(AdminId, time.GetUtcNow());
 
             var publishingCorrection = board.State == BoardState.Published && board.PublishedCorrectionInProgress;
+            if (publishingCorrection)
+            {
+                if (!confirmed)
+                {
+                    SetStatus(Localize("Confirmation required"), UiMessageType.Warning);
+                    return RedirectToPage(new { id });
+                }
+                bingoEvent.EnsurePublishedBoardCorrectionAllowed();
+            }
             var snapshot = await CreateApprovalSnapshotAsync(board, ct, publishingCorrection);
             if (publishingCorrection)
                 board.ReplacePublishedApproval(snapshot.Id);
@@ -617,7 +636,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
 
     private async Task<bool> Load(Guid id, CancellationToken ct)
     {
-        var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct); if (bingoEvent is null) return false; EventName = bingoEvent.Name;
+        var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct); if (bingoEvent is null) return false; EventName = bingoEvent.Name; EventState = bingoEvent.State;
         Bosses = await db.BossActivities.AsNoTracking().Where(x => x.Active).OrderBy(x => x.Name).Select(x => new BossView(x.Id, x.Name, x.Category, x.EfficientCompletionsPerHour)).ToListAsync(ct);
         var catalogueDrops = await (from drop in db.SourceDrops.AsNoTracking()
                                     join boss in db.BossActivities on drop.BossActivityId equals boss.Id

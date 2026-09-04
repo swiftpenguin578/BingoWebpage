@@ -1,6 +1,7 @@
 @page "{id:guid}"
 @model Bingo.Web.Pages.Admin.Events.BoardModel
 @using Bingo.Domain.Boards
+@using Bingo.Domain.Events
 @{
     ViewData["Title"] = T["Board editor"];
     ViewData["AdminPageDescription"] = T["Create, review, and approve the event board."];
@@ -81,16 +82,16 @@
                     {
                         <form method="post" asp-page-handler="Unapprove" onsubmit="return confirm('@T["Return this board to live draft values? The approval remains in history."]');"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn admin-button-secondary">@T["Unapprove board"]</button></form>
                     }
-                    else if (Model.BoardView.State == BoardState.Published && Model.BoardView.PublishedCorrectionInProgress)
+                    else if (Model.BoardView.State == BoardState.Published && Model.BoardView.PublishedCorrectionInProgress && (Model.EventState is EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview))
                     {
-                        <form method="post" asp-page-handler="Approve"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn admin-button-primary">@T["Publish corrected board"]</button></form>
+                        <details class="admin-destructive-confirmation board-publication-confirmation"><summary class="btn admin-button-primary">@T["Publish corrected board"]</summary><div class="event-confirmation-box" role="alertdialog" aria-labelledby="publish-corrected-board-heading"><p><strong id="publish-corrected-board-heading">@T["Publish corrected board"]</strong><br /><span class="event-confirmation-supporting">@T["The current public snapshot remains live until this corrected working copy is published."]</span></p><form method="post" asp-page-handler="Approve"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><input type="hidden" name="confirmed" value="true" /><div class="event-confirmation-actions"><button class="btn admin-button-primary">@T["Publish corrected board"]</button><button type="button" class="btn admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div></details>
                     }
                 }
                 @if (Model.BoardView.State == BoardState.Validated && Model.DraftFinalized)
                 {
-                    <form method="post" asp-page-handler="Publish"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn admin-button-primary">@T["Publish board"]</button></form>
+                    <details class="admin-destructive-confirmation board-publication-confirmation"><summary class="btn admin-button-primary">@T["Publish board"]</summary><div class="event-confirmation-box" role="alertdialog" aria-labelledby="publish-board-heading"><p><strong id="publish-board-heading">@T["Publish board? The approved board is ready. Publishing it is a separate action."]</strong></p><form method="post" asp-page-handler="Publish"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><input type="hidden" name="confirmed" value="true" /><div class="event-confirmation-actions"><button class="btn admin-button-primary">@T["Publish board"]</button><button type="button" class="btn admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div></details>
                 }
-                else if (published && !Model.BoardView.PublishedCorrectionInProgress)
+                else if (published && !Model.BoardView.PublishedCorrectionInProgress && (Model.EventState is EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview))
                 {
                     <details><summary class="btn admin-button-secondary">@T["Correct published board"]</summary><form method="post" asp-page-handler="CorrectPublished" class="toolbar-popover"><label><input type="checkbox" name="confirmed" value="true" /> @T["I confirm this exceptional correction."]</label><div class="admin-field"><label for="published-correction-reason">@T["Reason"]</label><textarea id="published-correction-reason" name="reason" required class="form-control"></textarea></div><button class="btn admin-button-primary">@T["Start private correction"]</button></form></details>
                 }
@@ -396,6 +397,7 @@ function showBoardDialog(dialog) { if (!dialog?.open) dialog?.showModal(); syncB
 boardDialogs.forEach(dialog => dialog.addEventListener('close', syncBoardDialogState));
 syncBoardDialogState();
 document.querySelectorAll('.dialog-close, .dialog-cancel').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
+document.querySelectorAll('.board-publication-confirmation [data-confirmation-cancel]').forEach(button => button.addEventListener('click', () => button.closest('details')?.removeAttribute('open')));
 boardDialogs.forEach(dialog => dialog.addEventListener('click', event => {
     if (event.target !== dialog || window.matchMedia?.('(max-width: 900px)')?.matches) return;
     dialog.close();

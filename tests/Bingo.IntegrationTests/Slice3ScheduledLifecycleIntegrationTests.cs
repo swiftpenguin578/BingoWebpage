@@ -873,7 +873,7 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new DictionaryTempDataProvider())
         };
-        Assert.IsType<RedirectToPageResult>(await page.OnPostPublishAsync(eventId, CancellationToken.None));
+        Assert.IsType<RedirectToPageResult>(await page.OnPostPublishAsync(eventId, true, CancellationToken.None));
     }
 
     private BingoEvent ReadyDraft(ApplicationDbContext db, Guid id, string slug, DateTimeOffset opening, DateTimeOffset closing, DateTimeOffset end)

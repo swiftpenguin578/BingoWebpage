@@ -70,7 +70,27 @@ historical material is preserved separately and is non-authoritative.
   The fixes-only independent Sol High re-review passed. All required Pass 3
   scope is cleared with no scope expansion or unbudgeted infrastructure. The
   user authorized local Pass 3 packaging on 2026-09-04. Nothing has been pushed,
-  merged, or deployed; the next action requires user direction before Pass 4.
+  merged, or deployed.
+- Pass 3 is committed locally as `0197e90` (`fix: harden admin event operational
+  controls`) and has not been pushed.
+- Pass 4 is implemented and stops at its planned boundary: initial and corrected
+  board publication require popup and server confirmation; corrected publication
+  revalidates lifecycle and stale workspaces; snapshot/audit atomicity and
+  superseded history are preserved; and late initial publication continues to
+  use Pass 1 postponed-start recovery. No new infrastructure or board-editor
+  redesign was added.
+- Pass 4 focused verification passed: IntegrationTests and BrowserTests Release
+  builds; 12 publication/correction integration cases; one scheduled-lifecycle
+  regression; one confirmation UI contract test; and `git diff --check`. The
+  independent Sol High review found one inert Cancel-button blocker because the
+  Board page did not load the unrelated shared handler. Focused remediation wired
+  both buttons through the existing Board script and strengthened the source
+  contract; 3 focused Release BrowserTests and `git diff --check` pass. The
+  fixes-only independent Sol High re-review passed with no scope expansion.
+  The user authorized local Pass 4 packaging on 2026-09-04. Nothing has been
+  pushed, merged, or deployed; the recommended next action is the planned final
+  Sol High four-pass review, with special attention to the schedule matrix and
+  cross-pass lifecycle interactions, before the remaining release gates.
 
 ## Canonical checkout
 
