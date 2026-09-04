@@ -34,11 +34,20 @@ public sealed class SignupService(
         if (participant is null) return new(false, "The participant could not be found.");
         var before = participant.PaymentStatus;
         if (before == payment) { await transaction.CommitAsync(cancellationToken); return new(true, null); }
-        participant.SetPaymentStatus(payment);
-        dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorAccountId, actorName, "participant.payment_updated", "participant", participant.Id.ToString(), "Payment changed.", eventId, $"{{\"payment\":\"{before}\"}}", $"{{\"payment\":\"{payment}\"}}"));
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return new(true, null, true);
+        try
+        {
+            participant.SetPaymentStatus(payment);
+            dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorAccountId, actorName, "participant.payment_updated", "participant", participant.Id.ToString(), "Payment changed.", eventId, $"{{\"payment\":\"{before}\"}}", $"{{\"payment\":\"{payment}\"}}"));
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new(true, null, true);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Payment could not be saved. Please try again.");
+        }
     }
 
     public async Task<ParticipantPaymentResult> SetAdminNotesAsync(Guid eventId, Guid participantId, Guid? actorAccountId, string actorName, string? notes, string? expectedNotes, CancellationToken cancellationToken = default)
@@ -66,12 +75,21 @@ public sealed class SignupService(
             return new(true, null);
         }
 
-        participant.SetAdminNotes(after);
-        dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorAccountId, actorName, "participant.admin_note_updated", "participant", participant.Id.ToString(), "Private Admin note changed.", eventId,
-            Json(new { present = before is not null }), Json(new { present = after is not null })));
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return new(true, null, true);
+        try
+        {
+            participant.SetAdminNotes(after);
+            dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorAccountId, actorName, "participant.admin_note_updated", "participant", participant.Id.ToString(), "Private Admin note changed.", eventId,
+                Json(new { present = before is not null }), Json(new { present = after is not null })));
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new(true, null, true);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Admin note could not be saved. Please try again.");
+        }
     }
 
     public async Task<SignupAdministrationResult> UpdateSignupAdministrationAsync(
@@ -112,14 +130,23 @@ public sealed class SignupService(
         catch (ArgumentOutOfRangeException) { return new(false, "Maximum players must be at least 1."); }
         catch (InvalidOperationException ex) { return new(false, ex.Message); }
 
-        var promoted = await PromoteWithinLockedEventAsync(bingoEvent, actorAccountId, actorName, "signup administration", cancellationToken);
-        var after = new { bingoEvent.ParticipantCap, bingoEvent.WaitingListEnabled };
-        dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorAccountId, actorName, "event.signup_administration_updated", "event",
-            eventId.ToString(), System.Text.Json.JsonSerializer.Serialize(new { requestedCapacity = newCap, effectiveCapacity = effectiveCap, waitingListEnabled, promoted }), eventId,
-            System.Text.Json.JsonSerializer.Serialize(before), System.Text.Json.JsonSerializer.Serialize(after)));
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return new(true, null, promoted, effectiveCap);
+        try
+        {
+            var promoted = await PromoteWithinLockedEventAsync(bingoEvent, actorAccountId, actorName, "signup administration", cancellationToken);
+            var after = new { bingoEvent.ParticipantCap, bingoEvent.WaitingListEnabled };
+            dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorAccountId, actorName, "event.signup_administration_updated", "event",
+                eventId.ToString(), System.Text.Json.JsonSerializer.Serialize(new { requestedCapacity = newCap, effectiveCapacity = effectiveCap, waitingListEnabled, promoted }), eventId,
+                System.Text.Json.JsonSerializer.Serialize(before), System.Text.Json.JsonSerializer.Serialize(after)));
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new(true, null, promoted, effectiveCap);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Signup administration could not be saved. Please try again.");
+        }
     }
     public async Task<SignupResult> SignUpAuthenticatedAsync(AuthenticatedSignupRequest request, CancellationToken cancellationToken = default)
     {
@@ -276,8 +303,30 @@ public sealed class SignupService(
         if (previousOwnerId != destination.Id)
             dbContext.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), destination.Id, "participant.ownership_transferred", "Your event participant access changed.", participantRoute, now, bingoEvent.Id));
         try { await dbContext.SaveChangesAsync(cancellationToken); await transaction.CommitAsync(cancellationToken); }
-        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation }) { dbContext.ChangeTracker.Clear(); return new(false, "That account already owns a participant in this event."); }
-        catch (Exception exception) when (HasSerializationConflict(exception)) { dbContext.ChangeTracker.Clear(); return new(false, "This participant ownership changed elsewhere. Reload before transferring it."); }
+        catch (DbUpdateConcurrencyException)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "This participant ownership changed elsewhere. Reload before transferring it.");
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "That account already owns a participant in this event.");
+        }
+        catch (Exception exception) when (HasSerializationConflict(exception))
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "This participant ownership changed elsewhere. Reload before transferring it.");
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Participant ownership could not be transferred. Please try again.");
+        }
         return new(true, null, true);
     }
 

@@ -59,11 +59,36 @@ public sealed class AdminEventFunctionalityPass3IntegrationTests : IAsyncLifetim
         await using (var read = new ApplicationDbContext(options))
             version = await read.Events.Where(x => x.Id == item.Id).Select(x => x.Version).SingleAsync();
 
+        await using (var liveDb = new ApplicationDbContext(options))
+        {
+            var page = Manage(liveDb, now, admin);
+            page.EventVersion = version;
+            page.ReopenUntil = now.GetUtcNow().AddHours(1);
+            page.StateReason = "Live reopening must be rejected.";
+            Assert.IsType<RedirectToPageResult>(await page.OnPostReopenSubmissionsAsync(item.Id, CancellationToken.None));
+        }
+        await using (var liveVerify = new ApplicationDbContext(options))
+        {
+            var persisted = await liveVerify.Events.AsNoTracking().SingleAsync(x => x.Id == item.Id);
+            Assert.Equal(EventState.Live, persisted.State);
+            Assert.Null(persisted.ReopenedSubmissionCutoffAt);
+            Assert.Null(persisted.SubmissionsClosedAt);
+            Assert.Empty(await liveVerify.AuditEntries.Where(x => x.TargetId == item.Id.ToString() && x.Action == "event.submissions_reopened").ToListAsync());
+        }
+        long finalReviewVersion;
+        await using (var endDb = new ApplicationDbContext(options))
+        {
+            var live = await endDb.Events.SingleAsync(x => x.Id == item.Id);
+            live.EndEvent();
+            await endDb.SaveChangesAsync();
+            finalReviewVersion = live.Version;
+        }
+
         var failingOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(new ThrowOnAuditInsert()).Options;
         await using (var failingDb = new ApplicationDbContext(failingOptions))
         {
             var page = Manage(failingDb, now, admin);
-            page.EventVersion = version;
+            page.EventVersion = finalReviewVersion;
             page.ReopenUntil = now.GetUtcNow().AddHours(1);
             page.StateReason = "Audit rollback for reopening.";
             Assert.IsType<RedirectToPageResult>(await page.OnPostReopenSubmissionsAsync(item.Id, CancellationToken.None));
@@ -71,13 +96,13 @@ public sealed class AdminEventFunctionalityPass3IntegrationTests : IAsyncLifetim
         await using (var failingDb = new ApplicationDbContext(failingOptions))
         {
             var page = Manage(failingDb, now, admin);
-            page.EventVersion = version;
+            page.EventVersion = finalReviewVersion;
             Assert.IsType<RedirectToPageResult>(await page.OnPostDisableEvidenceCodesAsync(item.Id, CancellationToken.None));
         }
         await using (var failingDb = new ApplicationDbContext(failingOptions))
         {
             var page = Manage(failingDb, now, admin);
-            page.EventVersion = version;
+            page.EventVersion = finalReviewVersion;
             page.NewEvidenceCode = "FAILED";
             page.EvidenceCodeActivatesAt = now.GetUtcNow().AddMinutes(10);
             Assert.IsType<RedirectToPageResult>(await page.OnPostCreateEvidenceCodeAsync(item.Id, CancellationToken.None));
@@ -87,10 +112,10 @@ public sealed class AdminEventFunctionalityPass3IntegrationTests : IAsyncLifetim
         {
             var persisted = await afterFailures.Events.AsNoTracking().SingleAsync(x => x.Id == item.Id);
             var code = await afterFailures.EvidenceCodes.AsNoTracking().SingleAsync(x => x.Id == originalCode.Id);
-            Assert.Equal(EventState.Live, persisted.State);
+            Assert.Equal(EventState.AwaitingFinalReview, persisted.State);
             Assert.True(persisted.EvidenceCodeEnabled);
             Assert.Null(persisted.ReopenedSubmissionCutoffAt);
-            Assert.Equal(version, persisted.Version);
+            Assert.Equal(finalReviewVersion, persisted.Version);
             Assert.Null(code.RetiresAt);
             Assert.Single(await afterFailures.EvidenceCodes.Where(x => x.EventId == item.Id).ToListAsync());
             Assert.Empty(await afterFailures.AuditEntries.Where(x => x.TargetId == item.Id.ToString()).ToListAsync());
@@ -99,7 +124,7 @@ public sealed class AdminEventFunctionalityPass3IntegrationTests : IAsyncLifetim
         await using (var createDb = new ApplicationDbContext(options))
         {
             var page = Manage(createDb, now, admin);
-            page.EventVersion = version;
+            page.EventVersion = finalReviewVersion;
             page.NewEvidenceCode = "NEXTCODE";
             page.EvidenceCodeActivatesAt = now.GetUtcNow().AddMinutes(10);
             Assert.IsType<RedirectToPageResult>(await page.OnPostCreateEvidenceCodeAsync(item.Id, CancellationToken.None));
@@ -146,6 +171,7 @@ public sealed class AdminEventFunctionalityPass3IntegrationTests : IAsyncLifetim
 
         await using var verify = new ApplicationDbContext(options);
         var final = await verify.Events.AsNoTracking().SingleAsync(x => x.Id == item.Id);
+        Assert.Equal(EventState.AwaitingFinalReview, final.State);
         Assert.False(final.EvidenceCodeEnabled);
         Assert.Equal(now.GetUtcNow().AddHours(3), final.ReopenedSubmissionCutoffAt);
         Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.TargetId == item.Id.ToString() && x.Action == "evidence_code.created"));

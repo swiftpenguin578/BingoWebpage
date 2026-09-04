@@ -353,6 +353,7 @@ public sealed class BingoEvent
     public void ReopenSubmissions(DateTimeOffset until, DateTimeOffset now)
     {
         EnsureCapability(EventCapability.ReviewEvidence);
+        if (State != EventState.AwaitingFinalReview) throw new InvalidOperationException("Submissions can only be reopened during final review.");
         if (until <= now) throw new InvalidOperationException("The new cutoff must be in the future.");
         ReopenedSubmissionCutoffAt = until.ToUniversalTime();
         SubmissionsClosedAt = null;

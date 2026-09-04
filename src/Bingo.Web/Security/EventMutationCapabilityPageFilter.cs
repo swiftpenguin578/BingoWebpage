@@ -66,14 +66,19 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
             return;
         }
         // A published-board correction is an exceptional, separately confirmed
-        // lifecycle operation. Its start handler is the authority for the
-        // confirmation/reason checks. Once begun, the private working copy must
-        // also be editable while the public snapshot remains live, including in
-        // Live events.
+        // lifecycle operation. Its private working copy is editable only while
+        // the event remains operational.
         if (IsPublishedBoardCorrection(path, context.HandlerMethod?.Name) ||
             await HasPublishedBoardCorrectionWorkspaceAsync(path, eventId, context.HttpContext.RequestAborted))
         {
-            await next();
+            if (eventView.State is EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview)
+            {
+                await next();
+                return;
+            }
+            if (context.HandlerInstance is PageModel page)
+                page.TempData["StatusMessage"] = text["This event is read-only in its current lifecycle state."].Value;
+            context.Result = new RedirectResult($"/Admin/Events/Manage/{eventId}");
             return;
         }
         if (!EventStatePolicy.Allows(eventView.State, capability))

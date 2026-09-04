@@ -463,6 +463,7 @@ else
                             @if (showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed)
                             {
                                 <div class="event-wom-schedule-field"><div class="event-create-field"><label asp-for="SynchronizeCompetitionSchedule">@T["Schedule handling"]</label><div class="event-wom-select-wrap"><select asp-for="SynchronizeCompetitionSchedule" class="form-select"><option value="false">@T["Keep current schedule"]</option><option value="true">@T["Use competition dates"]</option></select><svg class="event-wom-select-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></div></div></div>
+                                <div class="event-create-field"><label><input asp-for="ConfirmCompetitionSchedule" /> @T["Review and confirm these schedule changes."]</label></div>
                             }
                             <button class="btn admin-button-secondary" type="submit">@T["Link competition"]</button>
                         </form>

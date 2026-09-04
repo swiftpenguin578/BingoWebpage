@@ -9,6 +9,7 @@ using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;
 using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
+using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -38,7 +39,7 @@ public sealed class EventCompetitionSynchronizationService(
 
     public async Task<EventCompetitionConfigurationResult> ConfigureAsync(
         Guid eventId, long expectedEventVersion, long? competitionId, bool synchronizeSchedule,
-        LifecycleActor actor, CancellationToken cancellationToken = default)
+        LifecycleActor actor, bool confirmScheduleChanges = false, CancellationToken cancellationToken = default)
     {
         await RequireAdminAsync(actor, cancellationToken);
         WiseOldManCompetition? competition = null;
@@ -70,7 +71,19 @@ public sealed class EventCompetitionSynchronizationService(
                 {
                     try
                     {
-                        item.ConfigureSchedule(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, competition.StartsAt, competition.EndsAt, item.ParticipantCap);
+                        var scheduleValues = new EventScheduleValues(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt,
+                            competition.StartsAt, competition.EndsAt, item.ParticipantCap, item.ScheduledSignupOpeningEnabled);
+                        var draftState = await db.DraftSessions.AsNoTracking()
+                            .Where(x => x.EventId == eventId)
+                            .Select(x => (DraftState?)x.State)
+                            .SingleOrDefaultAsync(cancellationToken);
+                        var validationError = await EventSignupLifecycleService.ValidateScheduleChangeAsync(
+                            db, item, scheduleValues, time.GetUtcNow(), draftState, confirmChanges: confirmScheduleChanges, reason: null, ct: cancellationToken, proposedCompetition: competition);
+                        if (validationError is not null) return new(false, validationError);
+                        if (draftState == DraftState.Finalized)
+                            item.ConfigureFinalizedDraftEventWindow(competition.StartsAt, competition.EndsAt);
+                        else
+                            item.ConfigureSchedule(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, competition.StartsAt, competition.EndsAt, item.ParticipantCap);
                         db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), time.GetUtcNow(), actor.Id, actor.Username,
                             "event.schedule_updated", "event", eventId.ToString(), "Synchronized the event window to the validated Wise Old Man competition.", eventId));
                     }

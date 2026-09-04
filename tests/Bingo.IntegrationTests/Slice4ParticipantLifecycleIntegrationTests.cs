@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Bingo.Application.Access;
 using Bingo.Application.Signups;
 using Bingo.Domain.Access;
+using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
@@ -15,6 +16,7 @@ using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
@@ -111,6 +113,35 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
             Assert.False(stale.Succeeded);
             Assert.Contains("changed", stale.Error, StringComparison.OrdinalIgnoreCase);
         }
+    }
+
+    [Fact]
+    public async Task SignupAdministrationRollsBackWhenAuditCannotPersist()
+    {
+        var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 1);
+        long version;
+        await using (var read = new ApplicationDbContext(options))
+            version = await read.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync();
+
+        var failingOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(database.GetConnectionString())
+            .AddInterceptors(new ThrowOnCapacityAudit())
+            .Options;
+        await using (var failing = new ApplicationDbContext(failingOptions))
+        {
+            var result = await Service(failing).UpdateSignupAdministrationAsync(setup.EventId, version, 2, true, setup.EnabledAdminId, "admin");
+            Assert.False(result.Succeeded);
+            Assert.Contains("try again", result.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var savedEvent = await verify.Events.SingleAsync(x => x.Id == setup.EventId);
+        Assert.Equal(version, savedEvent.Version);
+        Assert.Equal(1, savedEvent.ParticipantCap);
+        Assert.Equal(new[] { SignupStatus.Confirmed, SignupStatus.WaitingList },
+            await verify.EventParticipants.Where(x => x.EventId == setup.EventId).OrderBy(x => x.SignupSequence).Select(x => x.SignupStatus).ToArrayAsync());
+        Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.Action == "event.signup_administration_updated").ToListAsync());
+        Assert.Empty(await verify.PersonalNotifications.Where(x => x.EventId == setup.EventId && x.Title == "participant.promoted").ToListAsync());
     }
 
     [Fact]
@@ -369,6 +400,13 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
     private static DefaultHttpContext AdminContext(Guid accountId) => new() { User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, accountId.ToString()), new Claim(ClaimTypes.Name, "admin")], "test")) };
     private static Account Website(string name, DateTimeOffset now, GlobalRole role = GlobalRole.User) { var account = Account.CreateWebsite(Guid.NewGuid(), name, name.ToUpperInvariant(), now); account.SetGlobalRole(role); return account; }
     private sealed record Setup(Guid EventId, Guid ConfirmedParticipantId, Guid ConfirmedOwnerId, IReadOnlyList<Guid> WaitingOwnerIds, Guid EnabledAdminId, Guid EnabledSuperAdminId, Guid DisabledAdminId, Guid UnrelatedUserId);
+    private sealed class ThrowOnCapacityAudit : SaveChangesInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default) =>
+            eventData.Context!.ChangeTracker.Entries<AuditEntry>().Any(entry => entry.State == EntityState.Added && entry.Entity.Action == "event.signup_administration_updated")
+                ? ValueTask.FromException<InterceptionResult<int>>(new InvalidOperationException("Simulated capacity audit persistence failure."))
+                : ValueTask.FromResult(result);
+    }
     private sealed class DictionaryTempDataProvider : ITempDataProvider
     {
         public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();

@@ -87,10 +87,24 @@ historical material is preserved separately and is non-authoritative.
   both buttons through the existing Board script and strengthened the source
   contract; 3 focused Release BrowserTests and `git diff --check` pass. The
   fixes-only independent Sol High re-review passed with no scope expansion.
-  The user authorized local Pass 4 packaging on 2026-09-04. Nothing has been
-  pushed, merged, or deployed; the recommended next action is the planned final
-  Sol High four-pass review, with special attention to the schedule matrix and
-  cross-pass lifecycle interactions, before the remaining release gates.
+  Pass 4 is committed locally as `a33415d` (`fix: safeguard admin board
+  publication`) and has not been pushed.
+- The final independent Sol High four-pass review and both follow-up reviews are
+  complete. Its lifecycle, authorization, schedule, concurrency, publication,
+  and history findings were remediated without expanding the approved scope or
+  complexity budget; the final fixes-only review passed.
+- The user explicitly waived the manual-acceptance preflight after its TEST 05
+  attempt used captains without usable account authority and encountered the
+  reset's intentionally retained current Live event; those were verification-
+  setup blockers, not product failures.
+- The complete suite ran once on 2026-09-04: 711 total, 708 passed, and 3 failed.
+  The failures were one hidden-event direct-handler expectation and two blocker-
+  label cases. Focused remediation restored the event-list label and aligned the
+  hidden direct-handler assertions with the existing fail-closed boundaries;
+  the affected BrowserTests theory passes 9/9, the affected IntegrationTests
+  theory passes 10/10, and `git diff --check` passes. The accepted remediation
+  is ready for the authorized local package/commit. Nothing has been pushed,
+  merged, or deployed.
 
 ## Canonical checkout
 

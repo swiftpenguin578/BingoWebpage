@@ -61,6 +61,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     [BindProperty] public long EventVersion { get; set; }
     [BindProperty, Range(1, long.MaxValue)] public long? CompetitionId { get; set; }
     [BindProperty] public bool SynchronizeCompetitionSchedule { get; set; }
+    [BindProperty] public bool ConfirmCompetitionSchedule { get; set; }
     [BindProperty] public bool AcknowledgeSignupWarnings { get; set; }
     [BindProperty] public bool AcceptProposedClose { get; set; }
     [BindProperty] public bool ConfirmStartEvent { get; set; }
@@ -173,7 +174,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         if (ModelState.ErrorCount > 0) { SetStatus(Localize("Enter a valid competition ID."), UiMessageType.Error); return RedirectToPage(new { id }); }
         try
         {
-            var result = await (competitionSynchronization ?? throw new InvalidOperationException("Competition synchronization is not configured.")).ConfigureAsync(id, EventVersion, CompetitionId, SynchronizeCompetitionSchedule, Actor, ct);
+            var result = await (competitionSynchronization ?? throw new InvalidOperationException("Competition synchronization is not configured.")).ConfigureAsync(id, EventVersion, CompetitionId, SynchronizeCompetitionSchedule, Actor, ConfirmCompetitionSchedule, ct);
             SetStatus(result.Succeeded ? CompetitionId is null ? Localize("Competition integration cleared.") : Localize("Competition linked and validated.") : result.Error ?? Localize("The competition could not be configured."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         }
         catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }
@@ -183,7 +184,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     {
         try
         {
-            var result = await (competitionSynchronization ?? throw new InvalidOperationException("Competition synchronization is not configured.")).ConfigureAsync(id, EventVersion, null, false, Actor, ct);
+            var result = await (competitionSynchronization ?? throw new InvalidOperationException("Competition synchronization is not configured.")).ConfigureAsync(id, EventVersion, null, false, Actor, cancellationToken: ct);
             SetStatus(result.Succeeded ? Localize("Competition integration cleared.") : result.Error ?? Localize("The competition could not be cleared."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         }
         catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }
@@ -560,7 +561,8 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         "DRAFT_NOT_FINALIZED" or "TEAM_ACCESS_MISSING" or "DRAFT_LOCKED" => "Review teams and draft",
         "BOARD_NOT_PUBLISHED" => "Review board",
         "SIGNUP_FORM_MISSING" or "SIGNUP_QUESTIONS_INVALID" or "SIGNUP_CODE_UNUSABLE" => "Review signup form",
-        "CURRENT_EVENT_EXISTS" or "EVENT_WINDOW_OVERLAP" or "EVENT_END_PASSED" => "Review event",
+        "CURRENT_EVENT_EXISTS" or "EVENT_WINDOW_OVERLAP" => "Review events",
+        "EVENT_END_PASSED" => "Review event",
         "SCHEDULE_INVALID" or "EVENT_START_REQUIRED" or "EVENT_END_REQUIRED" or "EVENT_WINDOW_INVALID" or "SIGNUP_CLOSE_REQUIRED" or "SIGNUP_CLOSE_NOT_FUTURE" or "SIGNUP_CLOSE_AFTER_EVENT_START" or "SCHEDULED_OPENING_INVALID" or "SCHEDULED_WINDOW_INVALID" or "SCHEDULED_OPENING_FAILED" => "Review schedule",
         _ when item.Code.StartsWith("UNACKNOWLEDGED_", StringComparison.Ordinal) => "Review schedule",
         _ when item.Route?.Contains("/Participant/", StringComparison.Ordinal) == true => "Review participants",

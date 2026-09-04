@@ -1253,6 +1253,50 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AdminPaymentAndNotesRollBackParticipantAndAuditStateWhenAuditPersistenceFails()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var admin = Website($"rollback-metadata-admin-{Guid.NewGuid():N}", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var bingoEvent = Event(admin.Id, now);
+        var participant = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(admin, bingoEvent, participant);
+            await setup.SaveChangesAsync();
+        }
+
+        var paymentOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options)
+            .AddInterceptors(new ThrowOnParticipantAudit("participant.payment_updated"))
+            .Options;
+        await using (var failingPayment = new ApplicationDbContext(paymentOptions))
+        {
+            var result = await new SignupService(failingPayment, new SecretHasher(), TimeProvider.System)
+                .SetPaymentAsync(bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, PaymentStatus.Paid);
+            Assert.False(result.Succeeded);
+            Assert.Contains("try again", result.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var noteOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options)
+            .AddInterceptors(new ThrowOnParticipantAudit("participant.admin_note_updated"))
+            .Options;
+        await using (var failingNote = new ApplicationDbContext(noteOptions))
+        {
+            var result = await new SignupService(failingNote, new SecretHasher(), TimeProvider.System)
+                .SetAdminNotesAsync(bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, "private note", string.Empty);
+            Assert.False(result.Succeeded);
+            Assert.Contains("try again", result.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var saved = await verify.EventParticipants.AsNoTracking().SingleAsync(x => x.Id == participant.Id);
+        Assert.False(saved.PaymentReceived);
+        Assert.Null(saved.AdminNotes);
+        Assert.Equal(1, saved.ResponseVersion);
+        Assert.Empty(await verify.AuditEntries.Where(x => x.TargetId == participant.Id.ToString()).ToListAsync());
+    }
+
+    [Fact]
     public async Task AdminPrivateMetadataAndOwnershipFollowTheRetainedLifecycleMatrix()
     {
         var now = DateTimeOffset.UtcNow;
@@ -1527,7 +1571,9 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await using (var failing = new ApplicationDbContext(failingOptions))
         {
             var service = new SignupService(failing, new SecretHasher(), TimeProvider.System);
-            await Assert.ThrowsAsync<InvalidOperationException>(() => service.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, destination.Id, original.Id, true)));
+            var result = await service.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, destination.Id, original.Id, true));
+            Assert.False(result.Succeeded);
+            Assert.Contains("try again", result.Error, StringComparison.OrdinalIgnoreCase);
         }
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(original.Id, await verify.EventParticipants.Where(x => x.Id == participant.Id).Select(x => x.AccountId).SingleAsync());
@@ -1550,6 +1596,14 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default) =>
             eventData.Context!.ChangeTracker.Entries<AuditEntry>().Any(entry => entry.State == EntityState.Added && entry.Entity.Action == "participant.ownership_transferred")
                 ? ValueTask.FromException<InterceptionResult<int>>(new InvalidOperationException("Simulated ownership audit persistence failure."))
+                : ValueTask.FromResult(result);
+    }
+
+    private sealed class ThrowOnParticipantAudit(string action) : SaveChangesInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default) =>
+            eventData.Context!.ChangeTracker.Entries<AuditEntry>().Any(entry => entry.State == EntityState.Added && entry.Entity.Action == action)
+                ? ValueTask.FromException<InterceptionResult<int>>(new InvalidOperationException($"Simulated {action} audit persistence failure."))
                 : ValueTask.FromResult(result);
     }
 

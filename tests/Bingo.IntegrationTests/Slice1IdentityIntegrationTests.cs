@@ -803,6 +803,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         ev.OpenSignups();
         ev.CloseSignups();
         ev.StartEvent(now);
+        ev.EndEvent();
         var access = new AccountEventAccess(Guid.NewGuid(), emergency.Id, ev.Id, Guid.NewGuid(), null, ev.EventStartsAt, ev.SubmissionCutoffAt, null);
         access.Enable();
         db.AddRange(admin, emergency, ev, access);

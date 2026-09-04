@@ -208,13 +208,14 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("<input asp-for=\"EventVersion\" type=\"hidden\" />", manage);
         Assert.Contains("asp-for=\"CompetitionId\"", manage);
         Assert.Contains("<select asp-for=\"SynchronizeCompetitionSchedule\"", manage);
+        Assert.Contains("asp-for=\"ConfirmCompetitionSchedule\"", manage);
 
         Assert.Contains("eventLifecycle.StartNowAsync(id, EventVersion, ConfirmStartEvent, StartReason, Actor, ct)", manageHandler);
         Assert.Contains("eventLifecycle.EndNowAsync(id, EventVersion, ConfirmEndEvent, EndReason, Actor, ct)", manageHandler);
         Assert.Contains("eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, replacementEnd, Actor, ct)", manageHandler);
         Assert.Contains("destructiveLifecycle.DiscardAsync(id, EventVersion, ConfirmDestructiveAction, Actor, ct)", manageHandler);
         Assert.Contains("destructiveLifecycle.CancelAsync(id, EventVersion, ConfirmDestructiveAction, CancellationReason, Actor, ct)", manageHandler);
-        Assert.Contains("ConfigureAsync(id, EventVersion, CompetitionId, SynchronizeCompetitionSchedule, Actor, ct)", manageHandler);
+        Assert.Contains("ConfigureAsync(id, EventVersion, CompetitionId, SynchronizeCompetitionSchedule, Actor, ConfirmCompetitionSchedule, ct)", manageHandler);
         Assert.Contains("private LifecycleActor Actor => new(User.GetAccountId()!.Value, User.Identity!.Name!);", manageHandler);
         Assert.Contains("OverviewBlockers = overviewBlockers.DistinctBy", manageHandler);
 

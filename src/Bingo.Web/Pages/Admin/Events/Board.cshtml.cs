@@ -176,6 +176,11 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         if (!ModelState.IsValid) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Warning); return RedirectToPage(new { id }); }
 
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
+        if (!await TryEnsurePublishedCorrectionLifecycleAsync(board, id, ct))
+        {
+            SetStatus(Localize("This event is read-only in its current lifecycle state."), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
         if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id });
         if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
         var selectedBossIds = TileDraft.Requirements.SelectMany(x => x.BossIds).Distinct().ToList();
@@ -231,6 +236,12 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct);
         if (board is null) return isInlineRequest ? MoveFailure(Localize("The board could not be found."), UiMessageType.Error) : NotFound();
+        if (!await TryEnsurePublishedCorrectionLifecycleAsync(board, id, ct))
+        {
+            var message = Localize("This event is read-only in its current lifecycle state.");
+            if (!isInlineRequest) SetStatus(message, UiMessageType.Warning);
+            return isInlineRequest ? MoveFailure(message, UiMessageType.Warning) : RedirectToPage(new { id });
+        }
         if (!board.IsEditable || targetPosition < 0 || targetPosition >= board.Rows * board.Columns)
         {
             var message = Localize("This board is no longer editable or the target position is invalid.");
@@ -381,7 +392,9 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         try
         {
             var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct);
-            var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
+            var bingoEvent = await db.Events
+                .FromSqlInterpolated($"SELECT * FROM events WHERE id = {id} AND hidden_at IS NULL FOR UPDATE")
+                .SingleOrDefaultAsync(ct);
             if (board is null || bingoEvent is null) return NotFound();
             if (board.Version != BoardVersion)
             {
@@ -603,6 +616,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     public async Task<IActionResult> OnPostRemoveAsync(Guid id, Guid tileId, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct); var board = await db.Boards.SingleAsync(x => x.EventId == id, ct); if (!board.IsEditable) { SetStatus(Localize("This board is no longer editable."), UiMessageType.Warning); return RedirectToPage(new { id }); }
+        if (!await TryEnsurePublishedCorrectionLifecycleAsync(board, id, ct)) { SetStatus(Localize("This event is read-only in its current lifecycle state."), UiMessageType.Warning); return RedirectToPage(new { id }); }
         if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id }); if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
         var tile = await db.BoardTiles.SingleOrDefaultAsync(x => x.BoardId == board.Id && x.Id == tileId, ct); if (tile is null) return NotFound();
         var requirements = await db.BoardRequirementSnapshots.Where(x => x.BoardTileId == tile.Id).ToListAsync(ct); var ids = requirements.Select(x => x.Id).ToList();
@@ -632,6 +646,24 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         }
         board.SetTotalEhb(board.TotalEhbEstimate + ehb);
         return boardTile;
+    }
+
+    private async Task<bool> TryEnsurePublishedCorrectionLifecycleAsync(Board board, Guid eventId, CancellationToken ct)
+    {
+        if (board.State != BoardState.Published || !board.PublishedCorrectionInProgress) return true;
+        var bingoEvent = await db.Events
+            .FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE")
+            .SingleOrDefaultAsync(ct);
+        if (bingoEvent is null) return false;
+        try
+        {
+            bingoEvent.EnsurePublishedBoardCorrectionAllowed();
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     private async Task<bool> Load(Guid id, CancellationToken ct)

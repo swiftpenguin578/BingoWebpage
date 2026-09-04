@@ -1,6 +1,7 @@
 using System.Data;
 using System.Text.Json;
 using Bingo.Application.Events;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
@@ -99,7 +100,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             var item = await EventAsync(eventId, version, ct);
             var now = time.GetUtcNow();
             var draftState = await DraftStateAsync(item.Id, ct);
-            var validationError = await ValidateScheduleChangeAsync(item, values, now, draftState, confirmChanges, reason, ct);
+            var validationError = await ValidateScheduleChangeAsync(db, item, values, now, draftState, confirmChanges, reason, ct);
             if (validationError is not null) return new(false, validationError);
             var changed = Changed(item, values);
             var schedulingChanged = item.ScheduledSignupOpeningEnabled != values.ScheduledSignupOpeningEnabled || item.SignupOpensAt != values.SignupOpensAt?.ToUniversalTime();
@@ -131,7 +132,6 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             {
                 item.ConfigureScheduledSignupOpening(false, []);
             }
-            if (changed && item.FirstPublicAt is not null && !confirmChanges) return new(false, "Review and confirm the schedule changes before saving.");
             var promoted = await PromoteForCapacityIncreaseAsync(item, previousCapacity, actor, ct);
             var after = ScheduleState(item);
             db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.Username, "event.schedule_updated", "event", item.Id.ToString(),
@@ -186,7 +186,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             var acknowledged = item.ScheduledSignupWarningCodes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.Ordinal);
             var newWarnings = evaluated.Warnings.Where(x => !acknowledged.Contains(x.Code)).ToList();
             blockerCodes.AddRange(newWarnings.Select(x => $"UNACKNOWLEDGED_{x.Code}"));
-            var boundaryConflict = await CurrentEventBoundaryConflictAsync(item, ct);
+            var boundaryConflict = await CurrentEventBoundaryConflictAsync(db, item, ct);
             if (boundaryConflict is not null) blockerCodes.Add("EVENT_WINDOW_OVERLAP");
 
             if (blockerCodes.Count == 0)
@@ -290,7 +290,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             var evaluated = await readiness.GetSignupReadinessAsync(eventId, mode, now, ct) ?? throw new InvalidOperationException("Event not found.");
             if (!evaluated.CanProceed) return new(false, string.Join(" ", evaluated.Blockers.Select(x => x.Description)));
             if (evaluated.Warnings.Count > 0 && !acknowledgeWarnings) return new(false, "Acknowledge the active signup warnings before continuing.");
-            var boundaryConflict = await CurrentEventBoundaryConflictAsync(item, ct);
+            var boundaryConflict = await CurrentEventBoundaryConflictAsync(db, item, ct);
             if (boundaryConflict is not null) return new(false, boundaryConflict.Description);
             var closeDecision = evaluated.CloseDecision;
             if (!closeDecision.IsValid)
@@ -337,7 +337,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         }
         return waiting.Count;
     }
-    private async Task<string?> ValidateScheduleChangeAsync(BingoEvent item, EventScheduleValues values, DateTimeOffset now, DraftState? draftState, bool confirmChanges, string? reason, CancellationToken ct)
+    internal static async Task<string?> ValidateScheduleChangeAsync(ApplicationDbContext db, BingoEvent item, EventScheduleValues values, DateTimeOffset now, DraftState? draftState, bool confirmChanges, string? reason, CancellationToken ct, WiseOldManCompetition? proposedCompetition = null)
     {
         now = now.ToUniversalTime();
         var proposedOpening = values.SignupOpensAt?.ToUniversalTime();
@@ -388,6 +388,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         if (item.State != EventState.Draft && openingChanged) return "Signup opening is locked after signup has opened.";
         if (item.State == EventState.SignupClosed && closingChanged) return "Signup closing is read-only after signup has closed; use Reopen to establish a new closing time.";
         if (item.FirstPublicAt is not null && (proposedStart is null || proposedEnd is null)) return "Published event start and end times cannot be cleared.";
+        if (Changed(item, values) && item.FirstPublicAt is not null && !confirmChanges) return "Review and confirm the schedule changes before saving.";
         if (values.ScheduledSignupOpeningEnabled && values.SignupOpensAt is null) return "Automatic signup opening requires a signup opening time.";
         if (item.SignupOpensAt <= now && item.ScheduledSignupOpeningEnabled != values.ScheduledSignupOpeningEnabled) return "Automatic signup opening is locked because the opening boundary has passed.";
         if (item.State != EventState.Draft && scheduledOpeningChanged) return "Automatic signup opening can only be changed for a private draft.";
@@ -395,21 +396,28 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         {
             var proposed = new BingoEvent(item.Id, item.Name, item.Slug, item.Timezone, item.CreatedByAccountId, item.CreatedAt);
             proposed.ConfigureSchedule(item.ActualSignupOpenedAt ?? proposedOpening, proposedClosing, proposedDraft, proposedStart, proposedEnd, values.ParticipantCap);
-            var conflict = await CurrentEventBoundaryConflictAsync(proposed, ct);
+            var conflict = await CurrentEventBoundaryConflictAsync(db, proposed, ct);
             if (conflict is not null) return conflict.Description;
         }
-        var competition = await db.EventCompetitionSynchronizations.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == item.Id && x.CompetitionId != null, ct);
-        if (competition is not null)
+        var competitionStart = proposedCompetition?.StartsAt;
+        var competitionEnd = proposedCompetition?.EndsAt;
+        var hasCompetition = proposedCompetition is not null;
+        if (proposedCompetition is null)
         {
-            if (proposedStart is not { } start || proposedEnd is not { } end || competition.CompetitionStartsAt is not { } competitionStart || competition.CompetitionEndsAt is not { } competitionEnd || Math.Abs((start - competitionStart).TotalMinutes) > 5 || Math.Abs((end - competitionEnd).TotalMinutes) > 5)
-                return "The linked Wise Old Man competition must remain within five minutes of the event window.";
+            var linkedCompetition = await db.EventCompetitionSynchronizations.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == item.Id && x.CompetitionId != null, ct);
+            hasCompetition = linkedCompetition is not null;
+            competitionStart = linkedCompetition?.CompetitionStartsAt;
+            competitionEnd = linkedCompetition?.CompetitionEndsAt;
         }
+        if (hasCompetition)
+            if (proposedStart is not { } start || proposedEnd is not { } end || competitionStart is not { } expectedStart || competitionEnd is not { } expectedEnd || Math.Abs((start - expectedStart).TotalMinutes) > 5 || Math.Abs((end - expectedEnd).TotalMinutes) > 5)
+                return "The linked Wise Old Man competition must remain within five minutes of the event window.";
         return null;
     }
 
     private Task<DraftState?> DraftStateAsync(Guid eventId, CancellationToken ct) =>
         db.DraftSessions.AsNoTracking().Where(x => x.EventId == eventId).Select(x => (DraftState?)x.State).SingleOrDefaultAsync(ct);
-    private async Task<BoundaryConflict?> CurrentEventBoundaryConflictAsync(BingoEvent item, CancellationToken ct)
+    private static async Task<BoundaryConflict?> CurrentEventBoundaryConflictAsync(ApplicationDbContext db, BingoEvent item, CancellationToken ct)
     {
         if (item.EventStartsAt is not { } start || item.EventEndsAt is not { } end)
             return new(Guid.Empty, string.Empty, "Set an event start and end before opening signup.");
