@@ -258,6 +258,10 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("name=\"overlay\" value=\"@overlayValue\"", participant);
         Assert.Contains("[FromForm] bool overlay", participantHandler);
         Assert.Contains("RedirectToParticipant", participantHandler);
+        Assert.Contains("CanEditPrivateMetadata", participantHandler);
+        Assert.Contains("CanTransferOwnership", participantHandler);
+        Assert.Contains("ConfirmOwnershipTransfer", participant);
+        Assert.Contains("participant-ownership-confirmation", participant);
         Assert.Contains("participantEditOverlay", manageScript);
         Assert.Contains("participantEditBase", manageScript);
         Assert.Contains("initializeParticipantEditDialog", manageScript);

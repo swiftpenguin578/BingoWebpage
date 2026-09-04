@@ -1,9 +1,9 @@
 # Current project status
 
-**Active handoff:** 2026-09-03. This is the concise current-state handoff;
+**Active handoff:** 2026-09-04. This is the concise current-state handoff;
 historical material is preserved separately and is non-authoritative.
 
-## Admin event-functionality correction handoff — 2026-09-03
+## Admin event-functionality correction handoff — 2026-09-04
 
 - Isolated working tree: `/private/tmp/BingoWebpage-admin-event-functionality`,
   branch `admin-event-functionality` from `origin/main`. The dirty saved
@@ -29,9 +29,27 @@ historical material is preserved separately and is non-authoritative.
   one promotion-destination test, and `git diff --check` pass. The fixes-only
   independent Sol High re-review passed with no remediation-local defect or
   scope expansion.
-- Manual/browser acceptance was intentionally not run. Pass 1 is cleared; the
-  next permitted implementation action is Pass 2 only after user authorization.
-  Nothing is staged, committed, pushed, merged, or deployed.
+- Pass 1 is committed locally as `8f85ac9` (`fix: correct admin event schedule
+  and recovery controls`) and has not been pushed.
+- Pass 2 is implemented and stops at its planned boundary: payment status and
+  Admin notes remain editable across retained visible lifecycles; terminal
+  participant detail exposes only those permitted controls; ownership transfer
+  is confirmed, concurrency-protected, and available through Awaiting Final
+  Review with immediate authority transfer and recipient-safe notifications;
+  stale and direct lifecycle-inappropriate mutations remain blocked. No new
+  infrastructure or Pass 3/4 scope was added.
+- Pass 2 focused verification passed: Web, IntegrationTests, and BrowserTests
+  Release builds with zero warnings/errors; 18 authenticated-signup integration
+  tests; one browser/source contract test; and `git diff --check`. Manual browser
+  acceptance was not run. The independent Sol High review found one terminal
+  navigation blocker. The focused remediation now admits the existing
+  Participants GET workspace for retained terminal events and proves the real
+  rendered detail link while keeping terminal mutations fail-closed; its Release
+  build, targeted integration test, and `git diff --check` pass. The fixes-only
+  independent Sol High re-review passed with no mutation bypass or scope
+  expansion. The user authorized local Pass 2 packaging and Pass 3 start on
+  2026-09-04. Nothing has been pushed, merged, or deployed; after the Pass 2
+  commit, the next permitted implementation action is Pass 3 only.
 
 ## Canonical checkout
 

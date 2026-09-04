@@ -43,7 +43,7 @@
                 <div class="event-overview-date-row"><div class="event-overview-date-copy"><dt>@T["Team"]</dt><dd>@(Model.TeamName ?? T["Not assigned"])</dd></div></div>
                 <div class="event-overview-date-row"><div class="event-overview-date-copy"><dt>@T["Website owner"]</dt><dd>@(Model.WebsiteOwner ?? T["Unlinked"])</dd></div></div>
                 @if (!string.IsNullOrWhiteSpace(Model.StatusReason)) { <div class="event-overview-date-row"><div class="event-overview-date-copy"><dt>@T["Status note"]</dt><dd>@Model.StatusReason</dd></div></div> }
-                @if (Model.CanEditParticipant)
+                @if (Model.CanEditPrivateMetadata)
                 {
                     <div class="event-overview-date-row"><div class="event-overview-date-copy"><dt>@T["Payment"]</dt><dd>
                         <form id="payment" method="post" asp-page-handler="Payment" class="participant-payment-form" data-update-targets="#app-notice-region, .participant-admin-workspace">
@@ -136,7 +136,7 @@
         {
             <section class="panel participant-edit-card participant-edit-component participant-read-only-details">
                 <header><div><h2>@T["Participant details"]</h2><p>@T["This participant is locked and can only be reviewed here."]</p></div></header>
-                <div class="information-callout participant-read-only-note"><strong>@T["Participant administration is read-only"]</strong><span>@T["Details, payment, ownership, notes, and signup lifecycle changes are locked after the draft starts or when the event has moved on."]</span></div>
+                <div class="information-callout participant-read-only-note"><strong>@T["Participant administration is read-only"]</strong><span>@T["Answers, roster details, and signup lifecycle changes are locked in this event. Private payment and Admin notes remain editable."]</span></div>
                 <dl class="participant-detail-rows">
                     <div><dt>@T["Event"]</dt><dd>@Model.EventName</dd></div>
                     <div><dt>@T["Status"]</dt><dd>@T[Model.StatusLabel]</dd></div>
@@ -157,7 +157,7 @@
         }
 
         <aside class="participant-admin-sidebar">
-            @if (Model.CanEditParticipant)
+            @if (Model.CanEditPrivateMetadata)
             {
             <form id="admin-notes" method="post" asp-page-handler="AdminNote" class="panel participant-edit-component participant-edit-link-card" data-update-targets="#app-notice-region, .participant-admin-workspace">
                 <h2>@T["Private admin notes"]</h2><p>@T["Only administrators can see these notes."]</p>
@@ -168,20 +168,29 @@
             </form>
             }
 
-            @if (Model.CanEditParticipant)
+            @if (Model.CanTransferOwnership)
             {
-            <form id="ownership" method="post" asp-page-handler="TransferOwnership" class="panel participant-edit-component participant-edit-link-card" data-update-targets="#app-notice-region, .participant-admin-workspace">
-                <h2>@T["Transfer participant ownership"]</h2><p>@T["Move this participant to an active website account."]</p>
-                <input type="hidden" name="overlay" value="@overlayValue" />
-                <input type="hidden" asp-for="ExpectedOwnerAccountId" />
-                <div class="admin-field event-create-field participant-owner-picker" data-owner-account-picker data-owner-account-search-url="@participantsUrl">
-                    <label for="destination-owner-account-search">@T["Destination website account"]</label>
-                    <input id="destination-owner-account-search" class="form-control" type="search" autocomplete="off" maxlength="100" role="combobox" aria-autocomplete="list" aria-controls="destination-owner-account-results" aria-expanded="false" data-owner-account-search />
-                    <input asp-for="DestinationOwnerAccountId" type="hidden" data-owner-account-id />
-                    <div id="destination-owner-account-results" role="listbox" data-owner-account-results hidden></div>
+            <details class="participant-confirmation-box participant-ownership-confirmation">
+                <summary class="admin-button-secondary action-accent-outline">@T["Transfer participant ownership"]</summary>
+                <div class="event-confirmation-box" role="alertdialog" aria-labelledby="transfer-ownership-heading">
+                    <p><strong id="transfer-ownership-heading">@T["Transfer {0}?", Model.Name]</strong><br />@T["This immediately revokes the former account's event access and preserves the participant's history."]</p>
+                    <form id="ownership" method="post" asp-page-handler="TransferOwnership" class="participant-edit-component participant-edit-link-card" data-update-targets="#app-notice-region, .participant-admin-workspace">
+                        <input type="hidden" name="overlay" value="@overlayValue" />
+                        <input type="hidden" asp-for="ExpectedOwnerAccountId" />
+                        <input type="hidden" name="ConfirmOwnershipTransfer" value="true" />
+                        <div class="admin-field event-create-field participant-owner-picker" data-owner-account-picker data-owner-account-search-url="@participantsUrl">
+                            <label for="destination-owner-account-search">@T["Destination website account"]</label>
+                            <input id="destination-owner-account-search" class="form-control" type="search" autocomplete="off" maxlength="100" role="combobox" aria-autocomplete="list" aria-controls="destination-owner-account-results" aria-expanded="false" data-owner-account-search />
+                            <input asp-for="DestinationOwnerAccountId" type="hidden" data-owner-account-id />
+                            <div id="destination-owner-account-results" role="listbox" data-owner-account-results hidden></div>
+                        </div>
+                        <div class="event-confirmation-actions">
+                            <button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button>
+                            <button class="admin-button-secondary action-accent-outline" type="submit">@T["Confirm ownership transfer"]</button>
+                        </div>
+                    </form>
                 </div>
-                <div class="participant-component-actions"><button class="admin-button-secondary" type="submit">@T["Transfer ownership"]</button></div>
-            </form>
+            </details>
             }
                 @if (Model.CanFillVacancy || Model.PromotionFollowUp is not null)
                 {

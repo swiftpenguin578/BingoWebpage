@@ -89,7 +89,9 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
     private static bool IsTerminalReadOnlyRoute(string path, EventState state) =>
         state is (EventState.Cancelled or EventState.Finalized or EventState.Archived) &&
         !path.EndsWith("/Manage.cshtml", StringComparison.OrdinalIgnoreCase) &&
-        !path.EndsWith("/Finalize.cshtml", StringComparison.OrdinalIgnoreCase);
+        !path.EndsWith("/Finalize.cshtml", StringComparison.OrdinalIgnoreCase) &&
+        !path.EndsWith("/Participants.cshtml", StringComparison.OrdinalIgnoreCase) &&
+        !path.EndsWith("/Participant.cshtml", StringComparison.OrdinalIgnoreCase);
 
     private static bool TryEventId(PageHandlerExecutingContext context, out Guid eventId)
     {
@@ -138,7 +140,10 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         if (path.EndsWith("/Participant.cshtml", StringComparison.OrdinalIgnoreCase) &&
             (name.Contains("Withdraw", StringComparison.Ordinal) ||
              name.Contains("FillVacancy", StringComparison.Ordinal) ||
-             name.Contains("CompletePromotionFollowUp", StringComparison.Ordinal)))
+             name.Contains("CompletePromotionFollowUp", StringComparison.Ordinal) ||
+             name.Contains("Payment", StringComparison.Ordinal) ||
+             name.Contains("AdminNote", StringComparison.Ordinal) ||
+             name.Contains("TransferOwnership", StringComparison.Ordinal)))
         {
             capability = default; // Participant lifecycle services perform their own state and authorization checks.
             return false;
