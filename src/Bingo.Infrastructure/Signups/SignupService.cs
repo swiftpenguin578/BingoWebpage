@@ -403,8 +403,16 @@ public sealed class SignupService(
         {
             throw new InvalidOperationException("The participant cap is locked because the draft has started.");
         }
+        if (bingoEvent.ParticipantCap is { } currentCapacity && newCap <= currentCapacity)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return 0;
+        }
+        var before = bingoEvent.ParticipantCap;
         bingoEvent.IncreaseParticipantCap(newCap);
         var promoted = await PromoteWithinLockedEventAsync(bingoEvent, null, "system", "capacity increase", cancellationToken);
+        dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), null, "system", "event.capacity_increased", "event", eventId.ToString(), $"{before} → {newCap}; promoted {promoted}", eventId,
+            before?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "null", newCap.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return promoted;
@@ -818,7 +826,7 @@ public sealed class SignupService(
         {
             participant.Promote(now);
             AddAudit(actorAccountId, actorName, "participant.promoted", participant, bingoEvent.Id, SignupStatus.WaitingList.ToString(), SignupStatus.Confirmed.ToString());
-            if (participant.AccountId is { } owner) AddNotification(owner, "participant.promoted", $"Your signup for {bingoEvent.Name} is confirmed.", Route(bingoEvent), now, bingoEvent.Id);
+            if (participant.AccountId is { } owner) AddNotification(owner, "participant.promoted", $"Your signup for {bingoEvent.Name} is confirmed.", Route(bingoEvent, participant.Id), now, bingoEvent.Id);
             var admins = await dbContext.Accounts.Where(x => x.Active && x.AccountType == AccountType.WebsiteAccount && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin)).Select(x => x.Id).ToListAsync(cancellationToken);
             foreach (var admin in admins) AddNotification(admin, "participant.promoted", $"A participant was promoted for {bingoEvent.Name} ({trigger}).", $"/Admin/Events/Manage/{bingoEvent.Id}", now, bingoEvent.Id);
         }
@@ -845,7 +853,8 @@ public sealed class SignupService(
     }
     private void AddAudit(Guid? actorId, string actorName, string action, EventParticipant participant, Guid eventId, string before, string after) => dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorId, actorName, action, "participant", participant.Id.ToString(), null, eventId, before, after));
     private void AddNotification(Guid recipientId, string title, string detail, string route, DateTimeOffset now, Guid eventId) => dbContext.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), recipientId, title, detail, route, now, eventId));
-    private static string Route(Domain.Events.BingoEvent bingoEvent) => $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Signup/Confirmation";
+    private static string Route(Domain.Events.BingoEvent bingoEvent, Guid? participantId = null)
+        => $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Signup/Confirmation" + (participantId is { } id ? $"?participantId={id}" : string.Empty);
 
     private async Task<int> GetWaitingPositionAsync(Guid participantId, Guid eventId, CancellationToken cancellationToken)
     {

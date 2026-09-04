@@ -96,18 +96,18 @@ If blocked, useful work may include focused source inspection, independent unit 
 
 ## Task roles and lean orchestration
 
-For Codex task model selection, use Luna with high reasoning for implementation,
-remediation, review, and verification unless the user explicitly chooses another
-model or the UI-specific protocol below assigns Terra High to independent visual
-review. Never start or continue a task on Sol with medium or high reasoning unless
-the orchestrator first explains why it is needed, requests that exact
+For Codex task model selection, use Luna with max reasoning for implementation
+and remediation, and Luna with high reasoning for verification unless the user
+explicitly chooses another model. Independent review uses Sol High. Sol High is
+approved only for independent review; never use Sol Medium/High for another role
+unless the orchestrator first explains why it is needed, requests that exact
 model/reasoning combination, and the user explicitly approves it. Do not rely on
 inherited or default task settings when they could select Sol medium/high; set the
 approved model and reasoning explicitly before dispatch.
 
-For delegated implementation, remediation, and verification use Luna High. Every
-independent review, including readiness, scope, and visual review, uses Terra
-High. Create fresh visible worker/reviewer tasks in the saved checkout with
+For delegated implementation and remediation use Luna Max. For verification use
+Luna High. Every independent review, including readiness, scope, and visual
+review, uses Sol High. Create fresh visible worker/reviewer tasks in the saved checkout with
 concise self-contained prompts instead of forking the planner; reuse a compatible
 task for roughly five to ten bounded turns when its role and page family remain
 the same.
@@ -137,10 +137,10 @@ review its own work.
   authority or scope changed. Start a fresh task when the role or page family
   changes, independent review begins, the task becomes confused or repeatedly
   fails, or accumulated context is no longer compact. Never let an implementer
-  or remediator independently review its own work. Use Luna High for
-  implementation, remediation, and verification, and Terra High for independent
-  UI review. Do not use Terra for implementation or Sol for any worker/reviewer
-  role without new explicit user approval.
+  or remediator independently review its own work. Use Luna Max for
+  implementation and remediation, Luna High for verification, and Sol High for
+  independent UI review. Do not use Terra for implementation or Sol for a
+  non-review role without new explicit user approval.
 - Freeze the exact page family, protected behavior, files, states, scope, and
   non-goals before implementation. Include a visual reference only when the user
   explicitly names it as relevant for the current task. A presentation rewrite

@@ -136,8 +136,8 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         foreach (var field in new[] { "Name", "Slug", "Timezone", "Description", "Banner" })
             Assert.Contains($"asp-for=\"Input.{field}\"", identity);
 
-        Assert.Contains("readonly=\"@(Model.IsSlugLocked ? \"readonly\" : null)\"", identity);
-        Assert.Contains("asp-for=\"Input.TimezoneReason\"", identity);
+        Assert.Contains("readonly=\"@(Model.IsSlugLocked || Model.EventState == EventState.Live ? \"readonly\" : null)\"", identity);
+        Assert.Contains("disabled=\"@(Model.EventState == EventState.Live ? \"disabled\" : null)\"", identity);
         Assert.Contains("asp-validation-for=\"Input.ConfirmTimezoneChange\"", identity);
         Assert.Contains("name=\"Input.ConfirmTimezoneChange\" value=\"true\"", identity);
         Assert.Contains("accept=\"image/png,image/jpeg,image/webp\" aria-describedby=\"identity-banner-help\"", identity);
@@ -155,7 +155,9 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
 
         Assert.Contains("if (Input.Version != item.Version)", identityHandler);
         Assert.Contains("item.FirstPublicAt is not null && !Input.ConfirmTimezoneChange", identityHandler);
-        Assert.Contains("item.ActualStartedAt is not null && string.IsNullOrWhiteSpace(Input.TimezoneReason)", identityHandler);
+        Assert.Contains("if (item.State == EventState.Live)", identityHandler);
+        Assert.DoesNotContain("TimezoneReason", identity);
+        Assert.DoesNotContain("TimezoneReason", identityHandler);
         Assert.Contains("catch (DbUpdateConcurrencyException)", identityHandler);
         Assert.Contains("public async Task<IActionResult> OnPostRemoveBannerAsync", identityHandler);
         Assert.Contains("if (BannerVersion != item.Version)", identityHandler);
@@ -209,7 +211,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
 
         Assert.Contains("eventLifecycle.StartNowAsync(id, EventVersion, ConfirmStartEvent, StartReason, Actor, ct)", manageHandler);
         Assert.Contains("eventLifecycle.EndNowAsync(id, EventVersion, ConfirmEndEvent, EndReason, Actor, ct)", manageHandler);
-        Assert.Contains("eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, replacementEnd.Value, Actor, ct)", manageHandler);
+        Assert.Contains("eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, replacementEnd, Actor, ct)", manageHandler);
         Assert.Contains("destructiveLifecycle.DiscardAsync(id, EventVersion, ConfirmDestructiveAction, Actor, ct)", manageHandler);
         Assert.Contains("destructiveLifecycle.CancelAsync(id, EventVersion, ConfirmDestructiveAction, CancellationReason, Actor, ct)", manageHandler);
         Assert.Contains("ConfigureAsync(id, EventVersion, CompetitionId, SynchronizeCompetitionSchedule, Actor, ct)", manageHandler);

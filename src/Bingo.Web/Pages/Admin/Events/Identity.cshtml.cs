@@ -31,7 +31,6 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
     public bool ShowPublicBoard { get; private set; }
     public bool HasBanner { get; private set; }
     public bool IsSlugLocked { get; private set; }
-    public bool RequiresTimezoneReason { get; private set; }
     public IReadOnlyList<TimezoneOption> Timezones => Options();
     public IReadOnlyList<TimePreview> TimezonePreview { get; private set; } = [];
     public IReadOnlyList<ManageModel.TimelineRow> EffectiveTimeline { get; private set; } = [];
@@ -49,7 +48,12 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
         var item = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
         EventName = item.Name;
-        RequiresTimezoneReason = item.ActualStartedAt is not null;
+        if (item.State == EventState.Live)
+        {
+            ModelState.AddModelError(string.Empty, Localize("Event identity and timezone are read-only while the event is Live."));
+            Populate(item, preserveInput: true);
+            return Page();
+        }
         if (Input.Version != item.Version) { ModelState.AddModelError(string.Empty, Localize("This event changed while you were editing it. Review the latest values and try again.")); Populate(item, preserveInput: true); return Page(); }
         var validTimezone = TryTimezone(Input.Timezone, out _);
         if (!validTimezone) ModelState.AddModelError("Input.Timezone", Localize("Choose a supported timezone."));
@@ -63,7 +67,6 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
             ModelState.AddModelError("Input.ConfirmTimezoneChange", Localize("Review the participant-facing time preview and confirm this timezone change."));
             TimezonePreview = Preview(item, item.Timezone, Input.Timezone);
         }
-        if (timezoneChanged && item.ActualStartedAt is not null && string.IsNullOrWhiteSpace(Input.TimezoneReason)) ModelState.AddModelError("Input.TimezoneReason", Localize("Enter a reason for changing timezone after event start."));
         if (!ModelState.IsValid) { Populate(item, preserveInput: true); return Page(); }
 
         var actor = User.GetAccountId()!.Value;
@@ -85,7 +88,7 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
             }
             item.UpdateIdentity(Input.Name, slug, Input.Description, Input.Timezone);
             var after = AuditState(item);
-            db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor, User.Identity!.Name!, "event.identity_updated", "event", item.Id.ToString(), JsonSerializer.Serialize(new { timezoneReason = string.IsNullOrWhiteSpace(Input.TimezoneReason) ? null : Input.TimezoneReason.Trim() }), item.Id, JsonSerializer.Serialize(before), JsonSerializer.Serialize(after)));
+            db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor, User.Identity!.Name!, "event.identity_updated", "event", item.Id.ToString(), null, item.Id, JsonSerializer.Serialize(before), JsonSerializer.Serialize(after)));
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
         }
@@ -129,6 +132,14 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
             return RedirectToPage(new { id });
         }
 
+        if (item.State == EventState.Live)
+        {
+            await transaction.RollbackAsync(ct);
+            TempData["StatusMessage"] = Localize("Event identity and timezone are read-only while the event is Live.");
+            TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString();
+            return RedirectToPage(new { id });
+        }
+
         if (item.BannerAssetId is null)
         {
             await transaction.RollbackAsync(ct);
@@ -144,7 +155,7 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
             (await db.EventBannerAssets.SingleOrDefaultAsync(x => x.Id == oldId && x.EventId == id, ct))?.Replace(now);
             item.SetBannerAsset(null);
             var after = AuditState(item);
-            db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor, User.Identity!.Name!, "event.identity_updated", "event", item.Id.ToString(), JsonSerializer.Serialize(new { timezoneReason = (string?)null }), item.Id, JsonSerializer.Serialize(before), JsonSerializer.Serialize(after)));
+            db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor, User.Identity!.Name!, "event.identity_updated", "event", item.Id.ToString(), null, item.Id, JsonSerializer.Serialize(before), JsonSerializer.Serialize(after)));
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
         }
@@ -178,7 +189,6 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
         HasBanner = item.BannerAssetId is not null;
         BannerVersion = item.Version;
         IsSlugLocked = item.FirstPublicAt is not null;
-        RequiresTimezoneReason = item.ActualStartedAt is not null;
         DisplayTimezone = item.Timezone;
         EffectiveTimeline = ManageModel.EffectiveTimelineFor(new(
             item.SignupOpensAt,
@@ -222,5 +232,5 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
     private static bool TryTimezone(string? timezone, out TimeZoneInfo value) { value = null!; return !string.IsNullOrWhiteSpace(timezone) && Defaults.Any(x => x.Id == timezone) && TryFind(timezone, out value); }
     private static bool TryFind(string timezone, out TimeZoneInfo value) { try { value = TimeZoneInfo.FindSystemTimeZoneById(timezone); return true; } catch (TimeZoneNotFoundException) { value = null!; return false; } catch (InvalidTimeZoneException) { value = null!; return false; } }
     public sealed record TimezoneOption(string Id, string Label); public sealed record TimePreview(string Label, string Current, string New);
-    public sealed class InputModel { [Required, StringLength(200)] public string Name { get; set; } = string.Empty; [Required, StringLength(120)] public string Slug { get; set; } = string.Empty; [StringLength(4000)] public string? Description { get; set; } [Required] public string Timezone { get; set; } = "Europe/Copenhagen"; public IFormFile? Banner { get; set; } public bool RemoveBanner { get; set; } public bool ConfirmTimezoneChange { get; set; } [StringLength(2000)] public string? TimezoneReason { get; set; } public long Version { get; set; } }
+    public sealed class InputModel { [Required, StringLength(200)] public string Name { get; set; } = string.Empty; [Required, StringLength(120)] public string Slug { get; set; } = string.Empty; [StringLength(4000)] public string? Description { get; set; } [Required] public string Timezone { get; set; } = "Europe/Copenhagen"; public IFormFile? Banner { get; set; } public bool RemoveBanner { get; set; } public bool ConfirmTimezoneChange { get; set; } public long Version { get; set; } }
 }

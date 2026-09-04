@@ -208,44 +208,45 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
 
         await using (var db = new ApplicationDbContext(options))
         {
-            var confirmation = Identity(db, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = "Renamed", Slug = "renamed", Description = "Description", Timezone = "UTC", Version = publicVersion });
-            Assert.IsType<PageResult>(await confirmation.OnPostAsync(eventId, CancellationToken.None));
-            Assert.True(confirmation.ModelState.ContainsKey("Input.ConfirmTimezoneChange"));
-
-            var reason = Identity(db, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = "Renamed", Slug = "renamed", Description = "Description", Timezone = "UTC", Version = publicVersion, ConfirmTimezoneChange = true });
-            Assert.IsType<PageResult>(await reason.OnPostAsync(eventId, CancellationToken.None));
-            Assert.True(reason.ModelState.ContainsKey("Input.TimezoneReason"));
-
-            var saved = Identity(db, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = "Renamed", Slug = "renamed", Description = "Description", Timezone = "UTC", Version = publicVersion, ConfirmTimezoneChange = true, TimezoneReason = "Participants requested UTC." });
-            Assert.IsType<RedirectToPageResult>(await saved.OnPostAsync(eventId, CancellationToken.None));
+            var liveIdentity = Identity(db, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = "Live update", Slug = "renamed", Description = "Changed", Timezone = "UTC", Version = publicVersion, ConfirmTimezoneChange = true });
+            Assert.IsType<PageResult>(await liveIdentity.OnPostAsync(eventId, CancellationToken.None));
+            Assert.True(liveIdentity.ModelState.ContainsKey(string.Empty));
         }
 
+        var editableId = await SeedEventAsync("identity-editable", actor);
         await using (var db = new ApplicationDbContext(options))
         {
-            var item = await db.Events.SingleAsync(x => x.Id == eventId);
-            Assert.Equal(originalStart, item.EventStartsAt);
-            var locked = Identity(db, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = "Renamed", Slug = "cannot-change", Description = "Description", Timezone = "UTC", Version = item.Version });
-            Assert.IsType<PageResult>(await locked.OnPostAsync(eventId, CancellationToken.None));
+            var live = await db.Events.SingleAsync(x => x.Id == eventId);
+            Assert.Equal("Europe/Copenhagen", live.Timezone);
+            Assert.Equal("Renamed", live.Name);
+            Assert.Equal(originalStart, live.EventStartsAt);
+            var editable = await db.Events.SingleAsync(x => x.Id == editableId);
+            editable.MarkFirstPublic(now);
+            await db.SaveChangesAsync();
+            var locked = Identity(db, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = editable.Name, Slug = "cannot-change", Description = editable.Description, Timezone = editable.Timezone, Version = editable.Version });
+            Assert.IsType<PageResult>(await locked.OnPostAsync(editableId, CancellationToken.None));
             Assert.True(locked.ModelState.ContainsKey("Input.Slug"));
 
             db.Events.Add(new BingoEvent(Guid.NewGuid(), "Other", "taken-link", "UTC", actor, now));
             await db.SaveChangesAsync();
-            var collision = Identity(db, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = "Renamed", Slug = "taken-link", Description = "Description", Timezone = "UTC", Version = item.Version });
-            Assert.IsType<PageResult>(await collision.OnPostAsync(eventId, CancellationToken.None));
+            editable = await db.Events.SingleAsync(x => x.Id == editableId);
+            var collision = Identity(db, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = editable.Name, Slug = "taken-link", Description = editable.Description, Timezone = editable.Timezone, Version = editable.Version });
+            Assert.IsType<PageResult>(await collision.OnPostAsync(editableId, CancellationToken.None));
             Assert.True(collision.ModelState.ContainsKey("Input.Slug"));
         }
 
+        var staleEventId = await SeedEventAsync("identity-stale", actor);
         await using (var staleDb = new ApplicationDbContext(options))
         {
-            var staleVersion = (await staleDb.Events.AsNoTracking().SingleAsync(x => x.Id == eventId)).Version;
+            var staleVersion = (await staleDb.Events.AsNoTracking().SingleAsync(x => x.Id == staleEventId)).Version;
             await using (var winnerDb = new ApplicationDbContext(options))
             {
-                var winner = await winnerDb.Events.SingleAsync(x => x.Id == eventId);
-                winner.UpdateIdentity(winner.Name, winner.Slug, winner.Description, "Europe/Copenhagen");
+                var winner = await winnerDb.Events.SingleAsync(x => x.Id == staleEventId);
+                winner.UpdateIdentity("Winner", winner.Slug, winner.Description, "Europe/Copenhagen");
                 await winnerDb.SaveChangesAsync();
             }
             var stale = Identity(staleDb, new MemoryStorage(), actor, new IdentityModel.InputModel { Name = "Stale", Slug = "renamed", Description = "Description", Timezone = "UTC", Version = staleVersion });
-            Assert.IsType<PageResult>(await stale.OnPostAsync(eventId, CancellationToken.None));
+            Assert.IsType<PageResult>(await stale.OnPostAsync(staleEventId, CancellationToken.None));
             Assert.True(stale.ModelState.ContainsKey(string.Empty));
         }
 

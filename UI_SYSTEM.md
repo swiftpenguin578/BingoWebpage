@@ -703,7 +703,7 @@ cannot approve visual fidelity.
 
 For each major unapproved UI page/pass, use this workflow:
 
-1. Before first implementation, one independent read-only Terra High
+1. Before first implementation, one independent read-only Sol High
    rendered-page readiness/residue review compares the relevant rendered states
    with this document, `UI_PAGE_MATRIX.md`, and the named canonical references.
    It produces a numbered implementation contract stating the exact residue to
@@ -714,15 +714,15 @@ For each major unapproved UI page/pass, use this workflow:
    states as applicable. No separate no-JavaScript state review is required.
 2. The user resolves and approves genuine design decisions before
    implementation.
-3. Luna High implements the smallest complete change against that frozen
+3. Luna Max implements the smallest complete change against that frozen
    checklist; “smallest” means the smallest complete implementation, not the
    smallest diff.
 4. The user supplies current light/dark desktop and narrow/mobile screenshots as
-   applicable. One independent Terra High post-implementation review checks every
+   applicable. One independent Sol High post-implementation review checks every
    numbered item against those screenshots, the complete scoped diff, and the
    canonical reference, reporting each item as satisfied or unsatisfied with
    concrete evidence.
-5. If needed, one fresh Luna High remediation addresses only named failures,
+5. If needed, one fresh Luna Max remediation addresses only named failures,
    followed by the user's focused confirmation rather than another broad review
    unless the composition materially changed.
 6. User manual visual acceptance remains the page-specific approval gate, and

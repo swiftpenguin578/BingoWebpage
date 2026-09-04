@@ -108,7 +108,7 @@ public sealed class EventLifecycleService(
         catch (DbUpdateException) { await tx.RollbackAsync(ct); return new(false, "The event could not be ended. Review its current state and try again."); }
     }
 
-    public async Task<EventStartResult> ResumePrematureEndAsync(Guid eventId, long version, bool confirmed, string? reason, DateTimeOffset replacementEventEndsAt, LifecycleActor actor, CancellationToken ct = default)
+    public async Task<EventStartResult> ResumePrematureEndAsync(Guid eventId, long version, bool confirmed, string? reason, DateTimeOffset? replacementEventEndsAt, LifecycleActor actor, CancellationToken ct = default)
     {
         if (!confirmed) return new(false, "Confirm that you want to resume the event.");
         if (string.IsNullOrWhiteSpace(reason)) return new(false, "Enter a reason for resuming the event.");
@@ -118,14 +118,17 @@ public sealed class EventLifecycleService(
             await LockCurrentBoundaryAsync(ct);
             var item = await EventAsync(eventId, version, ct);
             var now = time.GetUtcNow();
-            replacementEventEndsAt = replacementEventEndsAt.ToUniversalTime();
             if (item.State != EventState.AwaitingFinalReview)
                 return new(false, "Only an event in final review can be resumed.");
             if (await db.EventFinalizations.AnyAsync(x => x.EventId == eventId, ct))
                 return new(false, "An event with official finalization history cannot be resumed through this action.");
-            if (replacementEventEndsAt <= now)
+            var retainedEnd = item.EventEndsAt is { } configuredEnd && configuredEnd > now ? configuredEnd : (DateTimeOffset?)null;
+            var effectiveEnd = retainedEnd ?? replacementEventEndsAt?.ToUniversalTime();
+            if (effectiveEnd is null)
+                return new(false, "The retained event end has expired or is missing; choose a future replacement event end.");
+            if (effectiveEnd <= now)
                 return new(false, "The replacement event end must be in the future.");
-            if (item.EventStartsAt is not { } startsAt || replacementEventEndsAt <= startsAt)
+            if (item.EventStartsAt is not { } startsAt || effectiveEnd <= startsAt)
                 return new(false, "The replacement event end must be after the event start.");
             var singleton = await db.Events.AsNoTracking()
                 .Where(x => x.Id != eventId && x.HiddenAt == null && CurrentStates.Contains(x.State) && !(IsDevelopmentMode() && x.IsDevelopmentFixture))
@@ -134,12 +137,12 @@ public sealed class EventLifecycleService(
                 .FirstOrDefaultAsync(ct);
             if (singleton is not null)
                 return new(false, $"{singleton} is already the current event. Archive it before resuming this event.");
-            var overlap = await FindLifecycleOverlapAsync(item, replacementEventEndsAt, ct);
+            var overlap = await FindLifecycleOverlapAsync(item, effectiveEnd.Value, ct);
             if (overlap is not null)
                 return new(false, overlap);
 
             var from = item.State;
-            item.ResumePrematureEnd(replacementEventEndsAt, now);
+            item.ResumePrematureEnd(effectiveEnd.Value, now);
             AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.resumed", reason.Trim(), now, now);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -231,6 +234,7 @@ public sealed class EventLifecycleService(
     private async Task<List<ReadinessItem>> EvaluateStartAsync(BingoEvent item, CancellationToken ct)
     {
         var blockers = new List<ReadinessItem>();
+        var now = time.GetUtcNow().ToUniversalTime();
         if (item.State == EventState.Draft)
             blockers.Add(new("LIFECYCLE_STATE_INVALID", "Signup has not been opened and closed. Open signup, then close it before starting the event.", $"/Admin/Events/Manage/{item.Id}"));
         else if (item.State == EventState.SignupOpen)
@@ -239,6 +243,8 @@ public sealed class EventLifecycleService(
             blockers.Add(new("LIFECYCLE_STATE_INVALID", "The event is not in a pre-live state that can start.", $"/Admin/Events/Manage/{item.Id}"));
         if (item.EventStartsAt is null || item.EventEndsAt is null || item.EventEndsAt <= item.EventStartsAt)
             blockers.Add(new("SCHEDULE_INVALID", "Configure a valid event start and end.", $"/Admin/Events/Schedule/{item.Id}"));
+        else if (item.EventEndsAt <= now)
+            blockers.Add(new("EVENT_END_PASSED", "The configured event end has passed; cancel this event or replace its schedule before starting it.", $"/Admin/Events/Manage/{item.Id}"));
         if (!await db.DraftSessions.AsNoTracking().AnyAsync(x => x.EventId == item.Id && x.State == DraftState.Finalized, ct))
             blockers.Add(new("DRAFT_NOT_FINALIZED", "Finalize the team draft before starting.", $"/Admin/Events/Draft/{item.Id}"));
         if (!await db.Boards.AsNoTracking().AnyAsync(x => x.EventId == item.Id && x.State == BoardState.Published, ct))
@@ -349,7 +355,16 @@ public sealed class EventLifecycleService(
             .ThenBy(x => x.Name)
             .Select(x => x.Name)
             .FirstOrDefaultAsync(ct);
-        return overlap is null ? null : $"The replacement lifecycle window overlaps {overlap}.";
+        if (overlap is not null) return $"The replacement lifecycle window overlaps {overlap}.";
+
+        var competition = await db.EventCompetitionSynchronizations.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.EventId == item.Id && x.CompetitionId != null, ct);
+        if (competition is not null &&
+            (competition.CompetitionStartsAt is not { } competitionStart || competition.CompetitionEndsAt is not { } competitionEnd ||
+             Math.Abs((start - competitionStart).TotalMinutes) > 5 || Math.Abs((replacementEnd - competitionEnd).TotalMinutes) > 5))
+            return "The linked Wise Old Man competition must remain within five minutes of the event window.";
+
+        return null;
     }
 
     private static bool IsDevelopmentMode() => string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);

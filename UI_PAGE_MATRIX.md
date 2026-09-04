@@ -119,7 +119,8 @@ and committed on 2026-08-31; it was accepted through local whole-application
 regression on 2026-09-01. Existing linked-resubmission Admin Review behavior
 remains protected and no query change is authorized; no separate manual
 confirmation gate is pending.
-F-04 is resolved by the narrow Live display-timezone correction; the How To F-06
+F-04 is resolved by retaining Live identity and display timezone as read-only;
+the separate Live event-end correction belongs to Schedule. The How To F-06
 sequencing decision is resolved by the implemented five-step guide.
 
 Landing typography-only change control (2026-08-22): the user authorized a

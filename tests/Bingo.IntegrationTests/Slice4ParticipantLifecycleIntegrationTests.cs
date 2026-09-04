@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Bingo.Application.Access;
 using Bingo.Application.Signups;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 
@@ -54,9 +56,32 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         Assert.Equal(setup.WaitingOwnerIds[0], participants[1].AccountId);
         Assert.Equal(11m, await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == participants[1].Id && x.ReleasedAt == null).Select(x => x.EhbSnapshot).SingleAsync());
         Assert.Single(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.Action == "participant.promoted").ToListAsync());
+        Assert.Single(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.Action == "event.capacity_increased").ToListAsync());
         var notifications = await verify.PersonalNotifications.Where(x => x.Title == "participant.promoted").ToListAsync();
         Assert.Equal(3, notifications.Count);
-        Assert.Single(notifications, x => x.RecipientAccountId == setup.WaitingOwnerIds[0]);
+        var promotion = Assert.Single(notifications, x => x.RecipientAccountId == setup.WaitingOwnerIds[0]);
+        var route = new Uri($"https://test.invalid{promotion.Route}");
+        var segments = route.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(4, segments.Length);
+        Assert.Equal("Events", segments[0]);
+        Assert.Equal("Signup", segments[2]);
+        Assert.Equal("Confirmation", segments[3]);
+        var routeParticipantId = Guid.Parse(QueryHelpers.ParseQuery(route.Query)["participantId"].ToString());
+        var confirmation = new Bingo.Web.Pages.Events.ConfirmationModel(verify, TimeProvider.System, Service(verify), null!)
+        {
+            PageContext = new PageContext(new ActionContext(
+                new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity([
+                        new Claim(ClaimTypes.NameIdentifier, promotion.RecipientAccountId.ToString()),
+                        new Claim(AccountClaims.AccountType, AccountType.WebsiteAccount.ToString())
+                    ], "test"))
+                }, new RouteData(), new PageActionDescriptor()))
+        };
+        var destination = await confirmation.OnGetAsync(Uri.UnescapeDataString(segments[1]), routeParticipantId, CancellationToken.None);
+        Assert.IsType<PageResult>(destination);
+        Assert.Equal("Lifecycle", confirmation.EventName);
+        Assert.Equal(nameof(SignupStatus.Confirmed), confirmation.Status);
         Assert.Single(notifications, x => x.RecipientAccountId == setup.EnabledAdminId);
         Assert.Single(notifications, x => x.RecipientAccountId == setup.EnabledSuperAdminId);
         Assert.DoesNotContain(notifications, x => x.RecipientAccountId == setup.DisabledAdminId || x.RecipientAccountId == setup.UnrelatedUserId);

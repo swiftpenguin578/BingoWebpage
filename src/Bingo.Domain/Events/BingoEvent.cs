@@ -203,14 +203,8 @@ public sealed class BingoEvent
     public void UpdateIdentity(string name, string? slug, string? description, string timezone)
     {
         EnsureNotHidden();
-        if (State == EventState.Live)
-        {
-            if (!string.Equals(Name, name.Trim(), StringComparison.Ordinal) ||
-                !string.Equals(Slug, slug?.Trim(), StringComparison.Ordinal) ||
-                !string.Equals(Description, Clean(description), StringComparison.Ordinal))
-                throw new InvalidOperationException("Only the display timezone can change while the event is Live.");
-        }
-        else EnsureIdentityEditable();
+        if (State == EventState.Live) throw new InvalidOperationException("Event identity and timezone are read-only while the event is Live.");
+        EnsureIdentityEditable();
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("An event name is required.", nameof(name));
         if (string.IsNullOrWhiteSpace(timezone)) throw new ArgumentException("A timezone is required.", nameof(timezone));
         if (FirstPublicAt is not null && !string.IsNullOrWhiteSpace(slug) && !string.Equals(Slug, slug.Trim(), StringComparison.Ordinal))
@@ -246,6 +240,38 @@ public sealed class BingoEvent
         EventEndsAt = Utc(eventEndsAt);
         SetNormalSubmissionCutoff(eventEndsAt);
         ParticipantCap = participantCap;
+    }
+
+    /// <summary>Changes only the event window after a finalized pre-live draft.</summary>
+    public void ConfigureFinalizedDraftEventWindow(DateTimeOffset eventStartsAt, DateTimeOffset eventEndsAt)
+    {
+        EnsureNotHidden();
+        if (State != EventState.SignupClosed || !DraftLocked)
+            throw new InvalidOperationException("Only a finalized pre-live draft can change its event window.");
+        eventStartsAt = eventStartsAt.ToUniversalTime();
+        eventEndsAt = eventEndsAt.ToUniversalTime();
+        if (eventEndsAt <= eventStartsAt) throw new InvalidOperationException("Event end must be after event start.");
+        if (SignupClosesAt is { } closing && closing > eventStartsAt)
+            throw new InvalidOperationException("Signup closing must be no later than event start.");
+        if ((ActualSignupOpenedAt ?? SignupOpensAt) is { } opening && SignupClosesAt is { } closes && closes <= opening)
+            throw new InvalidOperationException("Signup closing must be after signup opening.");
+        EventStartsAt = eventStartsAt;
+        EventEndsAt = eventEndsAt;
+        SetNormalSubmissionCutoff(eventEndsAt);
+    }
+
+    /// <summary>Changes the retained live event end and derives its normal submission cutoff.</summary>
+    public void ChangeLiveEventEnd(DateTimeOffset eventEndsAt, DateTimeOffset now)
+    {
+        EnsureNotHidden();
+        if (State != EventState.Live) throw new InvalidOperationException("Only a Live event can change its end time.");
+        eventEndsAt = eventEndsAt.ToUniversalTime();
+        now = now.ToUniversalTime();
+        if (eventEndsAt <= now) throw new InvalidOperationException("The event end must be in the future.");
+        if (EventStartsAt is not { } startsAt || eventEndsAt <= startsAt)
+            throw new InvalidOperationException("Event end must be after event start.");
+        EventEndsAt = eventEndsAt;
+        SetNormalSubmissionCutoff(eventEndsAt);
     }
 
     public void OpenSignups() => OpenSignups(null);

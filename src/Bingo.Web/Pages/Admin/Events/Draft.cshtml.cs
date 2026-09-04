@@ -366,8 +366,8 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
             var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
             var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
             if (bingoEvent is null || draft is null) return NotFound();
-            if (bingoEvent.State != Bingo.Domain.Events.EventState.SignupClosed || bingoEvent.EventStartsAt is not { } starts || starts <= now)
-                throw new InvalidOperationException("The draft can only be finalized before the scheduled event start while signup is closed.");
+            if (bingoEvent.State != Bingo.Domain.Events.EventState.SignupClosed || bingoEvent.ActualStartedAt is not null || bingoEvent.EventEndsAt is not { } ends || ends <= now)
+                throw new InvalidOperationException("The draft can only be finalized before the event has started and while its configured end remains in the future.");
             if (draft.State is not (DraftState.Running or DraftState.Paused)) throw new InvalidOperationException("This draft is already finalized or is not running.");
             draft.RequireControl(AdminId, now);
             var draftedTeams = await OrderedDraftTeams(id, ct);
@@ -423,8 +423,8 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
             var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
             var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
             if (bingoEvent is null || draft is null) return NotFound();
-            if (bingoEvent.State != Bingo.Domain.Events.EventState.SignupClosed || bingoEvent.EventStartsAt is not { } starts || starts <= now)
-                throw new InvalidOperationException("A published draft can only be reopened before the scheduled event start while signup is closed.");
+            if (bingoEvent.State != Bingo.Domain.Events.EventState.SignupClosed || bingoEvent.ActualStartedAt is not null || bingoEvent.EventEndsAt is not { } ends || ends <= now)
+                throw new InvalidOperationException("A published draft can only be reopened before the event has started and while its configured end remains in the future.");
             if (draft.State != DraftState.Finalized) throw new InvalidOperationException("This draft is not finalized.");
             var activeCycle = await db.DraftPublicationCycles.SingleOrDefaultAsync(x => x.DraftSessionId == draft.Id && x.SupersededAt == null, ct);
             if (activeCycle is null) throw new InvalidOperationException("The active roster publication no longer exists.");
@@ -492,7 +492,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     private async Task<string> AddMembership(Guid eventId, Guid teamId, Guid participantId, TeamMembershipRole role, string reason, Guid? pickId, CancellationToken ct) { var team = await db.Teams.SingleOrDefaultAsync(x => x.Id == teamId && x.EventId == eventId, ct); if (team is null) throw new InvalidOperationException("The selected team no longer exists."); if (await db.TeamMemberships.AnyAsync(x => x.EventParticipantId == participantId && x.LeftAt == null, ct)) throw new InvalidOperationException("Participant is already assigned to a team."); var membership = new TeamMembership(Guid.NewGuid(), teamId, participantId, role, time.GetUtcNow(), pickId, reason); membership.SetSource(team.FormationType == TeamFormationType.Preformed ? TeamMembershipSource.PreformedManual : TeamMembershipSource.RetainedConversion); db.TeamMemberships.Add(membership); await db.SaveChangesAsync(ct); await Audit("team.member_added", "team", teamId, $"{participantId}: {reason}", ct); return team.Name; }
     private bool CanDirectPreEventRosterMutation(Bingo.Domain.Events.BingoEvent bingoEvent) =>
         (bingoEvent.State is Bingo.Domain.Events.EventState.Draft or Bingo.Domain.Events.EventState.SignupOpen or Bingo.Domain.Events.EventState.SignupClosed)
-        && bingoEvent.ActualStartedAt is null && bingoEvent.EventStartsAt is { } starts && time.GetUtcNow() < starts;
+        && bingoEvent.ActualStartedAt is null && bingoEvent.EventEndsAt is { } ends && time.GetUtcNow() < ends;
     private bool CanDirectDraftedSetupAssignment(Bingo.Domain.Events.BingoEvent bingoEvent, DraftSession? draft) =>
         CanDirectPreEventRosterMutation(bingoEvent)
         && draft is { FirstPickRecordedAt: null, State: DraftState.Setup or DraftState.Running };

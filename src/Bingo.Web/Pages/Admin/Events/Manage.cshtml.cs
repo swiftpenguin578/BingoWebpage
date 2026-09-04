@@ -38,6 +38,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public int PendingReviewCount { get; private set; }
     public int SubmissionCount { get; private set; }
     public bool CanDiscard { get; private set; }
+    public bool ResumeRequiresReplacement { get; private set; }
     public bool ShowDevelopmentCompetitionControl { get; private set; }
     public bool ShowAllControlStages { get; private set; }
     public EventCompetitionView? CompetitionIntegration { get; private set; }
@@ -101,9 +102,14 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public async Task<IActionResult> OnPostCapacityAsync(Guid id, CancellationToken ct)
     {
         if (HasBindingErrors(nameof(NewCap))) { TempData["StatusMessage"] = Localize("Enter a valid player cap."); return RedirectToPage(new { id }); }
-        if (await dbContext.Events.AnyAsync(e => e.Id == id && e.DraftLocked, ct)) { TempData["StatusMessage"] = Localize("The participant cap cannot change after the draft has started."); return RedirectToPage(new { id }); }
-        var before = await dbContext.Events.AsNoTracking().Where(e => e.Id == id).Select(e => e.ParticipantCap).SingleOrDefaultAsync(ct);
-        try { var promoted = await signupService.IncreaseCapacityAndPromoteAsync(id, NewCap, ct); await AuditAsync("event.capacity_increased", await dbContext.Events.FindAsync([id], ct) ?? throw new InvalidOperationException(), $"{before} → {NewCap}; promoted {promoted}", ct); TempData["StatusMessage"] = Localize("Capacity increased. {0} participant(s) promoted.", promoted); }
+        var current = await dbContext.Events.AsNoTracking().Where(e => e.Id == id && e.HiddenAt == null).Select(e => new { e.WaitingListEnabled }).SingleOrDefaultAsync(ct);
+        if (current is null) return NotFound();
+        try
+        {
+            var result = await signupService.UpdateSignupAdministrationAsync(id, EventVersion, NewCap, current.WaitingListEnabled, User.GetAccountId()!.Value, User.Identity!.Name!, cancellationToken: ct);
+            if (!result.Succeeded) TempData["StatusMessage"] = result.Error;
+            else TempData["StatusMessage"] = Localize("Capacity increased. {0} participant(s) promoted.", result.PromotedParticipants);
+        }
         catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; }
         return RedirectToPage(new { id });
     }
@@ -157,12 +163,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         if (timezoneId is null) return NotFound();
         var replacementEnd = ParseEventLocal(ReplacementEventEndsAtLocal, timezoneId, nameof(ReplacementEventEndsAtLocal), "Replacement event end")
             ?? (string.IsNullOrWhiteSpace(ReplacementEventEndsAtLocal) && ReplacementEventEndsAt != default ? ReplacementEventEndsAt.ToUniversalTime() : null);
-        if (replacementEnd is null)
-        {
-            SetStatus(Localize("Choose a valid replacement event end."), UiMessageType.Error);
-            return RedirectToPage(new { id });
-        }
-        var result = await eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, replacementEnd.Value, Actor, ct);
+        var result = await eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, replacementEnd, Actor, ct);
         SetStatus(result.Succeeded ? Localize("Event resumed and returned to live play.") : result.Error ?? Localize("The event could not be resumed."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToPage(new { id });
     }
@@ -331,7 +332,9 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         if (ScheduledAction is not null)
             overviewBlockers.AddRange(ScheduledAction.Blockers);
         OverviewBlockers = overviewBlockers.DistinctBy(x => (x.Code, x.Description, x.Route)).ToList();
-        EventVersion = item.Version; CompetitionId = CompetitionIntegration?.CompetitionId; NewCap = item.ParticipantCap ?? 0; NewSignupOpening = item.SignupOpensAt ?? timeProvider.GetUtcNow(); NewSignupClosing = item.SignupClosesAt ?? timeProvider.GetUtcNow().AddDays(1); EvidenceCodeActivatesAt = timeProvider.GetUtcNow(); EvidenceCodeActivatesAtLocal = DateTimePresentation.Format(EvidenceCodeActivatesAt.Value, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); ReopenUntil = timeProvider.GetUtcNow().AddHours(1); ReopenUntilLocal = DateTimePresentation.Format(ReopenUntil.Value, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); ReplacementEventEndsAt = item.EventEndsAt ?? timeProvider.GetUtcNow().AddHours(1); ReplacementEventEndsAtLocal = DateTimePresentation.Format(ReplacementEventEndsAt, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); return true;
+        var now = timeProvider.GetUtcNow();
+        ResumeRequiresReplacement = item.EventEndsAt is not { } configuredEnd || configuredEnd <= now;
+        EventVersion = item.Version; CompetitionId = CompetitionIntegration?.CompetitionId; NewCap = item.ParticipantCap ?? 0; NewSignupOpening = item.SignupOpensAt ?? now; NewSignupClosing = item.SignupClosesAt ?? now.AddDays(1); EvidenceCodeActivatesAt = now; EvidenceCodeActivatesAtLocal = DateTimePresentation.Format(EvidenceCodeActivatesAt.Value, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); ReopenUntil = now.AddHours(1); ReopenUntilLocal = DateTimePresentation.Format(ReopenUntil.Value, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); ReplacementEventEndsAt = item.EventEndsAt ?? now.AddHours(1); ReplacementEventEndsAtLocal = DateTimePresentation.Format(ReplacementEventEndsAt, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); return true;
     }
     private LifecycleActor Actor => new(User.GetAccountId()!.Value, User.Identity!.Name!);
     private Task<IActionResult> SignupResult(SignupLifecycleResult result, Guid id, string success)
@@ -417,7 +420,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         "DRAFT_NOT_FINALIZED" or "TEAM_ACCESS_MISSING" or "DRAFT_LOCKED" => "Review teams and draft",
         "BOARD_NOT_PUBLISHED" => "Review board",
         "SIGNUP_FORM_MISSING" or "SIGNUP_QUESTIONS_INVALID" or "SIGNUP_CODE_UNUSABLE" => "Review signup form",
-        "CURRENT_EVENT_EXISTS" or "EVENT_WINDOW_OVERLAP" => "Review events",
+        "CURRENT_EVENT_EXISTS" or "EVENT_WINDOW_OVERLAP" or "EVENT_END_PASSED" => "Review event",
         "SCHEDULE_INVALID" or "EVENT_START_REQUIRED" or "EVENT_END_REQUIRED" or "EVENT_WINDOW_INVALID" or "SIGNUP_CLOSE_REQUIRED" or "SIGNUP_CLOSE_NOT_FUTURE" or "SIGNUP_CLOSE_AFTER_EVENT_START" or "SCHEDULED_OPENING_INVALID" or "SCHEDULED_WINDOW_INVALID" or "SCHEDULED_OPENING_FAILED" => "Review schedule",
         _ when item.Code.StartsWith("UNACKNOWLEDGED_", StringComparison.Ordinal) => "Review schedule",
         _ when item.Route?.Contains("/Participant/", StringComparison.Ordinal) == true => "Review participants",
@@ -435,6 +438,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         "LIFECYCLE_STATE_INVALID" when eventState == EventState.SignupOpen => new(code, "Signup is still open. Close signup before starting the event.", $"/Admin/Events/Manage/{eventId}"),
         "LIFECYCLE_STATE_INVALID" => new(code, "The scheduled start was postponed until signup lifecycle requirements are resolved.", $"/Admin/Events/Manage/{eventId}"),
         "SCHEDULE_INVALID" => new(code, "Configure a valid event start and end.", $"/Admin/Events/Schedule/{eventId}"),
+        "EVENT_END_PASSED" => new(code, "The configured event end has passed; cancel this event or replace its schedule before starting it.", $"/Admin/Events/Manage/{eventId}"),
         "EVENT_START_REQUIRED" or "EVENT_END_REQUIRED" or "EVENT_WINDOW_INVALID" or "SIGNUP_CLOSE_REQUIRED" or "SIGNUP_CLOSE_NOT_FUTURE" or "SIGNUP_CLOSE_AFTER_EVENT_START" or "SCHEDULED_OPENING_INVALID" or "SCHEDULED_WINDOW_INVALID" => new(code, "Review the event schedule.", $"/Admin/Events/Schedule/{eventId}"),
         "SIGNUP_FORM_MISSING" or "SIGNUP_QUESTIONS_INVALID" or "SIGNUP_CODE_UNUSABLE" => new(code, "Review the signup form and its questions.", $"/Admin/Events/Questions/{eventId}"),
         "DRAFT_LOCKED" => new(code, "The draft has started; review the teams and draft.", $"/Admin/Events/Draft/{eventId}"),

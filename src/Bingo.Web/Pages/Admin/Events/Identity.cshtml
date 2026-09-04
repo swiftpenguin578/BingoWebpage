@@ -1,5 +1,6 @@
 @page "{id:guid}"
 @model Bingo.Web.Pages.Admin.Events.IdentityModel
+@using Bingo.Domain.Events
 @using Bingo.Web.UI
 @{
     ViewData["Title"] = T["Identity"];
@@ -21,14 +22,10 @@
                     <legend>@T["Public identity"]</legend>
                     <p class="identity-group-description">@T["These details appear on the public signup page after signups open."]</p>
                     <div class="identity-primary-fields">
-                        <div class="admin-field"><label asp-for="Input.Name">@T["Event name"]</label><input asp-for="Input.Name" class="form-control" /><span asp-validation-for="Input.Name" class="field-error"></span></div>
-                        <div class="admin-field"><label asp-for="Input.Slug">@T["Event link"]</label><input asp-for="Input.Slug" class="form-control" readonly="@(Model.IsSlugLocked ? "readonly" : null)" /><span asp-validation-for="Input.Slug" class="field-error"></span>@if (Model.IsSlugLocked) { <small>@T["This public link is now permanent."]</small> }</div>
-                        <div class="admin-field identity-timezone-field"><label asp-for="Input.Timezone">@T["Timezone"]</label><select asp-for="Input.Timezone" class="form-select">@foreach (var timezone in Model.Timezones) { <option value="@timezone.Id">@timezone.Label</option> }</select><span asp-validation-for="Input.Timezone" class="field-error"></span><small>@T["All event times use this timezone."]</small></div>
-                        @if (Model.RequiresTimezoneReason)
-                        {
-                            <div class="admin-field identity-timezone-reason"><label asp-for="Input.TimezoneReason">@T["Reason for a post-start timezone change"]</label><input asp-for="Input.TimezoneReason" class="form-control" /><span asp-validation-for="Input.TimezoneReason" class="field-error"></span></div>
-                        }
-                        <div class="admin-field identity-description-field"><label asp-for="Input.Description">@T["Description"]</label><textarea asp-for="Input.Description" class="form-control" rows="5"></textarea><span asp-validation-for="Input.Description" class="field-error"></span></div>
+                        <div class="admin-field"><label asp-for="Input.Name">@T["Event name"]</label><input asp-for="Input.Name" class="form-control" readonly="@(Model.EventState == EventState.Live ? "readonly" : null)" /><span asp-validation-for="Input.Name" class="field-error"></span></div>
+                        <div class="admin-field"><label asp-for="Input.Slug">@T["Event link"]</label><input asp-for="Input.Slug" class="form-control" readonly="@(Model.IsSlugLocked || Model.EventState == EventState.Live ? "readonly" : null)" /><span asp-validation-for="Input.Slug" class="field-error"></span>@if (Model.IsSlugLocked) { <small>@T["This public link is now permanent."]</small> }</div>
+                        <div class="admin-field identity-timezone-field"><label asp-for="Input.Timezone">@T["Timezone"]</label><select asp-for="Input.Timezone" class="form-select" disabled="@(Model.EventState == EventState.Live ? "disabled" : null)">@foreach (var timezone in Model.Timezones) { <option value="@timezone.Id">@timezone.Label</option> }</select><span asp-validation-for="Input.Timezone" class="field-error"></span><small>@T["All event times use this timezone."]</small></div>
+                        <div class="admin-field identity-description-field"><label asp-for="Input.Description">@T["Description"]</label><textarea asp-for="Input.Description" class="form-control" rows="5" readonly="@(Model.EventState == EventState.Live ? "readonly" : null)"></textarea><span asp-validation-for="Input.Description" class="field-error"></span></div>
                     </div>
                 </fieldset>
 
@@ -48,7 +45,7 @@
                                 </label>
                                 @if (Model.HasBanner)
                                 {
-                                    <button class="compact-evidence-remove action-remove-x" type="submit" form="identity-remove-banner-form" aria-label="@T["Remove current banner"]">×</button>
+                                    <button class="compact-evidence-remove action-remove-x" type="submit" form="identity-remove-banner-form" aria-label="@T["Remove current banner"]" disabled="@(Model.EventState == EventState.Live ? "disabled" : null)">×</button>
                                 }
                                 else
                                 {
@@ -56,7 +53,7 @@
                                 }
                             </div>
                             <div class="evidence-input-actions identity-banner-file-input">
-                                <input id="identity-banner-input" asp-for="Input.Banner" class="form-control" accept="image/png,image/jpeg,image/webp" aria-describedby="identity-banner-help" />
+                                <input id="identity-banner-input" asp-for="Input.Banner" class="form-control" accept="image/png,image/jpeg,image/webp" aria-describedby="identity-banner-help" disabled="@(Model.EventState == EventState.Live ? "disabled" : null)" />
                             </div>
                         </div>
                         <span asp-validation-for="Input.Banner" class="field-error"></span>
@@ -74,7 +71,7 @@
                     </div>
                 }
 
-                <div class="identity-editor-actions"><a class="admin-button-secondary" asp-page="Manage" asp-route-id="@RouteData.Values["id"]">@T["Cancel"]</a><button class="admin-button-secondary" type="submit">@T["Save identity"]</button></div>
+                <div class="identity-editor-actions"><a class="admin-button-secondary" asp-page="Manage" asp-route-id="@RouteData.Values["id"]">@T["Cancel"]</a>@if (Model.EventState == EventState.Live) { <span class="admin-form-note">@T["Identity and timezone are read-only while the event is Live."]</span> } else { <button class="admin-button-secondary" type="submit">@T["Save identity"]</button> }</div>
             </form>
         </main>
 

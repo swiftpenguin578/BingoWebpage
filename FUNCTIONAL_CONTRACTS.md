@@ -173,11 +173,11 @@ Each durable capability/journey below has one owning contract section. Shared cr
 
 **Entry and reachability:** Use the event Identity route from Admin Manage or the setup progression. The same server contract supports normal form fallback.
 
-**Authoritative happy path:** Before Live, select a supported timezone (Copenhagen is the default), save the public description, manage a stored banner, and retain the stable slug after first public exposure. Display-name changes preserve the URL; while Live, only the display timezone may be corrected.
+**Authoritative happy path:** Before Live, select a supported timezone (Copenhagen is the default), save the public description, manage a stored banner, and retain the stable slug after first public exposure. Display-name changes preserve the URL. Identity and timezone become read-only when the event enters Live.
 
 **Permissions and history:** Identity changes are Admin-authorized and audited. Banner absence is optional and never a readiness blocker. Stored UTC instants do not change merely because the display timezone changes.
 
-**Failure and recovery:** Unsupported timezone, slug conflict, stale confirmation, or banner failure leaves the prior valid value active and returns retryable feedback. A post-signup timezone change previews participant-facing local times; while Live, an Admin may correct only the display timezone with explicit confirmation and an audit reason, while slug, name, description, banner, schedule instants, and other identity values remain immutable. Schedule edits remain a separate capability.
+**Failure and recovery:** Unsupported timezone, slug conflict, stale confirmation, or banner failure leaves the prior valid value active and returns retryable feedback. A post-signup timezone change previews participant-facing local times. Live identity and timezone corrections are intentionally unavailable; explicit schedule edits remain a separate capability.
 
 **Acceptance outcome:** Admins can identify an event and make it understandable before signup without requiring decorative artwork, changing historical instants, or exposing a private draft.
 
@@ -189,9 +189,27 @@ Each durable capability/journey below has one owning contract section. Shared cr
 
 **Authoritative happy path:** Validate event start before end, establish a valid signup closing no later than start, use a configured future opening plus the persisted automatic-opening toggle for scheduled mode, or record the actual current opening for manual mode. Default submission cutoff is 30 minutes after event end and cannot precede that end. Capacity uses the posted value and an eligible increase atomically promotes the waiting queue with its ordinary audit and notifications.
 
-**Permissions and history:** An unchanged historical timestamp is accepted, but a passed boundary cannot be changed or cleared and every newly entered or changed timestamp must be future. Signup opening and automatic-opening enablement lock once that boundary passes; Signup-closed closing is read-only and Reopen alone establishes its replacement. Published start/end cannot be cleared. Draft time is optional planning information and never starts the draft. Routine Schedule mutations retain automatic actor/time/before/after audit evidence and require no written reason.
+**Permissions and history:** An unchanged historical timestamp is accepted, but a passed boundary cannot be changed or cleared and every newly entered or changed timestamp must be future. Signup opening and automatic-opening enablement lock once that boundary passes. Reopening manually closed signup reuses its configured close when that close remains future; otherwise Reopen establishes and confirms a replacement future close. Published start/end cannot be cleared. Draft time is optional planning information and never starts the draft. Routine pre-Live Schedule mutations retain automatic actor/time/before/after audit evidence and require no written reason; changing a future end while Live additionally requires confirmation and a written reason.
 
-**Failure and recovery:** A missing/invalid schedule blocks the transition; manual-opening defaults are previewed and committed only inside the successful transaction. Schedule shows one server-recomputed confirmation containing only actual changes, derived cutoff/capacity-promotion effects, and current warnings when the event is public or warnings exist; private warning-free changes save immediately. Scheduled readiness failure leaves signup closed and alerts Admins. Signup-open/closed edits recheck non-overlap, and a linked Wise Old Man competition must remain within five minutes of the proposed event interval. Timezone changes alter display only; explicit schedule edits alter stored instants and retain before/after history.
+The following matrix is the authoritative editability contract. `Edit` means the value is available through Schedule, `Action` means only the named lifecycle action may change or reuse it, and `Locked` means it is retained as read-only history.
+
+| Schedule value | Private Draft | Signup Open | Signup Closed, draft not started | Draft Running/Paused | Draft Finalized, pre-Live | Live | Final Review | Finalized / Archived / Cancelled |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Signup opening | Edit while future | Locked | Locked | Locked | Locked | Locked | Locked | Locked |
+| Automatic signup opening | Edit before the opening boundary | Locked/off | Locked/off | Locked | Locked | Locked | Locked | Locked |
+| Signup closing | Edit while future | Edit while future | Action: Reopen reuses the configured close when it remains future; otherwise it establishes and confirms a replacement future close | Locked | Locked | Locked | Locked | Locked |
+| Draft time | Edit while future | Edit while future | Edit while future | Locked | Locked | Locked | Locked | Locked |
+| Event start | Edit while future | Edit while future | Edit while future | Locked | Edit while its existing boundary remains future | Locked as actual/history | Locked | Locked |
+| Event end | Edit while future | Edit while future | Edit while future | Locked | Edit while its existing boundary remains future | Edit to another future time with confirmation and reason | Action: Resume reuses the configured end when it remains future; otherwise it requires a replacement future end; confirmation and reason are always required | Locked |
+| Normal submission cutoff | Derived as event end plus 30 minutes; never directly editable | Same | Same | Same | Same | Re-derived when a future event end changes | Historical | Locked |
+| Reopened submission cutoff | Unavailable | Unavailable | Unavailable | Unavailable | Unavailable | Unavailable | Action: Reopen submissions with a future cutoff and reason | Locked |
+| Participant capacity | Edit | Edit; an increase may promote waiting participants | Edit before draft start | Locked | Locked | Locked | Locked | Locked |
+
+Actual signup opening/closing, actual event start/end, submission closure, finalization, archival, and cancellation timestamps are system-recorded history and are never ordinary Schedule inputs. Hidden events expose only SuperAdmin restoration, and Discarded events expose no event workspace.
+
+While the team draft is Running or Paused, the complete schedule is locked. Once the draft is Finalized but before Live, signup dates, draft time, and capacity remain locked, while a still-future event start or end may change. Every accepted schedule change rechecks ordering, operational-window overlap, and any linked Wise Old Man competition's five-minute window tolerance; changing event end atomically re-derives the normal submission cutoff and commits its audit evidence in the same transaction.
+
+**Failure and recovery:** A missing/invalid schedule blocks the transition; manual-opening defaults are previewed and committed only inside the successful transaction. Schedule shows one server-recomputed confirmation containing only actual changes, derived cutoff/capacity-promotion effects, and current warnings when the event is public or warnings exist; private warning-free changes save immediately. Scheduled readiness failure leaves signup closed and alerts Admins. A postponed start does not close its own recovery path: while the event has not actually started and its configured end remains future, Admins may complete pre-Live roster corrections, draft finalization, and board publication, then start manually without rewriting the missed configured start. If the configured end has also passed, start fails closed and the event must be cancelled or replaced. Signup-open/closed edits recheck non-overlap, and a linked Wise Old Man competition must remain within five minutes of the proposed event interval. Timezone changes alter display only; explicit schedule edits alter stored instants and retain before/after history.
 
 **Acceptance outcome:** Manual and scheduled opening share one readiness contract, closing and cutoff boundaries remain valid, and delayed processing never backdates or extends competitive eligibility.
 
@@ -301,19 +319,19 @@ unchanged.
 
 **Acceptance outcome:** The exact-link table is reachable when intended, useful for public signup, and unable to expose private identity, payment, security, or Admin data.
 
-### 5.5 `ADM-PARTICIPANT-01` — Pre-draft participant administration
+### 5.5 `ADM-PARTICIPANT-01` — Participant administration and retained private metadata
 
-**Actors and outcome:** An enabled Admin manages confirmed, waiting, and withdrawn participants from one event workspace, including private payment and notes, corrections, internal additions, and ownership actions.
+**Actors and outcome:** An enabled Admin manages confirmed, waiting, and withdrawn participants from one event workspace, including private payment and notes, pre-draft corrections and internal additions, and explicit ownership actions.
 
-**Entry and reachability:** Admin Manage → Participants is the authoritative workspace. Detail and responsive route forms are projections of the same event-level service, not independent participant stores.
+**Entry and reachability:** Admin Manage → Participants is the authoritative workspace. Detail and responsive route forms are projections of the same event-level service, not independent participant stores. Retained participant detail remains reachable to an Admin when a terminal event permits only payment or private-note maintenance; every other control on that view remains independently lifecycle-gated.
 
 **Authoritative happy path:** Search/filter status, queue, source, identity-link state, team state, accounts/EHB, captain volunteer, public answers, payment, and notes. Correct answers/accounts with the same validation and reservations. Add an internal participant through Admin authorization using ordinary capacity and waiting-list rules; keep external/pre-formed roster members outside this pool.
 
-**Permissions and history:** Payment is private binary Paid/Unpaid. Corrections preserve queue/status; withdrawal uses one Withdrawn state with actor history. Admin action, account correction, restoration, and withdrawal notify a linked participant where the capability says so; payment, notes, and ordinary answer corrections do not.
+**Permissions and history:** Payment is private binary Paid/Unpaid. Payment and private Admin notes remain editable and audited in every retained visible lifecycle state, including during the team draft and after Finalized, Archived, or Cancelled; Hidden and Discarded events remain inaccessible. Participant answers, registered accounts, queue, roster, evidence, and competitive history do not become editable merely because these private fields remain available. Corrections preserve queue/status; withdrawal uses one Withdrawn state with actor history. Admin action, account correction, restoration, and withdrawal notify a linked participant where the capability says so; payment, notes, and ordinary answer corrections do not.
 
 **Failure and recovery:** Conflicting corrections fail atomically. An unavailable character or capacity limit is shown before mutation. Withdrawn records retain history and release current reservations before any promotion transaction.
 
-**Acceptance outcome:** Admins can correct and operate the pre-draft roster without changing public privacy, queue order, account uniqueness, or the separate external-team boundary.
+**Acceptance outcome:** Admins can correct and operate the pre-draft roster and maintain retained private payment/note records without changing public privacy, queue order, account uniqueness, competitive history, or the separate external-team boundary.
 
 ### 5.6 `ADM-PARTICIPANT-02` and `ADM-CAPTAIN-01` — Post-draft exceptions
 
@@ -323,7 +341,7 @@ unchanged.
 
 **Authoritative happy path:** After draft start, self-withdrawal is unavailable. Admin withdrawal revokes current website event/team mutation authority and preserves membership, account reservations, evidence, and contribution history. Replacement is selected explicitly from the available waiting list or created as a validated internal replacement. It joins the chosen team prospectively; the draft ledger is not rewritten.
 
-**Permissions and history:** Captain/co-captain changes apply to current active memberships immediately. Every team needs a Captain or enabled emergency credential for event-start readiness; co-captain alone does not satisfy it. Role, withdrawal, vacancy, replacement, and effective eligibility history is preserved. There is no automatic post-draft promotion.
+**Permissions and history:** Captain/co-captain changes apply to current active memberships immediately and remain available through Live and Final Review only while the active submission window still accepts uploads. Every team needs a Captain or enabled emergency credential for event-start readiness; co-captain alone does not satisfy it. An explicit participant-ownership transfer is available through Final Review, requires strong confirmation, preserves competitive history, and remains unavailable in Finalized, Archived, Cancelled, Hidden, or Discarded. Role, ownership, withdrawal, vacancy, replacement, and effective eligibility history is preserved. There is no automatic post-draft promotion.
 
 **Failure and recovery:** A stale vacancy, unavailable replacement, duplicate account, or invalid role target fails without changing the roster. A live withdrawal ends drop eligibility at the approved whole-minute boundary; a live replacement begins prospectively at its own boundary, leaving any gap real. Missing final Captain creates an urgent action but does not pause Live.
 
@@ -339,9 +357,9 @@ unchanged.
 
 **Authoritative happy path:** Drafted-team count and roster distribution derive from active drafted teams and confirmed internal participants. Pre-formed teams, waiting/withdrawn participants, and external rosters are outside the pool. The controller scrambles before the first active pick, records immutable active snake picks, supports pause/resume and repeated latest-pick undo, then finalizes balanced teams with a Captain on every drafted team.
 
-**Permissions and history:** The controller lease, pick ledger, team metadata, formation type, membership, and roster publication are server-authoritative. Finalization publishes rosters and effective pick order, not undone attempts or internal controller data. Team name/image/affiliation changes remain available before event start under ordinary history rules.
+**Permissions and history:** The controller lease, pick ledger, team metadata, formation type, membership, and roster publication are server-authoritative. Finalization publishes rosters and effective pick order, not undone attempts or internal controller data. Team name/image/affiliation changes remain available until the event actually starts under ordinary history rules.
 
-**Failure and recovery:** Missing teams, Captain, participant assignment, balanced distribution, or stale controller lease blocks start/finalization and names the direct resolution. A finalized draft can be reopened before event start with strong confirmation and written reason; structure remains locked, history is retained, and re-finalization republishes the corrected projection.
+**Failure and recovery:** Missing teams, Captain, participant assignment, balanced distribution, or stale controller lease blocks start/finalization and names the direct resolution. A finalized draft can be reopened before the event actually starts with strong confirmation and written reason; structure remains locked, history is retained, and re-finalization republishes the corrected projection. A missed configured start does not block roster correction, draft finalization/reopening, or re-finalization while the event remains pre-Live and its configured end remains future.
 
 **Acceptance outcome:** Draft setup has no independent team-count/target-size authority, snake order and undo are deterministic, pre-formed rosters stay separate, and roster publication does not publish the board or start the event.
 
@@ -351,9 +369,9 @@ unchanged.
 
 **Entry and reachability:** Admin Manage → Board is the editor. Preview uses the public board treatment and inherits the public Board ecosystem's visual status; direct public board/team/tile routes remain the normal destinations after publication.
 
-**Authoritative happy path:** Fill every grid position with valid tile/objective data and automatic EHB for catalogue/drop tiles or explicit EHB for custom/manual objectives. Approve in a transaction that rechecks completeness and creates an immutable approval snapshot. After draft finalization, use a separate Publish board action/transaction. Event start requires publication.
+**Authoritative happy path:** Fill every grid position with valid tile/objective data and automatic EHB for catalogue/drop tiles or explicit EHB for custom/manual objectives. Approve in a transaction that rechecks completeness and creates an immutable approval snapshot. After draft finalization, use a separately confirmed Publish board action/transaction. Event start requires publication.
 
-**Permissions and history:** Any enabled Admin may approve. Editing competitive content invalidates an unpublished approval and retains its history. Publication uses the active snapshot without recalculating from mutable catalogue data. Post-publication correction requires confirmation, a reason, a replacement snapshot, and preserved prior history.
+**Permissions and history:** Any enabled Admin may approve. Editing competitive content invalidates an unpublished approval and retains its history. Initial publication and publication of a corrected replacement both require server-enforced confirmation. Publication uses the active snapshot without recalculating from mutable catalogue data. Post-publication correction requires confirmation, a reason, a replacement snapshot, and preserved prior history; it is available only in SignupClosed, Live, or AwaitingFinalReview and is unavailable in terminal, Cancelled, Hidden, or Discarded states.
 
 **Failure and recovery:** Empty positions, invalid objectives, or missing automatic catalogue EHB block approval with diagnostics; manual override cannot repair a broken standard tile. Dismissing the post-draft publication prompt leaves rosters public and the board private. Stale approval/concurrency fails without publication residue.
 
@@ -385,7 +403,7 @@ unchanged.
 
 **Permissions and history:** Automatic start never bypasses gates or backdates eligibility. Early manual start requires strong confirmation and a written reason. Scheduled attempt occurrence, blocker state, actual start, and audit remain distinct.
 
-**Failure and recovery:** A blocked attempt leaves the event pre-live, retains the configured instant, records visible failure, and does not retry into an unexpected start. Clearing blockers followed by Start event now is the recovery.
+**Failure and recovery:** A blocked attempt leaves the event pre-live, retains the configured instant, records visible failure, and does not retry into an unexpected start. Clearing blockers followed by Start event now is the recovery even after the configured start has passed, provided the configured end remains future. If the configured end has also passed, start fails closed and the event must be cancelled or replaced.
 
 **Acceptance outcome:** A delayed or invalid deployment cannot silently start an unready event, and the Admin can identify and resolve every blocker.
 
@@ -423,7 +441,7 @@ unchanged.
 
 **Entry and reachability:** Manage exposes End event, Resume event, and cutoff state; Review and Finalize remain reachable after the transition.
 
-**Authoritative happy path:** Scheduled end uses the configured effective end even if processing is late. Early end uses confirmation time and a written reason. Uploads for in-window drops remain valid until the separate cutoff. Resume requires strong confirmation, a reason, a future replacement end, singleton clearance, and prospective Live eligibility.
+**Authoritative happy path:** Scheduled end uses the configured effective end even if processing is late. Early end uses confirmation time and a written reason. Uploads for in-window drops remain valid until the separate cutoff. Resume requires strong confirmation, a reason, singleton clearance, and prospective Live eligibility. It reuses the configured end when that instant remains future; otherwise it requires a replacement future end. A supplied replacement end remains optional when the retained configured end is still future.
 
 **Permissions and history:** Event end does not rewrite the original schedule, submission cutoff, evidence, swaps, focus, or prior roster history. Resume preserves the final-review interval and all records made during it; it is not available from Finalized or Archived.
 
@@ -627,7 +645,7 @@ distinct where specified.
 
 **Permissions and history:** Wise Old Man is read-only and supplementary. Every regular `PLAYING` event assignment may contribute full cached competition delta; informational/alts are excluded. Cached activity is not official results and never changes signup snapshots, evidence credit, lifecycle readiness, or finalization authority. Public/team projections expose only privacy-safe matched totals, provisional/partial state, and coverage counts; exact missing names remain Admin-only.
 
-**Failure and recovery:** Rate limit, unavailable, malformed, not-found, or partial responses produce accurate retry/incomplete/manual-entry feedback and never clear a valid entered EHB or the owner-linked My Accounts value or block an event transition. Missing accounts have no zero or carried-forward value; zero matches show no rankings. Sync stops outside Live, retains readable cache, and resumes only on a legitimate return to Live. No Wise Old Man notification family or per-viewer request is introduced.
+**Failure and recovery:** Rate limit, unavailable, malformed, not-found, or partial responses produce accurate retry/incomplete/manual-entry feedback and never clear a valid entered EHB or the owner-linked My Accounts value or block an event transition. Missing accounts have no zero or carried-forward value; zero matches show no rankings. During Live, an Admin may replace a failed competition integration only with a validated competition whose window already matches the event within five minutes; Live replacement cannot clear the integration or synchronize the event schedule. Sync stops outside Live, retains readable cache, and resumes only on a legitimate return to Live. No Wise Old Man notification family or per-viewer request is introduced.
 
 **Acceptance outcome:** WoM provides only explicit account lookup and cached Live competition activity, with manual EHB and the Bingo event model remaining authoritative and public output privacy-safe.
 
@@ -647,7 +665,7 @@ distinct where specified.
 
 ## 10. Unresolved and deferred decisions
 
-- **F-04 — resolved:** while an event is Live, an Admin may correct only its display timezone with explicit confirmation and an audit reason. The slug, name, description, banner, UTC schedule/cutoff instants, and every other identity value remain immutable; no broader Live identity editing is authorized.
+- **F-04 — resolved:** event identity and display timezone remain read-only once an event enters Live. The separately authorized Live event-end correction is a Schedule capability and does not reopen identity editing.
 - **F-06 — resolved:** the source-controlled `/HowTo` guide is implemented as five anchor-linked steps covering event discovery, signup, board progress, evidence submission, and review tracking. The global Rules page remains a separate functional boundary; no in-application editor is added for How To content.
 - External feedback remains deferred to the community Discord path; no version-one application feedback form is added.
 - Wise Old Man availability, cache completeness, and integration configuration remain non-blocking for event lifecycle; detailed API/operational limits stay in the technical and data authorities.
@@ -665,4 +683,4 @@ The version-one functional foundation described here defines the following outco
 - Captain/co-captain, Super Admin, ordinary Admin, participant, emergency credential, and public projections each receive only their intended scope.
 - Notifications resolve to valid destinations and remain supplementary to the underlying event, roster, evidence, account, or lifecycle record.
 - Development reset provides explicit, bounded manual-acceptance journeys; production does not inherit the fixture exemption.
-- F-06 is resolved by the implemented source-controlled How To guide. F-04 is resolved by the narrow Live display-timezone correction above; F-05 is resolved by documentation reconciliation. Wise Old Man remains optional/supplementary, manual signup EHB remains authoritative, and no lifecycle action depends on it.
+- F-06 is resolved by the implemented source-controlled How To guide. F-04 is resolved by retaining Live identity/timezone read-only behavior; F-05 is resolved by documentation reconciliation. Wise Old Man remains optional/supplementary, manual signup EHB remains authoritative, and no lifecycle action depends on it.

@@ -112,6 +112,39 @@ public sealed class EventLifecycleFoundationTests
         Assert.Throws<InvalidOperationException>(() => item.ConfigureSchedule(null, null, null, Now.AddDays(3), Now.AddDays(4), 10));
     }
 
+    [Fact]
+    public void FinalizedDraftWindowChangeOnlyChangesFutureEventBoundariesAndRedrivesCutoff()
+    {
+        var item = new BingoEvent(Guid.NewGuid(), "Finalized", "finalized", "UTC", Guid.NewGuid(), Now);
+        item.ConfigureSchedule(Now.AddHours(-1), Now.AddHours(1), null, Now.AddDays(1), Now.AddDays(2), 10);
+        item.OpenSignups(Now);
+        item.CloseSignups(Now);
+        item.SetDraftLocked(true);
+
+        item.ConfigureFinalizedDraftEventWindow(Now.AddDays(3), Now.AddDays(5));
+
+        Assert.Equal(Now.AddHours(-1), item.SignupOpensAt);
+        Assert.Equal(Now.AddHours(1), item.SignupClosesAt);
+        Assert.Equal(10, item.ParticipantCap);
+        Assert.Equal(Now.AddDays(5).AddMinutes(30), item.SubmissionCutoffAt);
+    }
+
+    [Fact]
+    public void LiveEventEndChangeRequiresAFutureEndAndRedrivesCutoff()
+    {
+        var item = new BingoEvent(Guid.NewGuid(), "Live", "live", "UTC", Guid.NewGuid(), Now);
+        item.ConfigureSchedule(null, null, null, Now.AddHours(-1), Now.AddDays(1), 10);
+        item.OpenSignups(Now.AddHours(-2));
+        item.CloseSignups(Now.AddHours(-1));
+        item.StartEvent(Now);
+
+        item.ChangeLiveEventEnd(Now.AddDays(2), Now);
+
+        Assert.Equal(Now.AddDays(2), item.EventEndsAt);
+        Assert.Equal(Now.AddDays(2).AddMinutes(30), item.SubmissionCutoffAt);
+        Assert.Throws<InvalidOperationException>(() => item.ChangeLiveEventEnd(Now, Now));
+    }
+
     [Theory]
     [InlineData(0, 5)]
     [InlineData(5, 9)]

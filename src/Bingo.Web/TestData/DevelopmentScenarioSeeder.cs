@@ -126,6 +126,8 @@ public sealed class DevelopmentScenarioSeeder(
             admin.Id,
             secondaryAdmin,
             now);
+        var scheduledEvent = db.Events.Local.Single(x => x.Id == scheduledScenario.EventId);
+        scheduledEvent.ConfigureSchedule(scheduledEvent.SignupOpensAt, scheduledEvent.SignupClosesAt, scheduledEvent.DraftAt, now.AddHours(-1), now.AddDays(12), scheduledEvent.ParticipantCap);
         db.ScheduledEventStartAttempts.Add(new ScheduledEventStartAttempt(
             Guid.NewGuid(), scheduledScenario.EventId, now.AddHours(-2), now.AddHours(-1), false,
             ["BOARD_NOT_PUBLISHED", "DRAFT_NOT_FINALIZED"]));

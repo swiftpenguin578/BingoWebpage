@@ -1,7 +1,37 @@
 # Current project status
 
-**Active handoff:** 2026-09-01. This is the concise current-state handoff;
+**Active handoff:** 2026-09-03. This is the concise current-state handoff;
 historical material is preserved separately and is non-authoritative.
+
+## Admin event-functionality correction handoff — 2026-09-03
+
+- Isolated working tree: `/private/tmp/BingoWebpage-admin-event-functionality`,
+  branch `admin-event-functionality` from `origin/main`. The dirty saved
+  `feature/boss-artwork` checkout remains untouched.
+- The approved four-pass implementation contract is in `DELIVERY_PLAN.md`
+  section 5. The one independent Sol High readiness review is complete; its
+  five required plan corrections are incorporated, no product decision remains,
+  and the zero-new-infrastructure complexity budget holds.
+- Pass 1 is implemented and stops at its planned boundary: Live identity and
+  timezone lock, the authoritative schedule matrix, Live end correction,
+  retained-future Resume/reopen behavior, postponed-start recovery, atomic
+  capacity/audit behavior, durable promotion notification routing, and the
+  bounded TEST 05 fixture.
+- Focused verification passed: Web and BrowserTests Release builds with zero
+  warnings/errors; 99 domain, 10 identity, 14 schedule, 11 scheduled-lifecycle,
+  8 capacity/promotion, 15 application-contract, and 8 Wise Old Man
+  synchronization tests; `git diff --check` also passes.
+- The user-approved risk-based independent Sol High Pass 1 review completed on
+  2026-09-04. Its two blockers are remediated: the aggregate draft lock again
+  prevents Wise Old Man synchronization from bypassing the schedule matrix, and
+  promotion-notification proof now follows the stored Confirmation destination
+  as the promoted account. The affected Release build, 11 Wise Old Man tests,
+  one promotion-destination test, and `git diff --check` pass. The fixes-only
+  independent Sol High re-review passed with no remediation-local defect or
+  scope expansion.
+- Manual/browser acceptance was intentionally not run. Pass 1 is cleared; the
+  next permitted implementation action is Pass 2 only after user authorization.
+  Nothing is staged, committed, pushed, merged, or deployed.
 
 ## Canonical checkout
 
@@ -744,9 +774,9 @@ passes as product or UI approval.
 
 ## Explicit unresolved decisions
 
-- **F-04:** resolved; while Live, Admin may correct only the display timezone
-  with explicit confirmation and an audit reason. Other identity values and UTC
-  schedule/cutoff instants remain immutable.
+- **F-04:** resolved; event identity and display timezone are read-only in Live.
+  The separately approved Live event-end correction belongs to Schedule and
+  does not reopen identity editing.
 - **F-06:** resolved by the approved five-step `/HowTo` guide; no Rules editor,
   sixth step, or in-application HowTo editor is in scope.
 ## Immediate ownership and stop rules
@@ -991,8 +1021,8 @@ interaction geometry that existing references do not resolve, stop and request a
 new picture reference from the user instead of inventing the composition.
 
 The Board behavior approval and replacement-identity decision do not imply
-whole-application UI approval. F-04 is resolved by the narrow Live
-display-timezone correction described above. F-06 is resolved by the approved
+whole-application UI approval. F-04 is resolved by retaining Live identity and
+display timezone as read-only. F-06 is resolved by the approved
 five-step `/HowTo` guide committed in `50077fd`; no future content replacement
 or Rules editor is a current gate. Production launch is recorded above; the
 production Admin test event remains the next operational stage and has not run.

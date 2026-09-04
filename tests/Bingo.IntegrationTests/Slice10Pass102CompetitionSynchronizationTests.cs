@@ -402,6 +402,56 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         Assert.Equal(3, fake.Calls);
     }
 
+    [Theory]
+    [InlineData(DraftState.Running)]
+    [InlineData(DraftState.Paused)]
+    [InlineData(DraftState.Finalized)]
+    public async Task WiseOldManScheduleSynchronizationRejectsLockedDraftStatesWithoutResidue(DraftState draftState)
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var now = clock.GetUtcNow();
+        var admin = Account.CreateWebsite(Guid.NewGuid(), "locked-schedule-admin", "LOCKED-SCHEDULE-ADMIN", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var eventItem = new BingoEvent(Guid.NewGuid(), "Locked schedule", $"locked-schedule-{Guid.NewGuid():N}", "", "UTC",
+            now.AddHours(-2), now.AddHours(-1), null, now.AddDays(1), now.AddDays(2), 20, admin.Id, now);
+        eventItem.OpenSignups(now.AddHours(-2));
+        eventItem.CloseSignups(now.AddHours(-1));
+        eventItem.SetDraftLocked(true);
+        var draft = new DraftSession(Guid.NewGuid(), eventItem.Id, 2);
+        draft.Start(now.AddMinutes(-30));
+        if (draftState == DraftState.Paused) draft.Pause();
+        if (draftState == DraftState.Finalized) draft.Finalize(now.AddMinutes(-15));
+        var originalStart = eventItem.EventStartsAt;
+        var originalEnd = eventItem.EventEndsAt;
+        var originalCutoff = eventItem.SubmissionCutoffAt;
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(admin, eventItem, draft);
+            await setup.SaveChangesAsync();
+        }
+
+        var competition = new WiseOldManCompetition(98, "Locked schedule competition", now.AddHours(3), now.AddHours(4), now, []);
+        var fake = new FakeCompetitionClient([new(WiseOldManCompetitionStatus.Success, competition)]);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var result = await new EventCompetitionSynchronizationService(db, fake, new FixedStatus(), clock)
+                .ConfigureAsync(eventItem.Id, eventItem.Version, competition.Id, true, new(admin.Id, admin.LoginName));
+            Assert.False(result.Succeeded);
+            Assert.Contains("draft has started", result.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var persisted = await verify.Events.AsNoTracking().SingleAsync(x => x.Id == eventItem.Id);
+        Assert.Equal(originalStart, persisted.EventStartsAt);
+        Assert.Equal(originalEnd, persisted.EventEndsAt);
+        Assert.Equal(originalCutoff, persisted.SubmissionCutoffAt);
+        Assert.Equal(1, persisted.Version);
+        Assert.Equal(draftState, await verify.DraftSessions.Where(x => x.EventId == eventItem.Id).Select(x => x.State).SingleAsync());
+        Assert.Empty(await verify.EventCompetitionSynchronizations.Where(x => x.EventId == eventItem.Id).ToListAsync());
+        Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == eventItem.Id).ToListAsync());
+        Assert.Equal(1, fake.Calls);
+    }
+
     [Fact]
     public async Task ScheduleEditRejectsAMismatchWithTheLinkedCompetition()
     {

@@ -303,8 +303,8 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (board.Version != BoardVersion) throw new DbUpdateConcurrencyException();
             if (draft.State != DraftState.Finalized || !bingoEvent.TeamRostersPublished)
                 throw new InvalidOperationException("Finalize the team draft before publishing the board.");
-            if (bingoEvent.EventStartsAt is not { } startsAt || time.GetUtcNow() >= startsAt)
-                throw new InvalidOperationException("The board must be published before the event starts.");
+            if (bingoEvent.ActualStartedAt is not null || bingoEvent.EventEndsAt is not { } endsAt || time.GetUtcNow() >= endsAt)
+                throw new InvalidOperationException("The board must be published before the event has started and while its configured end remains in the future.");
             board.Publish(time.GetUtcNow());
             bingoEvent.SetBoardPublication(true, time.GetUtcNow());
             AddBoardAudit("board.published", board, "Validated", $"Published approval snapshot {board.ActiveApprovalSnapshotId}",

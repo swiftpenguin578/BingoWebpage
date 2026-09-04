@@ -787,6 +787,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     private sealed class NoopSignupLifecycleService : Bingo.Application.Events.IEventSignupLifecycleService
     {
         public Task<Bingo.Application.Events.SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, Bingo.Application.Events.EventScheduleValues values, bool confirmChanges, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Bingo.Application.Events.SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, Bingo.Application.Events.EventScheduleValues values, bool confirmChanges, LifecycleActor actor, string? reason, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Bingo.Application.Events.SignupLifecycleResult> OpenAsync(Guid eventId, long version, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Bingo.Application.Events.SignupLifecycleResult> CloseAsync(Guid eventId, long version, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Bingo.Application.Events.SignupLifecycleResult> ReopenAsync(Guid eventId, long version, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();

@@ -3,6 +3,7 @@ using System.Globalization;
 using Bingo.Application.Access;
 using Bingo.Application.Events;
 using Bingo.Domain.Events;
+using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
@@ -36,6 +37,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     public bool CanEditEventStart { get; private set; }
     public bool CanEditEventEnd { get; private set; }
     public bool CanEditCapacity { get; private set; }
+    public DraftState? CurrentDraftState { get; private set; }
     public SignupReadiness? Readiness { get; private set; }
     public IReadOnlyList<ScheduleChangePreview> ChangePreview { get; private set; } = [];
 
@@ -43,6 +45,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
     {
         var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
+        CurrentDraftState = await DraftStateAsync(id, ct);
         Populate(item);
         var mode = item.State == EventState.SignupClosed ? SignupOpeningMode.Reopen : item.State == EventState.Draft ? SignupOpeningMode.ScheduleOpening : SignupOpeningMode.OpenNow;
         Readiness = await readiness.GetSignupReadinessAsync(id, mode, time.GetUtcNow(), ct);
@@ -54,6 +57,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
         EventId = item.Id; EventName = item.Name;
+        CurrentDraftState = await DraftStateAsync(id, ct);
         SetDisplay(item);
         if (Input.Version != item.Version) { ModelState.AddModelError(string.Empty, Localize("This event changed while you were editing it. Review the latest values and try again.")); return await Reload(item, ct); }
         if (!TryTimezone(item.Timezone, out var timezone)) { ModelState.AddModelError(string.Empty, Localize("The event timezone is unavailable.")); return await Reload(item, ct); }
@@ -76,7 +80,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
             ChangePreview = await PreviewAsync(item, values, timezone, ct);
             return await Reload(item, ct, preserveInput: true);
         }
-        var result = await schedules.SaveScheduleAsync(id, Input.Version, values, Input.ConfirmChanges, new LifecycleActor(User.GetAccountId()!.Value, User.Identity!.Name!), ct);
+        var result = await schedules.SaveScheduleAsync(id, Input.Version, values, Input.ConfirmChanges, new LifecycleActor(User.GetAccountId()!.Value, User.Identity!.Name!), Input.EventEndReason, ct);
         if (!result.Succeeded) { ModelState.AddModelError(string.Empty, Localize(result.Error!)); ChangePreview = changed ? await PreviewAsync(item, values, timezone, ct) : []; return await Reload(item, ct, preserveInput: true); }
         TempData["StatusMessage"] = Localize("Event schedule updated."); TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
         return RedirectToPage("Manage", new { id });
@@ -136,13 +140,17 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         ScheduledSignupClosing = Display(item.SignupClosesAt, timezone);
         ScheduledSignupOpeningEnabled = item.ScheduledSignupOpeningEnabled;
         var now = time.GetUtcNow();
-        var scheduleStateEditable = (item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed) && !item.DraftLocked;
-        CanEditScheduledOpening = item.State == EventState.Draft && (item.SignupOpensAt is null || item.SignupOpensAt > now);
-        CanEditSignupClosing = scheduleStateEditable && item.State != EventState.SignupClosed && (item.SignupClosesAt is null || item.SignupClosesAt > now);
-        CanEditDraftTime = scheduleStateEditable && (item.DraftAt is null || item.DraftAt > now);
-        CanEditEventStart = scheduleStateEditable && (item.EventStartsAt is null || item.EventStartsAt > now);
-        CanEditEventEnd = scheduleStateEditable && (item.EventEndsAt is null || item.EventEndsAt > now);
-        CanEditCapacity = scheduleStateEditable;
+        var draftLockedForEditing = CurrentDraftState is DraftState.Running or DraftState.Paused;
+        var finalizedDraft = CurrentDraftState == DraftState.Finalized;
+        var preLiveSchedule = item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
+        CanEditScheduledOpening = item.State == EventState.Draft && !item.DraftLocked && (item.SignupOpensAt is null || item.SignupOpensAt > now);
+        CanEditSignupClosing = preLiveSchedule && !draftLockedForEditing && !finalizedDraft && item.State != EventState.SignupClosed && (item.SignupClosesAt is null || item.SignupClosesAt > now);
+        CanEditDraftTime = preLiveSchedule && !draftLockedForEditing && !finalizedDraft && (item.DraftAt is null || item.DraftAt > now);
+        CanEditEventStart = item.State == EventState.Live ? false : preLiveSchedule && (finalizedDraft || !draftLockedForEditing) && (item.EventStartsAt is null || item.EventStartsAt > now);
+        CanEditEventEnd = item.State == EventState.Live
+            ? item.EventEndsAt is { } liveEnd && liveEnd > now
+            : preLiveSchedule && (finalizedDraft || !draftLockedForEditing) && (item.EventEndsAt is null || item.EventEndsAt > now);
+        CanEditCapacity = preLiveSchedule && !draftLockedForEditing && !finalizedDraft;
     }
     public string EventDate(DateTimeOffset value)
     {
@@ -159,6 +167,8 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         ParticipantCap = CanEditCapacity ? values.ParticipantCap : item.ParticipantCap,
         ScheduledSignupOpeningEnabled = CanEditScheduledOpening ? values.ScheduledSignupOpeningEnabled && values.SignupOpensAt is not null : item.ScheduledSignupOpeningEnabled
     };
+    private Task<DraftState?> DraftStateAsync(Guid eventId, CancellationToken ct) =>
+        db.DraftSessions.AsNoTracking().Where(x => x.EventId == eventId).Select(x => (DraftState?)x.State).SingleOrDefaultAsync(ct);
     private async Task<IReadOnlyList<ScheduleChangePreview>> PreviewAsync(BingoEvent item, EventScheduleValues values, TimeZoneInfo timezone, CancellationToken ct)
     {
         var preview = new List<ScheduleChangePreview>();
@@ -200,6 +210,7 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
         [Range(1, 10000)] public int? ParticipantCap { get; set; }
         public bool ScheduledSignupOpeningEnabled { get; set; }
         public bool ConfirmChanges { get; set; }
+        [StringLength(2000)] public string? EventEndReason { get; set; }
         public long Version { get; set; }
     }
 }

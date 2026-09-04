@@ -1307,7 +1307,6 @@
   <data name="Reason" xml:space="preserve"><value>Begrundelse</value></data>
   <data name="Reason (required before the configured end)" xml:space="preserve"><value>Begrundelse (påkrævet før den konfigurerede afslutning)</value></data>
   <data name="Reason (required before the configured start)" xml:space="preserve"><value>Begrundelse (påkrævet før den konfigurerede start)</value></data>
-  <data name="Reason for a post-start timezone change" xml:space="preserve"><value>Begrundelse for ændring af tidszone efter start</value></data>
   <data name="Recent Admin activity" xml:space="preserve"><value>Seneste Admin-aktivitet</value></data>
   <data name="Registration capacity" xml:space="preserve"><value>Tilmeldingskapacitet</value></data>
   <data name="Reject evidence" xml:space="preserve"><value>Afvis bevis</value></data>
