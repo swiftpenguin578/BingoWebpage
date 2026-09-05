@@ -97,7 +97,7 @@ An authenticated participant can:
 - View their event and team access
 - Submit evidence for themselves when the event/evidence workflow allows it
 - Open a normal authenticated `/Submissions` ledger containing the complete retained history of their current authorized team, including records credited to departed teammates
-- Open `/Submissions/{id:guid}` for any retained submission in that current team; only the credited owner may edit pending evidence, replace its active screenshot, withdraw through cutoff, or create its one linked resubmission after rejection, while every other state and teammate-owned row is read-only
+- Open `/Submissions/{id:guid}` for any retained submission in that current team; only the credited owner may edit pending evidence, replace its active screenshot, withdraw through cutoff, or create its one linked correction after rejection or reversal, while every other state and teammate-owned row is read-only
 - Read team-visible rejection feedback and retained evidence assets when currently authorized; replaced screenshot assets remain retained history
 - Manage a flexible global **My accounts** list with optional personal labels, saved per-link EHB defaults, and ordering whose first active character is the sole preferred character
 - Register several available characters for an event while keeping exactly one active and drop-eligible at a time
@@ -167,7 +167,14 @@ Team focus may target a tile, full row, or full column. It is shared by that tea
 
 ### 5.3 Admin and reviewer
 
-Admins use permanent accounts. An admin may also participate in the event or captain a team. Admins are trusted and may review their own team's submissions.
+Admins use permanent accounts. An Admin or Super Admin may also participate in an
+event or captain/co-captain a team. The global role is additive: when the same
+account has a genuine event Participant, Captain, or Co-captain role, participant
+navigation, team visibility, and submission authority follow that event role and
+its ordinary lifecycle/cutoff. Global status alone grants none of those team
+capabilities and never upgrades one event role into another. Admin review remains
+a separate global capability, including review of the Admin's own team's
+submissions.
 
 They can:
 
@@ -180,7 +187,8 @@ They can:
 - Manage bosses, activities, items, drops, rates, and EHB values
 - Build and deliberately arrange bingo boards
 - Operate and publish the draft
-- Submit evidence for any team when necessary
+- Submit or manage team evidence only through a genuine Participant, Captain, or
+  Co-captain role; global Admin review does not impersonate a team member
 - Review, approve, and reject evidence
 - Correct submission metadata before approval
 - Reverse approved submissions
@@ -196,6 +204,10 @@ hidden events only through the clearly separated Hidden area of Events Control,
 where the limited Manage surface shows retained lifecycle information and
 hide/restore audit history. Super Admin status never bypasses hidden-event
 protection on public routes or ordinary event workspaces.
+
+Automatic Captain status and any new general cross-team submission inspection or
+correction mode for Super Admin are deferred. This does not change the existing
+explicit, read-only team-focus support view described below.
 
 ### 5.4 Super Admin
 
@@ -679,6 +691,17 @@ Before accepting a submission, the system checks that:
 - Duplicate and per-drop cap rules are respected.
 - The same approved submission cannot be allocated to multiple tiles.
 
+For a duplicate-disabled requirement, duplicate identity is the immutable shared
+catalogue item captured by the event/approval snapshot, not a source-specific
+drop, image, or submission identifier. Alternative source rows for one item remain
+valid. Allocation groups by team, requirement, and item identity; a missing
+explicit cap means `1`, and every alias in that requirement must have the same
+effective cap or board approval fails. The same item may independently satisfy a
+different sibling requirement. Progress, completion, reversal, and rebalancing
+remain isolated by requirement; fulfillment never carries into a sibling
+objective. Retargeting Pending evidence recomputes the authoritative destination
+requirement/drop weight rather than carrying the old target's weight.
+
 ## 13. Submission review lifecycle
 
 Submission states are:
@@ -704,7 +727,7 @@ Editable metadata includes:
 - Credited playing account, from which the event participant is derived
 - Qualifying drop and its derived boss/activity
 
-These material corrections require a written reason, revalidate the complete submission, and store the original and new values. Credited participant is not independently editable. Immutable server submission time, snapshot contribution weight, calculated contribution, and the submitted evidence image are not administrator-editable.
+These material corrections require a written reason, revalidate the complete submission, and store the original and new values. Credited participant is not independently editable. Immutable server submission time, calculated contribution, and the submitted evidence image are not administrator-editable. Snapshot contribution weight is not manually editable; changing requirement/drop replaces it with the authoritative frozen weight of the selected destination.
 
 Every review shows:
 
@@ -713,6 +736,14 @@ Every review shows:
 Only when submission occurred after the authoritative event end, the review additionally shows the calculated number of minutes after event end and **Latest clan event time:** the authoritative end formatted in UTC. The administrator compares the timestamp visible in the screenshot with that boundary. A drop shown after it is ineligible even though the website still accepts uploads during grace. The submission cutoff is enforced by the application but need not be repeated in this compact visual comparison.
 
 A duplicate, unusable screenshot, or other invalid attempt is rejected with the required reason. There is no request-changes or special duplicate review state. While the active upload window remains open, the rejected-submission view offers **Resubmit**. It creates a new submission, prefills the rejected attempt's structured values and note, and requires a newly uploaded screenshot. The submitter may correct ordinary structured choices such as tile/requirement or qualifying drop, but the originally credited participant and playing account are copied and read-only even if that participant has since swapped. The new record links to the rejected record, receives its own immutable server submission time and review history, and undergoes normal validation. Rejection never reopens or extends the upload window, and the rejected record remains historical.
+
+A Reversed submission is likewise immutable and cannot be directly re-approved.
+While the ordinary or explicitly reopened upload window permits new evidence, it
+may have exactly one direct linked corrected child requiring a new image. That
+child starts Pending and follows normal review; approval creates a new active
+contribution while the reversed contribution remains inactive. Rejected and
+Reversed attempts each permit at most one direct child under retry/concurrency,
+and a closed window requires the existing reasoned Admin reopen action.
 
 Rejection creates an idempotent in-site notification containing the reason for the linked credited participant and every current linked captain/co-captain on the team. It does not notify the whole roster. When the credited participant is unlinked, captains/co-captains remain the notification recipients. Every personal recipient is routed to `/Submissions/{id:guid}`; the destination independently authorizes the credited participant's current-team scope or the existing team-scoped Captain/co-captain/emergency authority. Relevant general submission navigation resolves to `/Submissions`, while Admin review notifications remain `/Admin/Review/Details/{id}`.
 
@@ -725,10 +756,16 @@ Reversing an approval:
 - Reallocates newly available capacity to later approved evidence up to its original eligible claim
 - Records the admin, time, and reason
 - Preserves the submission and its history
+- Writes the main immutable audit entry in the same transaction
+
+Submission creation and eligible participant/Captain/Co-captain/emergency edits,
+replacements, withdrawals, and linked corrections also write the main immutable
+audit entry in the same transaction. Submission-local review history supplements
+rather than replaces that audit trail.
 
 ## 14. Evidence visibility
 
-- A current member of an event team may view that team's complete retained submission history, including records credited to departed teammates, when currently authorized; former members and cross-team viewers fail closed.
+- A current member of an event team may view that team's complete retained submission history, including records credited to departed teammates, when currently authorized. Former members and cross-team viewers fail closed except that, after archive, a former credited owner may reach only their own retained Rejected/Withdrawn submission detail and evidence asset read-only through the existing account-history destination.
 - Only the credited owner may mutate their own eligible submission; captains/co-captains retain their server-authorized broader editing scope for eligible submissions in their current team.
 - Approved evidence metadata, credited player, and screenshot are publicly visible from the relevant tile so the community can inspect accepted evidence.
 - Other teams do not see pending progress.
@@ -1010,7 +1047,7 @@ Hidden events are excluded from every public listing, event history, account
 history, submission/evidence view, notification/action destination, and
 realtime projection. Their guessed or direct public event URLs return 404.
 
-Archived events keep the same public board/team/tile/result routes. Signed-in current members of an archived event team may read that team's complete retained submission history through `/Submissions` and its detail route, including rows credited to departed teammates; former members without current membership, anonymous users, and cross-team viewers fail closed, and every event mutation is removed. There is no separate archived-participant dashboard.
+Archived events keep the same public board/team/tile/result routes. Signed-in current members of an archived event team may read that team's complete retained submission history through `/Submissions` and its detail route, including rows credited to departed teammates. A former credited owner may follow the existing account-history destination to only their own retained Rejected/Withdrawn submission detail and `/Evidence/{assetId}` read-only; no team ledger, teammate record, other private state, or mutation becomes available. Other former members, anonymous users, and cross-team viewers fail closed. There is no separate archived-participant dashboard.
 
 ### 19.2 Canonical authenticated submission pages
 

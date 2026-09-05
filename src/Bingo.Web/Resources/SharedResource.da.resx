@@ -573,6 +573,8 @@
   <data name="That move is not available." xml:space="preserve"><value>Den flytning er ikke mulig.</value></data>
   <data name="That corrected character already has a separate My Accounts link." xml:space="preserve"><value>Den rettede karakter har allerede en separat tilknytning i Mine konti.</value></data>
   <data name="EHB cannot be negative." xml:space="preserve"><value>EHB kan ikke være negativ.</value></data>
+  <data name="EHB must be a valid number." xml:space="preserve"><value>EHB skal være et gyldigt tal.</value></data>
+  <data name="EHB must be between 0 and 100000." xml:space="preserve"><value>EHB skal være mellem 0 og 100000.</value></data>
   <data name="Your My Accounts changes conflicted with another update. Please reload and try again." xml:space="preserve"><value>Dine ændringer i Mine konti var i konflikt med en anden opdatering. Genindlæs og prøv igen.</value></data>
   <data name="Event discarded." xml:space="preserve"><value>Eventet blev kasseret.</value></data>
   <data name="Event cancelled" xml:space="preserve"><value>Event aflyst</value></data>

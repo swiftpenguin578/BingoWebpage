@@ -220,6 +220,8 @@ public sealed class AccessBoundaryTests : IClassFixture<WebApplicationFactory<Pr
             Assert.Equal("Ny adgangskode", text["New password"]);
             Assert.Equal("Bekræft adgangskode", text["Confirm password"]);
             Assert.Equal("Bekræft ny adgangskode", text["Confirm new password"]);
+            Assert.Equal("EHB skal være et gyldigt tal.", text["EHB must be a valid number."]);
+            Assert.Equal("EHB skal være mellem 0 og 100000.", text["EHB must be between 0 and 100000."]);
             Assert.Equal("Ingen notifikationer.", text["No notifications."]);
         }
         finally { CultureInfo.CurrentUICulture = originalCulture; }

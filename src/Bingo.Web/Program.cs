@@ -468,6 +468,10 @@ if (args.Contains("--reset-test-data", StringComparer.Ordinal))
 
     Console.WriteLine($"Test database reset complete. Preserved admin: {result.AdminUsername}");
     Console.WriteLine($"Second admin for concurrency tests: {result.SecondaryAdminUsername} / {result.SecondaryAdminPassword}");
+    Console.WriteLine($"Global-only Admin: {result.GlobalAdminUsername} / {result.GlobalAdminPassword}");
+    Console.WriteLine($"Admin+Participant: {result.AdminParticipantUsername} / {result.AdminParticipantPassword}");
+    Console.WriteLine($"Admin+Captain: {result.AdminCaptainUsername} / {result.AdminCaptainPassword}");
+    Console.WriteLine($"Admin+Co-captain: {result.AdminCoCaptainUsername} / {result.AdminCoCaptainPassword}");
     Console.WriteLine($"Waiting-list replacement account: {result.ReplacementUsername} / {result.ReplacementPassword}");
     Console.WriteLine($"Board blueprint: {result.BoardBlueprint}");
     foreach (var scenario in result.Scenarios)

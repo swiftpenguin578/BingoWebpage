@@ -14,6 +14,7 @@ using Bingo.Infrastructure.Security;
 using Bingo.Infrastructure.Signups;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -154,8 +155,70 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await AssertManualAsync(26m, tokens.Create("OTHER NAME", 26m, now.AddSeconds(-1), now, now.AddMinutes(5)));
     }
 
-    [Fact]
-    public async Task RenderedMyAccountsAndSignupFetchesAreExplicitAndDoNotFetchOnGetOrNormalSave()
+    [Theory]
+    [InlineData("en", "Create your website account", "17.50")]
+    [InlineData("da", "Opret din webkonto", "17,50")]
+    public async Task OnboardingFetchRenderAndPostbackRemainCultureConsistent(string culture, string heading, string displayedEhb)
+    {
+        var fake = new FakeWiseOldManPlayerLookup();
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
+            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .ConfigureServices(services =>
+            {
+                services.RemoveAll<IWiseOldManPlayerLookup>();
+                services.AddSingleton<IWiseOldManPlayerLookup>(fake);
+            }));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+
+        var discordUserId = $"onboarding-culture-{culture}-{Guid.NewGuid():N}";
+        var characterName = $"Bilingual Character {culture}";
+        var username = $"onboarding-{culture}-{Guid.NewGuid():N}";
+        var onboardingState = factory.Services.GetRequiredService<DiscordOnboardingStateService>();
+        var issue = new DefaultHttpContext();
+        onboardingState.Issue(issue.Response, discordUserId, "Bilingual onboarding");
+        client.DefaultRequestHeaders.Add("Cookie", issue.Response.Headers.SetCookie.Single()!.Split(';')[0]);
+
+        var onboarding = await client.GetStringAsync("/Account/Onboarding");
+        Assert.Contains(heading, onboarding, StringComparison.Ordinal);
+        using var fetched = await client.PostAsync("/Account/Onboarding?handler=Fetch", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.OsrsCharacterName"] = characterName,
+            ["__RequestVerificationToken"] = AntiforgeryToken(onboarding)
+        }));
+        Assert.Equal(HttpStatusCode.OK, fetched.StatusCode);
+        var fetchedPage = await fetched.Content.ReadAsStringAsync();
+        Assert.Equal(1, fake.Calls);
+        Assert.Contains(heading, fetchedPage, StringComparison.Ordinal);
+        var onboardingEhbInput = Regex.Match(fetchedPage, "<input(?=[^>]*data-onboarding-ehb)[^>]*>");
+        Assert.True(onboardingEhbInput.Success);
+        Assert.Contains("type=\"text\"", onboardingEhbInput.Value, StringComparison.Ordinal);
+        Assert.Contains("inputmode=\"decimal\"", onboardingEhbInput.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("type=\"number\"", onboardingEhbInput.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-val-number", onboardingEhbInput.Value, StringComparison.Ordinal);
+        var renderedEhb = Regex.Match(onboardingEhbInput.Value, "value=\"([^\"]*)\"").Groups[1].Value;
+        Assert.Equal(displayedEhb, renderedEhb);
+
+        using var completed = await client.PostAsync("/Account/Onboarding", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = username,
+            ["Input.OsrsCharacterName"] = characterName,
+            ["Input.SavedEhb"] = displayedEhb,
+            ["Input.Password"] = "long-bilingual-password",
+            ["Input.ConfirmPassword"] = "long-bilingual-password",
+            ["__RequestVerificationToken"] = AntiforgeryToken(fetchedPage)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, completed.StatusCode);
+
+        await using var db = new ApplicationDbContext(options);
+        var account = await db.Accounts.SingleAsync(item => item.DiscordUserId == discordUserId);
+        Assert.Equal(17.5m, await db.AccountOsrsCharacters.Where(item => item.AccountId == account.Id).Select(item => item.SavedEhb).SingleAsync());
+    }
+
+    [Theory]
+    [InlineData("en", "17.50", "17.5", "3000.10", "17.5", "18.75")]
+    [InlineData("da", "17,50", "17.5", "3000,10", "17,5", "18,75")]
+    public async Task RenderedMyAccountsAndSignupFetchesUseLocalizedEditingWithInvariantMachineTransport(string culture, string myAccountsFetchedDisplay, string machineEhb, string addFetchedDisplay, string signupFetchedDisplay, string editSavedDisplay)
     {
         var now = DateTimeOffset.UtcNow;
         Guid eventId;
@@ -187,6 +250,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
                 services.AddSingleton<IWiseOldManPlayerLookup>(fake);
             }));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
         var login = await client.GetStringAsync("/Account/Login");
         using var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -198,6 +262,11 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
         var myAccounts = await client.GetStringAsync("/Account/MyAccounts");
         Assert.Equal(0, fake.Calls);
+        var addEhbInput = Regex.Match(myAccounts, "<input(?=[^>]*\\bid=\"Add_SavedEhb\")[^>]*>");
+        Assert.True(addEhbInput.Success);
+        Assert.Contains("inputmode=\"decimal\"", addEhbInput.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("type=\"number\"", addEhbInput.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-val-number", addEhbInput.Value, StringComparison.Ordinal);
         using var fetchedDefault = await client.PostAsync("/Account/MyAccounts?handler=Fetch", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["Fetch.LinkId"] = linkId.ToString(),
@@ -210,8 +279,26 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, fetchedDefault.StatusCode);
         Assert.Equal(1, fake.Calls);
         var fetchedDefaultPage = await fetchedDefault.Content.ReadAsStringAsync();
-        Assert.Contains("value=\"17.50\"", fetchedDefaultPage, StringComparison.Ordinal);
+        Assert.Contains($"value=\"{myAccountsFetchedDisplay}\"", fetchedDefaultPage, StringComparison.Ordinal);
         await using (var verify = new ApplicationDbContext(options)) Assert.Equal(10m, await verify.AccountOsrsCharacters.Where(x => x.Id == linkId).Select(x => x.SavedEhb).SingleAsync());
+        using var updatedMyAccount = await client.PostAsync("/Account/MyAccounts?handler=Update", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Edit.LinkId"] = linkId.ToString(),
+            ["Edit.CharacterName"] = "Route WoM Main",
+            ["Edit.PersonalLabel"] = string.Empty,
+            ["Edit.SavedEhb"] = editSavedDisplay,
+            ["__RequestVerificationToken"] = AntiforgeryToken(fetchedDefaultPage)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, updatedMyAccount.StatusCode);
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            var currentLink = await verify.AccountOsrsCharacters
+                .Where(x => x.Id == linkId)
+                .Select(x => new { x.OsrsCharacterId, x.SavedEhb })
+                .SingleAsync();
+            Assert.Equal(18.75m, currentLink.SavedEhb);
+            characterId = currentLink.OsrsCharacterId;
+        }
 
         var slug = await EventSlugAsync(eventId);
         var signup = await client.GetStringAsync($"/Events/{slug}/Signup");
@@ -219,7 +306,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var fetchPost = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             [$"Input.AccountAnswers[{regularId}].OsrsCharacterId"] = characterId.ToString(),
-            [$"Input.AccountAnswers[{regularId}].Ehb"] = "17.5",
+            [$"Input.AccountAnswers[{regularId}].Ehb"] = machineEhb,
             ["Input.FetchQuestionId"] = regularId.ToString(),
             ["__RequestVerificationToken"] = AntiforgeryToken(signup)
         });
@@ -227,7 +314,8 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, fetchedSignup.StatusCode);
         var fetchedPage = await fetchedSignup.Content.ReadAsStringAsync();
         Assert.Equal(2, fake.Calls);
-        Assert.Contains("value=\"17.5\"", fetchedPage, StringComparison.Ordinal);
+        Assert.Contains($"value=\"{machineEhb}\"", fetchedPage, StringComparison.Ordinal);
+        Assert.Contains(signupFetchedDisplay, fetchedPage, StringComparison.Ordinal);
         var tokenMatch = Regex.Match(fetchedPage, $"name=\"Input.AccountAnswers\\[{Regex.Escape(regularId.ToString())}\\]\\.WiseOldManLookupToken\" value=\"([^\"]*)\"");
         Assert.True(tokenMatch.Success);
         await using (var verify = new ApplicationDbContext(options))
@@ -239,7 +327,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var normalSave = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             [$"Input.AccountAnswers[{regularId}].OsrsCharacterId"] = characterId.ToString(),
-            [$"Input.AccountAnswers[{regularId}].Ehb"] = "17.5",
+            [$"Input.AccountAnswers[{regularId}].Ehb"] = machineEhb,
             [$"Input.AccountAnswers[{regularId}].WiseOldManLookupToken"] = WebUtility.HtmlDecode(tokenMatch.Groups[1].Value),
             ["__RequestVerificationToken"] = AntiforgeryToken(fetchedPage)
         });
@@ -253,19 +341,19 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         using var fetchedAdd = await client.PostAsync("/Account/MyAccounts?handler=FetchAdd", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["Add.CharacterName"] = "Route WoM Add",
-            ["Add.SavedEhb"] = string.Empty,
+            ["Add.SavedEhb"] = culture == "da" ? "12,50" : "12.50",
             ["__RequestVerificationToken"] = AntiforgeryToken(addPage)
         }));
         Assert.Equal(HttpStatusCode.OK, fetchedAdd.StatusCode);
         var fetchedAddPage = await fetchedAdd.Content.ReadAsStringAsync();
         Assert.Equal(3, fake.Calls);
         Assert.Contains("Route WoM Add", fetchedAddPage, StringComparison.Ordinal);
-        Assert.Contains("value=\"3000.10\"", fetchedAddPage, StringComparison.Ordinal);
+        Assert.Contains($"value=\"{addFetchedDisplay}\"", fetchedAddPage, StringComparison.Ordinal);
         Assert.Equal(beforeAddLinkCount, await CountActiveLinksAsync(accountId));
         using var savedFetchedAdd = await client.PostAsync("/Account/MyAccounts?handler=Add", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["Add.CharacterName"] = "Route WoM Add",
-            ["Add.SavedEhb"] = "3000.10",
+            ["Add.SavedEhb"] = addFetchedDisplay,
             ["__RequestVerificationToken"] = AntiforgeryToken(fetchedAddPage)
         }));
         Assert.Equal(HttpStatusCode.Redirect, savedFetchedAdd.StatusCode);

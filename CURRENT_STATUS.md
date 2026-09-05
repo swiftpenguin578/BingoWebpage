@@ -103,8 +103,53 @@ historical material is preserved separately and is non-authoritative.
   hidden direct-handler assertions with the existing fail-closed boundaries;
   the affected BrowserTests theory passes 9/9, the affected IntegrationTests
   theory passes 10/10, and `git diff --check` passes. The accepted remediation
-  is ready for the authorized local package/commit. Nothing has been pushed,
-  merged, or deployed.
+  and final handoff are committed locally as `63ecd9a` (`fix: complete admin
+  event lifecycle controls`). Nothing has been pushed, merged, or deployed.
+- The Admin-test follow-up investigation is complete and the user-approved
+  implementation contract is frozen in `DELIVERY_PLAN.md` section 6. It covers
+  invariant Wise Old Man form transport, additive Admin/SuperAdmin plus genuine
+  event roles, primary-character draft finalization, immutable catalogue-item
+  duplicate identity, the complete submission/review lifecycle matrix and audit,
+  linked correction after reversal, objective-isolated retargeting, retained-history
+  privacy, bounded navigation/numbering fixes, and accessible evidence-dialog
+  zoom/pan. Automatic SuperAdmin Captain status and any new general cross-team
+  submission inspection/correction mode are deferred; the existing explicit
+  read-only team-focus inspection is unchanged.
+- The single independent read-only readiness review initially returned **NOT
+  READY** on four bounded contract gaps. The user approved objective-scoped
+  shared-item caps, and section 6.4 plus the active product/data/architecture
+  authorities now resolve all four: consistent effective alias caps, a
+  hash/fingerprint-confirmed same-connection migration mapping procedure, minimum
+  pass-owned Development fixtures and a compact manual journey, and the narrow
+  archived former-owner `/Evidence/{assetId}` boundary. The planning gate is now
+  **READY**.
+- The user authorized Section 6 Pass 1. Its implementation, independent review,
+  and fixes-only remediation are complete: Signup uses invariant hidden EHB
+  transport with localized EN/DA editing and validation; My Accounts Add/Edit/fetch
+  renders and binds in request culture; genuine Participant/Captain/Co-captain
+  membership now composes with Admin/SuperAdmin while global-only accounts remain
+  outside team scope; and Development reset has the minimum additive-role fixtures.
+  The reviewer found only missing Danish parser resources and non-discriminating
+  Onboarding proof; both are corrected. Web, BrowserTests, and IntegrationTests
+  Release builds passed; the implementer's three browser and six focused integration
+  cases passed; final remediation's two Signup/My Accounts plus two Onboarding
+  culture cases pass. A fresh fixes-only closure review found one remaining test-only
+  gap: the two Danish parser resources lacked direct localization assertions. Those
+  exact assertions are now present, their focused test passes 1/1, and
+  `git diff --check` passes. AF-01 then exposed two real-browser/reachability gaps:
+  My Accounts and Onboarding still emitted the invariant numeric client validator,
+  and retained Finalized/Archived memberships suppressed current Participant header
+  navigation. Focused remediation now gives My Accounts and Onboarding the same
+  localized text/decimal boundary, keeps Signup's hidden invariant transport, and
+  resolves Participant/Captain navigation to the sole Live team or, when none is
+  Live, the sole Awaiting Final Review team. The four EN/DA culture cases and the
+  focused navigation integration test pass; `git diff --check` passes. The user
+  manually accepted the reachable Signup, My Accounts, additive-role, and header
+  journeys on 2026-09-05. Local Discord OAuth cannot reach Onboarding because its
+  callback is not localhost; the user accepted its discriminating EN/DA rendered
+  control plus persisted-comma integration proof in place of that manual step.
+  **Pass 1 is complete.** Do not begin Pass 2, package, commit, push, merge, or
+  deploy without the next authorized gate.
 
 ## Canonical checkout
 

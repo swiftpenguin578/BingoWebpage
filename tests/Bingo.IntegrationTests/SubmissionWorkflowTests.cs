@@ -79,6 +79,42 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         Assert.All(preCommitStorage.DeleteTokens, token => Assert.False(token.IsCancellationRequested));
     }
 
+    [Theory]
+    [InlineData(GlobalRole.Admin, TeamMembershipRole.Participant, EvidenceActorKind.Participant)]
+    [InlineData(GlobalRole.Admin, TeamMembershipRole.Captain, EvidenceActorKind.Captain)]
+    [InlineData(GlobalRole.Admin, TeamMembershipRole.CoCaptain, EvidenceActorKind.Captain)]
+    [InlineData(GlobalRole.SuperAdmin, TeamMembershipRole.Participant, EvidenceActorKind.Participant)]
+    public async Task GlobalRoleComposesWithTheGenuineEventMembershipForSubmissionAuthority(GlobalRole globalRole, TeamMembershipRole membershipRole, EvidenceActorKind expectedKind)
+    {
+        var setup = await SeedAsync(target: 3, allowHigherWeights: true);
+        await using var db = new ApplicationDbContext(options);
+        var suffix = Guid.NewGuid().ToString("N");
+        var account = Account.CreateWebsite(Guid.NewGuid(), $"additive-{globalRole}-{membershipRole}-{suffix}", $"ADDITIVE-{suffix}", now);
+        account.SetGlobalRole(globalRole);
+        var participant = await db.EventParticipants.SingleAsync(x => x.Id == setup.ParticipantId);
+        participant.AssignOwner(account);
+        var membership = await db.TeamMemberships.SingleAsync(x => x.TeamId == setup.TeamId && x.EventParticipantId == setup.ParticipantId);
+        membership.ChangeRole(membershipRole);
+        db.Accounts.Add(account);
+        await db.SaveChangesAsync();
+
+        var authority = new EvidenceAuthority(db);
+        var scope = await authority.ResolveActorAsync(account.Id, setup.EventId, setup.TeamId, now);
+        Assert.Equal(expectedKind, scope.Kind);
+        Assert.Equal(setup.ParticipantId, scope.CreditedParticipantId);
+        var authorized = await authority.AuthorizeAsync(account.Id, setup.EventId, setup.TeamId, setup.ParticipantId, now);
+        Assert.Equal(expectedKind, authorized.Kind);
+
+        var created = await Service(db).CreateAsync(Command(setup) with { ActorAccountId = account.Id });
+        Assert.NotEqual(Guid.Empty, created.SubmissionId);
+
+        var eventItem = await db.Events.SingleAsync(x => x.Id == setup.EventId);
+        eventItem.EndEvent(now.AddMinutes(-31));
+        await db.SaveChangesAsync();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db).CreateAsync(Command(setup) with { ActorAccountId = account.Id }));
+        Assert.Single(await db.Submissions.ToListAsync());
+    }
+
     [Fact]
     public async Task PrivateEvidenceMutationsDoNotAnnouncePublicProgressUntilApprovalOrReversal()
     {

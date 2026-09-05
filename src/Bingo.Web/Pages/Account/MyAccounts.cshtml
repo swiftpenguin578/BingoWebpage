@@ -23,7 +23,7 @@
             <div class="public-pass2-field"><label asp-for="Add.PersonalLabel">@T["Personal label"]</label><input asp-for="Add.PersonalLabel" /><span asp-validation-for="Add.PersonalLabel" class="public-pass2-field-error"></span></div>
             <div class="public-pass2-field public-pass2-field--ehb">
                 <label asp-for="Add.SavedEhb">@T["EHB"] <span asp-validation-for="Add.SavedEhb" class="public-pass2-inline-validation" id="add-saved-ehb-validation"></span></label>
-                <div class="public-pass2-inline-field"><input asp-for="Add.SavedEhb" aria-describedby="add-saved-ehb-validation" inputmode="decimal" /><button type="submit" formaction="?handler=FetchAdd" class="public-pass2-text-link"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M13 6a5 5 0 0 0-8.5-1L3 6.5M3 3v3.5h3.5M3 10a5 5 0 0 0 8.5 1l1.5-1.5M13 13v-3.5H9.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" /></svg>@T["Fetch from WOM"]</button></div>
+                <div class="public-pass2-inline-field"><input id="Add_SavedEhb" name="Add.SavedEhb" value="@(ModelState["Add.SavedEhb"]?.AttemptedValue ?? Model.Add.SavedEhb?.ToString("0.00", CultureInfo.CurrentCulture))" type="text" aria-describedby="add-saved-ehb-validation" inputmode="decimal" /><button type="submit" formaction="?handler=FetchAdd" class="public-pass2-text-link"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M13 6a5 5 0 0 0-8.5-1L3 6.5M3 3v3.5h3.5M3 10a5 5 0 0 0 8.5 1l1.5-1.5M13 13v-3.5H9.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" /></svg>@T["Fetch from WOM"]</button></div>
             </div>
             <button type="submit" class="public-pass2-action public-pass2-action--outline">@T["Add character"] <span aria-hidden="true">→</span></button>
         </form>
@@ -47,7 +47,7 @@
                 {
                     var editCharacterName = Model.Edit.LinkId == link.Id && ModelState.ContainsKey("Edit.CharacterName") ? ModelState["Edit.CharacterName"]?.AttemptedValue ?? Model.Edit.CharacterName : link.CharacterName;
                     var editPersonalLabel = Model.Edit.LinkId == link.Id && ModelState.ContainsKey("Edit.PersonalLabel") ? ModelState["Edit.PersonalLabel"]?.AttemptedValue ?? Model.Edit.PersonalLabel : Model.FetchFailureLinkId == link.Id ? Model.FetchFailureLabel : link.PersonalLabel;
-                    var editSavedEhb = Model.Edit.LinkId == link.Id && ModelState.ContainsKey("Edit.SavedEhb") ? ModelState["Edit.SavedEhb"]?.AttemptedValue ?? Model.Edit.SavedEhb?.ToString("0.00", CultureInfo.InvariantCulture) : Model.FetchFailureLinkId == link.Id ? Model.FetchFailureEhb : link.SavedEhb?.ToString("0.00", CultureInfo.InvariantCulture);
+                    var editSavedEhb = Model.Edit.LinkId == link.Id && ModelState.ContainsKey("Edit.SavedEhb") ? ModelState["Edit.SavedEhb"]?.AttemptedValue ?? Model.Edit.SavedEhb?.ToString("0.00", CultureInfo.CurrentCulture) : Model.FetchFailureLinkId == link.Id ? Model.FetchFailureEhb : link.SavedEhb?.ToString("0.00", CultureInfo.CurrentCulture);
                     <article class="public-pass2-character-row" role="listitem" id="character-@link.Id">
                         <div class="public-pass2-character-order" aria-hidden="true">@((link.Position + 1).ToString("00"))</div>
                         <div class="public-pass2-character-identity">

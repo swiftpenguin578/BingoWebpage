@@ -1157,6 +1157,7 @@ Fields:
 
 - `tile_requirement_id`
 - `source_drop_id`
+- `item_id_snapshot`, immutable shared catalogue-item identity
 - `boss_name_snapshot`, nullable active-approval/publication projection
 - `item_name_snapshot`, nullable active-approval/publication projection
 - `display_rate_snapshot`, nullable active-approval/publication projection
@@ -1167,9 +1168,15 @@ Fields:
 
 Every eligible drop has a default credited weight of `1`. The board designer may set a higher `credited_weight` on specific drops. Submitters cannot override the selected drop's snapshot value.
 
-While the board is `DRAFT`, queries join `source_drop_id` to current catalogue data and ignore these projection fields. Board approval freezes the selected names, source-drop rate mechanics, and derived EHB in the new approval snapshot.
+While the board is `DRAFT`, queries join `source_drop_id` to current catalogue data and ignore these projection fields. Board approval freezes the selected immutable shared catalogue-item identity, names, source-drop rate mechanics, and derived EHB in the new approval snapshot.
 
-When duplicates are not allowed, each eligible item normally has a maximum contribution of `1`. An explicit maximum can override this behavior.
+When duplicates are not allowed, each immutable shared catalogue item within one
+requirement normally has a maximum contribution of `1`, even when multiple
+source-specific drops refer to that item. Allocation is keyed by `(team_id,
+tile_requirement_id, item_id_snapshot)`. A missing source-row maximum has effective
+value `1`; every alias for that item in the requirement must expose the same
+effective maximum or board approval fails. An explicit consistent maximum can
+override `1`. The same item in a sibling requirement is an independent objective.
 
 ### 10.7 Board resizing
 
@@ -1203,7 +1210,21 @@ Fields:
 - `total_ehb`
 - `superseded_at`, nullable
 
-Child snapshot rows capture every tile position/name/description/artwork, requirement rule, boss/activity name and efficient rate, source drop/item/rate/probability, contribution cap/weight, manual EHB, and derived tile/line/board EHB value.
+Child snapshot rows capture every tile position/name/description/artwork, requirement rule, boss/activity name and efficient rate, source drop plus immutable shared catalogue-item identity/name/rate/probability, contribution cap/weight, manual EHB, and derived tile/line/board EHB value.
+
+The immutable item identity is added by exactly one migration covering active event
+and approval drop snapshots. Historical rows are backfilled only when frozen
+snapshot facts resolve safely to one item. A fail-closed extension of the existing
+operator preflight emits event, snapshot family/row, requirement, source-drop ID,
+frozen item name, current mapping, candidate item IDs, and a database fingerprint
+plus deterministic external mapping template for every ambiguous or mismatched
+row. The operator adjudicates the catalogue-item IDs outside the repository and
+confirms the mapping-file hash. The existing migrate command validates that input,
+loads it into a connection-scoped temporary table, and runs the single migration
+on the same open connection. The migration auto-fills only unambiguous rows,
+consumes and verifies required mappings for both families, makes both columns
+non-null, and leaves no staging table. Neither frozen names nor mutable current
+catalogue mappings are rewritten to manufacture a match.
 
 Approval locks or version-checks every referenced live board/catalogue row and fails atomically on a concurrent edit. `Board.active_approval_snapshot_id` identifies the frozen version used by `VALIDATED` preview and publication. Unapproval/editing clears that active pointer and marks the snapshot superseded without deleting it. Publication points to the active approval snapshot and never recalculates it.
 
@@ -1227,7 +1248,7 @@ Fields:
 - `submitted_at`
 - `submitter_note`
 - `status`
-- `resubmits_submission_id`, nullable self-reference to a rejected submission
+- `resubmits_submission_id`, nullable self-reference to a rejected or reversed submission
 - `rejection_reason`, nullable and required when status is `REJECTED`
 - `expected_evidence_code`: Immutable snapshot of the code interval active at `submitted_at`; null when verification was disabled
 
@@ -1259,7 +1280,7 @@ Intervals may be scheduled in advance. Adding a code recalculates adjacent retir
 
 For an ordinary participant submission, `credited_event_participant_id` is the submitter's current event participant. For a captain/co-captain submission, the captain selects one current teammate. In both cases the create command resolves that participant's active character at `submitted_at` and snapshots it as `credited_osrs_character_id`; the submitter never selects a credited account. Pending submitter edits preserve both credited fields. Only a reasoned admin correction may change the credited playing account before approval/rejection.
 
-A submission created through **Resubmit** references exactly one rejected predecessor. It copies that predecessor's credited participant and playing-character snapshots even when the participant's active character has since changed, because the new evidence is correcting the same claimed drop rather than claiming a new one. Those two copied fields are submitter-read-only. Event/team and ordinary structured evidence values are prefilled, tile/requirement/drop/note remain editable under normal validation, and a new evidence asset is required. `resubmits_submission_id` is unique, preventing concurrent direct children; a rejected child may itself be resubmitted to form an append-only chain.
+A submission created through **Resubmit** references exactly one Rejected or Reversed predecessor. It copies that predecessor's credited participant and playing-character snapshots even when the participant's active character has since changed, because the new evidence is correcting the same claimed drop rather than claiming a new one. Those two copied fields are submitter-read-only. Event/team and ordinary structured evidence values are prefilled, tile/requirement/drop/note remain editable under normal validation, and a new evidence asset is required. `resubmits_submission_id` is unique, preventing concurrent direct children; a child that is later rejected may itself be resubmitted to form an append-only chain. A Reversed predecessor remains inactive and cannot be directly re-approved.
 
 ### 11.2 EvidenceAsset
 
@@ -1322,9 +1343,9 @@ PENDING → WITHDRAWN
 APPROVED → REVERSED
 ```
 
-An admin may correct a pending submission's tile/requirement, qualifying drop, or credited playing character with a required reason and complete revalidation. Credited participant is derived from the event-unique playing-character assignment and is never independently edited. Server submission time, snapshot weight, calculated contribution, and submitted evidence asset are immutable to the reviewer. Correcting an approved submission requires reversal.
+An admin may correct a pending submission's tile/requirement, qualifying drop, or credited playing character with a required reason and complete revalidation. Credited participant is derived from the event-unique playing-character assignment and is never independently edited. Server submission time, calculated contribution, and submitted evidence asset are immutable to the reviewer. Snapshot weight is not manually editable; retargeting atomically replaces it with the selected destination requirement/drop's frozen authoritative weight. Correcting an approved submission requires reversal.
 
-A corrected attempt after rejection is a new `PENDING` submission rather than a transition of the rejected record. It is accepted only while the active upload window permits new submissions and requires a new evidence asset. The predecessor must be `REJECTED`, visible to the submitter under the ordinary participant/captain scope, and have no existing direct resubmission. The command copies and locks the predecessor's credited participant/account snapshots, revalidates the editable structured values, and atomically claims the unique predecessor link. A repeated or racing request cannot create two corrected children.
+A corrected attempt after rejection or reversal is a new `PENDING` submission rather than a transition or direct reapproval of the predecessor. It is accepted only while the active/reopened upload window permits new submissions and requires a new evidence asset. The predecessor must be `REJECTED` or `REVERSED`, visible to the submitter under the ordinary participant/captain scope, and have no existing direct resubmission. The command copies and locks the predecessor's credited participant/account snapshots, revalidates the editable structured values, and atomically claims the unique predecessor link. A repeated or racing request cannot create two corrected children. Approval of a child creates a new contribution; a reversed predecessor's contribution stays inactive.
 
 ### 11.5 Submission timing validity
 
@@ -1375,7 +1396,7 @@ Progress never exceeds the requirement target and never carries to another tile.
 
 When duplicates are allowed, multiple approved submissions for the same eligible drop can contribute until the requirement target or explicit drop cap is reached.
 
-When duplicates are not allowed, only the permitted contribution from the first active approved instance of each eligible item counts. Another copy of that item receives zero additional contribution unless the configuration explicitly sets a higher cap.
+When duplicates are not allowed, active contribution is capped per `(team_id, tile_requirement_id, item_id_snapshot)`. A source-specific alias of the same item shares that cap; its missing explicit cap means `1`, and board approval has already established that every alias has the same effective maximum. The same item in a separate sibling requirement is independent and may count there; contribution, completion, reversal, and rebalancing never cross `tile_requirement_id`.
 
 ### 12.4 Requirement progress
 

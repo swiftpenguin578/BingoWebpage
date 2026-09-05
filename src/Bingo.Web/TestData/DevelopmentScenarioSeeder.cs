@@ -39,6 +39,14 @@ public sealed class DevelopmentScenarioSeeder(
     public const string EvidenceDisabledEmergencyUsername = "SeedEvidenceEmergencyDisabled";
     public const string SecondaryAdminUsername = "SeedAdminTwo";
     public const string SecondaryAdminPassword = "SeedAdmin!1234";
+    public const string GlobalAdminUsername = "SeedGlobalAdmin";
+    public const string GlobalAdminPassword = "SeedGlobalAdmin!1234";
+    public const string AdminParticipantUsername = "SeedAdminParticipant";
+    public const string AdminParticipantPassword = "SeedAdminParticipant!1234";
+    public const string AdminCaptainUsername = "SeedAdminCaptain";
+    public const string AdminCaptainPassword = "SeedAdminCaptain!1234";
+    public const string AdminCoCaptainUsername = "SeedAdminCoCaptain";
+    public const string AdminCoCaptainPassword = "SeedAdminCoCaptain!1234";
 
     public async Task<SeedResult> ResetAndSeedAsync(CancellationToken cancellationToken = default)
     {
@@ -70,6 +78,10 @@ public sealed class DevelopmentScenarioSeeder(
         var current = timeProvider.GetUtcNow();
         var now = new DateTimeOffset(current.Year, current.Month, current.Day, current.Hour, current.Minute < 30 ? 0 : 30, 0, TimeSpan.Zero);
         var secondaryAdmin = await EnsureSecondaryAdminAsync(now, cancellationToken);
+        var globalAdmin = await EnsureAdminRoleAccountAsync(GlobalAdminUsername, GlobalAdminPassword, now, cancellationToken);
+        var adminParticipant = await EnsureAdminRoleAccountAsync(AdminParticipantUsername, AdminParticipantPassword, now, cancellationToken);
+        var adminCaptain = await EnsureAdminRoleAccountAsync(AdminCaptainUsername, AdminCaptainPassword, now, cancellationToken);
+        var adminCoCaptain = await EnsureAdminRoleAccountAsync(AdminCoCaptainUsername, AdminCoCaptainPassword, now, cancellationToken);
         var evidenceCaptain = await EnsureEvidenceCaptainAsync(now, cancellationToken);
         var evidenceCoCaptain = await EnsureWebsiteAccountAsync(EvidenceCoCaptainUsername, EvidenceCoCaptainPassword, now, cancellationToken);
         var evidenceParticipant = await EnsureWebsiteAccountAsync(EvidenceParticipantUsername, EvidenceParticipantPassword, now, cancellationToken);
@@ -145,7 +157,7 @@ public sealed class DevelopmentScenarioSeeder(
             admin.Id,
             secondaryAdmin,
             now));
-        var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, evidenceCaptain, evidenceCoCaptain, evidenceParticipant, now);
+        var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, evidenceCaptain, evidenceCoCaptain, evidenceParticipant, admin, adminParticipant, adminCaptain, adminCoCaptain, now);
         seeded.Add(dklLiveScenario);
         var currentPublicScenario = await SeedScenario(
             "Forårsbingo 2026",
@@ -217,7 +229,8 @@ public sealed class DevelopmentScenarioSeeder(
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return new SeedResult(admin.LoginName, secondaryAdmin.LoginName, SecondaryAdminPassword, blueprint.Name, seeded, CaptainPassword, ReplacementUsername, ReplacementPassword);
+        return new SeedResult(admin.LoginName, secondaryAdmin.LoginName, SecondaryAdminPassword, blueprint.Name, seeded, CaptainPassword, ReplacementUsername, ReplacementPassword,
+            globalAdmin.LoginName, GlobalAdminPassword, adminParticipant.LoginName, AdminParticipantPassword, adminCaptain.LoginName, AdminCaptainPassword, adminCoCaptain.LoginName, AdminCoCaptainPassword);
     }
 
     private SeededScenario SeedReadinessBlockerScenario(Guid adminId, DateTimeOffset now)
@@ -423,6 +436,13 @@ public sealed class DevelopmentScenarioSeeder(
         }
         account.SetPasswordHash(passwordHasher.HashPassword(account, SecondaryAdminPassword), mustChangePassword: false);
         account.Enable();
+        return account;
+    }
+
+    private async Task<Account> EnsureAdminRoleAccountAsync(string username, string password, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var account = await EnsureWebsiteAccountAsync(username, password, now, cancellationToken);
+        account.SetGlobalRole(GlobalRole.Admin);
         return account;
     }
 
@@ -744,6 +764,10 @@ public sealed class DevelopmentScenarioSeeder(
         Account fixtureOwner,
         Account coCaptainOwner,
         Account participantOwner,
+        Account superAdminParticipant,
+        Account adminParticipant,
+        Account adminCaptain,
+        Account adminCoCaptain,
         DateTimeOffset now)
     {
         const int teamCount = 6;
@@ -818,6 +842,10 @@ public sealed class DevelopmentScenarioSeeder(
         participantsByName[teamSeeds[0].Captain].AssignOwner(fixtureOwner);
         participantsByName[teamSeeds[0].CoCaptain].AssignOwner(coCaptainOwner);
         participantsByName[remainingNames[0]].AssignOwner(participantOwner);
+        participantsByName[remainingNames[1]].AssignOwner(superAdminParticipant);
+        participantsByName[remainingNames[2]].AssignOwner(adminParticipant);
+        participantsByName[teamSeeds[1].Captain].AssignOwner(adminCaptain);
+        participantsByName[teamSeeds[1].CoCaptain].AssignOwner(adminCoCaptain);
 
         var board = AddBoard(bingoEvent, blueprint, publish: true, now);
         var draft = new DraftSession(Guid.NewGuid(), bingoEvent.Id, targetTeamSize);
@@ -2174,7 +2202,15 @@ public sealed record SeedResult(
     IReadOnlyList<SeededScenario> Scenarios,
     string CaptainPassword,
     string ReplacementUsername,
-    string ReplacementPassword);
+    string ReplacementPassword,
+    string GlobalAdminUsername,
+    string GlobalAdminPassword,
+    string AdminParticipantUsername,
+    string AdminParticipantPassword,
+    string AdminCaptainUsername,
+    string AdminCaptainPassword,
+    string AdminCoCaptainUsername,
+    string AdminCoCaptainPassword);
 
 public sealed record SeededScenario(
     Guid EventId,

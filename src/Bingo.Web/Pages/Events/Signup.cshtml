@@ -105,7 +105,7 @@
                                             <span class="signup-sheet__account-role">@(question.AccountRole == EventCharacterRole.Playing ? T["Regular account"] : T["Alt account"])</span>
                                             @if (displayedEhb is { } ehb)
                                             {
-                                                <span class="signup-sheet__account-ehb">@ehb.ToString("0.##", CultureInfo.InvariantCulture) @T["EHB"]</span>
+                                                <span class="signup-sheet__account-ehb">@ehb.ToString("0.##", CultureInfo.CurrentCulture) @T["EHB"]</span>
                                             }
                                             else
                                             {
@@ -135,7 +135,7 @@
                                     }
                                 </div>
                                 <span class="signup-sheet__error">@Html.ValidationMessage($"Input.AccountAnswers[{question.Id}].OsrsCharacterId")</span>
-                                <input id="ehb-@question.Id" name="Input.AccountAnswers[@question.Id].Ehb" value="@accountInput.Ehb" type="hidden" />
+                                <input id="ehb-@question.Id" name="Input.AccountAnswers[@question.Id].Ehb" value="@(accountInput.Ehb?.ToString("0.##", CultureInfo.InvariantCulture) ?? string.Empty)" type="hidden" />
                                 <input id="lookup-@question.Id" type="hidden" name="Input.AccountAnswers[@question.Id].WiseOldManLookupToken" value="@accountInput.WiseOldManLookupToken" />
                                 @if (Model.LookupQuestionId == question.Id && Model.LookupFetchedAt is { } fetchedAt)
                                 {
@@ -217,7 +217,7 @@
                         }
                         @if (currentEhb is { } ehb)
                         {
-                            <div><dt>@T["Current EHB"]</dt><dd>@ehb.ToString("0.##", CultureInfo.InvariantCulture)</dd></div>
+                            <div><dt>@T["Current EHB"]</dt><dd>@ehb.ToString("0.##", CultureInfo.CurrentCulture)</dd></div>
                         }
                         @if (currentAccountVerified)
                         {

@@ -624,6 +624,12 @@ read transition and reach the authorized stored destination; personal evidence
   treatment, and a logical source order. Dialog open focuses meaningful
   content.
 - Long dialog content scrolls inside its content region.
+- Evidence-image dialogs preserve their existing open/close and focus contract and
+  provide labeled zoom-in, zoom-out, and reset controls plus panning while zoomed.
+  Wheel/trackpad and practical touch gestures may enhance the same state; keyboard
+  users can operate every required control. Transforms reset whenever the dialog
+  closes or its image changes, never move controls off-screen, and preserve
+  responsive containment, Escape/backdrop closure, themes, and reduced motion.
 - `prefers-reduced-motion` disables or minimizes transitions and overlay
   animation. Toasts pause while hovered or focused and dismiss by Escape or
   their labeled button.

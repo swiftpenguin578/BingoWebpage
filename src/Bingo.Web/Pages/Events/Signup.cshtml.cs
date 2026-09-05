@@ -51,6 +51,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
         if (User.Identity?.IsAuthenticated != true) return RedirectToPage("/Account/Login", new { ReturnUrl = SignupReturnUrl(slug, true) });
         if (User.FindFirst("bingo:account_type")?.Value != "WebsiteAccount") return Forbid();
         if (!await LoadAsync(slug, ct)) return NotFound();
+        await NormalizeInvariantEhbAsync(ct);
         if (Input.FetchQuestionId is { } fetchQuestionId)
         {
             await FetchEhbAsync(fetchQuestionId, ct);
@@ -69,6 +70,39 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
             return Page();
         }
         return RedirectToPage("Confirmation", new { slug, participantId = result.ParticipantId });
+    }
+    private async Task NormalizeInvariantEhbAsync(CancellationToken ct)
+    {
+        if (!Request.HasFormContentType) return;
+        var form = await Request.ReadFormAsync(ct);
+        const string prefix = "Input.AccountAnswers[";
+        const string suffix = "].Ehb";
+        foreach (var key in form.Keys)
+        {
+            if (!key.StartsWith(prefix, StringComparison.Ordinal) || !key.EndsWith(suffix, StringComparison.Ordinal)) continue;
+            var questionIdText = key[prefix.Length..^suffix.Length];
+            if (!Guid.TryParse(questionIdText, out var questionId)) continue;
+            if (!Input.AccountAnswers.TryGetValue(questionId, out var input))
+                Input.AccountAnswers[questionId] = input = new AccountInput();
+
+            ModelState.Remove(key);
+            var raw = form[key].ToString();
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                input.Ehb = null;
+                continue;
+            }
+            if (!decimal.TryParse(raw, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var ehb))
+            {
+                input.Ehb = null;
+                ModelState.AddModelError(key, Localize("EHB must be a valid number."));
+                continue;
+            }
+
+            input.Ehb = ehb;
+            if (ehb is < 0 or > 100000)
+                ModelState.AddModelError(key, Localize("EHB must be between 0 and 100000."));
+        }
     }
     private async Task FetchEhbAsync(Guid questionId, CancellationToken ct)
     {

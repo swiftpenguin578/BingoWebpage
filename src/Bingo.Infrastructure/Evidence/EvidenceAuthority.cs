@@ -34,19 +34,17 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         if (eventId is Guid selectedEvent) memberships = memberships.Where(x => x.EventId == selectedEvent);
         if (teamId is Guid selectedTeam) memberships = memberships.Where(x => x.TeamId == selectedTeam);
         var rows = await memberships.ToListAsync(cancellationToken);
-        if (rows.Count == 1 && rows[0].Role is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain)
+        if (rows.Count == 1)
         {
-            var captain = rows[0];
-            return new(EvidenceActorKind.Captain, actorAccountId, captain.EventId, captain.TeamId, captain.ParticipantId);
+            var row = rows[0];
+            return new(row.Role is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain ? EvidenceActorKind.Captain : EvidenceActorKind.Participant,
+                actorAccountId, row.EventId, row.TeamId, row.ParticipantId);
         }
 
         if (account.GlobalRole is GlobalRole.Admin or GlobalRole.SuperAdmin)
             return new(EvidenceActorKind.Administrator, actorAccountId, eventId ?? Guid.Empty, teamId ?? Guid.Empty, Guid.Empty);
 
-        if (rows.Count != 1) throw new InvalidOperationException(rows.Count == 0 ? "The account is not an active event participant." : "Choose one event and team before submitting evidence.");
-        var row = rows[0];
-        return new(row.Role is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain ? EvidenceActorKind.Captain : EvidenceActorKind.Participant,
-            actorAccountId, row.EventId, row.TeamId, row.ParticipantId);
+        throw new InvalidOperationException(rows.Count == 0 ? "The account is not an active event participant." : "Choose one event and team before submitting evidence.");
     }
 
     public async Task<EvidenceActorScope> AuthorizeAsync(Guid actorAccountId, Guid eventId, Guid teamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default)

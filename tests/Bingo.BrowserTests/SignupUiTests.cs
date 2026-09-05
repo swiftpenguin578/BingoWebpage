@@ -98,6 +98,26 @@ public sealed class SignupUiTests
         Assert.DoesNotContain("class=\"form-control\"", markup);
     }
 
+    [Fact]
+    public void EhbFormBoundariesKeepLocalizedEditableInputsAndInvariantSignupTransport()
+    {
+        var root = FindRepositoryRoot();
+        var myAccounts = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Account", "MyAccounts.cshtml"));
+        var myAccountsModel = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Account", "MyAccounts.cshtml.cs"));
+        var onboarding = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Account", "Onboarding.cshtml"));
+        var signup = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Events", "Signup.cshtml"));
+        var signupModel = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Events", "Signup.cshtml.cs"));
+
+        Assert.Contains("CultureInfo.CurrentCulture", myAccounts, StringComparison.Ordinal);
+        Assert.Contains("CultureInfo.CurrentCulture", myAccountsModel, StringComparison.Ordinal);
+        Assert.Contains("asp-for=\"Input.SavedEhb\"", onboarding, StringComparison.Ordinal);
+        Assert.Contains("CultureInfo.InvariantCulture", signup, StringComparison.Ordinal);
+        Assert.Contains("CultureInfo.CurrentCulture", signup, StringComparison.Ordinal);
+        Assert.Contains("NormalizeInvariantEhbAsync", signupModel, StringComparison.Ordinal);
+        Assert.Contains("Request.ReadFormAsync", signupModel, StringComparison.Ordinal);
+        Assert.Contains("NumberStyles.AllowDecimalPoint", signupModel, StringComparison.Ordinal);
+    }
+
     private static string FindRepositoryRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
