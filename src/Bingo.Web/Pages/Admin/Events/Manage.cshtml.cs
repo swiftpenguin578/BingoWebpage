@@ -62,6 +62,8 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     [BindProperty, Range(1, long.MaxValue)] public long? CompetitionId { get; set; }
     [BindProperty] public bool SynchronizeCompetitionSchedule { get; set; }
     [BindProperty] public bool ConfirmCompetitionSchedule { get; set; }
+    [BindProperty] public bool ConfirmCompetitionClear { get; set; }
+    [BindProperty, StringLength(2000)] public string? CompetitionClearReason { get; set; }
     [BindProperty] public bool AcknowledgeSignupWarnings { get; set; }
     [BindProperty] public bool AcceptProposedClose { get; set; }
     [BindProperty] public bool ConfirmStartEvent { get; set; }
@@ -171,7 +173,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     }
     public async Task<IActionResult> OnPostCompetitionAsync(Guid id, CancellationToken ct)
     {
-        if (ModelState.ErrorCount > 0) { SetStatus(Localize("Enter a valid competition ID."), UiMessageType.Error); return RedirectToPage(new { id }); }
+        if (HasBindingErrors(nameof(CompetitionId))) { SetStatus(Localize("Enter a valid competition ID."), UiMessageType.Error); return RedirectToPage(new { id }); }
         try
         {
             var result = await (competitionSynchronization ?? throw new InvalidOperationException("Competition synchronization is not configured.")).ConfigureAsync(id, EventVersion, CompetitionId, SynchronizeCompetitionSchedule, Actor, ConfirmCompetitionSchedule, ct);
@@ -184,7 +186,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     {
         try
         {
-            var result = await (competitionSynchronization ?? throw new InvalidOperationException("Competition synchronization is not configured.")).ConfigureAsync(id, EventVersion, null, false, Actor, cancellationToken: ct);
+            var result = await (competitionSynchronization ?? throw new InvalidOperationException("Competition synchronization is not configured.")).ConfigureAsync(id, EventVersion, null, false, Actor, confirmScheduleChanges: false, confirmCompetitionClear: ConfirmCompetitionClear, competitionClearReason: CompetitionClearReason, cancellationToken: ct);
             SetStatus(result.Succeeded ? Localize("Competition integration cleared.") : result.Error ?? Localize("The competition could not be cleared."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         }
         catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }

@@ -385,10 +385,12 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
                 .Join(db.OsrsCharacters.AsNoTracking(), value => value.OsrsCharacterId, character => character.Id, (_, character) => character.DisplayName)
                 .ToListAsync();
         }
+        var developmentStart = clock.GetUtcNow().AddHours(-99);
+        var developmentEnd = clock.GetUtcNow().AddDays(14);
+        var competitionParticipants = expectedNames.Select(name => new WiseOldManCompetitionParticipant(name, "REGULAR", 1m)).ToArray();
         var fake = new CountingCompetitionClient(new WiseOldManCompetitionResult(
             WiseOldManCompetitionStatus.Success,
-            new WiseOldManCompetition(1515, "TEST 15 development fake competition", clock.GetUtcNow().AddHours(-1), clock.GetUtcNow().AddDays(5), clock.GetUtcNow(),
-                expectedNames.Select(name => new WiseOldManCompetitionParticipant(name, "REGULAR", 1m)).ToArray())));
+            new WiseOldManCompetition(1515, "TEST 15 development fake competition", developmentStart, developmentEnd, clock.GetUtcNow(), competitionParticipants)));
 
         Guid liveId;
         await using (var ids = new ApplicationDbContext(options))
@@ -443,6 +445,30 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             Assert.Equal(expectedNames.Count, await verify.EventCompetitionCharacterActivities.CountAsync(value => value.EventId == state.EventId && value.Generation == state.Generation));
         }
 
+        Assert.Contains("name=\"ConfirmCompetitionClear\"", manage, StringComparison.Ordinal);
+        using (var rejectedClear = await client.PostAsync($"{manageRoute}?handler=ClearCompetition", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["EventVersion"] = Regex.Match(manage, "name=\"EventVersion\"[^>]*value=\"([^\"]+)\"").Groups[1].Value,
+            ["__RequestVerificationToken"] = Regex.Match(manage, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
+        }))) Assert.Equal(HttpStatusCode.Redirect, rejectedClear.StatusCode);
+        Assert.Contains("requires explicit confirmation and a reason.", await client.GetStringAsync(manageRoute), StringComparison.Ordinal);
+        await using (var verifyRejectedClear = new ApplicationDbContext(options))
+            Assert.Equal(1515, (await verifyRejectedClear.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == liveId)).CompetitionId);
+
+        var clearPage = await client.GetStringAsync(manageRoute);
+        using (var cleared = await client.PostAsync($"{manageRoute}?handler=ClearCompetition", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["EventVersion"] = Regex.Match(clearPage, "name=\"EventVersion\"[^>]*value=\"([^\"]+)\"").Groups[1].Value,
+            ["ConfirmCompetitionClear"] = "true",
+            ["CompetitionClearReason"] = "Correct the live event window before relinking Wise Old Man.",
+            ["__RequestVerificationToken"] = Regex.Match(clearPage, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
+        }))) Assert.Equal(HttpStatusCode.Redirect, cleared.StatusCode);
+        await using (var verifyCleared = new ApplicationDbContext(options))
+        {
+            Assert.Null((await verifyCleared.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == liveId)).CompetitionId);
+            Assert.Contains(await verifyCleared.AuditEntries.Where(value => value.EventId == liveId && value.Action == "event.competition_cleared").Select(value => value.Details).ToListAsync(), value => value?.Contains("Correct the live event window before relinking Wise Old Man.", StringComparison.Ordinal) == true);
+        }
+
         Guid lookupId;
         await using (var ids = new ApplicationDbContext(options))
             lookupId = await ids.Events.Where(value => value.Slug == "test-16-signup-lookup").Select(value => value.Id).SingleAsync();
@@ -467,7 +493,13 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             var lookup = await reset.Events.SingleAsync(value => value.Slug == "test-16-signup-lookup");
             Assert.Equal(EventState.SignupOpen, lookup.State);
             Assert.Equal(9, await reset.EventParticipants.CountAsync(value => value.EventId == lookup.Id));
-            Assert.Equal(22, await reset.Events.CountAsync());
+            var intentionallyInvalidScheduleSlugs = new[] { "test-96-invalid-scheduled-window", "test-97-signup-closes-after-event" };
+            var scheduledFixtures = await reset.Events
+                .Where(value => value.SignupClosesAt != null && value.EventStartsAt != null)
+                .ToListAsync();
+            Assert.All(scheduledFixtures.Where(value => !intentionallyInvalidScheduleSlugs.Contains(value.Slug)), value =>
+                Assert.True(value.SignupClosesAt!.Value < value.EventStartsAt!.Value, $"{value.Slug} has signup close after event start."));
+            Assert.Equal(21, await reset.Events.CountAsync());
         }
         Assert.Equal(1, fake.Calls);
     }

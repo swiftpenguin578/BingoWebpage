@@ -159,29 +159,7 @@ public sealed class DevelopmentScenarioSeeder(
             now));
         var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, evidenceCaptain, evidenceCoCaptain, evidenceParticipant, admin, adminParticipant, adminCaptain, adminCoCaptain, now);
         seeded.Add(dklLiveScenario);
-        var currentPublicScenario = await SeedScenario(
-            "Forårsbingo 2026",
-            "test-90-current-public-event",
-            ScenarioStage.Live,
-            blueprint,
-            admin.Id,
-            secondaryAdmin,
-            now);
-        var currentPublicEvent = db.Events.Local.Single(value => value.Id == currentPublicScenario.EventId);
-        currentPublicEvent.MarkFirstPublic(now.AddMinutes(-30));
-        db.Entry(currentPublicEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = false;
-        seeded.Add(currentPublicScenario);
         seeded.Add(SeedScheduledWindowOverlapScenario(admin.Id, now));
-        var accessBlockerScenario = await SeedScenario(
-            "Aftenbingo 2026",
-            "test-88-live-access-blocker",
-            ScenarioStage.Live,
-            blueprint,
-            admin.Id,
-            secondaryAdmin,
-            now);
-        db.RemoveRange(db.AccountEventAccesses.Local.Where(access => access.EventId == accessBlockerScenario.EventId).ToList());
-        seeded.Add(accessBlockerScenario);
         await EnsureDevelopmentLookupCharacterAsync(secondaryAdmin.Id, now, cancellationToken);
         seeded.Add(SeedSignupLookupScenario(dklBlueprint, admin.Id, now));
         var waitingReplacement = CreateParticipant(
@@ -499,7 +477,11 @@ public sealed class DevelopmentScenarioSeeder(
         DateTimeOffset now)
     {
         var signupOpens = now.AddDays(-14);
-        var signupCloses = stage == ScenarioStage.SignupsOpen ? now.AddDays(7) : now.AddDays(-1);
+        var signupCloses = stage == ScenarioStage.SignupsOpen
+            ? now.AddDays(6)
+            : stage is ScenarioStage.FinalReview or ScenarioStage.Finalized or ScenarioStage.Archived or ScenarioStage.CompletedFinalReview
+                ? now.AddDays(-4)
+                : now.AddDays(-1);
         var eventStarts = stage switch
         {
             ScenarioStage.Live => now.AddHours(-1),
@@ -823,6 +805,7 @@ public sealed class DevelopmentScenarioSeeder(
 
         var eventStarts = now.AddHours(-99);
         var eventEnds = now.AddDays(14);
+        var signupCloses = eventStarts.AddHours(-1);
         var bingoEvent = new BingoEvent(
             Guid.NewGuid(),
             "Vinterbingo 2026",
@@ -830,7 +813,7 @@ public sealed class DevelopmentScenarioSeeder(
             "Live six-team DKL board scenario with complete drafted rosters.",
             "Europe/Copenhagen",
             now.AddDays(-14),
-            now.AddDays(-1),
+            signupCloses,
             eventStarts,
             eventEnds,
             eventEnds.AddMinutes(30),

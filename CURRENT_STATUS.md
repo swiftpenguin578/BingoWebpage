@@ -239,6 +239,57 @@ historical material is preserved separately and is non-authoritative.
   is packaged locally as `fix: complete admin follow-up corrections`; nothing has
   been pushed, merged, or deployed. Next action is the remaining manual Pass 4
   acceptance.
+- Manual rehearsal on 2026-09-06 exposed three bounded blockers after packaging:
+  the shared Admin route filter rejected the contract-approved Live end-time
+  correction before Schedule could enforce its end-only rules; public result
+  projection assumed exactly one official first-place team although confirmed
+  ties are valid; and the reset retained two redundant Live scenarios, including
+  one non-fixture current event that blocked Development lifecycle work. Focused
+  remediation now lets only Live Schedule POSTs reach the existing locked-field,
+  confirmation, reason, and transactional service boundary; represents every
+  official first-place team truthfully as a tie; and removes
+  `test-88-live-access-blocker` plus `test-90-current-public-event`. Reset now has
+  21 scenarios, all Development fixtures, with `Vinterbingo 2026`
+  (`test-15-dkl-live`) as the sole Live event. The production singleton and
+  global-only/no-membership boundaries remain covered by test-owned setup and the
+  existing additive-role fixtures. Both affected Release builds, six focused
+  tests, and `git diff --check` pass; the independent remediation-only review
+  passes with no findings. A broader reset inventory test still reaches an
+  unchanged, unrelated `test-21-final-review` frozen-roster/current-membership
+  assertion failure after proving the corrected inventory. This remediation is
+  uncommitted; nothing has been pushed, merged, or deployed. The current manual
+  database must be reset before the obsolete Live events disappear. The first
+  manual rerun then exposed impossible signup-close ordering in four ordinary
+  lifecycle fixtures. The shared historical-fixture dates and Vinterbingo's
+  custom Live dates now place signup close before event start, while the explicit
+  schedule-negative fixtures remain unchanged. The existing reset test now
+  checks that invariant across every scheduled non-negative fixture; its focused
+  Release run and `git diff --check` pass, and the remediation-only re-review
+  passes. Reset the manual database again before continuing acceptance.
+- The subsequent manual rehearsal passed every listed journey except three bounded
+  Pass 4 defects: the published Teams art stopped below the secondary navigation,
+  evidence dialogs exposed unwanted control bars without image-click magnifier
+  zoom, and valid Development WOM competition `1516` was rejected by unrelated
+  page-wide model-state errors. Focused remediation now extends the art through the
+  full navigation row, removes the four viewer control bars and adds click/tap
+  fit/2x zoom with drag suppression, and scopes competition binding validation to
+  `CompetitionId`. The Release Web build and `git diff --check` pass; no additional
+  tests were run. `Det Store Danske Sommerbingo 2027` remains the deliberately
+  unpublished missing-Playing-assignment negative fixture, so its readiness blocker
+  and public-board 404 are expected. Manual acceptance still must exercise the two
+  high-risk journeys omitted from the prior checklist: duplicate-disabled shared-item
+  enforcement and finalizing `Det Store Danske Forårsbingo 2026`, the valid primary
+  plus secondary Playing-character scenario.
+- The user manually accepted the corrected controls-free, click-focused evidence
+  zoom and pan behavior on 2026-09-07. The same manual run also accepted the
+  duplicate-disabled submission behavior, including removal of an already
+  approved item from the eligible-drop selector, and the Chrome submission-drawer
+  control-height and select-chevron correction.
+- The user reported that every other remaining manual journey passed, including
+  finalizing `Det Store Danske Forårsbingo 2026` with its valid primary plus
+  secondary Playing-character setup. Ordinary Development WOM linking is
+  accepted; the moving-window `1516` Live-replacement timing case is explicitly
+  waived as a super-edge-case. No further manual journey blocks packaging.
 
 ## Canonical checkout
 

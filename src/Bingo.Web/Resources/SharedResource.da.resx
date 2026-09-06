@@ -982,6 +982,8 @@
   <data name="View feedback" xml:space="preserve"><value>Vis feedback</value></data>
   <data name="Waiting for the first Wise Old Man sync." xml:space="preserve"><value>Venter på den første Wise Old Man-synkronisering.</value></data>
   <data name="Winner" xml:space="preserve"><value>Vinder</value></data>
+  <data name="Tie" xml:space="preserve"><value>Lige</value></data>
+  <data name="Tied for first" xml:space="preserve"><value>Delt førsteplads</value></data>
   <data name="Wise Old Man is temporarily unavailable." xml:space="preserve"><value>Wise Old Man er midlertidigt utilgængelig.</value></data>
   <data name="Wise Old Man is temporarily unavailable. Showing the last available cache." xml:space="preserve"><value>Wise Old Man er midlertidigt utilgængelig. Viser den senest tilgængelige cache.</value></data>
   <data name="WOM" xml:space="preserve"><value>WOM</value></data>

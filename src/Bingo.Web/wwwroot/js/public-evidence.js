@@ -7,7 +7,7 @@
         const viewport = dialog.querySelector("[data-evidence-viewport]") || image.parentElement;
         let scale = 1, offsetX = 0, offsetY = 0;
         const pointers = new Map();
-        let pinchDistance = 0, pinchScale = 1, dragPoint = null;
+        let pinchDistance = 0, pinchScale = 1, dragPoint = null, pointerMoved = false, gestureHadMultiplePointers = false;
         const bounds = () => ({
             x: Math.max(0, ((image.offsetWidth * scale) - viewport.clientWidth) / 2 + 16),
             y: Math.max(0, ((image.offsetHeight * scale) - viewport.clientHeight) / 2 + 16)
@@ -31,6 +31,15 @@
             offsetX = 0;
             offsetY = 0;
             applyTransform();
+        };
+        const toggleZoom = () => setScale(scale > 1 ? 1 : 2);
+        const toggleZoomAt = (clientX, clientY) => {
+            if (scale > 1) { toggleZoom(); return; }
+            const rect = image.getBoundingClientRect();
+            const nextScale = 2;
+            offsetX = (rect.left + rect.width / 2 - clientX) * (nextScale / scale - 1);
+            offsetY = (rect.top + rect.height / 2 - clientY) * (nextScale / scale - 1);
+            setScale(nextScale);
         };
         const clearMetadata = () => {
             dialog.querySelector("[data-evidence-dialog-drop]")?.replaceChildren(document.createTextNode(dialog.dataset.evidenceEmpty ?? ""));
@@ -64,13 +73,11 @@
         dialog.addEventListener("close", clearImage);
         if (dialog.open) dialog.close();
         dialog.querySelector("[data-evidence-close]")?.addEventListener("click", () => dialog.close());
-        dialog.querySelector("[data-evidence-zoom-in]")?.addEventListener("click", () => setScale(scale + 0.5));
-        dialog.querySelector("[data-evidence-zoom-out]")?.addEventListener("click", () => setScale(scale - 0.5));
-        dialog.querySelector("[data-evidence-zoom-reset]")?.addEventListener("click", resetTransform);
         dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
         image.addEventListener("load", applyTransform);
         image.addEventListener("keydown", event => {
-            if (event.key === "+" || event.key === "=") { setScale(scale + 0.5); event.preventDefault(); }
+            if (event.key === "Enter" || event.key === " ") { toggleZoom(); event.preventDefault(); }
+            else if (event.key === "+" || event.key === "=") { setScale(scale + 0.5); event.preventDefault(); }
             else if (event.key === "-" || event.key === "_") { setScale(scale - 0.5); event.preventDefault(); }
             else if (event.key === "0") { resetTransform(); event.preventDefault(); }
             else if (event.key === "ArrowLeft") { offsetX -= 40; applyTransform(); event.preventDefault(); }
@@ -83,14 +90,17 @@
             event.preventDefault();
         }, { passive: false });
         viewport.addEventListener("pointerdown", event => {
+            if (pointers.size === 0) { pointerMoved = false; gestureHadMultiplePointers = false; }
             pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
             viewport.setPointerCapture?.(event.pointerId);
+            if (pointers.size > 1) { gestureHadMultiplePointers = true; }
             if (pointers.size === 2) { pinchDistance = distance(); pinchScale = scale; }
             else dragPoint = { x: event.clientX, y: event.clientY };
-            event.preventDefault();
         });
         viewport.addEventListener("pointermove", event => {
             if (!pointers.has(event.pointerId)) return;
+            const previous = pointers.get(event.pointerId);
+            if (previous && Math.hypot(event.clientX - previous.x, event.clientY - previous.y) > 4) pointerMoved = true;
             pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
             if (pointers.size > 1) setScale(pinchScale * (distance() / Math.max(1, pinchDistance)));
             else if (scale > 1 && dragPoint) {
@@ -101,7 +111,16 @@
             }
             event.preventDefault();
         });
-        const endPointer = event => { pointers.delete(event.pointerId); dragPoint = null; };
+        const endPointer = event => {
+            const singlePointerTap = pointers.size === 1 && !gestureHadMultiplePointers && !pointerMoved;
+            pointers.delete(event.pointerId);
+            dragPoint = null;
+            if (pointers.size === 0) {
+                if (event.type === "pointerup" && singlePointerTap) toggleZoomAt(event.clientX, event.clientY);
+                pointerMoved = false;
+                gestureHadMultiplePointers = false;
+            }
+        };
         viewport.addEventListener("pointerup", endPointer);
         viewport.addEventListener("pointercancel", endPointer);
         return { open };

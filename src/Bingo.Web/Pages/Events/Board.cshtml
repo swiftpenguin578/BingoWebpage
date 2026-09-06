@@ -47,16 +47,19 @@
             leadResult = new PublicEventResult(currentLeader.TeamName, currentLeader.TeamSlug, false);
         }
     }
-    var leadTeam = leadResult is { } result
-        ? (!string.IsNullOrWhiteSpace(result.TeamSlug)
-            ? Model.Board.Teams.FirstOrDefault(team => string.Equals(team.TeamSlug, result.TeamSlug, StringComparison.OrdinalIgnoreCase))
+    var resultTeams = leadResult?.Teams ?? (leadResult is { } result ? [new PublicEventResultTeam(result.TeamName, result.TeamSlug)] : []);
+    var leadTeam = resultTeams.Count == 1
+        ? (!string.IsNullOrWhiteSpace(resultTeams[0].TeamSlug)
+            ? Model.Board.Teams.FirstOrDefault(team => string.Equals(team.TeamSlug, resultTeams[0].TeamSlug, StringComparison.OrdinalIgnoreCase))
             : null)
-            ?? Model.Board.Teams.FirstOrDefault(team => string.Equals(team.TeamName, result.TeamName, StringComparison.OrdinalIgnoreCase))
+            ?? Model.Board.Teams.FirstOrDefault(team => string.Equals(team.TeamName, resultTeams[0].TeamName, StringComparison.OrdinalIgnoreCase))
         : null;
-    var leadCompletionText = leadTeam is null
+    var leadCompletionText = resultTeams.Count > 1
+        ? T["Tied for first"]
+        : leadTeam is null
         ? T["Completion unavailable"]
         : T["{0}% complete", totalTiles == 0 ? 0 : leadTeam.Progress.CompletedTiles * 100 / totalTiles];
-    var leadLabel = leadResult?.IsOfficial == true ? T["Winner"] : leadResult is not null ? T["In the lead"] : T["Results pending"];
+    var leadLabel = leadResult?.IsOfficial == true ? (resultTeams.Count > 1 ? T["Tie"] : T["Winner"]) : leadResult is not null ? T["In the lead"] : T["Results pending"];
     var boardOverviewUrl = Url.Page("/Events/Board", new { slug = Model.Board.EventSlug });
     var submissionHref = User.Identity?.IsAuthenticated != true
         ? Url.Page("/Account/Login", new { ReturnUrl = boardOverviewUrl })
@@ -776,11 +779,6 @@
     <div class="public-evidence-viewer__layout">
         <figure class="public-evidence-viewer__figure">
             <div class="public-evidence-viewer__viewport" data-evidence-viewport><img data-evidence-dialog-image alt="" tabindex="0" /></div>
-            <div class="public-evidence-viewer__controls" role="group" aria-label="@T["Evidence zoom controls"]">
-                <button type="button" data-evidence-zoom-out aria-label="@T["Zoom out"]">−</button>
-                <button type="button" data-evidence-zoom-reset>@T["Reset"]</button>
-                <button type="button" data-evidence-zoom-in aria-label="@T["Zoom in"]">+</button>
-            </div>
         </figure>
         <aside class="public-evidence-viewer__meta" aria-label="@T["Evidence details"]">
             <span class="public-ui-overline">@T["Approved evidence"]</span>

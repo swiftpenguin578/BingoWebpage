@@ -904,6 +904,38 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PublicBoardResultRendersOfficialFirstPlaceTie()
+    {
+        var setup = await SeedAsync(target: 1, allowHigherWeights: false);
+        await using var db = new ApplicationDbContext(options);
+        var team = await db.Teams.SingleAsync(value => value.Id == setup.TeamId);
+        team.Finalize(now.AddMinutes(-30));
+        var secondTeamId = Guid.NewGuid();
+        db.Teams.Add(new Team(secondTeamId, setup.EventId, "Team Two", $"team-{secondTeamId:N}", TeamFormationType.Drafted, null, true));
+        var bingoEvent = await db.Events.SingleAsync(value => value.Id == setup.EventId);
+        var finalizedAt = now.AddMinutes(1);
+        var reviewCycleId = Guid.NewGuid();
+        bingoEvent.EndEvent(now);
+        db.EventStateTransitions.Add(new EventStateTransition(
+            reviewCycleId, bingoEvent.Id, EventState.Live, EventState.AwaitingFinalReview, setup.AdminId, now,
+            "Test event ended", effectiveAt: now));
+        bingoEvent.FinalizeResults(finalizedAt);
+        var finalization = new EventFinalizationSnapshot(Guid.NewGuid(), bingoEvent.Id, 1, finalizedAt, setup.AdminId, reviewCycleId);
+        db.EventFinalizations.Add(finalization);
+        db.OfficialPlacements.AddRange(
+            new OfficialPlacementSnapshot(Guid.NewGuid(), finalization.Id, bingoEvent.Id, setup.TeamId, "Historic Team One", 1, false, null, 0, 0, 0),
+            new OfficialPlacementSnapshot(Guid.NewGuid(), finalization.Id, bingoEvent.Id, secondTeamId, "Historic Team Two", 1, false, null, 0, 0, 0));
+        await db.SaveChangesAsync();
+
+        var finalized = await new PublicBoardService(db, new FixedTimeProvider(now.AddMinutes(2))).GetEventBoardAsync(bingoEvent.Slug);
+
+        Assert.Equal("Historic Team One / Historic Team Two", finalized!.EventResult!.TeamName);
+        Assert.Null(finalized.EventResult.TeamSlug);
+        Assert.True(finalized.EventResult.IsOfficial);
+        Assert.Equal(["Historic Team One", "Historic Team Two"], finalized.EventResult.Teams!.Select(value => value.TeamName).ToArray());
+    }
+
+    [Fact]
     public async Task PublicRecentDropsProjectHistoricalProgressBeforeVisibleLimit()
     {
         var setup = await SeedAsync(target: 30, allowHigherWeights: false);

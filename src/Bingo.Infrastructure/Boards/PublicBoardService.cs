@@ -227,10 +227,18 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
         {
             if (bingoEvent.ResultsPublished)
             {
-                var officialWinner = officialPlacementRows.SingleOrDefault(value => value.Placement == 1);
-                if (officialWinner is not null)
+                var officialWinners = officialPlacementRows
+                    .Where(value => value.Placement == 1)
+                    .OrderBy(value => value.TeamName, StringComparer.Ordinal)
+                    .ToList();
+                if (officialWinners.Count > 0)
                 {
-                    eventResult = new PublicEventResult(officialWinner.TeamName, teamMap.GetValueOrDefault(officialWinner.TeamId)?.Slug, true);
+                    var resultTeams = officialWinners
+                        .Select(value => new PublicEventResultTeam(value.TeamName, teamMap.GetValueOrDefault(value.TeamId)?.Slug))
+                        .ToList();
+                    eventResult = resultTeams.Count == 1
+                        ? new PublicEventResult(resultTeams[0].TeamName, resultTeams[0].TeamSlug, true)
+                        : new PublicEventResult(string.Join(" / ", resultTeams.Select(value => value.TeamName)), null, true, resultTeams);
                 }
             }
             else if (bingoEvent.State == EventState.AwaitingFinalReview)

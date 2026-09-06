@@ -45,7 +45,7 @@ public sealed class WiseOldManDevelopmentFakeHandler(
 
     private HttpResponseMessage CompetitionResponse(long competitionId)
     {
-        if (competitionId != 1515) return Response(HttpStatusCode.NotFound, "{}");
+        if (competitionId is not (1515 or 1516)) return Response(HttpStatusCode.NotFound, "{}");
         if (temporaryFailuresRemaining > 0)
         {
             temporaryFailuresRemaining--;
@@ -64,12 +64,14 @@ public sealed class WiseOldManDevelopmentFakeHandler(
                 deltas = new[] { new { metric = "ehb", values = new { gained = name == "Dev Player 001" ? 12.0m : name == "Dev Activity Secondary" ? 8.0m : name == "Dev Player 002" ? 20.0m : 2.0m + index % 3 } } }
             });
         var now = time.GetUtcNow();
+        var startsAt = now.AddHours(-99);
+        var endsAt = competitionId == 1515 ? now.AddDays(14) : now.AddDays(15);
         return Response(HttpStatusCode.OK, JsonSerializer.Serialize(new
         {
             id = competitionId,
-            title = "TEST 15 local fake competition",
-            startsAt = now.AddHours(-1),
-            endsAt = now.AddDays(5),
+            title = competitionId == 1515 ? "TEST 15 local fake competition" : "TEST 15 alternate local fake competition",
+            startsAt,
+            endsAt,
             updatedAt = now,
             participations = players
         }));

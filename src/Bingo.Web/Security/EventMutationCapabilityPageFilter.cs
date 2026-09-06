@@ -60,6 +60,12 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
             await next();
             return;
         }
+        if (eventView.State == EventState.Live &&
+            path.EndsWith("/Schedule.cshtml", StringComparison.OrdinalIgnoreCase))
+        {
+            await next();
+            return;
+        }
         if (!TryCapability(path, context.HandlerMethod?.Name, out var capability))
         {
             await next();
@@ -129,7 +135,10 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         if (path.EndsWith("/Manage.cshtml", StringComparison.OrdinalIgnoreCase))
         {
             if (name.Contains("StartEvent", StringComparison.Ordinal) || name.Contains("EndEvent", StringComparison.Ordinal) || name.Contains("PrepareEndConfirmation", StringComparison.Ordinal) || name.Contains("Discard", StringComparison.Ordinal) || name.Contains("Cancel", StringComparison.Ordinal)) { capability = default; return false; }
-            capability = name.Contains("ResumeEvent", StringComparison.Ordinal) ? EventCapability.ResumeEvent
+            if (name.Contains("Competition", StringComparison.Ordinal) &&
+                !name.Contains("RefreshCompetition", StringComparison.Ordinal) &&
+                !name.Contains("MakeDevelopmentCompetitionDue", StringComparison.Ordinal)) { capability = default; return false; }
+            capability = name.Contains("ResumeEvent", StringComparison.Ordinal) || name.Contains("PrepareResumeConfirmation", StringComparison.Ordinal) ? EventCapability.ResumeEvent
                 : name.Contains("ReopenSubmissions", StringComparison.Ordinal) ? EventCapability.ReviewEvidence
                 : name.Contains("EvidenceCode", StringComparison.Ordinal) ? EventCapability.ConfigureEvidenceCodes
                 : name.Contains("RefreshCompetition", StringComparison.Ordinal) || name.Contains("MakeDevelopmentCompetitionDue", StringComparison.Ordinal) ? EventCapability.CompetitionSynchronization

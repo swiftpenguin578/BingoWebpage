@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Bingo.Application.Events;
 using Bingo.Application.Evidence;
@@ -442,6 +443,61 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task LiveSchedulePostReachesEndOnlyHandlerAndIgnoresLockedFields()
+    {
+        var admin = Account.CreateWebsite(Guid.NewGuid(), "Live schedule Admin", "LIVE SCHEDULE ADMIN", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "live-schedule-password"), false, now, incrementVersion: false);
+        var liveId = Guid.NewGuid();
+        var utcNow = DateTimeOffset.UtcNow;
+        var runtimeNow = new DateTimeOffset(utcNow.Year, utcNow.Month, utcNow.Day, utcNow.Hour, utcNow.Minute - utcNow.Minute % 5, 0, TimeSpan.Zero);
+        var originalStart = runtimeNow.AddHours(-2);
+        var originalEnd = runtimeNow.AddHours(2);
+        var live = Draft(liveId, "live-schedule-route", admin.Id);
+        live.ConfigureSchedule(now.AddHours(-5), now.AddHours(-4), null, originalStart, originalEnd, 20);
+        live.OpenSignups(now.AddHours(-5));
+        live.CloseSignups(now.AddHours(-4));
+        live.StartEvent(originalStart);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(admin, live);
+            await setup.SaveChangesAsync();
+        }
+
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var login = await client.GetStringAsync("/Account/Login");
+        using var loggedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = admin.PublicUsername!,
+            ["Input.Password"] = "live-schedule-password",
+            ["__RequestVerificationToken"] = AntiforgeryToken(login)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, loggedIn.StatusCode);
+
+        var schedule = await client.GetStringAsync($"/Admin/Events/Schedule/{liveId}");
+        var changedEnd = originalEnd.AddHours(1);
+        using var response = await client.PostAsync($"/Admin/Events/Schedule/{liveId}", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Version"] = InputValue(schedule, "Input.Version"),
+            ["Input.EventStartsLocal"] = "2027-01-01T00:00",
+            ["Input.EventEndsLocal"] = changedEnd.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture),
+            ["Input.EventEndReason"] = "Extend for the live rehearsal.",
+            ["Input.ConfirmChanges"] = "true",
+            ["__RequestVerificationToken"] = AntiforgeryToken(schedule)
+        }));
+
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal($"/Admin/Events/Manage/{liveId}", response.Headers.Location!.OriginalString);
+        await using var verify = new ApplicationDbContext(options);
+        var saved = await verify.Events.SingleAsync(value => value.Id == liveId);
+        Assert.Equal(changedEnd, saved.EventEndsAt);
+        Assert.Equal(originalStart, saved.EventStartsAt);
+        Assert.Equal(20, saved.ParticipantCap);
+        Assert.Single(await verify.AuditEntries.Where(value => value.EventId == liveId && value.Action == "event.schedule_updated").ToListAsync());
+    }
+
+    [Fact]
     public async Task ResumeEventPostReachesLifecycleBoundaryOnlyFromAwaitingFinalReview()
     {
         var admin = Account.CreateWebsite(Guid.NewGuid(), "Resume route Admin", "RESUME ROUTE ADMIN", now);
@@ -481,19 +537,28 @@ public sealed class Slice3DestructiveLifecycleIntegrationTests : IAsyncLifetime
         Assert.Equal(System.Net.HttpStatusCode.Redirect, loggedIn.StatusCode);
 
         var awaitingPage = await client.GetStringAsync($"/Admin/Events/Manage/{awaitingId}");
+        var awaitingRoute = $"/Admin/Events/Manage/{awaitingId}";
+        using var prepareResume = await client.PostAsync($"{awaitingRoute}?handler=PrepareResumeConfirmation", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = AntiforgeryToken(awaitingPage)
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, prepareResume.StatusCode);
+        Assert.Equal($"{awaitingRoute}?confirm=resume", prepareResume.Headers.Location!.OriginalString);
+        var resumeConfirmation = await client.GetStringAsync(prepareResume.Headers.Location!.OriginalString);
+        Assert.Contains("Confirm resume", resumeConfirmation, StringComparison.Ordinal);
         long currentEventVersion;
         await using (var versionCheck = new ApplicationDbContext(options))
         {
             currentEventVersion = await versionCheck.Events.Where(value => value.Id == awaitingId).Select(value => value.Version).SingleAsync();
         }
         var replacementEnd = now.AddHours(3);
-        using var resumeResponse = await client.PostAsync($"/Admin/Events/Manage/{awaitingId}?handler=ResumeEvent", new FormUrlEncodedContent(new Dictionary<string, string>
+        using var resumeResponse = await client.PostAsync($"{awaitingRoute}?handler=ResumeEvent", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["EventVersion"] = currentEventVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["ConfirmResumeEvent"] = "true",
             ["ResumeReason"] = "The event ended prematurely during the route test.",
             ["ReplacementEventEndsAt"] = replacementEnd.ToString("O"),
-            ["__RequestVerificationToken"] = AntiforgeryToken(awaitingPage)
+            ["__RequestVerificationToken"] = AntiforgeryToken(resumeConfirmation)
         }));
         Assert.Equal(System.Net.HttpStatusCode.Redirect, resumeResponse.StatusCode);
         await AssertReadOnlyPostAsync(client, archivedId, $"/Admin/Events/Manage/{archivedId}?handler=ResumeEvent");

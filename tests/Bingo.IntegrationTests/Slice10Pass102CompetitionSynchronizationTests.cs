@@ -351,7 +351,7 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
             var failed = await new EventCompetitionSynchronizationService(clearDb, fake, new FixedStatus(), clock)
                 .ConfigureAsync(eventItem.Id, currentVersion, null, false, actor);
             Assert.False(failed.Succeeded);
-            Assert.Contains("replace", failed.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("confirmation", failed.Error, StringComparison.OrdinalIgnoreCase);
         }
 
         await using (var scheduleDb = new ApplicationDbContext(options))

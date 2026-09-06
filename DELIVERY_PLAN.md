@@ -1385,10 +1385,11 @@ independent readiness review clears this final contract.
   authority. A valid primary plus another regular Playing character is not
   ambiguous and must not block finalization.
 - The existing evidence popup remains. Board/Team Board and Admin Review evidence
-  images gain zoom-in, zoom-out, reset, and pan inside that popup, including
-  keyboard, pointer/trackpad, and practical touch support. Focus, Escape/backdrop
-  close, responsive sizing, themes, and reset-on-close remain accessible. No media
-  dependency or generalized viewer framework is permitted.
+  images gain click-focused toggle magnifier zoom plus pan inside that popup, including
+  keyboard, pointer/trackpad, and practical touch support. Do not render a separate
+  zoom-control bar. Focus, Escape/backdrop close, responsive sizing, themes, and
+  reset-on-close remain accessible. No media dependency or generalized viewer
+  framework is permitted.
 
 The authoritative lifecycle matrix is:
 

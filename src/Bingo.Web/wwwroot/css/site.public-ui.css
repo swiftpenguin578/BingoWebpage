@@ -2394,7 +2394,7 @@ body.public-ui-pass1 .public-teams-directory__meta dt,
 body.public-ui-pass1 .public-teams-directory__meta dd { margin: 0; }
 body.public-ui-pass1 .public-teams-directory__meta dt { color: var(--public-directory-accent); font: 600 0.68rem/1 "Barlow Condensed Public UI", sans-serif; letter-spacing: 0.05em; text-transform: uppercase; }
 body.public-ui-pass1 .public-teams-directory__meta dd { color: var(--public-directory-heading); font-size: 0.78rem; }
-body.public-ui-pass1 .public-teams-directory__art { position: absolute; z-index: 1; top: 0; right: calc(100% + var(--public-page-gutter) - 100vw); bottom: 0; width: 43%; overflow: hidden; background: var(--landing-art-field); container-type: size; }
+body.public-ui-pass1 .public-teams-directory__art { position: absolute; z-index: 1; top: -3.65rem; right: calc(100% + var(--public-page-gutter) - 100vw); bottom: 0; width: 43%; overflow: hidden; background: var(--landing-art-field); container-type: size; }
 body.public-ui-pass1 .public-teams-directory__art .landing-hero__background { position: absolute; inset: 0; --teams-art-diagonal: min(65.5cqh, 15.1vw); --teams-art-stripe: min(0.72cqh, 0.1665vw); }
 body.public-ui-pass1 .public-teams-directory__art .landing-hero__background::before { clip-path: polygon(0 0, var(--teams-art-diagonal) 0, 0 100%); }
 body.public-ui-pass1 .public-teams-directory__art .landing-hero__background::after { clip-path: polygon(calc(var(--teams-art-diagonal) - var(--teams-art-stripe)) 0, var(--teams-art-diagonal) 0, var(--teams-art-stripe) 100%, 0 100%); }
@@ -3730,8 +3730,8 @@ body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer__body { pad
 body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer .public-ui-submission-form { gap: 0.7rem; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
 body.public-event-shell.public-ui-pass1 .public-ui-pass1-main .public-ui-control-visual,
 body.public-event-shell.public-ui-pass1 .public-ui-pass1-main .public-ui-select { min-height: 2.45rem; box-sizing: border-box; color: var(--board-ink); background: var(--board-field); border: 1px solid var(--board-rule); border-radius: 0; font: 400 0.86rem/1.25 "Geist Public UI", sans-serif; }
-body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer .public-ui-submission-form textarea.public-ui-control-visual { height: 2.45rem; min-height: 2.45rem; }
-body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer .public-ui-submission-form input.public-ui-control-visual[readonly] { height: 2.45rem; min-height: 2.45rem; }
+body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer .public-ui-submission-form :is(input, select, textarea).public-ui-control-visual { height: 2.45rem; min-height: 2.45rem; }
+body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer .public-ui-submission-form label > .public-ui-select-chevron { top: calc(0.74rem + 0.2rem + 1.225rem); bottom: auto; transform: translateY(-50%) rotate(45deg); }
 body.public-event-shell.public-ui-pass1 .public-ui-submission-validation { color: var(--board-coral); background: color-mix(in srgb, var(--board-coral) 7%, var(--board-surface)); border-color: var(--board-coral); border-radius: 0; }
 body.public-event-shell.public-ui-pass1 .public-ui-evidence-drop { background: var(--board-field); border-color: var(--board-rule); border-radius: 0; }
 body.public-event-shell.public-ui-pass1 .public-ui-evidence-drop__copy strong { color: var(--board-ink); font: 800 1rem/0.95 "Barlow Condensed ExtraBold", sans-serif; text-transform: uppercase; }
