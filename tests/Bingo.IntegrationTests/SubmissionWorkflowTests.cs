@@ -1040,6 +1040,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var firstAt = now.AddMinutes(-15);
         var aliasAt = now.AddMinutes(-10);
         var distinctAt = now.AddMinutes(-5);
+        var expectedDistinctAt = distinctAt.AddTicks(-(distinctAt.Ticks % TimeSpan.TicksPerMicrosecond));
         var first = AddApproved(setup.DropId!.Value, firstAt);
         var alias = AddApproved(aliasDropId, aliasAt);
         AddApproved(distinctDropId, distinctAt);
@@ -1049,7 +1050,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
 
         var publicTeam = Assert.Single(board!.Teams);
         Assert.True(publicTeam.Progress.BoardComplete);
-        Assert.Equal(distinctAt, publicTeam.Progress.BoardCompletedAt);
+        Assert.Equal(expectedDistinctAt, publicTeam.Progress.BoardCompletedAt);
         Assert.Equal([2, 1, 1], board.RecentDrops.Select(value => value.ProgressAfter));
         Assert.Equal(1, board.RecentDrops.Single(value => value.SubmissionId == alias.Id).ProgressAfter);
         Assert.Equal(12, publicTeam.Progress.EhbTiebreak);

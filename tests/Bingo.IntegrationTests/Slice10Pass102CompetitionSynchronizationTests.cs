@@ -508,8 +508,9 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
     [InlineData(DraftState.Paused)]
     public async Task WiseOldManScheduleSynchronizationRejectsRunningOrPausedDraftStatesWithoutResidue(DraftState draftState)
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
-        var now = clock.GetUtcNow();
+        var rawNow = DateTimeOffset.UtcNow;
+        var now = rawNow.AddTicks(-(rawNow.Ticks % TimeSpan.TicksPerMicrosecond));
+        var clock = new TestClock(now);
         var admin = Account.CreateWebsite(Guid.NewGuid(), "locked-schedule-admin", "LOCKED-SCHEDULE-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
         var eventItem = new BingoEvent(Guid.NewGuid(), "Locked schedule", $"locked-schedule-{Guid.NewGuid():N}", "", "UTC",

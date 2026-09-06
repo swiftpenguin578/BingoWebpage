@@ -38,7 +38,8 @@ public sealed class AdminEventFunctionalityPass3IntegrationTests : IAsyncLifetim
     [Fact]
     public async Task ManageMutationsRollBackWithAuditFailureAndSuccessfulActionsCreateOneAuditEach()
     {
-        var now = new FixedTimeProvider(DateTimeOffset.UtcNow);
+        var rawNow = DateTimeOffset.UtcNow;
+        var now = new FixedTimeProvider(rawNow.AddTicks(-(rawNow.Ticks % TimeSpan.TicksPerMicrosecond)));
         var admin = Bingo.Domain.Access.Account.CreateWebsite(Guid.NewGuid(), "pass3-admin", "PASS3-ADMIN", now.GetUtcNow());
         admin.SetGlobalRole(Bingo.Domain.Access.GlobalRole.Admin);
         var item = new BingoEvent(Guid.NewGuid(), "Pass 3 event", $"pass3-{Guid.NewGuid():N}", "", "UTC",

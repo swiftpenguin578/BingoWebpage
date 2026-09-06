@@ -290,6 +290,11 @@ historical material is preserved separately and is non-authoritative.
   secondary Playing-character setup. Ordinary Development WOM linking is
   accepted; the moving-window `1516` Live-replacement timing case is explicitly
   waived as a super-edge-case. No further manual journey blocks packaging.
+- The pre-PR timestamp audit found three test-only exact comparisons that used
+  sub-microsecond `UtcNow` values across a PostgreSQL round trip. Their inputs or
+  expectations now use PostgreSQL microsecond precision. The four focused cases
+  pass in Release configuration, and `git diff --check` passes; no production
+  code changed in this follow-up.
 
 ## Canonical checkout
 
