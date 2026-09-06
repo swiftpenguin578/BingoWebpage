@@ -2038,14 +2038,11 @@ public sealed class DevelopmentScenarioSeeder(
                     (requirement.IncludedItems is not null
                         ? requirement.IncludedItems.Contains(row.item.Name, StringComparer.OrdinalIgnoreCase)
                         : requirement.ItemNameContains is null || row.item.Name.Contains(requirement.ItemNameContains, StringComparison.OrdinalIgnoreCase))).ToList();
-                if (requirement.Manual && requirement.IncludedItems is { Length: > 0 })
+                if (requirement.Manual)
                 {
-                    var manualDrops = requirement.IncludedItems
-                        .Select(itemName => new DropBlueprint(Guid.NewGuid(), Guid.NewGuid(), "Historical item pool", itemName, "Historical item pool", null, null, null))
-                        .ToList();
                     requirements.Add(new RequirementBlueprint(
                         requirementIndex + 1, requirement.Target, requirement.Duplicates, requirement.HigherWeights,
-                        requirement.Description, true, [], manualDrops));
+                        requirement.Description, true, [], []));
                     estimates.Add(null);
                     continue;
                 }

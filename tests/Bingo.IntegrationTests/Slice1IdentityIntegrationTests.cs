@@ -921,6 +921,37 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task DevelopmentDklManualObjectiveHasNoEventOrApprovalDropSnapshots()
+    {
+        var seededAt = DateTimeOffset.UtcNow;
+        var clock = new MutableTimeProvider(seededAt);
+        await using var db = new ApplicationDbContext(options);
+        const string ownerUsername = "slice1-manual-objective-owner";
+        await new OperatorRecoveryService(db, clock, passwords).BootstrapOwnerAsync(ownerUsername, "long-test-password", ownerUsername, CancellationToken.None);
+        await new CatalogueSnapshotService(db, clock).ApplyAsync(Path.Combine(AppContext.BaseDirectory, "data", "osrs-catalogue.json"));
+        await new DevelopmentScenarioSeeder(db, new DevelopmentEnvironment(), passwords, new SeedEvidenceStorage(), clock).ResetAndSeedAsync();
+
+        var live = await db.Events.SingleAsync(item => item.Slug == "test-15-dkl-live");
+        var boardId = await db.Boards.Where(item => item.EventId == live.Id).Select(item => item.Id).SingleAsync();
+        var manual = await (from requirement in db.BoardRequirementSnapshots
+                            join tile in db.BoardTiles on requirement.BoardTileId equals tile.Id
+                            where tile.BoardId == boardId && tile.NameSnapshot == "Superior Slayer" && requirement.ManualObjective
+                            select new { requirement.Id, requirement.Description, requirement.TargetContribution, tile.EstimatedEhbSnapshot }).SingleAsync();
+        Assert.Equal(4, manual.TargetContribution);
+        Assert.Equal(21m, manual.EstimatedEhbSnapshot);
+        Assert.Contains("Imbued heart", manual.Description, StringComparison.Ordinal);
+        Assert.Empty(await db.BoardRequirementDropSnapshots.Where(item => item.RequirementId == manual.Id).ToListAsync());
+
+        var approvalRequirementIds = await (from requirement in db.BoardApprovalRequirementSnapshots
+                                            join tile in db.BoardApprovalTileSnapshots on requirement.ApprovalTileSnapshotId equals tile.Id
+                                            join approval in db.BoardApprovalSnapshots on tile.ApprovalSnapshotId equals approval.Id
+                                            where approval.BoardId == boardId && requirement.ManualObjective
+                                            select requirement.Id).ToListAsync();
+        Assert.Single(approvalRequirementIds);
+        Assert.Empty(await db.BoardApprovalRequirementDropSnapshots.Where(item => approvalRequirementIds.Contains(item.ApprovalRequirementSnapshotId)).ToListAsync());
+    }
+
+    [Fact]
     public async Task DevelopmentSeededEmergencyCredentialFollowsCutoffLifecycle()
     {
         var seededAt = DateTimeOffset.UtcNow;

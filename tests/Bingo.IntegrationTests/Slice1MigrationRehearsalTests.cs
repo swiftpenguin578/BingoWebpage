@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text.Json;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Infrastructure.Persistence;
@@ -17,6 +19,9 @@ public sealed class Slice1MigrationRehearsalTests : IAsyncLifetime
     private const string LegacyMigration = "20260721232916_AddBoardEditorAndCatalogueRateMechanics";
     private const string PreviousSlice9Migration = "20260802002639_AddLiveWithdrawalReplacementPersistence";
     private const string FinalReviewMigration = "20260802005536_AddFinalReviewCyclesAndSnapshotInputs";
+    private const string PreviousImmutableItemMigration = "20260831142836_AddEventQuarantine";
+    private const string ImmutableItemMigration = "20260905221344_AddImmutableCatalogueItemIdentity";
+    private static readonly JsonSerializerOptions MappingJsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true };
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice1_migration_rehearsal")
         .WithUsername("bingo")
@@ -32,6 +37,89 @@ public sealed class Slice1MigrationRehearsalTests : IAsyncLifetime
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
+
+    [Fact]
+    public async Task ManualObjectiveDropSnapshotsAreStructuralAndCannotBeMapped()
+    {
+        var seed = await SeedImmutableSnapshotRowsAsync(manual: true);
+        await using var legacy = new ApplicationDbContext(options);
+        var report = await new Slice1MigrationPreflight(legacy).RunImmutableItemPreflightAsync(CancellationToken.None);
+
+        Assert.Contains("Structural errors: 2", report, StringComparison.Ordinal);
+        Assert.Contains("correction/removal required before retry", report, StringComparison.Ordinal);
+        Assert.Contains(seed.EventDropId.ToString(), report, StringComparison.Ordinal);
+        Assert.Contains(seed.ApprovalDropId.ToString(), report, StringComparison.Ordinal);
+        var template = report[report.IndexOf("Mapping template", StringComparison.Ordinal)..];
+        Assert.DoesNotContain(seed.EventDropId.ToString(), template, StringComparison.Ordinal);
+        Assert.DoesNotContain(seed.ApprovalDropId.ToString(), template, StringComparison.Ordinal);
+
+        await legacy.Database.OpenConnectionAsync();
+        try
+        {
+            var stagingException = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                Slice1MigrationPreflight.StageImmutableItemMappingsAsync(
+                    legacy.Database.GetDbConnection(), "supplied-mapping.json", "known-hash", CancellationToken.None));
+            Assert.Contains("manual objectives are forbidden", stagingException.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.False(await TempMappingExistsAsync(legacy));
+
+            await legacy.Database.ExecuteSqlRawAsync("CREATE TEMP TABLE bingo_item_snapshot_mapping (snapshot_family text NOT NULL, snapshot_id uuid NOT NULL, item_id uuid NOT NULL, PRIMARY KEY (snapshot_family, snapshot_id));");
+            await legacy.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO bingo_item_snapshot_mapping (snapshot_family, snapshot_id, item_id)
+                VALUES ('event', {seed.EventDropId}, {seed.ItemId}), ('approval', {seed.ApprovalDropId}, {seed.ItemId});
+                """);
+            var migrationException = await Record.ExceptionAsync(() => legacy.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>().MigrateAsync());
+            Assert.NotNull(migrationException);
+            Assert.Contains("manual objectives", migrationException.ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(0, await legacy.Database.SqlQuery<int>($"SELECT count(*) AS \"Value\" FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\" = {ImmutableItemMigration}").SingleAsync());
+            Assert.False(await ColumnExistsAsync(legacy, "board_requirement_drop_snapshots", "item_id_snapshot"));
+        }
+        finally
+        {
+            await legacy.Database.CloseConnectionAsync();
+        }
+    }
+
+    [Fact]
+    public async Task LegitimateAmbiguousCatalogueRowsStillUseTheAdjudicatedMappingWorkflow()
+    {
+        var seed = await SeedImmutableSnapshotRowsAsync(manual: false);
+        await using var legacy = new ApplicationDbContext(options);
+        var report = await new Slice1MigrationPreflight(legacy).RunImmutableItemPreflightAsync(CancellationToken.None);
+        Assert.Contains("Structural errors: none.", report, StringComparison.Ordinal);
+        Assert.Contains("flagged: 2", report, StringComparison.Ordinal);
+        Assert.Contains(seed.AlternateItemId.ToString(), report, StringComparison.Ordinal);
+
+        var mapping = new Slice1MigrationPreflight.ImmutableItemMappingFile
+        {
+            DatabaseFingerprint = report[..report.IndexOf(Environment.NewLine, StringComparison.Ordinal)]["Database fingerprint: ".Length..],
+            Rows =
+            [
+                new() { SnapshotFamily = "event", SnapshotId = seed.EventDropId, ItemId = seed.ItemId },
+                new() { SnapshotFamily = "approval", SnapshotId = seed.ApprovalDropId, ItemId = seed.ItemId }
+            ]
+        };
+        var mappingBytes = JsonSerializer.SerializeToUtf8Bytes(mapping, MappingJsonOptions);
+        var mappingPath = Path.Combine(Path.GetTempPath(), $"immutable-item-mapping-{Guid.NewGuid():N}.json");
+        await File.WriteAllBytesAsync(mappingPath, mappingBytes);
+        try
+        {
+            await legacy.Database.OpenConnectionAsync();
+            await Slice1MigrationPreflight.StageImmutableItemMappingsAsync(
+                legacy.Database.GetDbConnection(), mappingPath,
+                Convert.ToHexString(SHA256.HashData(mappingBytes)).ToLowerInvariant(), CancellationToken.None);
+            Assert.True(await TempMappingExistsAsync(legacy));
+            await legacy.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>().MigrateAsync();
+
+            Assert.Equal(seed.ItemId, await legacy.Database.SqlQuery<Guid>($"SELECT item_id_snapshot AS \"Value\" FROM board_requirement_drop_snapshots WHERE id = {seed.EventDropId}").SingleAsync());
+            Assert.Equal(seed.ItemId, await legacy.Database.SqlQuery<Guid>($"SELECT item_id_snapshot AS \"Value\" FROM board_approval_requirement_drop_snapshots WHERE id = {seed.ApprovalDropId}").SingleAsync());
+            Assert.False(await TempMappingExistsAsync(legacy));
+        }
+        finally
+        {
+            await legacy.Database.CloseConnectionAsync();
+            File.Delete(mappingPath);
+        }
+    }
 
     [Fact]
     public async Task RetainedLegacyAndCleanProductionRehearsalsSucceed()
@@ -213,7 +301,66 @@ public sealed class Slice1MigrationRehearsalTests : IAsyncLifetime
         return new RetainedOfficialSnapshotSeed(eventId, snapshotId, transitionIds);
     }
 
+    private async Task<ImmutableSnapshotSeed> SeedImmutableSnapshotRowsAsync(bool manual)
+    {
+        await using var databaseContext = new ApplicationDbContext(options);
+        await databaseContext.Database.EnsureDeletedAsync();
+        await databaseContext.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>().MigrateAsync(PreviousImmutableItemMigration);
+
+        var now = DateTimeOffset.UtcNow.AddDays(-1);
+        var accountId = Guid.NewGuid();
+        var eventId = Guid.NewGuid();
+        var boardId = Guid.NewGuid();
+        var tileId = Guid.NewGuid();
+        var requirementId = Guid.NewGuid();
+        var approvalId = Guid.NewGuid();
+        var approvalTileId = Guid.NewGuid();
+        var approvalRequirementId = Guid.NewGuid();
+        var eventDropId = Guid.NewGuid();
+        var approvalDropId = Guid.NewGuid();
+        var sourceDropId = Guid.NewGuid();
+        var itemId = Guid.NewGuid();
+        var alternateItemId = Guid.NewGuid();
+        var itemName = manual ? "Manual item" : "Ambiguous item";
+
+        await databaseContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO accounts (id, password_hash, must_change_password, account_type, active, authorization_version, login_name, normalized_login_name, global_role, public_username, normalized_public_username, password_version, version, created_at)
+            VALUES ({accountId}, {"hash"}, FALSE, {"WebsiteAccount"}, TRUE, 1, {$"snapshot-owner-{eventId:N}"}, {$"SNAPSHOT-OWNER-{eventId:N}"}, {"Admin"}, {$"snapshot-owner-{eventId:N}"}, {$"SNAPSHOT-OWNER-{eventId:N}"}, 1, 1, {now});
+            INSERT INTO events (id, name, slug, description, timezone, state, signup_opens_at, signup_closes_at, event_starts_at, event_ends_at, submission_cutoff_at, participant_cap, waiting_list_enabled, require_signup_code, participant_list_published, draft_results_published, team_rosters_published, board_published, results_published, draft_locked, created_by_account_id, created_at)
+            VALUES ({eventId}, {"Snapshot mapping event"}, {$"snapshot-mapping-{eventId:N}"}, {""}, {"UTC"}, {"Draft"}, {now}, {now}, {now}, {now.AddDays(1)}, {now.AddDays(1)}, 10, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, {accountId}, {now});
+            INSERT INTO boards (id, event_id, name, rows, columns, state, total_ehb_estimate, calculation_version, version)
+            VALUES ({boardId}, {eventId}, {"Snapshot mapping board"}, 1, 1, {"Published"}, 1, 1, 1);
+            INSERT INTO board_tiles (id, board_id, tile_template_id, row_index, column_index, name_snapshot, description_snapshot, evidence_instructions_snapshot, estimated_ehb_snapshot)
+            VALUES ({tileId}, {boardId}, {Guid.NewGuid()}, 0, 0, {"Snapshot tile"}, {"Snapshot description"}, {"Snapshot evidence"}, 1);
+            INSERT INTO board_requirement_snapshots (id, board_tile_id, position, target_contribution, duplicates_allowed, allow_higher_weightings, credited_weight, description, manual_objective)
+            VALUES ({requirementId}, {tileId}, 0, 1, FALSE, FALSE, 1, {"Snapshot requirement"}, {manual});
+            INSERT INTO board_requirement_drop_snapshots (id, requirement_id, source_drop_id, boss_name, item_name, display_rate, numeric_probability, maximum_contribution, ehb_per_contribution, credited_weight)
+            VALUES ({eventDropId}, {requirementId}, {sourceDropId}, {"Snapshot boss"}, {itemName}, {"1/10"}, 0.1, 1, 1, 1);
+            INSERT INTO board_approval_snapshots (id, board_id, version, approved_at, name, rows, columns, total_ehb_estimate, calculation_version, board_version, lifecycle_state)
+            VALUES ({approvalId}, {boardId}, 1, {now}, {"Snapshot mapping board"}, 1, 1, 1, 1, 1, {"Published"});
+            INSERT INTO board_approval_tile_snapshots (id, approval_snapshot_id, board_tile_id, tile_template_id, row_index, column_index, name, description, evidence_instructions, estimated_ehb)
+            VALUES ({approvalTileId}, {approvalId}, {tileId}, {Guid.NewGuid()}, 0, 0, {"Snapshot tile"}, {"Snapshot description"}, {"Snapshot evidence"}, 1);
+            INSERT INTO board_approval_requirement_snapshots (id, approval_tile_snapshot_id, board_requirement_snapshot_id, position, target_contribution, duplicates_allowed, allow_higher_weightings, credited_weight, description, manual_objective)
+            VALUES ({approvalRequirementId}, {approvalTileId}, {requirementId}, 0, 1, FALSE, FALSE, 1, {"Snapshot requirement"}, {manual});
+            INSERT INTO board_approval_requirement_drop_snapshots
+                (id, approval_requirement_snapshot_id, source_drop_id, boss_name, item_name, display_rate, numeric_probability, probability_scope, conditional_on_parent, assumed_participants, rolls_per_completion, roll_group, maximum_contribution, credited_weight, catalogue_version)
+            VALUES ({approvalDropId}, {approvalRequirementId}, {sourceDropId}, {"Snapshot boss"}, {itemName}, {"1/10"}, 0.1, {"Participant"}, FALSE, 1, 1, {"default"}, 1, 1, 1);
+            INSERT INTO catalogue_items (id, name, normalized_name, active)
+            VALUES ({itemId}, {itemName}, {$"{itemName.ToUpperInvariant()}-A"}, TRUE),
+                   ({alternateItemId}, {itemName}, {$"{itemName.ToUpperInvariant()}-B"}, TRUE);
+            """);
+
+        return new ImmutableSnapshotSeed(eventId, eventDropId, approvalDropId, itemId, alternateItemId);
+    }
+
+    private static async Task<bool> TempMappingExistsAsync(ApplicationDbContext db) =>
+        await db.Database.SqlQuery<bool>($"SELECT to_regclass('pg_temp.bingo_item_snapshot_mapping') IS NOT NULL AS \"Value\"").SingleAsync();
+
+    private static async Task<bool> ColumnExistsAsync(ApplicationDbContext db, string table, string column) =>
+        await db.Database.SqlQuery<bool>($"SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = {table} AND column_name = {column}) AS \"Value\"").SingleAsync();
+
     private sealed record RetainedOfficialSnapshotSeed(Guid EventId, Guid SnapshotId, IReadOnlyList<Guid> TransitionIds);
+    private sealed record ImmutableSnapshotSeed(Guid EventId, Guid EventDropId, Guid ApprovalDropId, Guid ItemId, Guid AlternateItemId);
 }
 
 file sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider

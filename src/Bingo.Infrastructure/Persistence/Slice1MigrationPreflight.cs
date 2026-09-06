@@ -49,6 +49,7 @@ public sealed class Slice1MigrationPreflight(ApplicationDbContext db)
     public static async Task StageImmutableItemMappingsAsync(DbConnection connection, string? mappingPath, string? expectedHash, CancellationToken ct)
     {
         var inspection = await InspectImmutableItemSnapshotsAsync(connection, ct);
+        if (inspection.StructuralRows.Count > 0) throw new InvalidOperationException(StructuralError(inspection.StructuralRows));
         ImmutableItemMappingFile? mapping = null;
         if (inspection.FlaggedRows.Count > 0)
         {
@@ -95,7 +96,8 @@ public sealed class Slice1MigrationPreflight(ApplicationDbContext db)
         command.CommandText = $"""
             SELECT 'event', snapshot.id::text, event_item.id::text, event_item.name, requirement.id::text, snapshot.source_drop_id::text, snapshot.item_name,
                    {frozenEvent}, current_item.id::text, current_item.name,
-                   COALESCE((SELECT string_agg(item.id::text, ',' ORDER BY item.id) FROM catalogue_items item WHERE item.name = snapshot.item_name), '')
+                   COALESCE((SELECT string_agg(item.id::text, ',' ORDER BY item.id) FROM catalogue_items item WHERE item.name = snapshot.item_name), ''),
+                   requirement.manual_objective
             FROM board_requirement_drop_snapshots snapshot
             JOIN board_requirement_snapshots requirement ON requirement.id = snapshot.requirement_id
             JOIN board_tiles tile ON tile.id = requirement.board_tile_id
@@ -106,7 +108,8 @@ public sealed class Slice1MigrationPreflight(ApplicationDbContext db)
             UNION ALL
             SELECT 'approval', snapshot.id::text, event_item.id::text, event_item.name, requirement.board_requirement_snapshot_id::text, snapshot.source_drop_id::text, snapshot.item_name,
                    {frozenApproval}, current_item.id::text, current_item.name,
-                   COALESCE((SELECT string_agg(item.id::text, ',' ORDER BY item.id) FROM catalogue_items item WHERE item.name = snapshot.item_name), '')
+                   COALESCE((SELECT string_agg(item.id::text, ',' ORDER BY item.id) FROM catalogue_items item WHERE item.name = snapshot.item_name), ''),
+                   requirement.manual_objective
             FROM board_approval_requirement_drop_snapshots snapshot
             JOIN board_approval_requirement_snapshots requirement ON requirement.id = snapshot.approval_requirement_snapshot_id
             JOIN board_approval_tile_snapshots tile ON tile.id = requirement.approval_tile_snapshot_id
@@ -124,14 +127,16 @@ public sealed class Slice1MigrationPreflight(ApplicationDbContext db)
             var frozenId = reader.IsDBNull(7) ? (Guid?)null : Guid.Parse(reader.GetString(7));
             var currentId = reader.IsDBNull(8) ? (Guid?)null : Guid.Parse(reader.GetString(8));
             var currentName = reader.IsDBNull(9) ? null : reader.GetString(9);
-            var needsMapping = eventColumn
+            var manualObjective = reader.GetBoolean(11);
+            var needsMapping = !manualObjective && (eventColumn
                 ? frozenId is null
-                : currentId is null || !string.Equals(currentName, reader.GetString(6), StringComparison.Ordinal) || candidateIds.Count != 1 || candidateIds[0] != currentId;
-            rows.Add(new ImmutableItemSnapshotRow(reader.GetString(0), Guid.Parse(reader.GetString(1)), Guid.Parse(reader.GetString(2)), reader.GetString(3), Guid.Parse(reader.GetString(4)), Guid.Parse(reader.GetString(5)), reader.GetString(6), frozenId, currentId, currentName, candidateIds, needsMapping));
+                : currentId is null || !string.Equals(currentName, reader.GetString(6), StringComparison.Ordinal) || candidateIds.Count != 1 || candidateIds[0] != currentId);
+            rows.Add(new ImmutableItemSnapshotRow(reader.GetString(0), Guid.Parse(reader.GetString(1)), Guid.Parse(reader.GetString(2)), reader.GetString(3), Guid.Parse(reader.GetString(4)), Guid.Parse(reader.GetString(5)), reader.GetString(6), frozenId, currentId, currentName, candidateIds, manualObjective, needsMapping));
         }
-        var canonical = string.Join('\n', rows.Select(row => JsonSerializer.Serialize(new { row.SnapshotFamily, row.SnapshotId, row.EventId, row.EventName, row.RequirementId, row.SourceDropId, row.FrozenItemName, row.FrozenItemId, row.CurrentItemId, row.CurrentItemName, row.CandidateItemIds, row.NeedsMapping }, JsonOptions)));
+        var canonical = string.Join('\n', rows.Select(row => JsonSerializer.Serialize(new { row.SnapshotFamily, row.SnapshotId, row.EventId, row.EventName, row.RequirementId, row.SourceDropId, row.FrozenItemName, row.FrozenItemId, row.CurrentItemId, row.CurrentItemName, row.CandidateItemIds, row.ManualObjective, row.NeedsMapping }, JsonOptions)));
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
         var flagged = rows.Where(row => row.NeedsMapping).ToList();
+        var structural = rows.Where(row => row.ManualObjective).ToList();
         var template = new ImmutableItemMappingFile
         {
             DatabaseFingerprint = fingerprint,
@@ -145,7 +150,7 @@ public sealed class Slice1MigrationPreflight(ApplicationDbContext db)
             }).ToList()
         };
         var templateText = JsonSerializer.Serialize(template, JsonOptions);
-        return new ImmutableItemSnapshotInspection(fingerprint, rows, flagged, templateText, eventColumn);
+        return new ImmutableItemSnapshotInspection(fingerprint, rows, flagged, structural, templateText, eventColumn);
     }
 
     private static void ValidateMappings(IReadOnlyList<ImmutableItemSnapshotRow> flagged, IReadOnlyList<ImmutableItemMappingRow> supplied)
@@ -165,14 +170,19 @@ public sealed class Slice1MigrationPreflight(ApplicationDbContext db)
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true };
 
-    private sealed record ImmutableItemSnapshotInspection(string DatabaseFingerprint, IReadOnlyList<ImmutableItemSnapshotRow> Rows, IReadOnlyList<ImmutableItemSnapshotRow> FlaggedRows, string MappingTemplate, bool SnapshotColumnsPresent)
+    private static string StructuralError(IReadOnlyList<ImmutableItemSnapshotRow> rows) =>
+        "Immutable item preflight found structural invalid rows: drop snapshots attached to manual objectives are forbidden. Correct or remove the affected rows, then rerun --immutable-item-preflight before retrying." +
+        Environment.NewLine + string.Join(Environment.NewLine, rows.Select(row => $"{row.SnapshotFamily} snapshot={row.SnapshotId} event={row.EventId}/\"{row.EventName}\" requirement={row.RequirementId} sourceDrop={row.SourceDropId} name=\"{row.FrozenItemName}\""));
+
+    private sealed record ImmutableItemSnapshotInspection(string DatabaseFingerprint, IReadOnlyList<ImmutableItemSnapshotRow> Rows, IReadOnlyList<ImmutableItemSnapshotRow> FlaggedRows, IReadOnlyList<ImmutableItemSnapshotRow> StructuralRows, string MappingTemplate, bool SnapshotColumnsPresent)
     {
         public string Report => $"Database fingerprint: {DatabaseFingerprint}{Environment.NewLine}Snapshot rows: {Rows.Count}; flagged: {FlaggedRows.Count}; snapshot columns present: {SnapshotColumnsPresent}.{Environment.NewLine}" +
+            (StructuralRows.Count == 0 ? "Structural errors: none." : $"Structural errors: {StructuralRows.Count}; correction/removal required before retry.{Environment.NewLine}{string.Join(Environment.NewLine, StructuralRows.Select(row => $"{row.SnapshotFamily} snapshot={row.SnapshotId} event={row.EventId}/\"{row.EventName}\" requirement={row.RequirementId} sourceDrop={row.SourceDropId} name=\"{row.FrozenItemName}\""))}") + Environment.NewLine +
             (FlaggedRows.Count == 0 ? "No immutable catalogue item mappings require adjudication." : string.Join(Environment.NewLine, FlaggedRows.Select(row => $"{row.SnapshotFamily} snapshot={row.SnapshotId} event={row.EventId}/\"{row.EventName}\" requirement={row.RequirementId} sourceDrop={row.SourceDropId} frozenItem=\"{row.FrozenItemName}\" currentMapping={row.CurrentItemId?.ToString() ?? "-"}/\"{row.CurrentItemName ?? "-"}\" candidates={string.Join(',', row.CandidateItemIds)}"))) +
             $"{Environment.NewLine}Mapping template (fill itemId, then hash the exact file bytes for --immutable-item-mapping-sha256):{Environment.NewLine}{MappingTemplate}";
     }
 
-    private sealed record ImmutableItemSnapshotRow(string SnapshotFamily, Guid SnapshotId, Guid EventId, string EventName, Guid RequirementId, Guid SourceDropId, string FrozenItemName, Guid? FrozenItemId, Guid? CurrentItemId, string? CurrentItemName, IReadOnlyList<Guid> CandidateItemIds, bool NeedsMapping);
+    private sealed record ImmutableItemSnapshotRow(string SnapshotFamily, Guid SnapshotId, Guid EventId, string EventName, Guid RequirementId, Guid SourceDropId, string FrozenItemName, Guid? FrozenItemId, Guid? CurrentItemId, string? CurrentItemName, IReadOnlyList<Guid> CandidateItemIds, bool ManualObjective, bool NeedsMapping);
 
     public sealed class ImmutableItemMappingFile
     {

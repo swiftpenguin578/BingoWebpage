@@ -32,6 +32,40 @@ public partial class AddImmutableCatalogueItemIdentity : Migration
                     PRIMARY KEY (snapshot_family, snapshot_id)
                 );
 
+                DO $$
+                DECLARE
+                    problems text;
+                BEGIN
+                    SELECT string_agg(problem, E'\n' ORDER BY family, snapshot_id)
+                    INTO problems
+                    FROM
+                    (
+                        SELECT 'event'::text AS family,
+                               snapshot.id AS snapshot_id,
+                               format('event=%s/"%s" requirement=%s snapshot=%s sourceDrop=%s name="%s"', event_item.id, event_item.name, requirement.id, snapshot.id, snapshot.source_drop_id, snapshot.item_name) AS problem
+                        FROM board_requirement_drop_snapshots snapshot
+                        JOIN board_requirement_snapshots requirement ON requirement.id = snapshot.requirement_id
+                        JOIN board_tiles tile ON tile.id = requirement.board_tile_id
+                        JOIN boards board ON board.id = tile.board_id
+                        JOIN events event_item ON event_item.id = board.event_id
+                        WHERE requirement.manual_objective
+                        UNION ALL
+                        SELECT 'approval'::text AS family,
+                               snapshot.id AS snapshot_id,
+                               format('event=%s/"%s" requirement=%s snapshot=%s sourceDrop=%s name="%s"', event_item.id, event_item.name, requirement.board_requirement_snapshot_id, snapshot.id, snapshot.source_drop_id, snapshot.item_name) AS problem
+                        FROM board_approval_requirement_drop_snapshots snapshot
+                        JOIN board_approval_requirement_snapshots requirement ON requirement.id = snapshot.approval_requirement_snapshot_id
+                        JOIN board_approval_tile_snapshots tile ON tile.id = requirement.approval_tile_snapshot_id
+                        JOIN board_approval_snapshots approval ON approval.id = tile.approval_snapshot_id
+                        JOIN boards board ON board.id = approval.board_id
+                        JOIN events event_item ON event_item.id = board.event_id
+                        WHERE requirement.manual_objective
+                    ) invalid;
+                    IF problems IS NOT NULL THEN
+                        RAISE EXCEPTION 'Immutable catalogue item migration found drop snapshots attached to manual objectives. Correct or remove these rows before retrying:%', E'\n' || problems;
+                    END IF;
+                END $$;
+
                 UPDATE board_requirement_drop_snapshots snapshot
                 SET item_id_snapshot = source_drop.item_id
                 FROM source_drops source_drop
