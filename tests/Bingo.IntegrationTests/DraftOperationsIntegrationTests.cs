@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
@@ -593,7 +594,13 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         await using var read = new ApplicationDbContext(options);
         var persistedFrozenNames = await read.DraftPublicationRosters.Where(x => read.DraftPublicationCycles.Any(c => c.Id == x.DraftPublicationCycleId && c.SupersededAt == null)).Select(x => x.PublicCharacterName).ToArrayAsync();
         Assert.Equal(frozenNames.Order(), persistedFrozenNames.Order());
-        var page = new Bingo.Web.Pages.Events.TeamsModel(read, new FixedTimeProvider(now));
+        var page = new Bingo.Web.Pages.Events.TeamsModel(read, new FixedTimeProvider(now))
+        {
+            PageContext = new PageContext(new ActionContext(new DefaultHttpContext(), new RouteData(), new PageActionDescriptor()))
+            {
+                ViewData = new ViewDataDictionary(new EmptyModelMetadataProvider(), new ModelStateDictionary())
+            }
+        };
         Assert.IsType<PageResult>(await page.OnGetAsync(slug, CancellationToken.None));
         Assert.Equal(frozenNames.Order(), page.Teams.SelectMany(x => x.Members).Select(x => x.Name).Order());
     }

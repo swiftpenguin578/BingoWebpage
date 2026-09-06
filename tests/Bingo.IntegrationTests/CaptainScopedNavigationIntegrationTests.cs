@@ -87,6 +87,7 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         emergency.Enable();
         var live = LiveEvent(participantOwner.Id, "Submission canonical", "submission-canonical", now);
         var team = new Team(Guid.NewGuid(), live.Id, "Submission canonical team", "submission-canonical-team", TeamFormationType.Drafted, null, true);
+        team.Finalize(now.AddMinutes(-1));
         var crossTeam = new Team(Guid.NewGuid(), live.Id, "Submission canonical other team", "submission-canonical-other-team", TeamFormationType.Drafted, null, true);
         var participant = new EventParticipant(Guid.NewGuid(), live.Id, SignupStatus.Confirmed, 1, now.AddDays(-1), SignupSource.Website);
         participant.AssignOwner(participantOwner);

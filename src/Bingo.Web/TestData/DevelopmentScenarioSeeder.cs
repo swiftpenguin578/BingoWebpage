@@ -1777,7 +1777,13 @@ public sealed class DevelopmentScenarioSeeder(
             var requirements = db.BoardRequirementSnapshots.Local.Where(value => value.BoardTileId == tile.Id).OrderBy(value => value.Position).ToList();
             foreach (var requirement in requirements)
             {
-                var drops = db.BoardRequirementDropSnapshots.Local.Where(value => value.RequirementId == requirement.Id).OrderBy(value => value.ItemName).ToList();
+                var drops = db.BoardRequirementDropSnapshots.Local
+                    .Where(value => value.RequirementId == requirement.Id)
+                    .OrderBy(value => value.ItemName)
+                    .ThenBy(value => value.BossName)
+                    .ToList();
+                if (!requirement.DuplicatesAllowed)
+                    drops = drops.GroupBy(value => value.ItemIdSnapshot).Select(group => group.First()).ToList();
                 for (var amount = 0; amount < requirement.TargetContribution; amount++)
                 {
                     var drop = requirement.ManualObjective ? null : drops[amount % drops.Count];

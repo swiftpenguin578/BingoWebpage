@@ -91,6 +91,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     public async Task GlobalRoleComposesWithTheGenuineEventMembershipForSubmissionAuthority(GlobalRole globalRole, TeamMembershipRole membershipRole, EvidenceActorKind expectedKind)
     {
         var setup = await SeedAsync(target: 3, allowHigherWeights: true);
+        var clock = new MutableTimeProvider(now);
         await using var db = new ApplicationDbContext(options);
         var suffix = Guid.NewGuid().ToString("N");
         var account = Account.CreateWebsite(Guid.NewGuid(), $"additive-{globalRole}-{membershipRole}-{suffix}", $"ADDITIVE-{suffix}", now);
@@ -109,13 +110,14 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var authorized = await authority.AuthorizeAsync(account.Id, setup.EventId, setup.TeamId, setup.ParticipantId, now);
         Assert.Equal(expectedKind, authorized.Kind);
 
-        var created = await Service(db).CreateAsync(Command(setup) with { ActorAccountId = account.Id });
+        var created = await Service(db, clock).CreateAsync(Command(setup) with { ActorAccountId = account.Id });
         Assert.NotEqual(Guid.Empty, created.SubmissionId);
 
         var eventItem = await db.Events.SingleAsync(x => x.Id == setup.EventId);
         eventItem.EndEvent(now.AddMinutes(-31));
         await db.SaveChangesAsync();
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db).CreateAsync(Command(setup) with { ActorAccountId = account.Id }));
+        clock.Set(eventItem.SubmissionCutoffAt!.Value.AddTicks(1));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db, clock).CreateAsync(Command(setup) with { ActorAccountId = account.Id }));
         Assert.Single(await db.Submissions.ToListAsync());
     }
 

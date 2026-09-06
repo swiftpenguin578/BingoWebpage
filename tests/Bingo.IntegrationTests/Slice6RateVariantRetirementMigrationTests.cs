@@ -142,10 +142,18 @@ public sealed class Slice6RateVariantRetirementMigrationTests : IAsyncLifetime
         var approvalId = Guid.NewGuid();
         var approvalTileId = Guid.NewGuid();
         var approvalRequirementId = Guid.NewGuid();
+        var bossId = Guid.NewGuid();
+        var itemId = Guid.NewGuid();
         var sourceDropId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow.AddDays(-1);
 
         await database.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO boss_activities (id, name, slug, category, efficient_completions_per_hour, data_updated_at, active, version)
+            VALUES ({bossId}, {"Boss"}, {"retained-boss"}, {"Boss"}, 1, {now}, TRUE, 1);
+            INSERT INTO catalogue_items (id, name, normalized_name, active, version)
+            VALUES ({itemId}, {"Item"}, {"ITEM"}, TRUE, 1);
+            INSERT INTO source_drops (id, boss_activity_id, item_id, display_rate, numeric_probability, default_ehb_estimate, data_updated_at, active, version)
+            VALUES ({sourceDropId}, {bossId}, {itemId}, {"Unresolved source rate"}, NULL, NULL, {now}, TRUE, 1);
             INSERT INTO boards (id, event_id, name, rows, columns, state, total_ehb_estimate, calculation_version, version)
             VALUES ({boardId}, {Guid.NewGuid()}, {"Approved board"}, 1, 1, {"Published"}, 1, 1, 1);
             INSERT INTO board_approval_snapshots (id, board_id, version, approved_at, name, rows, columns, total_ehb_estimate, calculation_version, board_version, lifecycle_state)

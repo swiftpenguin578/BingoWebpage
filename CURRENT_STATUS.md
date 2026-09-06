@@ -295,6 +295,19 @@ historical material is preserved separately and is non-authoritative.
   expectations now use PostgreSQL microsecond precision. The four focused cases
   pass in Release configuration, and `git diff --check` passes; no production
   code changed in this follow-up.
+- The first pre-PR full-suite attempt reached 741 IntegrationTests with 731
+  passing and 10 failing. Every failure reproduced in isolation and mapped to
+  stale setup/expectations after the accepted passes. The bounded remediation
+  initializes the direct Teams page-model context, finalizes the public-board
+  team fixture, tests submission closure at the retained cutoff rather than an
+  early end, asserts the localized English Teams label, supplies immutable item
+  identity to the retained migration fixture, preserves frozen departed roster
+  members, and removes the obsolete exact count of owned Live-team fixtures.
+  Development completed-board evidence now selects distinct immutable items when
+  duplicates are disabled, so re-finalization agrees with authoritative progress.
+  All 10 originally failing cases pass across focused Release reruns and
+  `git diff --check` passes. The complete suite has not yet been rerun after this
+  remediation.
 
 ## Canonical checkout
 

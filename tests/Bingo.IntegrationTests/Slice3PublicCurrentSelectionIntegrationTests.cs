@@ -157,7 +157,7 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
         var after = await client.GetStringAsync($"/Events/{slug}/Teams");
         Assert.Contains("public-ui-header-context-nav", after, StringComparison.Ordinal);
         Assert.Contains($"href=\"/Events/{slug}/Board\"", after, StringComparison.Ordinal);
-        Assert.Contains("Teams / Hold", after, StringComparison.Ordinal);
+        Assert.Contains(">Teams</a>", after, StringComparison.Ordinal);
         Assert.Contains("aria-current=\"page\"", after, StringComparison.Ordinal);
     }
 
