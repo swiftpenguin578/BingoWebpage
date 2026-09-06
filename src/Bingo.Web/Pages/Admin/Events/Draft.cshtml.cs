@@ -506,13 +506,12 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     private async Task<Dictionary<Guid, string>> FrozenPublicNamesAsync(Guid eventId, IEnumerable<Guid> participantIds, DateTimeOffset publishedAt, CancellationToken ct)
     {
         var ids = participantIds.Distinct().ToList();
-        var rows = await (from assignment in db.EventParticipantCharacters.AsNoTracking()
-                          join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
-                          where assignment.EventId == eventId && ids.Contains(assignment.EventParticipantId) && assignment.EventRole == EventCharacterRole.Playing && assignment.RegisteredAt <= publishedAt && (assignment.ReleasedAt == null || assignment.ReleasedAt > publishedAt)
-                          select new { assignment.EventParticipantId, character.DisplayName }).ToListAsync(ct);
-        var names = rows.GroupBy(x => x.EventParticipantId).ToDictionary(x => x.Key, x => x.Select(y => y.DisplayName).Distinct().ToList());
-        if (names.Count != ids.Count || names.Values.Any(x => x.Count != 1 || string.IsNullOrWhiteSpace(x[0]))) throw new InvalidOperationException("Every published roster entry requires exactly one retained playing-character identity.");
-        return names.ToDictionary(x => x.Key, x => x.Value[0]);
+        var names = await db.PrimaryCharacters().AsNoTracking()
+            .Where(character => character.EventId == eventId && ids.Contains(character.ParticipantId))
+            .ToDictionaryAsync(character => character.ParticipantId, character => character.Name, ct);
+        var missing = ids.Where(id => !names.ContainsKey(id)).ToList();
+        if (missing.Count > 0 || names.Values.Any(string.IsNullOrWhiteSpace)) throw new InvalidOperationException("Every published roster entry requires exactly one retained playing-character identity.");
+        return names;
     }
     private async Task RepublishPreformedCorrectionAsync(Bingo.Domain.Events.BingoEvent bingoEvent, DraftSession draft, string action, Guid targetId, CancellationToken ct)
     {

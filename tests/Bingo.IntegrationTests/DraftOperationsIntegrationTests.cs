@@ -362,11 +362,14 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         await using (var seed = new ApplicationDbContext(options))
         {
             var participant = new EventParticipant(Guid.NewGuid(), valid.EventId, SignupStatus.Confirmed, 5, now, SignupSource.Website);
+            var primaryQuestionId = await seed.SignupQuestions.Where(x => x.EventId == valid.EventId && x.SystemField == SignupSystemField.PrimaryRegularAccount).Select(x => x.Id).SingleAsync();
             var character = new OsrsCharacter(Guid.NewGuid(), "Preformed retained", "PREFORMED RETAINED", now);
-            var assignment = new EventParticipantCharacter(Guid.NewGuid(), valid.EventId, participant.Id, character.Id, 0, now, null, null, EventCharacterRole.Playing, 5, EhbSource.Manual, null);
+            var assignment = new EventParticipantCharacter(Guid.NewGuid(), valid.EventId, participant.Id, character.Id, 0, now, null, primaryQuestionId, EventCharacterRole.Playing, 5, EhbSource.Manual, null);
+            var secondary = new OsrsCharacter(Guid.NewGuid(), "Secondary playing", "SECONDARY PLAYING", now);
+            var secondaryAssignment = new EventParticipantCharacter(Guid.NewGuid(), valid.EventId, participant.Id, secondary.Id, 1, now, null, null, EventCharacterRole.Playing, 0, EhbSource.Manual, null);
             var team = new Team(Guid.NewGuid(), valid.EventId, "Preformed", "preformed", TeamFormationType.Preformed, null, false);
             var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, "seed"); membership.SetSource(TeamMembershipSource.PreformedManual);
-            seed.AddRange(participant, character, assignment, team, membership); await seed.SaveChangesAsync();
+            seed.AddRange(participant, character, assignment, secondary, secondaryAssignment, team, membership); await seed.SaveChangesAsync();
         }
         await StartAndScrambleAsync(valid);
         await ExecuteAsync(valid.EventId, valid.FirstAdminId, page => page.OnPostPickAsync(valid.EventId, valid.PlayerIds[2], CancellationToken.None));

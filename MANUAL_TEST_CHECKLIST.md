@@ -369,7 +369,7 @@ The fake serves `GET /players/{username}` and official-shape `GET /competitions/
 
 **Slice 10 consolidated manual acceptance (2026-08-03):** S10-01 through S10-06 passed. The two S10-01 presentation notes and S10-05 table-layout note are deferred to the UI overhaul and are not functional blockers.
 
-## Admin-test follow-up corrections — pending implementation
+## Admin-test follow-up corrections — implementation complete; manual acceptance pending
 
 This is the compact Section 6 manual journey. Apply the one migration, run the
 idempotent Development reset, and use only the named minimal fixtures added by
@@ -411,10 +411,17 @@ interactions that source assertions cannot establish.
   links. Confirm teammate/private/cross-team records and all mutations remain denied.
 - [ ] **AF-04 — Draft and bounded presentation.** Follow Admin navigation to the
   not-yet-finalized primary-plus-secondary Playing fixture and finalize it. Confirm
-  Signup has no orphaned `03`, the Admin logo opens public home, and Admin Board's
-  Teams action opens the existing teams/draft workspace. Open evidence from Board,
-  Team Board, and Admin Review; in each existing popup verify labeled zoom in/out/
-  reset, wheel/trackpad, drag/pan, practical pinch/touch, keyboard focus/operation,
+  Signup has no orphaned `03`, only its required system primary defaults to the
+  preferred character, and later account questions begin None/unselected. Confirm
+  the Admin logo opens public home and Onboarding's joined EHB/WOM control uses a
+  text-color-only hover plus one complete invalid outline. Before Board publication,
+  follow the landing-page `View roster` action to the standalone Teams page and
+  confirm no Board-view navigation appears. After publication, follow the landing
+  page to Board, use its localized Teams/Hold sibling navigation, and confirm the
+  unchanged Teams page now shows the same row with Teams/Hold current and the
+  reduced navigation-to-masthead gap. Open evidence from Board, Team Board, and
+  Admin Review; in each existing popup verify labeled zoom in/out/reset,
+  wheel/trackpad, drag/pan, practical pinch/touch, keyboard focus/operation,
   Escape/backdrop close, focus return, viewport containment, and transform reset
   after close/reopen and image change in light/dark and narrow layouts.
 - [ ] **AF-05 — Retained migration correction/retry.** Use only a copied retained

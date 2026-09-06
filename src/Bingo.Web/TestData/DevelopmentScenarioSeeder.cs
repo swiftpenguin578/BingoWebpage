@@ -207,6 +207,20 @@ public sealed class DevelopmentScenarioSeeder(
         historyParticipant.AssignOwner(evidenceParticipant);
         await AddHistoryRejectedStateAsync(evidenceHistoryScenario.EventId, historyParticipant, evidenceParticipant.Id, admin.Id, now, cancellationToken);
         seeded.Add(evidenceHistoryScenario);
+        var secondaryPlayingDraftScenario = await SeedScenario(
+            "Det Store Danske Forårsbingo 2026",
+            "test-22-secondary-playing-finalization",
+            ScenarioStage.DraftRunning,
+            blueprint,
+            admin.Id,
+            secondaryAdmin,
+            now);
+        var secondaryPlayingParticipant = db.EventParticipants.Local
+            .Where(participant => participant.EventId == secondaryPlayingDraftScenario.EventId)
+            .OrderBy(participant => participant.SignupSequence)
+            .First();
+        AddActivitySecondRegularAccount(secondaryPlayingParticipant, now, 2);
+        seeded.Add(secondaryPlayingDraftScenario);
         seeded.Add(await SeedScenario(
             "Det Store Danske Forårsbingo 2026",
             "test-21-final-review",
@@ -1128,7 +1142,7 @@ public sealed class DevelopmentScenarioSeeder(
         }
     }
 
-    private void AddActivitySecondRegularAccount(EventParticipant participant, DateTimeOffset now)
+    private void AddActivitySecondRegularAccount(EventParticipant participant, DateTimeOffset now, int registrationOrder = 1)
     {
         const string name = "Dev Activity Secondary";
         var normalized = Normalize(name);
@@ -1139,7 +1153,7 @@ public sealed class DevelopmentScenarioSeeder(
             seedCharacters.Add(normalized, character);
         }
         db.EventParticipantCharacters.Add(new EventParticipantCharacter(
-            Guid.NewGuid(), participant.EventId, participant.Id, character.Id, 1, now,
+            Guid.NewGuid(), participant.EventId, participant.Id, character.Id, registrationOrder, now,
             null, null, EventCharacterRole.Playing, 0, EhbSource.Manual, null));
     }
 

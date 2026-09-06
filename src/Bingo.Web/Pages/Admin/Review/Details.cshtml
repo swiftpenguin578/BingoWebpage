@@ -62,7 +62,7 @@
 
                 @if (currentAsset is { } asset)
                 {
-                    <button type="button" class="admin-review-evidence-trigger" onclick="document.getElementById('evidence-lightbox').showModal()" aria-haspopup="dialog" aria-controls="evidence-lightbox">
+                    <button type="button" class="admin-review-evidence-trigger" data-evidence-image="/Evidence/@asset.Id" data-evidence-alt='@T["Evidence screenshot enlarged"]' aria-haspopup="dialog" aria-controls="evidence-lightbox">
                         <img src="/Evidence/@asset.Id" alt='@T["Evidence screenshot"]' />
                         <span>@T["Open evidence viewer"]</span>
                     </button>
@@ -71,12 +71,17 @@
                         <span>@asset.Width×@asset.Height · @(asset.Bytes / 1024) KB</span>
                         <a href="/Evidence/@asset.Id" target="_blank" rel="noopener">@T["Open original asset"]</a>
                     </div>
-                    <dialog id="evidence-lightbox" class="admin-review-lightbox" aria-labelledby="evidence-lightbox-title" onclick="if(event.target===this)this.close()">
+                    <dialog id="evidence-lightbox" class="admin-review-lightbox" data-evidence-dialog data-evidence-empty="@T["Evidence"]" data-enlarged-evidence='@T["Evidence screenshot enlarged"]' aria-labelledby="evidence-lightbox-title">
                         <div class="admin-review-lightbox-heading">
                             <strong id="evidence-lightbox-title">@T["Evidence screenshot"]</strong>
-                            <button type="button" class="admin-review-lightbox-close" onclick="this.closest('dialog').close()" aria-label='@T["Close evidence viewer"]'>×</button>
+                            <div class="admin-review-lightbox-controls" role="group" aria-label='@T["Evidence zoom controls"]'>
+                                <button type="button" data-evidence-zoom-out aria-label='@T["Zoom out"]'>−</button>
+                                <button type="button" data-evidence-zoom-reset>@T["Reset"]</button>
+                                <button type="button" data-evidence-zoom-in aria-label='@T["Zoom in"]'>+</button>
+                            </div>
+                            <button type="button" class="admin-review-lightbox-close" data-evidence-close aria-label='@T["Close evidence viewer"]'>×</button>
                         </div>
-                        <img src="/Evidence/@asset.Id" alt='@T["Evidence screenshot enlarged"]' />
+                        <div class="admin-review-lightbox__viewport" data-evidence-viewport><img data-evidence-dialog-image alt="" tabindex="0" /></div>
                     </dialog>
                 }
                 else
@@ -289,3 +294,7 @@
         </aside>
     </div>
 </section>
+
+@section Scripts {
+    <script src="~/js/public-evidence.js" asp-append-version="true"></script>
+}

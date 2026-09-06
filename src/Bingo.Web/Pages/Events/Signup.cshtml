@@ -177,32 +177,31 @@
                     </div>
                 </section>
 
-                <section class="signup-sheet__row" aria-labelledby="signup-questions-heading">
-                    <span class="signup-sheet__number" aria-hidden="true">03</span>
-                    <header>
-                        <h2 id="signup-questions-heading">@T["Event questions"]</h2>
-                        <p>@T["Answer the questions for this event."]</p>
-                    </header>
-                    <div class="signup-sheet__controls signup-sheet__controls--questions">
-                        @foreach (var question in eventQuestions)
-                        {
-                            <div class="signup-sheet__field"><label for="question-@question.Id">@question.Label @if (question.Required) { <span aria-hidden="true">*</span> }</label>
-                                @if (question.Type == SignupQuestionType.YesNo) { <select id="question-@question.Id" name="Input.Answers[@question.Id]" class="signup-sheet__input"><option value="">@T["Choose…"]</option><option value="true" selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "true" ? "selected" : null)">@T["Yes"]</option><option value="false" selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "false" ? "selected" : null)">@T["No"]</option></select> }
-                                else if (question.Type == SignupQuestionType.SingleChoice) { <select id="question-@question.Id" name="Input.Answers[@question.Id]" class="signup-sheet__input"><option value="">@T["Choose…"]</option>@foreach (var option in question.OptionList) { <option value="@option" selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == option ? "selected" : null)">@option</option> }</select> }
-                                else { <input id="question-@question.Id" name="Input.Answers[@question.Id]" value="@Model.Input.Answers.GetValueOrDefault(question.Id)" class="signup-sheet__input" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" /> }
-                                <span class="signup-sheet__error">@Html.ValidationMessage($"Input.Answers[{question.Id}]")</span>
-                            </div>
-                        }
-                        @if (Model.EventView.RequireCode)
-                        {
-                            <div class="signup-sheet__field"><label asp-for="Input.SignupCode">@T["Signup code"]</label><input asp-for="Input.SignupCode" class="signup-sheet__input" autocomplete="off" /><span class="signup-sheet__error" asp-validation-for="Input.SignupCode"></span></div>
-                        }
-                        @if (!eventQuestions.Any() && !Model.EventView.RequireCode)
-                        {
-                            <p class="signup-sheet__empty">@T["No custom questions added."]</p>
-                        }
-                    </div>
-                </section>
+                @if (eventQuestions.Any() || Model.EventView.RequireCode)
+                {
+                    <section class="signup-sheet__row" aria-labelledby="signup-questions-heading">
+                        <span class="signup-sheet__number" aria-hidden="true">03</span>
+                        <header>
+                            <h2 id="signup-questions-heading">@T["Event questions"]</h2>
+                            <p>@T["Answer the questions for this event."]</p>
+                        </header>
+                        <div class="signup-sheet__controls signup-sheet__controls--questions">
+                            @foreach (var question in eventQuestions)
+                            {
+                                <div class="signup-sheet__field"><label for="question-@question.Id">@question.Label @if (question.Required) { <span aria-hidden="true">*</span> }</label>
+                                    @if (question.Type == SignupQuestionType.YesNo) { <select id="question-@question.Id" name="Input.Answers[@question.Id]" class="signup-sheet__input"><option value="">@T["Choose…"]</option><option value="true" selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "true" ? "selected" : null)">@T["Yes"]</option><option value="false" selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "false" ? "selected" : null)">@T["No"]</option></select> }
+                                    else if (question.Type == SignupQuestionType.SingleChoice) { <select id="question-@question.Id" name="Input.Answers[@question.Id]" class="signup-sheet__input"><option value="">@T["Choose…"]</option>@foreach (var option in question.OptionList) { <option value="@option" selected="@(Model.Input.Answers.GetValueOrDefault(question.Id) == option ? "selected" : null)">@option</option> }</select> }
+                                    else { <input id="question-@question.Id" name="Input.Answers[@question.Id]" value="@Model.Input.Answers.GetValueOrDefault(question.Id)" class="signup-sheet__input" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" /> }
+                                    <span class="signup-sheet__error">@Html.ValidationMessage($"Input.Answers[{question.Id}]")</span>
+                                </div>
+                            }
+                            @if (Model.EventView.RequireCode)
+                            {
+                                <div class="signup-sheet__field"><label asp-for="Input.SignupCode">@T["Signup code"]</label><input asp-for="Input.SignupCode" class="signup-sheet__input" autocomplete="off" /><span class="signup-sheet__error" asp-validation-for="Input.SignupCode"></span></div>
+                            }
+                        </div>
+                    </section>
+                }
             </div>
 
             <aside class="signup-sheet__rail" aria-label="@T["Your signup"]">

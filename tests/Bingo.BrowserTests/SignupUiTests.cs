@@ -118,6 +118,21 @@ public sealed class SignupUiTests
         Assert.Contains("NumberStyles.AllowDecimalPoint", signupModel, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void PassFourSignupAndOnboardingBoundariesAreExplicit()
+    {
+        var root = FindRepositoryRoot();
+        var markup = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Events", "Signup.cshtml"));
+        var pageModel = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Events", "Signup.cshtml.cs"));
+        var onboardingStyles = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "site.public-ui.css"));
+
+        Assert.Contains("@if (eventQuestions.Any() || Model.EventView.RequireCode)", markup);
+        Assert.Contains("x.Required && x.SystemField == SignupSystemField.PrimaryRegularAccount", pageModel);
+        Assert.Contains(".identity-page--onboarding .onboarding-ehb-control:has", onboardingStyles);
+        Assert.Contains("background: transparent", onboardingStyles);
+        Assert.Contains("border-color: var(--editorial-danger)", onboardingStyles);
+    }
+
     private static string FindRepositoryRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

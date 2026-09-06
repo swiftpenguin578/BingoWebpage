@@ -585,6 +585,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Guid optionalAltQuestionId;
         Guid textQuestionId;
         Guid firstCharacterId;
+        Guid firstAlternateCharacterId;
         Guid secondCharacterId;
         string adminLogin;
         string firstLogin;
@@ -603,12 +604,14 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             var primary = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Main account", SignupQuestionType.Account, true, 2, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
             var optionalRegular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "optional_regular", "Optional regular account", SignupQuestionType.Account, false, 0, null, SignupSystemField.None, EventCharacterRole.Playing);
             var optionalAlt = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "optional_alt", "Optional alt account", SignupQuestionType.Account, false, 1, null, SignupSystemField.None, EventCharacterRole.Informational);
-            var text = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "comment", "Comment", SignupQuestionType.Text, false, 3, null, SignupSystemField.None);
+            var text = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "comment", "Comment", SignupQuestionType.Text, true, 3, null, SignupSystemField.None);
             var firstCharacter = new OsrsCharacter(Guid.NewGuid(), "First rendered main", $"FIRST RENDERED MAIN {Guid.NewGuid():N}", now);
+            var firstAlternateCharacter = new OsrsCharacter(Guid.NewGuid(), "First rendered secondary", $"FIRST RENDERED SECONDARY {Guid.NewGuid():N}", now);
             var secondCharacter = new OsrsCharacter(Guid.NewGuid(), "Second rendered main", $"SECOND RENDERED MAIN {Guid.NewGuid():N}", now);
             var firstLink = new AccountOsrsCharacter(Guid.NewGuid(), first.Id, firstCharacter.Id, first.Id, true, 0, null, 18m, now);
+            var firstAlternateLink = new AccountOsrsCharacter(Guid.NewGuid(), first.Id, firstAlternateCharacter.Id, first.Id, false, 1, null, 7m, now);
             var secondLink = new AccountOsrsCharacter(Guid.NewGuid(), second.Id, secondCharacter.Id, second.Id, true, 0, null, 21m, now);
-            db.AddRange(admin, first, second, bingoEvent, form, primary, optionalRegular, optionalAlt, text, firstCharacter, secondCharacter, firstLink, secondLink);
+            db.AddRange(admin, first, second, bingoEvent, form, primary, optionalRegular, optionalAlt, text, firstCharacter, firstAlternateCharacter, secondCharacter, firstLink, firstAlternateLink, secondLink);
             await db.SaveChangesAsync();
             eventId = bingoEvent.Id;
             formId = form.Id;
@@ -617,6 +620,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             optionalAltQuestionId = optionalAlt.Id;
             textQuestionId = text.Id;
             firstCharacterId = firstCharacter.Id;
+            firstAlternateCharacterId = firstAlternateCharacter.Id;
             secondCharacterId = secondCharacter.Id;
             adminLogin = admin.LoginName;
             firstLogin = first.LoginName;
@@ -654,6 +658,10 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.True(signupPage.IndexOf("<legend>Optional regular account", StringComparison.Ordinal) < signupPage.IndexOf("<legend>Optional alt account", StringComparison.Ordinal));
         Assert.Contains($"id=\"question-{optionalRegularQuestionId}-none\"", signupPage, StringComparison.Ordinal);
         Assert.Contains($"id=\"question-{optionalAltQuestionId}-none\"", signupPage, StringComparison.Ordinal);
+        Assert.Contains("checked=\"checked\"", InputTag(signupPage, $"question-{primaryQuestionId}-{firstCharacterId}"), StringComparison.Ordinal);
+        Assert.DoesNotContain("checked=\"checked\"", InputTag(signupPage, $"question-{primaryQuestionId}-{firstAlternateCharacterId}"), StringComparison.Ordinal);
+        Assert.Contains("checked=\"checked\"", InputTag(signupPage, $"question-{optionalRegularQuestionId}-none"), StringComparison.Ordinal);
+        Assert.Contains("checked=\"checked\"", InputTag(signupPage, $"question-{optionalAltQuestionId}-none"), StringComparison.Ordinal);
 
         using (var missingCode = await firstClient.PostAsync($"/Events/{slug}/Signup", RenderedSignupPost(signupPage, primaryQuestionId, firstCharacterId, optionalRegularQuestionId, optionalAltQuestionId, textQuestionId, null)))
         {
@@ -662,6 +670,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             Assert.Contains("The event code is incorrect.", html, StringComparison.Ordinal);
             Assert.Contains($"value=\"{firstCharacterId}\"", html, StringComparison.Ordinal);
             Assert.Contains("A retained answer", html, StringComparison.Ordinal);
+            Assert.Contains("checked=\"checked\"", InputTag(html, $"question-{optionalRegularQuestionId}-none"), StringComparison.Ordinal);
         }
         await AssertNoFirstResponseAsync();
 
@@ -670,6 +679,17 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         {
             Assert.Equal(HttpStatusCode.OK, wrongCode.StatusCode);
             Assert.Contains("The event code is incorrect.", await wrongCode.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        }
+        await AssertNoFirstResponseAsync();
+
+        signupPage = await firstClient.GetStringAsync($"/Events/{slug}/Signup");
+        using (var missingLaterRequired = await firstClient.PostAsync($"/Events/{slug}/Signup", RenderedSignupPost(signupPage, primaryQuestionId, firstCharacterId, optionalRegularQuestionId, optionalAltQuestionId, textQuestionId, signupCode, textAnswer: "")))
+        {
+            Assert.Equal(HttpStatusCode.OK, missingLaterRequired.StatusCode);
+            var html = await missingLaterRequired.Content.ReadAsStringAsync();
+            Assert.Contains("Comment", html, StringComparison.Ordinal);
+            Assert.Contains("required", html, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains($"value=\"{firstCharacterId}\"", html, StringComparison.Ordinal);
         }
         await AssertNoFirstResponseAsync();
 
@@ -1705,17 +1725,19 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         ["__RequestVerificationToken"] = AntiforgeryToken(page)
     });
 
-    private static FormUrlEncodedContent RenderedSignupPost(string page, Guid primaryQuestionId, Guid? primaryCharacterId, Guid optionalRegularQuestionId, Guid optionalAltQuestionId, Guid textQuestionId, string? signupCode, Guid? optionalRegularCharacterId = null, string optionalRegularEhb = "") => new(new Dictionary<string, string>
+    private static FormUrlEncodedContent RenderedSignupPost(string page, Guid primaryQuestionId, Guid? primaryCharacterId, Guid optionalRegularQuestionId, Guid optionalAltQuestionId, Guid textQuestionId, string? signupCode, Guid? optionalRegularCharacterId = null, string optionalRegularEhb = "", string textAnswer = "A retained answer") => new(new Dictionary<string, string>
     {
         [$"Input.AccountAnswers[{primaryQuestionId}].OsrsCharacterId"] = primaryCharacterId?.ToString() ?? string.Empty,
         [$"Input.AccountAnswers[{primaryQuestionId}].Ehb"] = "18",
         [$"Input.AccountAnswers[{optionalRegularQuestionId}].OsrsCharacterId"] = optionalRegularCharacterId?.ToString() ?? string.Empty,
         [$"Input.AccountAnswers[{optionalRegularQuestionId}].Ehb"] = optionalRegularEhb,
         [$"Input.AccountAnswers[{optionalAltQuestionId}].OsrsCharacterId"] = string.Empty,
-        [$"Input.Answers[{textQuestionId}]"] = "A retained answer",
+        [$"Input.Answers[{textQuestionId}]"] = textAnswer,
         ["Input.SignupCode"] = signupCode ?? string.Empty,
         ["__RequestVerificationToken"] = AntiforgeryToken(page)
     });
+
+    private static string InputTag(string page, string id) => Regex.Match(page, $"<input(?=[^>]*\\bid=\"{Regex.Escape(id)}\")[^>]*>").Value;
 
     private static FormUrlEncodedContent SignupCodePost(string page, bool required, string? code) => new(new Dictionary<string, string>
     {

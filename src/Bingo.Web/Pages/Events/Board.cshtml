@@ -774,7 +774,14 @@
 <dialog class="public-lightbox public-evidence-viewer" data-public-lightbox data-evidence-dialog data-evidence-empty="@T["Evidence"]" data-evidence-default-source="@T["Recent drops"]" data-enlarged-evidence="@T["Enlarged approved evidence"]">
     <button type="button" class="public-ui-viewport-close" data-evidence-close aria-label="@T["Close enlarged evidence"]"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
     <div class="public-evidence-viewer__layout">
-        <figure class="public-evidence-viewer__figure"><img data-evidence-dialog-image alt="" /></figure>
+        <figure class="public-evidence-viewer__figure">
+            <div class="public-evidence-viewer__viewport" data-evidence-viewport><img data-evidence-dialog-image alt="" tabindex="0" /></div>
+            <div class="public-evidence-viewer__controls" role="group" aria-label="@T["Evidence zoom controls"]">
+                <button type="button" data-evidence-zoom-out aria-label="@T["Zoom out"]">−</button>
+                <button type="button" data-evidence-zoom-reset>@T["Reset"]</button>
+                <button type="button" data-evidence-zoom-in aria-label="@T["Zoom in"]">+</button>
+            </div>
+        </figure>
         <aside class="public-evidence-viewer__meta" aria-label="@T["Evidence details"]">
             <span class="public-ui-overline">@T["Approved evidence"]</span>
             <strong class="public-ui-component-title" data-evidence-dialog-drop>@T["Evidence"]</strong>
@@ -802,27 +809,4 @@
         <script src="~/js/public-recent-drops.js" asp-append-version="true"></script>
     }
     <script src="~/js/public-leaderboards.js" asp-append-version="true"></script>
-    @if (isMission || isDrops)
-    {
-        <script>
-            (() => {
-                const dialog = document.querySelector("[data-evidence-dialog]");
-                if (!dialog) return;
-                document.addEventListener("click", event => {
-                    const trigger = event.target.closest?.("[data-evidence-image]");
-                    if (!trigger) return;
-                    dialog.querySelector("[data-evidence-dialog-drop]").textContent = trigger.dataset.evidenceDrop || trigger.dataset.evidenceAlt || dialog.dataset.evidenceEmpty;
-                    dialog.querySelector("[data-evidence-dialog-player]").textContent = trigger.dataset.evidencePlayer || "—";
-                    dialog.querySelector("[data-evidence-dialog-team]").textContent = trigger.dataset.evidenceTeam || "—";
-                    dialog.querySelector("[data-evidence-dialog-source]").textContent = trigger.dataset.evidenceSource || dialog.dataset.evidenceDefaultSource;
-                });
-                dialog.addEventListener("close", () => {
-                    dialog.querySelector("[data-evidence-dialog-drop]").textContent = dialog.dataset.evidenceEmpty;
-                    dialog.querySelector("[data-evidence-dialog-player]").textContent = "—";
-                    dialog.querySelector("[data-evidence-dialog-team]").textContent = "—";
-                    dialog.querySelector("[data-evidence-dialog-source]").textContent = dialog.dataset.evidenceDefaultSource;
-                });
-            })();
-        </script>
-    }
 }

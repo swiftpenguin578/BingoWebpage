@@ -210,9 +210,35 @@ historical material is preserved separately and is non-authoritative.
   both passed with no findings, no missing scope, no changed non-goals, and no
   unbudgeted artifact. The Pass 2 rehearsal remediation remains committed locally as
   `d0c3cfa7f7f7f9dbe149be346bd5976c54132056` (`fix: reject manual objective drop
-  snapshots`). Nothing has been pushed, merged, or deployed. Before any Pass 4
-  planning or implementation, stop and remind
-  the user that they have two additions and need clarification on the existing pass.
+  snapshots`). Nothing has been pushed, merged, or deployed.
+- The user resolved the Pass 4 additions and Teams ambiguity on 2026-09-06 and
+  authorized implementation. Pass 4 implementation is complete, including the
+  planned primary-character finalization, orphaned Signup `03`, Admin-logo
+  destination, accessible evidence zoom/pan, fresh-signup primary-only
+  preferred-account defaulting, Onboarding's joined WOM control treatment, and
+  corrected public Teams/Hold reachability. The fixes-only remediation for the
+  independent review's four non-discriminating test findings is also complete:
+  three focused integration tests pass, the evidence script's runtime reset
+  harness passes, and both affected test projects build cleanly. The fixes-only
+  review passed. The fresh complete-pass review found only one localization defect:
+  the intended English `Teams` / Danish `Hold` pair was rendered as a literal slash
+  label. The final bounded remediation now uses the existing localized `Teams` key;
+  its focused BrowserTests Release build passes with zero warnings/errors, its exact
+  test passes 1/1, and the user-requested remediation-only re-review passes with no
+  finding. AF-04's preflight then found two blockers: the test-22 secondary
+  Playing fixture conflicted with its informational registration order, and an
+  evidence UI test still rejected the now-intended shared evidence script. The
+  bounded remediation assigns order 2 only to the test-22 secondary Playing
+  fixture, preserves the shared helper's order-1 default for test-15, and updates
+  only that obsolete assertion. The focused finalization test, affected
+  EvidenceWorkflowUiTests, and the fresh disposable `bingo_slice10_pass103`
+  Development-reset harness pass; the final fixture-scope remediation-only review
+  also passes. AF-04's executable non-visual checks are therefore clear. A separate
+  disposable app launch did not reach a database connection and was stopped, so
+  rendered Admin navigation to test-22 Draft/finalize remains manual-only. Pass 4
+  is packaged locally as `fix: complete admin follow-up corrections`; nothing has
+  been pushed, merged, or deployed. Next action is the remaining manual Pass 4
+  acceptance.
 
 ## Canonical checkout
 

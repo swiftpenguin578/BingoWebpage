@@ -26,12 +26,15 @@
         or "/Error"
         or "/Errors/StatusCode";
     var isEventBoardPage = currentPage is "/Events/Board" or "/Events/TeamBoard";
+    var isTeamsPage = string.Equals(currentPage, "/Events/Teams", StringComparison.OrdinalIgnoreCase);
     var eventSlug = ViewContext.RouteData.Values["slug"]?.ToString();
     var eventBoardView = Context.Request.Query["view"].ToString();
     var isRecentDropsView = string.Equals(currentPage, "/Events/Board", StringComparison.OrdinalIgnoreCase) && string.Equals(eventBoardView, "drops", StringComparison.OrdinalIgnoreCase);
     var isLeaderboardsView = string.Equals(currentPage, "/Events/Board", StringComparison.OrdinalIgnoreCase) && string.Equals(eventBoardView, "leaderboards", StringComparison.OrdinalIgnoreCase);
     var isViewBingo = isEventBoardPage && !isRecentDropsView && !isLeaderboardsView;
-    var hasSecondaryNavigation = (isEventBoardPage && !string.IsNullOrWhiteSpace(eventSlug)) || isAccountSubsectionPage;
+    var showPublishedTeamsNavigation = isTeamsPage && ViewData["PublicEventBoardPublished"] as bool? == true;
+    var hasEventContextNavigation = !string.IsNullOrWhiteSpace(eventSlug) && (isEventBoardPage || showPublishedTeamsNavigation);
+    var hasSecondaryNavigation = hasEventContextNavigation || isAccountSubsectionPage;
 }
 <!DOCTYPE html>
 <html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName"
@@ -231,7 +234,7 @@
             </div>
     </nav>
     </header>
-    @if (isEventBoardPage && !string.IsNullOrWhiteSpace(eventSlug))
+    @if (hasEventContextNavigation)
     {
         <nav class="public-ui-header-context-nav" aria-label="@T["Bingo views"]">
             <a class="public-ui-header-context-link @(isViewBingo ? "is-current" : null)" aria-current="@(isViewBingo ? "page" : null)" asp-page="/Events/Board" asp-route-slug="@eventSlug">
@@ -239,6 +242,7 @@
             </a>
             <a class="public-ui-header-context-link @(isRecentDropsView ? "is-current" : null)" aria-current="@(isRecentDropsView ? "page" : null)" asp-page="/Events/Board" asp-route-slug="@eventSlug" asp-route-view="drops">@T["Drops"]</a>
             <a class="public-ui-header-context-link @(isLeaderboardsView ? "is-current" : null)" aria-current="@(isLeaderboardsView ? "page" : null)" asp-page="/Events/Board" asp-route-slug="@eventSlug" asp-route-view="leaderboards">@T["Leaderboards"]</a>
+            <a class="public-ui-header-context-link @(isTeamsPage ? "is-current" : null)" aria-current="@(isTeamsPage ? "page" : null)" asp-page="/Events/Teams" asp-route-slug="@eventSlug">@T["Teams"]</a>
         </nav>
     }
     @if (isAccountSubsectionPage)

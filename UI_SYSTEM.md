@@ -213,6 +213,12 @@ full-bleed masthead-bottom divider belongs to the masthead itself and is removed
 from page-content flow; it must not be implemented as the content wrapper's top
 edge or as a grid item that forces the content to full viewport width.
 
+The public Teams/Hold roster uses this sibling row only after the event Board is
+published. Its existing roster masthead remains page-owned and unchanged beneath
+the row; it does not inherit or duplicate the Board overview masthead. Before
+Board publication the roster remains a standalone destination with the ordinary
+top gap and no links into the unavailable Board family.
+
 The Privacy masthead is the implementation authority for the ordinary Public
 UI masthead text stack. Its present roles map to a shared semantic copy role:
 the kicker is Barlow Condensed Public UI 600 at `1.1rem/1` with `.045em`

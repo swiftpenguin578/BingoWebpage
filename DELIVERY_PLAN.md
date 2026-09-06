@@ -1445,9 +1445,18 @@ Rejected/Withdrawn history; former teammates and cross-team viewers remain denie
    This is not a submission/review UI redesign.
 4. **Draft and bounded presentation corrections.** Reuse the primary-character
    query in finalization and add the minimal not-yet-finalized Development reset
-   state for a valid primary plus secondary Playing character. Suppress orphaned Signup `03`, route
-   the Admin logo to public home, add Board's Teams link to the existing Draft
-   workspace, and enhance the existing evidence dialogs with accessible zoom/pan.
+   state for a valid primary plus secondary Playing character. Suppress orphaned
+   Signup `03`; on a fresh signup default only the required system primary account
+   to the preferred character while every later account question starts at
+   None/unselected. Route the Admin logo to public home. Keep the existing public
+   `/Events/{slug}/Teams` roster as the pre-board landing destination, then, only
+   after Board publication, add it as the localized Teams/Hold sibling of
+   Boards/Drops/Leaderboards without copying the Board masthead or otherwise
+   changing the approved Teams page. Use the shared reduced navigation-to-masthead
+   spacing and keep Board routes unavailable before publication. Align Onboarding's
+   joined EHB/Wise Old Man control with My Accounts' text-color-only fetch hover and
+   apply invalid styling to the complete joined control. Enhance the existing
+   evidence dialogs with accessible zoom/pan.
 
 Each pass stops at its named boundary, receives focused discriminating tests, an
 independent review, and fixes-only remediation for concrete findings. Tests must

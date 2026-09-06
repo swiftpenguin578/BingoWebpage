@@ -209,7 +209,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
         if (EventView is null || preserveSubmitted) return;
         if (participantId is null)
         {
-            foreach (var question in Questions.Where(x => x.Type == SignupQuestionType.Account && x.AccountRole == EventCharacterRole.Playing))
+            foreach (var question in Questions.Where(x => x.Type == SignupQuestionType.Account && x.Required && x.SystemField == SignupSystemField.PrimaryRegularAccount))
             {
                 var preferred = question.Accounts.FirstOrDefault(x => x.Preferred);
                 if (preferred is not null) Input.AccountAnswers[question.Id] = new AccountInput { OsrsCharacterId = preferred.Id, Ehb = preferred.SavedEhb };
