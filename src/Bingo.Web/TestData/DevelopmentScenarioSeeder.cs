@@ -1280,7 +1280,7 @@ public sealed class DevelopmentScenarioSeeder(
                     db.TemplateRequirementDrops.Add(new TemplateRequirementDrop(
                         Guid.NewGuid(), templateRequirement.Id, drop.Id, drop.Maximum, drop.Weight));
                     db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(
-                        Guid.NewGuid(), snapshot.Id, drop.Id, drop.Boss, drop.Item,
+                        Guid.NewGuid(), snapshot.Id, drop.Id, drop.ItemId, drop.Boss, drop.Item,
                         drop.DisplayRate, drop.Probability, drop.Maximum, drop.Ehb, drop.Weight));
                 }
             }
@@ -1336,7 +1336,7 @@ public sealed class DevelopmentScenarioSeeder(
                              .Where(value => value.RequirementId == requirement.Id).ToList())
                 {
                     var approvalDrop = new BoardApprovalRequirementDropSnapshot(
-                        Guid.NewGuid(), approvalRequirement.Id, drop.SourceDropId, drop.BossName,
+                        Guid.NewGuid(), approvalRequirement.Id, drop.SourceDropId, drop.ItemIdSnapshot, drop.BossName,
                         drop.ItemName, drop.DisplayRate, drop.NumericProbability,
                         drop.MaximumContribution, drop.EhbPerContribution, drop.CreditedWeight, 1);
                     db.BoardApprovalRequirementDropSnapshots.Add(approvalDrop);
@@ -2041,7 +2041,7 @@ public sealed class DevelopmentScenarioSeeder(
                 if (requirement.Manual && requirement.IncludedItems is { Length: > 0 })
                 {
                     var manualDrops = requirement.IncludedItems
-                        .Select(itemName => new DropBlueprint(Guid.NewGuid(), "Historical item pool", itemName, "Historical item pool", null, null, null))
+                        .Select(itemName => new DropBlueprint(Guid.NewGuid(), Guid.NewGuid(), "Historical item pool", itemName, "Historical item pool", null, null, null))
                         .ToList();
                     requirements.Add(new RequirementBlueprint(
                         requirementIndex + 1, requirement.Target, requirement.Duplicates, requirement.HigherWeights,
@@ -2065,7 +2065,7 @@ public sealed class DevelopmentScenarioSeeder(
                     requirement.Description, requirement.Manual,
                     selectedBosses.Select(boss => new BossBlueprint(boss.Id, boss.Name, boss.EfficientCompletionsPerHour)).ToList(),
                     selectedDropRates.Select(value => new DropBlueprint(
-                        value.row.drop.Id, value.row.boss.Name, value.row.item.Name, value.row.drop.DisplayRate,
+                        value.row.drop.Id, value.row.item.Id, value.row.boss.Name, value.row.item.Name, value.row.drop.DisplayRate,
                         value.Probability, requirement.Duplicates ? null : 1, value.row.drop.DefaultEhbEstimate,
                         requirement.WeightTwoItems?.Contains(value.row.item.Name, StringComparer.OrdinalIgnoreCase) == true ? 2 : 1)).ToList()));
                 estimates.Add(requirement.Manual
@@ -2191,7 +2191,7 @@ public sealed class DevelopmentScenarioSeeder(
     private sealed record TileBlueprint(int Row, int Column, string Name, string Description, string EvidenceInstructions, decimal Ehb, IReadOnlyList<RequirementBlueprint> Requirements);
     private sealed record RequirementBlueprint(int Position, int Target, bool Duplicates, bool HigherWeights, string Description, bool Manual, IReadOnlyList<BossBlueprint> Bosses, IReadOnlyList<DropBlueprint> Drops);
     private sealed record BossBlueprint(Guid Id, string Name, decimal? Rate);
-    private sealed record DropBlueprint(Guid Id, string Boss, string Item, string DisplayRate, decimal? Probability, int? Maximum, decimal? Ehb, int Weight = 1);
+    private sealed record DropBlueprint(Guid Id, Guid ItemId, string Boss, string Item, string DisplayRate, decimal? Probability, int? Maximum, decimal? Ehb, int Weight = 1);
 }
 
 public sealed record SeedResult(

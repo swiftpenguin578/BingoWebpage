@@ -106,6 +106,34 @@ public sealed class PublicProgressCalculatorTests
         Assert.Equal(2, player.ApprovedSubmissions);
     }
 
+    [Fact]
+    public void RetainedAliasesShareAnItemCapButSiblingRequirementsRemainIndependent()
+    {
+        var sharedItem = Guid.NewGuid();
+        var firstRequirement = new ProgressRequirementDefinition(Guid.NewGuid(), 0, 2, false);
+        var siblingRequirement = new ProgressRequirementDefinition(Guid.NewGuid(), 0, 1, false);
+        var tiles = new[]
+        {
+            new ProgressTileDefinition(Guid.NewGuid(), 0, 0, 1, [firstRequirement]),
+            new ProgressTileDefinition(Guid.NewGuid(), 0, 1, 1, [siblingRequirement])
+        };
+        var contributions = new[]
+        {
+            new ProgressContribution(Guid.NewGuid(), firstRequirement.Id, Guid.NewGuid(), "Alias A", 1, Start, 1, sharedItem, Guid.NewGuid(), 1),
+            new ProgressContribution(Guid.NewGuid(), firstRequirement.Id, Guid.NewGuid(), "Alias B", 1, Start.AddMinutes(1), 1, sharedItem, Guid.NewGuid(), 1),
+            new ProgressContribution(Guid.NewGuid(), siblingRequirement.Id, Guid.NewGuid(), "Sibling", 1, Start.AddMinutes(2), 1, sharedItem, Guid.NewGuid(), 1)
+        };
+
+        var result = PublicProgressCalculator.Calculate(1, 2, tiles, contributions);
+
+        Assert.Equal(1, result.Tiles[0].Approved);
+        Assert.False(result.Tiles[0].Complete);
+        Assert.Equal(1, result.Tiles[1].Approved);
+        Assert.True(result.Tiles[1].Complete);
+        Assert.Equal(2, result.EhbTiebreak);
+        Assert.Equal(2, result.Players.Sum(value => value.ApprovedContribution));
+    }
+
     private static List<ProgressTileDefinition> Grid(int rows, int columns) =>
         Enumerable.Range(0, rows * columns).Select(index =>
         {

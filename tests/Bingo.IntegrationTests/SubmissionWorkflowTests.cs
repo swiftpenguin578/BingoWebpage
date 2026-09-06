@@ -316,6 +316,31 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         Assert.Contains(await db.ReviewActions.Where(x => x.SubmissionId == second.SubmissionId).ToListAsync(), x => x.Action == ReviewActionType.RebalanceContribution);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReversalRebalancingNeverExceedsConfiguredDropCap(bool duplicatesAllowed)
+    {
+        var setup = await SeedAsync(target: 3, allowHigherWeights: true, duplicatesAllowed: duplicatesAllowed, dropMaximum: 1);
+        await using var db = new ApplicationDbContext(options);
+        var alternateDropId = Guid.NewGuid();
+        db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(
+            alternateDropId, setup.RequirementId, Guid.NewGuid(), Guid.NewGuid(), "Alternate boss", "Alternate drop", "1/10", 0.1m, 1, 1, 2));
+        await db.SaveChangesAsync();
+        var service = Service(db);
+        var first = await service.CreateAsync(Command(setup) with { ClaimedWeight = 2 });
+        var second = await service.CreateAsync(Command(setup) with { ClaimedWeight = 2, DropSnapshotId = alternateDropId });
+
+        Assert.Equal(1, await service.ApproveAsync(first.SubmissionId, setup.AdminId));
+        Assert.Equal(1, await service.ApproveAsync(second.SubmissionId, setup.AdminId));
+
+        await service.ReverseAsync(first.SubmissionId, setup.AdminId, "Approved the wrong screenshot");
+
+        Assert.Equal(1, await db.SubmissionContributions.Where(x => x.SubmissionId == second.SubmissionId).Select(x => x.Amount).SingleAsync());
+        Assert.Equal(1, await db.SubmissionContributions.Where(x => x.ReversedAt == null).SumAsync(x => x.Amount));
+        Assert.DoesNotContain(await db.ReviewActions.Where(x => x.SubmissionId == second.SubmissionId).ToListAsync(), x => x.Action == ReviewActionType.RebalanceContribution);
+    }
+
     [Fact]
     public async Task ApprovedEvidenceUsesTheStoredIdentityWithoutLegacyPrivacyState()
     {
@@ -680,6 +705,59 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PublicProgressUsesEffectiveDropAmountsForRecentCompletionAndRankings()
+    {
+        var setup = await SeedAsync(target: 2, allowHigherWeights: false, duplicatesAllowed: false, tileEhb: 12, dropEhb: 100);
+        await using var db = new ApplicationDbContext(options);
+        var team = await db.Teams.SingleAsync(value => value.Id == setup.TeamId);
+        team.Finalize(now.AddMinutes(-30));
+
+        var originalDrop = await db.BoardRequirementDropSnapshots.SingleAsync(value => value.Id == setup.DropId);
+        var aliasDropId = Guid.NewGuid();
+        var distinctDropId = Guid.NewGuid();
+        db.BoardRequirementDropSnapshots.AddRange(
+            new BoardRequirementDropSnapshot(aliasDropId, setup.RequirementId, Guid.NewGuid(), originalDrop.ItemIdSnapshot,
+                "Alias boss", "Alias drop", "1/10", 0.1m, 1, 100, 1),
+            new BoardRequirementDropSnapshot(distinctDropId, setup.RequirementId, Guid.NewGuid(), Guid.NewGuid(),
+                "Distinct boss", "Distinct drop", "1/10", 0.1m, 1, 100, 1));
+        var character = await (from assignment in db.EventParticipantCharacters
+                               join osrsCharacter in db.OsrsCharacters on assignment.OsrsCharacterId equals osrsCharacter.Id
+                               where assignment.EventId == setup.EventId && assignment.EventParticipantId == setup.ParticipantId
+                               select new { assignment.OsrsCharacterId, osrsCharacter.DisplayName }).SingleAsync();
+        var firstAt = now.AddMinutes(-15);
+        var aliasAt = now.AddMinutes(-10);
+        var distinctAt = now.AddMinutes(-5);
+        var first = AddApproved(setup.DropId!.Value, firstAt);
+        var alias = AddApproved(aliasDropId, aliasAt);
+        AddApproved(distinctDropId, distinctAt);
+        await db.SaveChangesAsync();
+
+        var board = await new PublicBoardService(db, new FixedTimeProvider(now)).GetEventBoardAsync($"event-{setup.EventId:N}", 3);
+
+        var publicTeam = Assert.Single(board!.Teams);
+        Assert.True(publicTeam.Progress.BoardComplete);
+        Assert.Equal(distinctAt, publicTeam.Progress.BoardCompletedAt);
+        Assert.Equal([2, 1, 1], board.RecentDrops.Select(value => value.ProgressAfter));
+        Assert.Equal(1, board.RecentDrops.Single(value => value.SubmissionId == alias.Id).ProgressAfter);
+        Assert.Equal(12, publicTeam.Progress.EhbTiebreak);
+        var ranking = Assert.Single(board.PlayerLeaderboard);
+        Assert.Equal(12, ranking.EstimatedEhb);
+        Assert.Equal(2, ranking.ApprovedContribution);
+        Assert.Equal(2, ranking.ApprovedSubmissions);
+
+        Submission AddApproved(Guid dropId, DateTimeOffset submittedAt)
+        {
+            var submission = new Submission(Guid.NewGuid(), setup.EventId, setup.TeamId, setup.TileId, setup.RequirementId, dropId,
+                setup.ParticipantId, character.OsrsCharacterId, character.DisplayName, setup.CaptainId, 1, submittedAt, null, null);
+            submission.Approve(1, submittedAt);
+            db.Submissions.Add(submission);
+            db.SubmissionContributions.Add(new SubmissionContribution(Guid.NewGuid(), submission.Id, setup.TeamId, setup.RequirementId,
+                dropId, setup.ParticipantId, 1, submittedAt));
+            return submission;
+        }
+    }
+
+    [Fact]
     public async Task PublicTileExposesApprovedEvidenceAndStoredPlayerSnapshot()
     {
         var setup = await SeedAsync(target: 1, allowHigherWeights: false);
@@ -769,7 +847,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         setup.CaptainId, setup.EventId, setup.TeamId, setup.TileId, setup.RequirementId, setup.DropId,
         setup.ParticipantId, 1, "captain note", "proof.png", new MemoryStream([1, 2, 3]));
 
-    private async Task<Setup> SeedAsync(int target, bool allowHigherWeights, string? evidenceCode = null, bool manualObjective = false, bool duplicatesAllowed = true, decimal tileEhb = 1, decimal dropEhb = 1)
+    private async Task<Setup> SeedAsync(int target, bool allowHigherWeights, string? evidenceCode = null, bool manualObjective = false, bool duplicatesAllowed = true, int? dropMaximum = null, decimal tileEhb = 1, decimal dropEhb = 1)
     {
         await using var db = new ApplicationDbContext(options);
         var eventId = Guid.NewGuid();
@@ -801,7 +879,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         var tile = new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Manual tile", "Complete it", "Show the message", tileEhb);
         var requirement = new BoardRequirementSnapshot(requirementId, tileId, 0, target, duplicatesAllowed, allowHigherWeights, "Complete runs", manualObjective, allowHigherWeights ? 2 : 1);
         var drop = dropId is Guid eligibleDropId
-            ? new BoardRequirementDropSnapshot(eligibleDropId, requirementId, Guid.NewGuid(), "Test boss", "Test drop", "1/10", 0.1m, duplicatesAllowed ? null : 1, dropEhb, allowHigherWeights ? 2 : 1)
+            ? new BoardRequirementDropSnapshot(eligibleDropId, requirementId, Guid.NewGuid(), Guid.NewGuid(), "Test boss", "Test drop", "1/10", 0.1m, dropMaximum ?? (duplicatesAllowed ? null : 1), dropEhb, allowHigherWeights ? 2 : 1)
             : null;
         var character = new OsrsCharacter(Guid.NewGuid(), "Player One", "PLAYER ONE", now);
         var assignment = new EventParticipantCharacter(Guid.NewGuid(), eventId, participantId, character.Id, 0, now, adminId, primaryQuestion.Id, EventCharacterRole.Playing, 500, EhbSource.Manual, null);

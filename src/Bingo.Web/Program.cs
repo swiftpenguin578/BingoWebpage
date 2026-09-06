@@ -276,8 +276,36 @@ if (historicalImportRequested)
 if (args.Contains("--migrate", StringComparer.Ordinal))
 {
     await using var migrationScope = app.Services.CreateAsyncScope();
-    await migrationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
+    var migrationDb = migrationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var migrationConnection = migrationDb.Database.GetDbConnection();
+    await migrationConnection.OpenAsync();
+    try
+    {
+        var mappingIndex = Array.IndexOf(args, "--immutable-item-mapping");
+        var mappingHashIndex = Array.IndexOf(args, "--immutable-item-mapping-sha256");
+        var mappingPath = mappingIndex >= 0 && mappingIndex + 1 < args.Length ? args[mappingIndex + 1] : null;
+        var mappingHash = mappingHashIndex >= 0 && mappingHashIndex + 1 < args.Length ? args[mappingHashIndex + 1] : null;
+        var pending = (await migrationDb.Database.GetPendingMigrationsAsync()).ToList();
+        var immutableMigrationIndex = pending.FindIndex(value => value.Contains("AddImmutableCatalogueItemIdentity", StringComparison.Ordinal));
+        if (immutableMigrationIndex > 0)
+        {
+            await migrationDb.Database.MigrateAsync(pending[immutableMigrationIndex - 1], CancellationToken.None);
+            pending = (await migrationDb.Database.GetPendingMigrationsAsync()).ToList();
+            immutableMigrationIndex = pending.FindIndex(value => value.Contains("AddImmutableCatalogueItemIdentity", StringComparison.Ordinal));
+        }
+        if (immutableMigrationIndex == 0)
+            await Slice1MigrationPreflight.StageImmutableItemMappingsAsync(migrationConnection, mappingPath, mappingHash, CancellationToken.None);
+        await migrationDb.Database.MigrateAsync();
+    }
+    finally { await migrationConnection.CloseAsync(); }
     Console.WriteLine("Database migrations applied.");
+    return;
+}
+
+if (args.Contains("--immutable-item-preflight", StringComparer.Ordinal))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    Console.WriteLine(await scope.ServiceProvider.GetRequiredService<Slice1MigrationPreflight>().RunImmutableItemPreflightAsync(CancellationToken.None));
     return;
 }
 

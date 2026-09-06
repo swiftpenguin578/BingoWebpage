@@ -202,7 +202,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         var firstTile = new BoardTile(Guid.NewGuid(), firstBoard.Id, template.Id, 0, 0, "Current tile", "", string.Empty, 1m);
         var otherTile = new BoardTile(Guid.NewGuid(), secondBoard.Id, Guid.NewGuid(), 0, 0, "Other tile", "", string.Empty, 1m);
         var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), firstTile.Id, 1, 1, true, false, "Collect", false);
-        var snapshot = new BoardRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, drop.Id, "Old boss", "Old item", "1/100", .01m, null, 10m, 1);
+        var snapshot = new BoardRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, drop.Id, drop.ItemId, "Old boss", "Old item", "1/100", .01m, null, 10m, 1);
         var mismatchedImage = new BoardTileImageAsset(Guid.NewGuid(), secondEvent.Id, otherTile.Id, "other/image.png", "image.png", "image/png", 3, 1, 1, new string('a', 64), admin.Id, now);
 
         await using (var seed = new ApplicationDbContext(options))

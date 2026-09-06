@@ -365,7 +365,7 @@ public sealed class HistoricalEventImporter(ApplicationDbContext db, TimeProvide
                 {
                     int? maximum = requirement.Duplicates ? null : 1;
                     db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(StableGuid($"{snapshot.Id:N}:drop:{drop.SourceDropId:N}:{drop.ItemName}"), snapshot.Id,
-                        drop.SourceDropId, drop.BossName, drop.ItemName, drop.DisplayRate, drop.NumericProbability, maximum, drop.DefaultEhb, requirement.Weights?.GetValueOrDefault(drop.ItemName, 1) ?? 1));
+                        drop.SourceDropId, drop.ItemId, drop.BossName, drop.ItemName, drop.DisplayRate, drop.NumericProbability, maximum, drop.DefaultEhb, requirement.Weights?.GetValueOrDefault(drop.ItemName, 1) ?? 1));
                     db.TemplateRequirementDrops.Add(new TemplateRequirementDrop(StableGuid($"{templateRequirement.Id:N}:drop:{drop.SourceDropId:N}:{drop.ItemName}"), templateRequirement.Id,
                         drop.SourceDropId, maximum, requirement.Weights?.GetValueOrDefault(drop.ItemName, 1) ?? 1));
                 }
@@ -477,7 +477,7 @@ public sealed class HistoricalEventImporter(ApplicationDbContext db, TimeProvide
                     db.BoardApprovalRequirementBossSnapshots.Add(new BoardApprovalRequirementBossSnapshot(StableGuid($"{approvalRequirement.Id:N}:boss:{boss.Id:N}"), approvalRequirement.Id, boss.Id, boss.Name, boss.EfficientCompletionsPerHour, boss.Version));
                 foreach (var drop in row.Resolved.Drops)
                     db.BoardApprovalRequirementDropSnapshots.Add(new BoardApprovalRequirementDropSnapshot(StableGuid($"{approvalRequirement.Id:N}:drop:{drop.SourceDropId:N}:{drop.ItemName}"), approvalRequirement.Id,
-                        drop.SourceDropId, drop.BossName, drop.ItemName, drop.DisplayRate, drop.NumericProbability,
+                        drop.SourceDropId, drop.ItemId, drop.BossName, drop.ItemName, drop.DisplayRate, drop.NumericProbability,
                         row.Manifest.Duplicates ? null : 1, drop.DefaultEhb, row.Manifest.Weights?.GetValueOrDefault(drop.ItemName, 1) ?? 1,
                         drop.CatalogueVersion, drop.ProbabilityScope, drop.ConditionalOnParent, drop.ParentProbability, drop.AssumedParticipants,
                         drop.RollsPerCompletion, drop.RollGroup, drop.RateCondition));
@@ -664,7 +664,7 @@ public sealed class HistoricalEventImporter(ApplicationDbContext db, TimeProvide
     }
 
     private static ResolvedDrop ToResolvedDrop(Bingo.Domain.Catalogue.SourceDrop drop, Bingo.Domain.Catalogue.BossActivity boss, Bingo.Domain.Catalogue.CatalogueItem item) =>
-        new(drop.Id, boss.Name, item.Name, drop.DisplayRate, drop.NumericProbability, drop.DefaultEhbEstimate,
+        new(drop.Id, item.Id, boss.Name, item.Name, drop.DisplayRate, drop.NumericProbability, drop.DefaultEhbEstimate,
             EfficientCompletionsPerHour: boss.EfficientCompletionsPerHour, RollsPerCompletion: drop.RollsPerCompletion,
             RollGroup: drop.RollGroup, RateCondition: drop.RateConditionNote, ProbabilityScope: drop.ProbabilityScope,
             ConditionalOnParent: drop.ConditionalOnParent, ParentProbability: drop.ParentProbability,
@@ -699,7 +699,7 @@ public sealed class HistoricalEventImporter(ApplicationDbContext db, TimeProvide
     private sealed record ResolvedImport(IReadOnlyList<ResolvedTile> Tiles, Guid? ExistingEventId, string ImportHash);
     private sealed record ResolvedTile(HistoricalTile Manifest, IReadOnlyList<ResolvedRequirement> Requirements, decimal Ehb);
     private sealed record ResolvedRequirement(HistoricalRequirement Manifest, IReadOnlyList<Bingo.Domain.Catalogue.BossActivity> Bosses, IReadOnlyList<ResolvedDrop> Drops, decimal? Estimate);
-    private sealed record ResolvedDrop(Guid SourceDropId, string BossName, string ItemName, string DisplayRate, decimal? NumericProbability, decimal? DefaultEhb,
+    private sealed record ResolvedDrop(Guid SourceDropId, Guid ItemId, string BossName, string ItemName, string DisplayRate, decimal? NumericProbability, decimal? DefaultEhb,
         decimal? EfficientCompletionsPerHour = null, int RollsPerCompletion = 1, string RollGroup = "default", string? RateCondition = null,
         DropProbabilityScope ProbabilityScope = DropProbabilityScope.Participant, bool ConditionalOnParent = false, decimal? ParentProbability = null,
         int AssumedParticipants = 1, string? DataSource = null, string? ImageUrl = null, long CatalogueVersion = 1, Guid BossId = default);

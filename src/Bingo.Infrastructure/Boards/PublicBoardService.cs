@@ -103,12 +103,34 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
             .ToDictionary(group => group.Key, group => (IReadOnlyList<string>)group.Select(value => value.DisplayName).ToList());
         var contributionRows = await (from contribution in db.SubmissionContributions.AsNoTracking()
                                       join submission in db.Submissions.AsNoTracking() on contribution.SubmissionId equals submission.Id
+                                      join drop in db.BoardRequirementDropSnapshots.AsNoTracking() on contribution.DropSnapshotId equals drop.Id into dropJoin
+                                      from drop in dropJoin.DefaultIfEmpty()
                                       where teamIds.Contains(contribution.TeamId) && requirementIds.Contains(contribution.RequirementId) &&
                                             contribution.ReversedAt == null && submission.Status == SubmissionStatus.Approved
-                                      select new { contribution, submission }).ToListAsync(cancellationToken);
+                                      select new
+                                      {
+                                          contribution,
+                                          submission,
+                                          ItemIdSnapshot = drop == null ? (Guid?)null : drop.ItemIdSnapshot,
+                                          SourceDropId = drop == null ? (Guid?)null : drop.SourceDropId,
+                                          MaximumContribution = drop == null ? (int?)null : drop.MaximumContribution
+                                      }).ToListAsync(cancellationToken);
         var requirementTargetByTile = frozenRequirements.Values
             .GroupBy(value => frozenTilesByApprovalId[value.ApprovalTileSnapshotId].BoardTileId)
             .ToDictionary(group => group.Key, group => Math.Max(1, group.Sum(value => value.TargetContribution)));
+        var definitions = frozenTileRows.Select(tile => new ProgressTileDefinition(
+            tile.BoardTileId, tile.RowIndex, tile.ColumnIndex, tile.EstimatedEhb,
+            frozenRequirements.Values.Where(requirement => requirement.ApprovalTileSnapshotId == tile.Id)
+                .Select(requirement => new ProgressRequirementDefinition(requirement.BoardRequirementSnapshotId, requirement.Position, requirement.TargetContribution, requirement.DuplicatesAllowed)).ToList())).ToList();
+        var effectiveAmountByContributionId = contributionRows
+            .GroupBy(value => value.contribution.TeamId)
+            .SelectMany(group => PublicProgressCalculator.Allocate(
+                definitions,
+                group.Select(row => new ProgressContribution(
+                    row.contribution.Id, row.contribution.RequirementId, row.contribution.CreditedParticipantId, row.submission.CreditedCharacterName,
+                    row.contribution.Amount, row.submission.SubmittedAt, 0,
+                    row.ItemIdSnapshot, row.SourceDropId, row.MaximumContribution))))
+            .ToDictionary(value => value.Id, value => value.Amount);
         var historicalProgressBySubmission = new Dictionary<Guid, (int ProgressAfter, int Target)>();
         var creditedByTeamTile = new Dictionary<(Guid TeamId, Guid TileId), int>();
         foreach (var row in contributionRows
@@ -118,14 +140,10 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
             var tileId = tileByRequirement[row.contribution.RequirementId];
             var target = requirementTargetByTile[tileId];
             var key = (row.contribution.TeamId, tileId);
-            var progressAfter = Math.Min(target, creditedByTeamTile.GetValueOrDefault(key) + row.contribution.Amount);
+            var progressAfter = Math.Min(target, creditedByTeamTile.GetValueOrDefault(key) + effectiveAmountByContributionId.GetValueOrDefault(row.contribution.Id));
             creditedByTeamTile[key] = progressAfter;
             historicalProgressBySubmission[row.submission.Id] = (progressAfter, target);
         }
-        var definitions = frozenTileRows.Select(tile => new ProgressTileDefinition(
-            tile.BoardTileId, tile.RowIndex, tile.ColumnIndex, tile.EstimatedEhb,
-            frozenRequirements.Values.Where(requirement => requirement.ApprovalTileSnapshotId == tile.Id)
-                .Select(requirement => new ProgressRequirementDefinition(requirement.BoardRequirementSnapshotId, requirement.Position, requirement.TargetContribution)).ToList())).ToList();
 
         var unranked = teams.Select(team =>
         {
@@ -139,7 +157,8 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                 var tileId = tileByRequirement[row.contribution.RequirementId];
                 var tileTarget = requirementTargetByTile[tileId];
                 var creditedBefore = creditedByTile.GetValueOrDefault(tileId);
-                var creditedAfter = Math.Min(tileTarget, creditedBefore + row.contribution.Amount);
+                var effectiveAmount = effectiveAmountByContributionId.GetValueOrDefault(row.contribution.Id);
+                var creditedAfter = Math.Min(tileTarget, creditedBefore + effectiveAmount);
                 var frozenTile = frozenTiles[tileId];
                 var estimatedBefore = frozenTile.EstimatedEhb * creditedBefore / tileTarget;
                 var estimatedAfter = creditedAfter == tileTarget
@@ -148,8 +167,8 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                 creditedByTile[tileId] = creditedAfter;
                 return new ProgressContribution(
                     row.contribution.Id, row.contribution.RequirementId, row.contribution.CreditedParticipantId, row.submission.CreditedCharacterName,
-                    row.contribution.Amount, row.submission.SubmittedAt,
-                    estimatedAfter - estimatedBefore);
+                    effectiveAmount, row.submission.SubmittedAt,
+                    estimatedAfter - estimatedBefore, row.ItemIdSnapshot, row.SourceDropId, row.MaximumContribution);
             }).ToList();
             var progress = PublicProgressCalculator.Calculate(board.Rows, board.Columns, definitions, contributions);
             var contributionByPlayer = progress.Players.ToDictionary(value => value.PlayerId);

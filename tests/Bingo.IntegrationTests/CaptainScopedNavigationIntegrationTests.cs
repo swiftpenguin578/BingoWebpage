@@ -314,8 +314,8 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         var secondTile = new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 0, 1, "Second ledger tile", "Description", "", 1m);
         var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 0, 1, true, false, "Requirement", true);
         var secondRequirement = new BoardRequirementSnapshot(Guid.NewGuid(), secondTile.Id, 0, 1, true, false, "Requirement", true);
-        var drop = new BoardRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, Guid.NewGuid(), "Captain ledger boss", "Captain ledger drop", "1/10", 0.1m, null, 1m);
-        var secondDrop = new BoardRequirementDropSnapshot(Guid.NewGuid(), secondRequirement.Id, Guid.NewGuid(), "Second ledger boss", "Second ledger drop", "1/10", 0.1m, null, 1m);
+        var drop = new BoardRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, Guid.NewGuid(), Guid.NewGuid(), "Captain ledger boss", "Captain ledger drop", "1/10", 0.1m, null, 1m);
+        var secondDrop = new BoardRequirementDropSnapshot(Guid.NewGuid(), secondRequirement.Id, Guid.NewGuid(), Guid.NewGuid(), "Second ledger boss", "Second ledger drop", "1/10", 0.1m, null, 1m);
         var submissions = Enumerable.Range(0, 26)
             .Select(index => new Submission(Guid.NewGuid(), live.Id, team.Id, tile.Id, requirement.Id, drop.Id, participant.Id, character.Id,
                 "Captain ledger player", captain.Id, 1, now.AddMinutes(-index), null, null))

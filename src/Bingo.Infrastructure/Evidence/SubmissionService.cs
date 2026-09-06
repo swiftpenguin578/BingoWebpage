@@ -158,8 +158,9 @@ public sealed class SubmissionService(
         if (s.DropSnapshotId is not null)
         {
             var drop = await db.BoardRequirementDropSnapshots.AsNoTracking().SingleAsync(x => x.Id == s.DropSnapshotId && x.RequirementId == s.RequirementId, cancellationToken);
-            var dropUsed = await db.SubmissionContributions.Where(x => x.TeamId == s.TeamId && x.RequirementId == s.RequirementId && x.DropSnapshotId == s.DropSnapshotId && x.ReversedAt == null).SumAsync(x => (int?)x.Amount, cancellationToken) ?? 0;
-            var maximum = drop.MaximumContribution ?? (requirement.DuplicatesAllowed ? int.MaxValue : 1); allowed = Math.Min(allowed, Math.Max(0, maximum - dropUsed));
+            var maximum = await MaximumContributionAsync(requirement, drop, cancellationToken);
+            var dropUsed = await UsedDropContributionAsync(s.TeamId, s.RequirementId, drop, requirement.DuplicatesAllowed, cancellationToken);
+            allowed = Math.Min(allowed, Math.Max(0, maximum - dropUsed));
         }
         var amount = Math.Min(remaining, allowed); if (amount < 1) throw new InvalidOperationException("This requirement has no remaining eligible contribution. Mark the submission as a duplicate or reject it.");
         var now = time.GetUtcNow(); var before = Snapshot(s); s.Approve(amount, now); db.SubmissionContributions.Add(new SubmissionContribution(Guid.NewGuid(), s.Id, s.TeamId, s.RequirementId, s.DropSnapshotId, s.CreditedParticipantId, amount, now)); db.ReviewActions.Add(Action(s.Id, ReviewActionType.Approve, adminAccountId, now, $"Approved contribution: {amount}", before, Snapshot(s))); await db.SaveChangesAsync(cancellationToken); var focusCleared = focus is not null && await focus.ClearCompletedTileFocusAsync(s.EventId, s.TeamId, s.BoardTileId, cancellationToken); if (focusCleared) await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(cancellationToken); await Notify(s.EventId, cancellationToken); await NotifyFocus(s.EventId, s.TeamId, focusCleared, cancellationToken); return amount;
@@ -204,13 +205,20 @@ public sealed class SubmissionService(
         var remaining = Math.Max(0, requirement.TargetContribution - active.Sum(x => x.Amount)); if (remaining == 0) return;
         var later = active.Where(x => x.AppliedAt >= reversedContribution.AppliedAt).ToList(); if (later.Count == 0) return;
         var submissionIds = later.Select(x => x.SubmissionId).ToList(); var submissions = await db.Submissions.Where(x => submissionIds.Contains(x.Id) && x.Status == SubmissionStatus.Approved).ToDictionaryAsync(x => x.Id, cancellationToken);
-        var dropIds = later.Where(x => x.DropSnapshotId is not null).Select(x => x.DropSnapshotId!.Value).Distinct().ToList(); var drops = await db.BoardRequirementDropSnapshots.AsNoTracking().Where(x => dropIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, cancellationToken);
+        var drops = await db.BoardRequirementDropSnapshots.AsNoTracking().Where(x => x.RequirementId == requirement.Id).ToDictionaryAsync(x => x.Id, cancellationToken);
         var usedByDrop = active.Where(x => x.DropSnapshotId is not null).GroupBy(x => x.DropSnapshotId!.Value).ToDictionary(x => x.Key, x => x.Sum(y => y.Amount));
+        var usedByItem = active.Where(x => x.DropSnapshotId is not null && drops.ContainsKey(x.DropSnapshotId.Value)).GroupBy(x => drops[x.DropSnapshotId!.Value].ItemIdSnapshot).ToDictionary(x => x.Key, x => x.Sum(y => y.Amount));
+        if (!requirement.DuplicatesAllowed) EnsureConsistentCaps(drops.Values);
         foreach (var item in later)
         {
             if (remaining == 0 || !submissions.TryGetValue(item.SubmissionId, out var submission)) break; var headroom = Math.Max(0, submission.ClaimedWeight - item.Amount); if (headroom == 0) continue;
-            if (item.DropSnapshotId is Guid dropId && drops.TryGetValue(dropId, out var drop)) { var maximum = drop.MaximumContribution ?? (requirement.DuplicatesAllowed ? int.MaxValue : 1); headroom = Math.Min(headroom, Math.Max(0, maximum - usedByDrop.GetValueOrDefault(dropId))); }
-            var increase = Math.Min(remaining, headroom); if (increase == 0) continue; var oldAmount = item.Amount; var oldSnapshot = Snapshot(submission); item.IncreaseAmount(oldAmount + increase); submission.IncreaseApprovedContribution(oldAmount + increase); if (item.DropSnapshotId is Guid usedDrop) usedByDrop[usedDrop] = usedByDrop.GetValueOrDefault(usedDrop) + increase; remaining -= increase; db.ReviewActions.Add(Action(submission.Id, ReviewActionType.RebalanceContribution, adminAccountId, now, $"Contribution adjusted from {oldAmount} to {item.Amount} after reversal of {reversed.Id}.", oldSnapshot, Snapshot(submission)));
+            if (item.DropSnapshotId is Guid dropId && drops.TryGetValue(dropId, out var drop))
+            {
+                var maximum = requirement.DuplicatesAllowed ? drop.MaximumContribution ?? int.MaxValue : drops.Values.Where(value => value.ItemIdSnapshot == drop.ItemIdSnapshot).Select(value => value.MaximumContribution ?? 1).Distinct().Single();
+                var used = requirement.DuplicatesAllowed ? usedByDrop.GetValueOrDefault(dropId) : usedByItem.GetValueOrDefault(drop.ItemIdSnapshot);
+                headroom = Math.Min(headroom, Math.Max(0, maximum - used));
+            }
+            var increase = Math.Min(remaining, headroom); if (increase == 0) continue; var oldAmount = item.Amount; var oldSnapshot = Snapshot(submission); item.IncreaseAmount(oldAmount + increase); submission.IncreaseApprovedContribution(oldAmount + increase); if (item.DropSnapshotId is Guid usedDrop) { usedByDrop[usedDrop] = usedByDrop.GetValueOrDefault(usedDrop) + increase; if (drops.TryGetValue(usedDrop, out var usedDropSnapshot)) usedByItem[usedDropSnapshot.ItemIdSnapshot] = usedByItem.GetValueOrDefault(usedDropSnapshot.ItemIdSnapshot) + increase; } remaining -= increase; db.ReviewActions.Add(Action(submission.Id, ReviewActionType.RebalanceContribution, adminAccountId, now, $"Contribution adjusted from {oldAmount} to {item.Amount} after reversal of {reversed.Id}.", oldSnapshot, Snapshot(submission)));
         }
     }
 
@@ -240,9 +248,53 @@ public sealed class SubmissionService(
         if (!await db.Teams.AnyAsync(x => x.Id == teamId && x.EventId == eventId && x.Active, cancellationToken)) throw new InvalidOperationException("Team not found."); if (!await IsEligibleTeamCreditAsync(teamId, participantId, time.GetUtcNow(), cancellationToken)) throw new InvalidOperationException("The credited player is not eligible for this team at the evidence time.");
         var tile = await (from t in db.BoardTiles join b in db.Boards on t.BoardId equals b.Id where t.Id == tileId && b.EventId == eventId && b.State == BoardState.Published select t).SingleOrDefaultAsync(cancellationToken) ?? throw new InvalidOperationException("Choose a tile from the published event board.");
         var requirement = await db.BoardRequirementSnapshots.AsNoTracking().SingleOrDefaultAsync(x => x.Id == requirementId && x.BoardTileId == tile.Id, cancellationToken) ?? throw new InvalidOperationException("Choose a requirement from that tile.");
-        var creditedWeight = 1; if (requirement.ManualObjective && dropId is not null) throw new InvalidOperationException("Manual objectives do not use a drop."); if (!requirement.ManualObjective && dropId is null) throw new InvalidOperationException("Choose an eligible drop."); if (!requirement.ManualObjective && dropId is Guid selectedDropId) { var drop = await db.BoardRequirementDropSnapshots.AsNoTracking().SingleOrDefaultAsync(x => x.Id == selectedDropId && x.RequirementId == requirementId, cancellationToken) ?? throw new InvalidOperationException("Choose an eligible drop."); creditedWeight = drop.CreditedWeight; var maximum = drop.MaximumContribution ?? (requirement.DuplicatesAllowed ? int.MaxValue : 1); var dropApproved = await db.SubmissionContributions.Where(x => x.TeamId == teamId && x.RequirementId == requirementId && x.DropSnapshotId == selectedDropId && x.ReversedAt == null).SumAsync(x => (int?)x.Amount, cancellationToken) ?? 0; if (dropApproved >= maximum) throw new InvalidOperationException("This drop has already reached its approved contribution limit."); }
+        var creditedWeight = 1;
+        if (requirement.ManualObjective && dropId is not null) throw new InvalidOperationException("Manual objectives do not use a drop.");
+        if (!requirement.ManualObjective && dropId is null) throw new InvalidOperationException("Choose an eligible drop.");
+        if (!requirement.ManualObjective && dropId is Guid selectedDropId)
+        {
+            var drop = await db.BoardRequirementDropSnapshots.AsNoTracking().SingleOrDefaultAsync(x => x.Id == selectedDropId && x.RequirementId == requirementId, cancellationToken) ?? throw new InvalidOperationException("Choose an eligible drop.");
+            creditedWeight = drop.CreditedWeight;
+            var maximum = await MaximumContributionAsync(requirement, drop, cancellationToken);
+            var dropApproved = await UsedDropContributionAsync(teamId, requirementId, drop, requirement.DuplicatesAllowed, cancellationToken);
+            if (dropApproved >= maximum) throw new InvalidOperationException("This drop has already reached its approved contribution limit.");
+        }
         var approved = await db.SubmissionContributions.Where(x => x.TeamId == teamId && x.RequirementId == requirementId && x.ReversedAt == null).SumAsync(x => (int?)x.Amount, cancellationToken) ?? 0; if (approved >= requirement.TargetContribution) throw new InvalidOperationException("This objective has already been completed."); return creditedWeight;
     }
+    private async Task<int> MaximumContributionAsync(BoardRequirementSnapshot requirement, BoardRequirementDropSnapshot drop, CancellationToken cancellationToken)
+    {
+        if (requirement.DuplicatesAllowed) return drop.MaximumContribution ?? int.MaxValue;
+        var caps = await db.BoardRequirementDropSnapshots.AsNoTracking()
+            .Where(x => x.RequirementId == requirement.Id && x.ItemIdSnapshot == drop.ItemIdSnapshot)
+            .Select(x => x.MaximumContribution ?? 1)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        if (caps.Count != 1) throw new InvalidOperationException($"Eligible aliases for catalogue item {drop.ItemIdSnapshot} have inconsistent contribution caps; board approval is required before review can continue.");
+        return caps[0];
+    }
+
+    private async Task<int> UsedDropContributionAsync(Guid teamId, Guid requirementId, BoardRequirementDropSnapshot drop, bool duplicatesAllowed, CancellationToken cancellationToken)
+    {
+        var contributions = await (from contribution in db.SubmissionContributions.AsNoTracking()
+                                   join snapshot in db.BoardRequirementDropSnapshots.AsNoTracking() on contribution.DropSnapshotId equals snapshot.Id
+                                   where contribution.TeamId == teamId && contribution.RequirementId == requirementId && contribution.ReversedAt == null && snapshot.RequirementId == requirementId
+                                   select new { contribution.Amount, snapshot.SourceDropId, snapshot.ItemIdSnapshot })
+            .ToListAsync(cancellationToken);
+        return contributions.Where(value => duplicatesAllowed
+                ? value.SourceDropId == drop.SourceDropId
+                : value.ItemIdSnapshot == drop.ItemIdSnapshot)
+            .Sum(value => value.Amount);
+    }
+
+    private static void EnsureConsistentCaps(IEnumerable<BoardRequirementDropSnapshot> drops)
+    {
+        foreach (var itemDrops in drops.GroupBy(x => x.ItemIdSnapshot))
+        {
+            var caps = itemDrops.Select(x => x.MaximumContribution ?? 1).Distinct().ToList();
+            if (caps.Count != 1) throw new InvalidOperationException($"Eligible aliases for catalogue item {itemDrops.Key} have inconsistent contribution caps; board approval is required before review can continue.");
+        }
+    }
+
     private async Task EnsureAdmin(Guid id, CancellationToken cancellationToken) { if (!await db.Accounts.AnyAsync(x => x.Id == id && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin) && x.Active, cancellationToken)) throw new InvalidOperationException("Administrator access is required."); }
     private async Task<bool> IsEligibleTeamCreditAsync(Guid teamId, Guid participantId, DateTimeOffset submittedAt, CancellationToken cancellationToken)
     {

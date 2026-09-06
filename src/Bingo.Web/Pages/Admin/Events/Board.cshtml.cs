@@ -218,7 +218,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             db.BoardRequirementSnapshots.Add(snapshot);
             foreach (var boss in selectedBosses.Where(x => input.BossIds.Contains(x.Id))) db.BoardRequirementBossSnapshots.Add(new BoardRequirementBossSnapshot(Guid.NewGuid(), snapshot.Id, boss.Id, boss.Name, boss.EfficientCompletionsPerHour));
             var selectedDrops = await (from drop in db.SourceDrops where input.DropIds.Contains(drop.Id) join boss in db.BossActivities on drop.BossActivityId equals boss.Id join item in db.CatalogueItems on drop.ItemId equals item.Id select new { drop, boss, item }).ToListAsync(ct);
-            foreach (var value in selectedDrops) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), snapshot.Id, value.drop.Id, value.boss.Name, value.item.Name, value.drop.DisplayRate, value.drop.NumericProbability, input.DuplicatesAllowed ? null : 1, value.drop.DefaultEhbEstimate, input.WeightFor(value.drop.Id)));
+            foreach (var value in selectedDrops) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), snapshot.Id, value.drop.Id, value.drop.ItemId, value.boss.Name, value.item.Name, value.drop.DisplayRate, value.drop.NumericProbability, input.DuplicatesAllowed ? null : 1, value.drop.DefaultEhbEstimate, input.WeightFor(value.drop.Id)));
             estimates.Add(input.IsManual ? null : EhbCalculator.CalculateDropRequirement(input.Target, selectedDrops.Select(x => new EligibleDropRate(x.boss.EfficientCompletionsPerHour, x.drop.NumericProbability, x.drop.ItemId, x.boss.Id, input.WeightFor(x.drop.Id), x.drop.RollsPerCompletion, x.drop.RollGroup)), input.DuplicatesAllowed));
         }
         var ehb = EhbCalculator.SumRequirements(estimates, TileDraft.ManualEhb);
@@ -550,13 +550,17 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                     db.BoardApprovalRequirementBossSnapshots.Add(new BoardApprovalRequirementBossSnapshot(Guid.NewGuid(), approvalRequirement.Id, currentBoss.Id, currentBoss.Name, currentBoss.EfficientCompletionsPerHour, currentBoss.Version));
                 }
 
-                var selectedDrops = requirementDrops.Where(x => x.RequirementId == requirement.Id).Select(x => currentDrops[x.SourceDropId]).ToList();
+                var frozenDrops = requirementDrops.Where(x => x.RequirementId == requirement.Id).ToList();
+                if (!requirement.ManualObjective && !requirement.DuplicatesAllowed) EnsureConsistentItemCaps(frozenDrops);
+                var selectedDrops = frozenDrops.Select(x => currentDrops[x.SourceDropId]).ToList();
                 if (!requirement.ManualObjective && selectedDrops.Count == 0)
                     throw new InvalidOperationException("Every catalogue objective needs an active eligible drop before approval.");
                 foreach (var selected in selectedDrops)
                 {
                     var sourceSnapshot = requirementDrops.Single(x => x.RequirementId == requirement.Id && x.SourceDropId == selected.Drop.Id);
-                    var approvalDrop = new BoardApprovalRequirementDropSnapshot(Guid.NewGuid(), approvalRequirement.Id, selected.Drop.Id, selected.Boss.Name, selected.Item.Name, selected.Drop.DisplayRate, selected.Drop.NumericProbability, sourceSnapshot.MaximumContribution, selected.Drop.DefaultEhbEstimate, sourceSnapshot.CreditedWeight, selected.Drop.Version, selected.Drop.ProbabilityScope, selected.Drop.ConditionalOnParent, selected.Drop.ParentProbability, selected.Drop.AssumedParticipants, selected.Drop.RollsPerCompletion, selected.Drop.RollGroup, selected.Drop.RateConditionNote);
+                    if (selected.Drop.ItemId != sourceSnapshot.ItemIdSnapshot)
+                        throw new InvalidOperationException($"Catalogue item identity changed for source drop {selected.Drop.Id}. Retarget the board explicitly before publishing a correction.");
+                    var approvalDrop = new BoardApprovalRequirementDropSnapshot(Guid.NewGuid(), approvalRequirement.Id, selected.Drop.Id, sourceSnapshot.ItemIdSnapshot, selected.Boss.Name, selected.Item.Name, selected.Drop.DisplayRate, selected.Drop.NumericProbability, sourceSnapshot.MaximumContribution, selected.Drop.DefaultEhbEstimate, sourceSnapshot.CreditedWeight, selected.Drop.Version, selected.Drop.ProbabilityScope, selected.Drop.ConditionalOnParent, selected.Drop.ParentProbability, selected.Drop.AssumedParticipants, selected.Drop.RollsPerCompletion, selected.Drop.RollGroup, selected.Drop.RateConditionNote);
                     db.BoardApprovalRequirementDropSnapshots.Add(approvalDrop);
                 }
 
@@ -595,6 +599,15 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             "{\"state\":\"Draft\",\"activeApprovalSnapshotId\":null}");
         if (reportStatus) SetStatus(Localize("Board returned to Draft because a competitive edit was saved. The preserved approval remains in history."), UiMessageType.Success);
         return true;
+    }
+
+    private static void EnsureConsistentItemCaps(IEnumerable<BoardRequirementDropSnapshot> drops)
+    {
+        foreach (var itemDrops in drops.GroupBy(x => x.ItemIdSnapshot))
+        {
+            var caps = itemDrops.Select(x => x.MaximumContribution ?? 1).Distinct().ToList();
+            if (caps.Count != 1) throw new InvalidOperationException($"Catalogue item {itemDrops.Key} has inconsistent alias contribution caps. Correct the requirement before approval.");
+        }
     }
 
     private void AddBoardAudit(string action, Board board, string details, string description, string? beforeState, string? afterState) =>
@@ -642,7 +655,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         {
             var snapshot = new BoardRequirementSnapshot(Guid.NewGuid(), boardTile.Id, requirement.Position, requirement.TargetContribution, requirement.DuplicatesAllowed, requirement.AllowHigherWeightings, requirement.Description, requirement.ManualObjective); db.BoardRequirementSnapshots.Add(snapshot);
             var bosses = await (from link in db.TemplateRequirementBosses where link.RequirementId == requirement.Id join boss in db.BossActivities on link.BossActivityId equals boss.Id select boss).ToListAsync(ct); foreach (var boss in bosses) db.BoardRequirementBossSnapshots.Add(new BoardRequirementBossSnapshot(Guid.NewGuid(), snapshot.Id, boss.Id, boss.Name, boss.EfficientCompletionsPerHour));
-            var drops = await (from link in db.TemplateRequirementDrops where link.RequirementId == requirement.Id join drop in db.SourceDrops on link.SourceDropId equals drop.Id join boss in db.BossActivities on drop.BossActivityId equals boss.Id join item in db.CatalogueItems on drop.ItemId equals item.Id select new { link, drop, boss, item }).ToListAsync(ct); foreach (var value in drops) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), snapshot.Id, value.drop.Id, value.boss.Name, value.item.Name, value.drop.DisplayRate, value.drop.NumericProbability, value.link.MaximumContribution, value.drop.DefaultEhbEstimate, value.link.CreditedWeight));
+            var drops = await (from link in db.TemplateRequirementDrops where link.RequirementId == requirement.Id join drop in db.SourceDrops on link.SourceDropId equals drop.Id join boss in db.BossActivities on drop.BossActivityId equals boss.Id join item in db.CatalogueItems on drop.ItemId equals item.Id select new { link, drop, boss, item }).ToListAsync(ct); foreach (var value in drops) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), snapshot.Id, value.drop.Id, value.drop.ItemId, value.boss.Name, value.item.Name, value.drop.DisplayRate, value.drop.NumericProbability, value.link.MaximumContribution, value.drop.DefaultEhbEstimate, value.link.CreditedWeight));
         }
         board.SetTotalEhb(board.TotalEhbEstimate + ehb);
         return boardTile;

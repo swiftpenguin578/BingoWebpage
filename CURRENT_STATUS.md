@@ -150,6 +150,39 @@ historical material is preserved separately and is non-authoritative.
   control plus persisted-comma integration proof in place of that manual step.
   **Pass 1 is complete.** Do not begin Pass 2, package, commit, push, merge, or
   deploy without the next authorized gate.
+- Pass 1 was packaged locally as `5144c0c` (`fix: correct culture and additive
+  role boundaries`) and has not been pushed. The user then authorized Pass 2.
+- Section 6 Pass 2 implementation completed on 2026-09-06 and remains uncommitted.
+  It adds immutable catalogue-item identity across both snapshot families,
+  item-scoped duplicate caps through publication, approval, submission, and the
+  existing operator preflight/`--migrate` same-connection temporary mapping flow.
+  The one generated migration is
+  `20260905221344_AddImmutableCatalogueItemIdentity` with its designer and model
+  snapshot; no retained mapping table, new service, route, policy, job, dependency,
+  or Pass 3 behavior was added.
+- Pass 2's Release Web build, migration generation, idempotent migration-script
+  generation, and `git diff --check` passed. Focused test execution was blocked
+  before running by the host MSBuild named-pipe permission error; the copied-
+  database migration rehearsal was blocked by Docker socket permission. Do not
+  call the retained-database migration path release-verified yet. The initial
+  independent Sol High review found two P1 correctness defects: reversal
+  rebalancing could create false headroom and exceed an already-full item/source
+  cap, and retained aliases could still double-count public progress/final
+  ranking. Focused remediation corrected both and passed 8 public-progress tests,
+  3 targeted submission tests, the Release Web build, and `git diff --check`.
+  Concurrent fixes-only and complete-pass reviews then found the same remaining
+  P1 ordering defect: raw contributions still drove Recent Drops and EHB before
+  cap allocation. The bounded continuation now reuses one cap-aware effective
+  allocation before Recent Drops, completion time, EHB, player totals, and
+  rankings; its 8 calculator tests, PostgreSQL-backed alias-A/alias-B/distinct-C
+  integration regression, Release Web build, and `git diff --check` pass. The
+  final fixes-only Sol High re-review passed with no local scope expansion. The
+  complete-pass review otherwise found the planned scope present, migration
+  structure coherent, no unapproved material additions, no changed non-goals,
+  and no Pass 3/4 leakage. The copied-database rehearsal remains a discriminating
+  pre-deployment gate and is still blocked by Docker socket permission. The user
+  authorized local Pass 2 packaging after the fixes-only review passed; do not
+  push, merge, deploy, or start Pass 3 without a new gate.
 
 ## Canonical checkout
 
