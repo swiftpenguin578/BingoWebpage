@@ -215,14 +215,26 @@ public sealed class DevelopmentScenarioSeeder(
             admin.Id,
             secondaryAdmin,
             now));
-        seeded.Add(await SeedScenario(
+        var archivedResultsScenario = await SeedScenario(
             "Julebingo 2025",
             "test-85-archived-results",
             ScenarioStage.Archived,
             blueprint,
             admin.Id,
             secondaryAdmin,
-            now));
+            now);
+        var archivedHistoryParticipant = db.EventParticipants.Local
+            .Where(participant => participant.EventId == archivedResultsScenario.EventId &&
+                                  db.TeamMemberships.Local.Any(membership => membership.EventParticipantId == participant.Id && membership.Role == TeamMembershipRole.Participant))
+            .OrderBy(participant => participant.SignupSequence)
+            .Skip(1)
+            .First();
+        archivedHistoryParticipant.AssignOwner(evidenceParticipant);
+        await AddHistoryRejectedStateAsync(archivedResultsScenario.EventId, archivedHistoryParticipant, evidenceParticipant.Id, admin.Id, now, cancellationToken);
+        db.TeamMemberships.Local
+            .Single(membership => membership.EventParticipantId == archivedHistoryParticipant.Id && membership.Role == TeamMembershipRole.Participant && membership.LeftAt == null)
+            .Leave(now.AddMinutes(-30), "Seeded former credited owner history.");
+        seeded.Add(archivedResultsScenario);
         seeded.Add(SeedCancelledScenario(admin.Id, secondaryAdmin, now));
         seeded.Add(SeedDiscardedScenario(admin.Id, now));
         seeded.Add(SeedBoardPublicationSetupScenario(blueprint, admin.Id, secondaryAdmin, now));
@@ -1193,12 +1205,22 @@ public sealed class DevelopmentScenarioSeeder(
                 submission.Withdraw(now.AddMinutes(-5));
                 db.ReviewActions.Add(SeedAction(submission.Id, ReviewActionType.Withdraw, captain.Id, now.AddMinutes(-5), "Seeded captain withdrawal."));
             }
+            else if (status == SubmissionStatus.Reversed)
+            {
+                var approvedAt = now.AddMinutes(-10);
+                ApproveSeeded(submission, adminId, 1, approvedAt);
+                submission.Reverse("Seeded reversal for corrected-child testing.", now.AddMinutes(-5));
+                var contribution = db.SubmissionContributions.Local.Single(value => value.SubmissionId == submission.Id);
+                contribution.Reverse(now.AddMinutes(-5));
+                db.ReviewActions.Add(SeedAction(submission.Id, ReviewActionType.ReverseApproval, adminId, now.AddMinutes(-5), "Seeded reversal for corrected-child testing."));
+            }
             return submission;
         }
 
         await AddStateAsync(SubmissionStatus.Pending, "Pending evidence for Admin review testing.", 21);
         var rejected = await AddStateAsync(SubmissionStatus.Rejected, "Rejected evidence for linked-resubmission testing.", 22);
         await AddStateAsync(SubmissionStatus.Withdrawn, "Withdrawn evidence for retained-ledger testing.", 23);
+        await AddStateAsync(SubmissionStatus.Reversed, "Reversed evidence for corrected-child testing.", 25);
         var resubmissionSubmittedAt = now.AddMinutes(-2);
         var creditedCharacter = PrimaryCharacterSnapshot(participant);
         var resubmission = new Submission(Guid.NewGuid(), eventId, team.Id, tile.Id, requirement.Id, drop?.Id, participant.Id,

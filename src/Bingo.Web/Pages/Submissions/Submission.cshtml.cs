@@ -32,6 +32,7 @@ public sealed class SubmissionModel(
     public string TeamSlug { get; private set; } = string.Empty;
     public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId;
     public bool CanOpenTeamLedger { get; private set; }
+    public bool IsArchivedFormerOwner { get; private set; }
     public IReadOnlyList<RequirementView> Requirements { get; private set; } = [];
     public IReadOnlyList<DropView> Drops { get; private set; } = [];
     public IReadOnlyList<TargetView> TargetOptions { get; private set; } = [];
@@ -108,17 +109,19 @@ public sealed class SubmissionModel(
         if (accountId is null) return false;
         var submission = await db.Submissions.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         if (submission is null) return false;
-        EvidenceActorScope scope;
+        EvidenceActorScope? scope = null;
         try { scope = await evidenceAuthority.ResolveActorAsync(accountId.Value, submission.EventId, submission.TeamId, time.GetUtcNow(), ct); }
-        catch (InvalidOperationException) { return false; }
-        if (scope.Kind is not (EvidenceActorKind.Participant or EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain)) return false;
+        catch (InvalidOperationException) { }
+        var currentTeamActor = scope is { Kind: EvidenceActorKind.Participant or EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain };
+        if (!currentTeamActor && !await IsArchivedFormerOwnerAsync(accountId.Value, submission, ct)) return false;
+        IsArchivedFormerOwner = !currentTeamActor;
 
-        EventId = scope.EventId;
-        TeamId = scope.TeamId;
-        CanOpenTeamLedger = true;
+        EventId = submission.EventId;
+        TeamId = submission.TeamId;
+        CanOpenTeamLedger = currentTeamActor;
         var context = await (from eventRow in db.Events.AsNoTracking()
                              join team in db.Teams.AsNoTracking() on eventRow.Id equals team.EventId
-                             where eventRow.Id == submission.EventId && eventRow.HiddenAt == null && team.Id == submission.TeamId && team.Active
+                             where eventRow.Id == submission.EventId && eventRow.HiddenAt == null && team.Id == submission.TeamId
                              select new { EventSlug = eventRow.Slug, eventRow.Timezone, TeamSlug = team.Slug }).SingleOrDefaultAsync(ct);
         if (context is null) return false;
         EventSlug = context.EventSlug;
@@ -135,17 +138,17 @@ public sealed class SubmissionModel(
             .Select(x => (Guid?)x.Id)
             .SingleOrDefaultAsync(ct);
         var eventItem = await db.Events.AsNoTracking().SingleAsync(x => x.Id == submission.EventId && x.HiddenAt == null, ct);
-        var windowOpen = scope.Kind == EvidenceActorKind.EmergencyCaptain
+        var windowOpen = currentTeamActor && scope!.Kind == EvidenceActorKind.EmergencyCaptain
             ? eventItem.AcceptsEmergencySubmissions(time.GetUtcNow())
-            : eventItem.AcceptsNewSubmissions(time.GetUtcNow());
-        var canMutate = scope.Kind is EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain ||
-                        scope.Kind == EvidenceActorKind.Participant && scope.CreditedParticipantId == submission.CreditedParticipantId;
+            : currentTeamActor && eventItem.AcceptsNewSubmissions(time.GetUtcNow());
+        var canMutate = currentTeamActor && (scope!.Kind is EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain ||
+                        scope.Kind == EvidenceActorKind.Participant && scope.CreditedParticipantId == submission.CreditedParticipantId);
         Details = new(submission.Id, submission.BoardTileId, submission.RequirementId, submission.DropSnapshotId, submission.CreditedParticipantId,
             tile.NameSnapshot, requirement.Description, drop is null ? null : $"{drop.ItemName} ({drop.DisplayRate})", submission.CreditedCharacterName,
             submission.Status, submission.ClaimedWeight, submission.ApprovedContribution, submission.SubmittedAt, submission.CaptainNote,
             submission.CurrentReviewerNote, submission.ExpectedEvidenceCode, asset?.Id,
             canMutate && windowOpen && submission.Status == SubmissionStatus.Pending,
-            canMutate && windowOpen && submission.Status == SubmissionStatus.Rejected && replacementId is null,
+            canMutate && windowOpen && submission.Status is (SubmissionStatus.Rejected or SubmissionStatus.Reversed) && replacementId is null,
             submission.ResubmissionOfSubmissionId, replacementId, submission.Version);
         CanResubmit = Details.Resubmittable;
 
@@ -161,6 +164,17 @@ public sealed class SubmissionModel(
             .Concat(Requirements.Where(item => item.Manual).Select(item => new TargetView(item.TileId, item.Id, null, $"manual:{item.Id}", item.Description, item.Description)))
             .ToList();
         return true;
+    }
+
+    private async Task<bool> IsArchivedFormerOwnerAsync(Guid accountId, Bingo.Domain.Evidence.Submission submission, CancellationToken ct)
+    {
+        return submission.Status is SubmissionStatus.Rejected or SubmissionStatus.Withdrawn &&
+               await (from eventRow in db.Events.AsNoTracking()
+                      join participant in db.EventParticipants.AsNoTracking() on eventRow.Id equals participant.EventId
+                      join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
+                      where eventRow.Id == submission.EventId && eventRow.HiddenAt == null && eventRow.State == EventState.Archived &&
+                            participant.Id == submission.CreditedParticipantId && participant.AccountId == accountId && membership.TeamId == submission.TeamId
+                      select participant.Id).AnyAsync(ct);
     }
 
     public sealed class EditInput

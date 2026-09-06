@@ -152,7 +152,8 @@ historical material is preserved separately and is non-authoritative.
   deploy without the next authorized gate.
 - Pass 1 was packaged locally as `5144c0c` (`fix: correct culture and additive
   role boundaries`) and has not been pushed. The user then authorized Pass 2.
-- Section 6 Pass 2 implementation completed on 2026-09-06 and remains uncommitted.
+- Section 6 Pass 2 implementation completed on 2026-09-06 and is committed locally
+  as `039bd77` (`fix: enforce immutable item contribution caps`).
   It adds immutable catalogue-item identity across both snapshot families,
   item-scoped duplicate caps through publication, approval, submission, and the
   existing operator preflight/`--migrate` same-connection temporary mapping flow.
@@ -179,10 +180,39 @@ historical material is preserved separately and is non-authoritative.
   final fixes-only Sol High re-review passed with no local scope expansion. The
   complete-pass review otherwise found the planned scope present, migration
   structure coherent, no unapproved material additions, no changed non-goals,
-  and no Pass 3/4 leakage. The copied-database rehearsal remains a discriminating
-  pre-deployment gate and is still blocked by Docker socket permission. The user
-  authorized local Pass 2 packaging after the fixes-only review passed; do not
-  push, merge, deploy, or start Pass 3 without a new gate.
+  and no Pass 3/4 leakage. The copied-database rehearsal then exposed 12 legacy
+  drop snapshots attached to manual objectives (8 event and 4 approval), all
+  fabricated by the Development DKL seeder and unreferenced by submissions or
+  contributions. Focused remediation now prevents those snapshots at the source,
+  reports and excludes them as structural preflight errors, refuses mapping while
+  they exist, and makes the migration independently fail closed. Its Release
+  build, three focused tests, and `git diff --check` passed; the independent
+  fixes-only review passed with no blocker. After deleting only those 12 rows from
+  the disposable `bingo_pass2_rehearsal` copy, preflight reported 2,080 rows,
+  zero flagged mappings, and zero structural errors. The migration applied there
+  with zero null immutable identities in either snapshot family. The original
+  local `bingo` database remains unmigrated and unchanged with its 8+4 rows.
+- The user authorized Pass 3 on 2026-09-06. Its submission/review correctness
+  implementation is complete and committed locally as `fix: harden submission
+  review lifecycle`. It adds atomic main audit history and
+  rollback proof, authoritative retargeted weights, the one-child Reversed
+  correction path, lifecycle/status/idempotency enforcement, the narrow archived
+  former-owner detail/evidence exception, lifecycle-sensitive Admin controls, and
+  only the required Development fixtures. Review remediation completed the audit
+  note/reason payloads, removed stale concurrency data, and proved database-failure
+  rollback. Maximum-length remediation keeps complete operation text exactly once
+  in `AuditEntry.Details`, records bounded note-presence facts in snapshots, and
+  stores valid rejection-notification JSON within 1,000 characters while retaining
+  the canonical submission-detail route. Its elevated PostgreSQL regression
+  `MaximumLengthNotesAndReasonsFitAuditAndNotificationBoundaries` passed 1/1;
+  the affected Release build passed with zero warnings/errors and `git diff
+  --check` passes. The final remediation-only and complete-pass independent reviews
+  both passed with no findings, no missing scope, no changed non-goals, and no
+  unbudgeted artifact. The Pass 2 rehearsal remediation remains committed locally as
+  `d0c3cfa7f7f7f9dbe149be346bd5976c54132056` (`fix: reject manual objective drop
+  snapshots`). Nothing has been pushed, merged, or deployed. Before any Pass 4
+  planning or implementation, stop and remind
+  the user that they have two additions and need clarification on the existing pass.
 
 ## Canonical checkout
 

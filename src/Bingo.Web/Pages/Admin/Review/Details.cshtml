@@ -6,7 +6,8 @@
     ViewData["Title"] = T["Review {0}", Model.Details.Tile];
     ViewData["CompactNavigation"] = true;
     ViewData["AdminPageDescription"] = T["Inspect evidence, resolve its review state, and preserve the audit record."];
-    var reviewable = Model.Details.Status == SubmissionStatus.Pending;
+    var reviewable = Model.ReviewOpen && Model.Details.Status == SubmissionStatus.Pending;
+    var reversible = Model.ReviewOpen && Model.Details.Status == SubmissionStatus.Approved;
     var statusModifier = Model.Details.Status switch
     {
         SubmissionStatus.Pending => "is-yellow",
@@ -182,7 +183,7 @@
                                 </select>
                             </div>
                         </div>
-                        <p class="admin-review-form-note">@T["Submission time, weight, contribution, and active evidence asset remain unchanged. The participant is derived from the selected event character."]</p>
+                        <p class="admin-review-form-note">@T["Submission time, contribution, and active evidence asset remain unchanged. The selected requirement or drop supplies the authoritative weight, and the participant is derived from the selected event character."]</p>
                         <div class="admin-review-form-field">
                             <label asp-for="Input.Reason">@T["Written correction reason"]</label>
                             <textarea asp-for="Input.Reason" required aria-describedby="metadata-correction-reason-hint"></textarea>
@@ -270,7 +271,7 @@
                         <button class="admin-button-secondary action-danger-outline" type="submit">@T["Reject evidence"]</button>
                     </form>
                 }
-                @if (Model.Details.Status == SubmissionStatus.Approved)
+                @if (reversible)
                 {
                     <form method="post" asp-page-handler="Reverse" class="admin-review-action-form" onsubmit="return confirm('Reverse this approval and remove its exact contribution?');">
                         <input asp-for="Input.ExpectedVersion" type="hidden" />
@@ -280,7 +281,7 @@
                         <button class="admin-button-secondary action-danger-outline" type="submit">@T["Reverse approval"]</button>
                     </form>
                 }
-                @if (!reviewable && Model.Details.Status != SubmissionStatus.Approved)
+                @if (!reviewable && !reversible)
                 {
                     <p class="admin-review-empty-note">@T["No review action is available for this submission state."]</p>
                 }

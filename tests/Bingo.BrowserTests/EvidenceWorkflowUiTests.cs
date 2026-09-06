@@ -39,6 +39,8 @@ public sealed class EvidenceWorkflowUiTests
         Assert.Contains("asp-page-handler=\"Reject\"", detail);
         Assert.Contains("asp-page-handler=\"Reverse\"", detail);
         Assert.Contains("asp-page-handler=\"Edit\"", detail);
+        Assert.Contains("Model.ReviewOpen && Model.Details.Status == SubmissionStatus.Pending", detail);
+        Assert.Contains("var reversible = Model.ReviewOpen && Model.Details.Status == SubmissionStatus.Approved", detail);
         Assert.Contains("Input.ExpectedVersion", detail);
         Assert.Contains("data-correction-requirement", detail);
         Assert.Contains("data-correction-drop-catalogue", detail);

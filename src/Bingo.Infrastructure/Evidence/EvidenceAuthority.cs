@@ -1,5 +1,7 @@
 using Bingo.Application.Evidence;
 using Bingo.Domain.Access;
+using Bingo.Domain.Events;
+using Bingo.Domain.Evidence;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Signups;
@@ -67,7 +69,7 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         throw new InvalidOperationException("Only the credited participant may mutate this submission.");
     }
 
-    public async Task<bool> CanViewPrivateEvidenceAsync(Guid actorAccountId, Guid eventId, Guid teamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default)
+    public async Task<bool> CanViewPrivateEvidenceAsync(Guid actorAccountId, Guid eventId, Guid teamId, Guid creditedParticipantId, DateTimeOffset now, Guid? submissionId = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -76,7 +78,17 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         }
         catch (InvalidOperationException)
         {
-            return false;
+            if (submissionId is not Guid retainedSubmissionId) return false;
+            return await (from submission in db.Submissions.AsNoTracking()
+                          join bingoEvent in db.Events.AsNoTracking() on submission.EventId equals bingoEvent.Id
+                          join participant in db.EventParticipants.AsNoTracking() on submission.CreditedParticipantId equals participant.Id
+                          join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
+                          where submission.Id == retainedSubmissionId && submission.EventId == eventId && submission.TeamId == teamId &&
+                                submission.CreditedParticipantId == creditedParticipantId && bingoEvent.HiddenAt == null &&
+                                bingoEvent.State == EventState.Archived && participant.EventId == eventId && participant.AccountId == actorAccountId &&
+                                membership.TeamId == teamId &&
+                                (submission.Status == SubmissionStatus.Rejected || submission.Status == SubmissionStatus.Withdrawn)
+                          select submission.Id).AnyAsync(cancellationToken);
         }
     }
 
