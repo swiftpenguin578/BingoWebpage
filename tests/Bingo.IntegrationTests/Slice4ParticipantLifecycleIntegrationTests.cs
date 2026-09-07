@@ -1,6 +1,8 @@
 using System.Security.Claims;
+using Bingo.Application.Access;
 using Bingo.Application.Signups;
 using Bingo.Domain.Access;
+using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
@@ -12,7 +14,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
@@ -54,9 +58,32 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         Assert.Equal(setup.WaitingOwnerIds[0], participants[1].AccountId);
         Assert.Equal(11m, await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == participants[1].Id && x.ReleasedAt == null).Select(x => x.EhbSnapshot).SingleAsync());
         Assert.Single(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.Action == "participant.promoted").ToListAsync());
+        Assert.Single(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.Action == "event.capacity_increased").ToListAsync());
         var notifications = await verify.PersonalNotifications.Where(x => x.Title == "participant.promoted").ToListAsync();
         Assert.Equal(3, notifications.Count);
-        Assert.Single(notifications, x => x.RecipientAccountId == setup.WaitingOwnerIds[0]);
+        var promotion = Assert.Single(notifications, x => x.RecipientAccountId == setup.WaitingOwnerIds[0]);
+        var route = new Uri($"https://test.invalid{promotion.Route}");
+        var segments = route.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(4, segments.Length);
+        Assert.Equal("Events", segments[0]);
+        Assert.Equal("Signup", segments[2]);
+        Assert.Equal("Confirmation", segments[3]);
+        var routeParticipantId = Guid.Parse(QueryHelpers.ParseQuery(route.Query)["participantId"].ToString());
+        var confirmation = new Bingo.Web.Pages.Events.ConfirmationModel(verify, TimeProvider.System, Service(verify), null!)
+        {
+            PageContext = new PageContext(new ActionContext(
+                new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity([
+                        new Claim(ClaimTypes.NameIdentifier, promotion.RecipientAccountId.ToString()),
+                        new Claim(AccountClaims.AccountType, AccountType.WebsiteAccount.ToString())
+                    ], "test"))
+                }, new RouteData(), new PageActionDescriptor()))
+        };
+        var destination = await confirmation.OnGetAsync(Uri.UnescapeDataString(segments[1]), routeParticipantId, CancellationToken.None);
+        Assert.IsType<PageResult>(destination);
+        Assert.Equal("Lifecycle", confirmation.EventName);
+        Assert.Equal(nameof(SignupStatus.Confirmed), confirmation.Status);
         Assert.Single(notifications, x => x.RecipientAccountId == setup.EnabledAdminId);
         Assert.Single(notifications, x => x.RecipientAccountId == setup.EnabledSuperAdminId);
         Assert.DoesNotContain(notifications, x => x.RecipientAccountId == setup.DisabledAdminId || x.RecipientAccountId == setup.UnrelatedUserId);
@@ -86,6 +113,35 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
             Assert.False(stale.Succeeded);
             Assert.Contains("changed", stale.Error, StringComparison.OrdinalIgnoreCase);
         }
+    }
+
+    [Fact]
+    public async Task SignupAdministrationRollsBackWhenAuditCannotPersist()
+    {
+        var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 1);
+        long version;
+        await using (var read = new ApplicationDbContext(options))
+            version = await read.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync();
+
+        var failingOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(database.GetConnectionString())
+            .AddInterceptors(new ThrowOnCapacityAudit())
+            .Options;
+        await using (var failing = new ApplicationDbContext(failingOptions))
+        {
+            var result = await Service(failing).UpdateSignupAdministrationAsync(setup.EventId, version, 2, true, setup.EnabledAdminId, "admin");
+            Assert.False(result.Succeeded);
+            Assert.Contains("try again", result.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var savedEvent = await verify.Events.SingleAsync(x => x.Id == setup.EventId);
+        Assert.Equal(version, savedEvent.Version);
+        Assert.Equal(1, savedEvent.ParticipantCap);
+        Assert.Equal(new[] { SignupStatus.Confirmed, SignupStatus.WaitingList },
+            await verify.EventParticipants.Where(x => x.EventId == setup.EventId).OrderBy(x => x.SignupSequence).Select(x => x.SignupStatus).ToArrayAsync());
+        Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == setup.EventId && x.Action == "event.signup_administration_updated").ToListAsync());
+        Assert.Empty(await verify.PersonalNotifications.Where(x => x.EventId == setup.EventId && x.Title == "participant.promoted").ToListAsync());
     }
 
     [Fact]
@@ -344,6 +400,13 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
     private static DefaultHttpContext AdminContext(Guid accountId) => new() { User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, accountId.ToString()), new Claim(ClaimTypes.Name, "admin")], "test")) };
     private static Account Website(string name, DateTimeOffset now, GlobalRole role = GlobalRole.User) { var account = Account.CreateWebsite(Guid.NewGuid(), name, name.ToUpperInvariant(), now); account.SetGlobalRole(role); return account; }
     private sealed record Setup(Guid EventId, Guid ConfirmedParticipantId, Guid ConfirmedOwnerId, IReadOnlyList<Guid> WaitingOwnerIds, Guid EnabledAdminId, Guid EnabledSuperAdminId, Guid DisabledAdminId, Guid UnrelatedUserId);
+    private sealed class ThrowOnCapacityAudit : SaveChangesInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default) =>
+            eventData.Context!.ChangeTracker.Entries<AuditEntry>().Any(entry => entry.State == EntityState.Added && entry.Entity.Action == "event.signup_administration_updated")
+                ? ValueTask.FromException<InterceptionResult<int>>(new InvalidOperationException("Simulated capacity audit persistence failure."))
+                : ValueTask.FromResult(result);
+    }
     private sealed class DictionaryTempDataProvider : ITempDataProvider
     {
         public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();

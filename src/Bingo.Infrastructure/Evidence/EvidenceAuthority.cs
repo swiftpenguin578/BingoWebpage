@@ -1,5 +1,7 @@
 using Bingo.Application.Evidence;
 using Bingo.Domain.Access;
+using Bingo.Domain.Events;
+using Bingo.Domain.Evidence;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Signups;
@@ -34,19 +36,17 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         if (eventId is Guid selectedEvent) memberships = memberships.Where(x => x.EventId == selectedEvent);
         if (teamId is Guid selectedTeam) memberships = memberships.Where(x => x.TeamId == selectedTeam);
         var rows = await memberships.ToListAsync(cancellationToken);
-        if (rows.Count == 1 && rows[0].Role is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain)
+        if (rows.Count == 1)
         {
-            var captain = rows[0];
-            return new(EvidenceActorKind.Captain, actorAccountId, captain.EventId, captain.TeamId, captain.ParticipantId);
+            var row = rows[0];
+            return new(row.Role is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain ? EvidenceActorKind.Captain : EvidenceActorKind.Participant,
+                actorAccountId, row.EventId, row.TeamId, row.ParticipantId);
         }
 
         if (account.GlobalRole is GlobalRole.Admin or GlobalRole.SuperAdmin)
             return new(EvidenceActorKind.Administrator, actorAccountId, eventId ?? Guid.Empty, teamId ?? Guid.Empty, Guid.Empty);
 
-        if (rows.Count != 1) throw new InvalidOperationException(rows.Count == 0 ? "The account is not an active event participant." : "Choose one event and team before submitting evidence.");
-        var row = rows[0];
-        return new(row.Role is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain ? EvidenceActorKind.Captain : EvidenceActorKind.Participant,
-            actorAccountId, row.EventId, row.TeamId, row.ParticipantId);
+        throw new InvalidOperationException(rows.Count == 0 ? "The account is not an active event participant." : "Choose one event and team before submitting evidence.");
     }
 
     public async Task<EvidenceActorScope> AuthorizeAsync(Guid actorAccountId, Guid eventId, Guid teamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default)
@@ -69,7 +69,7 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         throw new InvalidOperationException("Only the credited participant may mutate this submission.");
     }
 
-    public async Task<bool> CanViewPrivateEvidenceAsync(Guid actorAccountId, Guid eventId, Guid teamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default)
+    public async Task<bool> CanViewPrivateEvidenceAsync(Guid actorAccountId, Guid eventId, Guid teamId, Guid creditedParticipantId, DateTimeOffset now, Guid? submissionId = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -78,7 +78,17 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         }
         catch (InvalidOperationException)
         {
-            return false;
+            if (submissionId is not Guid retainedSubmissionId) return false;
+            return await (from submission in db.Submissions.AsNoTracking()
+                          join bingoEvent in db.Events.AsNoTracking() on submission.EventId equals bingoEvent.Id
+                          join participant in db.EventParticipants.AsNoTracking() on submission.CreditedParticipantId equals participant.Id
+                          join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
+                          where submission.Id == retainedSubmissionId && submission.EventId == eventId && submission.TeamId == teamId &&
+                                submission.CreditedParticipantId == creditedParticipantId && bingoEvent.HiddenAt == null &&
+                                bingoEvent.State == EventState.Archived && participant.EventId == eventId && participant.AccountId == actorAccountId &&
+                                membership.TeamId == teamId &&
+                                (submission.Status == SubmissionStatus.Rejected || submission.Status == SubmissionStatus.Withdrawn)
+                          select submission.Id).AnyAsync(cancellationToken);
         }
     }
 

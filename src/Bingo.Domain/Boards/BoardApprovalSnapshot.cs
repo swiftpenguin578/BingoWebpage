@@ -126,11 +126,11 @@ public sealed class BoardApprovalRequirementBossSnapshot
 public sealed class BoardApprovalRequirementDropSnapshot
 {
     private BoardApprovalRequirementDropSnapshot() { }
-    public BoardApprovalRequirementDropSnapshot(Guid id, Guid approvalRequirementSnapshotId, Guid sourceDropId, string bossName, string itemName, string displayRate, decimal? numericProbability, int? maximumContribution, decimal? ehbPerContribution, int creditedWeight, long catalogueVersion, DropProbabilityScope probabilityScope = DropProbabilityScope.Participant, bool conditionalOnParent = false, decimal? parentProbability = null, int assumedParticipants = 1, int rollsPerCompletion = 1, string? rollGroup = null, string? rateCondition = null)
+    public BoardApprovalRequirementDropSnapshot(Guid id, Guid approvalRequirementSnapshotId, Guid sourceDropId, Guid itemIdSnapshot, string bossName, string itemName, string displayRate, decimal? numericProbability, int? maximumContribution, decimal? ehbPerContribution, int creditedWeight, long catalogueVersion, DropProbabilityScope probabilityScope = DropProbabilityScope.Participant, bool conditionalOnParent = false, decimal? parentProbability = null, int assumedParticipants = 1, int rollsPerCompletion = 1, string? rollGroup = null, string? rateCondition = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(creditedWeight, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(catalogueVersion, 1);
-        Id = id; ApprovalRequirementSnapshotId = approvalRequirementSnapshotId; SourceDropId = sourceDropId; BossName = bossName; ItemName = itemName;
+        Id = id; ApprovalRequirementSnapshotId = approvalRequirementSnapshotId; SourceDropId = sourceDropId; ItemIdSnapshot = itemIdSnapshot; BossName = bossName; ItemName = itemName;
         DisplayRate = displayRate; NumericProbability = numericProbability; MaximumContribution = maximumContribution; EhbPerContribution = ehbPerContribution;
         CreditedWeight = creditedWeight; CatalogueVersion = catalogueVersion; ProbabilityScope = probabilityScope;
         ConditionalOnParent = conditionalOnParent; ParentProbability = conditionalOnParent ? parentProbability : null;
@@ -140,6 +140,7 @@ public sealed class BoardApprovalRequirementDropSnapshot
     public Guid Id { get; private set; }
     public Guid ApprovalRequirementSnapshotId { get; private set; }
     public Guid SourceDropId { get; private set; }
+    public Guid ItemIdSnapshot { get; private set; }
     public string BossName { get; private set; } = string.Empty;
     public string ItemName { get; private set; } = string.Empty;
     public string DisplayRate { get; private set; } = string.Empty;

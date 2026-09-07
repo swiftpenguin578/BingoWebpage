@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Bingo.BrowserTests;
 
 public sealed class BoardEditingUiTests
@@ -52,6 +54,26 @@ public sealed class BoardEditingUiTests
         Assert.Contains("(() => {", boardMarkup);
         Assert.Contains("})();", boardMarkup);
         Assert.DoesNotContain("document.querySelectorAll('.create-tile-button').forEach", boardMarkup);
+    }
+
+    [Fact]
+    public void BoardPublicationUsesExplicitConfirmationDialogsAndBoundConfirmationValues()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var boardMarkup = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "src",
+            "Bingo.Web",
+            "Pages",
+            "Admin",
+            "Events",
+            "Board.cshtml"));
+
+        Assert.Equal(2, Regex.Count(boardMarkup, "class=\"admin-destructive-confirmation board-publication-confirmation\""));
+        Assert.Equal(2, Regex.Count(boardMarkup, "type=\"hidden\" name=\"confirmed\" value=\"true\""));
+        Assert.Contains("asp-page-handler=\"Publish\"", boardMarkup);
+        Assert.Contains("asp-page-handler=\"Approve\"", boardMarkup);
+        Assert.Contains("document.querySelectorAll('.board-publication-confirmation [data-confirmation-cancel]').forEach(button => button.addEventListener('click', () => button.closest('details')?.removeAttribute('open')));", boardMarkup);
     }
 
     private static string FindRepositoryRoot()

@@ -6247,7 +6247,14 @@ body.public-event-shell .recent-drop-card.private-drop .recent-drop-placeholder 
 .admin-shell-body .admin-review-lightbox-close { display: inline-grid; width: 1.75rem; height: 1.75rem; place-items: center; padding: 0; color: var(--admin-text-soft); background: transparent; border: 1px solid var(--admin-border); border-radius: 0.35rem; font-size: 1rem; line-height: 1; }
 .admin-shell-body .admin-review-lightbox-close:hover { color: var(--admin-text); background: var(--admin-surface-active); }
 .admin-shell-body .admin-review-lightbox-close:focus-visible { outline: 2px solid var(--admin-focus-accent-strong); outline-offset: 2px; }
-.admin-shell-body .admin-review-lightbox > img { display: block; width: 100%; max-height: calc(90dvh - 4rem); object-fit: contain; }
+.admin-shell-body .admin-review-lightbox-controls { display: flex; gap: 0.3rem; margin-left: auto; }
+.admin-shell-body .admin-review-lightbox-controls button { min-width: 1.9rem; min-height: 1.75rem; padding: 0.2rem 0.45rem; color: var(--admin-text-soft); background: transparent; border: 1px solid var(--admin-border); border-radius: 0.35rem; cursor: pointer; }
+.admin-shell-body .admin-review-lightbox-controls button:hover { color: var(--admin-text); background: var(--admin-surface-active); }
+.admin-shell-body .admin-review-lightbox-controls button:focus-visible { outline: 2px solid var(--admin-focus-accent-strong); outline-offset: 2px; }
+.admin-shell-body .admin-review-lightbox__viewport { display: grid; min-height: min(24rem, calc(90dvh - 5rem)); place-items: center; overflow: hidden; touch-action: none; }
+.admin-shell-body .admin-review-lightbox__viewport img { display: block; max-width: 100%; max-height: calc(90dvh - 5rem); object-fit: contain; user-select: none; will-change: transform; }
+.admin-shell-body .admin-review-lightbox__viewport img.is-zoomed { cursor: grab; }
+.admin-shell-body .admin-review-lightbox__viewport img.is-zoomed:active { cursor: grabbing; }
 .admin-shell-body .admin-review-no-asset { padding: 1.5rem; color: var(--admin-muted); background: var(--admin-surface-soft); border-radius: 0.65rem; text-align: center; }
 .admin-shell-body .admin-review-no-asset strong { color: var(--admin-text); font-size: 0.75rem; }
 .admin-shell-body .admin-review-no-asset p { margin-top: 0.25rem; font-size: 0.6875rem; }

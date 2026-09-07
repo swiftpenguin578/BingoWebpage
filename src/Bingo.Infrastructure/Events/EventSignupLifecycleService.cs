@@ -1,6 +1,7 @@
 using System.Data;
 using System.Text.Json;
 using Bingo.Application.Events;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
@@ -87,7 +88,10 @@ public sealed class EventReadinessEvaluator(ApplicationDbContext db, IConfigurat
 
 public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventReadinessEvaluator readiness, TimeProvider time, ILogger<EventSignupLifecycleService>? logger = null) : IEventSignupLifecycleService
 {
-    public async Task<SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, EventScheduleValues values, bool confirmChanges, LifecycleActor actor, CancellationToken ct = default)
+    public Task<SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, EventScheduleValues values, bool confirmChanges, LifecycleActor actor, CancellationToken ct = default)
+        => SaveScheduleAsync(eventId, version, values, confirmChanges, actor, null, ct);
+
+    public async Task<SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, EventScheduleValues values, bool confirmChanges, LifecycleActor actor, string? reason, CancellationToken ct = default)
     {
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
@@ -95,13 +99,19 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             await LockCurrentEventBoundary(ct);
             var item = await EventAsync(eventId, version, ct);
             var now = time.GetUtcNow();
-            var validationError = await ValidateScheduleChangeAsync(item, values, now, ct);
+            var draftState = await DraftStateAsync(item.Id, ct);
+            var validationError = await ValidateScheduleChangeAsync(db, item, values, now, draftState, confirmChanges, reason, ct);
             if (validationError is not null) return new(false, validationError);
             var changed = Changed(item, values);
             var schedulingChanged = item.ScheduledSignupOpeningEnabled != values.ScheduledSignupOpeningEnabled || item.SignupOpensAt != values.SignupOpensAt?.ToUniversalTime();
             var previousCapacity = item.ParticipantCap;
             var before = ScheduleState(item);
-            item.ConfigureSchedule(values.SignupOpensAt, values.SignupClosesAt, values.DraftAt, values.EventStartsAt, values.EventEndsAt, values.ParticipantCap);
+            if (item.State == EventState.Live)
+                item.ChangeLiveEventEnd(values.EventEndsAt ?? throw new InvalidOperationException("The event end must be in the future."), now);
+            else if (draftState == DraftState.Finalized)
+                item.ConfigureFinalizedDraftEventWindow(values.EventStartsAt ?? throw new InvalidOperationException("An event start is required."), values.EventEndsAt ?? throw new InvalidOperationException("An event end is required."));
+            else
+                item.ConfigureSchedule(values.SignupOpensAt, values.SignupClosesAt, values.DraftAt, values.EventStartsAt, values.EventEndsAt, values.ParticipantCap);
             await db.SaveChangesAsync(ct);
             if (item.State == EventState.Draft && values.ScheduledSignupOpeningEnabled)
             {
@@ -122,10 +132,11 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             {
                 item.ConfigureScheduledSignupOpening(false, []);
             }
-            if (changed && item.FirstPublicAt is not null && !confirmChanges) return new(false, "Review and confirm the schedule changes before saving.");
             var promoted = await PromoteForCapacityIncreaseAsync(item, previousCapacity, actor, ct);
             var after = ScheduleState(item);
-            db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.Username, "event.schedule_updated", "event", item.Id.ToString(), null, item.Id, JsonSerializer.Serialize(before), JsonSerializer.Serialize(after)));
+            db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.Username, "event.schedule_updated", "event", item.Id.ToString(),
+                item.State == EventState.Live && !string.IsNullOrWhiteSpace(reason) ? reason.Trim() : null,
+                item.Id, JsonSerializer.Serialize(before), JsonSerializer.Serialize(after)));
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             return new(true, null, null, promoted);
@@ -175,7 +186,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             var acknowledged = item.ScheduledSignupWarningCodes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.Ordinal);
             var newWarnings = evaluated.Warnings.Where(x => !acknowledged.Contains(x.Code)).ToList();
             blockerCodes.AddRange(newWarnings.Select(x => $"UNACKNOWLEDGED_{x.Code}"));
-            var boundaryConflict = await CurrentEventBoundaryConflictAsync(item, ct);
+            var boundaryConflict = await CurrentEventBoundaryConflictAsync(db, item, ct);
             if (boundaryConflict is not null) blockerCodes.Add("EVENT_WINDOW_OVERLAP");
 
             if (blockerCodes.Count == 0)
@@ -279,7 +290,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             var evaluated = await readiness.GetSignupReadinessAsync(eventId, mode, now, ct) ?? throw new InvalidOperationException("Event not found.");
             if (!evaluated.CanProceed) return new(false, string.Join(" ", evaluated.Blockers.Select(x => x.Description)));
             if (evaluated.Warnings.Count > 0 && !acknowledgeWarnings) return new(false, "Acknowledge the active signup warnings before continuing.");
-            var boundaryConflict = await CurrentEventBoundaryConflictAsync(item, ct);
+            var boundaryConflict = await CurrentEventBoundaryConflictAsync(db, item, ct);
             if (boundaryConflict is not null) return new(false, boundaryConflict.Description);
             var closeDecision = evaluated.CloseDecision;
             if (!closeDecision.IsValid)
@@ -309,7 +320,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
     { var now = time.GetUtcNow(); db.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), item.Id, from, item.State, actor.Id, now, null)); db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.Username, action, "event", item.Id.ToString(), details, item.Id, JsonSerializer.Serialize(new { state = from }), JsonSerializer.Serialize(new { state = item.State, item.ActualSignupOpenedAt, item.ActualSignupClosedAt }))); }
     private async Task<int> PromoteForCapacityIncreaseAsync(BingoEvent item, int? previousCapacity, LifecycleActor actor, CancellationToken ct)
     {
-        if (item.State is not (EventState.SignupOpen or EventState.SignupClosed) || item.ParticipantCap is null || item.ParticipantCap <= previousCapacity || item.DraftLocked) return 0;
+        if (item.State is not (EventState.SignupOpen or EventState.SignupClosed) || item.ParticipantCap is null || item.ParticipantCap <= previousCapacity) return 0;
         var signupParticipants = db.EventParticipants.Where(participant => participant.EventId == item.Id &&
             !db.TeamMemberships.Any(membership => membership.EventParticipantId == participant.Id && membership.LeftAt == null &&
                 db.Teams.Any(team => team.Id == membership.TeamId && team.EventId == item.Id && team.Active && team.FormationType == TeamFormationType.Preformed)));
@@ -321,21 +332,51 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         {
             participant.Promote(now);
             db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.Username, "participant.promoted", "participant", participant.Id.ToString(), null, item.Id, SignupStatus.WaitingList.ToString(), SignupStatus.Confirmed.ToString()));
-            if (participant.AccountId is { } owner) db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), owner, "participant.promoted", $"Your signup for {item.Name} is confirmed.", $"/Events/{Uri.EscapeDataString(item.Slug)}/Signup/Confirmation", now, item.Id));
+            if (participant.AccountId is { } owner) db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), owner, "participant.promoted", $"Your signup for {item.Name} is confirmed.", $"/Events/{Uri.EscapeDataString(item.Slug)}/Signup/Confirmation?participantId={participant.Id}", now, item.Id));
             foreach (var admin in admins) db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), admin, "participant.promoted", $"A participant was promoted for {item.Name} (capacity increased).", $"/Admin/Events/Manage/{item.Id}", now, item.Id));
         }
         return waiting.Count;
     }
-    private async Task<string?> ValidateScheduleChangeAsync(BingoEvent item, EventScheduleValues values, DateTimeOffset now, CancellationToken ct)
+    internal static async Task<string?> ValidateScheduleChangeAsync(ApplicationDbContext db, BingoEvent item, EventScheduleValues values, DateTimeOffset now, DraftState? draftState, bool confirmChanges, string? reason, CancellationToken ct, WiseOldManCompetition? proposedCompetition = null)
     {
         now = now.ToUniversalTime();
+        var proposedOpening = values.SignupOpensAt?.ToUniversalTime();
+        var proposedClosing = values.SignupClosesAt?.ToUniversalTime();
+        var proposedDraft = values.DraftAt?.ToUniversalTime();
+        var proposedStart = values.EventStartsAt?.ToUniversalTime();
+        var proposedEnd = values.EventEndsAt?.ToUniversalTime();
+        var openingChanged = item.SignupOpensAt != proposedOpening;
+        var closingChanged = item.SignupClosesAt != proposedClosing;
+        var draftChanged = item.DraftAt != proposedDraft;
+        var startChanged = item.EventStartsAt != proposedStart;
+        var endChanged = item.EventEndsAt != proposedEnd;
+        var capacityChanged = item.ParticipantCap != values.ParticipantCap;
+        var scheduledOpeningChanged = item.ScheduledSignupOpeningEnabled != values.ScheduledSignupOpeningEnabled;
+
+        if (item.State == EventState.Live)
+        {
+            if (openingChanged || closingChanged || draftChanged || startChanged || capacityChanged || scheduledOpeningChanged)
+                return "Only the event end can change while the event is Live.";
+            if (endChanged && !confirmChanges) return "Confirm the Live event-end change before saving.";
+            if (endChanged && string.IsNullOrWhiteSpace(reason)) return "Enter a reason for changing the Live event end.";
+        }
+        else if (item.State == EventState.SignupClosed && draftState is DraftState.Running or DraftState.Paused)
+        {
+            if (openingChanged || closingChanged || draftChanged || startChanged || endChanged || capacityChanged || scheduledOpeningChanged)
+                return "The schedule is locked while the draft is running or paused.";
+        }
+        else if (item.State == EventState.SignupClosed && draftState == DraftState.Finalized)
+        {
+            if (openingChanged || closingChanged || draftChanged || capacityChanged || scheduledOpeningChanged)
+                return "Only future event start and end times can change after draft finalization.";
+        }
         var boundaries = new[]
         {
-            ("Signup opening", item.SignupOpensAt, values.SignupOpensAt),
-            ("Signup closing", item.SignupClosesAt, values.SignupClosesAt),
-            ("Draft time", item.DraftAt, values.DraftAt),
-            ("Event start", item.EventStartsAt, values.EventStartsAt),
-            ("Event end", item.EventEndsAt, values.EventEndsAt)
+            ("Signup opening", item.SignupOpensAt, proposedOpening),
+            ("Signup closing", item.SignupClosesAt, proposedClosing),
+            ("Draft time", item.DraftAt, proposedDraft),
+            ("Event start", item.EventStartsAt, proposedStart),
+            ("Event end", item.EventEndsAt, proposedEnd)
         };
         foreach (var (label, current, proposed) in boundaries)
         {
@@ -344,28 +385,39 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             if (current <= now) return $"{label} is locked because that boundary has passed.";
             if (normalized is { } changed && changed <= now) return $"A changed {label.ToLowerInvariant()} must be in the future.";
         }
-        if (item.State != EventState.Draft && item.SignupOpensAt != values.SignupOpensAt?.ToUniversalTime()) return "Signup opening is locked after signup has opened.";
-        if (item.State == EventState.SignupClosed && item.SignupClosesAt != values.SignupClosesAt?.ToUniversalTime()) return "Signup closing is read-only after signup has closed; use Reopen to establish a new closing time.";
-        if (item.FirstPublicAt is not null && (values.EventStartsAt is null || values.EventEndsAt is null)) return "Published event start and end times cannot be cleared.";
+        if (item.State != EventState.Draft && openingChanged) return "Signup opening is locked after signup has opened.";
+        if (item.State == EventState.SignupClosed && closingChanged) return "Signup closing is read-only after signup has closed; use Reopen to establish a new closing time.";
+        if (item.FirstPublicAt is not null && (proposedStart is null || proposedEnd is null)) return "Published event start and end times cannot be cleared.";
+        if (Changed(item, values) && item.FirstPublicAt is not null && !confirmChanges) return "Review and confirm the schedule changes before saving.";
         if (values.ScheduledSignupOpeningEnabled && values.SignupOpensAt is null) return "Automatic signup opening requires a signup opening time.";
         if (item.SignupOpensAt <= now && item.ScheduledSignupOpeningEnabled != values.ScheduledSignupOpeningEnabled) return "Automatic signup opening is locked because the opening boundary has passed.";
-        if (item.State != EventState.Draft && item.ScheduledSignupOpeningEnabled != values.ScheduledSignupOpeningEnabled) return "Automatic signup opening can only be changed for a private draft.";
-        if (item.State is EventState.SignupOpen or EventState.SignupClosed)
+        if (item.State != EventState.Draft && scheduledOpeningChanged) return "Automatic signup opening can only be changed for a private draft.";
+        if (item.State is EventState.SignupOpen or EventState.SignupClosed or EventState.Live)
         {
             var proposed = new BingoEvent(item.Id, item.Name, item.Slug, item.Timezone, item.CreatedByAccountId, item.CreatedAt);
-            proposed.ConfigureSchedule(item.ActualSignupOpenedAt ?? values.SignupOpensAt, values.SignupClosesAt, values.DraftAt, values.EventStartsAt, values.EventEndsAt, values.ParticipantCap);
-            var conflict = await CurrentEventBoundaryConflictAsync(proposed, ct);
+            proposed.ConfigureSchedule(item.ActualSignupOpenedAt ?? proposedOpening, proposedClosing, proposedDraft, proposedStart, proposedEnd, values.ParticipantCap);
+            var conflict = await CurrentEventBoundaryConflictAsync(db, proposed, ct);
             if (conflict is not null) return conflict.Description;
         }
-        var competition = await db.EventCompetitionSynchronizations.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == item.Id && x.CompetitionId != null, ct);
-        if (competition is not null)
+        var competitionStart = proposedCompetition?.StartsAt;
+        var competitionEnd = proposedCompetition?.EndsAt;
+        var hasCompetition = proposedCompetition is not null;
+        if (proposedCompetition is null)
         {
-            if (values.EventStartsAt is not { } start || values.EventEndsAt is not { } end || competition.CompetitionStartsAt is not { } competitionStart || competition.CompetitionEndsAt is not { } competitionEnd || Math.Abs((start - competitionStart).TotalMinutes) > 5 || Math.Abs((end - competitionEnd).TotalMinutes) > 5)
-                return "The linked Wise Old Man competition must remain within five minutes of the event window.";
+            var linkedCompetition = await db.EventCompetitionSynchronizations.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == item.Id && x.CompetitionId != null, ct);
+            hasCompetition = linkedCompetition is not null;
+            competitionStart = linkedCompetition?.CompetitionStartsAt;
+            competitionEnd = linkedCompetition?.CompetitionEndsAt;
         }
+        if (hasCompetition)
+            if (proposedStart is not { } start || proposedEnd is not { } end || competitionStart is not { } expectedStart || competitionEnd is not { } expectedEnd || Math.Abs((start - expectedStart).TotalMinutes) > 5 || Math.Abs((end - expectedEnd).TotalMinutes) > 5)
+                return "The linked Wise Old Man competition must remain within five minutes of the event window.";
         return null;
     }
-    private async Task<BoundaryConflict?> CurrentEventBoundaryConflictAsync(BingoEvent item, CancellationToken ct)
+
+    private Task<DraftState?> DraftStateAsync(Guid eventId, CancellationToken ct) =>
+        db.DraftSessions.AsNoTracking().Where(x => x.EventId == eventId).Select(x => (DraftState?)x.State).SingleOrDefaultAsync(ct);
+    private static async Task<BoundaryConflict?> CurrentEventBoundaryConflictAsync(ApplicationDbContext db, BingoEvent item, CancellationToken ct)
     {
         if (item.EventStartsAt is not { } start || item.EventEndsAt is not { } end)
             return new(Guid.Empty, string.Empty, "Set an event start and end before opening signup.");

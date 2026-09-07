@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using Bingo.Application.Access;
 using Bingo.Application.Signups;
-using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
@@ -28,6 +27,7 @@ public sealed class ParticipantModel(
     [BindProperty, StringLength(2000)] public string? AdminNote { get; set; }
     [BindProperty] public string? ExpectedAdminNote { get; set; }
     [BindProperty] public bool ConfirmLifecycleAction { get; set; }
+    [BindProperty] public bool ConfirmOwnershipTransfer { get; set; }
     [BindProperty] public Guid? DestinationOwnerAccountId { get; set; }
     [BindProperty] public Guid? ExpectedOwnerAccountId { get; set; }
     [BindProperty, StringLength(4000)] public string? PrivateWithdrawalNote { get; set; }
@@ -39,6 +39,8 @@ public sealed class ParticipantModel(
     public bool CanAdminWithdraw { get; private set; }
     public bool CanAdminLiveWithdraw { get; private set; }
     public bool CanEditParticipant { get; private set; }
+    public bool CanEditPrivateMetadata { get; private set; }
+    public bool CanTransferOwnership { get; private set; }
     public bool CanFillVacancy { get; private set; }
     [BindProperty] public Guid? VacancyMembershipId { get; set; }
     [BindProperty] public long? VacancyMembershipVersion { get; set; }
@@ -78,7 +80,7 @@ public sealed class ParticipantModel(
     {
         Overlay = ResolveSubmittedOverlay(overlay);
         var actorId = User.GetAccountId(); if (actorId is null) return Forbid();
-        var result = signupService is null ? new ParticipantOwnershipTransferResult(false, "Participant ownership transfer is not available.") : await signupService.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(id, participantId, actorId.Value, User.Identity?.Name ?? "Admin", DestinationOwnerAccountId, ExpectedOwnerAccountId), ct);
+        var result = signupService is null ? new ParticipantOwnershipTransferResult(false, "Participant ownership transfer is not available.") : await signupService.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(id, participantId, actorId.Value, User.Identity?.Name ?? "Admin", DestinationOwnerAccountId, ExpectedOwnerAccountId, ConfirmOwnershipTransfer), ct);
         SetStatus(result.Succeeded ? Localize("Participant ownership transferred.") : result.Error ?? Localize("Participant ownership could not be transferred."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToParticipant(id, participantId, "ownership");
     }
@@ -86,38 +88,10 @@ public sealed class ParticipantModel(
     public async Task<IActionResult> OnPostAdminNoteAsync(Guid id, Guid participantId, [FromForm] bool overlay, CancellationToken ct)
     {
         Overlay = ResolveSubmittedOverlay(overlay);
-        var note = Clean(AdminNote);
-        if (AdminNote?.Length > 2000)
-        {
-            SetStatus(Localize("Admin notes must be 2,000 characters or fewer."), UiMessageType.Error);
-            return RedirectToParticipant(id, participantId, "admin-notes");
-        }
-
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
-        var bingoEvent = await dbContext.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct);
-        if (bingoEvent is null) return NotFound();
-        if (bingoEvent.DraftLocked || bingoEvent.State is not (EventState.SignupOpen or EventState.SignupClosed))
-        {
-            SetStatus(Localize("Participant administration is read-only after the draft starts."), UiMessageType.Error);
-            return RedirectToParticipant(id, participantId, "admin-notes");
-        }
-        var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(item => item.EventId == id && item.Id == participantId, ct);
-        if (participant is null) return NotFound();
-        if (!string.Equals(participant.AdminNotes ?? string.Empty, ExpectedAdminNote ?? string.Empty, StringComparison.Ordinal))
-        {
-            SetStatus(Localize("This note changed elsewhere. Reload it before saving."), UiMessageType.Error);
-            return RedirectToParticipant(id, participantId);
-        }
-        var before = participant.AdminNotes;
-        if (!string.Equals(before, note, StringComparison.Ordinal))
-        {
-            participant.SetAdminNotes(note);
-            dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), DateTimeOffset.UtcNow, User.GetAccountId(), User.Identity!.Name!, "participant.admin_note_updated", "participant", participant.Id.ToString(), "Private Admin note changed.", id,
-                $"{{\"present\":{(before is not null).ToString().ToLowerInvariant()}}}", $"{{\"present\":{(note is not null).ToString().ToLowerInvariant()}}}"));
-            await dbContext.SaveChangesAsync(ct);
-        }
-        await transaction.CommitAsync(ct);
-        SetStatus(Localize("Private Admin note saved."), UiMessageType.Success);
+        var result = signupService is null
+            ? new ParticipantPaymentResult(false, "Participant notes are not available.")
+            : await signupService.SetAdminNotesAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", AdminNote, ExpectedAdminNote, ct);
+        SetStatus(result.Succeeded ? Localize("Private Admin note saved.") : result.Error ?? Localize("Private Admin note could not be saved."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToParticipant(id, participantId, "admin-notes");
     }
 
@@ -185,7 +159,7 @@ public sealed class ParticipantModel(
 
     private async Task<bool> LoadAsync(Guid id, Guid participantId, bool initializeInput, CancellationToken ct)
     {
-        var bingoEvent = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id, ct);
+        var bingoEvent = await dbContext.Events.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id && item.HiddenAt == null && item.State != EventState.Discarded, ct);
         var participant = await dbContext.EventParticipants.AsNoTracking().SingleOrDefaultAsync(item => item.EventId == id && item.Id == participantId, ct);
         if (bingoEvent is null || participant is null) return false;
 
@@ -252,9 +226,12 @@ public sealed class ParticipantModel(
                                                   orderby candidate.SignedUpAt, candidate.SignupSequence
                                                   select new ReplacementCandidate(candidate.Id, primary == null ? "Participant" : primary.Name, candidate.SignupSequence)).ToListAsync(ct);
         }
-        var followUp = await dbContext.WaitingListPromotionFollowUps.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.EventId == id && x.PromotedParticipantId == participantId, ct);
-        if (followUp is not null) PromotionFollowUp = new PromotionFollowUpView(followUp.Id, followUp.CompletedAt, followUp.CompletedByAccountId);
+        if (bingoEvent.State is EventState.Live or EventState.AwaitingFinalReview)
+        {
+            var followUp = await dbContext.WaitingListPromotionFollowUps.AsNoTracking()
+                .SingleOrDefaultAsync(x => x.EventId == id && x.PromotedParticipantId == participantId, ct);
+            if (followUp is not null) PromotionFollowUp = new PromotionFollowUpView(followUp.Id, followUp.CompletedAt, followUp.CompletedByAccountId);
+        }
 
         var questions = await dbContext.SignupQuestions.AsNoTracking()
             .Where(question => question.EventId == id)
@@ -299,6 +276,8 @@ public sealed class ParticipantModel(
 
         CanAdminLiveWithdraw = bingoEvent.State == EventState.Live && participant.SignupStatus == SignupStatus.Confirmed && await dbContext.TeamMemberships.AnyAsync(x => x.EventParticipantId == participantId && x.LeftAt == null, ct);
         CanEditParticipant = !bingoEvent.DraftLocked && bingoEvent.State is (EventState.SignupOpen or EventState.SignupClosed);
+        CanEditPrivateMetadata = bingoEvent.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived or EventState.Cancelled;
+        CanTransferOwnership = bingoEvent.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview;
         CanAdminWithdraw = (CanEditParticipant && participant.SignupStatus is (SignupStatus.Confirmed or SignupStatus.WaitingList)) || CanAdminLiveWithdraw;
         CanAdminRestore = CanEditParticipant && participant.SignupStatus == SignupStatus.Withdrawn;
         return true;
@@ -323,7 +302,6 @@ public sealed class ParticipantModel(
         return overlay || string.Equals(submitted, "1", StringComparison.Ordinal) || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
     }
 
-    private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static bool IsResponseConflict(string? error) => error?.Contains("changed while you were editing", StringComparison.OrdinalIgnoreCase) == true;
     private static bool IsAssignmentReservationConflict(DbUpdateException exception) =>
         exception.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_event_participant_characters_event_id_osrs_character_id" };

@@ -9,6 +9,7 @@ using Bingo.Application.Teams;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Catalogue;
+using Bingo.Domain.Events;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
@@ -42,6 +43,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     public string? BoardEditorName { get; private set; }
     public DateTimeOffset? BoardEditorLeaseExpiresAt { get; private set; }
     public bool DraftFinalized { get; private set; }
+    public EventState EventState { get; private set; }
 
     [BindProperty, Range(1, 8)] public int Rows { get; set; } = 5;
     [BindProperty, Range(1, 8)] public int Columns { get; set; } = 5;
@@ -174,6 +176,11 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         if (!ModelState.IsValid) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Warning); return RedirectToPage(new { id }); }
 
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
+        if (!await TryEnsurePublishedCorrectionLifecycleAsync(board, id, ct))
+        {
+            SetStatus(Localize("This event is read-only in its current lifecycle state."), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
         if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id });
         if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
         var selectedBossIds = TileDraft.Requirements.SelectMany(x => x.BossIds).Distinct().ToList();
@@ -211,7 +218,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             db.BoardRequirementSnapshots.Add(snapshot);
             foreach (var boss in selectedBosses.Where(x => input.BossIds.Contains(x.Id))) db.BoardRequirementBossSnapshots.Add(new BoardRequirementBossSnapshot(Guid.NewGuid(), snapshot.Id, boss.Id, boss.Name, boss.EfficientCompletionsPerHour));
             var selectedDrops = await (from drop in db.SourceDrops where input.DropIds.Contains(drop.Id) join boss in db.BossActivities on drop.BossActivityId equals boss.Id join item in db.CatalogueItems on drop.ItemId equals item.Id select new { drop, boss, item }).ToListAsync(ct);
-            foreach (var value in selectedDrops) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), snapshot.Id, value.drop.Id, value.boss.Name, value.item.Name, value.drop.DisplayRate, value.drop.NumericProbability, input.DuplicatesAllowed ? null : 1, value.drop.DefaultEhbEstimate, input.WeightFor(value.drop.Id)));
+            foreach (var value in selectedDrops) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), snapshot.Id, value.drop.Id, value.drop.ItemId, value.boss.Name, value.item.Name, value.drop.DisplayRate, value.drop.NumericProbability, input.DuplicatesAllowed ? null : 1, value.drop.DefaultEhbEstimate, input.WeightFor(value.drop.Id)));
             estimates.Add(input.IsManual ? null : EhbCalculator.CalculateDropRequirement(input.Target, selectedDrops.Select(x => new EligibleDropRate(x.boss.EfficientCompletionsPerHour, x.drop.NumericProbability, x.drop.ItemId, x.boss.Id, input.WeightFor(x.drop.Id), x.drop.RollsPerCompletion, x.drop.RollGroup)), input.DuplicatesAllowed));
         }
         var ehb = EhbCalculator.SumRequirements(estimates, TileDraft.ManualEhb);
@@ -229,6 +236,12 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct);
         if (board is null) return isInlineRequest ? MoveFailure(Localize("The board could not be found."), UiMessageType.Error) : NotFound();
+        if (!await TryEnsurePublishedCorrectionLifecycleAsync(board, id, ct))
+        {
+            var message = Localize("This event is read-only in its current lifecycle state.");
+            if (!isInlineRequest) SetStatus(message, UiMessageType.Warning);
+            return isInlineRequest ? MoveFailure(message, UiMessageType.Warning) : RedirectToPage(new { id });
+        }
         if (!board.IsEditable || targetPosition < 0 || targetPosition >= board.Rows * board.Columns)
         {
             var message = Localize("This board is no longer editable or the target position is invalid.");
@@ -291,8 +304,13 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         await db.SaveChangesAsync(ct); await WriteAudit("board.expected_team_size_changed", board.Id, expectedTeamSize.ToString(CultureInfo.InvariantCulture), ct); SetStatus(Localize("Expected team size updated."), UiMessageType.Success); return RedirectToPage(new { id });
     }
 
-    public async Task<IActionResult> OnPostPublishAsync(Guid id, CancellationToken ct)
+    public async Task<IActionResult> OnPostPublishAsync(Guid id, bool confirmed, CancellationToken ct)
     {
+        if (!confirmed)
+        {
+            SetStatus(Localize("Confirmation required"), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
@@ -303,8 +321,8 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (board.Version != BoardVersion) throw new DbUpdateConcurrencyException();
             if (draft.State != DraftState.Finalized || !bingoEvent.TeamRostersPublished)
                 throw new InvalidOperationException("Finalize the team draft before publishing the board.");
-            if (bingoEvent.EventStartsAt is not { } startsAt || time.GetUtcNow() >= startsAt)
-                throw new InvalidOperationException("The board must be published before the event starts.");
+            if (bingoEvent.ActualStartedAt is not null || bingoEvent.EventEndsAt is not { } endsAt || time.GetUtcNow() >= endsAt)
+                throw new InvalidOperationException("The board must be published before the event has started and while its configured end remains in the future.");
             board.Publish(time.GetUtcNow());
             bingoEvent.SetBoardPublication(true, time.GetUtcNow());
             AddBoardAudit("board.published", board, "Validated", $"Published approval snapshot {board.ActiveApprovalSnapshotId}",
@@ -339,9 +357,11 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         try
         {
             var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct);
-            if (board is null) return NotFound();
+            var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
+            if (board is null || bingoEvent is null) return NotFound();
             if (board.State != BoardState.Published || board.ActiveApprovalSnapshotId is null)
                 throw new InvalidOperationException("Only a published board can be corrected here.");
+            bingoEvent.EnsurePublishedBoardCorrectionAllowed();
             var previousSnapshotId = board.ActiveApprovalSnapshotId.Value;
             board.BeginPublishedCorrection();
             board.AcquireEditing(AdminId, time.GetUtcNow(), BoardEditingLease.Duration);
@@ -366,13 +386,16 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         return RedirectToPage(new { id });
     }
 
-    public async Task<IActionResult> OnPostApproveAsync(Guid id, CancellationToken ct)
+    public async Task<IActionResult> OnPostApproveAsync(Guid id, bool confirmed, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
             var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct);
-            if (board is null) return NotFound();
+            var bingoEvent = await db.Events
+                .FromSqlInterpolated($"SELECT * FROM events WHERE id = {id} AND hidden_at IS NULL FOR UPDATE")
+                .SingleOrDefaultAsync(ct);
+            if (board is null || bingoEvent is null) return NotFound();
             if (board.Version != BoardVersion)
             {
                 SetStatus(Localize("This board changed after you opened it. Reload before approving it."), UiMessageType.Warning);
@@ -381,6 +404,15 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             board.RequireEditing(AdminId, time.GetUtcNow());
 
             var publishingCorrection = board.State == BoardState.Published && board.PublishedCorrectionInProgress;
+            if (publishingCorrection)
+            {
+                if (!confirmed)
+                {
+                    SetStatus(Localize("Confirmation required"), UiMessageType.Warning);
+                    return RedirectToPage(new { id });
+                }
+                bingoEvent.EnsurePublishedBoardCorrectionAllowed();
+            }
             var snapshot = await CreateApprovalSnapshotAsync(board, ct, publishingCorrection);
             if (publishingCorrection)
                 board.ReplacePublishedApproval(snapshot.Id);
@@ -518,13 +550,17 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                     db.BoardApprovalRequirementBossSnapshots.Add(new BoardApprovalRequirementBossSnapshot(Guid.NewGuid(), approvalRequirement.Id, currentBoss.Id, currentBoss.Name, currentBoss.EfficientCompletionsPerHour, currentBoss.Version));
                 }
 
-                var selectedDrops = requirementDrops.Where(x => x.RequirementId == requirement.Id).Select(x => currentDrops[x.SourceDropId]).ToList();
+                var frozenDrops = requirementDrops.Where(x => x.RequirementId == requirement.Id).ToList();
+                if (!requirement.ManualObjective && !requirement.DuplicatesAllowed) EnsureConsistentItemCaps(frozenDrops);
+                var selectedDrops = frozenDrops.Select(x => currentDrops[x.SourceDropId]).ToList();
                 if (!requirement.ManualObjective && selectedDrops.Count == 0)
                     throw new InvalidOperationException("Every catalogue objective needs an active eligible drop before approval.");
                 foreach (var selected in selectedDrops)
                 {
                     var sourceSnapshot = requirementDrops.Single(x => x.RequirementId == requirement.Id && x.SourceDropId == selected.Drop.Id);
-                    var approvalDrop = new BoardApprovalRequirementDropSnapshot(Guid.NewGuid(), approvalRequirement.Id, selected.Drop.Id, selected.Boss.Name, selected.Item.Name, selected.Drop.DisplayRate, selected.Drop.NumericProbability, sourceSnapshot.MaximumContribution, selected.Drop.DefaultEhbEstimate, sourceSnapshot.CreditedWeight, selected.Drop.Version, selected.Drop.ProbabilityScope, selected.Drop.ConditionalOnParent, selected.Drop.ParentProbability, selected.Drop.AssumedParticipants, selected.Drop.RollsPerCompletion, selected.Drop.RollGroup, selected.Drop.RateConditionNote);
+                    if (selected.Drop.ItemId != sourceSnapshot.ItemIdSnapshot)
+                        throw new InvalidOperationException($"Catalogue item identity changed for source drop {selected.Drop.Id}. Retarget the board explicitly before publishing a correction.");
+                    var approvalDrop = new BoardApprovalRequirementDropSnapshot(Guid.NewGuid(), approvalRequirement.Id, selected.Drop.Id, sourceSnapshot.ItemIdSnapshot, selected.Boss.Name, selected.Item.Name, selected.Drop.DisplayRate, selected.Drop.NumericProbability, sourceSnapshot.MaximumContribution, selected.Drop.DefaultEhbEstimate, sourceSnapshot.CreditedWeight, selected.Drop.Version, selected.Drop.ProbabilityScope, selected.Drop.ConditionalOnParent, selected.Drop.ParentProbability, selected.Drop.AssumedParticipants, selected.Drop.RollsPerCompletion, selected.Drop.RollGroup, selected.Drop.RateConditionNote);
                     db.BoardApprovalRequirementDropSnapshots.Add(approvalDrop);
                 }
 
@@ -565,6 +601,15 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         return true;
     }
 
+    private static void EnsureConsistentItemCaps(IEnumerable<BoardRequirementDropSnapshot> drops)
+    {
+        foreach (var itemDrops in drops.GroupBy(x => x.ItemIdSnapshot))
+        {
+            var caps = itemDrops.Select(x => x.MaximumContribution ?? 1).Distinct().ToList();
+            if (caps.Count != 1) throw new InvalidOperationException($"Catalogue item {itemDrops.Key} has inconsistent alias contribution caps. Correct the requirement before approval.");
+        }
+    }
+
     private void AddBoardAudit(string action, Board board, string details, string description, string? beforeState, string? afterState) =>
         db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), time.GetUtcNow(), AdminId, User.Identity?.Name ?? "Admin", action, "board", board.Id.ToString(), description, board.EventId, beforeState, afterState));
 
@@ -584,6 +629,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     public async Task<IActionResult> OnPostRemoveAsync(Guid id, Guid tileId, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct); var board = await db.Boards.SingleAsync(x => x.EventId == id, ct); if (!board.IsEditable) { SetStatus(Localize("This board is no longer editable."), UiMessageType.Warning); return RedirectToPage(new { id }); }
+        if (!await TryEnsurePublishedCorrectionLifecycleAsync(board, id, ct)) { SetStatus(Localize("This event is read-only in its current lifecycle state."), UiMessageType.Warning); return RedirectToPage(new { id }); }
         if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id }); if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
         var tile = await db.BoardTiles.SingleOrDefaultAsync(x => x.BoardId == board.Id && x.Id == tileId, ct); if (tile is null) return NotFound();
         var requirements = await db.BoardRequirementSnapshots.Where(x => x.BoardTileId == tile.Id).ToListAsync(ct); var ids = requirements.Select(x => x.Id).ToList();
@@ -609,15 +655,33 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         {
             var snapshot = new BoardRequirementSnapshot(Guid.NewGuid(), boardTile.Id, requirement.Position, requirement.TargetContribution, requirement.DuplicatesAllowed, requirement.AllowHigherWeightings, requirement.Description, requirement.ManualObjective); db.BoardRequirementSnapshots.Add(snapshot);
             var bosses = await (from link in db.TemplateRequirementBosses where link.RequirementId == requirement.Id join boss in db.BossActivities on link.BossActivityId equals boss.Id select boss).ToListAsync(ct); foreach (var boss in bosses) db.BoardRequirementBossSnapshots.Add(new BoardRequirementBossSnapshot(Guid.NewGuid(), snapshot.Id, boss.Id, boss.Name, boss.EfficientCompletionsPerHour));
-            var drops = await (from link in db.TemplateRequirementDrops where link.RequirementId == requirement.Id join drop in db.SourceDrops on link.SourceDropId equals drop.Id join boss in db.BossActivities on drop.BossActivityId equals boss.Id join item in db.CatalogueItems on drop.ItemId equals item.Id select new { link, drop, boss, item }).ToListAsync(ct); foreach (var value in drops) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), snapshot.Id, value.drop.Id, value.boss.Name, value.item.Name, value.drop.DisplayRate, value.drop.NumericProbability, value.link.MaximumContribution, value.drop.DefaultEhbEstimate, value.link.CreditedWeight));
+            var drops = await (from link in db.TemplateRequirementDrops where link.RequirementId == requirement.Id join drop in db.SourceDrops on link.SourceDropId equals drop.Id join boss in db.BossActivities on drop.BossActivityId equals boss.Id join item in db.CatalogueItems on drop.ItemId equals item.Id select new { link, drop, boss, item }).ToListAsync(ct); foreach (var value in drops) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), snapshot.Id, value.drop.Id, value.drop.ItemId, value.boss.Name, value.item.Name, value.drop.DisplayRate, value.drop.NumericProbability, value.link.MaximumContribution, value.drop.DefaultEhbEstimate, value.link.CreditedWeight));
         }
         board.SetTotalEhb(board.TotalEhbEstimate + ehb);
         return boardTile;
     }
 
+    private async Task<bool> TryEnsurePublishedCorrectionLifecycleAsync(Board board, Guid eventId, CancellationToken ct)
+    {
+        if (board.State != BoardState.Published || !board.PublishedCorrectionInProgress) return true;
+        var bingoEvent = await db.Events
+            .FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE")
+            .SingleOrDefaultAsync(ct);
+        if (bingoEvent is null) return false;
+        try
+        {
+            bingoEvent.EnsurePublishedBoardCorrectionAllowed();
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
     private async Task<bool> Load(Guid id, CancellationToken ct)
     {
-        var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct); if (bingoEvent is null) return false; EventName = bingoEvent.Name;
+        var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct); if (bingoEvent is null) return false; EventName = bingoEvent.Name; EventState = bingoEvent.State;
         Bosses = await db.BossActivities.AsNoTracking().Where(x => x.Active).OrderBy(x => x.Name).Select(x => new BossView(x.Id, x.Name, x.Category, x.EfficientCompletionsPerHour)).ToListAsync(ct);
         var catalogueDrops = await (from drop in db.SourceDrops.AsNoTracking()
                                     join boss in db.BossActivities on drop.BossActivityId equals boss.Id

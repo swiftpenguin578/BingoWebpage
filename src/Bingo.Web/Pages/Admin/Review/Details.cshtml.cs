@@ -15,6 +15,7 @@ namespace Bingo.Web.Pages.Admin.Review;
 public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService service, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     public DetailsView Details { get; private set; } = null!; public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId; public IReadOnlyList<AssetView> Assets { get; private set; } = []; public IReadOnlyList<ActionView> History { get; private set; } = []; public IReadOnlyList<ContextView> PriorApproved { get; private set; } = []; public IReadOnlyList<ChecksumMatch> ChecksumMatches { get; private set; } = []; public IReadOnlyList<Option> Characters { get; private set; } = []; public IReadOnlyList<RequirementOption> Requirements { get; private set; } = []; public IReadOnlyList<DropOption> Drops { get; private set; } = [];
+    public bool ReviewOpen { get; private set; }
     [BindProperty] public ReviewInput Input { get; set; } = new();
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct) { if (!await Load(id, ct)) return NotFound(); Input = new() { BoardTileId = Details.TileId, RequirementId = Details.RequirementId, DropSnapshotId = Details.DropId, CreditedOsrsCharacterId = Details.CharacterId, Reason = Details.Note, ExpectedVersion = Details.Version }; return Page(); }
     public Task<IActionResult> OnPostApproveAsync(Guid id, CancellationToken ct) => Execute(id, async () => { var amount = await service.ApproveAsync(id, User.GetAccountId()!.Value, ct, Input.ExpectedVersion); TempData["StatusMessage"] = Localize("Approved with {0} contribution.", amount); }, ct);
@@ -29,6 +30,7 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
         if (s is null) return false;
         var eventItem = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == s.EventId && x.HiddenAt == null, ct);
         if (eventItem is null) return false;
+        ReviewOpen = EventStatePolicy.Allows(eventItem.State, EventCapability.ReviewEvidence);
         EventTimezone = eventItem.Timezone;
         var team = await db.Teams.AsNoTracking().SingleAsync(x => x.Id == s.TeamId, ct);
         var tile = await db.BoardTiles.AsNoTracking().SingleAsync(x => x.Id == s.BoardTileId, ct);

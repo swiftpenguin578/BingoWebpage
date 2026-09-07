@@ -112,6 +112,39 @@ public sealed class EventLifecycleFoundationTests
         Assert.Throws<InvalidOperationException>(() => item.ConfigureSchedule(null, null, null, Now.AddDays(3), Now.AddDays(4), 10));
     }
 
+    [Fact]
+    public void FinalizedDraftWindowChangeOnlyChangesFutureEventBoundariesAndRedrivesCutoff()
+    {
+        var item = new BingoEvent(Guid.NewGuid(), "Finalized", "finalized", "UTC", Guid.NewGuid(), Now);
+        item.ConfigureSchedule(Now.AddHours(-1), Now.AddHours(1), null, Now.AddDays(1), Now.AddDays(2), 10);
+        item.OpenSignups(Now);
+        item.CloseSignups(Now);
+        item.SetDraftLocked(true);
+
+        item.ConfigureFinalizedDraftEventWindow(Now.AddDays(3), Now.AddDays(5));
+
+        Assert.Equal(Now.AddHours(-1), item.SignupOpensAt);
+        Assert.Equal(Now.AddHours(1), item.SignupClosesAt);
+        Assert.Equal(10, item.ParticipantCap);
+        Assert.Equal(Now.AddDays(5).AddMinutes(30), item.SubmissionCutoffAt);
+    }
+
+    [Fact]
+    public void LiveEventEndChangeRequiresAFutureEndAndRedrivesCutoff()
+    {
+        var item = new BingoEvent(Guid.NewGuid(), "Live", "live", "UTC", Guid.NewGuid(), Now);
+        item.ConfigureSchedule(null, null, null, Now.AddHours(-1), Now.AddDays(1), 10);
+        item.OpenSignups(Now.AddHours(-2));
+        item.CloseSignups(Now.AddHours(-1));
+        item.StartEvent(Now);
+
+        item.ChangeLiveEventEnd(Now.AddDays(2), Now);
+
+        Assert.Equal(Now.AddDays(2), item.EventEndsAt);
+        Assert.Equal(Now.AddDays(2).AddMinutes(30), item.SubmissionCutoffAt);
+        Assert.Throws<InvalidOperationException>(() => item.ChangeLiveEventEnd(Now, Now));
+    }
+
     [Theory]
     [InlineData(0, 5)]
     [InlineData(5, 9)]
@@ -137,7 +170,7 @@ public sealed class EventLifecycleFoundationTests
                     EventCapability.LiveSubmission => state == EventState.Live,
                     EventCapability.CompetitionSynchronization => state == EventState.Live,
                     EventCapability.ReviewEvidence => state is EventState.Live or EventState.AwaitingFinalReview,
-                    EventCapability.ConfigureEvidenceCodes => state is EventState.Draft or EventState.SignupClosed or EventState.Live,
+                    EventCapability.ConfigureEvidenceCodes => state is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview,
                     EventCapability.Finalize => state == EventState.AwaitingFinalReview,
                     EventCapability.Archive => state == EventState.Finalized,
                     EventCapability.Unfinalize => state is EventState.Finalized or EventState.Archived,
@@ -145,6 +178,26 @@ public sealed class EventLifecycleFoundationTests
                 };
                 Assert.Equal(expected, EventStatePolicy.Allows(state, capability));
             }
+    }
+
+    [Fact]
+    public void EvidenceCodeConfigurationUsesTheActiveSubmissionWindowInFinalReview()
+    {
+        var draft = Event();
+        draft.SetEvidenceCodeEnabled(true, Now);
+        draft.OpenSignups(Now);
+        draft.SetEvidenceCodeEnabled(false, Now);
+        draft.CloseSignups(Now.AddHours(1));
+        draft.SetEvidenceCodeEnabled(true, Now.AddHours(1));
+        draft.StartEvent(Now.AddDays(2));
+        draft.SetEvidenceCodeEnabled(false, Now.AddDays(2));
+
+        draft.EndEvent(Now.AddDays(3));
+        draft.SetEvidenceCodeEnabled(true, Now.AddDays(3).AddMinutes(15));
+        Assert.Throws<InvalidOperationException>(() => draft.SetEvidenceCodeEnabled(false, Now.AddDays(4).AddMinutes(31)));
+
+        draft.FinalizeResults(Now.AddDays(5));
+        Assert.Throws<InvalidOperationException>(() => draft.SetEvidenceCodeEnabled(false, Now.AddDays(5)));
     }
 
     [Fact]

@@ -1,7 +1,313 @@
 # Current project status
 
-**Active handoff:** 2026-09-01. This is the concise current-state handoff;
+**Active handoff:** 2026-09-04. This is the concise current-state handoff;
 historical material is preserved separately and is non-authoritative.
+
+## Admin event-functionality correction handoff — 2026-09-04
+
+- Isolated working tree: `/private/tmp/BingoWebpage-admin-event-functionality`,
+  branch `admin-event-functionality` from `origin/main`. The dirty saved
+  `feature/boss-artwork` checkout remains untouched.
+- The approved four-pass implementation contract is in `DELIVERY_PLAN.md`
+  section 5. The one independent Sol High readiness review is complete; its
+  five required plan corrections are incorporated, no product decision remains,
+  and the zero-new-infrastructure complexity budget holds.
+- Pass 1 is implemented and stops at its planned boundary: Live identity and
+  timezone lock, the authoritative schedule matrix, Live end correction,
+  retained-future Resume/reopen behavior, postponed-start recovery, atomic
+  capacity/audit behavior, durable promotion notification routing, and the
+  bounded TEST 05 fixture.
+- Focused verification passed: Web and BrowserTests Release builds with zero
+  warnings/errors; 99 domain, 10 identity, 14 schedule, 11 scheduled-lifecycle,
+  8 capacity/promotion, 15 application-contract, and 8 Wise Old Man
+  synchronization tests; `git diff --check` also passes.
+- The user-approved risk-based independent Sol High Pass 1 review completed on
+  2026-09-04. Its two blockers are remediated: the aggregate draft lock again
+  prevents Wise Old Man synchronization from bypassing the schedule matrix, and
+  promotion-notification proof now follows the stored Confirmation destination
+  as the promoted account. The affected Release build, 11 Wise Old Man tests,
+  one promotion-destination test, and `git diff --check` pass. The fixes-only
+  independent Sol High re-review passed with no remediation-local defect or
+  scope expansion.
+- Pass 1 is committed locally as `8f85ac9` (`fix: correct admin event schedule
+  and recovery controls`) and has not been pushed.
+- Pass 2 is implemented and stops at its planned boundary: payment status and
+  Admin notes remain editable across retained visible lifecycles; terminal
+  participant detail exposes only those permitted controls; ownership transfer
+  is confirmed, concurrency-protected, and available through Awaiting Final
+  Review with immediate authority transfer and recipient-safe notifications;
+  stale and direct lifecycle-inappropriate mutations remain blocked. No new
+  infrastructure or Pass 3/4 scope was added.
+- Pass 2 focused verification passed: Web, IntegrationTests, and BrowserTests
+  Release builds with zero warnings/errors; 18 authenticated-signup integration
+  tests; one browser/source contract test; and `git diff --check`. Manual browser
+  acceptance was not run. The independent Sol High review found one terminal
+  navigation blocker. The focused remediation now admits the existing
+  Participants GET workspace for retained terminal events and proves the real
+  rendered detail link while keeping terminal mutations fail-closed; its Release
+  build, targeted integration test, and `git diff --check` pass. The fixes-only
+  independent Sol High re-review passed with no mutation bypass or scope
+  expansion. The user authorized local Pass 2 packaging and Pass 3 start on
+  2026-09-04. Nothing has been pushed, merged, or deployed.
+- Pass 2 is committed locally as `c00b5d1` (`fix: extend admin participant
+  lifecycle controls`) and has not been pushed.
+- Pass 3 is implemented and stops at its planned boundary: evidence-code and
+  captain/co-captain changes follow the active submission-window lifecycle;
+  stale event and membership versions are enforced; reopen-submissions and
+  evidence-code mutations are atomic with exactly one audit; and the existing
+  Live Wise Old Man replacement behavior is preserved with regression proof.
+  No new infrastructure or Pass 4 scope was added.
+- Pass 3 focused verification passed: Web, DomainTests, IntegrationTests, and
+  BrowserTests Release builds with zero warnings/errors; 100 lifecycle-domain,
+  one Pass 3 atomicity, 6 captain-authority, 12 Wise Old Man synchronization,
+  5 compatibility-filter, and one scheduled-lifecycle test; `git diff --check`
+  also passes. The complete suite, browser execution/inspection, and manual
+  acceptance were not run. The independent Sol High review found one
+  event-history/privacy blocker: the three new Pass 3 audit writes persisted a
+  null `EventId`. Focused remediation now uses the existing event-aware audit
+  overload and asserts the correct event association for all three successful
+  actions; the filtered Release integration test and `git diff --check` pass.
+  The fixes-only independent Sol High re-review passed. All required Pass 3
+  scope is cleared with no scope expansion or unbudgeted infrastructure. The
+  user authorized local Pass 3 packaging on 2026-09-04. Nothing has been pushed,
+  merged, or deployed.
+- Pass 3 is committed locally as `0197e90` (`fix: harden admin event operational
+  controls`) and has not been pushed.
+- Pass 4 is implemented and stops at its planned boundary: initial and corrected
+  board publication require popup and server confirmation; corrected publication
+  revalidates lifecycle and stale workspaces; snapshot/audit atomicity and
+  superseded history are preserved; and late initial publication continues to
+  use Pass 1 postponed-start recovery. No new infrastructure or board-editor
+  redesign was added.
+- Pass 4 focused verification passed: IntegrationTests and BrowserTests Release
+  builds; 12 publication/correction integration cases; one scheduled-lifecycle
+  regression; one confirmation UI contract test; and `git diff --check`. The
+  independent Sol High review found one inert Cancel-button blocker because the
+  Board page did not load the unrelated shared handler. Focused remediation wired
+  both buttons through the existing Board script and strengthened the source
+  contract; 3 focused Release BrowserTests and `git diff --check` pass. The
+  fixes-only independent Sol High re-review passed with no scope expansion.
+  Pass 4 is committed locally as `a33415d` (`fix: safeguard admin board
+  publication`) and has not been pushed.
+- The final independent Sol High four-pass review and both follow-up reviews are
+  complete. Its lifecycle, authorization, schedule, concurrency, publication,
+  and history findings were remediated without expanding the approved scope or
+  complexity budget; the final fixes-only review passed.
+- The user explicitly waived the manual-acceptance preflight after its TEST 05
+  attempt used captains without usable account authority and encountered the
+  reset's intentionally retained current Live event; those were verification-
+  setup blockers, not product failures.
+- The complete suite ran once on 2026-09-04: 711 total, 708 passed, and 3 failed.
+  The failures were one hidden-event direct-handler expectation and two blocker-
+  label cases. Focused remediation restored the event-list label and aligned the
+  hidden direct-handler assertions with the existing fail-closed boundaries;
+  the affected BrowserTests theory passes 9/9, the affected IntegrationTests
+  theory passes 10/10, and `git diff --check` passes. The accepted remediation
+  and final handoff are committed locally as `63ecd9a` (`fix: complete admin
+  event lifecycle controls`). Nothing has been pushed, merged, or deployed.
+- The Admin-test follow-up investigation is complete and the user-approved
+  implementation contract is frozen in `DELIVERY_PLAN.md` section 6. It covers
+  invariant Wise Old Man form transport, additive Admin/SuperAdmin plus genuine
+  event roles, primary-character draft finalization, immutable catalogue-item
+  duplicate identity, the complete submission/review lifecycle matrix and audit,
+  linked correction after reversal, objective-isolated retargeting, retained-history
+  privacy, bounded navigation/numbering fixes, and accessible evidence-dialog
+  zoom/pan. Automatic SuperAdmin Captain status and any new general cross-team
+  submission inspection/correction mode are deferred; the existing explicit
+  read-only team-focus inspection is unchanged.
+- The single independent read-only readiness review initially returned **NOT
+  READY** on four bounded contract gaps. The user approved objective-scoped
+  shared-item caps, and section 6.4 plus the active product/data/architecture
+  authorities now resolve all four: consistent effective alias caps, a
+  hash/fingerprint-confirmed same-connection migration mapping procedure, minimum
+  pass-owned Development fixtures and a compact manual journey, and the narrow
+  archived former-owner `/Evidence/{assetId}` boundary. The planning gate is now
+  **READY**.
+- The user authorized Section 6 Pass 1. Its implementation, independent review,
+  and fixes-only remediation are complete: Signup uses invariant hidden EHB
+  transport with localized EN/DA editing and validation; My Accounts Add/Edit/fetch
+  renders and binds in request culture; genuine Participant/Captain/Co-captain
+  membership now composes with Admin/SuperAdmin while global-only accounts remain
+  outside team scope; and Development reset has the minimum additive-role fixtures.
+  The reviewer found only missing Danish parser resources and non-discriminating
+  Onboarding proof; both are corrected. Web, BrowserTests, and IntegrationTests
+  Release builds passed; the implementer's three browser and six focused integration
+  cases passed; final remediation's two Signup/My Accounts plus two Onboarding
+  culture cases pass. A fresh fixes-only closure review found one remaining test-only
+  gap: the two Danish parser resources lacked direct localization assertions. Those
+  exact assertions are now present, their focused test passes 1/1, and
+  `git diff --check` passes. AF-01 then exposed two real-browser/reachability gaps:
+  My Accounts and Onboarding still emitted the invariant numeric client validator,
+  and retained Finalized/Archived memberships suppressed current Participant header
+  navigation. Focused remediation now gives My Accounts and Onboarding the same
+  localized text/decimal boundary, keeps Signup's hidden invariant transport, and
+  resolves Participant/Captain navigation to the sole Live team or, when none is
+  Live, the sole Awaiting Final Review team. The four EN/DA culture cases and the
+  focused navigation integration test pass; `git diff --check` passes. The user
+  manually accepted the reachable Signup, My Accounts, additive-role, and header
+  journeys on 2026-09-05. Local Discord OAuth cannot reach Onboarding because its
+  callback is not localhost; the user accepted its discriminating EN/DA rendered
+  control plus persisted-comma integration proof in place of that manual step.
+  **Pass 1 is complete.** Do not begin Pass 2, package, commit, push, merge, or
+  deploy without the next authorized gate.
+- Pass 1 was packaged locally as `5144c0c` (`fix: correct culture and additive
+  role boundaries`) and has not been pushed. The user then authorized Pass 2.
+- Section 6 Pass 2 implementation completed on 2026-09-06 and is committed locally
+  as `039bd77` (`fix: enforce immutable item contribution caps`).
+  It adds immutable catalogue-item identity across both snapshot families,
+  item-scoped duplicate caps through publication, approval, submission, and the
+  existing operator preflight/`--migrate` same-connection temporary mapping flow.
+  The one generated migration is
+  `20260905221344_AddImmutableCatalogueItemIdentity` with its designer and model
+  snapshot; no retained mapping table, new service, route, policy, job, dependency,
+  or Pass 3 behavior was added.
+- Pass 2's Release Web build, migration generation, idempotent migration-script
+  generation, and `git diff --check` passed. Focused test execution was blocked
+  before running by the host MSBuild named-pipe permission error; the copied-
+  database migration rehearsal was blocked by Docker socket permission. Do not
+  call the retained-database migration path release-verified yet. The initial
+  independent Sol High review found two P1 correctness defects: reversal
+  rebalancing could create false headroom and exceed an already-full item/source
+  cap, and retained aliases could still double-count public progress/final
+  ranking. Focused remediation corrected both and passed 8 public-progress tests,
+  3 targeted submission tests, the Release Web build, and `git diff --check`.
+  Concurrent fixes-only and complete-pass reviews then found the same remaining
+  P1 ordering defect: raw contributions still drove Recent Drops and EHB before
+  cap allocation. The bounded continuation now reuses one cap-aware effective
+  allocation before Recent Drops, completion time, EHB, player totals, and
+  rankings; its 8 calculator tests, PostgreSQL-backed alias-A/alias-B/distinct-C
+  integration regression, Release Web build, and `git diff --check` pass. The
+  final fixes-only Sol High re-review passed with no local scope expansion. The
+  complete-pass review otherwise found the planned scope present, migration
+  structure coherent, no unapproved material additions, no changed non-goals,
+  and no Pass 3/4 leakage. The copied-database rehearsal then exposed 12 legacy
+  drop snapshots attached to manual objectives (8 event and 4 approval), all
+  fabricated by the Development DKL seeder and unreferenced by submissions or
+  contributions. Focused remediation now prevents those snapshots at the source,
+  reports and excludes them as structural preflight errors, refuses mapping while
+  they exist, and makes the migration independently fail closed. Its Release
+  build, three focused tests, and `git diff --check` passed; the independent
+  fixes-only review passed with no blocker. After deleting only those 12 rows from
+  the disposable `bingo_pass2_rehearsal` copy, preflight reported 2,080 rows,
+  zero flagged mappings, and zero structural errors. The migration applied there
+  with zero null immutable identities in either snapshot family. The original
+  local `bingo` database remains unmigrated and unchanged with its 8+4 rows.
+- The user authorized Pass 3 on 2026-09-06. Its submission/review correctness
+  implementation is complete and committed locally as `fix: harden submission
+  review lifecycle`. It adds atomic main audit history and
+  rollback proof, authoritative retargeted weights, the one-child Reversed
+  correction path, lifecycle/status/idempotency enforcement, the narrow archived
+  former-owner detail/evidence exception, lifecycle-sensitive Admin controls, and
+  only the required Development fixtures. Review remediation completed the audit
+  note/reason payloads, removed stale concurrency data, and proved database-failure
+  rollback. Maximum-length remediation keeps complete operation text exactly once
+  in `AuditEntry.Details`, records bounded note-presence facts in snapshots, and
+  stores valid rejection-notification JSON within 1,000 characters while retaining
+  the canonical submission-detail route. Its elevated PostgreSQL regression
+  `MaximumLengthNotesAndReasonsFitAuditAndNotificationBoundaries` passed 1/1;
+  the affected Release build passed with zero warnings/errors and `git diff
+  --check` passes. The final remediation-only and complete-pass independent reviews
+  both passed with no findings, no missing scope, no changed non-goals, and no
+  unbudgeted artifact. The Pass 2 rehearsal remediation remains committed locally as
+  `d0c3cfa7f7f7f9dbe149be346bd5976c54132056` (`fix: reject manual objective drop
+  snapshots`). Nothing has been pushed, merged, or deployed.
+- The user resolved the Pass 4 additions and Teams ambiguity on 2026-09-06 and
+  authorized implementation. Pass 4 implementation is complete, including the
+  planned primary-character finalization, orphaned Signup `03`, Admin-logo
+  destination, accessible evidence zoom/pan, fresh-signup primary-only
+  preferred-account defaulting, Onboarding's joined WOM control treatment, and
+  corrected public Teams/Hold reachability. The fixes-only remediation for the
+  independent review's four non-discriminating test findings is also complete:
+  three focused integration tests pass, the evidence script's runtime reset
+  harness passes, and both affected test projects build cleanly. The fixes-only
+  review passed. The fresh complete-pass review found only one localization defect:
+  the intended English `Teams` / Danish `Hold` pair was rendered as a literal slash
+  label. The final bounded remediation now uses the existing localized `Teams` key;
+  its focused BrowserTests Release build passes with zero warnings/errors, its exact
+  test passes 1/1, and the user-requested remediation-only re-review passes with no
+  finding. AF-04's preflight then found two blockers: the test-22 secondary
+  Playing fixture conflicted with its informational registration order, and an
+  evidence UI test still rejected the now-intended shared evidence script. The
+  bounded remediation assigns order 2 only to the test-22 secondary Playing
+  fixture, preserves the shared helper's order-1 default for test-15, and updates
+  only that obsolete assertion. The focused finalization test, affected
+  EvidenceWorkflowUiTests, and the fresh disposable `bingo_slice10_pass103`
+  Development-reset harness pass; the final fixture-scope remediation-only review
+  also passes. AF-04's executable non-visual checks are therefore clear. A separate
+  disposable app launch did not reach a database connection and was stopped, so
+  rendered Admin navigation to test-22 Draft/finalize remains manual-only. Pass 4
+  is packaged locally as `fix: complete admin follow-up corrections`; nothing has
+  been pushed, merged, or deployed. Next action is the remaining manual Pass 4
+  acceptance.
+- Manual rehearsal on 2026-09-06 exposed three bounded blockers after packaging:
+  the shared Admin route filter rejected the contract-approved Live end-time
+  correction before Schedule could enforce its end-only rules; public result
+  projection assumed exactly one official first-place team although confirmed
+  ties are valid; and the reset retained two redundant Live scenarios, including
+  one non-fixture current event that blocked Development lifecycle work. Focused
+  remediation now lets only Live Schedule POSTs reach the existing locked-field,
+  confirmation, reason, and transactional service boundary; represents every
+  official first-place team truthfully as a tie; and removes
+  `test-88-live-access-blocker` plus `test-90-current-public-event`. Reset now has
+  21 scenarios, all Development fixtures, with `Vinterbingo 2026`
+  (`test-15-dkl-live`) as the sole Live event. The production singleton and
+  global-only/no-membership boundaries remain covered by test-owned setup and the
+  existing additive-role fixtures. Both affected Release builds, six focused
+  tests, and `git diff --check` pass; the independent remediation-only review
+  passes with no findings. A broader reset inventory test still reaches an
+  unchanged, unrelated `test-21-final-review` frozen-roster/current-membership
+  assertion failure after proving the corrected inventory. This remediation is
+  uncommitted; nothing has been pushed, merged, or deployed. The current manual
+  database must be reset before the obsolete Live events disappear. The first
+  manual rerun then exposed impossible signup-close ordering in four ordinary
+  lifecycle fixtures. The shared historical-fixture dates and Vinterbingo's
+  custom Live dates now place signup close before event start, while the explicit
+  schedule-negative fixtures remain unchanged. The existing reset test now
+  checks that invariant across every scheduled non-negative fixture; its focused
+  Release run and `git diff --check` pass, and the remediation-only re-review
+  passes. Reset the manual database again before continuing acceptance.
+- The subsequent manual rehearsal passed every listed journey except three bounded
+  Pass 4 defects: the published Teams art stopped below the secondary navigation,
+  evidence dialogs exposed unwanted control bars without image-click magnifier
+  zoom, and valid Development WOM competition `1516` was rejected by unrelated
+  page-wide model-state errors. Focused remediation now extends the art through the
+  full navigation row, removes the four viewer control bars and adds click/tap
+  fit/2x zoom with drag suppression, and scopes competition binding validation to
+  `CompetitionId`. The Release Web build and `git diff --check` pass; no additional
+  tests were run. `Det Store Danske Sommerbingo 2027` remains the deliberately
+  unpublished missing-Playing-assignment negative fixture, so its readiness blocker
+  and public-board 404 are expected. Manual acceptance still must exercise the two
+  high-risk journeys omitted from the prior checklist: duplicate-disabled shared-item
+  enforcement and finalizing `Det Store Danske Forårsbingo 2026`, the valid primary
+  plus secondary Playing-character scenario.
+- The user manually accepted the corrected controls-free, click-focused evidence
+  zoom and pan behavior on 2026-09-07. The same manual run also accepted the
+  duplicate-disabled submission behavior, including removal of an already
+  approved item from the eligible-drop selector, and the Chrome submission-drawer
+  control-height and select-chevron correction.
+- The user reported that every other remaining manual journey passed, including
+  finalizing `Det Store Danske Forårsbingo 2026` with its valid primary plus
+  secondary Playing-character setup. Ordinary Development WOM linking is
+  accepted; the moving-window `1516` Live-replacement timing case is explicitly
+  waived as a super-edge-case. No further manual journey blocks packaging.
+- The pre-PR timestamp audit found three test-only exact comparisons that used
+  sub-microsecond `UtcNow` values across a PostgreSQL round trip. Their inputs or
+  expectations now use PostgreSQL microsecond precision. The four focused cases
+  pass in Release configuration, and `git diff --check` passes; no production
+  code changed in this follow-up.
+- The first pre-PR full-suite attempt reached 741 IntegrationTests with 731
+  passing and 10 failing. Every failure reproduced in isolation and mapped to
+  stale setup/expectations after the accepted passes. The bounded remediation
+  initializes the direct Teams page-model context, finalizes the public-board
+  team fixture, tests submission closure at the retained cutoff rather than an
+  early end, asserts the localized English Teams label, supplies immutable item
+  identity to the retained migration fixture, preserves frozen departed roster
+  members, and removes the obsolete exact count of owned Live-team fixtures.
+  Development completed-board evidence now selects distinct immutable items when
+  duplicates are disabled, so re-finalization agrees with authoritative progress.
+  All 10 originally failing cases pass across focused Release reruns and
+  `git diff --check` passes. The complete suite has not yet been rerun after this
+  remediation.
 
 ## Canonical checkout
 
@@ -744,9 +1050,9 @@ passes as product or UI approval.
 
 ## Explicit unresolved decisions
 
-- **F-04:** resolved; while Live, Admin may correct only the display timezone
-  with explicit confirmation and an audit reason. Other identity values and UTC
-  schedule/cutoff instants remain immutable.
+- **F-04:** resolved; event identity and display timezone are read-only in Live.
+  The separately approved Live event-end correction belongs to Schedule and
+  does not reopen identity editing.
 - **F-06:** resolved by the approved five-step `/HowTo` guide; no Rules editor,
   sixth step, or in-application HowTo editor is in scope.
 ## Immediate ownership and stop rules
@@ -991,8 +1297,8 @@ interaction geometry that existing references do not resolve, stop and request a
 new picture reference from the user instead of inventing the composition.
 
 The Board behavior approval and replacement-identity decision do not imply
-whole-application UI approval. F-04 is resolved by the narrow Live
-display-timezone correction described above. F-06 is resolved by the approved
+whole-application UI approval. F-04 is resolved by retaining Live identity and
+display timezone as read-only. F-06 is resolved by the approved
 five-step `/HowTo` guide committed in `50077fd`; no future content replacement
 or Rules editor is a current gate. Production launch is recorded above; the
 production Admin test event remains the next operational stage and has not run.

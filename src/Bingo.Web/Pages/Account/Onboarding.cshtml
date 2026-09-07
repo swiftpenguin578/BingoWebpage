@@ -1,4 +1,5 @@
 @page
+@using System.Globalization
 @model Bingo.Web.Pages.Account.OnboardingModel
 @{ ViewData["Title"] = T["Create your account"]; }
 
@@ -27,7 +28,7 @@
                 <p class="onboarding-note">@T["Use the exact OSRS character spelling. We do not validate ownership, availability, or existence."]</p>
                 <div class="onboarding-fields onboarding-fields--character">
                     <label class="identity-field"><span class="editorial-label">@T["First OSRS character"]</span><input asp-for="Input.OsrsCharacterName" class="identity-input" data-onboarding-character /><span asp-validation-for="Input.OsrsCharacterName" class="identity-field__error"></span></label>
-                    <div class="identity-field"><label class="editorial-label" asp-for="Input.SavedEhb">@T["EHB"]</label><div class="onboarding-ehb-control"><input asp-for="Input.SavedEhb" class="identity-input" data-onboarding-ehb inputmode="decimal" /><button type="button" data-onboarding-fetch-url='@Url.Page("/Account/Onboarding", "Fetch")' formnovalidate data-onboarding-fetch class="editorial-button editorial-link--fetch"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M13 6a5 5 0 0 0-8.5-1L3 6.5M3 3v3.5h3.5M3 10a5 5 0 0 0 8.5 1l1.5-1.5M13 13v-3.5H9.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" /></svg>@T["Fetch from WOM"]</button></div><span asp-validation-for="Input.SavedEhb" class="identity-field__error"></span></div>
+                    <div class="identity-field"><label class="editorial-label" asp-for="Input.SavedEhb">@T["EHB"]</label><div class="onboarding-ehb-control"><input id="Input_SavedEhb" name="Input.SavedEhb" value="@(ModelState["Input.SavedEhb"]?.AttemptedValue ?? Model.Input.SavedEhb?.ToString("0.00", CultureInfo.CurrentCulture))" type="text" class="identity-input" data-onboarding-ehb inputmode="decimal" /><button type="button" data-onboarding-fetch-url='@Url.Page("/Account/Onboarding", "Fetch")' formnovalidate data-onboarding-fetch class="editorial-button editorial-link--fetch"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M13 6a5 5 0 0 0-8.5-1L3 6.5M3 3v3.5h3.5M3 10a5 5 0 0 0 8.5 1l1.5-1.5M13 13v-3.5H9.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" /></svg>@T["Fetch from WOM"]</button></div><span asp-validation-for="Input.SavedEhb" class="identity-field__error"></span></div>
                 </div>
             </div>
         </section>

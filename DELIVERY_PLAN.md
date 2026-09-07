@@ -687,8 +687,8 @@ the complete result. Do not dispatch the reviewer's narrow signup remediation,
 reuse the failed implementer/reviewer chats, or treat passing source/tests as
 visual acceptance.
 
-Each public pass uses one bounded Luna High implementation, one fresh Terra
-High independent review, focused remediation/verification only when a named
+Each public pass uses one bounded Luna Max implementation, one fresh Sol High
+independent review, focused remediation/verification only when a named
 finding requires it, and user manual visual acceptance before the next pass.
 After acceptance, remove only that family's superseded public residue from the
 transitional files; preserve all unrelated and Admin rules.
@@ -1076,7 +1076,8 @@ local operator input remains outside Git.
   `AGENTS.md`. Ordinary UI passes use the lean sequence: agree page/result,
   bounded implementation, one independent review when appropriate, focused
   remediation, and manual acceptance.
-- F-04 is resolved by the narrow Live display-timezone correction. F-06 is
+- F-04 is resolved by retaining Live identity and display timezone as read-only.
+  The separate Live event-end correction remains a Schedule capability. F-06 is
   resolved by the approved five-step `/HowTo` guide in `50077fd`; no Rules
   editor, sixth step, or in-application HowTo editor is in scope.
 - Stop before adding product behavior, changing an approved rule, adding
@@ -1086,3 +1087,471 @@ local operator input remains outside Git.
   separate no-JavaScript parity work is planned or gated.
 - Stage, commit, push, deploy, or archive additional legacy documents only
   after the relevant acceptance and explicit authorization.
+
+## 5. Admin event-functionality correction — approved pass plan (2026-09-03)
+
+### 5.1 Scope, baseline, and stop rule
+
+This is one event-scoped functional slice, implemented on
+`admin-event-functionality`. It corrects what an Admin can do to one event and
+its retained records across the lifecycle. It is not an Admin UI redesign;
+markup or interaction changes are permitted only when required to expose an
+approved action, confirmation, reason, validation result, or recovery path.
+
+The complete base-to-current implementation is reviewed against this section
+and the authoritative contracts. Preserve authorization, audit history,
+optimistic concurrency, privacy, transactional mutation, immutable competitive
+history, and existing route-backed recovery. Do not change global Admin
+behavior, public-page composition, artwork, catalogue/tile behavior, account
+management outside an event, event-state vocabulary, or post-draft signup
+answer/account editing. Version-one question-visibility toggles remain a
+superseded capability and are not implemented, repaired, or removed in this
+slice. Admin-created participants remain blocked after draft start.
+
+An implementer may resolve ordinary technical details inside a pass, but must
+stop before changing an approved product rule, adding an adjacent fix, or
+introducing unbudgeted persistence, routes, policies, jobs, services, or
+abstractions. Each pass must remain independently testable and leave the branch
+in a coherent state.
+
+### 5.2 Hard schedule requirement
+
+The following matrix is an implementation and final-review requirement, not an
+illustrative summary. `SignupClose` reopening follows the same retained-future
+boundary rule as resuming an event: reuse an existing future value; require and
+confirm a replacement only when the retained value is missing or expired.
+
+| Event lifecycle | Signup opening | Signup closing | Draft time | Event start | Event end | Capacity |
+| --- | --- | --- | --- | --- | --- | --- |
+| Private Draft | Editable while future | Editable while future | Editable while future | Editable while future | Editable while future | Editable |
+| Signup Open | Locked history | Editable while future | Editable while future | Editable while future | Editable while future | Editable |
+| Signup Closed, draft not started | Locked history | Reopen action only | Editable while future | Editable while future | Editable while future | Editable |
+| Draft Running or Paused | Locked | Locked | Locked | Locked | Locked | Locked |
+| Draft Finalized, pre-Live | Locked | Locked | Locked | Editable while future | Editable while future | Locked |
+| Live | Locked | Locked | Locked | Locked history | Editable to a future value with confirmation and reason | Locked |
+| Awaiting Final Review | Locked | Locked | Locked | Locked history | Resume reuses a retained future end; otherwise requires a confirmed replacement future end | Locked |
+| Finalized, Archived, or Cancelled | Locked | Locked | Locked | Locked | Locked | Locked |
+
+Every changed timestamp must be future; passed boundaries cannot be changed or
+cleared, while an unchanged historical value remains valid. Signup close must
+remain between opening and start, end must follow start, and published start/end
+cannot be cleared. Overlap and linked Wise Old Man schedule matching are
+revalidated. Changing event end atomically derives the normal submission cutoff
+as end plus 30 minutes; the cutoff is never directly edited. Reopening
+submissions remains the separate Final Review action.
+
+### 5.3 Pass 1 — schedule and postponed lifecycle recovery
+
+**Outcome:** Schedule editing and start/resume recovery exactly match section
+5.2 and `FUNCTIONAL_CONTRACTS.md` section 4.4.
+
+- Enforce the approved Live identity boundary end to end: identity and display
+  timezone are read-only in the domain, rendered Admin surface, and direct POST
+  handling. Remove the obsolete post-start timezone-reason path and update only
+  its directly affected tests and resources. This is not an Identity redesign.
+- Replace the broad post-draft schedule lock with lifecycle- and draft-state
+  permissions from the matrix. Running and Paused retain the complete lock;
+  Draft Finalized pre-Live permits only still-future event start/end changes.
+- Preserve the current signup-reopen behavior that reuses a retained future
+  close and requires confirmation of a replacement only when it has expired or
+  is absent.
+- Permit a Live event-end change only to another future time, with server-side
+  confirmation and a required reason. Revalidate all schedule invariants and
+  atomically derive the ordinary submission cutoff.
+- Make Resume reuse a retained future end. Require a replacement future end
+  only when the retained value is missing or expired; always require strong
+  confirmation and a reason.
+- Recover a postponed scheduled start using actual lifecycle facts rather than
+  `now < EventStartsAt`: while the event has never actually started and its end
+  remains future, allow required roster correction, draft
+  finalization/reopening/refinalization, initial board publication, and manual
+  start. Preserve the missed scheduled start as history. Reject start when the
+  configured end has passed and direct the Admin to cancel or replace the event.
+- Make capacity mutation and its audit record one transaction and one audit
+  entry; do not retain a service commit followed by a separate fallible audit.
+  Every resulting promotion notification must include the promoted participant
+  ID so its recipient can follow the durable Confirmation destination without
+  transient `TempData`.
+- Update only the bounded Development reset fixture needed for acceptance:
+  TEST 05 must be genuinely pre-Live and never started, with a configured start
+  in the past, an end in the future, and unresolved draft/board blockers. The
+  Admin must clear those blockers through existing rendered routes before
+  manually starting the event.
+
+Focused proof must discriminate the matrix boundaries, delayed-start recovery
+through the real Admin handlers, retained-future and expired-boundary reopen and
+resume cases, Live end/cutoff behavior, rejection after end, overlap/Wise Old
+Man revalidation, Live identity/timezone rejection, capacity rollback/audit
+uniqueness, and a promotion notification followed as its recipient. A direct database
+fixture that silently creates a ready draft or published board does not prove
+the postponed-start recovery path.
+
+### 5.4 Pass 2 — participant metadata and ownership
+
+**Outcome:** Administrative corrections remain available for as long as their
+business purpose remains valid without reopening unrelated participant edits.
+
+- Keep private payment status and Admin notes editable in every retained visible
+  lifecycle, including Draft Running/Paused, Live, Awaiting Final Review,
+  Finalized, Archived, and Cancelled. Hidden and Discarded records remain
+  inaccessible.
+- Narrowly allow the terminal participant-detail route and only the handlers
+  needed for payment/notes. Continue hiding and server-blocking answer, account,
+  status, roster, and other lifecycle-inappropriate controls.
+- Allow participant ownership transfer through Awaiting Final Review with
+  strong UI and server confirmation, concurrency protection, atomic history,
+  access revocation, and reachable notifications. The new owner retains the
+  participant Confirmation destination; the former owner receives the existing
+  account-owned My Events destination because participant access has already
+  been revoked. Reject transfer in Finalized, Archived, Cancelled, Hidden, and
+  Discarded.
+- Preserve all existing correction, withdrawal, restoration, internal-add, and
+  account/answer freeze rules not explicitly changed above.
+
+Focused proof covers each newly reachable lifecycle, direct-POST rejection for
+unapproved controls/states, concurrency, atomic audit, preserved record history,
+immediate authority transfer, and both notifications followed as their intended
+recipients. No new participant table, service, page,
+route, or generalized terminal-event framework is budgeted.
+
+### 5.5 Pass 3 — operational integrations, evidence authority, and atomic audit
+
+**Outcome:** Event-scoped operational settings remain editable only while their
+effects can still be used, and every accepted mutation is atomic with history.
+
+- Preserve and regression-check the existing reachable Live Wise Old Man
+  competition replacement rather than reimplementing it. It must reference an
+  existing competition whose boundaries match within five minutes, cannot clear
+  the link, cannot synchronize the schedule, invalidates the prior displayed
+  cache only after success, and leaves state unchanged on failure. Change it
+  only if focused proof exposes a concrete contract gap.
+- Permit evidence-code configuration in Private Draft, Signup Open, Signup
+  Closed, and Live. In Awaiting Final Review, permit it only while the active
+  submission window accepts uploads. Freeze it after upload closure and in
+  terminal, cancelled, hidden, and discarded states; retain interval snapshots.
+- Permit captain/co-captain assignment, promotion, demotion, and revocation
+  after draft and through Live. In Awaiting Final Review, permit changes only
+  while the active submission window accepts uploads. Freeze them afterward,
+  while preserving history, notifications, and withdrawn-member behavior.
+- Make reopen-submissions, evidence-code mode/value changes, and evidence-code
+  creation atomic with their audit entries. An audit failure must roll back the
+  business mutation, and one successful action must produce one history record.
+
+Focused proof covers each positive and negative lifecycle/window boundary, Wise
+Old Man failure-without-mutation, interval preservation, captain authorization,
+and mutation/audit rollback. Reuse the existing event policy and services; no
+new table, page, route, policy, job, service, or abstraction is budgeted.
+
+### 5.6 Pass 4 — board publication and correction safeguards
+
+**Outcome:** Publishing public competitive state is deliberate and cannot be
+continued from an obsolete or terminal Admin workspace.
+
+- Require an explicit popup confirmation and an independently validated
+  server-side confirmation value for both initial publication and publication
+  of a corrected replacement board. A missing or stale confirmation produces
+  no mutation.
+- Retain the existing confirmation/reason boundary for starting board
+  correction.
+- Permit corrected publication only in Signup Closed, Live, and Awaiting Final
+  Review. Reject Cancelled, Finalized, Archived, Hidden, and Discarded events at
+  the handler/service boundary and prevent an already-open correction workspace
+  from bypassing the current state.
+- Keep the previously published snapshot authoritative until the replacement
+  publication succeeds, and preserve every superseded snapshot and audit record.
+- Use Pass 1's postponed-start recovery for late initial publication; do not
+  duplicate schedule policy here.
+
+Focused proof covers no-confirmation/no-mutation, allowed lifecycle states,
+direct POST and stale-workspace rejection, snapshot continuity, and history.
+No board-editor redesign, catalogue behavior, tile semantics, artwork, new page,
+or new route is in scope.
+
+### 5.7 Execution, review, and release gates
+
+1. The one independent Sol High implementation-readiness review completed on
+   2026-09-03. It checked real UI reachability, Development reset states and
+   accounts, obsolete behavior inventory, pass ordering, independent
+   deployability, and the complexity budget. Its five required corrections are
+   incorporated in Passes 1–3 and the active question-visibility wording; no
+   unresolved product decision or architecture blocker remains.
+2. Do not repeat the readiness review unless implementation exposes a genuine
+   contradiction or missing product decision.
+3. Implement passes sequentially with bounded Luna Max implementer tasks. Each
+   pass stops after its scoped implementation and focused tests; it does not
+   begin the next pass, review itself, remediate unrelated defects, package, or
+   publish. The planner checks scope and test evidence before requesting the
+   user's next-pass authorization.
+4. Because Pass 1 materially crossed lifecycle, authorization, transaction,
+   notification, Admin-handler, and recovery-test boundaries, the user approved
+   one risk-based independent Sol High review of the complete Pass 1 diff before
+   Pass 2. The review completed on 2026-09-04 and found two blockers: Wise Old
+   Man schedule synchronization could bypass the draft lock, and the promotion
+   notification test did not follow its stored destination. Bounded Luna Max
+   remediation restored the aggregate guard and added discriminating locked-
+   draft synchronization plus authenticated notification-destination coverage.
+   The affected Release build, 11 Wise Old Man tests, one promotion-destination
+   test, and `git diff --check` pass. A fixes-only Sol High re-review then passed
+   with both findings resolved and no remediation-local defect or scope
+   expansion. This does not establish an automatic per-pass review requirement.
+5. After all four passes, run one independent Sol High base-to-current review
+   against the final updated plan. Any remediation uses a fresh bounded Luna
+   Max task and changes only named findings.
+6. Run one manual-acceptance preflight through the real rendered Admin links and
+   forms using authoritative Development reset data. Every required account,
+   role, event state, record, control, notification destination, and next step
+   must be reachable without constructing hidden destination URLs.
+7. Per-pass verification is focused and non-duplicative. Run the complete test
+   suite once, after all passes and remediation, before packaging. Staging,
+   committing, pushing, opening/updating a PR, merging, and production promotion
+   each require their own later user authorization.
+
+**Complexity budget:** zero new database tables or migrations; zero new pages or
+routes; zero new authorization policies, background jobs, services, compatibility
+layers, or generalized state/control frameworks. Extend existing event entities,
+domain/application services, state policy, Admin pages/handlers, dialogs, audit
+transactions, and focused tests. Any discovered need to exceed this budget is a
+stop condition for user review, not an implementation detail.
+
+## 6. Admin-test follow-up corrections — approved implementation contract (2026-09-05)
+
+The read-only investigation is complete. It source-traced the complete
+submission/review lifecycle, actor, state, duplicate, progress, privacy, audit,
+notification, and realtime paths plus every recorded Admin-test observation. One
+disposable Testcontainers reproduction stopped after Docker could not access the
+Docker socket; no user-owned database was touched. The user approved the product
+decisions below. Implementation remains unauthorized until the required single
+independent readiness review clears this final contract.
+
+### 6.1 Final authority and investigation findings
+
+- Global Admin and SuperAdmin roles are additive to genuine event roles. An
+  Admin/SuperAdmin with an ordinary Participant, Captain, or Co-captain role has
+  exactly that role's team visibility and submission authority, subject to the
+  ordinary lifecycle and cutoff. Global role alone never grants team access,
+  submission creation/replacement/withdrawal/resubmission, focus mutation, or
+  another team's private evidence. Admin review remains a separate capability.
+  Automatic Captain status and any new general cross-team submission inspection
+  or correction mode are explicitly deferred; the existing explicit, read-only
+  SuperAdmin team-focus inspection remains unchanged.
+- A Reversed submission remains immutable and cannot be directly re-approved.
+  While the ordinary or explicitly reopened upload window is open, it may have
+  exactly one linked corrected child with a new image. The child is Pending and
+  follows ordinary review. Its later approval creates a new contribution while
+  the reversed contribution stays inactive; predecessor, approval, reversal,
+  replacement, and review history remain linked. A closed upload window requires
+  the existing reasoned Admin reopen action.
+- Duplicate-disabled drop requirements are keyed by immutable shared catalogue-item
+  identity within the requirement, not by boss/source-specific `SourceDropId`,
+  screenshot checksum, or submission ID. The same item may legitimately satisfy
+  separate sibling requirements. Multiple eligible source rows for one item remain
+  valid alternatives within one requirement. Allocation groups by `(TeamId,
+  RequirementId, ItemIdSnapshot)`: a missing explicit cap has effective value `1`,
+  every alias must have the same effective cap, and inconsistent aliases block
+  board approval. Duplicate-enabled requirements continue to count eligible copies
+  until the requirement target or source-specific explicit cap is reached.
+- One approved migration is budgeted to freeze catalogue-item identity into the
+  event and approval drop snapshots. Existing rows are backfilled only when frozen
+  snapshot facts identify one safe item. A preflight must fail closed on ambiguous
+  or mismatched rows and report event, requirement, source-drop ID, frozen item
+  name, and current mapping so an operator can correct the record before retrying.
+  Reading mutable current catalogue identity as historical truth is forbidden.
+  Extend the existing operator preflight/migrate surfaces rather than add a service:
+  preflight emits a deterministic external mapping template and database
+  fingerprint; the operator supplies an adjudicated catalogue-item ID for each
+  flagged row and confirms the mapping-file hash. The migration command validates
+  the fingerprint, row IDs, and item IDs, loads them into a connection-scoped
+  temporary table, and runs the one EF migration on that same open connection. The
+  migration auto-fills only unambiguous rows, consumes required staged mappings,
+  verifies both snapshot families are complete, and then makes the columns
+  non-null. The temporary table disappears with the session; neither frozen names,
+  current `SourceDrop` mappings, nor retained schema are altered by adjudication.
+- Submission creation/editing and every review, correction, rejection, approval,
+  reversal, and linked-resubmission action require the main immutable `AuditEntry`
+  in the same transaction as the existing submission-local `ReviewAction` and any
+  required notification.
+- Each objective on a tile remains isolated by `RequirementId`. Completing,
+  approving, reversing, or rebalancing one requirement cannot contribute to or
+  close a sibling. Retargeting a Pending submission must recompute and store the
+  selected requirement/drop's authoritative weight; it must never carry the old
+  target's weight into the sibling objective.
+- Wise Old Man HTTP/JSON parsing and typed decimal caching are already invariant.
+  Signup and the complete My Accounts Add/Edit/fetch journey must use invariant
+  machine transport with localized display and form input. Onboarding remains in
+  Danish/English regression proof even though source inspection found its current
+  path culture-consistent. Admin competition synchronization is not part of this
+  browser form-culture defect.
+- Draft finalization must use the existing system-owned primary Playing-character
+  authority. A valid primary plus another regular Playing character is not
+  ambiguous and must not block finalization.
+- The existing evidence popup remains. Board/Team Board and Admin Review evidence
+  images gain click-focused toggle magnifier zoom plus pan inside that popup, including
+  keyboard, pointer/trackpad, and practical touch support. Do not render a separate
+  zoom-control bar. Focus, Escape/backdrop close, responsive sizing, themes, and
+  reset-on-close remain accessible. No media dependency or generalized viewer
+  framework is permitted.
+
+The authoritative lifecycle matrix is:
+
+| Boundary | Participant/Captain mutation | Admin review | Retained history |
+| --- | --- | --- | --- |
+| Pre-Live | Closed | Closed | Preserved when present |
+| Live before official end | Open for role-authorized current-team evidence | Open | Preserved |
+| After end through upload cutoff | Only in-window drops may be uploaded/edited | Open | Preserved |
+| After cutoff | Closed | Open while Live/Awaiting Final Review | Preserved |
+| Explicitly reopened uploads | Open only until the new cutoff; official drop-acquisition end is unchanged | Open | Preserved |
+| Awaiting Final Review | Controlled only by the active/reopened upload window | Open | Preserved |
+| Finalized | Closed | Closed | Read-only |
+| Unfinalized | Returns to Awaiting Final Review; uploads remain closed until separately reopened | Open | Read-only except approved review actions |
+| Archived/Cancelled/Hidden/Discarded | Closed | Closed through ordinary review routes | Retained under lifecycle/privacy rules |
+
+Only Pending evidence may be edited, corrected, approved, or rejected; only
+Approved evidence may be reversed. Withdrawn and Replaced predecessors are
+read-only. Rejected and Reversed predecessors may each have at most one direct
+linked Pending child while uploads are open. Stale or repeated review requests
+must not create a second contribution, child, audit, notification, or progress
+effect. An archived former credited owner may see only their own retained
+Rejected/Withdrawn history; former teammates and cross-team viewers remain denied.
+
+### 6.2 Implementation passes
+
+1. **Shared culture and additive-role boundaries.** Correct Signup and My Accounts
+   decimal transport once at the owning rendered/postback boundaries, preserving
+   localized editing and the invariant WOM client. Make `EvidenceAuthority`, the
+   shared header, Team Board, canonical `/Submissions` routes, and submission
+   handlers compose genuine Participant/Captain/Co-captain capability with global
+   Admin/SuperAdmin capability. Prove Admin-only, Admin-plus-Participant,
+   Admin-plus-Captain, and Admin-plus-Co-captain behavior without cross-team access
+   or lifecycle bypass. Extend Development reset with only the stable global-only
+   and additive-role accounts needed for the route-ordered manual journey.
+2. **Immutable item identity and duplicate enforcement.** Add the one approved
+   snapshot migration and fail-closed operator preflight. Carry immutable item
+   identity through Board editing, event publication, corrected publication,
+   approval snapshots, submission validation, approval caps, reversal/rebalancing,
+   public progress, and rankings. Preserve legitimate source alternatives, validate
+   one consistent effective item cap before approval, and prevent excess
+   contribution at the server boundary while preserving duplicate-enabled
+   requirements and the same item in separate sibling objectives. Exercise the
+   operator preflight/adjudicated-map/migration/retry path against a copied retained
+   database, never the user's working database.
+3. **Submission and review correctness.** Add atomic main-audit entries; recompute
+   authoritative weight on participant/Captain and Admin retargeting; implement the
+   approved one-child Reversed correction path; preserve Pending/Approved review
+   boundaries, immutable attempts/assets, stale/concurrent idempotency, rejection
+   notifications, progress and focus invalidation, and predecessor history. Add the
+   narrow archived credited-owner read path and hide lifecycle-invalid Admin Review
+   controls while retaining service rejection. Include `/Evidence/{assetId}` in the
+   same status-aware authorization boundary. Seed only the Reversed predecessor and
+   genuine archived former credited-owner records needed for manual acceptance.
+   This is not a submission/review UI redesign.
+4. **Draft and bounded presentation corrections.** Reuse the primary-character
+   query in finalization and add the minimal not-yet-finalized Development reset
+   state for a valid primary plus secondary Playing character. Suppress orphaned
+   Signup `03`; on a fresh signup default only the required system primary account
+   to the preferred character while every later account question starts at
+   None/unselected. Route the Admin logo to public home. Keep the existing public
+   `/Events/{slug}/Teams` roster as the pre-board landing destination, then, only
+   after Board publication, add it as the localized Teams/Hold sibling of
+   Boards/Drops/Leaderboards without copying the Board masthead or otherwise
+   changing the approved Teams page. Use the shared reduced navigation-to-masthead
+   spacing and keep Board routes unavailable before publication. Align Onboarding's
+   joined EHB/Wise Old Man control with My Accounts' text-color-only fetch hover and
+   apply invalid styling to the complete joined control. Enhance the existing
+   evidence dialogs with accessible zoom/pan.
+
+Each pass stops at its named boundary, receives focused discriminating tests, an
+independent review, and fixes-only remediation for concrete findings. Tests must
+cover English/Danish round trips; additive versus implicit authority; shared-item
+duplicates under both flag values; migration preflight; one tile with fulfilled
+and incomplete sibling objectives; retargeted weight; lifecycle/state/actor
+submission and review boundaries; audit atomicity; reversal/resubmission history;
+primary-character finalization; and the exact markup/navigation/zoom behavior.
+
+### 6.3 Complexity budget, gates, and stop rules
+
+- Budget: zero new tables, pages/routes, services, authorization policies, jobs,
+  dependencies, compatibility layers, or generalized frameworks; exactly one EF
+  migration plus its designer/model snapshot for immutable catalogue-item identity.
+- Reuse current role facts, routes, submission/review service, audit domain,
+  notification path, progress calculators, primary-character query, Development
+  reset, native evidence dialogs, existing operator preflight, and `--migrate`
+  surface. A connection-scoped temporary mapping table is migration mechanics and
+  leaves no retained table; no new operator service is introduced.
+- No general identity/authorization redesign, Admin/SuperAdmin implicit team access,
+  new SuperAdmin submission-inspection mode, Board redesign, submission/review UI
+  redesign, new image storage, translation overhaul, OCR, or evidence-report system
+  is in scope.
+- Before implementation, run exactly one independent read-only readiness review of
+  this final contract against current code, real route reachability, Development
+  reset, migration/preflight operability, pass ordering, and complexity budget.
+- Implementation stops for user direction before changing these product rules,
+  deriving historical item identity from mutable catalogue state, adding an
+  unbudgeted artifact, or correcting an unrelated issue. Packaging, commit, push,
+  merge, deployment, and release each remain separately unauthorized.
+
+### 6.4 Independent readiness review — corrections resolved (2026-09-05)
+
+The single required independent read-only review initially returned **NOT READY**
+on four bounded contract gaps. The user then approved objective-scoped shared-item
+caps, and the final contract now resolves every named blocker without repeating the
+one-time review:
+
+1. Duplicate-disabled caps are frozen per `(team, requirement, item snapshot)`;
+   alternative sources remain valid, null means `1`, inconsistent effective alias
+   caps block board approval, and sibling objectives remain independent.
+2. The existing preflight and migrate surfaces own deterministic external mapping,
+   hash/fingerprint confirmation, same-connection temporary staging, migration
+   consumption, and post-backfill verification without altering frozen/current
+   catalogue facts or leaving a table.
+3. `MANUAL_TEST_CHECKLIST.md` now owns one compact pending Section 6 journey, and
+   each implementation pass owns only its minimum missing reset fixtures.
+4. Active product/data/architecture authority now includes the narrow archived
+   former-owner Rejected/Withdrawn detail and asset exception, Reversed predecessor,
+   and status-aware `/Evidence/{assetId}` compatibility boundary.
+
+The planning gate is therefore **READY**. Implementation still requires the user's
+separate authorization and begins only with Pass 1.
+
+### 6.5 Pass 1 implementation/review checkpoint — 2026-09-05
+
+The user authorized Pass 1. The bounded implementation now uses request-culture
+display/binding with invariant machine transport for Signup and My Accounts,
+resolves genuine event membership before the global Admin fallback in the existing
+evidence authority, preserves global-only denial and separate Admin/SuperAdmin
+capabilities, and adds only the minimum deterministic additive-role Development
+fixtures. No new table, migration, service, route, policy, job, dependency, binder,
+framework, or generalized abstraction was added.
+
+The independent reviewer accepted the role/navigation/privacy/lifecycle scope and
+found two culture-proof defects: missing Danish messages for the invariant Signup
+parser and a markup-only Onboarding assertion. Fixes-only remediation added the two
+shared Danish resources and a real English/Danish Onboarding fetch/render/postback
+test. After replacing a contaminated long-test validation sequence with the simpler
+focused boundary, both Signup/My Accounts culture cases and both Onboarding cases
+pass. Earlier Pass 1 verification also passed the Web, BrowserTests, and
+IntegrationTests Release builds, three focused browser tests, six focused
+integration cases, and `git diff --check`. A fresh fixes-only closure review found
+one remaining test-only gap: the two Danish parser resources lacked direct
+localization assertions. The existing Danish localizer test now asserts both exact
+keys and values; that focused test passes 1/1 and `git diff --check` passes.
+
+Pass 1 implementation/review/remediation closure is complete. AF-01's manual-
+acceptance preflight and user walkthrough remain outstanding. Stop here; do not
+begin Pass 2 or package/commit/push/merge/deploy without the next authorized gate.
+
+Manual AF-01 subsequently exposed two browser/reachability gaps that direct HTTP
+coverage had missed. My Accounts and Onboarding now use the same localized
+text/decimal boundary without the invariant client number validator; Signup retains
+its separate visible-localized/hidden-invariant transport. General Participant and
+Captain header navigation each prefer the sole Live team, otherwise the sole
+Awaiting Final Review team; Captain includes co-captain and valid enabled Emergency
+Captain access. Retained Finalized/Archived memberships no longer hide a current
+link, while genuinely ambiguous eligible teams expose no shortcut. The four EN/DA
+culture cases, focused navigation integration test, and `git diff --check` pass.
+
+The user manually accepted the reachable Signup, My Accounts, additive-role, and
+header journeys on 2026-09-05. Local Discord OAuth cannot reach Onboarding because
+its callback is not localhost; the user accepted the discriminating EN/DA rendered
+control and persisted-comma integration proof in place of that manual step. These
+were fixes to approved Pass 1 behavior, not added scope. **Pass 1 is complete.**
+Stop here; Pass 2 and package/commit/push/merge/deploy remain separately gated.

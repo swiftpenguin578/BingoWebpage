@@ -50,7 +50,7 @@
                         <div><a asp-page="@item.DestinationPage" asp-route-slug="@item.Slug" asp-route-teamSlug="@item.TeamSlug" asp-route-participantId="@item.ParticipantId">@item.Name <span aria-hidden="true">→</span></a>
                         @if (Model.EvidenceHistory.TryGetValue(item.EventId, out var assets))
                         {
-                            <p class="public-pass2-note">@T["Own rejected/withdrawn evidence history"] · @foreach (var assetId in assets) { <a class="public-pass2-text-link" asp-page="/Evidence" asp-route-id="@assetId">@T["View evidence"] <span aria-hidden="true">→</span></a> }</p>
+                            <p class="public-pass2-note">@T["Own rejected/withdrawn evidence history"] · @foreach (var evidence in assets) { <a class="public-pass2-text-link" asp-page="/Submissions/Submission" asp-route-id="@evidence.SubmissionId">@T["View submission"] <span aria-hidden="true">→</span></a> <a class="public-pass2-text-link" asp-page="/Evidence" asp-route-id="@evidence.AssetId">@T["View evidence"] <span aria-hidden="true">→</span></a> }</p>
                         }</div>
                     </article>
                 }

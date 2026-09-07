@@ -1,11 +1,14 @@
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
+using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Web;
 using Bingo.Web.Events;
 using Bingo.Web.Pages;
 using Bingo.Web.Pages.Events;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
@@ -108,6 +111,54 @@ public sealed class Slice3PublicCurrentSelectionIntegrationTests : IAsyncLifetim
 
         var signup = new SignupModel(db, null!, TimeProvider.System);
         Assert.IsType<NotFoundResult>(await signup.GetForTestAsync("private-signup", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task TeamsContextNavigationAppearsOnlyAfterBoardPublication()
+    {
+        var eventId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        var slug = $"teams-navigation-{Guid.NewGuid():N}";
+        var item = new BingoEvent(eventId, "Teams navigation", slug, "UTC", actorId, now);
+        item.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddDays(-1), now.AddDays(2), 1);
+        item.ConfigureSignup(true, false, null);
+        item.OpenSignups(now.AddDays(-2));
+        item.CloseSignups(now.AddDays(-1));
+        item.MarkFirstPublic(now.AddDays(-1));
+        var participant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now.AddDays(-2), SignupSource.Website);
+        var team = new Team(Guid.NewGuid(), eventId, "Navigation team", "navigation-team", TeamFormationType.Drafted, null, true);
+        team.Finalize(now.AddDays(-1));
+        var draft = new DraftSession(Guid.NewGuid(), eventId, 1);
+        var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddDays(-1), actorId);
+        var roster = new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, team.Id, participant.Id, TeamMembershipRole.Participant, 1, "Navigation player");
+        var board = new Board(Guid.NewGuid(), eventId, "Navigation board", 1, 1);
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(item, participant, team, draft, cycle, roster, board);
+            await db.SaveChangesAsync();
+        }
+
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient();
+        var before = await client.GetStringAsync($"/Events/{slug}/Teams");
+        Assert.DoesNotContain("public-ui-header-context-nav", before, StringComparison.Ordinal);
+        Assert.DoesNotContain($"/Events/{slug}/Board", before, StringComparison.Ordinal);
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var publishedBoard = await db.Boards.SingleAsync(value => value.Id == board.Id);
+            await BoardApprovalFixture.PublishAsync(db, publishedBoard, now);
+            var publishedEvent = await db.Events.SingleAsync(value => value.Id == eventId);
+            publishedEvent.SetBoardPublication(true, now);
+            await db.SaveChangesAsync();
+        }
+
+        var after = await client.GetStringAsync($"/Events/{slug}/Teams");
+        Assert.Contains("public-ui-header-context-nav", after, StringComparison.Ordinal);
+        Assert.Contains($"href=\"/Events/{slug}/Board\"", after, StringComparison.Ordinal);
+        Assert.Contains(">Teams</a>", after, StringComparison.Ordinal);
+        Assert.Contains("aria-current=\"page\"", after, StringComparison.Ordinal);
     }
 
     private async Task AddCurrentEventAsync(ApplicationDbContext db, string slug, bool fixture, bool publishBoard = true)

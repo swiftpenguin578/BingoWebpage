@@ -60,20 +60,31 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
             await next();
             return;
         }
+        if (eventView.State == EventState.Live &&
+            path.EndsWith("/Schedule.cshtml", StringComparison.OrdinalIgnoreCase))
+        {
+            await next();
+            return;
+        }
         if (!TryCapability(path, context.HandlerMethod?.Name, out var capability))
         {
             await next();
             return;
         }
         // A published-board correction is an exceptional, separately confirmed
-        // lifecycle operation. Its start handler is the authority for the
-        // confirmation/reason checks. Once begun, the private working copy must
-        // also be editable while the public snapshot remains live, including in
-        // Live events.
+        // lifecycle operation. Its private working copy is editable only while
+        // the event remains operational.
         if (IsPublishedBoardCorrection(path, context.HandlerMethod?.Name) ||
             await HasPublishedBoardCorrectionWorkspaceAsync(path, eventId, context.HttpContext.RequestAborted))
         {
-            await next();
+            if (eventView.State is EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview)
+            {
+                await next();
+                return;
+            }
+            if (context.HandlerInstance is PageModel page)
+                page.TempData["StatusMessage"] = text["This event is read-only in its current lifecycle state."].Value;
+            context.Result = new RedirectResult($"/Admin/Events/Manage/{eventId}");
             return;
         }
         if (!EventStatePolicy.Allows(eventView.State, capability))
@@ -89,7 +100,9 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
     private static bool IsTerminalReadOnlyRoute(string path, EventState state) =>
         state is (EventState.Cancelled or EventState.Finalized or EventState.Archived) &&
         !path.EndsWith("/Manage.cshtml", StringComparison.OrdinalIgnoreCase) &&
-        !path.EndsWith("/Finalize.cshtml", StringComparison.OrdinalIgnoreCase);
+        !path.EndsWith("/Finalize.cshtml", StringComparison.OrdinalIgnoreCase) &&
+        !path.EndsWith("/Participants.cshtml", StringComparison.OrdinalIgnoreCase) &&
+        !path.EndsWith("/Participant.cshtml", StringComparison.OrdinalIgnoreCase);
 
     private static bool TryEventId(PageHandlerExecutingContext context, out Guid eventId)
     {
@@ -122,7 +135,10 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         if (path.EndsWith("/Manage.cshtml", StringComparison.OrdinalIgnoreCase))
         {
             if (name.Contains("StartEvent", StringComparison.Ordinal) || name.Contains("EndEvent", StringComparison.Ordinal) || name.Contains("PrepareEndConfirmation", StringComparison.Ordinal) || name.Contains("Discard", StringComparison.Ordinal) || name.Contains("Cancel", StringComparison.Ordinal)) { capability = default; return false; }
-            capability = name.Contains("ResumeEvent", StringComparison.Ordinal) ? EventCapability.ResumeEvent
+            if (name.Contains("Competition", StringComparison.Ordinal) &&
+                !name.Contains("RefreshCompetition", StringComparison.Ordinal) &&
+                !name.Contains("MakeDevelopmentCompetitionDue", StringComparison.Ordinal)) { capability = default; return false; }
+            capability = name.Contains("ResumeEvent", StringComparison.Ordinal) || name.Contains("PrepareResumeConfirmation", StringComparison.Ordinal) ? EventCapability.ResumeEvent
                 : name.Contains("ReopenSubmissions", StringComparison.Ordinal) ? EventCapability.ReviewEvidence
                 : name.Contains("EvidenceCode", StringComparison.Ordinal) ? EventCapability.ConfigureEvidenceCodes
                 : name.Contains("RefreshCompetition", StringComparison.Ordinal) || name.Contains("MakeDevelopmentCompetitionDue", StringComparison.Ordinal) ? EventCapability.CompetitionSynchronization
@@ -138,7 +154,10 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         if (path.EndsWith("/Participant.cshtml", StringComparison.OrdinalIgnoreCase) &&
             (name.Contains("Withdraw", StringComparison.Ordinal) ||
              name.Contains("FillVacancy", StringComparison.Ordinal) ||
-             name.Contains("CompletePromotionFollowUp", StringComparison.Ordinal)))
+             name.Contains("CompletePromotionFollowUp", StringComparison.Ordinal) ||
+             name.Contains("Payment", StringComparison.Ordinal) ||
+             name.Contains("AdminNote", StringComparison.Ordinal) ||
+             name.Contains("TransferOwnership", StringComparison.Ordinal)))
         {
             capability = default; // Participant lifecycle services perform their own state and authorization checks.
             return false;

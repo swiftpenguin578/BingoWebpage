@@ -53,6 +53,56 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
         Assert.False(await service.HasCurrentCaptainAuthorityAsync(owner.Id, item.Id, team.Id));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task FinalReviewRoleChangesFollowTheActiveUploadWindowAndMembershipVersion(bool uploadOpen)
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var db = new ApplicationDbContext(options);
+        var suffix = uploadOpen ? "open" : "closed";
+        var admin = Website($"awaiting-role-admin-{suffix}-{Guid.NewGuid():N}", now); admin.SetGlobalRole(GlobalRole.Admin);
+        var owner = Website($"awaiting-role-owner-{suffix}-{Guid.NewGuid():N}", now);
+        var eventEnd = uploadOpen ? now.AddHours(1) : now.AddHours(-1);
+        var item = new BingoEvent(Guid.NewGuid(), $"Awaiting roles {suffix}", $"awaiting-roles-{suffix}-{Guid.NewGuid():N}", "UTC", admin.Id, now.AddDays(-1));
+        item.ConfigureSchedule(now.AddHours(-4), now.AddHours(-3), null, now.AddHours(-2), eventEnd, 20);
+        item.OpenSignups(now.AddHours(-4));
+        item.CloseSignups(now.AddHours(-3));
+        item.StartEvent(now.AddHours(-2));
+        item.EndEvent(now.AddMinutes(-1));
+        var team = new Team(Guid.NewGuid(), item.Id, "Awaiting team", $"awaiting-team-{Guid.NewGuid():N}", TeamFormationType.Drafted, null, true);
+        var participant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, now.AddHours(-4), SignupSource.Website); participant.AssignOwner(owner);
+        var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now.AddHours(-2), null, "seed");
+        db.AddRange(admin, owner, item, team, participant, membership);
+        await db.SaveChangesAsync();
+
+        var authority = new TeamCaptainAuthorityService(db, TimeProvider.System);
+        var initialVersion = membership.Version;
+        var first = await authority.ChangeRoleAsync(new(item.Id, membership.Id, TeamMembershipRole.Captain, admin.Id, admin.LoginName, initialVersion));
+        Assert.Equal(uploadOpen, first.Succeeded);
+        if (!uploadOpen)
+        {
+            Assert.Contains("submission window", first.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.Empty(await db.TeamMembershipRoleTransitions.Where(x => x.TeamMembershipId == membership.Id).ToListAsync());
+            Assert.Empty(await db.PersonalNotifications.Where(x => x.RecipientAccountId == owner.Id).ToListAsync());
+            return;
+        }
+
+        var stale = await authority.ChangeRoleAsync(new(item.Id, membership.Id, TeamMembershipRole.CoCaptain, admin.Id, admin.LoginName, initialVersion));
+        Assert.False(stale.Succeeded);
+        Assert.Contains("changed in another request", stale.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.True((await authority.ChangeRoleAsync(new(item.Id, membership.Id, TeamMembershipRole.CoCaptain, admin.Id, admin.LoginName, membership.Version))).Succeeded);
+        Assert.True((await authority.ChangeRoleAsync(new(item.Id, membership.Id, TeamMembershipRole.Participant, admin.Id, admin.LoginName, membership.Version))).Succeeded);
+
+        participant.Withdraw(now, "Withdrawn for role boundary coverage", admin.Id);
+        membership.Leave(now, "Withdrawn for role boundary coverage");
+        await db.SaveChangesAsync();
+        var withdrawn = await authority.ChangeRoleAsync(new(item.Id, membership.Id, TeamMembershipRole.Captain, admin.Id, admin.LoginName, membership.Version));
+        Assert.False(withdrawn.Succeeded);
+        Assert.Equal(3, await db.TeamMembershipRoleTransitions.CountAsync(x => x.TeamMembershipId == membership.Id));
+        Assert.Equal(3, await db.PersonalNotifications.CountAsync(x => x.RecipientAccountId == owner.Id));
+    }
+
     [Fact]
     public async Task SharedReadinessSeparatesDraftCaptainFromEventCaptainAndEmergencyFallback()
     {

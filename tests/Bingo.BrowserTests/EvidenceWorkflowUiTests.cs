@@ -39,6 +39,8 @@ public sealed class EvidenceWorkflowUiTests
         Assert.Contains("asp-page-handler=\"Reject\"", detail);
         Assert.Contains("asp-page-handler=\"Reverse\"", detail);
         Assert.Contains("asp-page-handler=\"Edit\"", detail);
+        Assert.Contains("Model.ReviewOpen && Model.Details.Status == SubmissionStatus.Pending", detail);
+        Assert.Contains("var reversible = Model.ReviewOpen && Model.Details.Status == SubmissionStatus.Approved", detail);
         Assert.Contains("Input.ExpectedVersion", detail);
         Assert.Contains("data-correction-requirement", detail);
         Assert.Contains("data-correction-drop-catalogue", detail);
@@ -82,7 +84,7 @@ public sealed class EvidenceWorkflowUiTests
         Assert.Contains("data-requirement-id=\"@drop.RequirementId\"", review);
         Assert.Contains("Model.Drops.Where(x => x.RequirementId == Model.Input.RequirementId)", review);
         Assert.Contains("data-correction-drop-catalogue", review);
-        Assert.DoesNotContain("@section Scripts", review);
+        Assert.Contains("<script src=\"~/js/public-evidence.js\" asp-append-version=\"true\"></script>", review);
         Assert.Contains("initializeCorrectionDropSelectors", site);
         Assert.Contains("DOMContentLoaded", site);
         Assert.Contains("bingo:content-updated", site);

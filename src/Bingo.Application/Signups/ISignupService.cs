@@ -38,6 +38,9 @@ public interface ISignupService
     Task<ParticipantPaymentResult> SetPaymentAsync(Guid eventId, Guid participantId, Guid? actorAccountId, string actorName, PaymentStatus payment, CancellationToken cancellationToken = default)
         => Task.FromException<ParticipantPaymentResult>(new NotSupportedException("Participant payment is not available."));
 
+    Task<ParticipantPaymentResult> SetAdminNotesAsync(Guid eventId, Guid participantId, Guid? actorAccountId, string actorName, string? notes, string? expectedNotes, CancellationToken cancellationToken = default)
+        => Task.FromException<ParticipantPaymentResult>(new NotSupportedException("Participant notes are not available."));
+
     Task<AdminParticipantResult> CorrectAdminParticipantAsync(AdminParticipantChangeRequest request, CancellationToken cancellationToken = default)
         => Task.FromException<AdminParticipantResult>(new NotSupportedException("Participant correction is not available."));
 
@@ -71,7 +74,7 @@ public sealed record AdminParticipantChangeRequest(
     IReadOnlyDictionary<Guid, string> Answers,
     int? ExpectedResponseVersion = null);
 public sealed record AdminParticipantResult(bool Succeeded, string? Error, Guid? ParticipantId = null, SignupStatus? Status = null, int? WaitingPosition = null);
-public sealed record ParticipantOwnershipTransferRequest(Guid EventId, Guid ParticipantId, Guid ActorAccountId, string ActorName, Guid? DestinationOwnerAccountId, Guid? ExpectedOwnerAccountId = null);
+public sealed record ParticipantOwnershipTransferRequest(Guid EventId, Guid ParticipantId, Guid ActorAccountId, string ActorName, Guid? DestinationOwnerAccountId, Guid? ExpectedOwnerAccountId = null, bool Confirmed = false);
 public sealed record ParticipantOwnershipTransferResult(bool Succeeded, string? Error, bool Changed = false);
 public sealed record LiveWithdrawalRequest(Guid EventId, Guid ParticipantId, Guid ActorAccountId, string ActorName, long? ExpectedMembershipVersion = null);
 public sealed record LiveReplacementRequest(

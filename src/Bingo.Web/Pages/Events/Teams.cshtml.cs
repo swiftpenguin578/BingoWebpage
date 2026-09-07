@@ -51,6 +51,7 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, IPart
         var displayedTeamIds = teams.Select(x => x.Id).ToHashSet();
 
         EventName = ev.Name;
+        ViewData["PublicEventBoardPublished"] = ev.BoardPublished;
         EventStartsAt = ev.EventStartsAt;
         EventEndsAt = ev.EventEndsAt;
         EventTimezone = ev.Timezone;

@@ -6,8 +6,10 @@ using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
+using Bingo.Infrastructure.Auditing;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Teams;
 using Bingo.Web.Navigation;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -194,6 +196,82 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ResumeReusesRetainedFutureEndAndRedrivesCutoff()
+    {
+        var eventId = Guid.NewGuid();
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var item = ReadyDraft(setup, eventId, "retained-resume", now.AddHours(-3), now.AddHours(-2), now.AddDays(1));
+            item.OpenSignups(now.AddHours(-3));
+            item.CloseSignups(now.AddHours(-2));
+            item.StartEvent(now.AddHours(-1));
+            item.EndEvent(now.AddMinutes(-30));
+            setup.Events.Add(item);
+            await setup.SaveChangesAsync();
+        }
+
+        await using var db = new ApplicationDbContext(options);
+        var before = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        var resumed = await Services(db, new MutableTimeProvider(now)).ResumePrematureEndAsync(eventId, before.Version, true, "Resume with the retained end.", null, new LifecycleActor(Guid.NewGuid(), "admin"));
+        Assert.True(resumed.Succeeded, resumed.Error);
+        var after = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        Assert.Equal(before.EventEndsAt, after.EventEndsAt);
+        Assert.Equal(before.EventEndsAt!.Value.AddMinutes(30), after.SubmissionCutoffAt);
+        Assert.Equal(EventState.Live, after.State);
+    }
+
+    [Fact]
+    public async Task ResumeRequiresReplacementAfterConfiguredEndExpires()
+    {
+        var eventId = Guid.NewGuid();
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var item = ReadyDraft(setup, eventId, "expired-resume", now.AddHours(-4), now.AddHours(-3), now.AddHours(-1));
+            item.OpenSignups(now.AddHours(-4));
+            item.CloseSignups(now.AddHours(-3));
+            item.StartEvent(now.AddHours(-2));
+            item.EndEvent(now.AddMinutes(-30));
+            setup.Events.Add(item);
+            await setup.SaveChangesAsync();
+        }
+
+        var clock = new MutableTimeProvider(now);
+        await using var db = new ApplicationDbContext(options);
+        var before = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        var missing = await Services(db, clock).ResumePrematureEndAsync(eventId, before.Version, true, "Need a replacement end.", null, new LifecycleActor(Guid.NewGuid(), "admin"));
+        Assert.False(missing.Succeeded);
+        Assert.Contains("expired", missing.Error, StringComparison.OrdinalIgnoreCase);
+        var replacement = await Services(db, clock).ResumePrematureEndAsync(eventId, before.Version, true, "Set a replacement end.", now.AddHours(2), new LifecycleActor(Guid.NewGuid(), "admin"));
+        Assert.True(replacement.Succeeded, replacement.Error);
+        var after = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        Assert.Equal(now.AddHours(2), after.EventEndsAt);
+        Assert.Equal(now.AddHours(2).AddMinutes(30), after.SubmissionCutoffAt);
+    }
+
+    [Fact]
+    public async Task ManualStartRejectsAnEventWhoseConfiguredEndHasPassed()
+    {
+        var eventId = Guid.NewGuid();
+        var actor = new LifecycleActor(Guid.NewGuid(), "admin");
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var item = ReadyDraft(setup, eventId, "end-passed-start", now.AddHours(-3), now.AddHours(-2), now.AddHours(-1));
+            item.OpenSignups(now.AddHours(-3));
+            item.CloseSignups(now.AddHours(-2));
+            setup.Events.Add(item);
+            await setup.SaveChangesAsync();
+            await AddReadyBoardAndDraftAsync(setup, eventId);
+        }
+
+        await using var db = new ApplicationDbContext(options);
+        var itemBefore = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        var result = await Services(db, new MutableTimeProvider(now)).StartNowAsync(eventId, itemBefore.Version, true, null, actor);
+        Assert.False(result.Succeeded);
+        Assert.Contains(result.Blockers!, blocker => blocker.Code == "EVENT_END_PASSED");
+        Assert.Equal(EventState.SignupClosed, (await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId)).State);
+    }
+
+    [Fact]
     public async Task OverlappingScheduledOpeningNotifiesExactlyOnceAndCorrectedRetryOpens()
     {
         var blockingId = Guid.NewGuid();
@@ -354,15 +432,30 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
     {
         var eventId = Guid.NewGuid();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "Admin", "ADMIN", now);
+        var captain = Account.CreateWebsite(Guid.NewGuid(), "Recovery captain", "RECOVERY_CAPTAIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
         admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "focused-test-password"), false, now, incrementVersion: false);
         await using (var setup = new ApplicationDbContext(options))
         {
-            var item = ReadyDraft(setup, eventId, "postponed-start", now.AddHours(-2), now.AddHours(-1), now.AddDays(1));
+            var item = ReadyDraft(setup, eventId, "postponed-start", now.AddHours(-2), now.AddHours(-1), DateTimeOffset.UtcNow.AddDays(1));
             item.OpenSignups(now.AddHours(-2));
             item.CloseSignups(now.AddHours(-1));
+            var primaryQuestion = setup.SignupQuestions.Local.Single(question => question.EventId == eventId && question.SystemField == SignupSystemField.PrimaryRegularAccount);
+            var players = Enumerable.Range(1, 4)
+                .Select(index => new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, index, now, SignupSource.Website))
+                .ToList();
+            players[0].AssignOwner(admin);
+            players[1].AssignOwner(captain);
+            var characters = players.Select((player, index) => new OsrsCharacter(Guid.NewGuid(), $"Recovery {index}", $"RECOVERY {eventId:N} {index}", now)).ToList();
+            var assignments = players.Select((player, index) => new EventParticipantCharacter(
+                Guid.NewGuid(), eventId, player.Id, characters[index].Id, 0, now, null, primaryQuestion.Id,
+                EventCharacterRole.Playing, index + 1, EhbSource.Manual, null)).ToList();
             setup.Accounts.Add(admin);
+            setup.Accounts.Add(captain);
             setup.Events.Add(item);
+            setup.AddRange(players);
+            setup.AddRange(characters);
+            setup.AddRange(assignments);
             await setup.SaveChangesAsync();
         }
 
@@ -386,7 +479,7 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
 
         await using (var correction = new ApplicationDbContext(options))
         {
-            await AddReadyBoardAndDraftAsync(correction, eventId);
+            await ResolveDelayedStartThroughAdminHandlersAsync(eventId, admin, clock);
 
             var readyPage = Manage(correction, admin, clock);
             Assert.IsType<PageResult>(await readyPage.OnGetAsync(eventId, CancellationToken.None));
@@ -656,6 +749,131 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new DictionaryTempDataProvider())
         };
+    }
+
+    private async Task ResolveDelayedStartThroughAdminHandlersAsync(Guid eventId, Account admin, TimeProvider clock)
+    {
+        var cancellationToken = CancellationToken.None;
+        Assert.IsType<RedirectToPageResult>(await DraftHandlerAsync(admin, clock,
+            page => page.OnPostAddTeamAsync(eventId, "Recovery One", TeamFormationType.Drafted, null, cancellationToken)));
+        Assert.IsType<RedirectToPageResult>(await DraftHandlerAsync(admin, clock,
+            page => page.OnPostAddTeamAsync(eventId, "Recovery Two", TeamFormationType.Drafted, null, cancellationToken)));
+
+        Guid[] teamIds;
+        Guid[] participantIds;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            teamIds = await db.Teams.Where(team => team.EventId == eventId && team.Active && team.FormationType == TeamFormationType.Drafted)
+                .OrderBy(team => team.Name).Select(team => team.Id).ToArrayAsync(cancellationToken);
+            participantIds = await db.EventParticipants.Where(participant => participant.EventId == eventId && participant.Source == SignupSource.Website)
+                .OrderBy(participant => participant.SignupSequence).Select(participant => participant.Id).ToArrayAsync(cancellationToken);
+        }
+
+        Assert.Equal(2, teamIds.Length);
+        Assert.Equal(4, participantIds.Length);
+        var captainParticipantIds = participantIds.Take(2).ToArray();
+        for (var index = 0; index < participantIds.Length; index++)
+            Assert.IsType<RedirectToPageResult>(await DraftHandlerAsync(admin, clock,
+                page => page.OnPostAddMemberAsync(eventId, teamIds[index % teamIds.Length], participantIds[index], "Delayed-start roster correction", cancellationToken)));
+
+        Guid[] captainMembershipIds;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            captainMembershipIds = await db.TeamMemberships
+                .Where(membership => membership.LeftAt == null && teamIds.Contains(membership.TeamId) && captainParticipantIds.Contains(membership.EventParticipantId))
+                .Select(membership => membership.Id)
+                .ToArrayAsync(cancellationToken);
+        }
+
+        Assert.Equal(2, captainMembershipIds.Length);
+        foreach (var membershipId in captainMembershipIds)
+        {
+            await using var membershipDb = new ApplicationDbContext(options);
+            var membershipVersion = await membershipDb.TeamMemberships.Where(membership => membership.Id == membershipId).Select(membership => membership.Version).SingleAsync(cancellationToken);
+            Assert.IsType<RedirectToPageResult>(await DraftHandlerAsync(admin, clock,
+                page => page.OnPostChangeRoleAsync(eventId, membershipId, TeamMembershipRole.Captain, cancellationToken, membershipVersion)));
+        }
+
+        Assert.IsType<RedirectToPageResult>(await DraftHandlerAsync(admin, clock,
+            page => page.OnPostStartAsync(eventId, cancellationToken)));
+        Assert.IsType<RedirectToPageResult>(await DraftHandlerAsync(admin, clock,
+            page => page.OnPostScrambleAsync(eventId, cancellationToken)));
+
+        await CreateAndApproveBoardThroughAdminHandlerAsync(eventId, admin, clock);
+
+        Assert.IsType<RedirectToPageResult>(await DraftHandlerAsync(admin, clock,
+            page => page.OnPostFinalizeAsync(eventId, cancellationToken, confirmed: true)));
+        await PublishBoardThroughAdminHandlerAsync(eventId, admin, clock);
+    }
+
+    private async Task<IActionResult> DraftHandlerAsync(Account admin, TimeProvider clock, Func<Bingo.Web.Pages.Admin.Events.DraftModel, Task<IActionResult>> action)
+    {
+        await using var db = new ApplicationDbContext(options);
+        var context = new DefaultHttpContext { User = Principal(admin) };
+        var page = new Bingo.Web.Pages.Admin.Events.DraftModel(
+            db,
+            clock,
+            new AuditWriter(db, clock),
+            new NullAdminCollaborationNotifier(),
+            null!,
+            new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, clock),
+            captainAuthority: new TeamCaptainAuthorityService(db, clock))
+        {
+            PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
+            TempData = new TempDataDictionary(context, new DictionaryTempDataProvider())
+        };
+        return await action(page);
+    }
+
+    private async Task CreateAndApproveBoardThroughAdminHandlerAsync(Guid eventId, Account admin, TimeProvider clock)
+    {
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var context = new DefaultHttpContext { User = Principal(admin) };
+            var page = new Bingo.Web.Pages.Admin.Events.BoardModel(
+                db,
+                clock,
+                new AuditWriter(db, clock),
+                new NullAdminCollaborationNotifier(),
+                null!)
+            {
+                PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
+                TempData = new TempDataDictionary(context, new DictionaryTempDataProvider())
+            };
+            Assert.IsType<RedirectToPageResult>(await page.OnPostCreateAsync(eventId, CancellationToken.None));
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var board = await db.Boards.SingleAsync(board => board.EventId == eventId);
+            await db.SaveChangesAsync();
+            var approval = new BoardApprovalSnapshot(
+                Guid.NewGuid(), board.Id, 1, now, admin.Id, null, board.Name,
+                board.Rows, board.Columns, board.TotalEhbEstimate, board.CalculationVersion,
+                board.Version, BoardState.Validated);
+            db.BoardApprovalSnapshots.Add(approval);
+            board.Approve(approval.Id);
+            await db.SaveChangesAsync();
+        }
+    }
+
+    private async Task PublishBoardThroughAdminHandlerAsync(Guid eventId, Account admin, TimeProvider clock)
+    {
+        await using var db = new ApplicationDbContext(options);
+        var boardVersion = await db.Boards.Where(board => board.EventId == eventId).Select(board => board.Version).SingleAsync();
+        var context = new DefaultHttpContext { User = Principal(admin) };
+        var page = new Bingo.Web.Pages.Admin.Events.BoardModel(
+            db,
+            clock,
+            new AuditWriter(db, clock),
+            new NullAdminCollaborationNotifier(),
+            null!)
+        {
+            BoardVersion = boardVersion,
+            PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
+            TempData = new TempDataDictionary(context, new DictionaryTempDataProvider())
+        };
+        Assert.IsType<RedirectToPageResult>(await page.OnPostPublishAsync(eventId, true, CancellationToken.None));
     }
 
     private BingoEvent ReadyDraft(ApplicationDbContext db, Guid id, string slug, DateTimeOffset opening, DateTimeOffset closing, DateTimeOffset end)

@@ -35,6 +35,7 @@ public interface IEventReadinessEvaluator
 public interface IEventSignupLifecycleService
 {
     Task<SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, EventScheduleValues values, bool confirmChanges, LifecycleActor actor, CancellationToken ct = default);
+    Task<SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, EventScheduleValues values, bool confirmChanges, LifecycleActor actor, string? reason, CancellationToken ct = default);
     Task<SignupLifecycleResult> OpenAsync(Guid eventId, long version, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default);
     Task<SignupLifecycleResult> CloseAsync(Guid eventId, long version, LifecycleActor actor, CancellationToken ct = default);
     Task<SignupLifecycleResult> ReopenAsync(Guid eventId, long version, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default);
@@ -47,5 +48,5 @@ public interface IEventLifecycleService
     Task<EventStartReadiness?> GetStartReadinessAsync(Guid eventId, CancellationToken ct = default);
     Task<EventStartResult> StartNowAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, CancellationToken ct = default);
     Task<EventStartResult> EndNowAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, CancellationToken ct = default);
-    Task<EventStartResult> ResumePrematureEndAsync(Guid eventId, long version, bool confirmed, string? reason, DateTimeOffset replacementEventEndsAt, LifecycleActor actor, CancellationToken ct = default);
+    Task<EventStartResult> ResumePrematureEndAsync(Guid eventId, long version, bool confirmed, string? reason, DateTimeOffset? replacementEventEndsAt, LifecycleActor actor, CancellationToken ct = default);
 }

@@ -51,6 +51,7 @@ public sealed class AdminShellUiTests
         Assert.Contains("admin-brand-mark", layout);
         Assert.Contains("DK Legacy", layout);
         Assert.Contains("~/images/branding/dk-legacy-admin-mark.png", layout);
+        Assert.Contains("class=\"admin-brand\" asp-page=\"/Index\"", layout);
         Assert.Contains("admin-account-avatar", layout);
         Assert.Contains("admin-selected-event-empty", layout);
         Assert.Contains("Select an event", layout);

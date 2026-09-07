@@ -20,7 +20,7 @@ public sealed class EvidenceModel(ApplicationDbContext db, IEvidenceStorage stor
             var accountId = User.GetAccountId();
             if (accountId is null) return NotFound();
             allowed = await evidenceAuthority.CanViewPrivateEvidenceAsync(
-                accountId.Value, submission.EventId, submission.TeamId, submission.CreditedParticipantId, time.GetUtcNow(), ct);
+                accountId.Value, submission.EventId, submission.TeamId, submission.CreditedParticipantId, time.GetUtcNow(), submission.Id, ct);
         }
         if (!allowed) return RedirectToPage("/Account/AccessDenied"); var stream = await storage.OpenReadAsync(asset.StorageKey, ct); return new FileStreamResult(stream, asset.MediaType) { EnableRangeProcessing = true };
     }

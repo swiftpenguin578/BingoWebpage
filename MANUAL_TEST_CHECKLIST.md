@@ -369,6 +369,71 @@ The fake serves `GET /players/{username}` and official-shape `GET /competitions/
 
 **Slice 10 consolidated manual acceptance (2026-08-03):** S10-01 through S10-06 passed. The two S10-01 presentation notes and S10-05 table-layout note are deferred to the UI overhaul and are not functional blockers.
 
+## Admin-test follow-up corrections — implementation complete; manual acceptance pending
+
+This is the compact Section 6 manual journey. Apply the one migration, run the
+idempotent Development reset, and use only the named minimal fixtures added by
+their owning pass. Automated tests own exhaustive lifecycle/actor/concurrency
+matrix coverage; this checklist proves real navigation, integration, and the
+interactions that source assertions cannot establish.
+
+- [x] **AF-01 — Danish transport and additive roles.** In Danish, follow normal
+  navigation through My Accounts Add/Edit/fetch and Signup create/edit with comma
+  decimal input; confirm fetched machine values render and post back locally without
+  changing value or validation, then repeat the focused journey in English and the
+  existing Onboarding fetch. Sign in with the stable global-only, Admin+Participant,
+  Admin+Captain, and Admin+Co-captain fixtures. Global-only accounts retain Admin
+  navigation but receive no team ledger, drawer, or mutation. Each additive account
+  retains exactly its genuine event navigation and submission/focus authority; the
+  existing explicit SuperAdmin read-only focus inspection remains separate.
+  Accepted 2026-09-05 for all locally reachable journeys. Local Discord OAuth does
+  not return to localhost, so the user accepted the focused EN/DA Onboarding
+  rendered-control and persisted-comma integration proof in place of manual
+  Onboarding execution.
+- [ ] **AF-02 — Item identity and objective isolation.** From the rendered Admin
+  Board editor, inspect one duplicate-disabled requirement containing the same item
+  from two bosses. Both source alternatives remain configurable, but inconsistent
+  effective caps block approval. With a consistent cap of `1`, approve evidence
+  from one source and confirm the other cannot add contribution to that same team
+  and requirement. Confirm the same item still contributes independently to each
+  of three sibling objectives, while a duplicate-enabled requirement follows its
+  own target/source cap.
+- [ ] **AF-03 — Submission and review lifecycle.** From a rendered team card open
+  Team Board, use the submission drawer, follow `Team history` to `/Submissions`,
+  open detail, and follow an actual rejection notification destination. In Admin
+  Review exercise Pending approve/reject/correction and Approved reversal, including
+  a retarget between differently weighted sibling objectives. From the seeded
+  Reversed record create its single new-image Pending child while uploads are open;
+  confirm repeat/stale actions do not duplicate contribution, audit, notification,
+  or child, and that closed/finalized/terminal states expose no invalid controls.
+  Archive the dedicated former-owner fixture, open My Events through normal
+  navigation, and follow its own Rejected/Withdrawn detail and `/Evidence/{assetId}`
+  links. Confirm teammate/private/cross-team records and all mutations remain denied.
+- [ ] **AF-04 — Draft and bounded presentation.** Follow Admin navigation to the
+  not-yet-finalized primary-plus-secondary Playing fixture and finalize it. Confirm
+  Signup has no orphaned `03`, only its required system primary defaults to the
+  preferred character, and later account questions begin None/unselected. Confirm
+  the Admin logo opens public home and Onboarding's joined EHB/WOM control uses a
+  text-color-only hover plus one complete invalid outline. Before Board publication,
+  follow the landing-page `View roster` action to the standalone Teams page and
+  confirm no Board-view navigation appears. After publication, follow the landing
+  page to Board, use its localized Teams/Hold sibling navigation, and confirm the
+  unchanged Teams page now shows the same row with Teams/Hold current and the
+  reduced navigation-to-masthead gap. Open evidence from Board, Team Board, and
+  Admin Review; in each existing popup verify labeled zoom in/out/reset,
+  wheel/trackpad, drag/pan, practical pinch/touch, keyboard focus/operation,
+  Escape/backdrop close, focus return, viewport containment, and transform reset
+  after close/reopen and image change in light/dark and narrow layouts.
+- [ ] **AF-05 — Retained migration correction/retry.** Use only a copied retained
+  database. Run the Section 6 item-identity preflight, review its two-family report,
+  complete the external adjudicated mapping without changing frozen names/current
+  source mappings, and invoke the existing migrate path with the mapping file plus
+  exact hash confirmation. Confirm stale fingerprint, missing/extra row, unknown
+  item, mismatch, and wrong hash fail closed; then apply the valid mapping, verify
+  both non-null snapshot identities and shared-item caps, rerun preflight, and
+  confirm no temporary table or mapping artifact remains. Never rehearse against
+  the user's working database.
+
 ## Historical event import — local operator acceptance
 
 **Accepted 2026-09-01.** The corrected one-time import of `Det Store Danske

@@ -29,16 +29,67 @@ public sealed class SignupService(
         if (bingoEvent is null) return new(false, "The event could not be found.");
         var actor = await dbContext.Accounts.SingleOrDefaultAsync(x => x.Id == actorAccountId && x.Active && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin), cancellationToken);
         if (actor is null) return new(false, "Admin access is required.");
-        if (bingoEvent.DraftLocked || bingoEvent.State is not (Domain.Events.EventState.SignupOpen or Domain.Events.EventState.SignupClosed)) return new(false, "Participant administration is read-only after the draft starts.");
+        if (!CanEditPrivateParticipantMetadata(bingoEvent)) return new(false, "Private participant metadata is unavailable in this event lifecycle state.");
         var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(x => x.EventId == eventId && x.Id == participantId, cancellationToken);
         if (participant is null) return new(false, "The participant could not be found.");
         var before = participant.PaymentStatus;
         if (before == payment) { await transaction.CommitAsync(cancellationToken); return new(true, null); }
-        participant.SetPaymentStatus(payment);
-        dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorAccountId, actorName, "participant.payment_updated", "participant", participant.Id.ToString(), "Payment changed.", eventId, $"{{\"payment\":\"{before}\"}}", $"{{\"payment\":\"{payment}\"}}"));
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return new(true, null, true);
+        try
+        {
+            participant.SetPaymentStatus(payment);
+            dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorAccountId, actorName, "participant.payment_updated", "participant", participant.Id.ToString(), "Payment changed.", eventId, $"{{\"payment\":\"{before}\"}}", $"{{\"payment\":\"{payment}\"}}"));
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new(true, null, true);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Payment could not be saved. Please try again.");
+        }
+    }
+
+    public async Task<ParticipantPaymentResult> SetAdminNotesAsync(Guid eventId, Guid participantId, Guid? actorAccountId, string actorName, string? notes, string? expectedNotes, CancellationToken cancellationToken = default)
+    {
+        if (actorAccountId is null) return new(false, "Admin access is required.");
+        if (notes?.Length > 2_000) return new(false, "Admin notes must be 2,000 characters or fewer.");
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        var bingoEvent = await LockEventAsync(eventId, cancellationToken);
+        if (bingoEvent is null) return new(false, "The event could not be found.");
+        var actor = await AdminAsync(actorAccountId.Value, cancellationToken);
+        if (actor is null) return new(false, "Admin access is required.");
+        if (!CanEditPrivateParticipantMetadata(bingoEvent)) return new(false, "Private participant metadata is unavailable in this event lifecycle state.");
+
+        var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(x => x.EventId == eventId && x.Id == participantId, cancellationToken);
+        if (participant is null) return new(false, "The participant could not be found.");
+        if (!string.Equals(participant.AdminNotes ?? string.Empty, expectedNotes ?? string.Empty, StringComparison.Ordinal))
+            return new(false, "This note changed elsewhere. Reload before saving it.");
+
+        var before = participant.AdminNotes;
+        var after = Clean(notes);
+        if (string.Equals(before, after, StringComparison.Ordinal))
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return new(true, null);
+        }
+
+        try
+        {
+            participant.SetAdminNotes(after);
+            dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorAccountId, actorName, "participant.admin_note_updated", "participant", participant.Id.ToString(), "Private Admin note changed.", eventId,
+                Json(new { present = before is not null }), Json(new { present = after is not null })));
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new(true, null, true);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Admin note could not be saved. Please try again.");
+        }
     }
 
     public async Task<SignupAdministrationResult> UpdateSignupAdministrationAsync(
@@ -79,14 +130,23 @@ public sealed class SignupService(
         catch (ArgumentOutOfRangeException) { return new(false, "Maximum players must be at least 1."); }
         catch (InvalidOperationException ex) { return new(false, ex.Message); }
 
-        var promoted = await PromoteWithinLockedEventAsync(bingoEvent, actorAccountId, actorName, "signup administration", cancellationToken);
-        var after = new { bingoEvent.ParticipantCap, bingoEvent.WaitingListEnabled };
-        dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorAccountId, actorName, "event.signup_administration_updated", "event",
-            eventId.ToString(), System.Text.Json.JsonSerializer.Serialize(new { requestedCapacity = newCap, effectiveCapacity = effectiveCap, waitingListEnabled, promoted }), eventId,
-            System.Text.Json.JsonSerializer.Serialize(before), System.Text.Json.JsonSerializer.Serialize(after)));
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return new(true, null, promoted, effectiveCap);
+        try
+        {
+            var promoted = await PromoteWithinLockedEventAsync(bingoEvent, actorAccountId, actorName, "signup administration", cancellationToken);
+            var after = new { bingoEvent.ParticipantCap, bingoEvent.WaitingListEnabled };
+            dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorAccountId, actorName, "event.signup_administration_updated", "event",
+                eventId.ToString(), System.Text.Json.JsonSerializer.Serialize(new { requestedCapacity = newCap, effectiveCapacity = effectiveCap, waitingListEnabled, promoted }), eventId,
+                System.Text.Json.JsonSerializer.Serialize(before), System.Text.Json.JsonSerializer.Serialize(after)));
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new(true, null, promoted, effectiveCap);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Signup administration could not be saved. Please try again.");
+        }
     }
     public async Task<SignupResult> SignUpAuthenticatedAsync(AuthenticatedSignupRequest request, CancellationToken cancellationToken = default)
     {
@@ -215,6 +275,8 @@ public sealed class SignupService(
 
     public async Task<ParticipantOwnershipTransferResult> TransferParticipantOwnershipAsync(ParticipantOwnershipTransferRequest request, CancellationToken cancellationToken = default)
     {
+        if (!request.Confirmed)
+            return new(false, "Confirm the ownership transfer before continuing.");
         if (request.DestinationOwnerAccountId is null)
             return new(false, "Select an active website account to transfer ownership.");
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
@@ -222,7 +284,7 @@ public sealed class SignupService(
         if (bingoEvent is null) return new(false, "The event could not be found.");
         var actor = await AdminAsync(request.ActorAccountId, cancellationToken);
         if (actor is null) return new(false, "Admin access is required.");
-        if (!CanAdministerParticipants(bingoEvent)) return new(false, "Participant administration is read-only after the draft starts.");
+        if (!CanTransferParticipantOwnership(bingoEvent)) return new(false, "Participant ownership transfer is unavailable in this event lifecycle state.");
         var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(x => x.EventId == request.EventId && x.Id == request.ParticipantId, cancellationToken);
         if (participant is null) return new(false, "The participant could not be found.");
         if (request.ExpectedOwnerAccountId != participant.AccountId) return new(false, "This participant ownership changed elsewhere. Reload before transferring it.");
@@ -235,14 +297,36 @@ public sealed class SignupService(
         var now = timeProvider.GetUtcNow();
         dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, request.ActorAccountId, request.ActorName, "participant.ownership_transferred", "participant", participant.Id.ToString(), "Participant ownership transferred.", request.EventId,
             $"{{\"accountId\":{Json(previousOwnerId)}}}", $"{{\"accountId\":{Json(destination.Id)},\"username\":{Json(destination.LoginName)}}}"));
-        var route = $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Signup/Confirmation?participantId={participant.Id}";
+        var participantRoute = $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Signup/Confirmation?participantId={participant.Id}";
         if (previousOwnerId is { } oldOwner && oldOwner != destination.Id)
-            dbContext.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), oldOwner, "participant.ownership_transferred", "Your event participant access changed.", route, now, bingoEvent.Id));
+            dbContext.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), oldOwner, "participant.ownership_transferred", "Your event participant access changed.", "/Account/MyEvents", now, bingoEvent.Id));
         if (previousOwnerId != destination.Id)
-            dbContext.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), destination.Id, "participant.ownership_transferred", "Your event participant access changed.", route, now, bingoEvent.Id));
+            dbContext.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), destination.Id, "participant.ownership_transferred", "Your event participant access changed.", participantRoute, now, bingoEvent.Id));
         try { await dbContext.SaveChangesAsync(cancellationToken); await transaction.CommitAsync(cancellationToken); }
-        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation }) { dbContext.ChangeTracker.Clear(); return new(false, "That account already owns a participant in this event."); }
-        catch (Exception exception) when (HasSerializationConflict(exception)) { dbContext.ChangeTracker.Clear(); return new(false, "This participant ownership changed elsewhere. Reload before transferring it."); }
+        catch (DbUpdateConcurrencyException)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "This participant ownership changed elsewhere. Reload before transferring it.");
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "That account already owns a participant in this event.");
+        }
+        catch (Exception exception) when (HasSerializationConflict(exception))
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "This participant ownership changed elsewhere. Reload before transferring it.");
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "Participant ownership could not be transferred. Please try again.");
+        }
         return new(true, null, true);
     }
 
@@ -346,6 +430,8 @@ public sealed class SignupService(
 
     private async Task<Account?> AdminAsync(Guid accountId, CancellationToken ct) => await dbContext.Accounts.SingleOrDefaultAsync(x => x.Id == accountId && x.Active && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin), ct);
     private static bool CanAdministerParticipants(Domain.Events.BingoEvent bingoEvent) => !bingoEvent.DraftLocked && bingoEvent.State is Domain.Events.EventState.SignupOpen or Domain.Events.EventState.SignupClosed;
+    private static bool CanEditPrivateParticipantMetadata(Domain.Events.BingoEvent bingoEvent) => bingoEvent.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived or EventState.Cancelled;
+    private static bool CanTransferParticipantOwnership(Domain.Events.BingoEvent bingoEvent) => bingoEvent.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview;
     private async Task<OsrsCharacter> ResolveCharacterAsync(string name, string normalized, CancellationToken ct)
     {
         var character = await dbContext.OsrsCharacters.SingleOrDefaultAsync(x => x.NormalizedName == normalized, ct);
@@ -403,8 +489,16 @@ public sealed class SignupService(
         {
             throw new InvalidOperationException("The participant cap is locked because the draft has started.");
         }
+        if (bingoEvent.ParticipantCap is { } currentCapacity && newCap <= currentCapacity)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return 0;
+        }
+        var before = bingoEvent.ParticipantCap;
         bingoEvent.IncreaseParticipantCap(newCap);
         var promoted = await PromoteWithinLockedEventAsync(bingoEvent, null, "system", "capacity increase", cancellationToken);
+        dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), null, "system", "event.capacity_increased", "event", eventId.ToString(), $"{before} → {newCap}; promoted {promoted}", eventId,
+            before?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "null", newCap.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return promoted;
@@ -621,6 +715,10 @@ public sealed class SignupService(
     public async Task<PromotionFollowUpResult> CompletePromotionFollowUpAsync(Guid eventId, Guid followUpId, Guid adminAccountId, string adminName, CancellationToken cancellationToken = default)
     {
         await using var tx = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        var bingoEvent = await LockEventAsync(eventId, cancellationToken);
+        if (bingoEvent is null) return new(false, "The event could not be found.");
+        if (bingoEvent.State is not (EventState.Live or EventState.AwaitingFinalReview))
+            return new(false, "Promotion follow-up is unavailable in this event lifecycle state.");
         var admin = await AdminAsync(adminAccountId, cancellationToken);
         if (admin is null) return new(false, "Admin access is required.");
         var followUp = await dbContext.WaitingListPromotionFollowUps
@@ -818,7 +916,7 @@ public sealed class SignupService(
         {
             participant.Promote(now);
             AddAudit(actorAccountId, actorName, "participant.promoted", participant, bingoEvent.Id, SignupStatus.WaitingList.ToString(), SignupStatus.Confirmed.ToString());
-            if (participant.AccountId is { } owner) AddNotification(owner, "participant.promoted", $"Your signup for {bingoEvent.Name} is confirmed.", Route(bingoEvent), now, bingoEvent.Id);
+            if (participant.AccountId is { } owner) AddNotification(owner, "participant.promoted", $"Your signup for {bingoEvent.Name} is confirmed.", Route(bingoEvent, participant.Id), now, bingoEvent.Id);
             var admins = await dbContext.Accounts.Where(x => x.Active && x.AccountType == AccountType.WebsiteAccount && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin)).Select(x => x.Id).ToListAsync(cancellationToken);
             foreach (var admin in admins) AddNotification(admin, "participant.promoted", $"A participant was promoted for {bingoEvent.Name} ({trigger}).", $"/Admin/Events/Manage/{bingoEvent.Id}", now, bingoEvent.Id);
         }
@@ -845,7 +943,8 @@ public sealed class SignupService(
     }
     private void AddAudit(Guid? actorId, string actorName, string action, EventParticipant participant, Guid eventId, string before, string after) => dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), timeProvider.GetUtcNow(), actorId, actorName, action, "participant", participant.Id.ToString(), null, eventId, before, after));
     private void AddNotification(Guid recipientId, string title, string detail, string route, DateTimeOffset now, Guid eventId) => dbContext.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), recipientId, title, detail, route, now, eventId));
-    private static string Route(Domain.Events.BingoEvent bingoEvent) => $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Signup/Confirmation";
+    private static string Route(Domain.Events.BingoEvent bingoEvent, Guid? participantId = null)
+        => $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Signup/Confirmation" + (participantId is { } id ? $"?participantId={id}" : string.Empty);
 
     private async Task<int> GetWaitingPositionAsync(Guid participantId, Guid eventId, CancellationToken cancellationToken)
     {

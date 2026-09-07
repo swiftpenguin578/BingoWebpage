@@ -104,7 +104,7 @@ public sealed class BoardRulesTests
         var snapshot = new BoardApprovalSnapshot(Guid.NewGuid(), boardId, 2, DateTimeOffset.UtcNow, Guid.NewGuid(), firstApproval, "Frozen board", 1, 1, 21m, 4, 9);
         var tile = new BoardApprovalTileSnapshot(Guid.NewGuid(), snapshot.Id, Guid.NewGuid(), Guid.NewGuid(), 0, 0, "Frozen tile", "Public wording", "Evidence", 21m, "assets/tile.png");
         var requirement = new BoardApprovalRequirementSnapshot(Guid.NewGuid(), tile.Id, Guid.NewGuid(), 1, 2, false, true, 3, "Two drops", false);
-        var drop = new BoardApprovalRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, Guid.NewGuid(), "Boss", "Drop", "1/100", .01m, 2, 10.5m, 3, 7);
+        var drop = new BoardApprovalRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, Guid.NewGuid(), Guid.NewGuid(), "Boss", "Drop", "1/100", .01m, 2, 10.5m, 3, 7);
 
         Assert.Equal(firstApproval, snapshot.SupersedesApprovalSnapshotId);
         Assert.Equal(21m, snapshot.TotalEhbEstimate);

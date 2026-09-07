@@ -8,6 +8,7 @@ using Bingo.Application.Evidence;
 using Bingo.Application.Signups;
 using Bingo.Application.Teams;
 using Bingo.Domain.Boards;
+using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
@@ -41,6 +42,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     public IReadOnlyList<GeneratedCaptainCredential> GeneratedCredentials { get; private set; } = [];
     public Guid CurrentAccountId { get; private set; }
     public bool CanControlDraft { get; private set; }
+    public bool CanChangeCaptainRoles { get; private set; }
     public Guid? DraftControllerAccountId { get; private set; }
     public PreformedRosterCsvImportService.Preview? CsvPreview { get; private set; }
     public Guid? RosterTeamId { get; private set; }
@@ -228,10 +230,15 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         else await audit.WriteAsync(AdminId, User.Identity?.Name ?? "Admin", "team.member_removed", "membership", membership.Id.ToString(), correctionReason, ct);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); SetStatus(Localize("{0} removed from {1}.", participantName, team.Name), UiMessageType.Success); return RedirectToPage(new { id, rosterTeamId });
     }
-    public async Task<IActionResult> OnPostChangeRoleAsync(Guid id, Guid membershipId, TeamMembershipRole role, CancellationToken ct, Guid? rosterTeamId = null)
+    public async Task<IActionResult> OnPostChangeRoleAsync(Guid id, Guid membershipId, TeamMembershipRole role, CancellationToken ct, long? membershipVersion = null, Guid? rosterTeamId = null)
     {
         if (captainAuthority is null) return StatusCode(StatusCodes.Status503ServiceUnavailable);
-        var result = await captainAuthority.ChangeRoleAsync(new(id, membershipId, role, AdminId, User.Identity?.Name ?? "Admin"), ct);
+        if (membershipVersion is null)
+        {
+            SetStatus(Localize("This membership changed or the role form is stale. Reload before changing its role."), UiMessageType.Error);
+            return RedirectToPage(new { id, rosterTeamId });
+        }
+        var result = await captainAuthority.ChangeRoleAsync(new(id, membershipId, role, AdminId, User.Identity?.Name ?? "Admin", membershipVersion), ct);
         SetStatus(result.Succeeded ? Localize("{0} is now {1}.", result.ParticipantName ?? string.Empty, RoleLabel(role)) : result.Error ?? Localize("The role could not be changed."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToPage(new { id, rosterTeamId });
     }
@@ -366,8 +373,8 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
             var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
             var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
             if (bingoEvent is null || draft is null) return NotFound();
-            if (bingoEvent.State != Bingo.Domain.Events.EventState.SignupClosed || bingoEvent.EventStartsAt is not { } starts || starts <= now)
-                throw new InvalidOperationException("The draft can only be finalized before the scheduled event start while signup is closed.");
+            if (bingoEvent.State != Bingo.Domain.Events.EventState.SignupClosed || bingoEvent.ActualStartedAt is not null || bingoEvent.EventEndsAt is not { } ends || ends <= now)
+                throw new InvalidOperationException("The draft can only be finalized before the event has started and while its configured end remains in the future.");
             if (draft.State is not (DraftState.Running or DraftState.Paused)) throw new InvalidOperationException("This draft is already finalized or is not running.");
             draft.RequireControl(AdminId, now);
             var draftedTeams = await OrderedDraftTeams(id, ct);
@@ -423,8 +430,8 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
             var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
             var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
             if (bingoEvent is null || draft is null) return NotFound();
-            if (bingoEvent.State != Bingo.Domain.Events.EventState.SignupClosed || bingoEvent.EventStartsAt is not { } starts || starts <= now)
-                throw new InvalidOperationException("A published draft can only be reopened before the scheduled event start while signup is closed.");
+            if (bingoEvent.State != Bingo.Domain.Events.EventState.SignupClosed || bingoEvent.ActualStartedAt is not null || bingoEvent.EventEndsAt is not { } ends || ends <= now)
+                throw new InvalidOperationException("A published draft can only be reopened before the event has started and while its configured end remains in the future.");
             if (draft.State != DraftState.Finalized) throw new InvalidOperationException("This draft is not finalized.");
             var activeCycle = await db.DraftPublicationCycles.SingleOrDefaultAsync(x => x.DraftSessionId == draft.Id && x.SupersededAt == null, ct);
             if (activeCycle is null) throw new InvalidOperationException("The active roster publication no longer exists.");
@@ -492,20 +499,19 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     private async Task<string> AddMembership(Guid eventId, Guid teamId, Guid participantId, TeamMembershipRole role, string reason, Guid? pickId, CancellationToken ct) { var team = await db.Teams.SingleOrDefaultAsync(x => x.Id == teamId && x.EventId == eventId, ct); if (team is null) throw new InvalidOperationException("The selected team no longer exists."); if (await db.TeamMemberships.AnyAsync(x => x.EventParticipantId == participantId && x.LeftAt == null, ct)) throw new InvalidOperationException("Participant is already assigned to a team."); var membership = new TeamMembership(Guid.NewGuid(), teamId, participantId, role, time.GetUtcNow(), pickId, reason); membership.SetSource(team.FormationType == TeamFormationType.Preformed ? TeamMembershipSource.PreformedManual : TeamMembershipSource.RetainedConversion); db.TeamMemberships.Add(membership); await db.SaveChangesAsync(ct); await Audit("team.member_added", "team", teamId, $"{participantId}: {reason}", ct); return team.Name; }
     private bool CanDirectPreEventRosterMutation(Bingo.Domain.Events.BingoEvent bingoEvent) =>
         (bingoEvent.State is Bingo.Domain.Events.EventState.Draft or Bingo.Domain.Events.EventState.SignupOpen or Bingo.Domain.Events.EventState.SignupClosed)
-        && bingoEvent.ActualStartedAt is null && bingoEvent.EventStartsAt is { } starts && time.GetUtcNow() < starts;
+        && bingoEvent.ActualStartedAt is null && bingoEvent.EventEndsAt is { } ends && time.GetUtcNow() < ends;
     private bool CanDirectDraftedSetupAssignment(Bingo.Domain.Events.BingoEvent bingoEvent, DraftSession? draft) =>
         CanDirectPreEventRosterMutation(bingoEvent)
         && draft is { FirstPickRecordedAt: null, State: DraftState.Setup or DraftState.Running };
     private async Task<Dictionary<Guid, string>> FrozenPublicNamesAsync(Guid eventId, IEnumerable<Guid> participantIds, DateTimeOffset publishedAt, CancellationToken ct)
     {
         var ids = participantIds.Distinct().ToList();
-        var rows = await (from assignment in db.EventParticipantCharacters.AsNoTracking()
-                          join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
-                          where assignment.EventId == eventId && ids.Contains(assignment.EventParticipantId) && assignment.EventRole == EventCharacterRole.Playing && assignment.RegisteredAt <= publishedAt && (assignment.ReleasedAt == null || assignment.ReleasedAt > publishedAt)
-                          select new { assignment.EventParticipantId, character.DisplayName }).ToListAsync(ct);
-        var names = rows.GroupBy(x => x.EventParticipantId).ToDictionary(x => x.Key, x => x.Select(y => y.DisplayName).Distinct().ToList());
-        if (names.Count != ids.Count || names.Values.Any(x => x.Count != 1 || string.IsNullOrWhiteSpace(x[0]))) throw new InvalidOperationException("Every published roster entry requires exactly one retained playing-character identity.");
-        return names.ToDictionary(x => x.Key, x => x.Value[0]);
+        var names = await db.PrimaryCharacters().AsNoTracking()
+            .Where(character => character.EventId == eventId && ids.Contains(character.ParticipantId))
+            .ToDictionaryAsync(character => character.ParticipantId, character => character.Name, ct);
+        var missing = ids.Where(id => !names.ContainsKey(id)).ToList();
+        if (missing.Count > 0 || names.Values.Any(string.IsNullOrWhiteSpace)) throw new InvalidOperationException("Every published roster entry requires exactly one retained playing-character identity.");
+        return names;
     }
     private async Task RepublishPreformedCorrectionAsync(Bingo.Domain.Events.BingoEvent bingoEvent, DraftSession draft, string action, Guid targetId, CancellationToken ct)
     {
@@ -532,6 +538,9 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         EventId = id;
         EventName = ev.Name;
         EventTimezone = ev.Timezone;
+        var now = time.GetUtcNow();
+        CanChangeCaptainRoles = ev.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live
+            || ev.State == EventState.AwaitingFinalReview && ev.AcceptsNewSubmissions(now);
         Sort = sort is "name" or "signup" or "status" ? sort : "ehb";
         var draft = await db.DraftSessions.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == id, ct);
         if (draft is null) { ConfirmedCount = await db.EventParticipants.CountAsync(x => x.EventId == id && x.Source != SignupSource.AdminCreated && x.SignupStatus == SignupStatus.Confirmed, ct); Distribution = DraftRosterDistribution.Derive(ConfirmedCount, 0); return true; }
@@ -601,7 +610,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
                     var participant = participants.Single(p => p.Id == m.EventParticipantId);
                     var authority = DisplayAuthority(m.EventParticipantId);
                     teamPickNumberByParticipant.TryGetValue(m.EventParticipantId, out var pickNumber);
-                    return new MemberView(m.Id, authority.Name, authority.Ehb, m.Role, participant.Source == SignupSource.AdminCreated, pickNumber == 0 ? null : pickNumber);
+                    return new MemberView(m.Id, authority.Name, authority.Ehb, m.Role, m.Version, participant.Source == SignupSource.AdminCreated, pickNumber == 0 ? null : pickNumber);
                 }).ToList(), usableCaptainTeamIds.Contains(team.Id), emergencyTeamIds.Contains(team.Id),
             team.FormationType == TeamFormationType.Drafted
                 ? memberships.Where(m => m.TeamId == team.Id).Sum(m => DisplayAuthority(m.EventParticipantId).Ehb)
@@ -677,5 +686,5 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     private void StoreCredentials(IReadOnlyList<GeneratedCaptainCredential> credentials) { if (credentials.Count > 0) TempData["GeneratedCaptainCredentials"] = JsonSerializer.Serialize(credentials); }
     private sealed record DerivedDraftState(IReadOnlyList<Guid> IncludedParticipantIds, DraftRosterDistribution Distribution, IReadOnlyDictionary<Guid, int> RosterSizes, IReadOnlyDictionary<Guid, int> ProjectedFinalSizes, IReadOnlyList<string> Blockers);
-    public sealed record DraftView(Guid Id, DraftState State, bool FirstPickRecorded); public sealed record ParticipantView(Guid Id, string Name, decimal Ehb, DateTimeOffset SignedUpAt, bool CaptainVolunteer, Guid? TeamId, string? TeamName, SignupStatus SignupStatus); public sealed record TeamView(Guid Id, string Name, TeamFormationType FormationType, string? Affiliation, string? ImageUrl, int? DraftPosition, long Version, bool IsCurrent, int ProjectedFinalSize, IReadOnlyList<MemberView> Members, bool HasUsableCaptain, bool HasEnabledEmergencyAccess, decimal TotalEhb); public sealed record MemberView(Guid MembershipId, string Name, decimal Ehb, TeamMembershipRole Role, bool External, int? PickNumber); public sealed record TurnView(int PickNumber, int RoundNumber, Guid TeamId, string TeamName); public sealed record PickView(int PickNumber, string PlayerName, string TeamName);
+    public sealed record DraftView(Guid Id, DraftState State, bool FirstPickRecorded); public sealed record ParticipantView(Guid Id, string Name, decimal Ehb, DateTimeOffset SignedUpAt, bool CaptainVolunteer, Guid? TeamId, string? TeamName, SignupStatus SignupStatus); public sealed record TeamView(Guid Id, string Name, TeamFormationType FormationType, string? Affiliation, string? ImageUrl, int? DraftPosition, long Version, bool IsCurrent, int ProjectedFinalSize, IReadOnlyList<MemberView> Members, bool HasUsableCaptain, bool HasEnabledEmergencyAccess, decimal TotalEhb); public sealed record MemberView(Guid MembershipId, string Name, decimal Ehb, TeamMembershipRole Role, long Version, bool External, int? PickNumber); public sealed record TurnView(int PickNumber, int RoundNumber, Guid TeamId, string TeamName); public sealed record PickView(int PickNumber, string PlayerName, string TeamName);
 }

@@ -787,6 +787,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     private sealed class NoopSignupLifecycleService : Bingo.Application.Events.IEventSignupLifecycleService
     {
         public Task<Bingo.Application.Events.SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, Bingo.Application.Events.EventScheduleValues values, bool confirmChanges, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Bingo.Application.Events.SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, Bingo.Application.Events.EventScheduleValues values, bool confirmChanges, LifecycleActor actor, string? reason, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Bingo.Application.Events.SignupLifecycleResult> OpenAsync(Guid eventId, long version, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Bingo.Application.Events.SignupLifecycleResult> CloseAsync(Guid eventId, long version, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Bingo.Application.Events.SignupLifecycleResult> ReopenAsync(Guid eventId, long version, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
@@ -820,7 +821,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
                 : new EvidenceActorScope(EvidenceActorKind.Participant, actorAccountId, eventId, teamId, Guid.NewGuid()));
         public Task<EvidenceActorScope> AuthorizeAsync(Guid actorAccountId, Guid requestedEventId, Guid requestedTeamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<EvidenceActorScope> AuthorizeOwnerAsync(Guid actorAccountId, Guid requestedEventId, Guid requestedTeamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<bool> CanViewPrivateEvidenceAsync(Guid actorAccountId, Guid requestedEventId, Guid requestedTeamId, Guid creditedParticipantId, DateTimeOffset now, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<bool> CanViewPrivateEvidenceAsync(Guid actorAccountId, Guid requestedEventId, Guid requestedTeamId, Guid creditedParticipantId, DateTimeOffset now, Guid? submissionId = null, CancellationToken cancellationToken = default) => Task.FromResult(false);
         public Task<IReadOnlyList<EvidenceCandidate>> GetCurrentTeamCandidatesAsync(EvidenceActorScope scope, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<EvidenceCandidate>>([]);
         public Task<CreditedCharacterSnapshot> ResolveCreditedCharacterAsync(Guid requestedEventId, Guid requestedParticipantId, DateTimeOffset submittedAt, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }

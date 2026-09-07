@@ -203,11 +203,19 @@ public sealed class Slice10Pass101WiseOldManTests
 
         var player = await client.LookupPlayerAsync("Dev Lookup Player");
         var competition = await client.GetCompetitionAsync(1515);
+        var alternate = await client.GetCompetitionAsync(1516);
 
         Assert.True(player.Succeeded);
         Assert.Equal(12.5m, player.Ehb);
         Assert.True(competition.Succeeded);
         Assert.Equal(1515, competition.Competition!.Id);
+        Assert.Equal(clock.GetUtcNow().AddHours(-99), competition.Competition.StartsAt);
+        Assert.Equal(clock.GetUtcNow().AddDays(14), competition.Competition.EndsAt);
+        Assert.True(alternate.Succeeded);
+        Assert.Equal(1516, alternate.Competition!.Id);
+        Assert.Equal(competition.Competition.StartsAt, alternate.Competition.StartsAt);
+        Assert.NotEqual(competition.Competition.EndsAt, alternate.Competition.EndsAt);
+        Assert.True(alternate.Competition.EndsAt > clock.GetUtcNow());
     }
 
     [Fact]

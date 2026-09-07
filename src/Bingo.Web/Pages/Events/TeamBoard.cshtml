@@ -273,7 +273,9 @@
 <dialog class="public-lightbox public-evidence-viewer" data-public-lightbox data-evidence-dialog data-evidence-empty="@T["Evidence"]" data-evidence-default-source="@T["Recent drops"]" data-enlarged-evidence="@T["Enlarged approved evidence"]">
     <button type="button" class="public-ui-viewport-close" data-evidence-close aria-label="@T["Close enlarged evidence"]"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
     <div class="public-evidence-viewer__layout">
-        <figure class="public-evidence-viewer__figure"><img data-evidence-dialog-image alt="" /></figure>
+        <figure class="public-evidence-viewer__figure">
+            <div class="public-evidence-viewer__viewport" data-evidence-viewport><img data-evidence-dialog-image alt="" tabindex="0" /></div>
+        </figure>
         <aside class="public-evidence-viewer__meta" aria-label="@T["Evidence details"]">
             <span class="public-ui-overline">@T["Approved evidence"]</span>
             <strong class="public-ui-component-title" data-evidence-dialog-drop>@T["Evidence"]</strong>

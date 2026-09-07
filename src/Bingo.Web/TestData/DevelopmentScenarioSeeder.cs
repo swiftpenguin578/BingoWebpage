@@ -39,6 +39,14 @@ public sealed class DevelopmentScenarioSeeder(
     public const string EvidenceDisabledEmergencyUsername = "SeedEvidenceEmergencyDisabled";
     public const string SecondaryAdminUsername = "SeedAdminTwo";
     public const string SecondaryAdminPassword = "SeedAdmin!1234";
+    public const string GlobalAdminUsername = "SeedGlobalAdmin";
+    public const string GlobalAdminPassword = "SeedGlobalAdmin!1234";
+    public const string AdminParticipantUsername = "SeedAdminParticipant";
+    public const string AdminParticipantPassword = "SeedAdminParticipant!1234";
+    public const string AdminCaptainUsername = "SeedAdminCaptain";
+    public const string AdminCaptainPassword = "SeedAdminCaptain!1234";
+    public const string AdminCoCaptainUsername = "SeedAdminCoCaptain";
+    public const string AdminCoCaptainPassword = "SeedAdminCoCaptain!1234";
 
     public async Task<SeedResult> ResetAndSeedAsync(CancellationToken cancellationToken = default)
     {
@@ -70,6 +78,10 @@ public sealed class DevelopmentScenarioSeeder(
         var current = timeProvider.GetUtcNow();
         var now = new DateTimeOffset(current.Year, current.Month, current.Day, current.Hour, current.Minute < 30 ? 0 : 30, 0, TimeSpan.Zero);
         var secondaryAdmin = await EnsureSecondaryAdminAsync(now, cancellationToken);
+        var globalAdmin = await EnsureAdminRoleAccountAsync(GlobalAdminUsername, GlobalAdminPassword, now, cancellationToken);
+        var adminParticipant = await EnsureAdminRoleAccountAsync(AdminParticipantUsername, AdminParticipantPassword, now, cancellationToken);
+        var adminCaptain = await EnsureAdminRoleAccountAsync(AdminCaptainUsername, AdminCaptainPassword, now, cancellationToken);
+        var adminCoCaptain = await EnsureAdminRoleAccountAsync(AdminCoCaptainUsername, AdminCoCaptainPassword, now, cancellationToken);
         var evidenceCaptain = await EnsureEvidenceCaptainAsync(now, cancellationToken);
         var evidenceCoCaptain = await EnsureWebsiteAccountAsync(EvidenceCoCaptainUsername, EvidenceCoCaptainPassword, now, cancellationToken);
         var evidenceParticipant = await EnsureWebsiteAccountAsync(EvidenceParticipantUsername, EvidenceParticipantPassword, now, cancellationToken);
@@ -126,6 +138,8 @@ public sealed class DevelopmentScenarioSeeder(
             admin.Id,
             secondaryAdmin,
             now);
+        var scheduledEvent = db.Events.Local.Single(x => x.Id == scheduledScenario.EventId);
+        scheduledEvent.ConfigureSchedule(scheduledEvent.SignupOpensAt, scheduledEvent.SignupClosesAt, scheduledEvent.DraftAt, now.AddHours(-1), now.AddDays(12), scheduledEvent.ParticipantCap);
         db.ScheduledEventStartAttempts.Add(new ScheduledEventStartAttempt(
             Guid.NewGuid(), scheduledScenario.EventId, now.AddHours(-2), now.AddHours(-1), false,
             ["BOARD_NOT_PUBLISHED", "DRAFT_NOT_FINALIZED"]));
@@ -143,31 +157,9 @@ public sealed class DevelopmentScenarioSeeder(
             admin.Id,
             secondaryAdmin,
             now));
-        var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, evidenceCaptain, evidenceCoCaptain, evidenceParticipant, now);
+        var dklLiveScenario = SeedDklLiveScenario(dklBlueprint, admin.Id, evidenceCaptain, evidenceCoCaptain, evidenceParticipant, admin, adminParticipant, adminCaptain, adminCoCaptain, now);
         seeded.Add(dklLiveScenario);
-        var currentPublicScenario = await SeedScenario(
-            "Forårsbingo 2026",
-            "test-90-current-public-event",
-            ScenarioStage.Live,
-            blueprint,
-            admin.Id,
-            secondaryAdmin,
-            now);
-        var currentPublicEvent = db.Events.Local.Single(value => value.Id == currentPublicScenario.EventId);
-        currentPublicEvent.MarkFirstPublic(now.AddMinutes(-30));
-        db.Entry(currentPublicEvent).Property(nameof(BingoEvent.IsDevelopmentFixture)).CurrentValue = false;
-        seeded.Add(currentPublicScenario);
         seeded.Add(SeedScheduledWindowOverlapScenario(admin.Id, now));
-        var accessBlockerScenario = await SeedScenario(
-            "Aftenbingo 2026",
-            "test-88-live-access-blocker",
-            ScenarioStage.Live,
-            blueprint,
-            admin.Id,
-            secondaryAdmin,
-            now);
-        db.RemoveRange(db.AccountEventAccesses.Local.Where(access => access.EventId == accessBlockerScenario.EventId).ToList());
-        seeded.Add(accessBlockerScenario);
         await EnsureDevelopmentLookupCharacterAsync(secondaryAdmin.Id, now, cancellationToken);
         seeded.Add(SeedSignupLookupScenario(dklBlueprint, admin.Id, now));
         var waitingReplacement = CreateParticipant(
@@ -193,6 +185,20 @@ public sealed class DevelopmentScenarioSeeder(
         historyParticipant.AssignOwner(evidenceParticipant);
         await AddHistoryRejectedStateAsync(evidenceHistoryScenario.EventId, historyParticipant, evidenceParticipant.Id, admin.Id, now, cancellationToken);
         seeded.Add(evidenceHistoryScenario);
+        var secondaryPlayingDraftScenario = await SeedScenario(
+            "Det Store Danske Forårsbingo 2026",
+            "test-22-secondary-playing-finalization",
+            ScenarioStage.DraftRunning,
+            blueprint,
+            admin.Id,
+            secondaryAdmin,
+            now);
+        var secondaryPlayingParticipant = db.EventParticipants.Local
+            .Where(participant => participant.EventId == secondaryPlayingDraftScenario.EventId)
+            .OrderBy(participant => participant.SignupSequence)
+            .First();
+        AddActivitySecondRegularAccount(secondaryPlayingParticipant, now, 2);
+        seeded.Add(secondaryPlayingDraftScenario);
         seeded.Add(await SeedScenario(
             "Det Store Danske Forårsbingo 2026",
             "test-21-final-review",
@@ -201,21 +207,34 @@ public sealed class DevelopmentScenarioSeeder(
             admin.Id,
             secondaryAdmin,
             now));
-        seeded.Add(await SeedScenario(
+        var archivedResultsScenario = await SeedScenario(
             "Julebingo 2025",
             "test-85-archived-results",
             ScenarioStage.Archived,
             blueprint,
             admin.Id,
             secondaryAdmin,
-            now));
+            now);
+        var archivedHistoryParticipant = db.EventParticipants.Local
+            .Where(participant => participant.EventId == archivedResultsScenario.EventId &&
+                                  db.TeamMemberships.Local.Any(membership => membership.EventParticipantId == participant.Id && membership.Role == TeamMembershipRole.Participant))
+            .OrderBy(participant => participant.SignupSequence)
+            .Skip(1)
+            .First();
+        archivedHistoryParticipant.AssignOwner(evidenceParticipant);
+        await AddHistoryRejectedStateAsync(archivedResultsScenario.EventId, archivedHistoryParticipant, evidenceParticipant.Id, admin.Id, now, cancellationToken);
+        db.TeamMemberships.Local
+            .Single(membership => membership.EventParticipantId == archivedHistoryParticipant.Id && membership.Role == TeamMembershipRole.Participant && membership.LeftAt == null)
+            .Leave(now.AddMinutes(-30), "Seeded former credited owner history.");
+        seeded.Add(archivedResultsScenario);
         seeded.Add(SeedCancelledScenario(admin.Id, secondaryAdmin, now));
         seeded.Add(SeedDiscardedScenario(admin.Id, now));
         seeded.Add(SeedBoardPublicationSetupScenario(blueprint, admin.Id, secondaryAdmin, now));
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return new SeedResult(admin.LoginName, secondaryAdmin.LoginName, SecondaryAdminPassword, blueprint.Name, seeded, CaptainPassword, ReplacementUsername, ReplacementPassword);
+        return new SeedResult(admin.LoginName, secondaryAdmin.LoginName, SecondaryAdminPassword, blueprint.Name, seeded, CaptainPassword, ReplacementUsername, ReplacementPassword,
+            globalAdmin.LoginName, GlobalAdminPassword, adminParticipant.LoginName, AdminParticipantPassword, adminCaptain.LoginName, AdminCaptainPassword, adminCoCaptain.LoginName, AdminCoCaptainPassword);
     }
 
     private SeededScenario SeedReadinessBlockerScenario(Guid adminId, DateTimeOffset now)
@@ -424,6 +443,13 @@ public sealed class DevelopmentScenarioSeeder(
         return account;
     }
 
+    private async Task<Account> EnsureAdminRoleAccountAsync(string username, string password, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var account = await EnsureWebsiteAccountAsync(username, password, now, cancellationToken);
+        account.SetGlobalRole(GlobalRole.Admin);
+        return account;
+    }
+
     private async Task<Account> EnsureEvidenceCaptainAsync(DateTimeOffset now, CancellationToken cancellationToken)
         => await EnsureWebsiteAccountAsync(EvidenceCaptainUsername, EvidenceCaptainPassword, now, cancellationToken);
 
@@ -451,7 +477,11 @@ public sealed class DevelopmentScenarioSeeder(
         DateTimeOffset now)
     {
         var signupOpens = now.AddDays(-14);
-        var signupCloses = stage == ScenarioStage.SignupsOpen ? now.AddDays(7) : now.AddDays(-1);
+        var signupCloses = stage == ScenarioStage.SignupsOpen
+            ? now.AddDays(6)
+            : stage is ScenarioStage.FinalReview or ScenarioStage.Finalized or ScenarioStage.Archived or ScenarioStage.CompletedFinalReview
+                ? now.AddDays(-4)
+                : now.AddDays(-1);
         var eventStarts = stage switch
         {
             ScenarioStage.Live => now.AddHours(-1),
@@ -742,6 +772,10 @@ public sealed class DevelopmentScenarioSeeder(
         Account fixtureOwner,
         Account coCaptainOwner,
         Account participantOwner,
+        Account superAdminParticipant,
+        Account adminParticipant,
+        Account adminCaptain,
+        Account adminCoCaptain,
         DateTimeOffset now)
     {
         const int teamCount = 6;
@@ -771,6 +805,7 @@ public sealed class DevelopmentScenarioSeeder(
 
         var eventStarts = now.AddHours(-99);
         var eventEnds = now.AddDays(14);
+        var signupCloses = eventStarts.AddHours(-1);
         var bingoEvent = new BingoEvent(
             Guid.NewGuid(),
             "Vinterbingo 2026",
@@ -778,7 +813,7 @@ public sealed class DevelopmentScenarioSeeder(
             "Live six-team DKL board scenario with complete drafted rosters.",
             "Europe/Copenhagen",
             now.AddDays(-14),
-            now.AddDays(-1),
+            signupCloses,
             eventStarts,
             eventEnds,
             eventEnds.AddMinutes(30),
@@ -816,6 +851,10 @@ public sealed class DevelopmentScenarioSeeder(
         participantsByName[teamSeeds[0].Captain].AssignOwner(fixtureOwner);
         participantsByName[teamSeeds[0].CoCaptain].AssignOwner(coCaptainOwner);
         participantsByName[remainingNames[0]].AssignOwner(participantOwner);
+        participantsByName[remainingNames[1]].AssignOwner(superAdminParticipant);
+        participantsByName[remainingNames[2]].AssignOwner(adminParticipant);
+        participantsByName[teamSeeds[1].Captain].AssignOwner(adminCaptain);
+        participantsByName[teamSeeds[1].CoCaptain].AssignOwner(adminCoCaptain);
 
         var board = AddBoard(bingoEvent, blueprint, publish: true, now);
         var draft = new DraftSession(Guid.NewGuid(), bingoEvent.Id, targetTeamSize);
@@ -1086,7 +1125,7 @@ public sealed class DevelopmentScenarioSeeder(
         }
     }
 
-    private void AddActivitySecondRegularAccount(EventParticipant participant, DateTimeOffset now)
+    private void AddActivitySecondRegularAccount(EventParticipant participant, DateTimeOffset now, int registrationOrder = 1)
     {
         const string name = "Dev Activity Secondary";
         var normalized = Normalize(name);
@@ -1097,7 +1136,7 @@ public sealed class DevelopmentScenarioSeeder(
             seedCharacters.Add(normalized, character);
         }
         db.EventParticipantCharacters.Add(new EventParticipantCharacter(
-            Guid.NewGuid(), participant.EventId, participant.Id, character.Id, 1, now,
+            Guid.NewGuid(), participant.EventId, participant.Id, character.Id, registrationOrder, now,
             null, null, EventCharacterRole.Playing, 0, EhbSource.Manual, null));
     }
 
@@ -1163,12 +1202,22 @@ public sealed class DevelopmentScenarioSeeder(
                 submission.Withdraw(now.AddMinutes(-5));
                 db.ReviewActions.Add(SeedAction(submission.Id, ReviewActionType.Withdraw, captain.Id, now.AddMinutes(-5), "Seeded captain withdrawal."));
             }
+            else if (status == SubmissionStatus.Reversed)
+            {
+                var approvedAt = now.AddMinutes(-10);
+                ApproveSeeded(submission, adminId, 1, approvedAt);
+                submission.Reverse("Seeded reversal for corrected-child testing.", now.AddMinutes(-5));
+                var contribution = db.SubmissionContributions.Local.Single(value => value.SubmissionId == submission.Id);
+                contribution.Reverse(now.AddMinutes(-5));
+                db.ReviewActions.Add(SeedAction(submission.Id, ReviewActionType.ReverseApproval, adminId, now.AddMinutes(-5), "Seeded reversal for corrected-child testing."));
+            }
             return submission;
         }
 
         await AddStateAsync(SubmissionStatus.Pending, "Pending evidence for Admin review testing.", 21);
         var rejected = await AddStateAsync(SubmissionStatus.Rejected, "Rejected evidence for linked-resubmission testing.", 22);
         await AddStateAsync(SubmissionStatus.Withdrawn, "Withdrawn evidence for retained-ledger testing.", 23);
+        await AddStateAsync(SubmissionStatus.Reversed, "Reversed evidence for corrected-child testing.", 25);
         var resubmissionSubmittedAt = now.AddMinutes(-2);
         var creditedCharacter = PrimaryCharacterSnapshot(participant);
         var resubmission = new Submission(Guid.NewGuid(), eventId, team.Id, tile.Id, requirement.Id, drop?.Id, participant.Id,
@@ -1250,7 +1299,7 @@ public sealed class DevelopmentScenarioSeeder(
                     db.TemplateRequirementDrops.Add(new TemplateRequirementDrop(
                         Guid.NewGuid(), templateRequirement.Id, drop.Id, drop.Maximum, drop.Weight));
                     db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(
-                        Guid.NewGuid(), snapshot.Id, drop.Id, drop.Boss, drop.Item,
+                        Guid.NewGuid(), snapshot.Id, drop.Id, drop.ItemId, drop.Boss, drop.Item,
                         drop.DisplayRate, drop.Probability, drop.Maximum, drop.Ehb, drop.Weight));
                 }
             }
@@ -1306,7 +1355,7 @@ public sealed class DevelopmentScenarioSeeder(
                              .Where(value => value.RequirementId == requirement.Id).ToList())
                 {
                     var approvalDrop = new BoardApprovalRequirementDropSnapshot(
-                        Guid.NewGuid(), approvalRequirement.Id, drop.SourceDropId, drop.BossName,
+                        Guid.NewGuid(), approvalRequirement.Id, drop.SourceDropId, drop.ItemIdSnapshot, drop.BossName,
                         drop.ItemName, drop.DisplayRate, drop.NumericProbability,
                         drop.MaximumContribution, drop.EhbPerContribution, drop.CreditedWeight, 1);
                     db.BoardApprovalRequirementDropSnapshots.Add(approvalDrop);
@@ -1728,7 +1777,13 @@ public sealed class DevelopmentScenarioSeeder(
             var requirements = db.BoardRequirementSnapshots.Local.Where(value => value.BoardTileId == tile.Id).OrderBy(value => value.Position).ToList();
             foreach (var requirement in requirements)
             {
-                var drops = db.BoardRequirementDropSnapshots.Local.Where(value => value.RequirementId == requirement.Id).OrderBy(value => value.ItemName).ToList();
+                var drops = db.BoardRequirementDropSnapshots.Local
+                    .Where(value => value.RequirementId == requirement.Id)
+                    .OrderBy(value => value.ItemName)
+                    .ThenBy(value => value.BossName)
+                    .ToList();
+                if (!requirement.DuplicatesAllowed)
+                    drops = drops.GroupBy(value => value.ItemIdSnapshot).Select(group => group.First()).ToList();
                 for (var amount = 0; amount < requirement.TargetContribution; amount++)
                 {
                     var drop = requirement.ManualObjective ? null : drops[amount % drops.Count];
@@ -2008,14 +2063,11 @@ public sealed class DevelopmentScenarioSeeder(
                     (requirement.IncludedItems is not null
                         ? requirement.IncludedItems.Contains(row.item.Name, StringComparer.OrdinalIgnoreCase)
                         : requirement.ItemNameContains is null || row.item.Name.Contains(requirement.ItemNameContains, StringComparison.OrdinalIgnoreCase))).ToList();
-                if (requirement.Manual && requirement.IncludedItems is { Length: > 0 })
+                if (requirement.Manual)
                 {
-                    var manualDrops = requirement.IncludedItems
-                        .Select(itemName => new DropBlueprint(Guid.NewGuid(), "Historical item pool", itemName, "Historical item pool", null, null, null))
-                        .ToList();
                     requirements.Add(new RequirementBlueprint(
                         requirementIndex + 1, requirement.Target, requirement.Duplicates, requirement.HigherWeights,
-                        requirement.Description, true, [], manualDrops));
+                        requirement.Description, true, [], []));
                     estimates.Add(null);
                     continue;
                 }
@@ -2035,7 +2087,7 @@ public sealed class DevelopmentScenarioSeeder(
                     requirement.Description, requirement.Manual,
                     selectedBosses.Select(boss => new BossBlueprint(boss.Id, boss.Name, boss.EfficientCompletionsPerHour)).ToList(),
                     selectedDropRates.Select(value => new DropBlueprint(
-                        value.row.drop.Id, value.row.boss.Name, value.row.item.Name, value.row.drop.DisplayRate,
+                        value.row.drop.Id, value.row.item.Id, value.row.boss.Name, value.row.item.Name, value.row.drop.DisplayRate,
                         value.Probability, requirement.Duplicates ? null : 1, value.row.drop.DefaultEhbEstimate,
                         requirement.WeightTwoItems?.Contains(value.row.item.Name, StringComparer.OrdinalIgnoreCase) == true ? 2 : 1)).ToList()));
                 estimates.Add(requirement.Manual
@@ -2161,7 +2213,7 @@ public sealed class DevelopmentScenarioSeeder(
     private sealed record TileBlueprint(int Row, int Column, string Name, string Description, string EvidenceInstructions, decimal Ehb, IReadOnlyList<RequirementBlueprint> Requirements);
     private sealed record RequirementBlueprint(int Position, int Target, bool Duplicates, bool HigherWeights, string Description, bool Manual, IReadOnlyList<BossBlueprint> Bosses, IReadOnlyList<DropBlueprint> Drops);
     private sealed record BossBlueprint(Guid Id, string Name, decimal? Rate);
-    private sealed record DropBlueprint(Guid Id, string Boss, string Item, string DisplayRate, decimal? Probability, int? Maximum, decimal? Ehb, int Weight = 1);
+    private sealed record DropBlueprint(Guid Id, Guid ItemId, string Boss, string Item, string DisplayRate, decimal? Probability, int? Maximum, decimal? Ehb, int Weight = 1);
 }
 
 public sealed record SeedResult(
@@ -2172,7 +2224,15 @@ public sealed record SeedResult(
     IReadOnlyList<SeededScenario> Scenarios,
     string CaptainPassword,
     string ReplacementUsername,
-    string ReplacementPassword);
+    string ReplacementPassword,
+    string GlobalAdminUsername,
+    string GlobalAdminPassword,
+    string AdminParticipantUsername,
+    string AdminParticipantPassword,
+    string AdminCaptainUsername,
+    string AdminCaptainPassword,
+    string AdminCoCaptainUsername,
+    string AdminCoCaptainPassword);
 
 public sealed record SeededScenario(
     Guid EventId,

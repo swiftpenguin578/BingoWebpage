@@ -33,6 +33,10 @@ public sealed class TeamCaptainAuthorityService(ApplicationDbContext db, TimePro
                 return new(false, "That current team membership no longer exists.");
             if (row.item.State is EventState.Cancelled or EventState.Finalized or EventState.Archived or EventState.Discarded)
                 return new(false, "This event is read-only in its current lifecycle state.");
+            if (row.item.State == EventState.AwaitingFinalReview && !row.item.AcceptsNewSubmissions(now))
+                return new(false, "Captain roles are read-only after the submission window closes.");
+            if (change.ExpectedMembershipVersion is { } expected && row.membership.Version != expected)
+                return new(false, "This membership changed in another request. Reload before changing its role.");
             if (row.membership.Role == change.Role)
                 return new(false, "That member already has this role.");
 

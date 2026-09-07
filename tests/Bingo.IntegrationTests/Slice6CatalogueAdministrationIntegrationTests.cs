@@ -1,14 +1,19 @@
+using System.Data.Common;
+using System.Globalization;
 using System.Net;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Bingo.Application.Access;
 using Bingo.Application.Boards;
 using Bingo.Application.Catalogue;
+using Bingo.Application.Events;
 using Bingo.Application.Evidence;
 using Bingo.Domain.Access;
+using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
+using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Auditing;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Teams;
@@ -25,6 +30,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
 using Testcontainers.PostgreSql;
@@ -196,7 +202,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         var firstTile = new BoardTile(Guid.NewGuid(), firstBoard.Id, template.Id, 0, 0, "Current tile", "", string.Empty, 1m);
         var otherTile = new BoardTile(Guid.NewGuid(), secondBoard.Id, Guid.NewGuid(), 0, 0, "Other tile", "", string.Empty, 1m);
         var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), firstTile.Id, 1, 1, true, false, "Collect", false);
-        var snapshot = new BoardRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, drop.Id, "Old boss", "Old item", "1/100", .01m, null, 10m, 1);
+        var snapshot = new BoardRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, drop.Id, drop.ItemId, "Old boss", "Old item", "1/100", .01m, null, 10m, 1);
         var mismatchedImage = new BoardTileImageAsset(Guid.NewGuid(), secondEvent.Id, otherTile.Id, "other/image.png", "image.png", "image/png", 3, 1, 1, new string('a', 64), admin.Id, now);
 
         await using (var seed = new ApplicationDbContext(options))
@@ -228,7 +234,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         {
             var page = Page(approving, admin.Id);
             page.BoardVersion = 1;
-            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(firstEvent.Id, CancellationToken.None));
+            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(firstEvent.Id, false, CancellationToken.None));
         }
         await using (var approved = new ApplicationDbContext(options))
         {
@@ -344,7 +350,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         {
             var page = Page(approving, admin.Id);
             page.BoardVersion = 1;
-            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, CancellationToken.None));
+            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, false, CancellationToken.None));
         }
         await using (var verify = new ApplicationDbContext(options))
         {
@@ -377,7 +383,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         {
             var page = Page(reapproving, admin.Id);
             page.BoardVersion = 3;
-            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, CancellationToken.None));
+            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, false, CancellationToken.None));
         }
         await using (var editing = new ApplicationDbContext(options))
         {
@@ -404,7 +410,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"slice6-publish-admin-{Guid.NewGuid():N}", now); admin.SetGlobalRole(GlobalRole.Admin); SetPassword(admin, now);
         var bingoEvent = new BingoEvent(Guid.NewGuid(), "Publication board", $"publication-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
-        bingoEvent.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddDays(2), now.AddDays(4), 10);
+        bingoEvent.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(-2), now.AddDays(2), 10);
         bingoEvent.OpenSignups(now.AddDays(-2));
         bingoEvent.CloseSignups(now.AddDays(-1));
         var draft = new Bingo.Domain.Teams.DraftSession(Guid.NewGuid(), bingoEvent.Id, 1);
@@ -430,7 +436,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         await using (var approval = new ApplicationDbContext(options))
         {
             var page = Page(approval, admin.Id); page.BoardVersion = 1;
-            await page.OnPostApproveAsync(bingoEvent.Id, CancellationToken.None);
+            await page.OnPostApproveAsync(bingoEvent.Id, false, CancellationToken.None);
         }
         await using (var release = new ApplicationDbContext(options))
         {
@@ -442,11 +448,43 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         {
             var readiness = await new Bingo.Infrastructure.Events.EventLifecycleService(prePublication, null!, TimeProvider.System).GetStartReadinessAsync(bingoEvent.Id);
             Assert.Contains(readiness!.Blockers, x => x.Code == "BOARD_NOT_PUBLISHED");
+            Assert.True((await prePublication.Events.Where(x => x.Id == bingoEvent.Id).Select(x => x.EventStartsAt).SingleAsync()) < now);
+        }
+        await using (var missingConfirmationFactory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString())))
+        {
+            using var missingConfirmationClient = missingConfirmationFactory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+            await LoginAsync(missingConfirmationClient, admin.LoginName);
+            var missingBoardPage = await missingConfirmationClient.GetStringAsync($"/Admin/Events/Board/{bingoEvent.Id}");
+            using var missingResponse = await PostAsync(missingConfirmationClient, $"/Admin/Events/Board/{bingoEvent.Id}?handler=Publish", missingBoardPage, new Dictionary<string, string>
+            {
+                ["BoardVersion"] = "2"
+            });
+            Assert.Equal(HttpStatusCode.Redirect, missingResponse.StatusCode);
+        }
+        await using (var missingConfirmation = new ApplicationDbContext(options))
+        {
+            var page = Page(missingConfirmation, admin.Id); page.BoardVersion = 2;
+            Assert.IsType<RedirectToPageResult>(await page.OnPostPublishAsync(bingoEvent.Id, false, CancellationToken.None));
+        }
+        await using (var staleConfirmation = new ApplicationDbContext(options))
+        {
+            var page = Page(staleConfirmation, admin.Id); page.BoardVersion = 1;
+            Assert.IsType<RedirectToPageResult>(await page.OnPostPublishAsync(bingoEvent.Id, true, CancellationToken.None));
+        }
+        await using (var rejectedPublication = new ApplicationDbContext(options))
+        {
+            var unchangedBoard = await rejectedPublication.Boards.AsNoTracking().SingleAsync(x => x.Id == board.Id);
+            var unchangedEvent = await rejectedPublication.Events.AsNoTracking().SingleAsync(x => x.Id == bingoEvent.Id);
+            Assert.Equal(BoardState.Validated, unchangedBoard.State);
+            Assert.Equal(2, unchangedBoard.Version);
+            Assert.NotNull(unchangedBoard.ActiveApprovalSnapshotId);
+            Assert.False(unchangedEvent.BoardPublished);
+            Assert.Equal(0, await rejectedPublication.AuditEntries.CountAsync(x => x.EventId == bingoEvent.Id && x.Action == "board.published"));
         }
         await using (var publication = new ApplicationDbContext(options))
         {
             var page = Page(publication, admin.Id); page.BoardVersion = 2;
-            await page.OnPostPublishAsync(bingoEvent.Id, CancellationToken.None);
+            await page.OnPostPublishAsync(bingoEvent.Id, true, CancellationToken.None);
         }
         await using var verify = new ApplicationDbContext(options);
         var published = await verify.Boards.SingleAsync(x => x.Id == board.Id);
@@ -521,12 +559,47 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         var afterEditPublicBoard = await new Bingo.Infrastructure.Boards.PublicBoardService(verify, TimeProvider.System).GetEventBoardAsync(bingoEvent.Slug);
         Assert.Equal("Manual tile", Assert.Single(afterEditPublicBoard!.Teams.Single().Tiles).Name);
 
+        await using (var missingReplacementConfirmation = new ApplicationDbContext(options))
+        {
+            var currentVersion = await missingReplacementConfirmation.Boards.Where(value => value.Id == board.Id).Select(value => value.Version).SingleAsync();
+            var page = Page(missingReplacementConfirmation, admin.Id);
+            page.BoardVersion = currentVersion;
+            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, false, CancellationToken.None));
+        }
+        await using (var staleReplacementConfirmation = new ApplicationDbContext(options))
+        {
+            var currentVersion = await staleReplacementConfirmation.Boards.Where(value => value.Id == board.Id).Select(value => value.Version).SingleAsync();
+            var page = Page(staleReplacementConfirmation, admin.Id);
+            page.BoardVersion = currentVersion - 1;
+            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, true, CancellationToken.None));
+        }
+        var failingReplacementOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(new ThrowOnAuditInsert()).Options;
+        await using (var failingReplacement = new ApplicationDbContext(failingReplacementOptions))
+        {
+            var currentVersion = await failingReplacement.Boards.Where(value => value.Id == board.Id).Select(value => value.Version).SingleAsync();
+            var page = Page(failingReplacement, admin.Id);
+            page.BoardVersion = currentVersion;
+            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, true, CancellationToken.None));
+        }
+        await using (var afterReplacementFailures = new ApplicationDbContext(options))
+        {
+            var unchanged = await afterReplacementFailures.Boards.AsNoTracking().SingleAsync(value => value.Id == board.Id);
+            Assert.Equal(originalApprovalId, unchanged.ActiveApprovalSnapshotId);
+            Assert.True(unchanged.PublishedCorrectionInProgress);
+            Assert.Equal(5, unchanged.Version);
+            Assert.Single(await afterReplacementFailures.BoardApprovalSnapshots.Where(value => value.BoardId == board.Id).ToListAsync());
+            Assert.Single(await afterReplacementFailures.AuditEntries.Where(value => value.EventId == bingoEvent.Id && value.Action == "board.published_correction_started").ToListAsync());
+            Assert.Empty(await afterReplacementFailures.AuditEntries.Where(value => value.EventId == bingoEvent.Id && value.Action == "board.published_corrected").ToListAsync());
+            var unchangedPublicBoard = await new Bingo.Infrastructure.Boards.PublicBoardService(afterReplacementFailures, TimeProvider.System).GetEventBoardAsync(bingoEvent.Slug);
+            Assert.Equal("Manual tile", Assert.Single(unchangedPublicBoard!.Teams.Single().Tiles).Name);
+        }
+
         await using (var replaceApproval = new ApplicationDbContext(options))
         {
             var currentVersion = await replaceApproval.Boards.Where(value => value.Id == board.Id).Select(value => value.Version).SingleAsync();
             var page = Page(replaceApproval, admin.Id);
             page.BoardVersion = currentVersion;
-            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, CancellationToken.None));
+            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, true, CancellationToken.None));
         }
 
         verify.ChangeTracker.Clear();
@@ -555,6 +628,136 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         var retiredImage = await new PublicBoardImageService(verify, retiredStorage).OpenAsync(bingoEvent.Slug, tile.Id, CancellationToken.None);
         Assert.NotEqual(404, (retiredImage as IStatusCodeHttpResult)?.StatusCode);
         Assert.Equal(1, retiredStorage.OpenReadCount);
+    }
+
+    [Theory]
+    [InlineData(EventState.Draft, false, false)]
+    [InlineData(EventState.SignupOpen, false, false)]
+    [InlineData(EventState.SignupClosed, false, true)]
+    [InlineData(EventState.Live, false, true)]
+    [InlineData(EventState.AwaitingFinalReview, false, true)]
+    [InlineData(EventState.Finalized, false, false)]
+    [InlineData(EventState.Archived, false, false)]
+    [InlineData(EventState.Cancelled, false, false)]
+    [InlineData(EventState.Discarded, false, false)]
+    [InlineData(EventState.AwaitingFinalReview, true, false)]
+    public async Task PublishedCorrectionBoundaryAllowsOnlyOperationalEventStates(EventState targetState, bool hidden, bool allowed)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var admin = Website($"slice6-correction-boundary-{Guid.NewGuid():N}", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var eventId = Guid.NewGuid();
+        var originalApprovalId = await CreatePublishedCorrectionFixtureAsync(eventId, targetState, hidden, admin, now);
+
+        await using (var startCorrection = new ApplicationDbContext(options))
+        {
+            var page = Page(startCorrection, admin.Id);
+            Assert.IsType<RedirectToPageResult>(await page.OnPostCorrectPublishedAsync(eventId, true, "Boundary correction test.", CancellationToken.None));
+        }
+
+        await using (var afterStartCorrection = new ApplicationDbContext(options))
+        {
+            var board = await afterStartCorrection.Boards.AsNoTracking().SingleAsync(value => value.EventId == eventId);
+            Assert.Equal(allowed, board.PublishedCorrectionInProgress);
+        }
+
+        if (!allowed)
+        {
+            await using var staleWorkspace = new ApplicationDbContext(options);
+            var board = await staleWorkspace.Boards.SingleAsync(value => value.EventId == eventId);
+            Assert.False(board.PublishedCorrectionInProgress);
+            board.BeginPublishedCorrection();
+            board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
+            await staleWorkspace.SaveChangesAsync();
+        }
+
+        long workspaceVersion;
+        await using (var beforePublication = new ApplicationDbContext(options))
+        {
+            var board = await beforePublication.Boards.AsNoTracking().SingleAsync(value => value.EventId == eventId);
+            workspaceVersion = board.Version;
+            Assert.True(board.PublishedCorrectionInProgress);
+            Assert.Equal(originalApprovalId, board.ActiveApprovalSnapshotId);
+        }
+
+        await using (var publishCorrection = new ApplicationDbContext(options))
+        {
+            var page = Page(publishCorrection, admin.Id);
+            page.BoardVersion = workspaceVersion;
+            var result = await page.OnPostApproveAsync(eventId, true, CancellationToken.None);
+            if (hidden)
+                Assert.IsType<NotFoundResult>(result);
+            else
+                Assert.IsType<RedirectToPageResult>(result);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var finalBoard = await verify.Boards.AsNoTracking().SingleAsync(value => value.EventId == eventId);
+        if (allowed)
+        {
+            Assert.Equal(BoardState.Published, finalBoard.State);
+            Assert.False(finalBoard.PublishedCorrectionInProgress);
+            Assert.NotEqual(originalApprovalId, finalBoard.ActiveApprovalSnapshotId);
+            var replacement = await verify.BoardApprovalSnapshots.SingleAsync(value => value.Id == finalBoard.ActiveApprovalSnapshotId);
+            Assert.Equal(originalApprovalId, replacement.SupersedesApprovalSnapshotId);
+            Assert.Equal(2, await verify.BoardApprovalSnapshots.CountAsync(value => value.BoardId == finalBoard.Id));
+            Assert.Single(await verify.AuditEntries.Where(value => value.EventId == eventId && value.Action == "board.published_corrected").ToListAsync());
+        }
+        else
+        {
+            Assert.True(finalBoard.PublishedCorrectionInProgress);
+            Assert.Equal(workspaceVersion, finalBoard.Version);
+            Assert.Equal(originalApprovalId, finalBoard.ActiveApprovalSnapshotId);
+            Assert.Single(await verify.BoardApprovalSnapshots.Where(value => value.BoardId == finalBoard.Id).ToListAsync());
+            Assert.Empty(await verify.AuditEntries.Where(value => value.EventId == eventId && value.Action == "board.published_corrected").ToListAsync());
+        }
+    }
+
+    private async Task<Guid> CreatePublishedCorrectionFixtureAsync(Guid eventId, EventState targetState, bool hidden, Account admin, DateTimeOffset now, int columns = 1)
+    {
+        var bingoEvent = new BingoEvent(eventId, $"Correction boundary {eventId:N}", $"correction-boundary-{eventId:N}", "UTC", admin.Id, now);
+        bingoEvent.ConfigureSchedule(now.AddDays(-3), now.AddDays(-2), null, now.AddDays(-1), now.AddDays(2), 10);
+        if (targetState == EventState.SignupOpen)
+        {
+            bingoEvent.OpenSignups(now.AddDays(-2));
+        }
+        else if (targetState is not EventState.Draft and not EventState.Discarded)
+        {
+            bingoEvent.OpenSignups(now.AddDays(-2));
+            bingoEvent.CloseSignups(now.AddDays(-1));
+            if (targetState is EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived)
+                bingoEvent.StartEvent(now.AddHours(-2));
+            if (targetState is EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived)
+                bingoEvent.EndEvent(now.AddHours(-1));
+            if (targetState is EventState.Finalized or EventState.Archived)
+                bingoEvent.FinalizeResults(now.AddMinutes(-30));
+            if (targetState == EventState.Archived)
+                bingoEvent.Archive(now.AddMinutes(-15));
+            if (targetState == EventState.Cancelled)
+                bingoEvent.Cancel(admin.Id, now.AddMinutes(-10), "Boundary cancellation.", protectedHistoryExists: true);
+        }
+        if (targetState == EventState.Discarded)
+            bingoEvent.Discard(admin.Id, now.AddMinutes(-10), protectedHistoryExists: false);
+        if (hidden)
+            bingoEvent.Hide(admin.Id, now.AddMinutes(-5), bingoEvent.Name, "Boundary hidden event.");
+
+        var board = new Board(Guid.NewGuid(), eventId, "Boundary board", 1, columns);
+        var template = new TileTemplate(Guid.NewGuid(), "Boundary tile", "Boundary", ObjectiveType.Manual, string.Empty, 4m);
+        var tiles = Enumerable.Range(0, columns)
+            .Select(index => new BoardTile(Guid.NewGuid(), board.Id, template.Id, 0, index, "Boundary tile", "Boundary", string.Empty, 4m))
+            .ToArray();
+        var requirements = tiles
+            .Select(tile => new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 1, 1, true, false, "Complete the boundary objective", true))
+            .ToArray();
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(admin, bingoEvent, board, template);
+            setup.AddRange(tiles);
+            setup.AddRange(requirements);
+            await BoardApprovalFixture.PublishAsync(setup, board, now, tiles, requirements);
+        }
+
+        return board.ActiveApprovalSnapshotId!.Value;
     }
 
     [Fact]
@@ -634,7 +837,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         await using (var approval = new ApplicationDbContext(options))
         {
             var page = Page(approval, admin.Id); page.BoardVersion = 1;
-            await page.OnPostApproveAsync(bingoEvent.Id, CancellationToken.None);
+            await page.OnPostApproveAsync(bingoEvent.Id, false, CancellationToken.None);
         }
         await using (var release = new ApplicationDbContext(options))
         {
@@ -647,13 +850,288 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         await using var secondContext = new ApplicationDbContext(options);
         var first = Page(firstContext, admin.Id); first.BoardVersion = 2;
         var second = Page(secondContext, admin.Id); second.BoardVersion = 2;
-        await Task.WhenAll(first.OnPostPublishAsync(bingoEvent.Id, CancellationToken.None), second.OnPostPublishAsync(bingoEvent.Id, CancellationToken.None));
+        await Task.WhenAll(first.OnPostPublishAsync(bingoEvent.Id, true, CancellationToken.None), second.OnPostPublishAsync(bingoEvent.Id, true, CancellationToken.None));
 
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(BoardState.Published, await verify.Boards.Where(x => x.Id == board.Id).Select(x => x.State).SingleAsync());
         Assert.True(await verify.Events.Where(x => x.Id == bingoEvent.Id).Select(x => x.BoardPublished).SingleAsync());
         Assert.Single(await verify.BoardApprovalSnapshots.Where(x => x.BoardId == board.Id).ToListAsync());
         Assert.Single(await verify.AuditEntries.Where(x => x.EventId == bingoEvent.Id && x.Action == "board.published").ToListAsync());
+    }
+
+    [Fact]
+    public async Task CancellationWinningAgainstCorrectedPublicationLeavesNoReplacementResidue()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var admin = Website($"slice6-correction-cancel-race-{Guid.NewGuid():N}", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var eventId = Guid.NewGuid();
+        var originalApprovalId = await CreatePublishedCorrectionFixtureAsync(eventId, EventState.SignupClosed, false, admin, now);
+        await using (var protectedHistory = new ApplicationDbContext(options))
+        {
+            protectedHistory.Teams.Add(new Team(Guid.NewGuid(), eventId, "Protected team", $"protected-team-{Guid.NewGuid():N}", TeamFormationType.Preformed, null, false));
+            await protectedHistory.SaveChangesAsync();
+        }
+
+        await using (var startCorrection = new ApplicationDbContext(options))
+        {
+            var page = Page(startCorrection, admin.Id);
+            Assert.IsType<RedirectToPageResult>(await page.OnPostCorrectPublishedAsync(eventId, true, "Cancel race correction.", CancellationToken.None));
+        }
+
+        long boardVersion;
+        long eventVersion;
+        Guid boardId;
+        Guid tileId;
+        Guid templateId;
+        BoardState beforeBoardState;
+        decimal beforeBoardTotal;
+        string beforeTileName;
+        string beforeTemplateName;
+        int beforeBoardCount;
+        int beforeTileCount;
+        int beforeTemplateCount;
+        int beforeApprovalCount;
+        int beforeApprovalTileCount;
+        int beforeApprovalRequirementCount;
+        int beforeAuditCount;
+        await using (var baseline = new ApplicationDbContext(options))
+        {
+            var board = await baseline.Boards.AsNoTracking().SingleAsync(value => value.EventId == eventId);
+            var item = await baseline.Events.AsNoTracking().SingleAsync(value => value.Id == eventId);
+            var tile = await baseline.BoardTiles.AsNoTracking().SingleAsync(value => value.BoardId == board.Id);
+            var template = await baseline.TileTemplates.AsNoTracking().SingleAsync(value => value.Id == tile.TileTemplateId);
+            boardId = board.Id;
+            tileId = tile.Id;
+            templateId = template.Id;
+            boardVersion = board.Version;
+            eventVersion = item.Version;
+            beforeBoardState = board.State;
+            beforeBoardTotal = board.TotalEhbEstimate;
+            beforeTileName = tile.NameSnapshot;
+            beforeTemplateName = template.Name;
+            beforeBoardCount = await baseline.Boards.CountAsync(value => value.Id == boardId);
+            beforeTileCount = await baseline.BoardTiles.CountAsync(value => value.BoardId == boardId);
+            beforeTemplateCount = await baseline.TileTemplates.CountAsync(value => value.Id == templateId);
+            beforeApprovalCount = await baseline.BoardApprovalSnapshots.CountAsync(value => value.BoardId == boardId);
+            beforeApprovalTileCount = await baseline.BoardApprovalTileSnapshots.CountAsync(value => value.ApprovalSnapshotId == originalApprovalId);
+            beforeApprovalRequirementCount = await baseline.BoardApprovalRequirementSnapshots.CountAsync();
+            beforeAuditCount = await baseline.AuditEntries.CountAsync(value => value.EventId == eventId);
+        }
+
+        var cancellationBarrier = new CancellationSaveBarrier();
+        var publicationBarrier = new PublicationEventQueryBarrier();
+        var cancellationOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(cancellationBarrier).Options;
+        await using var cancellationContext = new ApplicationDbContext(cancellationOptions);
+        var cancellation = new Bingo.Infrastructure.Events.EventDestructiveLifecycleService(cancellationContext, TimeProvider.System)
+            .CancelAsync(eventId, eventVersion, true, "Cancel the correction race.", new LifecycleActor(admin.Id, admin.PublicUsername!), CancellationToken.None);
+        var cancellationOrBarrier = await Task.WhenAny(cancellation, cancellationBarrier.Ready.Task).WaitAsync(TimeSpan.FromSeconds(10));
+        if (ReferenceEquals(cancellationOrBarrier, cancellation))
+        {
+            var result = await cancellation;
+            Assert.True(result.Succeeded, result.Error);
+            Assert.Fail("Cancellation completed before its save barrier was reached.");
+        }
+
+        var publicationOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(publicationBarrier).Options;
+        await using var publicationContext = new ApplicationDbContext(publicationOptions);
+        var publicationPage = Page(publicationContext, admin.Id);
+        publicationPage.BoardVersion = boardVersion;
+        var publication = publicationPage.OnPostApproveAsync(eventId, true, CancellationToken.None);
+        Task observed;
+        try
+        {
+            observed = await Task.WhenAny(publicationBarrier.NonLockingEventRead.Task, publicationBarrier.LockingEventReadAttempted.Task)
+                .WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        catch
+        {
+            cancellationBarrier.Release.TrySetResult(true);
+            publicationBarrier.ReleaseNonLockingEventRead.TrySetResult(true);
+            await cancellation;
+            await publication;
+            throw;
+        }
+
+        Assert.True(ReferenceEquals(observed, publicationBarrier.NonLockingEventRead.Task) || ReferenceEquals(observed, publicationBarrier.LockingEventReadAttempted.Task));
+        cancellationBarrier.Release.TrySetResult(true);
+        var cancellationResult = await cancellation;
+        Assert.True(cancellationResult.Succeeded, cancellationResult.Error);
+        publicationBarrier.ReleaseNonLockingEventRead.TrySetResult(true);
+        await publication;
+
+        await using var verify = new ApplicationDbContext(options);
+        var afterBoard = await verify.Boards.AsNoTracking().SingleAsync(value => value.Id == boardId);
+        var afterEvent = await verify.Events.AsNoTracking().SingleAsync(value => value.Id == eventId);
+        Assert.Equal(EventState.Cancelled, afterEvent.State);
+        Assert.Equal(beforeBoardState, afterBoard.State);
+        Assert.Equal(boardVersion, afterBoard.Version);
+        Assert.Equal(beforeBoardTotal, afterBoard.TotalEhbEstimate);
+        Assert.Equal(originalApprovalId, afterBoard.ActiveApprovalSnapshotId);
+        Assert.True(afterBoard.PublishedCorrectionInProgress);
+        Assert.Equal(beforeBoardCount, await verify.Boards.CountAsync(value => value.Id == boardId));
+        Assert.Equal(beforeTileCount, await verify.BoardTiles.CountAsync(value => value.BoardId == boardId));
+        Assert.Equal(beforeTemplateCount, await verify.TileTemplates.CountAsync(value => value.Id == templateId));
+        Assert.Equal(beforeApprovalCount, await verify.BoardApprovalSnapshots.CountAsync(value => value.BoardId == boardId));
+        Assert.Equal(beforeApprovalTileCount, await verify.BoardApprovalTileSnapshots.CountAsync(value => value.ApprovalSnapshotId == originalApprovalId));
+        Assert.Equal(beforeApprovalRequirementCount, await verify.BoardApprovalRequirementSnapshots.CountAsync());
+        Assert.Equal(beforeTileName, await verify.BoardTiles.Where(value => value.Id == tileId).Select(value => value.NameSnapshot).SingleAsync());
+        Assert.Equal(beforeTemplateName, await verify.TileTemplates.Where(value => value.Id == templateId).Select(value => value.Name).SingleAsync());
+        Assert.Equal(beforeAuditCount + 1, await verify.AuditEntries.CountAsync(value => value.EventId == eventId));
+        Assert.Single(await verify.AuditEntries.Where(value => value.EventId == eventId && value.Action == "board.published_correction_started").ToListAsync());
+        Assert.Single(await verify.AuditEntries.Where(value => value.EventId == eventId && value.Action == "event.cancelled").ToListAsync());
+        Assert.Empty(await verify.AuditEntries.Where(value => value.EventId == eventId && value.Action == "board.published_corrected").ToListAsync());
+    }
+
+    [Theory]
+    [InlineData("edit", EventState.Finalized)]
+    [InlineData("move", EventState.Archived)]
+    [InlineData("remove", EventState.Cancelled)]
+    public async Task AuthenticatedTerminalPublishedCorrectionWorkspaceMutationsLeaveHistoryUnchanged(string operation, EventState terminalState)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var admin = Website($"slice6-stale-correction-{operation}-{Guid.NewGuid():N}", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        SetPassword(admin, now);
+        var eventId = Guid.NewGuid();
+        await CreatePublishedCorrectionFixtureAsync(eventId, terminalState, false, admin, now, columns: 2);
+
+        Guid boardId;
+        Guid firstTileId;
+        Guid templateId;
+        long boardVersion;
+        BoardState beforeBoardState;
+        Guid? beforeApprovalId;
+        bool beforeCorrection;
+        decimal beforeBoardTotal;
+        string beforeTemplateName;
+        string beforeTemplateDescription;
+        List<BoardTile> beforeTiles;
+        int beforeBoardCount;
+        int beforeTemplateCount;
+        int beforeApprovalCount;
+        int beforeAuditCount;
+        await using (var staleWorkspace = new ApplicationDbContext(options))
+        {
+            var board = await staleWorkspace.Boards.SingleAsync(value => value.EventId == eventId);
+            var tiles = await staleWorkspace.BoardTiles.Where(value => value.BoardId == board.Id).OrderBy(value => value.ColumnIndex).ToListAsync();
+            board.BeginPublishedCorrection();
+            board.AcquireEditing(admin.Id, now, TimeSpan.FromMinutes(5));
+            await staleWorkspace.SaveChangesAsync();
+            boardId = board.Id;
+            firstTileId = tiles[0].Id;
+            templateId = tiles[0].TileTemplateId;
+            boardVersion = board.Version;
+            beforeBoardState = board.State;
+            beforeApprovalId = board.ActiveApprovalSnapshotId;
+            beforeCorrection = board.PublishedCorrectionInProgress;
+            beforeBoardTotal = board.TotalEhbEstimate;
+            var template = await staleWorkspace.TileTemplates.AsNoTracking().SingleAsync(value => value.Id == templateId);
+            beforeTemplateName = template.Name;
+            beforeTemplateDescription = template.Description;
+            beforeTiles = await staleWorkspace.BoardTiles.AsNoTracking().Where(value => value.BoardId == boardId).ToListAsync();
+            beforeBoardCount = await staleWorkspace.Boards.CountAsync(value => value.Id == boardId);
+            beforeTemplateCount = await staleWorkspace.TileTemplates.CountAsync(value => value.Id == templateId);
+            beforeApprovalCount = await staleWorkspace.BoardApprovalSnapshots.CountAsync(value => value.BoardId == boardId);
+            beforeAuditCount = await staleWorkspace.AuditEntries.CountAsync(value => value.EventId == eventId);
+        }
+
+        async Task AssertUnchangedAsync()
+        {
+            await using var verify = new ApplicationDbContext(options);
+            var board = await verify.Boards.AsNoTracking().SingleAsync(value => value.Id == boardId);
+            var tiles = await verify.BoardTiles.AsNoTracking().Where(value => value.BoardId == boardId).ToListAsync();
+            var template = await verify.TileTemplates.AsNoTracking().SingleAsync(value => value.Id == templateId);
+            Assert.Equal(beforeBoardState, board.State);
+            Assert.Equal(boardVersion, board.Version);
+            Assert.Equal(beforeApprovalId, board.ActiveApprovalSnapshotId);
+            Assert.Equal(beforeCorrection, board.PublishedCorrectionInProgress);
+            Assert.Equal(beforeBoardTotal, board.TotalEhbEstimate);
+            Assert.Equal(beforeBoardCount, await verify.Boards.CountAsync(value => value.Id == boardId));
+            Assert.Equal(beforeTemplateCount, await verify.TileTemplates.CountAsync(value => value.Id == templateId));
+            Assert.Equal(beforeApprovalCount, await verify.BoardApprovalSnapshots.CountAsync(value => value.BoardId == boardId));
+            Assert.Equal(beforeAuditCount, await verify.AuditEntries.CountAsync(value => value.EventId == eventId));
+            Assert.Equal(beforeTemplateName, template.Name);
+            Assert.Equal(beforeTemplateDescription, template.Description);
+            Assert.Equal(beforeTiles.Count, tiles.Count);
+            foreach (var beforeTile in beforeTiles)
+            {
+                var afterTile = Assert.Single(tiles, value => value.Id == beforeTile.Id);
+                Assert.Equal(beforeTile.NameSnapshot, afterTile.NameSnapshot);
+                Assert.Equal(beforeTile.DescriptionSnapshot, afterTile.DescriptionSnapshot);
+                Assert.Equal(beforeTile.RowIndex, afterTile.RowIndex);
+                Assert.Equal(beforeTile.ColumnIndex, afterTile.ColumnIndex);
+                Assert.Equal(beforeTile.EstimatedEhbSnapshot, afterTile.EstimatedEhbSnapshot);
+            }
+        }
+
+        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, admin.LoginName);
+        var managePage = await client.GetStringAsync($"/Admin/Events/Manage/{eventId}");
+        var boardPath = $"/Admin/Events/Board/{eventId}";
+        string path;
+        IReadOnlyDictionary<string, string> values;
+        if (operation == "edit")
+        {
+            path = $"{boardPath}?handler=EditTile";
+            values = new Dictionary<string, string>
+            {
+                ["BoardVersion"] = boardVersion.ToString(CultureInfo.InvariantCulture),
+                ["TileDraft.TileId"] = firstTileId.ToString(),
+                ["TileDraft.Position"] = "0",
+                ["TileDraft.Name"] = "Stale edit",
+                ["TileDraft.Description"] = "Stale description",
+                ["TileDraft.ManualEhb"] = "99",
+                ["TileDraft.Requirements[0].Kind"] = "challenge",
+                ["TileDraft.Requirements[0].Description"] = "Stale objective",
+                ["TileDraft.Requirements[0].Target"] = "1"
+            };
+        }
+        else if (operation == "move")
+        {
+            path = $"{boardPath}?handler=Move&sourceId={firstTileId}&targetPosition=1";
+            values = new Dictionary<string, string>();
+        }
+        else
+        {
+            path = $"{boardPath}?handler=Remove&tileId={firstTileId}";
+            values = new Dictionary<string, string>();
+        }
+        using (var response = await PostAsync(client, path, managePage, values))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            Assert.Equal($"/Admin/Events/Manage/{eventId}", response.Headers.Location?.OriginalString);
+        }
+        await AssertUnchangedAsync();
+
+        await using (var direct = new ApplicationDbContext(options))
+        {
+            var page = Page(direct, admin.Id);
+            if (operation == "edit")
+            {
+                page.BoardVersion = boardVersion;
+                page.TileDraft = new BoardModel.TileDraftInput
+                {
+                    TileId = firstTileId,
+                    Position = 0,
+                    Name = "Stale direct edit",
+                    Description = "Stale direct description",
+                    ManualEhb = 99m,
+                    Requirements = [new BoardModel.RequirementInput { Kind = "challenge", Description = "Stale direct objective", Target = 1 }]
+                };
+                Assert.IsType<RedirectToPageResult>(await page.OnPostEditTileAsync(eventId, CancellationToken.None));
+            }
+            else if (operation == "move")
+            {
+                Assert.IsType<RedirectToPageResult>(await page.OnPostMoveAsync(eventId, firstTileId, 1, CancellationToken.None));
+            }
+            else
+            {
+                Assert.IsType<RedirectToPageResult>(await page.OnPostRemoveAsync(eventId, firstTileId, CancellationToken.None));
+            }
+        }
+        await AssertUnchangedAsync();
     }
 
     [Fact]
@@ -680,12 +1158,12 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         await using (var incompleteAttempt = new ApplicationDbContext(options))
         {
             var page = Page(incompleteAttempt, admin.Id); page.BoardVersion = 1;
-            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(incompleteEvent.Id, CancellationToken.None));
+            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(incompleteEvent.Id, false, CancellationToken.None));
         }
         await using (var missingEhbAttempt = new ApplicationDbContext(options))
         {
             var page = Page(missingEhbAttempt, admin.Id); page.BoardVersion = 1;
-            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(missingEhbEvent.Id, CancellationToken.None));
+            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(missingEhbEvent.Id, false, CancellationToken.None));
         }
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(BoardState.Draft, await verify.Boards.Where(x => x.Id == incompleteBoard.Id).Select(x => x.State).SingleAsync());
@@ -714,7 +1192,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         await using var secondContext = new ApplicationDbContext(options);
         var first = Page(firstContext, admin.Id); first.BoardVersion = 1;
         var second = Page(secondContext, admin.Id); second.BoardVersion = 1;
-        await Task.WhenAll(first.OnPostApproveAsync(bingoEvent.Id, CancellationToken.None), second.OnPostApproveAsync(bingoEvent.Id, CancellationToken.None));
+        await Task.WhenAll(first.OnPostApproveAsync(bingoEvent.Id, false, CancellationToken.None), second.OnPostApproveAsync(bingoEvent.Id, false, CancellationToken.None));
 
         await using var verify = new ApplicationDbContext(options);
         var finalBoard = await verify.Boards.SingleAsync(x => x.Id == board.Id);
@@ -769,6 +1247,54 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
     {
         public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();
         public void SaveTempData(HttpContext context, IDictionary<string, object> values) { }
+    }
+
+    private sealed class ThrowOnAuditInsert : SaveChangesInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default) =>
+            eventData.Context!.ChangeTracker.Entries<AuditEntry>().Any(entry => entry.State == EntityState.Added)
+                ? ValueTask.FromException<InterceptionResult<int>>(new InvalidOperationException("Simulated audit persistence failure."))
+                : ValueTask.FromResult(result);
+    }
+
+    private sealed class CancellationSaveBarrier : SaveChangesInterceptor
+    {
+        public TaskCompletionSource<bool> Ready { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            Ready.TrySetResult(true);
+            await Release.Task.WaitAsync(cancellationToken);
+            return result;
+        }
+    }
+
+    private sealed class PublicationEventQueryBarrier : DbCommandInterceptor
+    {
+        public TaskCompletionSource<bool> NonLockingEventRead { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> LockingEventReadAttempted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> ReleaseNonLockingEventRead { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            if (IsEventSelect(command.CommandText) && IsLocking(command.CommandText))
+                LockingEventReadAttempted.TrySetResult(true);
+            return ValueTask.FromResult(result);
+        }
+
+        public override async ValueTask<DbDataReader> ReaderExecutedAsync(DbCommand command, CommandExecutedEventData eventData, DbDataReader result, CancellationToken cancellationToken = default)
+        {
+            if (IsEventSelect(command.CommandText) && !IsLocking(command.CommandText))
+            {
+                NonLockingEventRead.TrySetResult(true);
+                await ReleaseNonLockingEventRead.Task.WaitAsync(cancellationToken);
+            }
+            return result;
+        }
+
+        private static bool IsEventSelect(string commandText) => commandText.Contains("SELECT", StringComparison.OrdinalIgnoreCase) && commandText.Contains("events", StringComparison.OrdinalIgnoreCase);
+        private static bool IsLocking(string commandText) => commandText.Contains("FOR UPDATE", StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class TestStorage : IEvidenceStorage

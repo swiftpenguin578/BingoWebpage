@@ -25,7 +25,9 @@ public sealed record PublicEventBoard(
     IReadOnlyList<PublicRosterPlayer>? RosterPlayers = null,
     long? WiseOldManCompetitionId = null, string Timezone = "Europe/Copenhagen");
 
-public sealed record PublicEventResult(string TeamName, string? TeamSlug, bool IsOfficial);
+public sealed record PublicEventResult(string TeamName, string? TeamSlug, bool IsOfficial, IReadOnlyList<PublicEventResultTeam>? Teams = null);
+
+public sealed record PublicEventResultTeam(string TeamName, string? TeamSlug);
 
 public sealed record PublicTeamBoard(
     Guid TeamId, string TeamName, string TeamSlug, string? Affiliation, string? ImageUrl,

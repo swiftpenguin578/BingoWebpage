@@ -18,7 +18,7 @@ public sealed class MyEventsModel(ApplicationDbContext db, IStringLocalizer<Shar
 {
     public IReadOnlyList<EventRow> Current { get; private set; } = [];
     public IReadOnlyList<EventRow> History { get; private set; } = [];
-    public IReadOnlyDictionary<Guid, IReadOnlyList<Guid>> EvidenceHistory { get; private set; } = new Dictionary<Guid, IReadOnlyList<Guid>>();
+    public IReadOnlyDictionary<Guid, IReadOnlyList<EvidenceHistoryItem>> EvidenceHistory { get; private set; } = new Dictionary<Guid, IReadOnlyList<EvidenceHistoryItem>>();
 
     public async Task<IActionResult> OnGetAsync(CancellationToken ct)
     {
@@ -42,8 +42,8 @@ public sealed class MyEventsModel(ApplicationDbContext db, IStringLocalizer<Shar
                                       where historyEventIds.Contains(submission.EventId) && bingoEvent.HiddenAt == null && bingoEvent.State == EventState.Archived && submission.CreditedParticipantId != Guid.Empty &&
                                             (submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Rejected || submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Withdrawn) &&
                                             db.EventParticipants.Any(participant => participant.Id == submission.CreditedParticipantId && participant.AccountId == accountId.Value)
-                                      select new { submission.EventId, asset.Id }).ToListAsync(ct);
-            EvidenceHistory = evidenceRows.GroupBy(x => x.EventId).ToDictionary(group => group.Key, group => (IReadOnlyList<Guid>)group.Select(x => x.Id).ToList());
+                                      select new EvidenceHistoryItem(submission.EventId, submission.Id, asset.Id)).ToListAsync(ct);
+            EvidenceHistory = evidenceRows.GroupBy(x => x.EventId).ToDictionary(group => group.Key, group => (IReadOnlyList<EvidenceHistoryItem>)group.ToList());
         }
         return Page();
     }
@@ -71,6 +71,8 @@ public sealed class MyEventsModel(ApplicationDbContext db, IStringLocalizer<Shar
             _ => "public-ui-state--success"
         }
     };
+
+    public sealed record EvidenceHistoryItem(Guid EventId, Guid SubmissionId, Guid AssetId);
 
     public sealed record EventRow(Guid EventId, string Name, string Slug, EventState State, DateTimeOffset? FirstPublicAt, DateTimeOffset? ActualSignupOpenedAt, bool DraftLocked, bool TeamRostersPublished, bool DraftResultsPublished, bool BoardPublished, bool ResultsPublished, bool RosterExists, bool PublishedBoardExists, Guid ParticipantId, SignupStatus Status, DateTimeOffset SignedUpAt, string? TeamSlug)
     {

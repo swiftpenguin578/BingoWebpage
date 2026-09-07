@@ -98,6 +98,41 @@ public sealed class SignupUiTests
         Assert.DoesNotContain("class=\"form-control\"", markup);
     }
 
+    [Fact]
+    public void EhbFormBoundariesKeepLocalizedEditableInputsAndInvariantSignupTransport()
+    {
+        var root = FindRepositoryRoot();
+        var myAccounts = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Account", "MyAccounts.cshtml"));
+        var myAccountsModel = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Account", "MyAccounts.cshtml.cs"));
+        var onboarding = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Account", "Onboarding.cshtml"));
+        var signup = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Events", "Signup.cshtml"));
+        var signupModel = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Events", "Signup.cshtml.cs"));
+
+        Assert.Contains("CultureInfo.CurrentCulture", myAccounts, StringComparison.Ordinal);
+        Assert.Contains("CultureInfo.CurrentCulture", myAccountsModel, StringComparison.Ordinal);
+        Assert.Contains("asp-for=\"Input.SavedEhb\"", onboarding, StringComparison.Ordinal);
+        Assert.Contains("CultureInfo.InvariantCulture", signup, StringComparison.Ordinal);
+        Assert.Contains("CultureInfo.CurrentCulture", signup, StringComparison.Ordinal);
+        Assert.Contains("NormalizeInvariantEhbAsync", signupModel, StringComparison.Ordinal);
+        Assert.Contains("Request.ReadFormAsync", signupModel, StringComparison.Ordinal);
+        Assert.Contains("NumberStyles.AllowDecimalPoint", signupModel, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PassFourSignupAndOnboardingBoundariesAreExplicit()
+    {
+        var root = FindRepositoryRoot();
+        var markup = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Events", "Signup.cshtml"));
+        var pageModel = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Events", "Signup.cshtml.cs"));
+        var onboardingStyles = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "site.public-ui.css"));
+
+        Assert.Contains("@if (eventQuestions.Any() || Model.EventView.RequireCode)", markup);
+        Assert.Contains("x.Required && x.SystemField == SignupSystemField.PrimaryRegularAccount", pageModel);
+        Assert.Contains(".identity-page--onboarding .onboarding-ehb-control:has", onboardingStyles);
+        Assert.Contains("background: transparent", onboardingStyles);
+        Assert.Contains("border-color: var(--editorial-danger)", onboardingStyles);
+    }
+
     private static string FindRepositoryRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

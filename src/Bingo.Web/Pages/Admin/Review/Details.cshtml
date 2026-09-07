@@ -6,7 +6,8 @@
     ViewData["Title"] = T["Review {0}", Model.Details.Tile];
     ViewData["CompactNavigation"] = true;
     ViewData["AdminPageDescription"] = T["Inspect evidence, resolve its review state, and preserve the audit record."];
-    var reviewable = Model.Details.Status == SubmissionStatus.Pending;
+    var reviewable = Model.ReviewOpen && Model.Details.Status == SubmissionStatus.Pending;
+    var reversible = Model.ReviewOpen && Model.Details.Status == SubmissionStatus.Approved;
     var statusModifier = Model.Details.Status switch
     {
         SubmissionStatus.Pending => "is-yellow",
@@ -61,7 +62,7 @@
 
                 @if (currentAsset is { } asset)
                 {
-                    <button type="button" class="admin-review-evidence-trigger" onclick="document.getElementById('evidence-lightbox').showModal()" aria-haspopup="dialog" aria-controls="evidence-lightbox">
+                    <button type="button" class="admin-review-evidence-trigger" data-evidence-image="/Evidence/@asset.Id" data-evidence-alt='@T["Evidence screenshot enlarged"]' aria-haspopup="dialog" aria-controls="evidence-lightbox">
                         <img src="/Evidence/@asset.Id" alt='@T["Evidence screenshot"]' />
                         <span>@T["Open evidence viewer"]</span>
                     </button>
@@ -70,12 +71,12 @@
                         <span>@asset.Width×@asset.Height · @(asset.Bytes / 1024) KB</span>
                         <a href="/Evidence/@asset.Id" target="_blank" rel="noopener">@T["Open original asset"]</a>
                     </div>
-                    <dialog id="evidence-lightbox" class="admin-review-lightbox" aria-labelledby="evidence-lightbox-title" onclick="if(event.target===this)this.close()">
+                    <dialog id="evidence-lightbox" class="admin-review-lightbox" data-evidence-dialog data-evidence-empty="@T["Evidence"]" data-enlarged-evidence='@T["Evidence screenshot enlarged"]' aria-labelledby="evidence-lightbox-title">
                         <div class="admin-review-lightbox-heading">
                             <strong id="evidence-lightbox-title">@T["Evidence screenshot"]</strong>
-                            <button type="button" class="admin-review-lightbox-close" onclick="this.closest('dialog').close()" aria-label='@T["Close evidence viewer"]'>×</button>
+                            <button type="button" class="admin-review-lightbox-close" data-evidence-close aria-label='@T["Close evidence viewer"]'>×</button>
                         </div>
-                        <img src="/Evidence/@asset.Id" alt='@T["Evidence screenshot enlarged"]' />
+                        <div class="admin-review-lightbox__viewport" data-evidence-viewport><img data-evidence-dialog-image alt="" tabindex="0" /></div>
                     </dialog>
                 }
                 else
@@ -182,7 +183,7 @@
                                 </select>
                             </div>
                         </div>
-                        <p class="admin-review-form-note">@T["Submission time, weight, contribution, and active evidence asset remain unchanged. The participant is derived from the selected event character."]</p>
+                        <p class="admin-review-form-note">@T["Submission time, contribution, and active evidence asset remain unchanged. The selected requirement or drop supplies the authoritative weight, and the participant is derived from the selected event character."]</p>
                         <div class="admin-review-form-field">
                             <label asp-for="Input.Reason">@T["Written correction reason"]</label>
                             <textarea asp-for="Input.Reason" required aria-describedby="metadata-correction-reason-hint"></textarea>
@@ -270,7 +271,7 @@
                         <button class="admin-button-secondary action-danger-outline" type="submit">@T["Reject evidence"]</button>
                     </form>
                 }
-                @if (Model.Details.Status == SubmissionStatus.Approved)
+                @if (reversible)
                 {
                     <form method="post" asp-page-handler="Reverse" class="admin-review-action-form" onsubmit="return confirm('Reverse this approval and remove its exact contribution?');">
                         <input asp-for="Input.ExpectedVersion" type="hidden" />
@@ -280,7 +281,7 @@
                         <button class="admin-button-secondary action-danger-outline" type="submit">@T["Reverse approval"]</button>
                     </form>
                 }
-                @if (!reviewable && Model.Details.Status != SubmissionStatus.Approved)
+                @if (!reviewable && !reversible)
                 {
                     <p class="admin-review-empty-note">@T["No review action is available for this submission state."]</p>
                 }
@@ -288,3 +289,7 @@
         </aside>
     </div>
 </section>
+
+@section Scripts {
+    <script src="~/js/public-evidence.js" asp-append-version="true"></script>
+}

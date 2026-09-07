@@ -213,6 +213,12 @@ full-bleed masthead-bottom divider belongs to the masthead itself and is removed
 from page-content flow; it must not be implemented as the content wrapper's top
 edge or as a grid item that forces the content to full viewport width.
 
+The public Teams/Hold roster uses this sibling row only after the event Board is
+published. Its existing roster masthead remains page-owned and unchanged beneath
+the row; it does not inherit or duplicate the Board overview masthead. Before
+Board publication the roster remains a standalone destination with the ordinary
+top gap and no links into the unavailable Board family.
+
 The Privacy masthead is the implementation authority for the ordinary Public
 UI masthead text stack. Its present roles map to a shared semantic copy role:
 the kicker is Barlow Condensed Public UI 600 at `1.1rem/1` with `.045em`
@@ -624,6 +630,12 @@ read transition and reach the authorized stored destination; personal evidence
   treatment, and a logical source order. Dialog open focuses meaningful
   content.
 - Long dialog content scrolls inside its content region.
+- Evidence-image dialogs preserve their existing open/close and focus contract and
+  provide labeled zoom-in, zoom-out, and reset controls plus panning while zoomed.
+  Wheel/trackpad and practical touch gestures may enhance the same state; keyboard
+  users can operate every required control. Transforms reset whenever the dialog
+  closes or its image changes, never move controls off-screen, and preserve
+  responsive containment, Escape/backdrop closure, themes, and reduced motion.
 - `prefers-reduced-motion` disables or minimizes transitions and overlay
   animation. Toasts pause while hovered or focused and dismiss by Escape or
   their labeled button.
@@ -703,7 +715,7 @@ cannot approve visual fidelity.
 
 For each major unapproved UI page/pass, use this workflow:
 
-1. Before first implementation, one independent read-only Terra High
+1. Before first implementation, one independent read-only Sol High
    rendered-page readiness/residue review compares the relevant rendered states
    with this document, `UI_PAGE_MATRIX.md`, and the named canonical references.
    It produces a numbered implementation contract stating the exact residue to
@@ -714,15 +726,15 @@ For each major unapproved UI page/pass, use this workflow:
    states as applicable. No separate no-JavaScript state review is required.
 2. The user resolves and approves genuine design decisions before
    implementation.
-3. Luna High implements the smallest complete change against that frozen
+3. Luna Max implements the smallest complete change against that frozen
    checklist; “smallest” means the smallest complete implementation, not the
    smallest diff.
 4. The user supplies current light/dark desktop and narrow/mobile screenshots as
-   applicable. One independent Terra High post-implementation review checks every
+   applicable. One independent Sol High post-implementation review checks every
    numbered item against those screenshots, the complete scoped diff, and the
    canonical reference, reporting each item as satisfied or unsatisfied with
    concrete evidence.
-5. If needed, one fresh Luna High remediation addresses only named failures,
+5. If needed, one fresh Luna Max remediation addresses only named failures,
    followed by the user's focused confirmation rather than another broad review
    unless the composition materially changed.
 6. User manual visual acceptance remains the page-specific approval gate, and

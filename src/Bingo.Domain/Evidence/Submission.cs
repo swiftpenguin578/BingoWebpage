@@ -61,7 +61,7 @@ public sealed class Submission
 
     public void EnsureRejectedResubmissionSource()
     {
-        if (Status != SubmissionStatus.Rejected) throw new InvalidOperationException("Only rejected submissions can create a linked resubmission.");
+        if (Status is not (SubmissionStatus.Rejected or SubmissionStatus.Reversed)) throw new InvalidOperationException("Only rejected or reversed submissions can create a linked resubmission.");
     }
     public void Withdraw(DateTimeOffset at) { if (Status != SubmissionStatus.Pending) throw new InvalidOperationException("Only pending submissions can be withdrawn."); Status = SubmissionStatus.Withdrawn; ReviewedAt = at.ToUniversalTime(); }
     public void Reject(string note, DateTimeOffset at) { if (Status != SubmissionStatus.Pending) throw new InvalidOperationException("Only pending submissions can be rejected."); CurrentReviewerNote = RequireNote(note); Status = SubmissionStatus.Rejected; ReviewedAt = at.ToUniversalTime(); }

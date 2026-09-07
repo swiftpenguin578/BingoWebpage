@@ -58,7 +58,7 @@ internal static class BoardApprovalFixture
         foreach (var drop in frozenDrops)
         {
             db.BoardApprovalRequirementDropSnapshots.Add(new BoardApprovalRequirementDropSnapshot(
-                Guid.NewGuid(), approvalRequirements[drop.RequirementId].Id, drop.SourceDropId,
+                Guid.NewGuid(), approvalRequirements[drop.RequirementId].Id, drop.SourceDropId, drop.ItemIdSnapshot,
                 drop.BossName, drop.ItemName, drop.DisplayRate, drop.NumericProbability,
                 drop.MaximumContribution, drop.EhbPerContribution, drop.CreditedWeight, 1));
         }

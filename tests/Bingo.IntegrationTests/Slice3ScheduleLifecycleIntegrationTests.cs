@@ -1,7 +1,9 @@
 using Bingo.Application.Events;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
+using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
+using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -396,6 +398,129 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
             Assert.Equal(EventState.Draft, (await db.Events.AsNoTracking().SingleAsync(x => x.Id == overlapping)).State);
             Assert.Empty(await db.AuditEntries.Where(x => x.EventId == overlapping).ToListAsync());
         }
+    }
+
+    [Fact]
+    public async Task ScheduleMatrixUsesDraftStateForRunningPausedAndFinalizedEvents()
+    {
+        var actor = new LifecycleActor(Guid.NewGuid(), "schedule-admin");
+        var runningId = await SeedReadyDraftAsync("matrix-running", waitingList: true);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var item = await setup.Events.SingleAsync(x => x.Id == runningId);
+            item.OpenSignups(now);
+            item.CloseSignups(now);
+            var draft = new DraftSession(Guid.NewGuid(), runningId, 1);
+            draft.Start(now.AddMinutes(-10));
+            item.SetDraftLocked(true);
+            setup.DraftSessions.Add(draft);
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var item = await db.Events.AsNoTracking().SingleAsync(x => x.Id == runningId);
+            var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new FixedTimeProvider(now));
+            var rejected = await service.SaveScheduleAsync(runningId, item.Version, Values(item, item.EventEndsAt!.Value.AddDays(1)), true, actor);
+            Assert.False(rejected.Succeeded);
+            Assert.Contains("running or paused", rejected.Error);
+        }
+
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var draft = await setup.DraftSessions.SingleAsync(x => x.EventId == runningId);
+            draft.Pause();
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var item = await db.Events.AsNoTracking().SingleAsync(x => x.Id == runningId);
+            var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new FixedTimeProvider(now));
+            var rejected = await service.SaveScheduleAsync(runningId, item.Version, Values(item, item.EventEndsAt!.Value.AddDays(1)), true, actor);
+            Assert.False(rejected.Succeeded);
+            Assert.Contains("running or paused", rejected.Error);
+        }
+
+        var finalizedId = await SeedReadyDraftAsync("matrix-finalized", waitingList: true, startDays: 10, endDays: 12);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var item = await setup.Events.SingleAsync(x => x.Id == finalizedId);
+            item.OpenSignups(now);
+            item.CloseSignups(now);
+            var draft = new DraftSession(Guid.NewGuid(), finalizedId, 1);
+            draft.Start(now.AddMinutes(-10));
+            draft.Finalize(now.AddMinutes(-5));
+            item.SetDraftLocked(true);
+            setup.DraftSessions.Add(draft);
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var item = await db.Events.AsNoTracking().SingleAsync(x => x.Id == finalizedId);
+            var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new FixedTimeProvider(now));
+            var values = Values(item, now.AddDays(14)) with { EventStartsAt = now.AddDays(13) };
+            var saved = await service.SaveScheduleAsync(finalizedId, item.Version, values, true, actor);
+            Assert.True(saved.Succeeded, saved.Error);
+            var persisted = await db.Events.AsNoTracking().SingleAsync(x => x.Id == finalizedId);
+            Assert.Equal(now.AddDays(13), persisted.EventStartsAt);
+            Assert.Equal(now.AddDays(14).AddMinutes(30), persisted.SubmissionCutoffAt);
+        }
+    }
+
+    [Fact]
+    public async Task LiveEndChangeRequiresConfirmationAndReasonAndRedrivesCutoffAtomically()
+    {
+        var actor = new LifecycleActor(Guid.NewGuid(), "schedule-admin");
+        var eventId = await SeedReadyDraftAsync("live-end-change", waitingList: true);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var item = await setup.Events.SingleAsync(x => x.Id == eventId);
+            item.OpenSignups(now);
+            item.CloseSignups(now);
+            item.StartEvent(now);
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var item = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+            var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new FixedTimeProvider(now));
+            var values = Values(item, item.EventEndsAt!.Value.AddHours(1));
+            Assert.False((await service.SaveScheduleAsync(eventId, item.Version, values, false, actor, reason: "Extend for the live event.")).Succeeded);
+            Assert.Contains("reason", (await service.SaveScheduleAsync(eventId, item.Version, values, true, actor)).Error, StringComparison.OrdinalIgnoreCase);
+            var saved = await service.SaveScheduleAsync(eventId, item.Version, values, true, actor, reason: "Extend for the live event.");
+            Assert.True(saved.Succeeded, saved.Error);
+            var persisted = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+            Assert.Equal(values.EventEndsAt, persisted.EventEndsAt);
+            Assert.Equal(values.EventEndsAt!.Value.AddMinutes(30), persisted.SubmissionCutoffAt);
+            Assert.Single(await db.AuditEntries.Where(x => x.EventId == eventId && x.Action == "event.schedule_updated").ToListAsync());
+        }
+    }
+
+    [Fact]
+    public async Task LiveEndChangeRejectsWiseOldManWindowMismatchWithoutMutation()
+    {
+        var actor = new LifecycleActor(Guid.NewGuid(), "schedule-admin");
+        var eventId = await SeedReadyDraftAsync("live-end-wom", waitingList: true);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var liveItem = await setup.Events.SingleAsync(x => x.Id == eventId);
+            liveItem.OpenSignups(now);
+            liveItem.CloseSignups(now);
+            liveItem.StartEvent(now);
+            setup.EventCompetitionSynchronizations.Add(new EventCompetitionSynchronization(Guid.NewGuid(), eventId, 1, 42, "Live competition", liveItem.EventStartsAt, liveItem.EventEndsAt, "", now));
+            await setup.SaveChangesAsync();
+        }
+
+        await using var db = new ApplicationDbContext(options);
+        var item = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
+        var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new FixedTimeProvider(now));
+        var result = await service.SaveScheduleAsync(eventId, item.Version, Values(item, item.EventEndsAt!.Value.AddMinutes(10)), true, actor, reason: "Extend for the live event.");
+        Assert.False(result.Succeeded);
+        Assert.Contains("within five minutes", result.Error);
+        Assert.Equal(item.EventEndsAt, (await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId)).EventEndsAt);
     }
 
     private async Task<Guid> SeedReadyDraftAsync(string slug, bool waitingList, bool signupClose = true, int startDays = 2, int endDays = 4, bool publicTextQuestion = false)

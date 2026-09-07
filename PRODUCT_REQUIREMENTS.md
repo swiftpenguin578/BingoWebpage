@@ -97,7 +97,7 @@ An authenticated participant can:
 - View their event and team access
 - Submit evidence for themselves when the event/evidence workflow allows it
 - Open a normal authenticated `/Submissions` ledger containing the complete retained history of their current authorized team, including records credited to departed teammates
-- Open `/Submissions/{id:guid}` for any retained submission in that current team; only the credited owner may edit pending evidence, replace its active screenshot, withdraw through cutoff, or create its one linked resubmission after rejection, while every other state and teammate-owned row is read-only
+- Open `/Submissions/{id:guid}` for any retained submission in that current team; only the credited owner may edit pending evidence, replace its active screenshot, withdraw through cutoff, or create its one linked correction after rejection or reversal, while every other state and teammate-owned row is read-only
 - Read team-visible rejection feedback and retained evidence assets when currently authorized; replaced screenshot assets remain retained history
 - Manage a flexible global **My accounts** list with optional personal labels, saved per-link EHB defaults, and ordering whose first active character is the sole preferred character
 - Register several available characters for an event while keeping exactly one active and drop-eligible at a time
@@ -167,7 +167,14 @@ Team focus may target a tile, full row, or full column. It is shared by that tea
 
 ### 5.3 Admin and reviewer
 
-Admins use permanent accounts. An admin may also participate in the event or captain a team. Admins are trusted and may review their own team's submissions.
+Admins use permanent accounts. An Admin or Super Admin may also participate in an
+event or captain/co-captain a team. The global role is additive: when the same
+account has a genuine event Participant, Captain, or Co-captain role, participant
+navigation, team visibility, and submission authority follow that event role and
+its ordinary lifecycle/cutoff. Global status alone grants none of those team
+capabilities and never upgrades one event role into another. Admin review remains
+a separate global capability, including review of the Admin's own team's
+submissions.
 
 They can:
 
@@ -180,7 +187,8 @@ They can:
 - Manage bosses, activities, items, drops, rates, and EHB values
 - Build and deliberately arrange bingo boards
 - Operate and publish the draft
-- Submit evidence for any team when necessary
+- Submit or manage team evidence only through a genuine Participant, Captain, or
+  Co-captain role; global Admin review does not impersonate a team member
 - Review, approve, and reject evidence
 - Correct submission metadata before approval
 - Reverse approved submissions
@@ -196,6 +204,10 @@ hidden events only through the clearly separated Hidden area of Events Control,
 where the limited Manage surface shows retained lifecycle information and
 hide/restore audit history. Super Admin status never bypasses hidden-event
 protection on public routes or ordinary event workspaces.
+
+Automatic Captain status and any new general cross-team submission inspection or
+correction mode for Super Admin are deferred. This does not change the existing
+explicit, read-only team-focus support view described below.
 
 ### 5.4 Super Admin
 
@@ -328,7 +340,7 @@ The configured event-start instant may trigger an automatic start attempt, but n
 
 The event ends automatically at its configured event-end instant and enters `AWAITING_FINAL_REVIEW`. If processing occurs late because the application was unavailable, the configured instant remains the effective end. An enabled administrator may end a live event early after strong confirmation and a required reason; the early confirmation time becomes the authoritative end while the original schedule remains visible. Ending early does not silently alter the separately configured submission cutoff.
 
-Before official finalization, an enabled administrator may resume an event that entered `AWAITING_FINAL_REVIEW` prematurely, whether the end was manual or automatic. Resume requires strong confirmation, a written reason, and a new future event-end time; it returns the event to `LIVE` only after the ordinary singleton-current and lifecycle checks pass. The prior end transition and its effective time remain immutable history rather than being erased. The ordinary submission cutoff is re-derived from the new end, and any separate submission-reopening window must be revalidated rather than silently reused. Submissions, reviews, and contributions created during the intervening final-review period remain historical and continue through their normal workflows. Resume is unavailable directly from `FINALIZED` or `ARCHIVED`; resuming an event that has already produced official finalization history is outside this approved recovery action and fails closed unless separately approved.
+Before official finalization, an enabled administrator may resume an event that entered `AWAITING_FINAL_REVIEW` prematurely, whether the end was manual or automatic. Resume requires strong confirmation and a written reason. If the configured event end is still future, Resume reuses it; only a missing or expired end requires the administrator to confirm a replacement future end. The action returns the event to `LIVE` only after the ordinary singleton-current and lifecycle checks pass. The prior end transition and its effective time remain immutable history rather than being erased. The ordinary submission cutoff is re-derived from the retained or replacement end, and any separate submission-reopening window must be revalidated rather than silently reused. Submissions, reviews, and contributions created during the intervening final-review period remain historical and continue through their normal workflows. Resume is unavailable directly from `FINALIZED` or `ARCHIVED`; resuming an event that has already produced official finalization history is outside this approved recovery action and fails closed unless separately approved.
 
 ### 7.2 Post-cutoff behavior
 
@@ -372,9 +384,9 @@ An enabled admin creates the event before signups, drafting, or board publicatio
 
 The system generates a unique URL identifier from the event name. Admins may edit it until the event first becomes public; it remains stable afterward. Duplicate event display names are allowed. Every enabled admin may continue configuring every event, and audit history identifies the actor for each change.
 
-The display name may change after publication and before Live with an audit entry while the public URL remains stable. While Live, Admin may correct only the display timezone with explicit confirmation and an audit reason; the slug, name, description, banner, and other identity values remain immutable. The public description is optional while the event is private and required before signup opens. Event banner/artwork is optional: admins may add, replace, or remove it during setup before Live without affecting readiness; while Live it is immutable.
+The display name may change after publication and before Live with an audit entry while the public URL remains stable. Identity and display timezone become read-only in Live; schedule corrections remain a separate capability. The public description is optional while the event is private and required before signup opens. Event banner/artwork is optional: admins may add, replace, or remove it during setup before Live without affecting readiness; while Live it is immutable.
 
-The timezone defaults to `Europe/Copenhagen`. Admins choose another supported timezone through a controlled selector rather than entering an arbitrary identifier. A private event may change timezone normally. After signup opens, the change requires confirmation showing how every configured UTC timestamp will display in the new timezone; after the event starts it additionally requires an audit reason. A timezone change never moves the stored UTC instants—changing the schedule is a separate action.
+The timezone defaults to `Europe/Copenhagen`. Admins choose another supported timezone through a controlled selector rather than entering an arbitrary identifier. A private event may change timezone normally. After signup opens and before Live, the change requires confirmation showing how every configured UTC timestamp will display in the new timezone. A timezone change never moves the stored UTC instants—changing the schedule is a separate action.
 
 The complete setup flow contains:
 
@@ -607,7 +619,7 @@ Complex requirements are estimated from possible completion outcomes rather than
 
 Unapproved boards derive catalogue names, images, source-drop rates, and EHB from the current global catalogue. Relevant catalogue changes automatically invalidate and recalculate their tile, row, column, total, and per-player estimates.
 
-**Approve board** is the snapshot boundary. Approval transactionally revalidates the complete board and captures an immutable version of the catalogue values, board configuration, rates, EHB values, artwork references, and calculations. Later catalogue changes do not alter an approved board. Unapproving or editing approved unpublished competitive content returns the board to Draft, retains the superseded approval snapshot/history, and resumes live catalogue derivation. Publication uses the active approval snapshot without recalculation.
+**Approve board** is the snapshot boundary. Approval transactionally revalidates the complete board and captures an immutable version of the catalogue values, board configuration, rates, EHB values, artwork references, and calculations. Later catalogue changes do not alter an approved board. Unapproving or editing approved unpublished competitive content returns the board to Draft, retains the superseded approval snapshot/history, and resumes live catalogue derivation. Initial publication and publication of a corrected replacement both require explicit confirmation, and publication uses the active approval snapshot without recalculation. Corrected publication is available only while the event is Signup closed, Live, or Awaiting final review; terminal, cancelled, hidden, and discarded events reject it.
 
 Draft preview uses current live derived data; approved preview uses the frozen approval snapshot. Preview never changes board state. Published boards remain historically stable.
 
@@ -659,7 +671,7 @@ A normal screenshot should show:
 - Timestamp overlay when required by event rules
 - Event-specific verification code when enabled by event rules
 
-The verification code is an event setting with two modes: enabled or disabled. Admins normally enter a custom fun code, may generate one, and may activate a replacement immediately or schedule it. Every submission snapshots the code interval active at its immutable server submission time. Review is visual only; there is no OCR. An admin may approve a mismatch as an explicit exception.
+The verification code is an event setting with two modes: enabled or disabled. Admins normally enter a custom fun code, may generate one, and may activate a replacement immediately or schedule it. Configuration remains editable through Draft, Signup open, Signup closed, and Live, and during Awaiting final review only while the active submission window still accepts uploads. It is read-only after upload closure and in every terminal, cancelled, hidden, or discarded state. Every submission snapshots the code interval active at its immutable server submission time. Review is visual only; there is no OCR. An admin may approve a mismatch as an explicit exception.
 
 The clan event plugin renders the evidence time in UTC inside the screenshot. That value is not transcribed into another form field or extracted through OCR. The reviewer visually confirms that it falls inside the official event window and an interval in which the credited playing account was active. Immutable server submission time remains authoritative for upload-cutoff validation and every ordering rule that explicitly uses submission time, and it is never editable.
 
@@ -678,6 +690,17 @@ Before accepting a submission, the system checks that:
 - The contribution does not exceed the remaining allowed progress.
 - Duplicate and per-drop cap rules are respected.
 - The same approved submission cannot be allocated to multiple tiles.
+
+For a duplicate-disabled requirement, duplicate identity is the immutable shared
+catalogue item captured by the event/approval snapshot, not a source-specific
+drop, image, or submission identifier. Alternative source rows for one item remain
+valid. Allocation groups by team, requirement, and item identity; a missing
+explicit cap means `1`, and every alias in that requirement must have the same
+effective cap or board approval fails. The same item may independently satisfy a
+different sibling requirement. Progress, completion, reversal, and rebalancing
+remain isolated by requirement; fulfillment never carries into a sibling
+objective. Retargeting Pending evidence recomputes the authoritative destination
+requirement/drop weight rather than carrying the old target's weight.
 
 ## 13. Submission review lifecycle
 
@@ -704,7 +727,7 @@ Editable metadata includes:
 - Credited playing account, from which the event participant is derived
 - Qualifying drop and its derived boss/activity
 
-These material corrections require a written reason, revalidate the complete submission, and store the original and new values. Credited participant is not independently editable. Immutable server submission time, snapshot contribution weight, calculated contribution, and the submitted evidence image are not administrator-editable.
+These material corrections require a written reason, revalidate the complete submission, and store the original and new values. Credited participant is not independently editable. Immutable server submission time, calculated contribution, and the submitted evidence image are not administrator-editable. Snapshot contribution weight is not manually editable; changing requirement/drop replaces it with the authoritative frozen weight of the selected destination.
 
 Every review shows:
 
@@ -713,6 +736,14 @@ Every review shows:
 Only when submission occurred after the authoritative event end, the review additionally shows the calculated number of minutes after event end and **Latest clan event time:** the authoritative end formatted in UTC. The administrator compares the timestamp visible in the screenshot with that boundary. A drop shown after it is ineligible even though the website still accepts uploads during grace. The submission cutoff is enforced by the application but need not be repeated in this compact visual comparison.
 
 A duplicate, unusable screenshot, or other invalid attempt is rejected with the required reason. There is no request-changes or special duplicate review state. While the active upload window remains open, the rejected-submission view offers **Resubmit**. It creates a new submission, prefills the rejected attempt's structured values and note, and requires a newly uploaded screenshot. The submitter may correct ordinary structured choices such as tile/requirement or qualifying drop, but the originally credited participant and playing account are copied and read-only even if that participant has since swapped. The new record links to the rejected record, receives its own immutable server submission time and review history, and undergoes normal validation. Rejection never reopens or extends the upload window, and the rejected record remains historical.
+
+A Reversed submission is likewise immutable and cannot be directly re-approved.
+While the ordinary or explicitly reopened upload window permits new evidence, it
+may have exactly one direct linked corrected child requiring a new image. That
+child starts Pending and follows normal review; approval creates a new active
+contribution while the reversed contribution remains inactive. Rejected and
+Reversed attempts each permit at most one direct child under retry/concurrency,
+and a closed window requires the existing reasoned Admin reopen action.
 
 Rejection creates an idempotent in-site notification containing the reason for the linked credited participant and every current linked captain/co-captain on the team. It does not notify the whole roster. When the credited participant is unlinked, captains/co-captains remain the notification recipients. Every personal recipient is routed to `/Submissions/{id:guid}`; the destination independently authorizes the credited participant's current-team scope or the existing team-scoped Captain/co-captain/emergency authority. Relevant general submission navigation resolves to `/Submissions`, while Admin review notifications remain `/Admin/Review/Details/{id}`.
 
@@ -725,10 +756,16 @@ Reversing an approval:
 - Reallocates newly available capacity to later approved evidence up to its original eligible claim
 - Records the admin, time, and reason
 - Preserves the submission and its history
+- Writes the main immutable audit entry in the same transaction
+
+Submission creation and eligible participant/Captain/Co-captain/emergency edits,
+replacements, withdrawals, and linked corrections also write the main immutable
+audit entry in the same transaction. Submission-local review history supplements
+rather than replaces that audit trail.
 
 ## 14. Evidence visibility
 
-- A current member of an event team may view that team's complete retained submission history, including records credited to departed teammates, when currently authorized; former members and cross-team viewers fail closed.
+- A current member of an event team may view that team's complete retained submission history, including records credited to departed teammates, when currently authorized. Former members and cross-team viewers fail closed except that, after archive, a former credited owner may reach only their own retained Rejected/Withdrawn submission detail and evidence asset read-only through the existing account-history destination.
 - Only the credited owner may mutate their own eligible submission; captains/co-captains retain their server-authorized broader editing scope for eligible submissions in their current team.
 - Approved evidence metadata, credited player, and screenshot are publicly visible from the relevant tile so the community can inspect accepted evidence.
 - Other teams do not see pending progress.
@@ -879,13 +916,13 @@ To limit unwanted submissions, an admin may protect the form with an event-speci
 
 The participant authenticates to a website account through Discord or public username/password before normal signup; first-time account creation itself begins through Discord. The resulting event-participant record belongs to that account, and the participant may edit it only while signup is open. Private edit links are not retained. Admins retain audited correction, withdrawal, restoration, and explicit ownership-transfer authority; no participant claim-link system is required.
 
-The system records signup time automatically. Buy-in/payment is not collected from the public participant form. Admins manage one private binary `Unpaid`/`Paid` value on the participant record; it defaults to `Unpaid`. Events without a buy-in may ignore it. No `Unknown`, `Waived`, or `Not required` states remain in the target model.
+The system records signup time automatically. Buy-in/payment is not collected from the public participant form. Admins manage one private binary `Unpaid`/`Paid` value on the participant record; it defaults to `Unpaid`. Payment and private Admin notes remain editable for every retained visible event lifecycle, including active draft, Live, Finalized, Archived, and Cancelled; Hidden and Discarded records remain inaccessible. Events without a buy-in may ignore payment. No `Unknown`, `Waived`, or `Not required` states remain in the target model.
 
 Custom questions support Text, Number, Yes/No, Single choice, and Account. Text is a single multiline question type. An Account answer uses the participant's My accounts selector; a missing character must first be added through My accounts. The question configuration determines whether that answer is a user-facing **Regular account** (internally playing/drop-eligible) or **Alt account** (internally informational-only). Comments and availability are not fixed fields; organizers add Text questions when needed.
 
-A published form must be closed before its definition changes. Before the first accepted/imported response, custom questions may be edited or removed freely while private or closed. The first response locks question type, Account role, choice options, and answer shape. Later questions must be optional. Until the draft starts, admins may still edit label, help text, order, and public visibility while signup is closed. Structural replacement disables the old question and creates a new stable question; it never rewrites existing answers. Draft start freezes ordinary form metadata and visibility changes. A separate privacy control can hide a question and its answers after draft start; restoring visibility is separately confirmed. These privacy controls retain automatic configuration history but require no written explanation.
+A published form must be closed before its definition changes. Before the first accepted/imported response, custom questions may be edited or removed freely while private or closed. The first response locks question type, Account role, choice options, and answer shape. Later questions must be optional. Until the draft starts, admins may still edit label, help text, and order while signup is closed. Structural replacement disables the old question and creates a new stable question; it never rewrites existing answers. Draft start freezes ordinary form metadata. Version one has no per-question public/private toggle; removing any stale implementation of that superseded capability is outside the current event-functionality correction.
 
-Signup forms may therefore differ between participants in the same event. Admin and signup-board views must treat every custom answer as optional historical data. A participant who signed up before a question was added has no answer record for that question; the page must show a neutral fallback such as **Not answered** and must never fail because an answer is missing. Disabled questions retain existing answers and remain publicly visible only if their separate signup-board visibility setting remains enabled.
+Signup forms may therefore differ between participants in the same event. Admin and signup-board views must treat every custom answer as optional historical data. A participant who signed up before a question was added has no answer record for that question; the page must show a neutral fallback such as **Not answered** and must never fail because an answer is missing. Disabled questions retain existing answers. Participant-facing questions remain public historical data; the retained signup-board visibility persistence field is compatibility-only and fixed/defaulted true, not an Admin control.
 
 The unlisted public signup table has separate Confirmed and Waiting list sections and uses each participant's built-in primary regular OSRS character as the event-facing name. Website username and Discord identity are never displayed there. Every regular Account answer shows its EHB; alt-account answers have no EHB. Captain volunteer and all participant-facing custom answers are public. Version one has no per-question public/private toggle or admin-only custom signup question. Payment and Admin notes remain separate private fields. Alt-account answers do not appear on team rosters, evidence, board progress, or leaderboards.
 
@@ -944,11 +981,11 @@ Admins contact waiting-list participants manually to confirm continued availabil
 
 A live withdrawal ends drop eligibility at the first full UTC minute after confirmation; the old participant remains eligible through the displayed request minute. A live replacement's primary account activates at the first full UTC minute after replacement confirmation. A later replacement therefore leaves an honest eligibility gap. Existing evidence from before withdrawal remains reviewable, and the replacement receives no retroactive eligibility.
 
-Admins may assign, promote, demote, or revoke captain/co-captain roles for current team members after the draft and during the live event. A withdrawn captain loses authority immediately. Event start requires every team to have a current Captain or an explicitly enabled team-scoped emergency credential; co-captain alone is insufficient. Losing the final captain during live play creates an urgent warning but does not stop the event. The system never chooses a captain automatically. Role changes use the member's website account, take effect for future actions, survive Discord relinking, preserve history, and notify the affected participant.
+Admins may assign, promote, demote, or revoke captain/co-captain roles for current team members after the draft, during Live, and during Awaiting final review while the active submission window still accepts uploads. Role changes freeze when that window closes and in terminal states. A withdrawn captain loses authority immediately. Event start requires every team to have a current Captain or an explicitly enabled team-scoped emergency credential; co-captain alone is insufficient. Losing the final captain during live play creates an urgent warning but does not stop the event. The system never chooses a captain automatically. Role changes use the member's website account, take effect for future actions, survive Discord relinking, preserve history, and notify the affected participant.
 
 A post-draft vacancy notifies all enabled admins and remaining linked team captains/co-captains. A confirmed replacement notifies the linked replacement and current linked team captains/co-captains. These are in-site notifications; Discord availability coordination remains manual.
 
-An admin may transfer an event-participant record to a different website account when it was attached to the wrong or duplicate global account. Lost Discord access normally uses password login and self-service Discord relinking instead. The transfer destination cannot already participate in that event. Transfer immediately revokes the previous account's event access and preserves signup order/status, accounts, team, evidence, and history. It does not merge global website accounts or My accounts lists. Strong confirmation and automatic before/after history are required; a written reason is not.
+An admin may transfer an event-participant record to a different website account when it was attached to the wrong or duplicate global account through Awaiting final review. Lost Discord access normally uses password login and self-service Discord relinking instead. The transfer destination cannot already participate in that event. Transfer immediately revokes the previous account's event access and preserves signup order/status, accounts, team, evidence, and history. It does not merge global website accounts or My accounts lists. Strong confirmation and automatic before/after history are required; a written reason is not. Transfer is unavailable in Finalized, Archived, Cancelled, Hidden, and Discarded events.
 
 Before draft start, participant administrators work from one event-level workspace covering Confirmed, Waiting list, and Withdrawn records. It supports search and filters for status, paid/unpaid, linked identity, captain volunteer, source, and team; shows all regular/alt accounts, per-regular-account EHB, public participant answers, private notes, and queue/team state; and links to identity recovery.
 
@@ -1010,7 +1047,7 @@ Hidden events are excluded from every public listing, event history, account
 history, submission/evidence view, notification/action destination, and
 realtime projection. Their guessed or direct public event URLs return 404.
 
-Archived events keep the same public board/team/tile/result routes. Signed-in current members of an archived event team may read that team's complete retained submission history through `/Submissions` and its detail route, including rows credited to departed teammates; former members without current membership, anonymous users, and cross-team viewers fail closed, and every event mutation is removed. There is no separate archived-participant dashboard.
+Archived events keep the same public board/team/tile/result routes. Signed-in current members of an archived event team may read that team's complete retained submission history through `/Submissions` and its detail route, including rows credited to departed teammates. A former credited owner may follow the existing account-history destination to only their own retained Rejected/Withdrawn submission detail and `/Evidence/{assetId}` read-only; no team ledger, teammate record, other private state, or mutation becomes available. Other former members, anonymous users, and cross-team viewers fail closed. There is no separate archived-participant dashboard.
 
 ### 19.2 Canonical authenticated submission pages
 

@@ -424,11 +424,40 @@ Exactly one playing account is active/drop-eligible for a participant at a time.
 
 Evidence creation derives rather than selects the credited playing character. An ordinary participant is locked to themselves; a captain/co-captain selects a current teammate. In the same transaction, the service resolves that participant's active character at immutable server submission time and snapshots it on the submission. The form never exposes an account selector, and later submitter edits preserve the credited fields. The screenshot's clan-plugin UTC overlay remains the evidence of when the drop occurred. Review shows the latest relevant account transition in UTC; full history remains available to admins for audit, visual validation, corrections, and later activity attribution.
 
+Global Admin and Super Admin capabilities compose with, but never replace or
+imply, genuine event Participant/Captain/Co-captain authority. Shared navigation,
+submission projections, and application commands evaluate both capabilities:
+global review remains Admin-only while team visibility and mutation require the
+real event role and remain lifecycle/cutoff constrained. Automatic SuperAdmin
+Captain status and any new general cross-team submission inspection/correction
+mode are deferred; the existing explicit read-only team-focus support view is
+unchanged.
+
 The review summary displays immutable server **Submission time**, calculated minutes after event end when applicable, and **Latest clan event time** using the authoritative event end formatted in UTC. The admin compares that boundary with the `DD/MM/YYYY HH:mm UTC` timestamp visible in the screenshot. No OCR, second typed timestamp, or maximum upload-delay rule is encoded; the configured cutoff alone controls upload acceptance.
 
-Evidence review has only `Approve` and `Reject` decisions. Approval needs no note; rejection requires one. Duplicate or unusable evidence is rejected rather than entering an intermediate state. While the active upload window remains open, a rejected submission can be resubmitted through a dedicated command that prefills editable structured values, requires a new screenshot, and creates a linked new record. It copies the rejected record's credited participant/account snapshots as read-only even after a later account swap. A unique predecessor constraint and transaction lock make the command idempotent under retries/concurrency. Rejection does not create post-cutoff correction access. The rejection transaction appends review history and creates idempotent notifications for the linked credited participant and current linked team captains/co-captains.
+Evidence review has only `Approve` and `Reject` decisions. Approval needs no note; rejection requires one. Duplicate or unusable evidence is rejected rather than entering an intermediate state. While the active/reopened upload window remains open, a rejected or reversed submission can create exactly one direct linked corrected attempt through the existing dedicated command; the predecessor stays immutable, cannot be directly re-approved, and the new Pending record requires a new screenshot. It copies the predecessor's credited participant/account snapshots as read-only even after a later account swap. A unique predecessor constraint and transaction lock make the command idempotent under retries/concurrency. Neither rejection nor reversal creates post-cutoff correction access. Required notification, submission-local review history, and the main immutable audit entry are written atomically with their owning mutation.
 
-Before approval, a reviewer may correct tile/requirement, qualifying drop, or credited playing character with a required reason. The participant is derived from the character's event assignment. The command locks or version-checks the pending submission, revalidates authorization and every structured allocation/account rule, records before/after values, and rejects stale decisions. It never changes the immutable server submission time, snapshot weight, calculated contribution, or evidence asset. Approval records the human decision that the screenshot time satisfies event/account eligibility. Reversal is a separate reasoned transaction that preserves history and recalculates authoritative progress.
+Before approval, a reviewer may correct tile/requirement, qualifying drop, or credited playing character with a required reason. The participant is derived from the character's event assignment. The command locks or version-checks the pending submission, revalidates authorization and every structured allocation/account rule, records before/after values, and rejects stale decisions. It never changes the immutable server submission time, calculated contribution, or evidence asset; a changed target replaces snapshot weight with that destination's frozen authoritative value. Approval records the human decision that the screenshot time satisfies event/account eligibility. Reversal is a separate reasoned transaction that preserves history and recalculates authoritative progress.
+
+Duplicate-disabled contribution uses immutable shared catalogue-item identity frozen
+into event and approval drop snapshots, scoped to one requirement. It never relies
+on mutable current `SourceDrop` mapping or treats sibling objectives as shared
+capacity. Alternative source rows remain valid but must resolve to one consistent
+effective item cap before board approval; null means `1`. One migration backfills
+only unambiguous historical identities. For flagged rows, the existing operator
+preflight emits a deterministic external mapping template and database fingerprint;
+the operator supplies catalogue-item IDs and confirms its hash. The existing
+migrate path validates and loads that mapping into a connection-scoped temporary
+table, runs the migration on the same connection, verifies both snapshot families,
+and leaves no table or retained mapping artifact. Frozen names and current source
+mapping are never rewritten as migration remediation.
+
+Private `/Evidence/{assetId}` authorization derives status-aware visibility from
+the owning submission. Current team scope remains ordinary authority; the only
+former-member exception is an archived credited owner reading their own retained
+Rejected/Withdrawn detail and asset through the existing account-history
+destination. It grants no ledger, teammate evidence, Pending/Reversed private
+evidence, mutation, Admin review, or cross-team access.
 
 Approved evidence metadata, credited player, and screenshot are public; participant/captain privacy requests, player hiding, and hidden-but-still-approved screenshots are not part of the target. Removing an approved screenshot from public view therefore uses the ordinary reasoned approval-reversal transaction. Any corrected/redacted attempt is a linked new submission subject to the normal upload cutoff.
 

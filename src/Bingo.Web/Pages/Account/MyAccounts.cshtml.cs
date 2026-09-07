@@ -102,7 +102,7 @@ public sealed class MyAccountsModel(
             Edit.SavedEhb = fetchedEhb;
             FetchFailureLinkId = Edit.LinkId;
             FetchFailureLabel = Edit.PersonalLabel;
-            FetchFailureEhb = fetchedEhb.ToString("0.00", CultureInfo.InvariantCulture);
+            FetchFailureEhb = fetchedEhb.ToString("0.00", CultureInfo.CurrentCulture);
             ModelState.Remove("Edit.SavedEhb");
             return await ReloadAsync(ct);
         }
@@ -175,7 +175,7 @@ public sealed class MyAccountsModel(
     {
         FetchFailureLinkId = Edit.LinkId;
         FetchFailureLabel = Edit.PersonalLabel;
-        FetchFailureEhb = ModelState["Edit.SavedEhb"]?.AttemptedValue ?? Edit.SavedEhb?.ToString("0.00", CultureInfo.InvariantCulture);
+        FetchFailureEhb = ModelState["Edit.SavedEhb"]?.AttemptedValue ?? Edit.SavedEhb?.ToString("0.00", CultureInfo.CurrentCulture);
     }
 
     private string LookupFailure(WiseOldManPlayerLookupResult result) => result.Status switch

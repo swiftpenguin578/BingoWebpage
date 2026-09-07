@@ -50,11 +50,14 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
                           join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
                           join bingoEvent in db.Events.AsNoTracking() on participant.EventId equals bingoEvent.Id
                           where participant.AccountId == accountId && team.Active && membership.LeftAt == null && bingoEvent.HiddenAt == null &&
-                                membership.Role == Bingo.Domain.Teams.TeamMembershipRole.Participant && participant.EventId == team.EventId
-                          select new { EventId = participant.EventId, TeamId = team.Id })
+                                membership.Role == Bingo.Domain.Teams.TeamMembershipRole.Participant && participant.EventId == team.EventId &&
+                                (bingoEvent.State == EventState.Live || bingoEvent.State == EventState.AwaitingFinalReview)
+                          select new { EventId = participant.EventId, TeamId = team.Id, State = bingoEvent.State })
             .Distinct()
             .ToListAsync(cancellationToken);
-        return rows.Count == 1 ? new SubmissionNavigation(rows[0].EventId, rows[0].TeamId) : null;
+        var preferredRows = rows.Where(row => row.State == EventState.Live).ToList();
+        if (preferredRows.Count == 0) preferredRows = rows.Where(row => row.State == EventState.AwaitingFinalReview).ToList();
+        return preferredRows.Count == 1 ? new SubmissionNavigation(preferredRows[0].EventId, preferredRows[0].TeamId) : null;
     }
 
     private async Task<CaptainNavigation?> GetCaptainNavigationAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
@@ -66,7 +69,7 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             .SingleOrDefaultAsync(cancellationToken);
         if (accountType is null) return null;
 
-        var scopes = new List<(Guid EventId, Guid TeamId)>();
+        var scopes = new List<(Guid EventId, Guid TeamId, EventState State)>();
         if (accountType == Bingo.Domain.Access.AccountType.WebsiteAccount)
         {
             var rows = await (from participant in db.EventParticipants.AsNoTracking()
@@ -74,12 +77,13 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
                               join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
                               join bingoEvent in db.Events.AsNoTracking() on participant.EventId equals bingoEvent.Id
                               where participant.AccountId == accountId && team.Active && membership.LeftAt == null &&
-                                    participant.EventId == team.EventId && bingoEvent.HiddenAt == null && bingoEvent.State == EventState.Live &&
+                                    participant.EventId == team.EventId && bingoEvent.HiddenAt == null &&
+                                    (bingoEvent.State == EventState.Live || bingoEvent.State == EventState.AwaitingFinalReview) &&
                                     (membership.Role == Bingo.Domain.Teams.TeamMembershipRole.Captain || membership.Role == Bingo.Domain.Teams.TeamMembershipRole.CoCaptain)
-                              select new { EventId = bingoEvent.Id, TeamId = team.Id })
+                              select new { EventId = bingoEvent.Id, TeamId = team.Id, State = bingoEvent.State })
                 .Distinct()
                 .ToListAsync(cancellationToken);
-            scopes = rows.Select(scope => (scope.EventId, scope.TeamId)).ToList();
+            scopes = rows.Select(scope => (scope.EventId, scope.TeamId, scope.State)).ToList();
         }
         else if (accountType == Bingo.Domain.Access.AccountType.EmergencyCaptain)
         {
@@ -87,15 +91,18 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
             var rows = await (from access in db.AccountEventAccesses.AsNoTracking()
                               join team in db.Teams.AsNoTracking() on access.TeamId equals team.Id
                               join bingoEvent in db.Events.AsNoTracking() on access.EventId equals bingoEvent.Id
-                              where access.AccountId == accountId && access.Enabled && team.Active && team.EventId == bingoEvent.Id && bingoEvent.HiddenAt == null && bingoEvent.State == EventState.Live &&
+                              where access.AccountId == accountId && access.Enabled && team.Active && team.EventId == bingoEvent.Id && bingoEvent.HiddenAt == null &&
+                                    (bingoEvent.State == EventState.Live || bingoEvent.State == EventState.AwaitingFinalReview) &&
                                     (access.ActiveFrom == null || access.ActiveFrom <= now) && (access.ExpiresAt == null || access.ExpiresAt > now)
-                              select new { EventId = bingoEvent.Id, TeamId = team.Id })
+                              select new { EventId = bingoEvent.Id, TeamId = team.Id, State = bingoEvent.State })
                 .Distinct()
                 .ToListAsync(cancellationToken);
-            scopes = rows.Select(scope => (scope.EventId, scope.TeamId)).ToList();
+            scopes = rows.Select(scope => (scope.EventId, scope.TeamId, scope.State)).ToList();
         }
 
-        return scopes.Count == 1 ? new CaptainNavigation(scopes[0].EventId, scopes[0].TeamId) : null;
+        var preferredScopes = scopes.Where(scope => scope.State == EventState.Live).ToList();
+        if (preferredScopes.Count == 0) preferredScopes = scopes.Where(scope => scope.State == EventState.AwaitingFinalReview).ToList();
+        return preferredScopes.Count == 1 ? new CaptainNavigation(preferredScopes[0].EventId, preferredScopes[0].TeamId) : null;
     }
 
     public async Task<NotificationInbox> GetNotificationsAsync(ClaimsPrincipal user, CancellationToken cancellationToken)

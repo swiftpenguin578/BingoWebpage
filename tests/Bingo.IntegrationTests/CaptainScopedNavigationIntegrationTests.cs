@@ -76,12 +76,18 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         var coCaptain = Website("submission-canonical-co-captain", now);
         var former = Website("submission-canonical-former", now);
         var unrelated = Website("submission-canonical-unrelated", now);
+        var globalOnly = Website("submission-canonical-global-only", now);
+        participantOwner.SetGlobalRole(GlobalRole.Admin);
+        captain.SetGlobalRole(GlobalRole.Admin);
+        coCaptain.SetGlobalRole(GlobalRole.SuperAdmin);
+        globalOnly.SetGlobalRole(GlobalRole.Admin);
         var emergency = Account.CreateEmergency(Guid.NewGuid(), "submission-canonical-emergency", "SUBMISSION-CANONICAL-EMERGENCY", now);
-        foreach (var account in new[] { participantOwner, captain, coCaptain, former, unrelated, emergency })
+        foreach (var account in new[] { participantOwner, captain, coCaptain, former, unrelated, globalOnly, emergency })
             account.SetPassword(new PasswordHasher<Account>().HashPassword(account, "password"), false, now, false);
         emergency.Enable();
         var live = LiveEvent(participantOwner.Id, "Submission canonical", "submission-canonical", now);
         var team = new Team(Guid.NewGuid(), live.Id, "Submission canonical team", "submission-canonical-team", TeamFormationType.Drafted, null, true);
+        team.Finalize(now.AddMinutes(-1));
         var crossTeam = new Team(Guid.NewGuid(), live.Id, "Submission canonical other team", "submission-canonical-other-team", TeamFormationType.Drafted, null, true);
         var participant = new EventParticipant(Guid.NewGuid(), live.Id, SignupStatus.Confirmed, 1, now.AddDays(-1), SignupSource.Website);
         participant.AssignOwner(participantOwner);
@@ -115,7 +121,7 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
 
         await using (var db = new ApplicationDbContext(options))
         {
-            db.AddRange(participantOwner, captain, coCaptain, former, unrelated, emergency, live, team, crossTeam,
+            db.AddRange(participantOwner, captain, coCaptain, former, unrelated, globalOnly, emergency, live, team, crossTeam,
                 participant, captainParticipant, coCaptainParticipant, formerParticipant, crossTeamParticipant,
                 participantMembership, captainMembership, coCaptainMembership, formerMembership, crossTeamMembership,
                 emergencyAccess, character, captainCharacter, assignment, captainAssignment, board, tile, requirement,
@@ -131,12 +137,41 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         using var emergencyClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var formerClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var unrelatedClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var globalOnlyClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(participantClient, participantOwner.LoginName);
         await LoginAsync(captainClient, captain.LoginName);
         await LoginAsync(coCaptainClient, coCaptain.LoginName);
         await LoginAsync(emergencyClient, emergency.LoginName);
         await LoginAsync(formerClient, former.LoginName);
         await LoginAsync(unrelatedClient, unrelated.LoginName);
+        await LoginAsync(globalOnlyClient, globalOnly.LoginName);
+
+        using var participantBoard = await participantClient.GetAsync($"/Events/{live.Slug}/Board/{team.Slug}");
+        var participantBoardHtml = await participantBoard.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, participantBoard.StatusCode);
+        Assert.Contains(">submissions<", participantBoardHtml, StringComparison.Ordinal);
+        Assert.Contains(">Admin<", participantBoardHtml, StringComparison.Ordinal);
+
+        using var captainBoard = await captainClient.GetAsync($"/Events/{live.Slug}/Board/{team.Slug}");
+        var captainBoardHtml = await captainBoard.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, captainBoard.StatusCode);
+        Assert.Contains(">Captain<", captainBoardHtml, StringComparison.Ordinal);
+        Assert.Contains(">Admin<", captainBoardHtml, StringComparison.Ordinal);
+        Assert.Contains($"href=\"/Submissions?eventId={live.Id}&amp;teamId={team.Id}\"", captainBoardHtml, StringComparison.Ordinal);
+
+        using var coCaptainBoard = await coCaptainClient.GetAsync($"/Events/{live.Slug}/Board/{team.Slug}");
+        var coCaptainBoardHtml = await coCaptainBoard.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, coCaptainBoard.StatusCode);
+        Assert.Contains(">Captain<", coCaptainBoardHtml, StringComparison.Ordinal);
+        Assert.Contains(">Admin<", coCaptainBoardHtml, StringComparison.Ordinal);
+
+        using var globalBoard = await globalOnlyClient.GetAsync($"/Events/{live.Slug}/Board/{team.Slug}");
+        var globalBoardHtml = await globalBoard.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, globalBoard.StatusCode);
+        Assert.DoesNotContain(">Captain<", globalBoardHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain($"href=\"/Submissions?eventId={live.Id}&amp;teamId={team.Id}\"", globalBoardHtml, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.NotFound, (await globalOnlyClient.GetAsync($"/Submissions?eventId={live.Id}&teamId={team.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await captainClient.GetAsync($"/Submissions?eventId={live.Id}&teamId={crossTeam.Id}")).StatusCode);
 
         var scope = $"?eventId={live.Id}&teamId={team.Id}";
         using var participantRoute = await participantClient.GetAsync($"/Captain/Submissions/{submission.Id}{scope}");
@@ -280,8 +315,8 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         var secondTile = new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 0, 1, "Second ledger tile", "Description", "", 1m);
         var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 0, 1, true, false, "Requirement", true);
         var secondRequirement = new BoardRequirementSnapshot(Guid.NewGuid(), secondTile.Id, 0, 1, true, false, "Requirement", true);
-        var drop = new BoardRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, Guid.NewGuid(), "Captain ledger boss", "Captain ledger drop", "1/10", 0.1m, null, 1m);
-        var secondDrop = new BoardRequirementDropSnapshot(Guid.NewGuid(), secondRequirement.Id, Guid.NewGuid(), "Second ledger boss", "Second ledger drop", "1/10", 0.1m, null, 1m);
+        var drop = new BoardRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, Guid.NewGuid(), Guid.NewGuid(), "Captain ledger boss", "Captain ledger drop", "1/10", 0.1m, null, 1m);
+        var secondDrop = new BoardRequirementDropSnapshot(Guid.NewGuid(), secondRequirement.Id, Guid.NewGuid(), Guid.NewGuid(), "Second ledger boss", "Second ledger drop", "1/10", 0.1m, null, 1m);
         var submissions = Enumerable.Range(0, 26)
             .Select(index => new Submission(Guid.NewGuid(), live.Id, team.Id, tile.Id, requirement.Id, drop.Id, participant.Id, character.Id,
                 "Captain ledger player", captain.Id, 1, now.AddMinutes(-index), null, null))
@@ -397,9 +432,14 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         var admin = Website("header-admin", now);
         admin.SetGlobalRole(GlobalRole.Admin);
         var emergency = Account.CreateEmergency(Guid.NewGuid(), "header-emergency", "HEADER-EMERGENCY", now);
-        foreach (var account in new[] { captain, coCaptain, participant, admin, emergency })
+        var awaitingCaptain = Website("header-awaiting-captain", now);
+        var awaitingParticipant = Website("header-awaiting-participant", now);
+        var ambiguousParticipant = Website("header-ambiguous-participant", now);
+        var awaitingEmergency = Account.CreateEmergency(Guid.NewGuid(), "header-awaiting-emergency", "HEADER-AWAITING-EMERGENCY", now);
+        foreach (var account in new[] { captain, coCaptain, participant, admin, awaitingCaptain, awaitingParticipant, ambiguousParticipant, emergency, awaitingEmergency })
             account.SetPassword(new PasswordHasher<Account>().HashPassword(account, "password"), false, now, false);
         emergency.Enable();
+        awaitingEmergency.Enable();
 
         var live = LiveEvent(captain.Id, "Header live", "header-live", now);
         var liveTeam = new Team(Guid.NewGuid(), live.Id, "Header live team", "header-live-team", TeamFormationType.Drafted, null, true);
@@ -418,6 +458,52 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         var emergencyAccess = new AccountEventAccess(Guid.NewGuid(), emergency.Id, live.Id, liveTeam.Id, null, now.AddHours(-1), null, null);
         emergencyAccess.Enable();
 
+        var finalized = LiveEvent(captain.Id, "Header finalized", "header-finalized", now);
+        finalized.EndEvent(now.AddMinutes(-30));
+        finalized.FinalizeResults(now.AddMinutes(-20));
+        var finalizedTeam = new Team(Guid.NewGuid(), finalized.Id, "Header finalized team", "header-finalized-team", TeamFormationType.Drafted, null, true);
+        var finalizedCaptainParticipant = new EventParticipant(Guid.NewGuid(), finalized.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        var finalizedOrdinaryParticipant = new EventParticipant(Guid.NewGuid(), finalized.Id, SignupStatus.Confirmed, 2, now, SignupSource.Website);
+        finalizedCaptainParticipant.AssignOwner(captain);
+        finalizedOrdinaryParticipant.AssignOwner(participant);
+        var finalizedCaptainMembership = new TeamMembership(Guid.NewGuid(), finalizedTeam.Id, finalizedCaptainParticipant.Id, TeamMembershipRole.Captain, now, null, "test");
+        var finalizedOrdinaryMembership = new TeamMembership(Guid.NewGuid(), finalizedTeam.Id, finalizedOrdinaryParticipant.Id, TeamMembershipRole.Participant, now, null, "test");
+
+        var archived = LiveEvent(captain.Id, "Header archived", "header-archived", now);
+        archived.EndEvent(now.AddMinutes(-29));
+        archived.FinalizeResults(now.AddMinutes(-19));
+        archived.Archive(now.AddMinutes(-18));
+        var archivedTeam = new Team(Guid.NewGuid(), archived.Id, "Header archived team", "header-archived-team", TeamFormationType.Drafted, null, true);
+        var archivedCaptainParticipant = new EventParticipant(Guid.NewGuid(), archived.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        var archivedOrdinaryParticipant = new EventParticipant(Guid.NewGuid(), archived.Id, SignupStatus.Confirmed, 2, now, SignupSource.Website);
+        archivedCaptainParticipant.AssignOwner(captain);
+        archivedOrdinaryParticipant.AssignOwner(participant);
+        var archivedCaptainMembership = new TeamMembership(Guid.NewGuid(), archivedTeam.Id, archivedCaptainParticipant.Id, TeamMembershipRole.Captain, now, null, "test");
+        var archivedOrdinaryMembership = new TeamMembership(Guid.NewGuid(), archivedTeam.Id, archivedOrdinaryParticipant.Id, TeamMembershipRole.Participant, now, null, "test");
+
+        var awaiting = LiveEvent(captain.Id, "Header awaiting", "header-awaiting", now);
+        awaiting.EndEvent(now.AddMinutes(-28));
+        var awaitingTeam = new Team(Guid.NewGuid(), awaiting.Id, "Header awaiting team", "header-awaiting-team", TeamFormationType.Drafted, null, true);
+        var awaitingCaptainParticipant = new EventParticipant(Guid.NewGuid(), awaiting.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        var awaitingOrdinaryParticipant = new EventParticipant(Guid.NewGuid(), awaiting.Id, SignupStatus.Confirmed, 2, now, SignupSource.Website);
+        awaitingCaptainParticipant.AssignOwner(awaitingCaptain);
+        awaitingOrdinaryParticipant.AssignOwner(awaitingParticipant);
+        var awaitingCaptainMembership = new TeamMembership(Guid.NewGuid(), awaitingTeam.Id, awaitingCaptainParticipant.Id, TeamMembershipRole.Captain, now, null, "test");
+        var awaitingOrdinaryMembership = new TeamMembership(Guid.NewGuid(), awaitingTeam.Id, awaitingOrdinaryParticipant.Id, TeamMembershipRole.Participant, now, null, "test");
+        var awaitingEmergencyAccess = new AccountEventAccess(Guid.NewGuid(), awaitingEmergency.Id, awaiting.Id, awaitingTeam.Id, null, now.AddHours(-1), null, null);
+        awaitingEmergencyAccess.Enable();
+
+        var ambiguousLiveOne = LiveEvent(captain.Id, "Header ambiguous one", "header-ambiguous-one", now);
+        var ambiguousTeamOne = new Team(Guid.NewGuid(), ambiguousLiveOne.Id, "Header ambiguous team one", "header-ambiguous-team-one", TeamFormationType.Drafted, null, true);
+        var ambiguousParticipantOne = new EventParticipant(Guid.NewGuid(), ambiguousLiveOne.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        ambiguousParticipantOne.AssignOwner(ambiguousParticipant);
+        var ambiguousMembershipOne = new TeamMembership(Guid.NewGuid(), ambiguousTeamOne.Id, ambiguousParticipantOne.Id, TeamMembershipRole.Participant, now, null, "test");
+        var ambiguousLiveTwo = LiveEvent(captain.Id, "Header ambiguous two", "header-ambiguous-two", now);
+        var ambiguousTeamTwo = new Team(Guid.NewGuid(), ambiguousLiveTwo.Id, "Header ambiguous team two", "header-ambiguous-team-two", TeamFormationType.Drafted, null, true);
+        var ambiguousParticipantTwo = new EventParticipant(Guid.NewGuid(), ambiguousLiveTwo.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        ambiguousParticipantTwo.AssignOwner(ambiguousParticipant);
+        var ambiguousMembershipTwo = new TeamMembership(Guid.NewGuid(), ambiguousTeamTwo.Id, ambiguousParticipantTwo.Id, TeamMembershipRole.Participant, now, null, "test");
+
         var draftCaptain = Website("header-draft-captain", now);
         draftCaptain.SetPassword(new PasswordHasher<Account>().HashPassword(draftCaptain, "password"), false, now, false);
         var draft = new BingoEvent(Guid.NewGuid(), "Header draft", "header-draft", "", "UTC", now.AddDays(-1), now.AddDays(1), null, now.AddDays(2), now.AddDays(7), 20, captain.Id, now);
@@ -428,8 +514,13 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
 
         await using (var db = new ApplicationDbContext(options))
         {
-            db.AddRange(captain, coCaptain, participant, admin, emergency, draftCaptain, live, liveTeam, captainParticipant,
+            db.AddRange(captain, coCaptain, participant, admin, emergency, awaitingCaptain, awaitingParticipant, ambiguousParticipant, awaitingEmergency, draftCaptain,
+                live, liveTeam, captainParticipant,
                 coCaptainParticipant, ordinaryParticipant, liveMemberships[0], liveMemberships[1], liveMemberships[2], emergencyAccess,
+                finalized, finalizedTeam, finalizedCaptainParticipant, finalizedOrdinaryParticipant, finalizedCaptainMembership, finalizedOrdinaryMembership,
+                archived, archivedTeam, archivedCaptainParticipant, archivedOrdinaryParticipant, archivedCaptainMembership, archivedOrdinaryMembership,
+                awaiting, awaitingTeam, awaitingCaptainParticipant, awaitingOrdinaryParticipant, awaitingCaptainMembership, awaitingOrdinaryMembership, awaitingEmergencyAccess,
+                ambiguousLiveOne, ambiguousTeamOne, ambiguousParticipantOne, ambiguousMembershipOne, ambiguousLiveTwo, ambiguousTeamTwo, ambiguousParticipantTwo, ambiguousMembershipTwo,
                 draft, draftTeam, draftParticipant, draftMembership);
             await db.SaveChangesAsync();
         }
@@ -456,6 +547,26 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         Assert.Equal(2, Regex.Count(participantHtml, Regex.Escape($"href=\"{expectedSubmissionHref}\"")));
         Assert.Equal(2, Regex.Count(participantHtml, @">Submissions</a>", RegexOptions.IgnoreCase));
         Assert.Equal(0, Regex.Count(participantHtml, Regex.Escape(">Captain</a>")));
+
+        var awaitingParticipantHtml = await LoggedInHtml(awaitingParticipant);
+        var expectedAwaitingHref = $"/Submissions?eventId={awaiting.Id}&amp;teamId={awaitingTeam.Id}";
+        Assert.Equal(2, Regex.Count(awaitingParticipantHtml, Regex.Escape($"href=\"{expectedAwaitingHref}\"")));
+        Assert.Equal(2, Regex.Count(awaitingParticipantHtml, @">Submissions</a>", RegexOptions.IgnoreCase));
+        Assert.Equal(0, Regex.Count(awaitingParticipantHtml, Regex.Escape(">Captain</a>")));
+
+        var awaitingCaptainHtml = await LoggedInHtml(awaitingCaptain);
+        Assert.Equal(2, Regex.Count(awaitingCaptainHtml, Regex.Escape($"href=\"{expectedAwaitingHref}\"")));
+        Assert.Equal(2, Regex.Count(awaitingCaptainHtml, Regex.Escape(">Captain</a>")));
+        Assert.Equal(0, Regex.Count(awaitingCaptainHtml, @">Submissions</a>", RegexOptions.IgnoreCase));
+
+        var awaitingEmergencyHtml = await LoggedInHtml(awaitingEmergency);
+        Assert.Equal(2, Regex.Count(awaitingEmergencyHtml, Regex.Escape($"href=\"{expectedAwaitingHref}\"")));
+        Assert.Equal(2, Regex.Count(awaitingEmergencyHtml, Regex.Escape(">Captain</a>")));
+        Assert.Equal(0, Regex.Count(awaitingEmergencyHtml, @">Submissions</a>", RegexOptions.IgnoreCase));
+
+        var ambiguousParticipantHtml = await LoggedInHtml(ambiguousParticipant);
+        Assert.DoesNotContain("href=\"/Submissions?eventId=", ambiguousParticipantHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, Regex.Count(ambiguousParticipantHtml, @">Submissions</a>", RegexOptions.IgnoreCase));
 
         foreach (var account in new[] { admin })
         {

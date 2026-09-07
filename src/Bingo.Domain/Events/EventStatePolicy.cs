@@ -32,7 +32,7 @@ public static class EventStatePolicy
         EventCapability.LiveSubmission => state == EventState.Live,
         EventCapability.CompetitionSynchronization => state == EventState.Live,
         EventCapability.ReviewEvidence => state is EventState.Live or EventState.AwaitingFinalReview,
-        EventCapability.ConfigureEvidenceCodes => state is EventState.Draft or EventState.SignupClosed or EventState.Live,
+        EventCapability.ConfigureEvidenceCodes => state is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview,
         EventCapability.Finalize => state == EventState.AwaitingFinalReview,
         EventCapability.Archive => state == EventState.Finalized,
         EventCapability.Unfinalize => state is EventState.Finalized or EventState.Archived,

@@ -367,6 +367,7 @@ else
                     @if (showFinalReviewControls)
                     {
                         <form method="post" asp-page-handler="ReopenSubmissions" class="event-reopen-form" data-update-targets="@partialUpdateTargets">
+                            <input asp-for="EventVersion" type="hidden" />
                             <div class="event-create-field"><label asp-for="ReopenUntilLocal"><span>@T["Reopen submissions until"]</span></label><input asp-for="ReopenUntilLocal" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" required /></div>
                             <div class="event-create-field"><label asp-for="StateReason"><span>@T["Reason"]</span></label><input asp-for="StateReason" class="form-control" required /></div>
                             <button class="btn event-create-cancel" type="submit">@T["Reopen submissions"]</button>
@@ -375,12 +376,12 @@ else
                         <section class="event-admin-control-group event-control-subsection" aria-labelledby="resume-event-heading">
                             <div class="event-control-copy">
                                 <h3 id="resume-event-heading">@T["Resume premature end"]</h3>
-                                <p>@T["The prior end remains in immutable history. Choose a future replacement end to return this event to live play."]</p>
+                                <p>@(Model.ResumeRequiresReplacement ? T["The retained end is missing or expired. Choose a future replacement end to return this event to live play."] : T["The retained future end will be reused. Confirm it and provide a reason to return this event to live play."])</p>
                             </div>
                             <div class="event-admin-event-actions">
                                 @if (Model.ConfirmationAction == "resume")
                                 {
-                                    <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["The prior end remains in immutable history. Confirm the replacement end to resume live play."]</p><form method="post" asp-page-handler="ResumeEvent" class="form-stack event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="ReplacementEventEndsAtLocal"><span>@T["Replacement event end"]</span></label><input asp-for="ReplacementEventEndsAtLocal" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" required /></div><div class="event-create-field"><label asp-for="ResumeReason"><span>@T["Reason (required)"]</span></label><textarea asp-for="ResumeReason" class="form-control" rows="3" required></textarea></div><div class="event-confirmation-actions"><button class="btn event-create-cancel" type="submit" name="ConfirmResumeEvent" value="true">@T["Confirm resume"]</button><a class="btn event-create-cancel" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a></div></form></div>
+                                    <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["The prior end remains in immutable history. Confirm the retained or replacement end to resume live play."]</p><form method="post" asp-page-handler="ResumeEvent" class="form-stack event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="ReplacementEventEndsAtLocal"><span>@T["Replacement event end"]</span></label><input asp-for="ReplacementEventEndsAtLocal" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" required="@(Model.ResumeRequiresReplacement ? "required" : null)" /></div><div class="event-create-field"><label asp-for="ResumeReason"><span>@T["Reason (required)"]</span></label><textarea asp-for="ResumeReason" class="form-control" rows="3" required></textarea></div><div class="event-confirmation-actions"><button class="btn event-create-cancel" type="submit" name="ConfirmResumeEvent" value="true">@T["Confirm resume"]</button><a class="btn event-create-cancel" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a></div></form></div>
                                 }
                                 else
                                 {
@@ -400,7 +401,7 @@ else
                     </section>
                 }
 
-                @if (showAllControlStages || eventView.State is EventState.Draft or EventState.SignupClosed or EventState.Live)
+                @if (showAllControlStages || Model.CanConfigureEvidenceCodes)
                 {
                 <section class="event-admin-control-group event-admin-code-group">
                     <div>
@@ -408,6 +409,7 @@ else
                         <p>@T["Captains include the active code in screenshots so reviewers know when the evidence was captured."]</p>
                     </div>
                     <form method="post" asp-page-handler="@(eventView.EvidenceCodeEnabled ? "DisableEvidenceCodes" : "EnableEvidenceCodes")" class="event-code-toggle-form" data-update-targets="@partialUpdateTargets">
+                        <input asp-for="EventVersion" type="hidden" />
                         <button class="btn event-create-cancel" type="submit">@(eventView.EvidenceCodeEnabled ? T["Disable codes"] : T["Enable codes"])</button>
                     </form>
 
@@ -415,6 +417,7 @@ else
                     {
                         <div class="event-evidence-content">
                             <form method="post" asp-page-handler="CreateEvidenceCode" class="event-evidence-form" data-update-targets="@partialUpdateTargets">
+                                <input asp-for="EventVersion" type="hidden" />
                                 <div class="event-create-field"><label asp-for="NewEvidenceCode">@T["Code"]</label><input asp-for="NewEvidenceCode" class="form-control" placeholder="@T["Your custom code"]" /></div>
                                 <div class="event-create-field"><label asp-for="EvidenceCodeActivatesAtLocal">@T["Active from"]</label><input asp-for="EvidenceCodeActivatesAtLocal" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" /></div>
                                 <div class="event-evidence-note event-create-field"><label asp-for="EvidenceCodeNote">@T["Note"]</label><input asp-for="EvidenceCodeNote" class="form-control" /></div>
@@ -460,12 +463,21 @@ else
                             @if (showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed)
                             {
                                 <div class="event-wom-schedule-field"><div class="event-create-field"><label asp-for="SynchronizeCompetitionSchedule">@T["Schedule handling"]</label><div class="event-wom-select-wrap"><select asp-for="SynchronizeCompetitionSchedule" class="form-select"><option value="false">@T["Keep current schedule"]</option><option value="true">@T["Use competition dates"]</option></select><svg class="event-wom-select-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></div></div></div>
+                                <div class="event-create-field"><label><input asp-for="ConfirmCompetitionSchedule" /> @T["Review and confirm these schedule changes."]</label></div>
                             }
                             <button class="btn admin-button-secondary" type="submit">@T["Link competition"]</button>
                         </form>
-                        @if (integration?.Configured == true && eventView.State is not EventState.Live)
+                        @if (integration?.Configured == true)
                         {
-                            <form method="post" asp-page-handler="ClearCompetition" class="form-stack"><input asp-for="EventVersion" type="hidden" /><button class="btn event-create-cancel" type="submit">@T["Clear competition"]</button></form>
+                            <form method="post" asp-page-handler="ClearCompetition" class="form-stack">
+                                <input asp-for="EventVersion" type="hidden" />
+                                @if (eventView.State == EventState.Live)
+                                {
+                                    <div class="event-create-field"><label><input asp-for="ConfirmCompetitionClear" required /> @T["Confirm"] @T["Clear competition"]</label></div>
+                                    <div class="event-create-field"><label asp-for="CompetitionClearReason"><span>@T["Reason (required)"]</span></label><textarea asp-for="CompetitionClearReason" class="form-control" rows="3" required></textarea></div>
+                                }
+                                <button class="btn event-create-cancel" type="submit">@T["Clear competition"]</button>
+                            </form>
                         }
                         @if ((showAllControlStages || eventView.State == EventState.Live) && integration?.Configured == true)
                         {
