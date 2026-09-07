@@ -420,10 +420,11 @@ Before `first_response_at`, a custom question may be structurally edited or dele
 - new participant-facing questions must have `required = false`;
 - `type`, `account_answer_role`, `options`, stable `key`, and answer-shape constraints are immutable;
 - label, help text, and position may change while signup is closed and before draft start;
-- disabling sets `active = false` and `disabled_at` without deleting the question or answers;
+- structural replacement disables the original question and retains its answers; explicit custom-question deletion removes every answer and excludes the question from ordinary signup/question views, even when it was never answered;
+- deleting an optional Account question releases its current event assignments/reservations atomically without deleting assignment/audit history or global My accounts links; restoration must not reacquire assignments from deleted questions; the definition may remain an internal historical tombstone;
 - every change increments `SignupForm.version` and is audited.
 
-Draft start freezes ordinary question metadata. Structural replacement disables the original question and creates a new optional question with a new stable key; it never rewrites existing answers.
+Draft start freezes ordinary question metadata. Structural replacement disables the original question and creates a new optional question with a new stable key; it never rewrites existing answers. Deletion uses an internal tombstone so assignment and audit references remain valid, but removes all answer rows and releases current optional assignments in the same transaction under the event lock; form and affected participant versions advance. Repeated deletion is harmless and cannot reinterpret a replacement or retained-conversion record. Upgrade repair of earlier deletion-only deactivations is limited to pre-draft Draft/SignupOpen/SignupClosed events and excludes system, replacement and retained-conversion/legacy questions. Already draft-locked or later event records are preserved unchanged; this correction does not rewrite competitive history.
 
 ### 6.3 EventParticipant
 

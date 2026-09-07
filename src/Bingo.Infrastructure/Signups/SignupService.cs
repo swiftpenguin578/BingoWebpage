@@ -20,6 +20,47 @@ public sealed class SignupService(
     TimeProvider timeProvider,
     ISignupLookupTokenService? lookupTokens = null) : ISignupService
 {
+    public async Task<SignupAdministrationResult> DeleteQuestionAsync(Guid eventId, Guid questionId, Guid actorAccountId, string actorName, CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        var bingoEvent = await LockEventAsync(eventId, cancellationToken);
+        if (bingoEvent is null) return new(false, "The event could not be found.");
+        if (await AdminAsync(actorAccountId, cancellationToken) is null) return new(false, "Admin access is required.");
+        if (bingoEvent.DraftLocked || bingoEvent.State is not (EventState.Draft or EventState.SignupClosed))
+            return new(false, "Signup questions can only be changed while signups are closed and before the draft starts.");
+        var question = await dbContext.SignupQuestions.SingleOrDefaultAsync(x => x.EventId == eventId && x.Id == questionId, cancellationToken);
+        if (question is null) return new(false, "That question cannot be removed.");
+        if (question.SystemField != SignupSystemField.None) return new(false, "Standard questions cannot be removed.");
+        if (question.DisabledReason == SignupQuestion.DeletedReason) return new(true);
+        if (!question.Active) return new(false, "That question cannot be removed.");
+
+        var answers = await dbContext.SignupAnswers.Where(x => x.SignupQuestionId == questionId).ToListAsync(cancellationToken);
+        var assignments = await dbContext.EventParticipantCharacters.Where(x => x.EventId == eventId && x.SignupQuestionId == questionId && x.ReleasedAt == null).ToListAsync(cancellationToken);
+        var participantIds = answers.Select(x => x.EventParticipantId).Concat(assignments.Select(x => x.EventParticipantId)).Distinct().ToList();
+        var participants = await dbContext.EventParticipants.Where(x => participantIds.Contains(x.Id)).ToListAsync(cancellationToken);
+        var form = await dbContext.SignupForms.SingleAsync(x => x.Id == question.SignupFormId, cancellationToken);
+        var now = timeProvider.GetUtcNow();
+        question.Delete(actorAccountId, now);
+        dbContext.SignupAnswers.RemoveRange(answers);
+        foreach (var assignment in assignments) assignment.Release(actorAccountId, now);
+        foreach (var participant in participants) participant.AdvanceResponseVersion();
+        dbContext.Entry(form).Property(x => x.Version).IsModified = true;
+        dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actorAccountId, actorName, "signup_question.deleted", "signup_question", questionId.ToString(),
+            Json(new { answersRemoved = answers.Count, assignmentsReleased = assignments.Count }), eventId));
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new(true);
+        }
+        catch (DbUpdateException)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "The question could not be removed. Please reload and try again.");
+        }
+    }
+
     public async Task<ParticipantPaymentResult> SetPaymentAsync(Guid eventId, Guid participantId, Guid? actorAccountId, string actorName, PaymentStatus payment, CancellationToken cancellationToken = default)
     {
         if (payment is not (PaymentStatus.Unpaid or PaymentStatus.Paid)) return new(false, "Choose Paid or Unpaid.");
@@ -157,6 +198,8 @@ public sealed class SignupService(
         var account = await dbContext.Accounts.SingleOrDefaultAsync(x => x.Id == request.AccountId && x.AccountType == AccountType.WebsiteAccount && x.Active, cancellationToken);
         if (account is null) return new(false, "Signups require a normal website account.", null, null, null);
         var existing = await dbContext.EventParticipants.SingleOrDefaultAsync(x => x.EventId == request.EventId && x.AccountId == request.AccountId, cancellationToken);
+        if (existing?.SignupStatus == SignupStatus.Withdrawn)
+            return new(false, "Withdrawn signups cannot be edited. Rejoin while signup is open.", null, null, null);
         if (existing is not null && (request.ExpectedResponseVersion is null || request.ExpectedResponseVersion != existing.ResponseVersion))
             return new(false, "Your signup changed while you were editing it. Please reload and try again.", null, null, null);
         if (bingoEvent.RequireSignupCode && (string.IsNullOrWhiteSpace(request.SignupCode) || bingoEvent.SignupCodeHash is null || !secretHasher.Verify(request.SignupCode, bingoEvent.SignupCodeHash))) return new(false, "The event code is incorrect.", null, null, null);
@@ -183,10 +226,12 @@ public sealed class SignupService(
                     continue;
                 }
                 var selectedAnswer = answer!;
-                if (!requestedCharacters.Add(selectedAnswer.OsrsCharacterId)) return new(false, "Choose each account only once.", null, null, null);
+                if (!requestedCharacters.Add(selectedAnswer.OsrsCharacterId)) return new(false, "Choose each account only once.", null, null, null, question.Id);
                 var keepsHistoricalAssignment = currentByQuestion.TryGetValue(question.Id, out var current) && current.OsrsCharacterId == selectedAnswer.OsrsCharacterId;
                 if (!keepsHistoricalAssignment && !links.ContainsKey(selectedAnswer.OsrsCharacterId)) return new(false, "Choose an account from My accounts.", null, null, null);
                 if (question.AccountAnswerRole == EventCharacterRole.Playing && (selectedAnswer.Ehb is null || selectedAnswer.Ehb < 0)) return new(false, $"'{question.Label}' requires EHB.", null, null, null);
+                var reserved = await dbContext.EventParticipantCharacters.AnyAsync(x => x.EventId == request.EventId && x.OsrsCharacterId == selectedAnswer.OsrsCharacterId && (existing == null || x.EventParticipantId != existing.Id) && x.ReleasedAt == null, cancellationToken);
+                if (reserved) return new(false, "That account is already signed up for this event. Choose another account.", null, null, null, question.Id);
                 continue;
             }
             if (!ValidateAnswer(question, request.Answers.TryGetValue(question.Id, out var value) ? value : null, out var error))
@@ -210,7 +255,7 @@ public sealed class SignupService(
         participant.SetCaptainVolunteer(captain is not null && request.Answers.TryGetValue(captain.Id, out var captainAnswer) && bool.TryParse(captainAnswer, out var volunteered) && volunteered);
         var answers = existing is null ? [] : await dbContext.SignupAnswers.Where(x => x.EventParticipantId == participant.Id).ToListAsync(cancellationToken);
         var answersByQuestion = answers.ToDictionary(x => x.SignupQuestionId);
-        var order = (currentAssignments.Select(x => (int?)x.RegistrationOrder).Max() ?? -1) + 1;
+        var order = (await dbContext.EventParticipantCharacters.Where(x => x.EventParticipantId == participant.Id).MaxAsync(x => (int?)x.RegistrationOrder, cancellationToken) ?? -1) + 1;
         foreach (var question in questions.Where(x => x.Type == SignupQuestionType.Account))
         {
             var supplied = request.AccountAnswers.TryGetValue(question.Id, out var answer) && answer is not null && answer.OsrsCharacterId != Guid.Empty;
@@ -224,8 +269,6 @@ public sealed class SignupService(
             var selectedAnswer = answer!;
             var selected = links.GetValueOrDefault(selectedAnswer.OsrsCharacterId);
             var sameAssignment = current is not null && current.OsrsCharacterId == selectedAnswer.OsrsCharacterId;
-            var reserved = await dbContext.EventParticipantCharacters.AnyAsync(x => x.EventId == request.EventId && x.OsrsCharacterId == selectedAnswer.OsrsCharacterId && x.EventParticipantId != participant.Id && x.ReleasedAt == null, cancellationToken);
-            if (reserved) return new(false, "That account is already signed up for this event.", null, null, null);
             var role = question.AccountAnswerRole!.Value;
             var source = EhbSource.Manual;
             DateTimeOffset? fetchedAt = null;
@@ -243,7 +286,7 @@ public sealed class SignupService(
             else
             {
                 current?.Release(request.AccountId, now);
-                dbContext.EventParticipantCharacters.Add(new EventParticipantCharacter(Guid.NewGuid(), request.EventId, participant.Id, selectedAnswer.OsrsCharacterId, order++, now, request.AccountId, question.Id, role, selectedAnswer.Ehb, role == EventCharacterRole.Playing ? source : null, role == EventCharacterRole.Playing ? fetchedAt : null));
+                dbContext.EventParticipantCharacters.Add(new EventParticipantCharacter(Guid.NewGuid(), request.EventId, participant.Id, selectedAnswer.OsrsCharacterId, order++, now, request.AccountId, question.Id, role, role == EventCharacterRole.Playing ? selectedAnswer.Ehb : null, role == EventCharacterRole.Playing ? source : null, role == EventCharacterRole.Playing ? fetchedAt : null));
             }
             if (answersByQuestion.TryGetValue(question.Id, out var existingAnswer)) existingAnswer.SetAccountCharacter(selectedAnswer.OsrsCharacterId);
             else dbContext.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, question.Id, question.Label, string.Empty, selectedAnswer.OsrsCharacterId));
@@ -262,7 +305,17 @@ public sealed class SignupService(
         else participant.AdvanceResponseVersion();
         try { await dbContext.SaveChangesAsync(cancellationToken); await transaction.CommitAsync(cancellationToken); }
         catch (DbUpdateConcurrencyException) { dbContext.ChangeTracker.Clear(); return new(false, "Your signup changed while you were editing it. Please reload and try again.", null, null, null); }
-        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation }) { dbContext.ChangeTracker.Clear(); return new(false, "That account is already signed up for this event.", null, null, null); }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_event_participant_characters_event_id_osrs_character_id" })
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            await transaction.DisposeAsync();
+            dbContext.ChangeTracker.Clear();
+            var reservedIds = await dbContext.EventParticipantCharacters.Where(x => x.EventId == request.EventId && requestedCharacters.Contains(x.OsrsCharacterId) && x.EventParticipantId != participant.Id && x.ReleasedAt == null).Select(x => x.OsrsCharacterId).ToListAsync(cancellationToken);
+            var conflict = questions.FirstOrDefault(x => x.Type == SignupQuestionType.Account && request.AccountAnswers.TryGetValue(x.Id, out var selected) && reservedIds.Contains(selected.OsrsCharacterId));
+            return conflict is not null
+                ? new(false, "That account is already signed up for this event. Choose another account.", null, null, null, conflict.Id)
+                : new(false, "Your signup could not be saved. Please try again.", null, null, null);
+        }
         catch (DbUpdateException) { dbContext.ChangeTracker.Clear(); return new(false, "Your signup could not be saved. Please try again.", null, null, null); }
         return new(true, null, participant.Id, status, status == SignupStatus.WaitingList ? await GetWaitingPositionAsync(participant.Id, request.EventId, cancellationToken) : null);
     }
@@ -934,7 +987,19 @@ public sealed class SignupService(
     private async Task<bool> ReacquireAssignmentsAsync(EventParticipant participant, Guid? actorId, DateTimeOffset now, CancellationToken ct)
     {
         var released = await dbContext.EventParticipantCharacters.Where(x => x.EventParticipantId == participant.Id && x.ReleasedAt != null).OrderByDescending(x => x.RegistrationOrder).ToListAsync(ct);
-        var originals = released.GroupBy(x => x.SignupQuestionId).Select(x => x.First()).ToList();
+        var deletedQuestions = await dbContext.SignupQuestions.Where(x => x.EventId == participant.EventId && x.DisabledReason == SignupQuestion.DeletedReason).Select(x => x.Id).ToListAsync(ct);
+        var savedSelections = await dbContext.SignupAnswers.Where(x => x.EventParticipantId == participant.Id && x.OsrsCharacterId != null)
+            .ToDictionaryAsync(x => x.SignupQuestionId, x => x.OsrsCharacterId!.Value, ct);
+        // The retained conversion omitted account answers. Primary is required; legacy Alt stays disabled,
+        // so ordinary edits cannot clear either fallback without leaving a saved selection.
+        var legacyQuestions = await dbContext.SignupQuestions.Where(x => x.EventId == participant.EventId &&
+            (x.SystemField == SignupSystemField.PrimaryRegularAccount || (!x.Active && x.Key == "legacy_alt_account")))
+            .Select(x => x.Id).ToListAsync(ct);
+        var originals = released.Where(x => x.SignupQuestionId is { } questionId && !deletedQuestions.Contains(questionId) &&
+                (savedSelections.TryGetValue(questionId, out var characterId) ? x.OsrsCharacterId == characterId : legacyQuestions.Contains(questionId)))
+            .GroupBy(x => x.SignupQuestionId).Select(x => x.First()).ToList();
+        // External rosters have no question/answer rows; roster removal releases after setting WithdrawnAt.
+        originals.AddRange(released.Where(x => x.SignupQuestionId == null && x.ReleasedAt >= participant.WithdrawnAt));
         var ids = originals.Select(x => x.OsrsCharacterId).ToList();
         if (ids.Count != 0 && await dbContext.EventParticipantCharacters.AnyAsync(x => x.EventId == participant.EventId && ids.Contains(x.OsrsCharacterId) && x.ReleasedAt == null, ct)) return false;
         var order = (await dbContext.EventParticipantCharacters.Where(x => x.EventParticipantId == participant.Id).MaxAsync(x => (int?)x.RegistrationOrder, ct) ?? -1) + 1;

@@ -1,7 +1,265 @@
 # Current project status
 
-**Active handoff:** 2026-09-04. This is the concise current-state handoff;
+**Active handoff:** 2026-09-07. This is the concise current-state handoff;
 historical material is preserved separately and is non-authoritative.
+
+## PR #7 CI formatting correction — 2026-09-07
+
+- User reports the final local full suite all green. Commits `f04432a` and
+  `619eeb3` were pushed to `origin/admin-event-functionality`; PR #7 is open
+  into main: https://github.com/swiftpenguin578/BingoWebpage/pull/7.
+- CI reports only Program.cs import ordering from `dotnet format Bingo.slnx
+  --no-restore --verify-no-changes`. Earlier scoped whitespace-only checks did
+  not cover imports. Bounded correction reorders imports only, then runs the
+  exact complete formatting command before committing/pushing the correction.
+  Program.cs import ordering is corrected; the exact complete formatting command
+  passed (exit 0), and diff checks pass. No behavioral change or test-suite rerun
+  required. This correction is authorized for commit/push to PR #7; its new CI
+  result is pending.
+  Earlier pending-test/unpushed notes below are historical checkpoints.
+
+## Danish HowTo copy correction — 2026-09-07
+
+- User requests natural Danish wording throughout `/HowTo` before pushing.
+  Scope: Danish resource values consumed by the existing five-step guide,
+  including headings/help/accessibility wording where useful. Preserve English,
+  page composition/navigation, established OSRS glossary, exact action labels,
+  and signup/evidence/privacy/review rules. No UI redesign or behavior change.
+  Rewrite complete: 42 existing Danish values updated, including player-focused
+  prose and references matching actual Danish controls/statuses. XML/key/placeholder/
+  consumer and diff checks pass; all changed keys are specific to HowTo. Independent
+  Astra High wording/meaning review clears the final text after preserving optional
+  Regular accounts and general tile requirements in simplified wording. No build,
+  test-suite or layout change. User accepts the wording and authorizes local
+  packaging/commit. This copy commit contains the accepted resource correction
+  and handoff only. User is rerunning the full suite before any push; its result
+  is pending. No push/deploy authorized in this step.
+  Signup corrections are committed locally as `f04432a`; no push/deploy performed.
+
+## Signup readiness corrections — approved 2026-09-07
+
+- Local packaging/commit authorized and gates clear; push/merge/deploy remain
+  unauthorized. User's full Release suite reported 755 total: 754 passed and one
+  failed because the direct ConfirmationModel test supplied a null localizer.
+  That test setup now uses the existing passthrough-localizer pattern; production
+  behavior and assertions are unchanged. The previously failing test passes 1/1
+  in a focused Release rerun; scoped formatting and diff checks pass. The entire
+  suite was not repeated after this isolated fixture fix. This supersedes earlier
+  source-test environment blockers for the user's completed full run.
+  Accepted packaging scope is the pending onboarding/signup corrections,
+  question-deletion migration, regression tests, authority updates and approved
+  AGENTS workflow rewrite. Explicit 29-file inventory and added-content secret/
+  private-key/path checks are clean. This local packaging commit contains the
+  accepted state; no push, merge, deployment or user-database mutation is included.
+  Timestamp review found no unsafe raw-clock-to-reloaded equality: the deletion
+  test normalizes to microseconds; other comparisons use DB reads or the same
+  tracked value. No timing fix needed. Earlier per-pass uncommitted/no-packaging
+  notes below are historical checkpoints superseded by this authorization.
+- Manual smoke check accepted by user, 2026-09-07: user reports the recommended
+  question-deletion views, withdraw -> delete -> reopen -> rejoin sequence,
+  conflicting-account feedback and real Discord cancellation/retry destination
+  all work correctly. This records user-reported acceptance of these journeys,
+  not whole-site approval or independently observed browser evidence. Remaining
+  implemented recovery cases retain their passing focused-test evidence; no
+  repeat manual walkthrough requested. Changes remain uncommitted; no push or
+  deployment is authorized by this acceptance.
+- User authorized findings 4/5 correction, 2026-09-07. Identify conflicting
+  submitted account answers using existing field validation while preserving
+  other entered values and atomic rejection; do not expose another participant's
+  private data. Preserve validated local event destinations through Discord
+  failure/retry and mandatory password-change recovery, with safe fallbacks for
+  absent/invalid state and unchanged account-linking/session/security semantics.
+  No new schema/routes/services, auth bypass, visual redesign or unrelated audit.
+  Existing gap review is readiness evidence. One Astra Medium implementer handles
+  signup then authentication corrections sequentially. Focused
+  regression checks and one independent correction-diff review only. Baseline:
+  `/private/tmp/signup-gap45-before`. No commit/push/deploy authorized.
+  Findings 4/5 complete. Conflict create/edit checks pass 2/2. Independent review
+  caught missing failure properties on provider exceptions; the new exception
+  regression failed before correction and passes after protected-state recovery.
+  Affected auth checks pass 3/3 (exception/cancellation recovery and unsafe-state
+  fallbacks), including forced-password invalid/retry to the intended event.
+  Release compilation, scoped formatting and diff checks pass. Independent review
+  clears both fixes and the exception-path correction. No whole-suite/browser
+  matrix run or live OAuth change. Database-race conflict fallback is source-reviewed,
+  not separately race-tested. Diff: `/private/tmp/signup-gap45-implementation.diff`.
+  Changes remain uncommitted and undeployed; question deletion is completed below.
+- Approved question deletion correction, 2026-09-07: Delete removes a custom
+  question from form, table, confirmation and ordinary question/answer views,
+  including never-answered questions, and deletes all its answers. User explicitly
+  confirms optional Regular/Alt assignments must also be released, freeing event
+  reservations; rejoin/Admin restore must not resurrect them. Preserve My accounts
+  links, participant status/order, required system questions, audit/competitive
+  history, and existing private/closed pre-draft gates. No Hide feature. Structural
+  replacement remains a distinct history-preserving operation. Product, functional
+  and data authorities updated before implementation. Read-only bounded readiness
+  checks deletion/replacement/history and transaction seams; implement smallest
+  correction with focused deletion/reservation/restoration regression coverage,
+  scoped formatting/diff checks and one independent correction review. Readiness
+  cleared with a deletion tombstone (retaining definition/assignment history),
+  event-lock lifecycle recheck, physical answer removal, versioning and audit in
+  one transaction. Astra Medium implementation complete. The data-only upgrade will
+  repair old null-reason/non-replacement custom removals in Draft/SignupOpen/
+  SignupClosed events before draft lock; exclude system/retained-conversion/
+  legacy questions. Already draft-locked/later history is unchanged. No new
+  schema/table/service/route/framework or Hide action. No broader audit, commit,
+  push or deployment authorized.
+  Verification: focused Release tests pass 3/3 (Regular/Alt rendered Admin deletion,
+  affected views, reservation reuse, rejoin/Admin restore, audit-failure rollback,
+  authority/system/lifecycle/repeat guards; populated old-row migration checks
+  ten eligible/excluded classifications). Release compilation, scoped formatting
+  and final diff checks pass. Independent Astra High correction review clears
+  the approved delta. Data-only migration `20260907185521_RepairDeletedSignupQuestions`
+  includes matching generated metadata; model snapshot/schema unchanged. Exact
+  delta: `/private/tmp/signup-question-delete-implementation.diff`; test output:
+  `/private/tmp/signup-question-delete-tests.log`. No live concurrent execution,
+  real database mutation, application restart, commit, push or deployment performed.
+  Existing old deletions are repaired when the migration runs on app update.
+- User authorized one independent Astra High onboarding-to-signup gap review.
+  Derive journeys from active product contracts and current implementation, then
+  compare existing tests/manual evidence; neither is the completeness checklist.
+  Review is read-only and bounded to entry, onboarding, event signup, confirmation,
+  editing/withdrawal/rejoin and their failure/recovery/state boundaries. Follow
+  with only focused checks that resolve concrete material gaps; no visual matrix,
+  whole-site audit or redundant full-suite run. Review complete: removed-Alt
+  rejoin resurrection reproduced by one temporary PostgreSQL diagnostic (1 failed
+  as expected, diagnostic removed); five more source-confirmed gaps cover retained
+  character validation retry, missing manual signup EHB editor, unidentified
+  conflicting answer, lost event destination on authentication recovery, and
+  incomplete confirmation answers. A signup/event-update serialization risk is
+  unverified. No production remediation was performed during review. Report:
+  `/private/tmp/onboarding-signup-gap-review-2026-09-07.md`. Next: prioritize these
+  findings with the user; prior manual/test evidence is not blanket completeness.
+- Review adjudication: user accepts My Accounts as the manual EHB fallback;
+  finding 3 is closed and active product/functional wording updated. No inline
+  signup EHB editor is required. For finding 6, personal My Accounts labels/notes
+  are excluded; user also accepts existing Account/Alt account question/column
+  wording as sufficient, closing the additional role-label finding. Alt means a
+  support character alongside the main; no extra labels/badges are required.
+  User explicitly approved correcting the omitted captain-volunteer answer:
+  confirmation must always show the stored choice as localized Yes or No.
+  Corrected in the existing confirmation projection using persisted boolean and
+  existing EN/DA localization. Release Web build passed (zero warnings/errors)
+  and scoped diff check passed; no browser/test rerun.
+- User now authorizes remediation of gap findings 1 and 2 only. Preserve the
+  saved account selection at withdrawal: an optional character cleared earlier
+  must not be restored or cause a false reservation conflict on rejoin. Protect
+  shared Admin restore behavior, legitimate retained assignments, queue and
+  transaction/history semantics. Invalid edit postbacks must retain eligible
+  registered-but-globally-unlinked options while preserving submitted values,
+  validation errors and stale-version protections; ownership remains server-derived.
+  Add/run only discriminating regression journeys for these fixes and directly
+  affected behavior. No new schema/service/route, unrelated cleanup or UI redesign.
+  Existing gap review is the readiness baseline; one bounded independent review
+  of this correction delta follows implementation, not another broad gap audit.
+  Pre-correction snapshots: `/private/tmp/signup-gap12-before`. Implementation
+  complete in SignupService, Signup page model and existing integration tests.
+  Four new regression cases failed at intended assertions before fixes; focused
+  Release run now passes 6/6 including existing EN/DA selected-Alt journeys.
+  Tests cover participant rejoin/Admin restore, claimed cleared Alt, fixed-time
+  releases, retained assignments and real Unlink -> Edit -> invalid -> corrected
+  POST. Scoped diff check passed; batch diff is
+  `/private/tmp/signup-gap12-implementation.diff`. Bounded independent Astra High
+  review passed with no blockers; migrated disabled-Alt fallback was source-checked,
+  not separately executed. Scoped formatting passed after four test-whitespace
+  corrections; final diff check passed. No repeat tests/build/review after whitespace.
+  Findings 1/2 are complete. Findings 4/5 and unverified concurrency risk remain
+  outside this batch; changes are uncommitted and undeployed.
+- Current direct onboarding correction: match the EHB fetch-button surface to
+  its input in both themes; hover changes only text/SVG to theme ink (cream in
+  dark, ink in light), retaining focus and busy/disabled behavior. Blank character
+  validation must not shift the neighboring inputs. Scope is the existing right
+  onboarding controls and their cascade; no authentication, lookup, or signup
+  behavior changes. Current user screenshots supplied 2026-09-07 are evidence.
+  CSS correction complete: composite uses the input surface token, global filled
+  hover excludes the existing fetch control so theme-ink text/SVG hover wins,
+  and character fields align at the top to avoid validation-induced stretching.
+  Source/cascade and diff checks pass. No rendered check, build or tests; user
+  visual acceptance remains pending. Authentication and lookup behavior unchanged.
+- Use only `/private/tmp/BingoWebpage-admin-event-functionality`, branch
+  `admin-event-functionality`, base `4f58407de2ddee079b5a2a4ceba2dff612fd1a51`.
+  The separate saved checkout remains excluded. Preserve the uncommitted,
+  user-approved `AGENTS.md` workflow rewrite. No packaging or deployment is
+  authorized for these corrections.
+- User approved subagent delegation, including Public UI, on 2026-09-07.
+  `AGENTS.md` now replaces the visible-worker-only rule with bounded subagents,
+  explicit existing model/reasoning assignments, independent reviewer separation,
+  and coordinated file ownership. Separate user-owned tasks require an explicit
+  user request; the model table and existing acceptance gates remain unchanged.
+- User handoff establishes PR #6 merged at
+  `b53ff904f4fdba199d3d94e8174f71f32d9041d1`; the user now reports deployment.
+  Older unpushed/unmerged/manual-pending statements below are historical and
+  superseded by that handoff. This task has not verified the deployment receipt.
+- Approved bounded scope: Alt/Informational signup works without EHB metadata;
+  Regular/Playing behavior remains protected. Withdrawn confirmation offers
+  Rejoin when eligible, not Edit; stale/direct edits cannot mutate or reacquire
+  reservations. Prove a second user can register a character released by withdrawal
+  and the first user's later Rejoin respects that real reservation.
+- Confirmation copy/composition: neutral “Your signup” kicker, event name as
+  the main heading, one prominent status with Waiting-list position shown once,
+  no repeated small status badge or redundant confirmation sentence. English
+  withdrawn status reads “Withdrawn”. Step 03 explains eligible Rejoin without
+  promising the old place, Admin contact after close/before draft, and unavailable
+  self-service after draft. Preserve EN/DA, themes, narrow layout, accessibility,
+  existing routes, permissions, queue rules, and history. No other page redesign.
+- Additional approved masthead correction: the existing Signup create/edit and
+  Signups table metadata row shows grouped bingo start/end, signup close, and
+  draft start only when configured, with HH:mm in the event timezone. Remove
+  metadata capacity while retaining the large x/x. Preserve natural narrow
+  wrapping and EN/DA; do not add a metadata row to Confirmation. Applied after
+  direct worker approval; worker reports Release build and diff checks passed.
+  Current user screenshot shows dates wrapping within the title column. Approved
+  follow-up: move metadata beneath the masthead columns so it can use the full
+  available width while retaining natural item widths, left alignment and gaps;
+  do not stretch or distribute items. Wrap only when needed. Implemented in both
+  signup Razor pages and scoped CSS; worker reports responsive source/cascade
+  and diff checks pass. User then rejected the upper masthead layout: title
+  narrowed and capacity shifted left (current screenshot ending `dcecbe1558e2.png`).
+  Corrected by `contain: inline-size` on metadata: controlled same-content/width
+  rendering proved its intrinsic contribution inflated the capacity track from
+  198px to 511px; containment restores the prior upper column widths while keeping
+  metadata's full-width wrapping room. Metadata now follows event flow: signup
+  close, optional draft start, bingo start/end. Worker verified a rendered masthead
+  copy with current CSS at desktop and 390px (no horizontal overflow), plus diff
+  check. This is isolated rendering evidence, not a rebuilt app walkthrough. No
+  build/tests rerun. User accepted layout/order, then requested only less space
+  above metadata. CSS-only follow-up sets masthead row gap to 1rem and removes
+  metadata's extra 1rem top margin; narrow gap remains 1.25rem. Scoped diff check
+  passed; no additional verification. Changes remain uncommitted and undeployed.
+- Current screenshot evidence is the user's confirmed-state image at
+  `/var/folders/w5/74mg_d917xg33ry8_4qc9g5w0000gn/T/codex-clipboard-5800ac86-1b34-4ea4-94b5-d93f0b6321a1.png`.
+  It is current evidence of repetition, not a historical reference reactivation.
+- Implementation is complete. EN/DA selected-Alt HTTP 500 was reproduced; the
+  withdrawn-edit diagnostic identified retained registration-order uniqueness,
+  not proof of a live reservation leak. All 24 scoped PostgreSQL integration
+  tests pass, including a second user claiming the released character and the
+  first user's subsequent Rejoin conflict. Browser Alt create/edit and all three
+  confirmation states executed; Release build (zero warnings/errors), scoped
+  formatting, and diff checks pass. Separate SignupUiTests execution was blocked
+  by host named-pipe permissions and not retried.
+- User explicitly narrowed verification for usage budget: stop repeated browser
+  theme/viewport/language coverage, reuse completed and applicable prior manual
+  evidence, and perform one narrow read-only correction review without test reruns.
+  No whole-site audit, new readiness cycle, or repeated acceptance of unaffected
+  behavior. The narrow independent review found one blocker: saved Alt -> None
+  -> Alt edits reused retained registration order. Bounded Astra Low remediation
+  now allocates across all historical assignments, following the existing Rejoin
+  pattern; the extended EN/DA PostgreSQL journey passes 2/2, with required
+  compilation, scoped formatting, and diff checks passing. No new broad review
+  or browser run was performed. The reviewer otherwise found the approved scope
+  delivered without material unapproved changes.
+- Implementation handoff and current screenshots:
+  `/Users/christopher/Documents/Codex/2026-09-07/signup-readiness-corrections/outputs/handoff.md`.
+  Disposable preview is running at `http://localhost:5187`; database/container
+  `signup-readiness-browser` uses port 55487. No real participant data. The preview
+  was not restarted after the final service-only order fix; refresh its process
+  from the current build before any further functional walkthrough. Existing
+  confirmation screenshots remain applicable because that fix changed no UI.
+- Next: user visual acceptance of the changed confirmation only; reuse prior
+  acceptance for unaffected behavior. Implementation and the named review
+  remediation are complete. Separate source-contract test execution remains
+  environment-blocked; post-draft copy is source-reviewed, not separately executed.
+  All corrections are uncommitted and production remains unchanged by this task.
 
 ## Admin event-functionality correction handoff — 2026-09-04
 

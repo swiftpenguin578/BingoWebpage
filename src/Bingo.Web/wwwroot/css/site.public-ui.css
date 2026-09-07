@@ -2224,7 +2224,7 @@ body.public-ui-pass1 :is(.public-signups-directory, .public-teams-directory) {
   color: var(--public-directory-heading);
 }
 
-body.public-ui-pass1 .public-signups-directory.signup-sheet .signup-sheet__meta { margin: 1rem 0 0; }
+body.public-ui-pass1 .public-signups-directory.signup-sheet .signup-sheet__meta { margin: 0; }
 html[data-public-theme="dark"] body.public-ui-pass1 .public-signups-directory.signup-sheet .signup-sheet__kicker { color: var(--signup-ink); }
 
 body.public-ui-pass1 :is(.public-signups-directory, .public-teams-directory) :is(h1, h2, h3, p, dl, ul, ol) { margin: 0; }
@@ -2697,14 +2697,14 @@ body.public-ui-pass1:has(.identity-page--onboarding) .public-ui-pass1-main { wid
 .onboarding-step__heading h2 { margin: 0.3rem 0 0; color: var(--editorial-ink); font-size: 1.6rem; line-height: 0.95; }
 .onboarding-step__content { grid-column: 1 / -1; min-width: 0; }
 .onboarding-fields { display: grid; gap: 1rem; margin-top: 1.6rem; }
-.onboarding-fields--character { grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr); }
+.onboarding-fields--character { grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr); align-items: start; }
 .onboarding-fields--character .identity-field > .editorial-label { min-height: 0.86rem; }
 .onboarding-note { margin: 1rem 0 0; color: var(--editorial-muted); font-size: 0.88rem; line-height: 1.4; }
 .onboarding-ehb-control { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 0; align-items: stretch; }
 .onboarding-ehb-control .identity-input { min-width: 0; max-width: 100%; padding-right: 0; border-right: 0; }
 .editorial-link--fetch { display: inline-flex; min-height: 2.7rem; gap: 0.35rem; align-items: center; justify-content: center; padding: 0.6rem 0.75rem; background: var(--editorial-field); border: 1px solid var(--editorial-blue); cursor: pointer; white-space: nowrap; }
 .onboarding-ehb-control .editorial-link--fetch { min-width: max-content; border-left: 0; }
-.identity-page--onboarding .onboarding-ehb-control { border: 1px solid var(--editorial-blue); }
+.identity-page--onboarding .onboarding-ehb-control { background: var(--editorial-field); border: 1px solid var(--editorial-blue); }
 .identity-page--onboarding .onboarding-ehb-control .identity-input { border: 0; }
 .identity-page--onboarding .onboarding-ehb-control .editorial-link--fetch { color: var(--editorial-blue); background: transparent; border: 0; }
 .identity-page--onboarding .onboarding-ehb-control .editorial-link--fetch:hover,
@@ -2836,7 +2836,7 @@ html[data-public-theme="dark"] .login-sheet {
 .signup-sheet { padding: clamp(1.75rem, 3.4vw, 3.5rem) var(--public-page-gutter) 2.25rem; }
 .signup-sheet :is(h1, h2, h3, dt, legend, label, button, a) { font-family: "Barlow Condensed Public UI", "Arial Narrow", sans-serif; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
 .signup-sheet :is(h1, h2) { font-family: "Barlow Condensed ExtraBold", "Arial Narrow", sans-serif; font-weight: 800; }
-.signup-sheet__masthead { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(max-content, 0.45fr) minmax(13rem, 0.5fr); gap: clamp(1.5rem, 3.2vw, 3.25rem); align-items: center; padding-bottom: 1rem; border-bottom: 3px solid var(--signup-structure); }
+.signup-sheet__masthead { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(max-content, 0.45fr) minmax(13rem, 0.5fr); gap: 1rem clamp(1.5rem, 3.2vw, 3.25rem); align-items: center; padding-bottom: 1rem; border-bottom: 3px solid var(--signup-structure); }
 .signup-sheet__kicker { display: block; color: var(--signup-blue-text); }
 .signup-sheet__title h1 { max-width: 55rem; margin: 0; color: var(--signup-ink); overflow-wrap: anywhere; }
 .signup-sheet .signup-sheet__kicker,
@@ -2844,10 +2844,11 @@ html[data-public-theme="dark"] .login-sheet {
 .event-confirmation .confirmation-masthead__copy > :is(h1#confirmation-heading, .confirmation-masthead__event) { color: var(--editorial-ink); font: 800 clamp(3.6rem, 5.2vw, 5.8rem)/0.82 "Barlow Condensed Public UI", "Arial Narrow", sans-serif; letter-spacing: 0.01em; text-transform: uppercase; overflow-wrap: anywhere; }
 .event-confirmation .confirmation-masthead__copy > .confirmation-masthead__event { margin: 0.28rem 0 0; }
 .signup-sheet__title > p { max-width: 46rem; margin: 0.7rem 0 0; color: var(--signup-muted); }
-.signup-sheet__meta { display: flex; flex-wrap: wrap; gap: 0.55rem 1.35rem; margin: 1rem 0 0; }
-.signup-sheet__meta div { display: flex; gap: 0.42rem; align-items: baseline; }
+.signup-sheet__meta { grid-column: 1 / -1; contain: inline-size; display: flex; flex-wrap: wrap; gap: 0.55rem 1.35rem; margin: 0; }
+.signup-sheet__meta div { display: flex; flex-wrap: wrap; min-width: 0; gap: 0.42rem; align-items: baseline; }
 .signup-sheet__meta div + div { padding-left: 1.35rem; border-left: 1px solid var(--signup-rule); }
 .signup-sheet__meta dt, .signup-sheet__meta dd { margin: 0; }
+.signup-sheet__meta-range { display: flex; flex-wrap: wrap; gap: 0.35rem 0.75rem; }
 .signup-sheet__meta dt { color: var(--signup-label); font-size: 0.68rem; }
 html[data-public-theme="dark"] .signup-sheet__meta dt { color: var(--signup-blue-text); }
 .signup-sheet__meta dd { color: var(--signup-ink); font-size: 0.78rem; }
@@ -4393,7 +4394,7 @@ html[data-public-theme="dark"] body.public-ui-pass2 { --public-action-contrast: 
   border-color: var(--landing-content-accent);
   text-decoration: none;
 }
-:is(a, button).editorial-button:not(.editorial-button--coral):not(.editorial-button--coral-outline):not(.editorial-button--provider):hover:not(:disabled):not([aria-disabled="true"]) {
+:is(a, button).editorial-button:not(.editorial-button--coral):not(.editorial-button--coral-outline):not(.editorial-button--provider):not(:where(.editorial-link--fetch)):hover:not(:disabled):not([aria-disabled="true"]) {
   color: var(--public-action-contrast);
   background: var(--editorial-blue);
   border-color: var(--editorial-blue);

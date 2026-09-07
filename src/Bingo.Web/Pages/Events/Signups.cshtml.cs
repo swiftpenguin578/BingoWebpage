@@ -19,6 +19,8 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
     public string EventName { get; private set; } = string.Empty;
     public string EventDescription { get; private set; } = string.Empty;
     public DateTimeOffset? EventStartsAt { get; private set; }
+    public DateTimeOffset? EventEndsAt { get; private set; }
+    public DateTimeOffset? DraftAt { get; private set; }
     public DateTimeOffset? SignupClosesAt { get; private set; }
     public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId;
     public string EventStatus { get; private set; } = string.Empty;
@@ -53,6 +55,8 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
         EventName = item.Name;
         EventDescription = item.Description ?? string.Empty;
         EventStartsAt = item.EventStartsAt;
+        EventEndsAt = item.EventEndsAt;
+        DraftAt = item.DraftAt;
         SignupClosesAt = item.SignupClosesAt;
         EventTimezone = item.Timezone;
         EventStatus = item.State switch
@@ -70,7 +74,7 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
         ParticipantCap = item.ParticipantCap;
         // Retained historical questions remain visible to administrators, but public
         // projections must honour the same explicit board-visibility flag.
-        var questions = await db.SignupQuestions.AsNoTracking().Where(x => x.EventId == item.Id && (captainDraftAccess ? x.Active : x.PublicOnSignupBoard)).OrderBy(x => x.Position).ToListAsync(ct);
+        var questions = await db.SignupQuestions.AsNoTracking().Where(x => x.EventId == item.Id && x.DisabledReason != SignupQuestion.DeletedReason && (captainDraftAccess ? x.Active : x.PublicOnSignupBoard)).OrderBy(x => x.Position).ToListAsync(ct);
         var accountQuestions = questions.Where(x => x.Type == SignupQuestionType.Account).ToList();
         var regularCount = accountQuestions.Count(x => x.AccountAnswerRole == EventCharacterRole.Playing);
         var altCount = accountQuestions.Count(x => x.AccountAnswerRole == EventCharacterRole.Informational);

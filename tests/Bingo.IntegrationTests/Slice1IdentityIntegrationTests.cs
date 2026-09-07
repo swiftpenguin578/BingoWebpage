@@ -71,6 +71,111 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DiscordFailureRetryAndRequiredPasswordChangeRetainSignupDestination(bool failUserInfo)
+    {
+        var now = time.GetUtcNow();
+        await using var db = new ApplicationDbContext(options);
+        var account = Website("oauth-recovery");
+        account.SetDiscordIdentity("recovery-discord", "Recovery");
+        account.SetPassword(passwords.HashPassword(account, "long-test-password"), true, now, incrementVersion: false);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Recovery event", $"recovery-{Guid.NewGuid():N}", "", "UTC", now.AddHours(-1), now.AddDays(1), now.AddDays(2), now.AddDays(3), now.AddDays(3).AddHours(1), 10, account.Id, now);
+        bingoEvent.MarkFirstPublic(now);
+        bingoEvent.OpenSignups(now);
+        var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+        db.AddRange(account, bingoEvent, form);
+        await db.SaveChangesAsync();
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
+            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .UseSetting("DiscordAuthentication:ClientId", "test-client")
+            .UseSetting("DiscordAuthentication:ClientSecret", "test-secret")
+            .ConfigureServices(services => services.PostConfigure<Microsoft.AspNetCore.Authentication.OAuth.OAuthOptions>("Discord", oauth => oauth.Backchannel = new HttpClient(new RecoveryDiscordBackchannel(failUserInfo)))));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
+        var destination = $"/Events/{bingoEvent.Slug}/Signup?edit=True";
+        using var entry = await client.GetAsync(destination);
+        var page = await client.GetStringAsync(entry.Headers.Location!);
+        var discordRoute = DiscordLink(page);
+        using var challenge = await client.GetAsync(discordRoute);
+        var state = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(challenge.Headers.Location!.Query)["state"].ToString();
+        Assert.NotEmpty(state);
+        using var cancelled = await client.GetAsync($"/Account/DiscordCallback?{(failUserInfo ? "code=test-code" : "error=access_denied")}&state={Uri.EscapeDataString(state)}");
+        Assert.Equal(HttpStatusCode.Redirect, cancelled.StatusCode);
+        Assert.Equal(destination, Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(client.BaseAddress!, cancelled.Headers.Location!).Query)["ReturnUrl"]);
+        page = await client.GetStringAsync(cancelled.Headers.Location!);
+        Assert.Contains("Discord sign-in was cancelled or failed.", page);
+        using var retry = await client.GetAsync(DiscordLink(page));
+        state = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(retry.Headers.Location!.Query)["state"].ToString();
+        using var callback = await client.GetAsync($"/Account/DiscordCallback?code=test-code&state={Uri.EscapeDataString(state)}");
+        using var completed = await client.GetAsync(callback.Headers.Location!);
+        Assert.Equal(destination, completed.Headers.Location?.OriginalString);
+        using var passwordRequired = await client.GetAsync(completed.Headers.Location!);
+        var passwordRoute = passwordRequired.Headers.Location!;
+        Assert.Equal("/Account/ChangePassword", new Uri(client.BaseAddress!, passwordRoute).AbsolutePath);
+        page = await client.GetStringAsync(passwordRoute);
+        Assert.Equal(destination, FormValue(page, "ReturnUrl"));
+        using var invalid = await client.PostAsync(passwordRoute, PasswordPost(page, "wrong-password"));
+        Assert.Equal(HttpStatusCode.OK, invalid.StatusCode);
+        page = await invalid.Content.ReadAsStringAsync();
+        Assert.Equal(destination, FormValue(page, "ReturnUrl"));
+        using var saved = await client.PostAsync(passwordRoute, PasswordPost(page, "long-test-password"));
+        Assert.Equal(destination, saved.Headers.Location?.OriginalString);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(saved.Headers.Location!)).StatusCode);
+        db.ChangeTracker.Clear();
+        Assert.False((await db.Accounts.SingleAsync(x => x.Id == account.Id)).MustChangePassword);
+
+        static string DiscordLink(string html) => WebUtility.HtmlDecode(Regex.Match(html, "href=\"([^\"]*/Account/DiscordLogin[^\"]*)\"").Groups[1].Value);
+        static string FormValue(string html, string name) => WebUtility.HtmlDecode(Regex.Match(html, $"<input(?=[^>]*name=\"{Regex.Escape(name)}\")[^>]*value=\"([^\"]*)\"").Groups[1].Value);
+        static FormUrlEncodedContent PasswordPost(string html, string current) => new(new Dictionary<string, string>
+        {
+            ["Input.CurrentPassword"] = current,
+            ["Input.NewPassword"] = "updated-test-password",
+            ["Input.ConfirmPassword"] = "updated-test-password",
+            ["ReturnUrl"] = FormValue(html, "ReturnUrl"),
+            ["__RequestVerificationToken"] = FormValue(html, "__RequestVerificationToken")
+        });
+    }
+
+    [Fact]
+    public async Task DiscordFailureIgnoresInvalidDestinationsAndUnprotectedCallbackState()
+    {
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
+            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .UseSetting("DiscordAuthentication:ClientId", "test-client")
+            .UseSetting("DiscordAuthentication:ClientSecret", "test-secret"));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
+        using var challenge = await client.GetAsync("/Account/DiscordLogin?returnUrl=https%3A%2F%2Fexample.org%2Felsewhere");
+        var state = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(challenge.Headers.Location!.Query)["state"].ToString();
+        using var invalidDestination = await client.GetAsync($"/Account/DiscordCallback?error=access_denied&state={Uri.EscapeDataString(state)}");
+        Assert.Equal("/Account/Login", invalidDestination.Headers.Location?.OriginalString);
+        using var corrupt = await client.GetAsync("/Account/DiscordCallback?error=access_denied&state=corrupt&returnUrl=%2FEvents%2Funtrusted%2FSignup");
+        Assert.Equal("/Account/Login", corrupt.Headers.Location?.OriginalString);
+        using var missingTicket = await client.GetAsync("/Account/DiscordComplete?returnUrl=%2FEvents%2Funtrusted%2FSignup");
+        Assert.Equal("/Account/Login", missingTicket.Headers.Location?.OriginalString);
+    }
+
+    private sealed class RecoveryDiscordBackchannel(bool failUserInfo) : HttpMessageHandler
+    {
+        private bool pendingFailure = failUserInfo;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var isToken = request.RequestUri!.AbsolutePath.EndsWith("/token", StringComparison.Ordinal);
+            if (!isToken && pendingFailure)
+            {
+                pendingFailure = false;
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+            }
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(isToken
+                    ? "{\"access_token\":\"test-access-token\",\"token_type\":\"Bearer\",\"expires_in\":3600}"
+                    : "{\"id\":\"recovery-discord\",\"global_name\":\"Recovery\"}", System.Text.Encoding.UTF8, "application/json")
+            });
+        }
+    }
+
     [Fact]
     public void LoginThrottlesIdentifierAndNetworkIndependently()
     {

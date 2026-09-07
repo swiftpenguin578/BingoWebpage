@@ -234,7 +234,7 @@ public sealed class ParticipantModel(
         }
 
         var questions = await dbContext.SignupQuestions.AsNoTracking()
-            .Where(question => question.EventId == id)
+            .Where(question => question.EventId == id && question.DisabledReason != SignupQuestion.DeletedReason)
             .OrderBy(question => question.Position)
             .ToListAsync(ct);
         var answers = await dbContext.SignupAnswers.AsNoTracking()

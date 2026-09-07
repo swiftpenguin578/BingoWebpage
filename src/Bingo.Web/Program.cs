@@ -32,11 +32,14 @@ using Microsoft.AspNetCore.Authentication.OAuth.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http.Extensions;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Localization;
@@ -187,8 +190,12 @@ if (discordOptions.IsConfigured)
                 var text = context.HttpContext.RequestServices.GetRequiredService<IStringLocalizer<Bingo.Web.SharedResource>>();
                 tempData["StatusMessage"] = text["Discord sign-in was cancelled or failed. Please try again."].Value;
                 context.HttpContext.RequestServices.GetRequiredService<ITempDataProvider>().SaveTempData(context.HttpContext, tempData);
-                var purpose = context.Properties?.Items.TryGetValue("discord-purpose", out var value) == true ? value : null;
-                context.Response.Redirect(purpose is "link" or "replace" ? "/Account/Settings" : "/Account/Login");
+                var properties = context.Properties ?? (context.Options is OAuthOptions oauth
+                    ? oauth.StateDataFormat.Unprotect(context.Request.Query["state"].ToString()) : null);
+                var purpose = properties?.Items.TryGetValue("discord-purpose", out var value) == true ? value : null;
+                var returnUrl = properties?.Items.TryGetValue("discord-return-url", out var destination) == true ? destination : null;
+                context.Response.Redirect(purpose is "link" or "replace" ? "/Account/Settings"
+                    : RedirectHttpResult.IsLocalUrl(returnUrl) ? QueryHelpers.AddQueryString("/Account/Login", "ReturnUrl", returnUrl!) : "/Account/Login");
                 return Task.CompletedTask;
             };
             options.Events.OnCreatingTicket = async context =>
@@ -546,7 +553,8 @@ app.Use(async (context, next) =>
         !path.StartsWithSegments("/Account/Logout") &&
         !Path.HasExtension(path))
     {
-        context.Response.Redirect("/Account/ChangePassword");
+        var returnUrl = context.Request.GetEncodedPathAndQuery();
+        context.Response.Redirect(QueryHelpers.AddQueryString("/Account/ChangePassword", "ReturnUrl", RedirectHttpResult.IsLocalUrl(returnUrl) ? returnUrl : "/"));
         return;
     }
 

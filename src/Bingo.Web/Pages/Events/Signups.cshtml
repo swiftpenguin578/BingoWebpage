@@ -9,11 +9,6 @@
                 <h1 id="signups-heading" class="public-masthead-title">@Model.EventName</h1>
                 <p class="public-masthead-support">@(string.IsNullOrWhiteSpace(Model.EventDescription) ? T["Confirmed participants and the waiting list."] : Model.EventDescription)</p>
             </div>
-            <dl class="signup-sheet__meta">
-                <div><dt>@T["Event starts"]</dt><dd>@(Model.EventStartsAt is { } starts ? DateTimePresentation.Format(starts, "dd/MM/yyyy", Model.EventTimezone) : T["Not set"])</dd></div>
-                <div><dt>@T["Signup closes"]</dt><dd>@(Model.SignupClosesAt is { } closes ? DateTimePresentation.Format(closes, "dd/MM/yyyy", Model.EventTimezone) : T["Not set"])</dd></div>
-                <div><dt>@T["Capacity"]</dt><dd>@(Model.ParticipantCap?.ToString() ?? T["Not set"])</dd></div>
-            </dl>
         </div>
         <div class="signup-sheet__capacity" aria-label="@T["confirmed"]">
             <span class="signup-sheet__capacity-value"><strong class="signup-sheet__capacity-number">@Model.ConfirmedCount</strong><span class="signup-sheet__capacity-slash" aria-hidden="true">/</span><strong class="signup-sheet__capacity-number">@(Model.ParticipantCap?.ToString() ?? T["Not set"])</strong></span>
@@ -24,6 +19,14 @@
             <span class="signup-sheet__status-divider" aria-hidden="true"></span>
             <span class="signup-sheet__status-line">@Model.WaitingCount @T["Currently waiting"]</span>
         </div>
+        <dl class="signup-sheet__meta">
+            <div><dt>@T["Signup closes"]</dt><dd>@(Model.SignupClosesAt is { } closes ? DateTimePresentation.Format(closes, "dd/MM/yyyy HH:mm", Model.EventTimezone) : T["Not set"])</dd></div>
+            @if (Model.DraftAt is { } draft)
+            {
+                <div><dt>@T["Draft starts"]</dt><dd>@DateTimePresentation.Format(draft, "dd/MM/yyyy HH:mm", Model.EventTimezone)</dd></div>
+            }
+            <div><dt>@T["Bingo"]</dt><dd class="signup-sheet__meta-range"><span>@T["Starts"] @(Model.EventStartsAt is { } starts ? DateTimePresentation.Format(starts, "dd/MM/yyyy HH:mm", Model.EventTimezone) : T["Not set"])</span><span>@T["Ends"] @(Model.EventEndsAt is { } ends ? DateTimePresentation.Format(ends, "dd/MM/yyyy HH:mm", Model.EventTimezone) : T["Not set"])</span></dd></div>
+        </dl>
     </header>
 
     <section class="public-signups-directory__section" aria-labelledby="confirmed-heading">

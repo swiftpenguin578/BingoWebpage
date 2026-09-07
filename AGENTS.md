@@ -70,224 +70,337 @@ The former Application Atlas is archived historical evidence and is not an activ
 
 ## Execution discipline and loop prevention
 
-Future agents must follow these rules:
+- Use bounded commands (`rg`, targeted `sed`, specific test filters, limited Git
+  output). State the uncertainty before a diagnostic and record what its result
+  establishes. Do not reconstruct working code from unclear history.
+- Batch independent bounded reads with `Promise.allSettled` in one
+  `functions.exec` call and inspect every result. Use `Promise.all` only when any
+  failure should abort the batch. Keep dependent/adaptive operations, conflicting
+  mutations, approvals, and waits sequential.
+- Do not rerun an unchanged failing command without a relevant condition change
+  or materially different evidence. After one clear environment failure, stop
+  dependent checks and continue independent work. An environment failure is not
+  a product assertion failure or a reason to increase model reasoning.
+- After two unsuccessful attempts at the same problem, change approach. After
+  three with the same blocker, report the evidence, exact blocker, and smallest
+  next action. Allow one implementation attempt and one bounded continuation;
+  replace a repeatedly failing worker or approach rather than extending a loop.
+- Identify the critical path and use elapsed time and usage to detect an
+  unproductive approach. Never omit an authorized requirement or compromise
+  correctness, security, deterministic behavior, or data integrity to save time.
+- Continue through authorized work; a progress update or completed substage is
+  not an approval gate. Respect explicit pass boundaries and user decisions.
+  Stage, commit, push, merge, release, and deploy only as separately authorized.
+- Keep commentary concise and outcome-oriented. After compaction, resume from
+  `CURRENT_STATUS.md`, the current plan, and the smallest relevant diff. If a
+  handoff is forced, record the last verified state and exact next action.
+- Keep status evidence concise. Update `CURRENT_STATUS.md` only for material
+  changes; consolidate superseded checkpoints. Distinguish verified results,
+  inferences, user-reported results, and unverified claims. Commit messages and
+  reviewer agreement alone do not establish executed behavior.
+- Use the coverage and completion rules below to decide when verification is
+  sufficient. Additional review or testing must resolve a named uncertainty that
+  could change correctness, scope, acceptance, or significant risk; repeated
+  corroboration and stylistic expansion are not unfinished work.
 
-1. Use bounded commands (`rg`, targeted `sed` ranges, specific test filters, limited Git output). Never request an unbounded combined repository dump.
-2. Form a hypothesis before running a diagnostic command. Record what the result established before choosing the next command.
-3. Do not rerun an unchanged failing command unless some relevant condition changed or the rerun gathers materially different evidence.
-4. After one clear environment failure (for example, Docker daemon unavailable), stop repeating dependent tests. Record the blocker and continue with independent checks.
-5. After two unsuccessful attempts at the same problem, change approach. After three attempts with the same blocker, stop and provide the user with the evidence, exact blocker, and smallest next action.
-6. Never restart the whole investigation after context compaction. Re-read `CURRENT_STATUS.md`, current plan, and the smallest relevant diff, then continue from the last established fact.
-7. Separate facts into **verified**, **inferred**, and **unverified**. Do not promote commit-message implications or prior-chat claims to verified status.
-8. Do not rewrite working code merely because its history is unclear. Inspect its tests and behavior first.
-9. Keep commentary concise and outcome-oriented. Do not narrate repeated status with no new evidence.
-10. Update `CURRENT_STATUS.md` only when status materially changes. Keep its active handoff concise and consolidate superseded checkpoints into a short historical summary instead of accumulating a minute-by-minute log that every future task must reread.
-11. Within each bounded stage, batch independent read-only tool calls available through `functions.exec` into one call, normally with `Promise.allSettled`, and inspect every result. Use `Promise.all` only when any failure should abort that batch. Keep dependent or adaptive investigations, mutations that may conflict, approvals, and wait/resume operations sequential. Do not split otherwise batchable bounded inspections across separate outer tool calls.
-12. Treat elapsed time and context/token use as finite engineering budgets. Identify the critical path at the start, execute its next blocking step promptly, and parallelize independent bounded work only when the active instructions and available tooling permit it.
-13. Use rough time expectations only to detect an unproductive approach. At meaningful checkpoints, compare progress with the expectation; if work is taking materially longer, change strategy or defer only work that is explicitly outside the requested scope. Never drop an authorized requirement merely to fit an estimate.
-14. A progress update is informational, not a pause or approval gate while authorized work remains possible. Completing one bounded stage is not by itself a reason to end the turn: continue to the next authorized stage until the requested objective is complete, a genuine blocker is reached, or the execution environment forces a handoff. If a handoff is forced, record the exact last verified state and next action.
-15. Run the smallest verification set that proves the changed behavior and protects the affected risk surface. Expand verification when failures, dependencies, or blast radius justify it; final completion still requires the repository's applicable definition-of-done gates.
-16. Prefer the shortest **authorized** path through implementation, focused verification, leak checks, and handoff. Stage, commit, push, release, or deploy only when the user has authorized those actions.
-17. Never trade correctness, security, deterministic behavior, or data integrity for speed.
-18. Before adding another test, review, audit, investigation, evidence request, or validation step, name the unresolved uncertainty and how the result could materially change the implementation, verdict, minimum required fix, authority, fulfillment, or significant risk. If it cannot, stop; additional confidence alone does not justify more work.
-19. Stop when the requested outcome exists, its smallest relevant direct verification has passed, and no unresolved finding could materially change correctness, security, privacy, authorization, concurrency, data integrity, or the requested result. Corroboration, proof-of-proof, reviewer/model agreement, speculative improvement, and unrelated defects are not unfinished work.
+## Roles, models, and task dispatch
 
-If blocked, useful work may include focused source inspection, independent unit tests, documentation reconciliation, or a precise handoff. Do not claim completion while required verification remains blocked.
+This section owns future model/role assignments, including UI work. It supersedes
+older model names in implementation plans and UI workflow descriptions, without
+changing their product scope, review gates, or approval requirements. An explicit
+user model choice takes precedence. Do not silently fall back to another model.
 
-## Task roles and lean orchestration
+| Role or work | Default model and reasoning |
+| --- | --- |
+| Planner/orchestrator | GPT-6 Astra High |
+| Implementation and remediation | GPT-6 Astra Medium |
+| Coupled or high-risk implementation/remediation | GPT-6 Astra High |
+| Small, precisely diagnosed corrections | GPT-6 Astra Low |
+| Independent readiness, correctness, scope, or visual review | GPT-6 Astra High |
+| Verification executing agreed gates | GPT-5.6 Luna High |
 
-For Codex task model selection, use Luna with max reasoning for implementation
-and remediation, and Luna with high reasoning for verification unless the user
-explicitly chooses another model. Independent review uses Sol High. Sol High is
-approved only for independent review; never use Sol Medium/High for another role
-unless the orchestrator first explains why it is needed, requests that exact
-model/reasoning combination, and the user explicitly approves it. Do not rely on
-inherited or default task settings when they could select Sol medium/high; set the
-approved model and reasoning explicitly before dispatch.
+The planner selects and states the level before dispatch. Use High when correctness
+requires reasoning across coupled lifecycle, authorization, concurrency, migration,
+or calculation rules; touching a file in one of those areas is not sufficient by
+itself. Low is for a localized correction with a known cause and bounded effects.
+XHigh/Max and models outside this policy require a user choice. Set model and
+reasoning explicitly; do not rely on inherited defaults. Assess usage across the
+whole task through acceptance, including remediation, rather than only the first
+implementation attempt. This policy does not promise a fixed usage saving.
+For subagent dispatch, set `model` and `reasoning_effort` explicitly using
+`gpt-6-astra` or `gpt-5.6-luna` and the level above. Use a self-contained prompt
+with no history fork, or a bounded history fork that permits those overrides;
+do not use a full-history fork that forces inherited model/reasoning settings.
 
-For delegated implementation and remediation use Luna Max. For verification use
-Luna High. Every independent review, including readiness, scope, and visual
-review, uses Sol High. Create fresh visible worker/reviewer tasks in the saved checkout with
-concise self-contained prompts instead of forking the planner; reuse a compatible
-task for roughly five to ten bounded turns when its role and page family remain
-the same.
+Every delegated task declares exactly one role:
 
-Every delegated task must declare exactly one role and remain within it:
+- **Planner/orchestrator:** owns scope, product decisions, journey completeness,
+  pass ordering, worker selection, and evidence handoffs. It may maintain the
+  authorized plan/instructions; it does not implement production behavior or
+  supply independent review of its own work.
+- **Implementer:** completes the assigned pass, self-checks behavior, and provides
+  the agreed verification. It flags missing journeys or contract contradictions;
+  it does not start another pass, independently review itself, or package work.
+- **Remediator:** fixes named findings and verifies their affected behavior and
+  direct consequences. It does not expand scope or change approved product rules.
+- **Independent reviewer:** remains read-only, independently challenges assumptions,
+  and checks behavior and scope against the final approved plan. It does not
+  implement its findings or treat the implementer's explanation as proof.
+- **Verifier:** executes the agreed gates and reports evidence and limitations.
+  It flags an inadequate gate to the planner and reports unrelated failures
+  separately; it does not change production behavior.
+- **Packager:** stages, commits, merges, or pushes only the accepted state and only
+  as authorized. It introduces no implementation changes.
 
-- **Orchestrator/planner:** defines bounded tasks, selects the next worker, verifies handoffs, and stops repeated failures. It does not implement production behavior or review its own work. It asks the user only for product decisions, explicit permissions, environment blockers, and manual acceptance.
-- **Implementer:** completes only the assigned pass or correction. It does not begin the next pass, perform independent review, package, commit, or push unless explicitly assigned.
-- **Remediator:** addresses only named findings with the smallest safe change. It does not reopen the whole pass or add unrelated cleanup.
-- **Independent reviewer:** remains read-only and compares the complete base-to-current implementation diff with the final approved slice/pass plan. It verifies that required scope is present, explicit non-goals remain untouched, and every material addition is approved and traceable. It blocks only on a concrete scope deviation, missing required behavior, behavior/security/privacy/authorization/concurrency/data-integrity defect, unapproved material complexity, or a genuinely non-discriminating required test. It must not demand redundant assertion syntax, exhaustive duplicate coverage, or stylistic expansion.
-- **Verifier:** runs only the agreed gates, reports unrelated failures separately, and does not change production behavior.
-- **Packager:** acts only after acceptance and may stage, commit, merge, and push the accepted state as authorized. It must not introduce implementation changes.
+Subagents are authorized for bounded delegated work, including Public UI work;
+they do not require separate user approval or a visible worker task. Prefer
+subagents for subtasks of the current request. Create a separate user-owned task
+only when the user explicitly requests one. This replaces older visible-task-only
+and no-subagent instructions. Delegate only when useful independent work justifies
+the coordination cost; do not multiply agents or duplicate checks for confidence.
 
-### Public UI planner/orchestrator protocol
+Use the authoritative checkout specified by the current user instruction or
+handoff, not a separate saved checkout. Prompts state the role, checkout, explicit
+model/reasoning, scope, relevant authorities, journey outcomes, verification, and
+stop boundary. Give concurrent writers disjoint file ownership or run their edits
+sequentially. Independent review starts in a fresh agent/task; never reuse the
+implementer/remediator as its own independent reviewer. Reuse compatible workers
+for roughly five to ten bounded turns while role, scope/page family, and context
+remain coherent. Start fresh when those change or the approach repeatedly fails.
+Follow-ups state the exact correction and require only relevant rereads. The
+orchestrator remains responsible for integrating results and reporting evidence
+and limitations to the user; delegation does not change scope or review gates.
 
-For the active Public UI rebuild, the planner/orchestrator is the user-facing
-coordination role. It plans, dispatches, verifies handoffs, records accepted
-decisions, and stops repeated failures; it does not implement production UI or
-review its own work.
+## Planning and journey completeness
 
-- Create implementers, remediators, independent reviewers, and verifiers as
-  separate user-owned Codex tasks that remain visible to the user; do not use
-  hidden subagents for this workflow. A visible worker task may be reused for
-  roughly five to ten bounded turns when its role, model/reasoning, checkout,
-  and page family remain the same. Each follow-up must state the exact new
-  correction and require focused authority rereads only when the relevant
-  authority or scope changed. Start a fresh task when the role or page family
-  changes, independent review begins, the task becomes confused or repeatedly
-  fails, or accumulated context is no longer compact. Never let an implementer
-  or remediator independently review its own work. Use Luna Max for
-  implementation and remediation, Luna High for verification, and Sol High for
-  independent UI review. Do not use Terra for implementation or Sol for a
-  non-review role without new explicit user approval.
-- Freeze the exact page family, protected behavior, files, states, scope, and
-  non-goals before implementation. Include a visual reference only when the user
-  explicitly names it as relevant for the current task. A presentation rewrite
-  preserves behavior and bindings, not legacy Razor composition, containers, or
-  responsive geometry.
-- Public UI reference pictures were first-round implementation inputs and are
-  historical after that round. A planner, worker, reviewer, or remediator must
-  not open, compare, or reason from one merely because it remains named in the
-  matrix or repository; use it again only when the user explicitly states that
-  the named picture is relevant to the current task. Manual corrections use the
-  user's current finding and current supplied screenshot evidence plus the
-  existing implementation/source.
-- After implementation, the user normally supplies light/dark desktop and
-  narrow/mobile screenshots. Slight viewport variance and visible browser chrome
-  are acceptable when the application viewport is identifiable. Treat those as
-  current implementation evidence and do not reopen historical reference
-  pictures unless the user explicitly reactivates one.
-- The user may explicitly defer final manual acceptance across several sequential
-  passes. That does not skip the normal implementation, current screenshots,
-  independent current-evidence/system review, and focused remediation sequence.
-  After remediation, record the page as `awaiting manual approval` rather than
-  approved and continue to the next authorized pass. The user may supply the
-  screenshots or corrections during the sequence; retain them as current
-  implementation evidence. The later combined manual walkthrough must include
-  shared-shell/CSS regression across all pages awaiting approval.
-- Dispatch an independent reviewer before remediation. The reviewer compares the
-  user-supplied current screenshots, scoped diff, and current named findings,
-  then reports concrete visual and behavior deltas. Compare a historical visual
-  reference only when the user explicitly reactivates that named picture for the
-  task. The reviewer also independently checks the rendered
-  page and scoped source against `UI_SYSTEM.md` typography hierarchy, spacing,
-  control, theme, focus, and responsive contracts; reference ambiguity does not
-  excuse a global-system violation. Do not send a page directly to a
-  remediator unless the user explicitly requests a direct correction.
-- One fresh remediator fixes only the named findings. The user then performs the
-  visual acceptance check. A user rejection overrides a passing reviewer verdict,
-  and a user approval is page-specific rather than whole-pass or whole-site
-  approval.
-- Small CSS/markup-only visual corrections use only the checks that can detect
-  their actual risk, normally targeted source/cascade inspection plus whitespace
-  or scoped diff checks. Do not automatically run .NET tests, a Release build, or
-  request named-pipe/elevated execution for such a correction. Add a compiled or
-  behavioral gate only when the change can affect Razor compilation, runtime
-  behavior, or a broader shared contract, or when the user explicitly requests
-  it. An immediately preceding applicable passing build remains valid evidence.
-- Static editorial copy may be shortened, reordered, or replaced to fit an
-  approved composition when meaning, action destinations, localization, and
-  truthfulness are preserved. Dynamic names, dates, counts, lifecycle facts,
-  account data, routes, handlers, authorization, and interaction semantics remain
-  protected.
-- Stop between passes or page families and whenever user attention is required.
-  Do not begin another family after approval, rejection, review, or remediation
-  without the next user authorization. An explicit continuous multi-pass
-  authorization with deferred final manual approval satisfies that gate after
-  each pass completes implementation, screenshots, review, and remediation; it
-  does not authorize scope expansion, packaging, committing,
-  pushing, deployment, or bypassing a genuine blocker. Replace a repeatedly
-  failing worker or approach instead of extending the same loop.
+Before splitting a functional slice into implementation passes, the planner maps
+all approved user outcomes into a compact journey/coverage table in the existing
+slice plan. Carry the manual steps into `MANUAL_TEST_CHECKLIST.md`; do not create a
+new inventory document or duplicate the full product specification.
+For a small correction, update the affected journey or state its outcome and proof
+in the task prompt; do not introduce a full slice plan solely for this rule.
 
-Promote durable UI decisions into the smallest existing authority so later
-planners do not depend on chat handoffs:
+For each journey record:
 
-- task workflow, task visibility, role/model policy, and handoff rules →
-  `AGENTS.md`;
-- reusable tokens, typography, control, responsive, and theme decisions →
-  `UI_SYSTEM.md`;
-- page/reference mappings, family exceptions, and approval state →
-  `UI_PAGE_MATRIX.md`;
-- current pass, blocker, evidence, and next permitted action →
-  `CURRENT_STATUS.md`;
-- product behavior and journey semantics → `PRODUCT_REQUIREMENTS.md` or
-  `FUNCTIONAL_CONTRACTS.md`.
+- The actor and effective role, starting lifecycle/data, and actual UI entry point.
+- The action sequence, expected persisted result, visible result, and next reachable
+  step, including the destination emitted by a notification when applicable.
+- Relevant boundary/recovery cases and the invariant each protects.
+- The owning pass, planned proof at the failure boundary, and manual-only or blocked
+  parts. Track execution against these outcomes, not just counts of passing tests.
 
-Transient annotations remain evidence until accepted. Promote an accepted
-annotation only when it changes a reusable rule, page exception, approval state,
-or protected behavior. A UI handoff should therefore be short: current page/pass,
-any user-reactivated reference, current screenshot evidence, exact approval state,
-unresolved findings, next permitted action, and known verification limitations.
-Repository authority remains final.
+Select variations from the affected behavior: zero/one/multiple records and valid
+ties; global plus event roles; current plus retained memberships; EN/DA client and
+server input; before/at/after time boundaries; stale/repeated/concurrent requests;
+partial failure and retry; retained snapshots and changed current data. These are
+prompts for relevant risks, not a mandatory Cartesian product or one test per case.
+A happy path must reach a usable result. Correct rejection of invalid requests does
+not establish that an authorized user can complete the action.
 
-Prefer the simplest implementation that preserves the required invariants:
+The planner owns coverage across passes and reconciles the final checklist against
+every approved outcome. A journey omitted from the checklist is not implicitly
+waived. Implementers and reviewers must flag gaps they discover. Trace changed
+rules through their entry points and directly affected consumers, including derived
+progress, completion, rankings, notifications, and retained-history reads where
+applicable; a correct write alone does not prove those results agree.
 
-- Extend existing services, entities, pages, policies, and shared components before adding new abstractions.
-- Do not add a table, service, compatibility layer, or generalized framework without a concrete persistence, transaction, authorization, or reuse need.
-- Avoid speculative future-proofing, broad cleanup during a feature pass, and no-JavaScript-only machinery for ordinary controls. Retain existing route-backed paths for protected board, draft, team, tile, and submission deep links, reloads, history, and failed enhancement; do not implement separate no-JavaScript parity work.
-- Manual-test findings should receive the smallest bounded correction that fixes the demonstrated behavior.
+After the user approves product behavior, run exactly one independent read-only
+implementation-readiness review for a major functional slice. It compares the
+complete proposed slice with current code and active authorities, challenges missing
+journeys and assumptions, and assesses pass ordering and independent deployability.
+It must establish:
 
-Use risk-based, non-duplicative testing:
+- Real UI reachability and minimum Development reset accounts, roles, states, and
+  records for acceptance. Fixtures must coexist and permit the documented sequence;
+  do not bypass the behavior under test or add broad demonstration data.
+- For removed/replaced behavior, a bounded inventory of affected domain values,
+  persistence, services, routes, controls, notifications, seeds, tests, and authority
+  wording so obsolete behavior cannot survive accidentally.
+- A complexity budget of concrete new tables, services, pages/routes, policies,
+  jobs, dependencies, and abstractions. Each addition needs a specific persistence,
+  transaction, authorization, operational, or demonstrated reuse need.
+- For fail-closed migrations/preflight, the exact operator diagnosis, safe record
+  correction/adjudication, and retry path. Use retained-data rehearsal where required;
+  never infer historical identity from mutable current state.
+- Approved scope, explicit non-goals, necessary dependencies, optional suggestions,
+  verification boundaries, and outstanding product decisions.
 
-- Use the smallest test set that would fail if an important requirement or risk boundary broke.
-- One scenario or parameterized test may prove several closely related behaviors.
-- Do not create one test for every branch by default.
-- Avoid repeating the same assertion across domain, handler, HTTP, browser, and migration layers unless each layer protects a distinct plausible failure.
-- Expand coverage for authorization, privacy, transactions, concurrency, destructive lifecycle changes, retained migrations, and regressions that previously escaped the suite.
-- Focused tests are the normal per-pass gate. Run the complete suite only at the documented final gate or when the blast radius genuinely warrants it.
+Resolve named decisions and update the plan before implementation. Do not repeat
+readiness review without a genuine contradiction or missing product decision.
+Ordinary implementation defects belong to bounded remediation. Optional suggestions
+do not become requirements without approval.
 
-Allow one implementation attempt and, when interrupted, one bounded continuation. If the same worker or approach fails repeatedly, change the approach or create a fresh task from the last verified state; do not loop indefinitely.
+## Implementation and change control
 
-Before implementation begins for each remaining major functional slice, run exactly one independent read-only implementation-readiness review after the user approves the product behavior. The review must compare the complete proposed slice with the current code and source-of-truth documents, identify only concrete blockers, product decisions, compatibility work, implementation risks, and behavior-preserving simplifications, and assess pass ordering and independent deployability. Resolve the named decisions and incorporate accepted corrections into the slice plan before implementation. Do not repeat the planning review unless implementation later exposes a genuine contradiction or missing product decision; ordinary implementation defects belong to focused remediation and the normal post-implementation review.
+Extend existing entities, services, pages, policies, and shared components before
+adding abstractions. Preserve required invariants and protected interactions. Do not
+add speculative frameworks, compatibility layers, or unrelated cleanup. Existing
+route-backed recovery stays protected; separate no-JavaScript parity is not required.
 
-That readiness review must also establish a lean implementation contract:
+Implementers may resolve ordinary technical details within the approved pass. Stop
+for user direction before changing a product rule, broadening a pass, introducing
+unbudgeted infrastructure, or fixing an adjacent issue not needed for safe delivery.
+Record unrelated defects separately. A missing integration step required for an
+approved journey is in scope, even when its owning file is outside the initial diff.
+If the plan explicitly excludes a necessary change, report that conflict before
+implementing it.
 
-- Confirm every planned journey is reachable through existing/planned UI and that Development reset can create the minimum accounts, roles, lifecycle states, and records needed for manual acceptance. Do not add broad demonstration data.
-- For removed/replaced behavior, inventory the affected domain values, persistence, services, routes, controls, notifications, seeds, tests, and source-of-truth wording so obsolete behavior cannot survive accidentally.
-- Include a complexity budget listing the concrete new tables, services, pages/routes, policies, jobs, and abstractions the plan appears to require. Challenge any addition without a specific persistence, transaction, authorization, operational, or demonstrated reuse need.
-- For every fail-closed migration/preflight, state how an operator identifies and corrects affected records before retrying deployment.
-- Freeze the approved scope and explicit non-goals before implementation. Separate necessary dependencies from optional improvements and unrelated defects. Reviewer suggestions classified as optional do not become implementation requirements.
-- Define the implementation stop rule: an implementer may proceed through ordinary technical details, but must stop for user direction before adding behavior, changing an approved product rule, broadening a pass, or resolving an adjacent issue that is not required for the pass. A discovered unrelated defect is recorded separately unless it prevents safe implementation or verification of the approved behavior.
-- Review and remediation remain bounded to the approved slice/pass. Neither is permission for opportunistic cleanup, generalized frameworks, UI redesign, or fixes to adjacent features.
+The final approved plan is the review baseline. Before implementing a user-approved
+material change, update its affected pass, acceptance criteria, non-goals/complexity
+budget, and relevant product/data/UI authority. A change is material when it affects
+behavior, migration, authorization, routes, manual acceptance, or review conclusions.
+Clarifications with no behavioral effect need no separate paperwork. Remediation
+cannot silently revise the baseline or settle an unresolved product decision.
 
-### Change control and post-implementation scope review
+## Verification and independent review
 
-- The approved slice plan is the authoritative review baseline, not a frozen historical draft. If the user approves a material product, scope, persistence, route, authority, workflow, or complexity change during implementation or manual remediation, update the slice plan and any affected source-of-truth documents before implementing that change. Record the decision, affected pass, changed acceptance criteria, and any changed non-goals or complexity budget.
-- Clarifications that do not change behavior need not create paperwork. When uncertain whether a decision is material, treat it as material if it could change implementation, migration, authorization, user-visible behavior, manual acceptance, or the independent-review verdict.
-- The post-implementation independent review must compare the exact base-to-current diff against the final updated plan. It must explicitly identify required scope delivered, required scope missing, material implementation with no approved plan mapping, explicit non-goals that changed, and any unbudgeted table/service/route/policy/job/abstraction.
-- An unapproved material addition or omitted approved behavior is a review blocker until it is removed, completed, or explicitly approved and added to the plan. Incidental tests, migrations, documentation, and small supporting code are judged by whether they are proportionate to approved behavior, not by requiring a one-to-one plan bullet for every file.
-- Focused remediation does not silently revise the baseline. If a manual finding or review correction changes approved behavior rather than merely fixing its implementation, obtain the user's decision and update the plan first.
+### Choose coverage first, then the smallest sufficient checks
 
-### Manual-acceptance preflight
+Derive verification from the journey outcomes and affected risks before minimizing
+commands or assertions. A required journey or relevant integration boundary without
+proof is a concrete uncertainty. Use existing discriminating tests where they cover
+it; one scenario may prove several consecutive steps or related invariants.
 
-After implementation review/remediation clears and before asking the user to run a slice's manual checklist, perform one bounded manual-acceptance preflight against the exact written checklist and authoritative Development reset state. This is a reachability and integration check, not another broad architecture review or a requirement for one automated test per checklist sentence.
+Match evidence to the boundary that can fail:
 
-- Walk each manual journey in order from its documented starting state. Verify the required seeded account, role, event state, record, control, and navigation path exist.
-- Follow the application's real rendered links and forms through authenticated HTTP or the smallest equivalent route-level scenario. Do not prove reachability by constructing the destination URL directly when the checklist expects navigation through the site.
-- Verify each request survives page filters and authorization, reaches the intended handler/service, returns a renderable destination, and leaves the next checklist step reachable.
-- For notifications and Admin actions, follow the actual emitted destination and verify it resolves for the intended role. Checking only notification presence, count, or URL text is insufficient.
-- One focused journey may prove several consecutive checklist steps. Add coverage only where it protects a plausible integration seam that existing focused tests do not exercise.
-- Report visual clarity, responsive composition, wording preference, and subjective usability as manual-only unless they prevent the journey. Do not expand the preflight into UI redesign, exhaustive browser automation, full-suite execution, or unrelated cleanup.
-- If the preflight finds a concrete defect, stop the affected manual journey, apply only the smallest authorized remediation, rerun that journey, and then resume the remaining preflight. Hand the checklist to the user only when every non-visual journey is reachable or an explicit known limitation is recorded.
+| Risk | Required kind of evidence |
+| --- | --- |
+| Route, filter, authorization, binding, or navigation | Requests as the intended actor, including anonymous users where applicable, through the real pipeline; follow rendered links/forms and emitted destinations where required. Direct handler calls cannot prove filter or navigation reachability. |
+| Client validation, localized form input, or DOM interaction | Execute the affected behavior in a browser. Source/markup and HTTP proof cover only their own layers; they cannot establish client acceptance. |
+| Persistence, transaction, concurrency, or retained migration | Exercise the relevant PostgreSQL behavior, failure/retry boundary, or approved copied-data rehearsal. In-memory success cannot establish database guarantees. |
+| Derived results or retained reads after mutation | Check the directly affected consumers and usable rendered result, including valid multiple-record cases where applicable. |
+| Visual composition and usability | Inspect current rendered evidence under the UI protocol; source checks cannot establish visual acceptance. |
 
-## UI work
+Use controlled/disposable data and existing fixtures without touching user-owned or
+production data beyond authorization. If an environment prevents the required proof,
+report exactly which outcome remains unverified and the smallest way to execute it.
+Alternative source or lower-layer checks may narrow uncertainty but do not turn the
+blocked boundary into a pass. The user may explicitly accept a substitute or waive a
+named case; preserve that decision and do not revive it without new evidence.
 
-- Follow `UI_SYSTEM.md` for global UI authority and `UI_PAGE_MATRIX.md` for page-family, reference, exception, and approval authority. `CURRENT_STATUS.md` owns the current handoff and `DELIVERY_PLAN.md` owns order and gates.
-- Every new page and every materially changed page must follow the applicable active authority from its first implementation. A later whole-site UI pass is not permission to introduce interim legacy styling, page-local themes, inconsistent controls, or incomplete responsive/accessibility states.
-- For the user-authorized 2026-08-24 Board-family structural redesign, PUB-REF-02, PUB-REF-03, PUB-REF-04, PUB-REF-14, and PUB-REF-15 are reactivated visual targets. The user-supplied current Board screenshots are rejection evidence, not targets. The Admin workspace is an approved distinct compact operational shell that reuses the same semantic token discipline, control hierarchy, focus treatment, responsive/accessibility rules, and motion rules; it may use its own charcoal/slate operational surfaces and denser shell geometry. Do not create page-local themes or a second navigation framework.
-- Use accent-outline controls as the normal primary action treatment. Use neutral outline for secondary actions, red outline for destructive actions, ghost/text for low-priority navigation, and green only when the action itself is explicitly a success action. Filled accent buttons are exceptional. A bare red `×` with a larger invisible circular hit target is approved only when the removable object is visually self-evident; preserve its accessible label and keyboard focus state.
-- Preserve the approved Board behavior except for the user-authorized 2026-08-24 navigation correction: overall team cards now navigate normally to the existing route-backed team page at every viewport. Tiles replace the left sidebar through nested real URLs; captain submission attaches a drawer to that sidebar; submission success/failure stays in the drawer until the user acknowledges it; and realtime invalidations must not interrupt an active submission or result state.
-- The team route is the ordinary rendered destination, not a popup fallback. Preserve direct loads, reload/history, browser Back, View all teams, adjacent-team navigation, tile URLs, and the shared Captain submission drawer transport endpoint; the Captain Submit endpoint still has no standalone no-JavaScript page acceptance requirement.
-- The Board pass is a structural presentation rewrite from the reactivated references where the current composition is wrong. A palette, typography, border, or card-style reskin over the rejected masthead or team workspace does not satisfy the pass. The user explicitly protected the current team-overview grid beneath the masthead as already near target; preserve it, integrate it with the corrected masthead, and add the missing Recent Activity footer from PUB-REF-02. Replace the team-workspace composition while preserving authoritative data and the protected tile/sidebar/submission/evidence behavior.
-- Treat the public board ecosystem, board editor, and live draft as protected interaction baselines. Functional slices may add or change necessary data, controls, validation, and states, but must preserve each surface's established hierarchy, density, spatial context, and primary interaction model unless an approved requirement genuinely needs a focused redesign.
-- At the approved desktop reference viewport, ordinary board-editor and live-draft work should normally remain within the application viewport, with long boards, pools, lists, or panels scrolling inside their intended regions. This is not a prohibition on page scrolling: smaller viewports, zoom, translated content, and accessibility/responsive fallbacks may use normal document scrolling, and content must never be clipped merely to avoid it.
-- Before changing a protected surface, identify the exact functional delta and keep unrelated layout and interaction behavior intact. If the requirement cannot fit the established interaction model, call out the proposed change for focused review instead of silently replacing the composition.
-- Start by identifying the page's user and primary task; preserve approved business behavior.
-- Reuse shared components and compact layout patterns.
-- Review desktop, narrow/mobile, keyboard, focus, empty, error, and permission states where applicable. Do not create a separate no-JavaScript review or gate.
-- Every mutation needs accurate success/failure feedback. Server authorization and validation remain authoritative.
-- Obtain user approval before moving to the next roadmap pass when the roadmap requires it.
+A required test must fail for the plausible defect it claims to prevent. Check that
+its setup actually reaches the relevant actor, state, and operation and its assertions
+observe the outcome. Avoid assertions that merely mirror implementation, exact counts
+unrelated to behavior, or duplicated coverage at every layer. Do not weaken a failed
+test as “stale” without establishing the approved contract and replacement proof.
+Expand coverage for concrete security, privacy, concurrency, data-integrity, migration,
+or escaped-regression risks. Run focused gates per pass and the complete suite at the
+documented final gate or when the blast radius warrants it.
+
+### Independent review and bounded remediation
+
+Use the existing required readiness/post-implementation review gates; these rules do
+not add a separate reviewer per risk or require repeated model agreement. The reviewer
+first derives expected journeys, invariants, and plausible failures from the approved
+behavior and current authorities, then evaluates the implementation and its evidence.
+
+Review the exact base-to-current diff against the final plan and inspect unchanged
+entry points and direct consumers when needed to trace changed behavior. The diff is
+the change inventory, not the limit of behavior inspection. Report:
+
+- Required scope delivered and missing, material additions without approved mapping,
+  changed non-goals, and unbudgeted tables/services/routes/policies/jobs/abstractions.
+- Concrete behavior/security/privacy/authorization/concurrency/data-integrity defects,
+  non-discriminating required tests, and required outcomes lacking sufficient proof.
+- For each finding, the triggering actor/state/sequence, expected and observed or
+  source-inferred result, evidence, and smallest necessary correction.
+
+A plan omission is reportable; distinguish an implementation defect within approved
+behavior from an unresolved product decision requiring the user. Do not invent new
+requirements or demand stylistic expansion, redundant assertion syntax, or exhaustive
+duplicate tests. Incidental supporting code/tests/docs need proportionate scope
+justification, not a separate plan bullet for every file.
+Missing approved behavior, unapproved material additions, concrete correctness
+defects, and inadequate required proof block acceptance until resolved or explicitly
+adjudicated by the user. Optional improvements do not block it.
+
+A fresh remediator addresses named findings. Verify the fix at its failure boundary,
+rerun the affected functional journey, and check direct consumers where the correction
+can change them. Small visual corrections follow the UI exception below.
+Follow any required fixes-only review gate. Reopen wider review only for a concrete
+new implication, contradiction, or material scope change. Do not use repeated broad
+reviews as a substitute for executing a missing journey.
+
+### Manual-acceptance preflight and handoff
+
+After required review/remediation clears, perform one bounded preflight against the
+exact checklist and authoritative Development reset state before asking the user to
+walk the slice. Reuse applicable executed evidence; do not rerun every passing check.
+Follow each journey from its documented start through actual rendered navigation,
+forms, and role-appropriate notification destinations, verifying a renderable result
+and the next step. Use browser execution where client behavior can block the journey.
+Do not manufacture destination URLs or ready database states to skip required steps.
+
+If a journey fails, stop that journey, route the smallest authorized remediation to
+the appropriate role, rerun it, and resume the remaining preflight. Subjective visual
+clarity, responsive composition, and wording remain manual-only unless they prevent
+completion. Hand over only when required executable journeys pass or the user has
+explicitly accepted their named limitations. A recorded blocker alone is not acceptance.
+
+Handoffs distinguish **implemented**, **source-reviewed**, **execution passed**,
+**blocked/unverified**, and **manually accepted or explicitly waived**. State the exact
+revision or working-tree scope, commands/scenarios and results, evidence limitations,
+and next permitted action. A generic “PASS,” test count, or approved screenshot does
+not establish all of these. The planner reconciles coverage before claiming the
+slice complete; omitted or blocked required outcomes remain open.
+
+Stop when approved outcomes exist, applicable verification and acceptance gates are
+satisfied, and no unresolved finding could materially change correctness, security,
+privacy, authorization, concurrency, data integrity, or the requested result. Do not
+continue for extra corroboration, reviewer agreement, or speculative improvements.
+
+## UI work and manual approval
+
+Use `UI_SYSTEM.md` for tokens, controls, typography, layout, accessibility, responsive
+behavior, progressive enhancement, and protected baselines. Use `UI_PAGE_MATRIX.md`
+for page families, composition exceptions, and current approval. `DELIVERY_PLAN.md`
+owns pass order; `CURRENT_STATUS.md` owns the handoff. Historical Board rewrite and
+reference details stay in those authorities; their presence does not reactivate work
+or reference images. Apply the model and task policy above to all UI roles.
+
+- Before implementation, freeze the page family, primary user/task, protected
+  behavior, states, files, scope, and non-goals. Preserve established Board, editor,
+  and live-draft interaction models unless the user approves a focused redesign.
+  A presentation rewrite preserves behavior/bindings, not rejected legacy geometry.
+- Every new or materially changed page must satisfy current UI authority from its
+  first implementation. Reuse shared owners and compact patterns; no interim local
+  theme, second navigation framework, or deferred accessibility compliance.
+- Historical Public UI reference pictures may be inspected or compared only when
+  the user explicitly names them as relevant to the current task. This rule governs
+  reference activation despite historical reactivation wording elsewhere. Use current
+  supplied screenshots, named findings, and implementation evidence for corrections.
+- User-supplied light/dark desktop and narrow/mobile screenshots are normal current
+  visual evidence. Minor viewport variance/browser chrome is acceptable when the
+  application viewport is identifiable. Review applicable keyboard, focus, empty,
+  error, permission, and feedback states; no separate no-JavaScript gate is required.
+- Before UI remediation, dispatch the required independent reviewer unless the user
+  explicitly requests a direct correction. Review current screenshots/rendered
+  evidence and scoped source against both the named findings and global UI contracts.
+  A historical reference may be compared only when currently reactivated by the user.
+- One fresh remediator fixes the named findings, then the user performs visual
+  acceptance. User rejection overrides a reviewer pass; approval is page-specific.
+- For small CSS/markup-only corrections, normally inspect source/cascade and the
+  scoped diff/whitespace. Add build or behavioral checks only for actual Razor,
+  runtime, or shared-contract risk or an explicit user request. Do not automatically
+  run .NET tests/builds or request elevated execution; preceding applicable build
+  evidence remains usable. Material visual changes still need rendered evidence.
+- Static editorial copy may change to fit approved composition while preserving
+  meaning, truthfulness, localization, and action destinations. Dynamic names, dates,
+  counts, lifecycle facts, account data, bindings, and interaction semantics remain
+  protected. Mutations need accurate feedback and server-authoritative validation.
+- Stop between page families/passes unless the user authorized continuous passes.
+  Explicitly deferred final acceptance does not skip implementation, current evidence,
+  independent review, or remediation. Record cleared pages as `awaiting manual
+  approval`; the later combined walkthrough includes shared-shell/CSS regression
+  across them. Continuous authorization does not permit scope expansion, packaging,
+  committing, pushing, deployment, or bypassing a blocker.
+
+Promote accepted durable decisions to their existing owner: workflow/model/handoff
+rules here; reusable visual rules in `UI_SYSTEM.md`; page exceptions and approval in
+`UI_PAGE_MATRIX.md`; behavior in product/functional contracts; current evidence,
+blockers, and next action in `CURRENT_STATUS.md`. Transient annotations remain evidence
+until accepted. Keep UI handoffs to page/pass, any currently reactivated reference,
+current screenshots, approval state, unresolved findings, and next permitted action.
 
 ## Standard commands
 
@@ -309,7 +422,8 @@ For local application and migration commands, use `README.md`.
 
 Before reporting implementation work complete:
 
-- The requested behavior is implemented through the appropriate layers.
+- Every approved journey has its required result through the appropriate layers;
+  the planner has reconciled coverage and reported any explicit user waiver.
 - Relevant tests were added or updated and pass.
 - The release build passes with no unexpected warnings.
 - Formatting verification passes.
@@ -317,6 +431,11 @@ Before reporting implementation work complete:
 - UI changes satisfy the applicable roadmap checks and user approval gate.
 - Database changes include consistent migrations and were exercised against PostgreSQL.
 - Documentation and `CURRENT_STATUS.md` were updated if behavior, architecture, commands, roadmap position, or known verification state materially changed.
-- Any unrun checks or remaining limitations are explicitly handed off.
+- Required independent review is clear, and executed checks are distinguished from
+  source review and manual acceptance. Unrun required checks remain open unless
+  explicitly waived; report all limitations using the handoff rules above.
+
+Apply the documented small-UI exception where appropriate. Documentation-only work
+uses scoped diff, consistency, and reference checks; it does not require .NET gates.
 
 Milestones are complete only when their documented completion criteria are satisfied—not merely because corresponding files or pages exist.
