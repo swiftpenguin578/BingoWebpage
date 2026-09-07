@@ -7,4 +7,5 @@ public sealed record SignupResult(
     string? Error,
     Guid? ParticipantId,
     SignupStatus? Status,
-    int? WaitingListPosition);
+    int? WaitingListPosition,
+    Guid? AccountQuestionId = null);

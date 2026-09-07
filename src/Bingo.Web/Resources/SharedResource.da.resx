@@ -145,6 +145,7 @@
   <data name="All dates, times and the player cap can be changed before the relevant deadline." xml:space="preserve"><value>Alle datoer, tider og spillergrænsen kan ændres inden den relevante frist.</value></data>
   <data name="Signup opens" xml:space="preserve"><value>Tilmelding åbner</value></data>
   <data name="Signup closes" xml:space="preserve"><value>Tilmelding lukker</value></data>
+  <data name="Draft starts" xml:space="preserve"><value>Draft starter</value></data>
   <data name="Event starts" xml:space="preserve"><value>Bingo starter</value></data>
   <data name="Event ends" xml:space="preserve"><value>Bingo slutter</value></data>
   <data name="Date" xml:space="preserve"><value>Dato</value></data>
@@ -611,6 +612,7 @@
   <data name="Your place is confirmed." xml:space="preserve"><value>Din plads er bekræftet.</value></data>
   <data name="Choose an account from My accounts." xml:space="preserve"><value>Vælg en konto fra Mine konti.</value></data>
   <data name="Choose each account only once." xml:space="preserve"><value>Vælg hver konto kun én gang.</value></data>
+  <data name="That account is already signed up for this event. Choose another account." xml:space="preserve"><value>Denne konto er allerede tilmeldt dette event. Vælg en anden konto.</value></data>
   <data name="That account is already signed up for this event." xml:space="preserve"><value>Denne konto er allerede tilmeldt dette event.</value></data>
   <data name="This event is full and does not have a waiting list." xml:space="preserve"><value>Dette event er fuldt og har ingen venteliste.</value></data>
   <data name="The event code is incorrect." xml:space="preserve"><value>Eventkoden er forkert.</value></data>
@@ -1419,7 +1421,7 @@
   <data name="This is reported by the lifecycle readiness check." xml:space="preserve"><value>Dette rapporteres af livscyklusparhedstjekket.</value></data>
   <data name="This participant is locked and can only be reviewed here." xml:space="preserve"><value>Denne deltager er låst og kan kun gennemgås her.</value></data>
   <data name="This public link is now permanent." xml:space="preserve"><value>Dette offentlige link er nu permanent.</value></data>
-  <data name="This removes the question from future signups and keeps existing answers." xml:space="preserve"><value>Dette fjerner spørgsmålet fra fremtidige tilmeldinger og bevarer eksisterende svar.</value></data>
+  <data name="This deletes the question and all its answers. Any accounts registered through this question are removed from the event; saved My accounts are kept." xml:space="preserve"><value>Dette sletter spørgsmålet og alle dets svar. Konti tilmeldt gennem spørgsmålet fjernes fra eventet; gemte konti i Mine konti bevares.</value></data>
   <data name="This stays editable until the event is first public." xml:space="preserve"><value>Dette kan redigeres, indtil eventet bliver offentligt første gang.</value></data>
   <data name="This withdraws the signup and keeps its history." xml:space="preserve"><value>Dette trækker tilmeldingen tilbage og bevarer historikken.</value></data>
   <data name="Toggle Admin navigation" xml:space="preserve"><value>Skift Admin-navigation</value></data>
@@ -2598,4 +2600,11 @@
   <data name="Open team history" xml:space="preserve"><value>Åbn holdhistorik</value></data>
   <data name="Your progress" xml:space="preserve"><value>Din fremgang</value></data>
   <data name="Guide progress and help" xml:space="preserve"><value>Guidens fremgang og hjælp</value></data>
+  <data name="Withdrawn signups cannot be edited. Rejoin while signup is open." xml:space="preserve"><value>Tilbagetrukne tilmeldinger kan ikke redigeres. Tilmeld dig igen, mens tilmeldingen er åben.</value></data>
+  <data name="You can rejoin using the button below. Your previous place is not reserved." xml:space="preserve"><value>Du kan tilmelde dig igen med knappen nedenfor. Din tidligere plads er ikke reserveret.</value></data>
+  <data name="Signup is closed. Contact an Admin to ask about rejoining." xml:space="preserve"><value>Tilmeldingen er lukket. Kontakt en Admin for at høre om muligheden for at tilmelde dig igen.</value></data>
+  <data name="The draft has started. Self-service rejoining is unavailable." xml:space="preserve"><value>Draften er startet. Du kan ikke længere tilmelde dig igen via selvbetjening.</value></data>
+  <data name="One of your accounts is now assigned to another participant." xml:space="preserve"><value>En af dine konti er nu tilmeldt af en anden deltager.</value></data>
+  <data name="That question cannot be removed." xml:space="preserve"><value>Dette spørgsmål kan ikke fjernes.</value></data>
+  <data name="The question could not be removed. Please reload and try again." xml:space="preserve"><value>Spørgsmålet kunne ikke fjernes. Genindlæs siden, og prøv igen.</value></data>
 </root>

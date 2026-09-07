@@ -5,6 +5,9 @@ namespace Bingo.Application.Signups;
 
 public interface ISignupService
 {
+    Task<SignupAdministrationResult> DeleteQuestionAsync(Guid eventId, Guid questionId, Guid actorAccountId, string actorName, CancellationToken cancellationToken = default)
+        => Task.FromException<SignupAdministrationResult>(new NotSupportedException("Signup question deletion is not available."));
+
     Task<SignupResult> SignUpAuthenticatedAsync(AuthenticatedSignupRequest request, CancellationToken cancellationToken = default)
         => Task.FromException<SignupResult>(new NotSupportedException("Authenticated signup is not available."));
 

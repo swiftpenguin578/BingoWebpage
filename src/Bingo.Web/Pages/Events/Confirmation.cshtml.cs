@@ -22,7 +22,7 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
     public bool CanRejoin { get; private set; }
     public bool CanViewTable { get; private set; }
     public bool IsReadOnly { get; private set; }
-    public string StatusDetail { get; private set; } = string.Empty;
+    public string NextStep { get; private set; } = "Your signup will appear in the event roster when it is published.";
     [BindProperty] public bool ConfirmLifecycleAction { get; set; }
     public IReadOnlyList<AccountView> Accounts { get; private set; } = [];
     public IReadOnlyList<AnswerView> Answers { get; private set; } = [];
@@ -60,23 +60,21 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
             EventSlug = row.Event.Slug;
             CanViewTable = EventDestinationPolicy.MayUseSignupTable(EventDestinationPolicy.From(row.Event, rosterExists), User.IsInRole("Admin"));
             Status = DisplayStatus(row.Participant.SignupStatus.ToString());
-            CanEdit = row.Event.State == EventState.SignupOpen && row.Event.AcceptsSignups(timeProvider.GetUtcNow());
+            CanEdit = row.Participant.SignupStatus is SignupStatus.Confirmed or SignupStatus.WaitingList && row.Event.State == EventState.SignupOpen && row.Event.AcceptsSignups(timeProvider.GetUtcNow());
             CanWithdraw = !row.Event.DraftLocked && row.Event.State is EventState.SignupOpen or EventState.SignupClosed && row.Participant.SignupStatus is SignupStatus.Confirmed or SignupStatus.WaitingList;
             CanRejoin = !row.Event.DraftLocked && row.Event.AcceptsSignups(timeProvider.GetUtcNow()) && row.Participant.SignupStatus == SignupStatus.Withdrawn;
             IsReadOnly = !CanEdit && !CanWithdraw && !CanRejoin && (row.Participant.SignupStatus is SignupStatus.Confirmed or SignupStatus.WaitingList);
             if (row.Participant.SignupStatus == SignupStatus.WaitingList)
                 WaitingPosition = await db.EventParticipants.AsNoTracking().Where(x => x.EventId == row.Participant.EventId && x.SignupStatus == SignupStatus.WaitingList && (x.SignedUpAt < row.Participant.SignedUpAt || x.SignedUpAt == row.Participant.SignedUpAt && x.SignupSequence <= row.Participant.SignupSequence)).CountAsync(ct);
-            StatusDetail = row.Participant.SignupStatus switch
+            NextStep = row.Participant.SignupStatus switch
             {
-                SignupStatus.Confirmed => "Your place is confirmed.",
-                SignupStatus.WaitingList => string.Empty,
-                SignupStatus.Withdrawn when CanRejoin => "Your signup is withdrawn. You can rejoin while signup is open.",
-                SignupStatus.Withdrawn when row.Event.DraftLocked => "Your signup is withdrawn. Participant changes are locked because the draft has started.",
-                SignupStatus.Withdrawn => "Your signup is withdrawn. Signup is closed. Contact an Admin if you need to be restored.",
-                _ => "This signup is read-only."
+                SignupStatus.Withdrawn when CanRejoin => "You can rejoin using the button below. Your previous place is not reserved.",
+                SignupStatus.Withdrawn when row.Event.DraftLocked => "The draft has started. Self-service rejoining is unavailable.",
+                SignupStatus.Withdrawn => "Signup is closed. Contact an Admin to ask about rejoining.",
+                _ => "Your signup will appear in the event roster when it is published."
             };
 
-            var questions = await db.SignupQuestions.AsNoTracking().Where(x => x.EventId == row.Participant.EventId).ToDictionaryAsync(x => x.Id, ct);
+            var questions = await db.SignupQuestions.AsNoTracking().Where(x => x.EventId == row.Participant.EventId && x.DisabledReason != SignupQuestion.DeletedReason).ToDictionaryAsync(x => x.Id, ct);
             var assignments = await (from assignment in db.EventParticipantCharacters.AsNoTracking()
                                      join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id
                                      where assignment.EventParticipantId == row.Participant.Id && assignment.ReleasedAt == null && assignment.SignupQuestionId != null
@@ -90,7 +88,7 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
             var answers = await db.SignupAnswers.AsNoTracking().Where(x => x.EventParticipantId == row.Participant.Id && x.OsrsCharacterId == null).ToListAsync(ct);
             Answers = answers.Where(x => questions.TryGetValue(x.SignupQuestionId, out var question) && question.SystemField == SignupSystemField.None)
                 .Select(x => new AnswerView(questions[x.SignupQuestionId].Label, x.Value)).ToList();
-            if (row.Participant.CaptainVolunteer) Answers = Answers.Append(new AnswerView("Captain volunteer", "Yes")).ToList();
+            Answers = Answers.Append(new AnswerView(text["Captain volunteer"].Value, text[row.Participant.CaptainVolunteer ? "Yes" : "No"].Value)).ToList();
             return Page();
         }
 
@@ -125,7 +123,7 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
         if (participant is null) return Forbid();
         if (!ConfirmLifecycleAction) { SetStatus(text["Confirm that you want to rejoin before continuing."].Value, false); return RedirectToPage(new { slug, participantId = participant.ParticipantId }); }
         var result = await signupService.RejoinAsync(participant.EventId, participant.ParticipantId, accountId.Value, User.Identity?.Name ?? "participant", ct);
-        SetStatus(result.Succeeded ? result.Status == SignupStatus.WaitingList ? text["You rejoined at waiting-list position {0}.", result.WaitingPosition.GetValueOrDefault()].Value : text["Your signup has been restored."].Value : text[result.Error ?? "Your signup could not be restored."].Value, result.Succeeded);
+        SetStatus(result.Succeeded ? text["Your signup has been restored."].Value : text[result.Error ?? "Your signup could not be restored."].Value, result.Succeeded);
         return RedirectToPage(new { slug, participantId = participant.ParticipantId });
     }
 

@@ -64,9 +64,9 @@ public sealed class SignupUiTests
         Assert.Contains("class=\"signup-sheet__field signup-sheet__field--wide\"", markup);
         Assert.Contains("Fetch EHB from WOM", markup);
         Assert.DoesNotContain("Fetch from WOM", markup);
-        Assert.Contains("data-ehb-input=\"ehb-@question.Id\"", markup);
-        Assert.Contains("data-lookup-token-input=\"lookup-@question.Id\"", markup);
-        Assert.DoesNotContain("@if (question.AccountRole == EventCharacterRole.Playing)", markup);
+        Assert.Contains("@if (isPlaying)", markup);
+        Assert.Contains("data-lookup-token-input", markup);
+        Assert.Contains("var isPlaying = question.AccountRole == EventCharacterRole.Playing;", markup);
         Assert.Contains("data-account-input", markup);
         Assert.Contains("name=\"Input.FetchQuestionId\" value=\"@question.Id\"", markup);
         Assert.Contains("<svg aria-hidden=\"true\" focusable=\"false\"", markup);

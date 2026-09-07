@@ -83,7 +83,7 @@
                                 <details class="admin-destructive-confirmation signup-question-remove">
                                     <summary class="admin-button-secondary action-danger-outline">@T["Remove"]</summary>
                                     <div class="event-confirmation-box" role="alertdialog" aria-labelledby="remove-question-@question.Id-heading">
-                                        <p><span class="signup-question-confirmation-title" id="remove-question-@question.Id-heading">@T["Remove {0}?", question.Label]</span><br />@T["This removes the question from future signups and keeps existing answers."]</p>
+                                        <p><span class="signup-question-confirmation-title" id="remove-question-@question.Id-heading">@T["Remove {0}?", question.Label]</span><br />@T["This deletes the question and all its answers. Any accounts registered through this question are removed from the event; saved My accounts are kept."]</p>
                                         <form method="post" asp-page-handler="Deactivate" class="event-confirmation-form">
                                             <input type="hidden" name="overlay" value="@(Model.IsOverlay ? "1" : "0")" />
                                             <input type="hidden" name="questionId" value="@question.Id" />

@@ -30,11 +30,6 @@
                 <h1 id="signup-heading" class="public-masthead-title">@Model.EventView.Name</h1>
                 <p class="public-masthead-support">@(string.IsNullOrWhiteSpace(Model.EventView.Description) ? T["Choose your account, answer the event questions and reserve your place."] : Model.EventView.Description)</p>
             </div>
-            <dl class="signup-sheet__meta">
-                <div><dt>@T["Event starts"]</dt><dd>@(Model.EventView.EventStartsAt is { } starts ? DateTimePresentation.Format(starts, "dd/MM/yyyy", Model.EventView.Timezone) : T["Not set"])</dd></div>
-                <div><dt>@T["Signup closes"]</dt><dd>@(Model.EventView.SignupClosesAt is { } closes ? DateTimePresentation.Format(closes, "dd/MM/yyyy", Model.EventView.Timezone) : T["Not set"])</dd></div>
-                <div><dt>@T["Capacity"]</dt><dd>@(Model.EventView.ParticipantCap?.ToString() ?? T["Not set"])</dd></div>
-            </dl>
         </div>
         <div class="signup-sheet__capacity" aria-label="@T["confirmed"]">
             <span class="signup-sheet__capacity-value"><strong class="signup-sheet__capacity-number">@Model.EventView.ConfirmedCount</strong><span class="signup-sheet__capacity-slash" aria-hidden="true">/</span><strong class="signup-sheet__capacity-number">@(Model.EventView.ParticipantCap?.ToString() ?? T["Not set"])</strong></span>
@@ -45,6 +40,14 @@
             <span class="signup-sheet__status-divider" aria-hidden="true"></span>
             <span class="signup-sheet__status-line">@Model.EventView.WaitingCount @T["Currently waiting"]</span>
         </div>
+        <dl class="signup-sheet__meta">
+            <div><dt>@T["Signup closes"]</dt><dd>@(Model.EventView.SignupClosesAt is { } closes ? DateTimePresentation.Format(closes, "dd/MM/yyyy HH:mm", Model.EventView.Timezone) : T["Not set"])</dd></div>
+            @if (Model.EventView.DraftAt is { } draft)
+            {
+                <div><dt>@T["Draft starts"]</dt><dd>@DateTimePresentation.Format(draft, "dd/MM/yyyy HH:mm", Model.EventView.Timezone)</dd></div>
+            }
+            <div><dt>@T["Bingo"]</dt><dd class="signup-sheet__meta-range"><span>@T["Starts"] @(Model.EventView.EventStartsAt is { } starts ? DateTimePresentation.Format(starts, "dd/MM/yyyy HH:mm", Model.EventView.Timezone) : T["Not set"])</span><span>@T["Ends"] @(Model.EventView.EventEndsAt is { } metadataEnds ? DateTimePresentation.Format(metadataEnds, "dd/MM/yyyy HH:mm", Model.EventView.Timezone) : T["Not set"])</span></dd></div>
+        </dl>
     </header>
 
     @if (ViewData.ModelState.ErrorCount > 0)
@@ -88,6 +91,7 @@
                         @foreach (var question in accountQuestions)
                         {
                             var accountInput = Model.Input.AccountAnswers.GetValueOrDefault(question.Id) ?? new SignupModel.AccountInput();
+                            var isPlaying = question.AccountRole == EventCharacterRole.Playing;
                             <fieldset class="signup-sheet__account-group">
                                 <legend>@question.Label @if (question.Required) { <span aria-hidden="true">*</span> }</legend>
                                 <div class="signup-sheet__account-options">
@@ -98,23 +102,33 @@
                                         var displayedEhb = selected && accountInput.Ehb is { } selectedEhb ? selectedEhb : account.SavedEhb;
                                         <div class="signup-sheet__account-option @(selected ? "is-selected" : null)">
                                             <label class="signup-sheet__account-choice" for="question-@question.Id-@account.Id">
-                                                <input id="question-@question.Id-@account.Id" type="radio" name="Input.AccountAnswers[@question.Id].OsrsCharacterId" value="@account.Id" checked="@(selected ? "checked" : null)" data-saved-ehb="@(account.SavedEhb?.ToString(CultureInfo.InvariantCulture) ?? string.Empty)" data-ehb-input="ehb-@question.Id" data-lookup-token-input="lookup-@question.Id" />
+                                                @if (isPlaying)
+                                                {
+                                                    <input id="question-@question.Id-@account.Id" type="radio" name="Input.AccountAnswers[@question.Id].OsrsCharacterId" value="@account.Id" checked="@(selected ? "checked" : null)" data-saved-ehb="@(account.SavedEhb?.ToString(CultureInfo.InvariantCulture) ?? string.Empty)" data-ehb-input="ehb-@question.Id" data-lookup-token-input="lookup-@question.Id" />
+                                                }
+                                                else
+                                                {
+                                                    <input id="question-@question.Id-@account.Id" type="radio" name="Input.AccountAnswers[@question.Id].OsrsCharacterId" value="@account.Id" checked="@(selected ? "checked" : null)" />
+                                                }
                                                 <span class="signup-sheet__radio" aria-hidden="true"></span>
                                                 <span class="signup-sheet__account-name">@account.Name@if (account.Historical) { <small>(@T["Currently registered"])</small> }</span>
                                             </label>
                                             <span class="signup-sheet__account-role">@(question.AccountRole == EventCharacterRole.Playing ? T["Regular account"] : T["Alt account"])</span>
-                                            @if (displayedEhb is { } ehb)
+                                            @if (isPlaying)
                                             {
-                                                <span class="signup-sheet__account-ehb">@ehb.ToString("0.##", CultureInfo.CurrentCulture) @T["EHB"]</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="signup-sheet__account-ehb signup-sheet__account-ehb--empty">@T["EHB"]: —</span>
-                                            }
-                                            <button class="signup-sheet__fetch" type="submit" name="Input.FetchQuestionId" value="@question.Id" data-account-input="question-@question.Id-@account.Id"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M13 6a5 5 0 0 0-8.5-1L3 6.5M3 3v3.5h3.5M3 10a5 5 0 0 0 8.5 1l1.5-1.5M13 13v-3.5H9.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" /></svg>@T["Fetch EHB from WOM"]</button>
-                                            @if (accountVerified)
-                                            {
-                                                <span class="signup-sheet__account-state signup-sheet__account-state--verified">@T["Wise Old Man verified"]</span>
+                                                @if (displayedEhb is { } ehb)
+                                                {
+                                                    <span class="signup-sheet__account-ehb">@ehb.ToString("0.##", CultureInfo.CurrentCulture) @T["EHB"]</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="signup-sheet__account-ehb signup-sheet__account-ehb--empty">@T["EHB"]: —</span>
+                                                }
+                                                <button class="signup-sheet__fetch" type="submit" name="Input.FetchQuestionId" value="@question.Id" data-account-input="question-@question.Id-@account.Id"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M13 6a5 5 0 0 0-8.5-1L3 6.5M3 3v3.5h3.5M3 10a5 5 0 0 0 8.5 1l1.5-1.5M13 13v-3.5H9.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" /></svg>@T["Fetch EHB from WOM"]</button>
+                                                @if (accountVerified)
+                                                {
+                                                    <span class="signup-sheet__account-state signup-sheet__account-state--verified">@T["Wise Old Man verified"]</span>
+                                                }
                                             }
                                         </div>
                                     }
@@ -123,7 +137,14 @@
                                         var noneSelected = accountInput.OsrsCharacterId is null;
                                         <div class="signup-sheet__account-option signup-sheet__account-option--clear @(noneSelected ? "is-selected" : null)">
                                             <label class="signup-sheet__account-choice" for="question-@question.Id-none">
-                                                <input id="question-@question.Id-none" type="radio" name="Input.AccountAnswers[@question.Id].OsrsCharacterId" value="" checked="@(noneSelected ? "checked" : null)" data-saved-ehb="" data-ehb-input="ehb-@question.Id" data-lookup-token-input="lookup-@question.Id" />
+                                                @if (isPlaying)
+                                                {
+                                                    <input id="question-@question.Id-none" type="radio" name="Input.AccountAnswers[@question.Id].OsrsCharacterId" value="" checked="@(noneSelected ? "checked" : null)" data-saved-ehb="" data-ehb-input="ehb-@question.Id" data-lookup-token-input="lookup-@question.Id" />
+                                                }
+                                                else
+                                                {
+                                                    <input id="question-@question.Id-none" type="radio" name="Input.AccountAnswers[@question.Id].OsrsCharacterId" value="" checked="@(noneSelected ? "checked" : null)" />
+                                                }
                                                 <span class="signup-sheet__radio" aria-hidden="true"></span>
                                                 <span class="signup-sheet__account-name">@T["None"]</span>
                                             </label>
@@ -135,13 +156,16 @@
                                     }
                                 </div>
                                 <span class="signup-sheet__error">@Html.ValidationMessage($"Input.AccountAnswers[{question.Id}].OsrsCharacterId")</span>
-                                <input id="ehb-@question.Id" name="Input.AccountAnswers[@question.Id].Ehb" value="@(accountInput.Ehb?.ToString("0.##", CultureInfo.InvariantCulture) ?? string.Empty)" type="hidden" />
-                                <input id="lookup-@question.Id" type="hidden" name="Input.AccountAnswers[@question.Id].WiseOldManLookupToken" value="@accountInput.WiseOldManLookupToken" />
-                                @if (Model.LookupQuestionId == question.Id && Model.LookupFetchedAt is { } fetchedAt)
+                                @if (isPlaying)
                                 {
-                                    <span class="signup-sheet__hint">@T["Fetched from Wise Old Man"]: @DateTimePresentation.Format(fetchedAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)</span>
+                                    <input id="ehb-@question.Id" name="Input.AccountAnswers[@question.Id].Ehb" value="@(accountInput.Ehb?.ToString("0.##", CultureInfo.InvariantCulture) ?? string.Empty)" type="hidden" />
+                                    <input id="lookup-@question.Id" type="hidden" name="Input.AccountAnswers[@question.Id].WiseOldManLookupToken" value="@accountInput.WiseOldManLookupToken" />
+                                    @if (Model.LookupQuestionId == question.Id && Model.LookupFetchedAt is { } fetchedAt)
+                                    {
+                                        <span class="signup-sheet__hint">@T["Fetched from Wise Old Man"]: @DateTimePresentation.Format(fetchedAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)</span>
+                                    }
+                                    <span class="signup-sheet__error">@Html.ValidationMessage($"Input.AccountAnswers[{question.Id}].Ehb")</span>
                                 }
-                                <span class="signup-sheet__error">@Html.ValidationMessage($"Input.AccountAnswers[{question.Id}].Ehb")</span>
                             </fieldset>
                         }
                         @if (!accountQuestions.Any())

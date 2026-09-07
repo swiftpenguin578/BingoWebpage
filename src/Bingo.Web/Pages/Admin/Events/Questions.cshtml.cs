@@ -3,6 +3,7 @@ using System.Text.Json;
 using Bingo.Application.Access;
 using Bingo.Application.Auditing;
 using Bingo.Application.Security;
+using Bingo.Application.Signups;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
@@ -20,7 +21,7 @@ using Microsoft.Extensions.Localization;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter auditWriter, ISecretHasher hasher, TimeProvider timeProvider, IStringLocalizer<SharedResource>? text = null) : PageModel
+public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter auditWriter, ISecretHasher hasher, TimeProvider timeProvider, ISignupService signupService, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     public IReadOnlyList<SignupQuestion> Questions { get; private set; } = [];
 
@@ -95,28 +96,8 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
     public async Task<IActionResult> OnPostDeactivateAsync(Guid id, Guid questionId, [FromForm] bool overlay, CancellationToken ct)
     {
         overlay = ResolveSubmittedOverlay(overlay);
-        if (!await CanEditAsync(id, ct))
-        {
-            SetLockedStatus();
-            return RedirectToQuestions(id, overlay);
-        }
-
-        var question = await dbContext.SignupQuestions
-            .SingleOrDefaultAsync(item => item.Id == questionId && item.EventId == id, ct);
-        if (question is null) return NotFound();
-        if (question.SystemField != SignupSystemField.None)
-        {
-            SetStatus(Localize("Standard questions cannot be removed."), UiMessageType.Error);
-            return RedirectToQuestions(id, overlay);
-        }
-
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
-        var before = Snapshot(question);
-        question.Deactivate(User.GetAccountId());
-        await CompleteMutationAsync(id, "signup_question.deactivated", question.Id.ToString(), before, Snapshot(question), ct);
-        await transaction.CommitAsync(ct);
-
-        SetStatus(Localize("Question removed."), UiMessageType.Success);
+        var result = await signupService.DeleteQuestionAsync(id, questionId, User.GetAccountId()!.Value, User.Identity!.Name!, ct);
+        SetStatus(Localize(result.Succeeded ? "Question removed." : result.Error!), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToQuestions(id, overlay);
     }
 

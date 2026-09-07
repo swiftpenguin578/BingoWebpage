@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Localization;
 using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
@@ -69,7 +70,7 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         Assert.Equal("Signup", segments[2]);
         Assert.Equal("Confirmation", segments[3]);
         var routeParticipantId = Guid.Parse(QueryHelpers.ParseQuery(route.Query)["participantId"].ToString());
-        var confirmation = new Bingo.Web.Pages.Events.ConfirmationModel(verify, TimeProvider.System, Service(verify), null!)
+        var confirmation = new Bingo.Web.Pages.Events.ConfirmationModel(verify, TimeProvider.System, Service(verify), new PassthroughLocalizer())
         {
             PageContext = new PageContext(new ActionContext(
                 new DefaultHttpContext
@@ -407,6 +408,13 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
                 ? ValueTask.FromException<InterceptionResult<int>>(new InvalidOperationException("Simulated capacity audit persistence failure."))
                 : ValueTask.FromResult(result);
     }
+    private sealed class PassthroughLocalizer : IStringLocalizer<Bingo.Web.SharedResource>
+    {
+        public LocalizedString this[string name] => new(name, name);
+        public LocalizedString this[string name, params object[] arguments] => new(name, string.Format(System.Globalization.CultureInfo.InvariantCulture, name, arguments));
+        public IEnumerable<LocalizedString> GetAllStrings(bool includeParentCultures) => [];
+    }
+
     private sealed class DictionaryTempDataProvider : ITempDataProvider
     {
         public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();

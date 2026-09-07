@@ -149,7 +149,7 @@ Each durable capability/journey below has one owning contract section. Shared cr
 
 **Authority, history, and visibility:** Admin services own setup and opening; the authenticated website account owns the signup; server-side event-character reservations and capacity decide admission. Draft details, private Admin data, and unapproved competitive data remain hidden.
 
-**Failure and recovery:** Invalid setup stays in the relevant form; an opening failure leaves signup closed; a character race fails atomically and identifies the conflicting account; a temporary service failure offers retry/manual entry. The user resumes from the authoritative destination rather than a stale link.
+**Failure and recovery:** Invalid setup stays in the relevant form; an opening failure leaves signup closed; a character race fails atomically and identifies the conflicting account; a temporary service failure offers retry, with manual EHB entry in My accounts as the accepted signup fallback. The user resumes from the authoritative destination rather than a stale link.
 
 **Acceptance outcome:** An enabled Admin can take a new event from private draft to a reachable first participant confirmation without creating partial records, publishing incomplete data, or bypassing identity, capacity, or privacy rules.
 
@@ -221,7 +221,7 @@ While the team draft is Running or Paused, the complete schedule is locked. Once
 
 **Authoritative happy path:** The primary regular Account is required and its EHB is required. Secondary Account questions are optional and explicitly regular (`PLAYING`) or informational (`INFORMATIONAL`); regular answers have their own EHB, while alts do not. Opening validates description, capacity, start/end/closing, Discord login configuration, form shape, and enabled signup code. It records actual manual opening or the configured scheduled opening.
 
-**Permissions and history:** Signup definitions are versioned. After the first accepted response, answer shape cannot be changed; safe metadata changes and optional later questions preserve old answers. Draft start freezes ordinary form changes and closes signup.
+**Permissions and history:** Signup definitions are versioned. After the first accepted response, answer shape cannot be changed; safe metadata changes, structural replacement, and optional later questions preserve old answers. Explicit custom-question deletion while private/closed before draft start removes all its answers and every ordinary form/table/confirmation projection. Optional Regular/Alt assignments from that question are released and cannot return through rejoin or Admin restore; saved My accounts links, required system questions, participant status/order, and audit/competitive history remain protected. Delete is the only removal action; no Hide feature is added. Draft start freezes ordinary form changes and closes signup.
 
 **Failure and recovery:** Missing description, capacity, schedule, primary playing field/EHB, invalid question, unusable enabled code, or requested opening inconsistency blocks opening. Disabled waiting list and public text answers are warnings requiring acknowledgement. Banner, board, teams, draft time, and current Wise Old Man availability are not opening blockers. A failed scheduled attempt leaves signup closed and exposes its blockers.
 

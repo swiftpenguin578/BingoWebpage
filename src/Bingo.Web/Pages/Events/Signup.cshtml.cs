@@ -39,7 +39,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
         if (!await LoadAsync(slug, ct)) return NotFound();
         var existing = await dbContext.EventParticipants.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == EventView!.Id && x.AccountId == User.GetAccountId(), ct);
         if (existing is not null && !edit) return RedirectToPage("Confirmation", new { slug, participantId = existing.Id });
-        if (existing is not null && !EventView!.Accepting) return RedirectToPage("Confirmation", new { slug, participantId = existing.Id });
+        if (existing is not null && (!EventView!.Accepting || existing.SignupStatus == SignupStatus.Withdrawn)) return RedirectToPage("Confirmation", new { slug, participantId = existing.Id });
         IsEditing = existing is not null;
         await PopulateInputAsync(existing?.Id, ct);
         return Page();
@@ -51,28 +51,41 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
         if (User.Identity?.IsAuthenticated != true) return RedirectToPage("/Account/Login", new { ReturnUrl = SignupReturnUrl(slug, true) });
         if (User.FindFirst("bingo:account_type")?.Value != "WebsiteAccount") return Forbid();
         if (!await LoadAsync(slug, ct)) return NotFound();
+        var existing = await dbContext.EventParticipants.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == EventView!.Id && x.AccountId == User.GetAccountId(), ct);
+        if (existing?.SignupStatus == SignupStatus.Withdrawn) return RedirectToPage("Confirmation", new { slug, participantId = existing.Id });
+        IsEditing = existing is not null;
         await NormalizeInvariantEhbAsync(ct);
         if (Input.FetchQuestionId is { } fetchQuestionId)
         {
             await FetchEhbAsync(fetchQuestionId, ct);
             return Page();
         }
-        if (!ModelState.IsValid) { await PopulateInputAsync(null, ct, preserveSubmitted: true); return Page(); }
+        if (!ModelState.IsValid) { await PopulateInputAsync(existing?.Id, ct, preserveSubmitted: true); return Page(); }
         var accountAnswers = Input.AccountAnswers
             .Where(item => item.Value.OsrsCharacterId is { } characterId && characterId != Guid.Empty)
             .ToDictionary(item => item.Key, item => new AuthenticatedAccountAnswer(item.Value.OsrsCharacterId!.Value, item.Value.Ehb, item.Value.WiseOldManLookupToken));
         var result = await signupService.SignUpAuthenticatedAsync(new AuthenticatedSignupRequest(EventView!.Id, User.GetAccountId()!.Value, accountAnswers, Input.Answers, Input.SignupCode, Input.ExpectedResponseVersion), ct);
         if (!result.Succeeded)
         {
-            ModelState.AddModelError(string.Empty, IsResponseConflict(result.Error) ? (text?["Your signup changed while you were editing it. Please reload and try again."].Value ?? "Your signup changed while you were editing it. Please reload and try again.") : Localize(result.Error!));
+            ModelState.AddModelError(result.AccountQuestionId is { } questionId ? $"Input.AccountAnswers[{questionId}].OsrsCharacterId" : string.Empty, IsResponseConflict(result.Error) ? (text?["Your signup changed while you were editing it. Please reload and try again."].Value ?? "Your signup changed while you were editing it. Please reload and try again.") : Localize(result.Error!));
             if (result.Error == "The event code is incorrect.") ModelState.AddModelError(nameof(Input.SignupCode), Localize(result.Error!));
-            await PopulateInputAsync(null, ct, preserveSubmitted: true);
+            await PopulateInputAsync(existing?.Id, ct, preserveSubmitted: true);
             return Page();
         }
         return RedirectToPage("Confirmation", new { slug, participantId = result.ParticipantId });
     }
     private async Task NormalizeInvariantEhbAsync(CancellationToken ct)
     {
+        foreach (var question in Questions.Where(item => item.Type == SignupQuestionType.Account && item.AccountRole == EventCharacterRole.Informational))
+        {
+            if (Input.AccountAnswers.TryGetValue(question.Id, out var input))
+            {
+                input.Ehb = null;
+                input.WiseOldManLookupToken = null;
+            }
+            ModelState.Remove($"Input.AccountAnswers[{question.Id}].Ehb");
+            ModelState.Remove($"Input.AccountAnswers[{question.Id}].WiseOldManLookupToken");
+        }
         if (!Request.HasFormContentType) return;
         var form = await Request.ReadFormAsync(ct);
         const string prefix = "Input.AccountAnswers[";
@@ -82,6 +95,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
             if (!key.StartsWith(prefix, StringComparison.Ordinal) || !key.EndsWith(suffix, StringComparison.Ordinal)) continue;
             var questionIdText = key[prefix.Length..^suffix.Length];
             if (!Guid.TryParse(questionIdText, out var questionId)) continue;
+            if (Questions.Any(item => item.Id == questionId && item.AccountRole == EventCharacterRole.Informational)) continue;
             if (!Input.AccountAnswers.TryGetValue(questionId, out var input))
                 Input.AccountAnswers[questionId] = input = new AccountInput();
 
@@ -177,7 +191,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
             Confirmed = group.Count(participant => participant.SignupStatus == SignupStatus.Confirmed),
             Waiting = group.Count(participant => participant.SignupStatus == SignupStatus.WaitingList)
         }).SingleOrDefaultAsync(ct);
-        EventView = new EventInfo(item.Id, item.Slug, item.Name, item.Description ?? string.Empty, item.SignupClosesAt, item.EventStartsAt, item.EventEndsAt, item.RequireSignupCode, !cancelled && item.AcceptsSignups(timeProvider.GetUtcNow()), cancelled, EventDestinationPolicy.MayUseSignupTable(EventDestinationPolicy.From(item, rosterExists), User.IsInRole("Admin")), item.ParticipantCap, signupCounts?.Confirmed ?? 0, signupCounts?.Waiting ?? 0, item.Timezone);
+        EventView = new EventInfo(item.Id, item.Slug, item.Name, item.Description ?? string.Empty, item.SignupClosesAt, item.EventStartsAt, item.EventEndsAt, item.RequireSignupCode, !cancelled && item.AcceptsSignups(timeProvider.GetUtcNow()), cancelled, EventDestinationPolicy.MayUseSignupTable(EventDestinationPolicy.From(item, rosterExists), User.IsInRole("Admin")), item.ParticipantCap, signupCounts?.Confirmed ?? 0, signupCounts?.Waiting ?? 0, item.Timezone, item.DraftAt);
         var accountId = User.GetAccountId();
         var links = accountId is null ? [] : await (from link in dbContext.AccountOsrsCharacters.AsNoTracking() join character in dbContext.OsrsCharacters.AsNoTracking() on link.OsrsCharacterId equals character.Id where link.AccountId == accountId && link.Active orderby link.Preferred descending, link.Position select new AccountOption(character.Id, character.DisplayName, link.SavedEhb, link.Preferred, false)).ToListAsync(ct);
         var questions = cancelled ? [] : await dbContext.SignupQuestions.AsNoTracking().Where(q => q.EventId == item.Id && q.Active).OrderBy(q => q.Position).ToListAsync(ct);
@@ -206,7 +220,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     }
     private async Task PopulateInputAsync(Guid? participantId, CancellationToken ct, bool preserveSubmitted = false)
     {
-        if (EventView is null || preserveSubmitted) return;
+        if (EventView is null || (preserveSubmitted && participantId is null)) return;
         if (participantId is null)
         {
             foreach (var question in Questions.Where(x => x.Type == SignupQuestionType.Account && x.Required && x.SystemField == SignupSystemField.PrimaryRegularAccount))
@@ -223,6 +237,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
             var historical = await dbContext.OsrsCharacters.AsNoTracking().Where(x => historicalIds.Contains(x.Id)).ToListAsync(ct);
             Questions = Questions.Select(question => question.Type != SignupQuestionType.Account ? question : question with { Accounts = question.Accounts.Concat(historical.Where(character => assignments.Any(assignment => assignment.SignupQuestionId == question.Id && assignment.OsrsCharacterId == character.Id)).Select(character => new AccountOption(character.Id, character.DisplayName, null, false, true))).ToList() }).ToList();
         }
+        if (preserveSubmitted) return;
         foreach (var assignment in assignments)
             Input.AccountAnswers[assignment.SignupQuestionId!.Value] = new AccountInput { OsrsCharacterId = assignment.OsrsCharacterId, Ehb = assignment.EhbSnapshot };
         var answers = await dbContext.SignupAnswers.AsNoTracking().Where(x => x.EventParticipantId == participantId && x.OsrsCharacterId == null).ToListAsync(ct);
@@ -236,7 +251,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
     private string SignupReturnUrl(string slug, bool edit) => Url.Page("/Events/Signup", new { slug, edit = edit ? true : (bool?)null })!;
     private static bool IsResponseConflict(string? error) => error?.Contains("changed while you were editing", StringComparison.OrdinalIgnoreCase) == true;
     private string Localize(string message) => text?[message].Value ?? message;
-    public sealed record EventInfo(Guid Id, string Slug, string Name, string Description, DateTimeOffset? SignupClosesAt, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, bool RequireCode, bool Accepting, bool Cancelled, bool TableAvailable, int? ParticipantCap, int ConfirmedCount, int WaitingCount, string Timezone = DateTimePresentation.DefaultTimezoneId);
+    public sealed record EventInfo(Guid Id, string Slug, string Name, string Description, DateTimeOffset? SignupClosesAt, DateTimeOffset? EventStartsAt, DateTimeOffset? EventEndsAt, bool RequireCode, bool Accepting, bool Cancelled, bool TableAvailable, int? ParticipantCap, int ConfirmedCount, int WaitingCount, string Timezone = DateTimePresentation.DefaultTimezoneId, DateTimeOffset? DraftAt = null);
     public sealed record AccountOption(Guid Id, string Name, decimal? SavedEhb, bool Preferred, bool Historical);
     public sealed record QuestionView(Guid Id, string Label, SignupQuestionType Type, bool Required, string[] OptionList, EventCharacterRole? AccountRole, SignupSystemField SystemField, IReadOnlyList<AccountOption> Accounts);
     public sealed class SignupInput

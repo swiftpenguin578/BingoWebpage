@@ -1,7 +1,7 @@
 @page "/Events/{slug}/Signup/Confirmation"
 @model Bingo.Web.Pages.Events.ConfirmationModel
 @{
-    ViewData["Title"] = T["Signup confirmed"];
+    ViewData["Title"] = T["Your signup"];
     ViewData["BodyClass"] = "public-ui-confirmation-page";
     var isWaiting = Model.WaitingPosition is not null;
     var isWithdrawn = Model.Status == "Withdrawn";
@@ -9,7 +9,7 @@
     var statusLabel = Model.Status switch
     {
         "Confirmed" => T["Signup status confirmed"],
-        "Withdrawn" => T["Signup status withdrawn"],
+        "Withdrawn" => T["Withdrawn"],
         _ => T[Model.Status]
     };
     var outcomeLabel = Model.Status == "Confirmed" ? T["confirmed"].Value : statusLabel.Value;
@@ -18,17 +18,14 @@
 <section class="event-confirmation @(isWaiting ? "event-confirmation--waiting" : null) @(isWithdrawn ? "event-confirmation--withdrawn" : null) @(isReadOnly ? "event-confirmation--readonly" : null)" data-signup-confirmation aria-labelledby="confirmation-heading">
     <header class="confirmation-masthead">
         <div class="confirmation-masthead__copy">
-            <span class="editorial-kicker">@T["Signup received"]</span>
-            <h1 id="confirmation-heading" class="editorial-display">@(isWaiting ? T["You are on the list."] : isWithdrawn ? T["Signup withdrawn"] : T["You're in."])</h1>
-            <p class="confirmation-masthead__event">@Model.EventName</p>
-            @if (!string.IsNullOrWhiteSpace(Model.StatusDetail)) { <p class="confirmation-masthead__detail">@T[Model.StatusDetail]</p> }
-            @if (isWaiting) { <p class="confirmation-masthead__detail">@T["You are currently number {0} on the waiting list.", Model.WaitingPosition!.Value]</p> }
+            <span class="editorial-kicker">@T["Your signup"]</span>
+            <h1 id="confirmation-heading" class="editorial-display">@Model.EventName</h1>
             @if (isReadOnly)
             {
                 <p class="confirmation-masthead__readonly">@T["This signup is read-only."]</p>
                 <p class="confirmation-masthead__detail">@T["Participant changes are closed for this event."]</p>
             }
-            <p class="confirmation-status"><span class="confirmation-status__mark" aria-hidden="true">@(isWaiting ? "…" : isWithdrawn ? "—" : "✓")</span><span>@statusLabel</span></p>
+
         </div>
         <div class="confirmation-outcome" aria-label="@outcomeLabel"><span>@outcomeLabel</span>@if (isWaiting) { <strong>#@Model.WaitingPosition</strong> } else if (!isWithdrawn) { <strong>✓</strong> }</div>
     </header>
@@ -36,7 +33,7 @@
     <div class="confirmation-checkpoints">
         <section class="confirmation-checkpoint confirmation-checkpoint--accounts"><span class="confirmation-checkpoint__number">01</span><div><span class="editorial-kicker">@T["Accounts"]</span>@if (Model.Accounts.Any()) { <div class="confirmation-account-list">@foreach (var account in Model.Accounts) { <p>@account.CharacterName@if (account.Ehb is not null) { <text> · @T["EHB"]: @account.Ehb</text> }</p> }</div> } else { <p>@T["No accounts recorded."]</p> }</div></section>
         <section class="confirmation-checkpoint"><span class="confirmation-checkpoint__number">02</span><div><span class="editorial-kicker">@T["Answers"]</span>@if (Model.Answers.Any()) { <dl>@foreach (var answer in Model.Answers) { var answerValue = string.Equals(answer.Value, "true", StringComparison.OrdinalIgnoreCase) ? T["Yes"].Value : string.Equals(answer.Value, "false", StringComparison.OrdinalIgnoreCase) ? T["No"].Value : answer.Value; <div><dt>@answer.Label</dt><dd>@answerValue</dd></div> } </dl> } else { <p>@T["No answers recorded."]</p> }</div></section>
-        <section class="confirmation-checkpoint"><span class="confirmation-checkpoint__number">03</span><div><span class="editorial-kicker">@T["Next"]</span><p>@T[Model.StatusDetail == "" && !isWithdrawn ? "Your signup will appear in the event roster when it is published." : isWithdrawn ? "Contact an Admin if you need to be restored." : "Your signup is saved."]</p></div></section>
+        <section class="confirmation-checkpoint"><span class="confirmation-checkpoint__number">03</span><div><span class="editorial-kicker">@T["Next"]</span><p>@T[Model.NextStep]</p></div></section>
     </div>
 
     <nav class="confirmation-action-bar" aria-label="@T["Signup actions"]">

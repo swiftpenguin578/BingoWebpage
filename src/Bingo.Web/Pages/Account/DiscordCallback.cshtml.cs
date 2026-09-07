@@ -33,7 +33,9 @@ public sealed class DiscordCallbackModel(
         if (!result.Succeeded || string.IsNullOrWhiteSpace(discordId))
         {
             TempData["StatusMessage"] = text["Discord sign-in was cancelled or failed. Please try again."].Value;
-            return RedirectToPage(purpose is "link" or "replace" ? "Settings" : "Login");
+            var destination = result.Properties?.Items.TryGetValue("discord-return-url", out var savedReturnUrl) == true ? savedReturnUrl : null;
+            return purpose is "link" or "replace" ? RedirectToPage("Settings")
+                : RedirectToPage("Login", new { ReturnUrl = Url.IsLocalUrl(destination) ? destination : null });
         }
 
         if (purpose is "link" or "replace")
