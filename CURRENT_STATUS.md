@@ -3,6 +3,24 @@
 **Active handoff:** 2026-09-07. This is the concise current-state handoff;
 historical material is preserved separately and is non-authoritative.
 
+## Danish HowTo copy correction — 2026-09-07
+
+- User requests natural Danish wording throughout `/HowTo` before pushing.
+  Scope: Danish resource values consumed by the existing five-step guide,
+  including headings/help/accessibility wording where useful. Preserve English,
+  page composition/navigation, established OSRS glossary, exact action labels,
+  and signup/evidence/privacy/review rules. No UI redesign or behavior change.
+  Rewrite complete: 42 existing Danish values updated, including player-focused
+  prose and references matching actual Danish controls/statuses. XML/key/placeholder/
+  consumer and diff checks pass; all changed keys are specific to HowTo. Independent
+  Astra High wording/meaning review clears the final text after preserving optional
+  Regular accounts and general tile requirements in simplified wording. No build,
+  test-suite or layout change. User accepts the wording and authorizes local
+  packaging/commit. This copy commit contains the accepted resource correction
+  and handoff only. User is rerunning the full suite before any push; its result
+  is pending. No push/deploy authorized in this step.
+  Signup corrections are committed locally as `f04432a`; no push/deploy performed.
+
 ## Signup readiness corrections — approved 2026-09-07
 
 - Local packaging/commit authorized and gates clear; push/merge/deploy remain
