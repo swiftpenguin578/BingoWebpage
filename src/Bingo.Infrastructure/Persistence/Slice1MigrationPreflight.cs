@@ -142,10 +142,16 @@ public sealed class Slice1MigrationPreflight(ApplicationDbContext db)
             DatabaseFingerprint = fingerprint,
             Rows = flagged.Select(row => new ImmutableItemMappingRow
             {
-                SnapshotFamily = row.SnapshotFamily, SnapshotId = row.SnapshotId, ItemId = null,
-                EventId = row.EventId, EventName = row.EventName, RequirementId = row.RequirementId,
-                SourceDropId = row.SourceDropId, FrozenItemName = row.FrozenItemName,
-                CurrentItemId = row.CurrentItemId, CurrentItemName = row.CurrentItemName,
+                SnapshotFamily = row.SnapshotFamily,
+                SnapshotId = row.SnapshotId,
+                ItemId = null,
+                EventId = row.EventId,
+                EventName = row.EventName,
+                RequirementId = row.RequirementId,
+                SourceDropId = row.SourceDropId,
+                FrozenItemName = row.FrozenItemName,
+                CurrentItemId = row.CurrentItemId,
+                CurrentItemName = row.CurrentItemName,
                 CandidateItemIds = row.CandidateItemIds
             }).ToList()
         };

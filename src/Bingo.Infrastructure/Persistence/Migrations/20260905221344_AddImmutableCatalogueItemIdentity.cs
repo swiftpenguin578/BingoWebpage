@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -8,22 +8,22 @@ namespace Bingo.Infrastructure.Persistence.Migrations;
 /// <inheritdoc />
 public partial class AddImmutableCatalogueItemIdentity : Migration
 {
-        /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.AddColumn<Guid>(
-                name: "item_id_snapshot",
-                table: "board_requirement_drop_snapshots",
-                type: "uuid",
-                nullable: true);
+    /// <inheritdoc />
+    protected override void Up(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.AddColumn<Guid>(
+            name: "item_id_snapshot",
+            table: "board_requirement_drop_snapshots",
+            type: "uuid",
+            nullable: true);
 
-            migrationBuilder.AddColumn<Guid>(
-                name: "item_id_snapshot",
-                table: "board_approval_requirement_drop_snapshots",
-                type: "uuid",
-                nullable: true);
+        migrationBuilder.AddColumn<Guid>(
+            name: "item_id_snapshot",
+            table: "board_approval_requirement_drop_snapshots",
+            type: "uuid",
+            nullable: true);
 
-            migrationBuilder.Sql("""
+        migrationBuilder.Sql("""
                 CREATE TEMP TABLE IF NOT EXISTS bingo_item_snapshot_mapping
                 (
                     snapshot_family text NOT NULL,
@@ -139,34 +139,34 @@ public partial class AddImmutableCatalogueItemIdentity : Migration
                 DROP TABLE IF EXISTS bingo_item_snapshot_mapping;
                 """);
 
-            migrationBuilder.AlterColumn<Guid>(
-                name: "item_id_snapshot",
-                table: "board_requirement_drop_snapshots",
-                type: "uuid",
-                nullable: false,
-                oldClrType: typeof(Guid),
-                oldType: "uuid",
-                oldNullable: true);
+        migrationBuilder.AlterColumn<Guid>(
+            name: "item_id_snapshot",
+            table: "board_requirement_drop_snapshots",
+            type: "uuid",
+            nullable: false,
+            oldClrType: typeof(Guid),
+            oldType: "uuid",
+            oldNullable: true);
 
-            migrationBuilder.AlterColumn<Guid>(
-                name: "item_id_snapshot",
-                table: "board_approval_requirement_drop_snapshots",
-                type: "uuid",
-                nullable: false,
-                oldClrType: typeof(Guid),
-                oldType: "uuid",
-                oldNullable: true);
-        }
+        migrationBuilder.AlterColumn<Guid>(
+            name: "item_id_snapshot",
+            table: "board_approval_requirement_drop_snapshots",
+            type: "uuid",
+            nullable: false,
+            oldClrType: typeof(Guid),
+            oldType: "uuid",
+            oldNullable: true);
+    }
 
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.DropColumn(
-                name: "item_id_snapshot",
-                table: "board_requirement_drop_snapshots");
+    /// <inheritdoc />
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.DropColumn(
+            name: "item_id_snapshot",
+            table: "board_requirement_drop_snapshots");
 
-            migrationBuilder.DropColumn(
-                name: "item_id_snapshot",
-                table: "board_approval_requirement_drop_snapshots");
-        }
+        migrationBuilder.DropColumn(
+            name: "item_id_snapshot",
+            table: "board_approval_requirement_drop_snapshots");
+    }
 }

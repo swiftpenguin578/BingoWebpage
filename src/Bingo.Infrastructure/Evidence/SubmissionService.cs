@@ -244,7 +244,8 @@ public sealed class SubmissionService(
                 var used = requirement.DuplicatesAllowed ? usedByDrop.GetValueOrDefault(dropId) : usedByItem.GetValueOrDefault(drop.ItemIdSnapshot);
                 headroom = Math.Min(headroom, Math.Max(0, maximum - used));
             }
-            var increase = Math.Min(remaining, headroom); if (increase == 0) continue; var oldAmount = item.Amount; var oldSnapshot = Snapshot(submission); item.IncreaseAmount(oldAmount + increase); submission.IncreaseApprovedContribution(oldAmount + increase); if (item.DropSnapshotId is Guid usedDrop) { usedByDrop[usedDrop] = usedByDrop.GetValueOrDefault(usedDrop) + increase; if (drops.TryGetValue(usedDrop, out var usedDropSnapshot)) usedByItem[usedDropSnapshot.ItemIdSnapshot] = usedByItem.GetValueOrDefault(usedDropSnapshot.ItemIdSnapshot) + increase; } remaining -= increase; db.ReviewActions.Add(Action(submission.Id, ReviewActionType.RebalanceContribution, adminAccountId, now, $"Contribution adjusted from {oldAmount} to {item.Amount} after reversal of {reversed.Id}.", oldSnapshot, Snapshot(submission)));
+            var increase = Math.Min(remaining, headroom); if (increase == 0) continue; var oldAmount = item.Amount; var oldSnapshot = Snapshot(submission); item.IncreaseAmount(oldAmount + increase); submission.IncreaseApprovedContribution(oldAmount + increase); if (item.DropSnapshotId is Guid usedDrop) { usedByDrop[usedDrop] = usedByDrop.GetValueOrDefault(usedDrop) + increase; if (drops.TryGetValue(usedDrop, out var usedDropSnapshot)) usedByItem[usedDropSnapshot.ItemIdSnapshot] = usedByItem.GetValueOrDefault(usedDropSnapshot.ItemIdSnapshot) + increase; }
+            remaining -= increase; db.ReviewActions.Add(Action(submission.Id, ReviewActionType.RebalanceContribution, adminAccountId, now, $"Contribution adjusted from {oldAmount} to {item.Amount} after reversal of {reversed.Id}.", oldSnapshot, Snapshot(submission)));
         }
     }
 

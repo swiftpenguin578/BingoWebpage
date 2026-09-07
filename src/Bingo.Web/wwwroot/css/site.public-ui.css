@@ -1990,6 +1990,11 @@ body.public-ui-page-canvas .landing-shell-header .public-ui-header-popover__pane
     max-height: calc(100dvh - 6.35rem);
     overflow-y: auto;
   }
+  body.public-ui-page-canvas .landing-shell-header .landing-shell-menu-panel {
+    border: 1px solid var(--landing-rule);
+  }
+}
+@media (max-width: 26rem) {
   body.public-ui-page-canvas .landing-shell-header :is(.landing-shell-menu-panel, .public-ui-header-popover__panel--settings) {
     position: fixed;
     top: 5.35rem;
@@ -1998,9 +2003,6 @@ body.public-ui-page-canvas .landing-shell-header .public-ui-header-popover__pane
     width: min(20rem, calc(100vw - 2rem));
     max-width: calc(100vw - 2rem);
     transform: translateX(-50%);
-  }
-  body.public-ui-page-canvas .landing-shell-header .landing-shell-menu-panel {
-    border: 1px solid var(--landing-rule);
   }
 }
 
