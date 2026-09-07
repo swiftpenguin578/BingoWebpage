@@ -3,6 +3,21 @@
 **Active handoff:** 2026-09-07. This is the concise current-state handoff;
 historical material is preserved separately and is non-authoritative.
 
+## PR #7 CI formatting correction — 2026-09-07
+
+- User reports the final local full suite all green. Commits `f04432a` and
+  `619eeb3` were pushed to `origin/admin-event-functionality`; PR #7 is open
+  into main: https://github.com/swiftpenguin578/BingoWebpage/pull/7.
+- CI reports only Program.cs import ordering from `dotnet format Bingo.slnx
+  --no-restore --verify-no-changes`. Earlier scoped whitespace-only checks did
+  not cover imports. Bounded correction reorders imports only, then runs the
+  exact complete formatting command before committing/pushing the correction.
+  Program.cs import ordering is corrected; the exact complete formatting command
+  passed (exit 0), and diff checks pass. No behavioral change or test-suite rerun
+  required. This correction is authorized for commit/push to PR #7; its new CI
+  result is pending.
+  Earlier pending-test/unpushed notes below are historical checkpoints.
+
 ## Danish HowTo copy correction — 2026-09-07
 
 - User requests natural Danish wording throughout `/HowTo` before pushing.
