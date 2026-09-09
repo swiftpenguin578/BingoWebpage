@@ -62,12 +62,26 @@ dialog.selectors = { "[data-signup-questions-content]": [content], "[data-signup
 content.querySelector = (selector) => {
   if (selector === "[data-signup-questions-editor]") return content.children[0] ?? null;
   if (selector === "details.signup-question-remove[open]") return content.children[0]?.querySelector(selector) ?? null;
-  return null;
+  return content.children[0]?.querySelector(selector) ?? null;
 };
 
 const editor = new Element();
 const editorCloseButton = new Element();
 const mutationForm = new Element();
+mutationForm.entries = [["Input.Label", ""]];
+const otherForm = new Element();
+otherForm.entries = [["Settings.NewSignupCode", ""]];
+const discard = new Element();
+discard.hidden = true;
+const keep = new Element();
+const discardConfirm = new Element();
+discard.selectors = { "[data-signup-questions-keep]": [keep] };
+const codeToggle = new Element();
+const codeControl = new Element();
+const codeInput = new Element();
+codeInput.dataset.hasSignupCode = "false";
+const failure = new Element();
+failure.hidden = true;
 mutationForm.method = "post";
 mutationForm.action = "/Admin/Events/Questions/test?handler=Add";
 const confirmationSummary = new Element();
@@ -76,7 +90,7 @@ const cancelRemoval = new Element();
 cancelRemoval.parentElement = confirmation;
 confirmation.parentElement = editor;
 confirmationSummary.addEventListener("click", () => confirmation.setAttribute("open", ""));
-editor.selectors = { "[data-signup-questions-close]": [editorCloseButton], form: [mutationForm] };
+editor.selectors = { "[data-signup-questions-close]": [editorCloseButton], form: [mutationForm, otherForm], "[data-signup-code-toggle]": [codeToggle], "[data-signup-code-control]": [codeControl], "[data-signup-code-input]": [codeInput], "[data-signup-questions-discard]": [discard], "[data-signup-questions-keep]": [keep], "[data-signup-questions-discard-confirm]": [discardConfirm], "[data-signup-questions-feedback]": [failure] };
 editor.querySelectorAll = (selector) => {
   if (selector === "details.signup-question-remove") return [confirmation];
   if (selector === "details.signup-question-remove[open]") return confirmation.open ? [confirmation] : [];
@@ -92,7 +106,8 @@ const noticeRegion = new Element({ children: [] });
 const questionSummary = new Element();
 questionSummary.dataset.signupQuestionSummary = "{0} active questions configured.";
 questionSummary.textContent = "4 active questions configured.";
-const parsedDocument = { querySelector(selector) {
+let validationError = false;
+const parsedDocument = { querySelectorAll() { return validationError ? [{ textContent: "Question is required." }] : []; }, querySelector(selector) {
   if (selector === "[data-signup-questions-editor]") return editor;
   if (selector === "#app-notice-region") return notice;
   return null;
@@ -102,9 +117,11 @@ const body = new Element();
 body.classList = { add: (name) => bodyClasses.add(name), remove: (name) => bodyClasses.delete(name) };
 body.contains = (candidate) => candidate === trigger;
 const documentListeners = {};
+let standaloneEditor = null;
 const document = {
   body,
   querySelector(selector) {
+    if (selector === "[data-signup-questions-editor]") return standaloneEditor;
     if (selector === "[data-signup-questions-dialog]") return dialog;
     if (selector === "[data-signup-questions-trigger='true']") return trigger;
     if (selector === "#app-notice-region") return noticeRegion;
@@ -138,7 +155,7 @@ const window = {
   fetch: () => new Promise((resolve) => window.pendingFetches.push(resolve))
 };
 
-vm.runInNewContext(fs.readFileSync("src/Bingo.Web/wwwroot/js/signup-questions-overlay.js", "utf8"), {
+vm.runInNewContext(fs.readFileSync("src/Bingo.Web/wwwroot/js/admin-editor-guard.js", "utf8") + "\n" + fs.readFileSync("src/Bingo.Web/wwwroot/js/signup-questions-overlay.js", "utf8"), {
   document,
   window,
   history: window.history,
@@ -147,9 +164,10 @@ vm.runInNewContext(fs.readFileSync("src/Bingo.Web/wwwroot/js/signup-questions-ov
   HTMLDetailsElement: DetailsElement,
   HTMLSelectElement: SelectElement,
   HTMLInputElement: Element,
+  HTMLFormElement: Element,
   DOMParser: class { parseFromString() { return parsedDocument; } },
   URL,
-  FormData: class {},
+  FormData: class { constructor(form) { this.entries = form.entries || []; } [Symbol.iterator]() { return this.entries[Symbol.iterator](); } },
   setTimeout: window.setTimeout
 });
 
@@ -172,6 +190,25 @@ async function run() {
   assert.equal(dialog.getAttribute("aria-describedby"), "signup-questions-dialog-description");
   assert.equal(bodyClasses.has("admin-route-dialog-open"), true);
 
+  assert.equal(codeControl.hidden, true, "disabled code settings hide their input");
+  codeToggle.checked = true;
+  codeToggle.dispatch("change");
+  assert.equal(codeControl.hidden, false);
+  assert.equal(codeInput.required, true, "enabling without a stored code requires one");
+  assert.equal(window.pendingFetches.length, 0, "toggling does not autosave");
+  codeInput.dataset.hasSignupCode = "true";
+  codeToggle.dispatch("change");
+  assert.equal(codeInput.required, false, "an existing code may be retained with a blank replacement");
+  codeToggle.checked = false;
+  codeToggle.dispatch("change");
+  assert.equal(codeControl.hidden, true);
+  assert.equal(codeInput.required, false);
+  const beforeResize = url.href;
+  window.innerWidth = 800;
+  (window.listeners.resize || []).forEach((listener) => listener());
+  assert.equal(dialog.open, true, "clean editor remains modal on narrowing");
+  assert.equal(url.href, beforeResize);
+  assert.equal(window.pendingFetches.length, 0, "resize never reloads the editor");
   editor.dataset.signupQuestionCount = "5";
   notice.replaceChildren(feedback);
   const mutation = mutationForm.dispatch("submit");
@@ -183,6 +220,48 @@ async function run() {
   assert.equal(content.children[0], editor, "the successful mutation replaces the dialog editor");
   assert.equal(noticeRegion.children[0], feedback, "mutation feedback transfers to the page notice region");
   assert.equal(questionSummary.textContent, "5 active questions configured.", "the Participants signup-form summary refreshes in place");
+
+  mutationForm.entries[0][1] = "Unsaved question";
+  mutationForm.dispatch("submit");
+  mutationForm.dispatch("submit");
+  assert.equal(window.pendingFetches.length, 1, "a pending write prevents duplicate submission");
+  dialog.dispatch("cancel");
+  assert.equal(dialog.open, true, "Escape cannot dismiss a pending write");
+  window.history.back();
+  assert.equal(dialog.open, true, "Back cannot dismiss a pending write");
+  assert.match(url.search, /signupQuestions=1/, "pending Back restores the editor route");
+  window.pendingFetches.shift()({ ok: false });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(content.children[0], editor, "transport failure retains the editor");
+  assert.equal(mutationForm.entries[0][1], "Unsaved question", "transport failure retains input");
+  assert.equal(failure.hidden, false, "failure exposes inline feedback for retry");
+  mutationForm.dispatch("submit");
+  validationError = true;
+  window.pendingFetches.shift()({ ok: true, text: async () => "<invalid />" });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(failure.textContent, "Question is required.", "server validation displays actionable feedback");
+  assert.equal(mutationForm.entries[0][1], "Unsaved question", "validation does not reset submitted input");
+  validationError = false;
+  dialog.dispatch("cancel");
+  assert.equal(discard.hidden, false, "dirty Escape asks before discarding");
+  keep.dispatch("click");
+  assert.equal(dialog.open, true);
+  assert.equal(mutationForm.entries[0][1], "Unsaved question");
+  window.history.back();
+  assert.equal(discard.hidden, false, "dirty Back asks before discarding");
+  assert.match(url.search, /signupQuestions=1/);
+  keep.dispatch("click");
+  otherForm.entries[0][1] = "Other unsaved value";
+  mutationForm.dispatch("submit");
+  assert.equal(window.pendingFetches.length, 0, "another dirty form prevents silent replacement");
+  assert.equal(discard.hidden, false);
+  keep.dispatch("click");
+  assert.equal(otherForm.entries[0][1], "Other unsaved value");
+  mutationForm.dispatch("submit");
+  discardConfirm.dispatch("click");
+  assert.equal(window.pendingFetches.length, 1, "explicit discard authorizes the queued write");
+  window.pendingFetches.shift()({ ok: true, text: async () => "<saved />" });
+  await new Promise((resolve) => setImmediate(resolve));
 
   const historyBeforeConfirmation = historyBackCalls;
   confirmationSummary.dispatch("click");
@@ -245,8 +324,50 @@ async function run() {
   assert.equal(dialog.open, false, "Forward waits for editor content before reopening after Escape");
   window.pendingFetches.shift()({ ok: true, text: async () => "<questions-editor />" });
   await new Promise((resolve) => setImmediate(resolve));
+  mutationForm.entries[0][1] = "Dirty before narrowing";
+  window.innerWidth = 800;
+  (window.listeners.resize || []).forEach((listener) => listener());
+  assert.equal(dialog.open, true, "narrowing retains an active dirty editor");
+  editorCloseButton.dispatch("click");
+  assert.equal(discard.hidden, false);
+  discardConfirm.dispatch("click");
+  assert.equal(dialog.open, false, "confirmed discard completes close after narrowing");
+  assert.equal(content.children.length, 0);
+  assert.equal(bodyClasses.has("admin-route-dialog-open"), false);
+  assert.doesNotMatch(url.search, /signupQuestions=1/);
+  window.innerWidth = 1200;
+  trigger.dispatch("click");
+  window.pendingFetches.shift()({ ok: true, text: async () => "<questions-editor />" });
+  await new Promise((resolve) => setImmediate(resolve));
   dialog.dispatch("click");
-  assert.equal(dialog.open, false, "scrim closes through history");
+  assert.equal(dialog.open, false, "a reopened editor still closes after confirmed narrow discard");
+
+  // The same real form handlers also run on the narrow/direct standalone editor.
+  standaloneEditor = editor;
+  let standaloneReplacements = 0;
+  editor.replaceWith = (replacement) => { standaloneEditor = replacement; standaloneReplacements++; };
+  window.innerWidth = 800;
+  mutationForm.entries[0][1] = "Attempted standalone edit";
+  mutationForm.dispatch("submit");
+  mutationForm.dispatch("submit");
+  assert.equal(window.pendingFetches.length, 1, "standalone pending write prevents duplicate submission");
+  validationError = true;
+  window.pendingFetches.shift()({ ok: true, text: async () => "<invalid />" });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(standaloneReplacements, 0, "invalid standalone response retains the expanded editor DOM");
+  assert.equal(mutationForm.entries[0][1], "Attempted standalone edit");
+  assert.equal(failure.textContent, "Question is required.");
+  validationError = false;
+  mutationForm.dispatch("submit");
+  window.pendingFetches.shift()({ ok: false });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(standaloneReplacements, 0, "standalone transport failure retains editor values");
+  mutationForm.dispatch("submit");
+  window.pendingFetches.shift()({ ok: true, text: async () => "<saved />" });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(standaloneReplacements, 1, "standalone retry updates its original in-page editor");
+  assert.equal(dialog.open, false);
+  assert.equal(content.children.length, 0, "standalone save does not move content into a hidden dialog");
 }
 
 run().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -12,6 +12,8 @@ class Node {
     this.listeners = {};
     this.hidden = false;
     this.open = false;
+    this.value = "";
+    this.disabled = false;
     this.classList = {
       add: (...names) => names.forEach(name => { if (!this.className.split(" ").includes(name)) this.className = `${this.className} ${name}`.trim(); }),
       remove: (...names) => { this.className = this.className.split(" ").filter(name => name && !names.includes(name)).join(" "); },
@@ -22,17 +24,24 @@ class Node {
   }
   append(...children) { children.flat().forEach(child => { child.parentElement = this; this.children.push(child); }); }
   replaceChildren(...children) { this.children = []; this.append(...children); }
+  replaceWith(next) { const parent = this.parentElement; const index = parent.children.indexOf(this); parent.children[index] = next; next.parentElement = parent; this.parentElement = null; }
+  scrollIntoView(options) { this.scrollOptions = options; }
+  get form() { for (let node = this.parentElement; node; node = node.parentElement) if (node.tagName === "FORM") return node; return null; }
+  requestSubmit() { this.dispatch("submit"); }
+  reset() { this.querySelectorAll("input").forEach(input => { input.value = input.defaultValue || ""; }); }
   remove() { this.parentElement?.children.splice(this.parentElement.children.indexOf(this), 1); this.parentElement = null; }
   removeAttribute(name) { delete this.attributes[name]; }
   addEventListener(type, listener) { (this.listeners[type] ??= []).push(listener); }
   dispatch(type, properties = {}) { const event = { type, target: this, defaultPrevented: false, propagationStopped: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.propagationStopped = true; }, ...properties }; for (const listener of this.listeners[type] ?? []) listener(event); return event; }
   setAttribute(name, value) { this.attributes[name] = String(value); if (name === "id") this.id = String(value); if (name === "class") this.className = String(value); if (name.startsWith("data-")) this.dataset[name.slice(5).replace(/-([a-z])/g, (_m, c) => c.toUpperCase())] = String(value); }
-  getAttribute(name) { if (name === "id") return this.id ?? null; if (name === "class") return this.className || null; if (name.startsWith("data-")) return this.dataset[name.slice(5).replace(/-([a-z])/g, (_m, c) => c.toUpperCase())] ?? null; return this.attributes[name] ?? null; }
+  getAttribute(name) { if (name === "name") return this.name || null; if (name === "id") return this.id ?? null; if (name === "class") return this.className || null; if (name.startsWith("data-")) return this.dataset[name.slice(5).replace(/-([a-z])/g, (_m, c) => c.toUpperCase())] ?? null; return this.attributes[name] ?? null; }
   focus() { this.focused = true; }
   contains(node) { return this === node || this.children.some(child => child.contains(node)); }
   querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
   querySelectorAll(selector) { const result = []; const visit = node => { node.children.forEach(child => { if (child.matches(selector)) result.push(child); visit(child); }); }; visit(this); return result; }
   matches(selector) {
+    const attrs = selector.match(/\[[^\]]+\]/g);
+    if (attrs?.length > 1) return attrs.every(attr => this.matches(attr));
     if (selector.includes(",")) return selector.split(",").some(item => this.matches(item.trim()));
     const data = selector.match(/^([^[]*)\[data-([\w-]+)(?:=['"]([^'"]*)['"])?\]$/);
     if (data) { const [, prefix, key, value] = data; const datasetKey = key.replace(/-([a-z])/g, (_m, c) => c.toUpperCase()); return (!prefix || this.matches(prefix)) && Object.hasOwn(this.dataset, datasetKey) && (value === undefined || String(this.dataset[datasetKey]) === value); }
@@ -46,7 +55,7 @@ class Node {
     if (selector.startsWith("#")) return this.id === selector.slice(1);
     return this.tagName === selector.toUpperCase();
   }
-  cloneNode(deep) { const clone = new Node(this.tagName, { id: this.id, className: this.className, dataset: { ...this.dataset }, textContent: this.textContent, children: deep ? this.children.map(child => child.cloneNode(true)) : [] }); if (this.options) clone.options = this.options.map(option => ({ ...option })); return clone; }
+  cloneNode(deep) { const clone = new Node(this.tagName, { id: this.id, className: this.className, dataset: { ...this.dataset }, textContent: this.textContent, children: deep ? this.children.map(child => child.cloneNode(true)) : [] }); clone.value = this.value; clone.name = this.name; clone.action = this.action; clone.attributes = { ...this.attributes }; clone.hidden = this.hidden; clone.defaultValue = this.defaultValue; if (this.options) clone.options = this.options.map(option => ({ ...option })); return clone; }
 }
 
 class Dialog extends Node {
@@ -60,10 +69,11 @@ const recordUrl = `${pageUrl}?bossId=record-1`;
 const entries = [{ state: {}, url: `https://example.test${recordUrl}&overlay=1` }];
 let entryIndex = 0;
 const requestedUrls = [];
+const toasts = [];
 const windowListeners = {};
 const documentListeners = {};
 const failedDirectEntry = process.env.CATALOGUE_FAILURE === "1";
-const body = new Node("body");
+const body = new Node("body", { dataset: { adminCatalogueRunsPerHour: "Runs per hour", adminCatalogueKillsPerHour: "Kills per hour", signupQuestionsSaveError: "Could not save", adminCatalogueStaleError: "Record changed; reload before saving" } });
 const main = new Node("main", { id: "main-content" });
 const setUrl = value => { window.location.href = value instanceof URL ? value.href : new URL(value, "https://example.test").href; };
 let backCalls = 0;
@@ -110,6 +120,23 @@ function editorPage() {
   });
   const confirmation = new Node("details", { className: "catalogue-confirmation-box", children: [new Node("summary"), new Node("button", { dataset: { catalogueConfirmationCancel: "" } })] });
   page.append(new Node("section", { className: "catalogue-editor-component", dataset: { catalogueEditor: "" }, children: [new Node("button", { dataset: { catalogueClose: "" } }), rateLabel, rateCategory, ...dropRows.map(drop => drop.row), confirmation] }));
+  const editor = page.querySelector("[data-catalogue-editor]");
+  const field = (name, value) => { const input = new Node("input"); input.name = name; input.value = value; input.defaultValue = value; return input; };
+  const activity = new Node("form"); activity.action = `https://example.test${recordUrl}&handler=UpdateBoss&overlay=1`;
+  activity.append(field("name", "Hydra"), field("recordId", "record-1"), field("expectedVersion", "1"));
+  const dropForm = new Node("form"); dropForm.action = `https://example.test${recordUrl}&handler=UpdateDrop&overlay=1`; dropForm.append(field("itemName", "Fang"));
+  const itemName = dropForm.querySelector("input"); itemName.dataset.originalItemName = "Fang";
+  const useExisting = field("useExistingItem", "false"); useExisting.dataset.useExistingItem = "";
+  const duplicate = new Node("div", { dataset: { catalogueDuplicateConfirmation: "" } }); duplicate.hidden = true;
+  duplicate.append(new Node("button", { dataset: { catalogueDuplicateCancel: "" } }), new Node("button", { dataset: { catalogueDuplicateConfirm: "" } }));
+  dropForm.append(useExisting, duplicate);
+  const otherName = field("otherItem", "Claw"); otherName.dataset.originalItemName = "Claw";
+  const otherForm = new Node("form"); otherForm.append(otherName); dropRows[1].panel.append(otherForm);
+  dropRows[0].panel.append(dropForm);
+  const deleteForm = new Node("form"); deleteForm.action = `https://example.test${recordUrl}&handler=Delete&overlay=1`; deleteForm.append(field("confirmation", "")); confirmation.append(deleteForm);
+  const discard = new Node("div", { dataset: { catalogueEditorDiscard: "" } }); discard.hidden = true;
+  discard.append(new Node("button", { dataset: { catalogueEditorKeep: "" } }), new Node("button", { dataset: { catalogueEditorDiscardConfirm: "" } }));
+  editor.append(activity, discard, new Node("p", { dataset: { catalogueEditorFeedback: "" } }), new Node("button", { dataset: { catalogueReload: "" } }));
   return page;
 }
 
@@ -120,9 +147,15 @@ global.HTMLElement = Node;
 global.HTMLInputElement = Node;
 global.HTMLSelectElement = Node;
 global.HTMLFormElement = Node;
+global.FormData = class {
+  constructor(form) { this.entries = form.querySelectorAll("input, select, textarea").filter(item => item.name && !item.disabled).map(item => [item.name, item.value]); }
+  get(name) { return this.entries.find(entry => entry[0] === name)?.[1] ?? null; }
+  *[Symbol.iterator]() { yield* this.entries; }
+};
 global.window = {
   innerWidth: 1200,
-  location: { href: entries[0].url, replace(value) { this.replaced = new URL(value, this.href).href; setUrl(this.replaced); } },
+  showBingoToast(message, type) { toasts.push({ message, type }); },
+  location: { href: entries[0].url, reload() { this.reloads = (this.reloads || 0) + 1; }, replace(value) { this.replaced = new URL(value, this.href).href; setUrl(this.replaced); } },
   fetch: async url => { requestedUrls.push(String(url)); const isEditor = String(url).includes("bossId"); return { ok: !(failedDirectEntry && isEditor), text: async () => isEditor ? "editor" : "workspace" }; },
   setTimeout: callback => callback(),
   addEventListener(type, listener) { (windowListeners[type] ??= []).push(listener); }
@@ -139,8 +172,17 @@ global.document = {
   querySelector: selector => selector === "main#main-content" ? main : body.querySelector(selector),
   querySelectorAll: selector => body.querySelectorAll(selector)
 };
-global.DOMParser = class { parseFromString(value) { return { querySelector: selector => selector.includes("catalogue-editor-route='false'") ? workspacePage() : selector === "[data-catalogue-page]" ? editorPage() : null }; } };
+global.DOMParser = class { parseFromString(value) {
+  if (value === "deleted" || value === "missing") {
+    const result = cataloguePage(true);
+    result.dataset.catalogueStatusType = value === "missing" ? "warning" : "success";
+    result.dataset.catalogueStatusMessage = "Server outcome";
+    result.append(new Node("section", { dataset: { catalogueEditor: "" } }));
+    return { querySelector: selector => selector === "[data-catalogue-page]" ? result : null };
+  }
+  return { querySelector: selector => selector.includes("catalogue-editor-route='false'") ? workspacePage() : selector === "[data-catalogue-page]" ? editorPage() : null }; } };
 
+require("../../src/Bingo.Web/wwwroot/js/admin-editor-guard.js");
 require("../../src/Bingo.Web/wwwroot/js/catalogue-admin.js");
 
 (async () => {
@@ -230,10 +272,116 @@ require("../../src/Bingo.Web/wwwroot/js/catalogue-admin.js");
   for (let index = 0; index < 5; index++) await Promise.resolve();
   assert.equal(document.querySelector("dialog#catalogue-editor-dialog[open]") !== null, true, "card activation opens the route editor");
   window.innerWidth = 800;
-  windowListeners.resize.forEach(listener => listener({ type: "resize" }));
-  assert.equal(new URL(window.location.replaced).searchParams.has("overlay"), false, "narrow resize falls back to standalone route");
+  (windowListeners.resize || []).forEach(listener => listener({ type: "resize" }));
+  assert.equal(new URL(window.location.href).searchParams.get("overlay"), "1", "narrow resize retains modal route");
+  assert.equal(document.querySelector("dialog#catalogue-editor-dialog[open]") !== null, true);
 
   document.dispatchEvent({ type: "bingo:content-updated", detail: { selectors: [".catalogue-editor-component"] } });
   const currentDialog = document.querySelector("dialog#catalogue-editor-dialog");
   assert.equal(currentDialog.querySelector("[data-catalogue-close]").dataset.catalogueCloseReady, "true", "partial updates rebind the current Catalogue editor");
+  const dirtyForm = currentDialog.querySelector("input[name='name']").parentElement;
+  const name = dirtyForm.querySelector("input[name='name']");
+  name.value = "Unsaved activity";
+  const dropForm = currentDialog.querySelector("input[name='itemName']").parentElement;
+  const beforeCrossSave = requestedUrls.length;
+  dropForm.dispatch("submit");
+  assert.equal(requestedUrls.length, beforeCrossSave, "cross-form save waits for dirty edit decision");
+  assert.equal(currentDialog.querySelector("[data-catalogue-editor-discard]").hidden, false);
+  currentDialog.querySelector("[data-catalogue-editor-keep]").dispatch("click");
+  assert.equal(name.value, "Unsaved activity");
+  let settle;
+  let posts = 0;
+  const normalFetch = window.fetch;
+  window.fetch = () => { posts++; return new Promise(resolve => { settle = resolve; }); };
+  dirtyForm.dispatch("submit"); dirtyForm.dispatch("submit");
+  currentDialog.querySelector("[data-catalogue-close]").dispatch("click");
+  assert.equal(posts, 1, "pending saves cannot submit twice");
+  assert.equal(currentDialog.open, true, "pending Close retains editor");
+  settle({ ok: false });
+  for (let index = 0; index < 20; index++) await Promise.resolve();
+  assert.equal(name.value, "Unsaved activity", "failed save retains values");
+  assert.equal(name.disabled, false, "failure restores retry controls");
+  assert.deepEqual(toasts.at(-1), { message: "Could not save", type: "error" }, "failed POST emits error feedback only");
+  currentDialog.querySelector("[data-catalogue-close]").dispatch("click");
+  assert.equal(currentDialog.querySelector("[data-catalogue-editor-discard]").hidden, false);
+  currentDialog.querySelector("[data-catalogue-editor-keep]").dispatch("click");
+  window.fetch = normalFetch;
+  dirtyForm.dispatch("submit");
+  for (let index = 0; index < 25; index++) await Promise.resolve();
+  assert.equal(currentDialog.open, true, "successful save preserves connected editor dialog");
+  assert.equal(body.contains(currentDialog), true);
+  assert.equal(currentDialog.querySelector("input[name='name']").value, "Hydra", "successful response replaces edited values");
+  assert.equal(requestedUrls.at(-1).includes("bossId"), false, "success refreshes whole parent catalogue");
+  const typedConfirmation = currentDialog.querySelector("details.catalogue-confirmation-box");
+  typedConfirmation.querySelector("summary").dispatch("click");
+  const typedDelete = typedConfirmation.querySelector("input[name='confirmation']");
+  typedDelete.value = "DEL";
+  currentDialog.querySelector("[data-catalogue-close]").dispatch("click");
+  assert.equal(typedConfirmation.open, false, "discard choice temporarily hides typed confirmation");
+  currentDialog.querySelector("[data-catalogue-editor-keep]").dispatch("click");
+  assert.equal(typedConfirmation.open, true, "discard cancel restores typed confirmation visibly");
+  assert.equal(typedDelete.value, "DEL");
+  typedDelete.value = "";
+  typedConfirmation.querySelector("[data-catalogue-confirmation-cancel]").dispatch("click");
+  const rename = currentDialog.querySelector("input[name='itemName']");
+  rename.value = "Claw";
+  rename.form.dispatch("submit");
+  const duplicate = rename.form.querySelector("[data-catalogue-duplicate-confirmation]");
+  assert.equal(duplicate.hidden, false);
+  duplicate.dispatch("keydown", { key: "Escape" });
+  assert.equal(duplicate.hidden, true);
+  assert.equal(rename.focused, true, "duplicate Escape restores the name field outside the hidden decision");
+  const renameSave = new Node("button");
+  rename.form.append(renameSave);
+  rename.form.dispatch("submit", { submitter: renameSave });
+  assert.equal(renameSave.hidden, true, "duplicate decision hides its Save trigger");
+  duplicate.dispatch("keydown", { key: "Escape" });
+  assert.equal(renameSave.hidden, false, "Escape restores Save before returning focus");
+  assert.equal(renameSave.focused, true);
+  assert.equal(rename.value, "Claw", "cancelling preserves the typed name");
+  rename.value = "Fang";
+
+  const latestForm = currentDialog.querySelector("input[name='name']").form;
+  let stalePosts = 0;
+  window.fetch = async () => { stalePosts++; return { ok: true, text: async () => "missing" }; };
+  latestForm.dispatch("submit");
+  for (let index = 0; index < 15; index++) await Promise.resolve();
+  assert.equal(currentDialog.querySelector("[data-catalogue-editor-feedback]").textContent, "Record changed; reload before saving");
+  assert.equal(currentDialog.querySelector("[data-catalogue-reload]").hidden, false);
+  latestForm.dispatch("submit");
+  for (let index = 0; index < 5; index++) await Promise.resolve();
+  assert.equal(stalePosts, 1, "missing current record blocks resubmitting stale inputs");
+  currentDialog.querySelector("[data-catalogue-close]").dispatch("click");
+  window.fetch = normalFetch;
+  main.querySelector("[data-catalogue-record]").dispatch("click");
+  for (let index = 0; index < 10; index++) await Promise.resolve();
+  const deleteDialog = document.querySelector("dialog#catalogue-editor-dialog[open]");
+  window.fetch = async (url, options) => options?.method === "POST" ? { ok: true, text: async () => "deleted" } : normalFetch(url);
+  deleteDialog.querySelector("input[name='confirmation']").form.dispatch("submit");
+  for (let index = 0; index < 25; index++) await Promise.resolve();
+  assert.equal(document.querySelector("dialog#catalogue-editor-dialog[open]"), null, "deleted activity shell does not retain an empty editor");
+  assert.equal(new URL(window.location.href).searchParams.has("bossId"), false, "deleted activity URL is removed after parent refresh");
+  // Exercise the standalone completion branch with a typed confirmation baseline.
+  window.fetch = normalFetch;
+  main.querySelector("[data-catalogue-record]").dispatch("click");
+  for (let index = 0; index < 10; index++) await Promise.resolve();
+  const standaloneDialog = document.querySelector("dialog#catalogue-editor-dialog[open]");
+  const standaloneDelete = standaloneDialog.querySelector("input[name='confirmation']");
+  standaloneDelete.value = "DELETE";
+  standaloneDialog.close();
+  let navigationGuarded = false;
+  const replaceLocation = window.location.replace.bind(window.location);
+  window.location.replace = value => {
+    const event = { preventDefault() { navigationGuarded = true; } };
+    (windowListeners.beforeunload || []).forEach(listener => listener(event));
+    replaceLocation(value);
+  };
+  window.fetch = async () => ({ ok: true, text: async () => "deleted" });
+  standaloneDelete.form.dispatch("submit");
+  for (let index = 0; index < 15; index++) await Promise.resolve();
+  assert.equal(navigationGuarded, false, "completed standalone deletion navigates without pending or typed DELETE dirty guards");
+  assert.equal(new URL(window.location.replaced).searchParams.has("bossId"), false);
+
+
+
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -337,6 +337,8 @@ unchanged.
 
 **Actors and outcome:** An enabled Admin withdraws a drafted/live participant, optionally fills a vacancy, and assigns or changes Captain/co-captain roles; the affected team and linked accounts receive the correct destinations.
 
+Manual team-roster additions allow Participant (default), Captain or Co-captain selection before saving; creation and role assignment succeed or fail together, preserving the existing role history, audit and linked-owner notification rules. Subsequent role editing remains available. Readiness feedback distinguishes the current Captain role required for draft start from usable website-account access or the existing emergency alternative required for event start. CSV role assignment is unchanged.
+
 **Entry and reachability:** Draft/Manage exposes participant withdrawal, waiting-list replacement, internal replacement, vacancy, and role controls. The action is route-backed and available during Live subject to lifecycle rules.
 
 **Authoritative happy path:** After draft start, self-withdrawal is unavailable. Admin withdrawal revokes current website event/team mutation authority and preserves membership, account reservations, evidence, and contribution history. Replacement is selected explicitly from the available waiting list or created as a validated internal replacement. It joins the chosen team prospectively; the draft ledger is not rewritten.
@@ -453,7 +455,7 @@ unchanged.
 
 **Actors and outcome:** Any enabled Admin reviews pending evidence; a Captain or participant receives only the rejection/resubmission scope their role allows.
 
-**Entry and reachability:** Admin Review queue opens pending submissions with event/team/tile filters. Participant/Captain history links open the same submission through their authorized projection.
+**Entry and reachability:** Admin Review navigation opens the currently selected non-hidden event’s evidence queue, including events with no evidence or outside submission-eligible lifecycle states. The queue combines live search across team, credited player and tile names with a Status filter without page reloads; it has no separate event/team/tile dropdowns. Pending submissions sort first, newest first within Pending and within the remaining rows; filtering preserves that order among visible results. Missing, invalid or hidden event context must not silently select a different event. Admin Details derives event context from the authorized submission, including direct loads, retaining the event selector and sidebar. Back to review returns to that event’s queue and preserves search/status from filtered queue entry. Participant/Captain history links open the same submission through their authorized projection.
 
 **Authoritative happy path:** An Admin approves or rejects. Rejection requires a reason and leaves an immutable historical attempt with a linked correction path through cutoff. Before approval, a reasoned correction may change tile, requirement, drop, or credited playing account only when evidence supports it; participant is derived from the account and a changed target receives its authoritative frozen weight. Approval reversal requires strong confirmation and a reason, then recalculates all affected progress/rankings. The Reversed attempt remains immutable; through the active/reopened upload window it may have one linked Pending correction with a new image and normal review.
 

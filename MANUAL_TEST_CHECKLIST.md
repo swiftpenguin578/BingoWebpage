@@ -28,6 +28,192 @@
 - Result: Not run / Passed / Failed / Blocked
 - Notes or defect links:
 
+## Board Create/Edit tile popup behavior — authorized 2026-09-08
+
+Current composition/flow accepted; DELIVERY_PLAN section 14 owns behavior and
+revealed-state changes. Start Admin -> event -> Board -> Create tile or an editable
+tile. No agent production-data mutations are required for the implementation pass.
+
+- [ ] Create/Edit remains the same layout. Initial Edit is clean; name, objective,
+  added/removed objective and file-only edits all receive correct Discard/Keep
+  protection on Close/Cancel/Escape/outside, in-page navigation or tile switching.
+  Browser Back/reload/leave uses the native unsaved-change prompt; staying retains
+  the editor. No custom Back-closes-popup behavior is introduced.
+- [ ] Objective/tile removal confirmation has compact complete controls, Cancel
+  first, visible consequence, focus/reveal behavior and restored initiating action
+  after cancellation. Escape dismisses the topmost confirmation first.
+- [ ] Pending save blocks duplicates/dismissal; failed save retains all inputs and
+  provides usable feedback/recovery. Narrow/resize preserves the same editor state.
+- [ ] Success returns to fresh canvas/statistics/actions and gives one truthful
+  toast. Successful save with warning or failed refresh does not invite a duplicate
+  save or misreport the mutation as failed.
+
+## Teams/Draft roster corrections — 2026-09-08
+
+User approved the roster popup on 2026-09-08 after the removal-control corrections.
+Individual unchecked scenarios below are not claims of separately witnessed execution.
+Use Admin -> event -> Teams/Draft -> an existing
+team's roster, in a lifecycle state that already permits manual additions.
+
+- [ ] Add an available participant with Captain selected: one save adds them as
+  Captain, and the roster no longer claims that a Captain must be assigned.
+- [ ] Check Participant remains the default and Co-captain is selectable; existing
+  role editing after addition remains usable.
+- [ ] In a pre-formed team, the manual external-member addition also offers the
+  role choice. A Captain without website access receives accurate access guidance,
+  rather than a misleading missing-Captain warning or false access-ready state.
+- [ ] Check the new fields, readiness text and outcome toast in the popup at the
+  usual desktop/narrow sizes; the established composition should remain intact.
+
+Follow-up guard completion is implemented with focused tests/build/source review
+clear after the missed outside-click and dirty/pending paths were identified.
+New guard states are ready for manual check; previously accepted visuals remain.
+
+- [ ] Change a roster field, then use Close, outside click or Back: Keep preserves
+  the value; Discard restores the baseline and completes the requested dismissal.
+- [ ] Check switching teams or saving another roster form cannot silently discard
+  unrelated edits; the compact discard state is readable and keyboard reachable.
+- [ ] During a save, duplicate actions and dismissal are blocked; after a failure,
+  entered values and usable recovery remain. Confirm one accurate result toast.
+
+## Teams/Draft Add team popup behavior — 2026-09-08
+
+Start Admin -> event -> Teams/Draft -> Add team where existing lifecycle controls
+permit creation. This pass preserves the current appearance; team roster is separate.
+Implementation and source-only review complete; focused tests/build pass. User
+approves on 2026-09-08, accepting minor behavior differences without remediation.
+No persisted team creation tested by the agent; unchecked individual steps below
+are not claims of manual execution.
+
+- [ ] Name, Formation and Affiliation remain in their existing layout. Resize
+  with values entered; the modal and values remain, with usable Close/scroll.
+- [ ] Dirty Close/Escape/outside-click offers Keep editing/Discard; Keep preserves
+  fields. In finalized pre-formed correction, Cancel/Escape restores the inline
+  review trigger and focus without losing entered fields.
+- [ ] An allowed creation returns to fresh Draft state with one accurate outcome
+  toast. Failed creation retains fields and usable recovery; a completed creation
+  cannot be submitted again merely because parent refresh failed.
+
+Use focused mocked execution evidence for pending/failure cases; no agent-created
+database records. User provides final visual acceptance of this Add-only pass.
+
+## Add Participant popup behavior — 2026-09-08
+
+Use Admin -> event Participants for an existing SignupOpen/SignupClosed event
+whose draft is unlocked. Visual approval covers this Add popup only.
+User visually approved the current Add popup on 2026-09-08. Focused mocked-client
+checks and source-only review clear; real persisted creation was not exercised by
+the agent. Individual unchecked journeys below are not claims of manual execution.
+
+- [ ] Open Add participant at desktop and narrow widths; resize while entering
+  values. The same popup remains, with usable scrolling and reachable Close.
+- [ ] Edit a field, then Close/Escape/Back. Keep editing preserves values and
+  meaningful focus; confirmed discard returns to the existing Participants context.
+- [ ] Check owner search, required/optional fields, action hierarchy and any
+  failure message in the current theme. No duplicated action beside confirmation.
+- [ ] After an authorized creation, check one accurate outcome notice (including
+  waiting-list wording where applicable), fresh Participants data and retained
+  filter/sort context; Add and Manage remain reachable. Use focused mocked
+  execution evidence for pending/transport failure without creating test records.
+
+## Catalogue Add/Edit popup behavior — 2026-09-08
+
+Implementation, source-only review and targeted mocked-write browser checks
+complete. Existing general appearance is preserved; awaiting user acceptance.
+
+- [ ] Add/Edit and expanded drop forms retain edits through failed saves and
+  cancelled discard. Switching forms/actions cannot silently erase other inputs.
+- [ ] Deactivate/delete/duplicate-item decisions appear inline in view, use readable
+  body text, and restore the trigger or original typed input on cancellation.
+- [ ] Successful save updates the catalogue behind the popup; close returns with
+  search/filter/scroll preserved. Reload Edit -> close -> Add remains a popup.
+- [ ] Narrow resize preserves the same editor, values and pending action; deliberate
+  standalone routes retain their action/validation behavior.
+
+## Accounts Create/Manage behavior — 2026-09-08
+
+User manually approved Create and Manage on 2026-09-08 after confirmation
+auto-scroll correction. Source review and focused execution evidence are recorded
+in CURRENT_STATUS; the scenarios below remain a regression reference. Actual
+security mutations were not part of the automated preview checks.
+
+- [ ] Manage website and emergency accounts: action buttons reveal one compact
+  inline confirmation, with readable messages/reason fields and Cancel first.
+  Cancel/Escape closes that confirmation and keeps Manage open.
+- [ ] Create: type a username, change event scope or close/Back, and cancel the
+  discard choice. Entered details remain; failed saves retain values. Resizing
+  keeps the same popup, including while an action is pending.
+- [ ] Complete a permitted action, then close: the directory shows current state
+  and retains filters/page position. A generated one-time link remains readable
+  in Manage; the directory never exposes its secret value.
+- [ ] Refresh with Manage open, close, then open Create/another Manage. Both remain
+  popups. Check action-revealed wording and narrow-width controls visually.
+
+## Participant-management popup — 2026-09-08
+
+Implementation and focused review/preview verification complete; awaiting user
+visual acceptance. Use a local Development Admin, an event with an existing
+participant and the real Participants -> Edit link. Use a disposable participant
+for mutations. Do not rerun unrelated signup journeys or reset existing user data.
+
+- [ ] Save shares the final answer row when space allows; bottom action buttons
+  share a right-aligned wrapping row while heading/body remain left-aligned.
+- [ ] Save in Participant or Signup form editor, then close: the parent shows
+  current data with filters/sort/scroll preserved.
+- [ ] Summary labels/values read together, with all prior facts present. Signup
+  answers, private notes and participant actions follow in a compact clear order.
+  Long names/help text wrap without hiding controls; notes do not repeat the same
+  help in both text and placeholder.
+- [ ] Change an answer or note, attempt to close, cancel discard and save. Values
+  remain and the save updates the same workspace. Changing payment or saving notes
+  while answers are dirty must not silently discard those answers.
+- [ ] Open ownership-transfer or removal/restoration confirmation where available:
+  the intended action and consequence stay explicit, Cancel/Escape returns to the
+  editor, and no unrelated action is triggered. Actual lifecycle mutations use
+  disposable records and existing permissions/confirmation requirements.
+- [ ] Open at narrow width, resize with edits in progress, scroll and close/Back.
+  The same full-screen modal remains usable and Close stays visible; cancelling
+  discard preserves edits. Desktop returns to the compact centered presentation.
+- [ ] Reopen through Participants, reload while Manage is open, close it, then
+  open Edit signup form: it must remain a popup. Check the direct editor route.
+  Context/filter/scroll recovery remains usable. Spot-check accepted Signup Questions
+  popup and its code settings after common behavior is shared.
+
+## Admin popup pilot — Signup Questions (2026-09-07)
+
+Implementation, scoped browser proof and independent source/visual review clear;
+user manual acceptance received 2026-09-08 after trying the completed pilot.
+This acceptance does not claim every checklist item was separately executed.
+Use a local Development Admin and an
+editable event reached through Admin Events -> Participants -> Signup form. Use
+throwaway questions for mutations; do not reset existing user data. Automated fault
+injection and repeated-save checks belong to focused browser proof, not a repeated
+manual workload. Keep current public signup behavior intact.
+
+- [ ] Open Signup form and inspect light/dark desktop: popup title, section titles,
+  fields, buttons and help follow the Admin hierarchy; deletion confirmation is
+  compact body text and does not dwarf its question. Close stays reachable while
+  scrolling a long editor.
+- [ ] Add/edit a throwaway question and save: editor stays open, updated question
+  and parent count appear, one success notice, another edit is immediately usable.
+- [ ] Change text, attempt to close, cancel discard, then save: changes survive.
+  An unchanged close needs no confirmation; closing and reopening returns cleanly
+  to the Participants context. Browser Back follows the same discard decision.
+- [ ] Open Delete question on a short-text question: only question/answer deletion
+  is described. Cancel/Escape restores its trigger. An Account question also
+  describes event-account removal while keeping saved My accounts. Confirm only
+  on a throwaway question and verify its row/count update.
+- [ ] In Signup code, an off checkbox hides the code field. Checking it reveals a
+  required new-code field when no code exists, without saving. Save code settings
+  applies the change. With an existing code, Replacement code is optional and blank
+  keeps the current code. Turning protection off hides the field and takes effect
+  only after saving. A failed save retains the checkbox and entered code.
+- [ ] At narrow width, open Signup form as a full-screen popup. Resize an open
+  editor both ways: values, URL and pending state survive. Check readable controls,
+  no horizontal clipping, usable Close/Back and validation; direct standalone URLs
+  remain usable.
+  Keyboard focus remains visible; test one localized EN/DA rendering.
+
 ## Slice 5 Pass 5.2A/5.2B — teams and pre-formed external roster CSV
 
 Historical note: Slice 5 acceptance used `TEST 52 — Team and CSV setup`, which has now been retired rather than retained as stale setup data. The current Development reset seeds the Slice 6 baselines documented below.

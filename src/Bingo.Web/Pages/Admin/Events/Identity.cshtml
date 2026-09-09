@@ -63,7 +63,7 @@
 
                 @if (Model.TimezonePreview.Count > 0)
                 {
-                    <div class="event-confirmation-box identity-timezone-confirmation" tabindex="-1">
+                    <div class="event-confirmation-box identity-timezone-confirmation" data-confirmation-box tabindex="-1">
                         <p><strong>@T["Confirm timezone change"]</strong><br />@T["Stored UTC instants will not move. Review how participants will see them."]</p>
                         <div class="event-create-summary">@foreach (var preview in Model.TimezonePreview) { <div><span>@preview.Label</span><strong>@preview.Current</strong><small>@preview.New</small></div> }</div>
                         <span asp-validation-for="Input.ConfirmTimezoneChange" class="field-error"></span>
@@ -113,4 +113,7 @@
     <input asp-for="BannerVersion" type="hidden" />
 </form>
 
-@section Scripts { <script src="~/js/captain-evidence-input.js" asp-append-version="true"></script> }
+@section Scripts {
+    <script src="~/js/captain-evidence-input.js" asp-append-version="true"></script>
+    <script src="~/js/event-manage.js" asp-append-version="true"></script>
+}

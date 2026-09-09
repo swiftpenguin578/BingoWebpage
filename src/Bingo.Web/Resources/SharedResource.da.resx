@@ -49,6 +49,7 @@
   <data name="Create reusable drop and challenge tiles." xml:space="preserve"><value>Opret genbrugelige drop- og udfordrings-tiles.</value></data>
   <data name="Evidence review" xml:space="preserve"><value>Gennemgå indsendelser</value></data>
   <data name="Review tile submissions from captains." xml:space="preserve"><value>Gennemgå kaptajnernes tile-indsendelser.</value></data>
+  <data name="Search team, player or tile" xml:space="preserve"><value>Søg efter hold, spiller eller tile</value></data>
   <data name="Manage admins and captain accounts." xml:space="preserve"><value>Administrer administratorer og kaptajnkonti.</value></data>
   <data name="Audit log" xml:space="preserve"><value>Ændringslog</value></data>
   <data name="See sign-ins and changes made by admins." xml:space="preserve"><value>Se login og ændringer foretaget af administratorer.</value></data>
@@ -1114,6 +1115,7 @@
   <data name="Choose a banner" xml:space="preserve"><value>Vælg et banner</value></data>
   <data name="Choose a live or final-review event to load its submissions." xml:space="preserve"><value>Vælg et Live- eller final-review-event for at indlæse dets indsendelser.</value></data>
   <data name="Choose an event above to load its evidence submissions." xml:space="preserve"><value>Vælg et event ovenfor for at indlæse dets bevisindsendelser.</value></data>
+  <data name="Open Review from an event workspace to load its evidence submissions." xml:space="preserve"><value>Åbn Review fra eventets arbejdsområde for at indlæse dets bevisindsendelser.</value></data>
   <data name="Choose event" xml:space="preserve"><value>Vælg event</value></data>
   <data name="Choose what players are asked when they sign up for {0}." xml:space="preserve"><value>Vælg, hvad spillerne bliver spurgt om, når de tilmelder sig {0}.</value></data>
   <data name="Claimed → approved" xml:space="preserve"><value>Gjort krav på → godkendt</value></data>
@@ -1774,6 +1776,7 @@
   <data name="Are you sure you wanna remove this objective?" xml:space="preserve"><value>Er du sikker på, at du vil fjerne dette mål?</value></data>
   <data name="Assign a Captain or enable emergency access." xml:space="preserve"><value>Tildel en Captain, eller aktivér nødadgang.</value></data>
   <data name="Assign Captain or Co-captain only to current members. Website authority requires that member's explicit website-account ownership." xml:space="preserve"><value>Tildel kun Captain eller Co-captain til nuværende medlemmer. Websiteautoritet kræver medlemmets udtrykkelige ejerskab af en websitekonto.</value></data>
+  <data name="A Captain is assigned, but website access is not ready." xml:space="preserve"><value>En Captain er tildelt, men websiteadgangen er ikke klar.</value></data>
   <data name="Attention" xml:space="preserve"><value>Bemærk</value></data>
   <data name="Available participant" xml:space="preserve"><value>Tilgængelig deltager</value></data>
   <data name="Average tile" xml:space="preserve"><value>Gennemsnitlig tile</value></data>
@@ -1790,6 +1793,7 @@
   <data name="Category:" xml:space="preserve"><value>Kategori:</value></data>
   <data name="Choose a CSV file to preview." xml:space="preserve"><value>Vælg en CSV-fil til forhåndsvisning.</value></data>
   <data name="Choose participant" xml:space="preserve"><value>Vælg deltager</value></data>
+  <data name="Choose Participant, Captain, or Co-captain." xml:space="preserve"><value>Vælg Deltager, Captain eller Co-captain.</value></data>
   <data name="Choose someone from the available signup pool" xml:space="preserve"><value>Vælg en person fra den tilgængelige tilmeldingspulje</value></data>
   <data name="Choose the starting size. You can change it while the board remains private." xml:space="preserve"><value>Vælg startstørrelsen. Du kan ændre den, mens Boardet forbliver privat.</value></data>
   <data name="Choose whether this is a website-drafted or pre-formed team. Pre-formed teams never receive draft turns." xml:space="preserve"><value>Vælg, om dette er et website-draftet eller forhåndsdannet hold. Forhåndsdannede hold får aldrig draftture.</value></data>
@@ -2464,12 +2468,14 @@
   <data name="The event could not be ended." xml:space="preserve"><value>Eventet kunne ikke afsluttes.</value></data>
   <data name="The event could not be resumed." xml:space="preserve"><value>Eventet kunne ikke genoptages.</value></data>
   <data name="The event could not be started." xml:space="preserve"><value>Eventet kunne ikke startes.</value></data>
+  <data name="The event details were refreshed. Your entries were kept. Review them before retrying." xml:space="preserve"><value>Oplysningerne om eventet er opdateret. Dine indtastninger er bevaret. Gennemgå dem, før du prøver igen.</value></data>
   <data name="The event timezone is unavailable." xml:space="preserve"><value>Eventets tidszone er ikke tilgængelig.</value></data>
   <data name="The internal owner must be an active website account." xml:space="preserve"><value>Den interne ejer skal være en aktiv webstedskonto.</value></data>
   <data name="The participant cap cannot change after the draft has started." xml:space="preserve"><value>Deltagerloftet kan ikke ændres, efter draften er startet.</value></data>
   <data name="The participant could not be withdrawn." xml:space="preserve"><value>Deltageren kunne ikke trækkes tilbage.</value></data>
   <data name="The promotion follow-up could not be completed." xml:space="preserve"><value>Opfølgningen på oprykningen kunne ikke færdiggøres.</value></data>
   <data name="The role could not be changed." xml:space="preserve"><value>Rollen kunne ikke ændres.</value></data>
+  <data name="The role could not be assigned." xml:space="preserve"><value>Rollen kunne ikke tildeles.</value></data>
   <data name="The team order cannot be changed after the first pick." xml:space="preserve"><value>Holdrækkefølgen kan ikke ændres efter første pick.</value></data>
   <data name="The team update could not be saved." xml:space="preserve"><value>Holdændringen kunne ikke gemmes.</value></data>
   <data name="The tile could not be found on this board." xml:space="preserve"><value>Tilen kunne ikke findes på dette Board.</value></data>
@@ -2607,4 +2613,54 @@
   <data name="One of your accounts is now assigned to another participant." xml:space="preserve"><value>En af dine konti er nu tilmeldt af en anden deltager.</value></data>
   <data name="That question cannot be removed." xml:space="preserve"><value>Dette spørgsmål kan ikke fjernes.</value></data>
   <data name="The question could not be removed. Please reload and try again." xml:space="preserve"><value>Spørgsmålet kunne ikke fjernes. Genindlæs siden, og prøv igen.</value></data>
+  <data name="A team name is required." xml:space="preserve"><value>Et holdnavn er påkrævet.</value></data>
+  <data name="Delete question" xml:space="preserve">
+    <value>Slet spørgsmål</value>
+  </data>
+  <data name="Delete {0}?" xml:space="preserve">
+    <value>Slet {0}?</value>
+  </data>
+  <data name="This deletes the question and all its answers." xml:space="preserve">
+    <value>Spørgsmålet og alle svar på det slettes.</value>
+  </data>
+  <data name="Discard unsaved changes?" xml:space="preserve">
+    <value>Kassér ændringer, der ikke er gemt?</value>
+  </data>
+  <data name="Continuing will discard unsaved changes in this editor." xml:space="preserve">
+    <value>Hvis du fortsætter, kasseres ændringer i denne formular, som ikke er gemt.</value>
+  </data>
+  <data name="Discard changes" xml:space="preserve">
+    <value>Kassér ændringer</value>
+  </data>
+  <data name="Could not save. Your changes are still here. Try saving again." xml:space="preserve">
+    <value>Kunne ikke gemme. Dine ændringer er bevaret. Prøv at gemme igen.</value>
+  </data>
+  <data name="Replacement code" xml:space="preserve">
+    <value>Erstatningskode</value>
+  </data>
+  <data name="Leave blank to keep the current code." xml:space="preserve">
+    <value>Lad feltet stå tomt for at beholde den nuværende kode.</value>
+  </data>
+  <data name="Enter a code to require it at signup." xml:space="preserve">
+    <value>Indtast en kode, som skal bruges ved tilmelding.</value>
+  </data>
+  <data name="Save code settings" xml:space="preserve">
+    <value>Gem kodeindstillinger</value>
+  </data>
+  <data name="Participant actions" xml:space="preserve"><value>Deltagerhandlinger</value></data>
+  <data name="Changes saved, but the participant list could not refresh. Close this editor to reload the list." xml:space="preserve">
+    <value>Ændringerne er gemt, men deltagerlisten kunne ikke opdateres. Luk denne editor for at genindlæse listen.</value>
+  </data>
+  <data name="Changes saved." xml:space="preserve"><value>Ændringer gemt.</value></data>
+  <data name="Changes saved, but the roster could not refresh. Close this editor to reload the roster." xml:space="preserve">
+    <value>Ændringerne er gemt, men holdlisten kunne ikke opdateres. Luk denne editor for at genindlæse holdlisten.</value>
+  </data>
+  <data name="Changes saved, but the account list could not refresh. Close this editor to reload the list." xml:space="preserve"><value>Ændringerne er gemt, men kontolisten kunne ikke opdateres. Luk editoren for at genindlæse listen.</value></data>
+  <data name="Changes saved, but the catalogue could not refresh. Close this editor to reload the list." xml:space="preserve"><value>Ændringerne er gemt, men kataloget kunne ikke opdateres. Luk editoren for at genindlæse listen.</value></data>
+  <data name="This record changed. Your edits are still here. Reload current values before saving again." xml:space="preserve"><value>Posten er ændret. Dine ændringer er her stadig. Genindlæs de aktuelle værdier, før du gemmer igen.</value></data>
+  <data name="Reload current values" xml:space="preserve"><value>Genindlæs aktuelle værdier</value></data>
+  <data name="The save outcome could not be confirmed. Your inputs are retained. Reload and check the board before trying again." xml:space="preserve"><value>Resultatet kunne ikke bekræftes. Dine indtastninger er bevaret. Genindlæs og kontrollér Boardet, før du prøver igen.</value></data>
+  <data name="The changes were not saved. Your inputs are retained." xml:space="preserve"><value>Ændringerne blev ikke gemt. Dine indtastninger er bevaret.</value></data>
+  <data name="The changes were saved, but the board could not be refreshed. Reload to see the saved board. Do not submit again." xml:space="preserve"><value>Ændringerne blev gemt, men Boardet kunne ikke opdateres. Genindlæs for at se det gemte Board. Indsend ikke igen.</value></data>
+  <data name="Reload" xml:space="preserve"><value>Genindlæs</value></data>
 </root>

@@ -16,7 +16,32 @@
   let directBootstrap = false;
 
   const triggerSelector = "[data-account-manage-trigger='true'], [data-account-create-trigger='true']";
-  const canEnhance = () => window.innerWidth > 900;
+  let parentRefreshFailed = false;
+  let parentUrl = null;
+  let parentScroll = 0;
+  let restoringHistory = false;
+  let suspendedConfirmation = null;
+  let suspendedOpener = null;
+  const guard = window.createAdminEditorGuard({
+    editor: () => content, prefix: "account-editor", saveError: () => adminText("adminAccountActionError"),
+    closeConfirmation: () => {
+      suspendedOpener = confirmationOpener;
+      suspendedConfirmation = hasConfirmation() ? confirmationDialog : content?.querySelector("details.admin-account-action-confirmation[open]");
+      closeConfirmation(false);
+    },
+    restoreConfirmation: () => {
+      if (suspendedConfirmation && suspendedConfirmation === confirmationDialog) confirmationDialog.hidden = false;
+      else if (suspendedConfirmation) suspendedConfirmation.open = true;
+      confirmationOpener = suspendedOpener;
+      if (confirmationOpener && hasConfirmation()) confirmationOpener.hidden = true;
+      suspendedConfirmation = null;
+    }
+  });
+  const guarded = (action, form) => {
+    if (guard.pending || (parentRefreshFailed && content?.querySelector("[data-account-create-page]"))) return;
+    if (guard.dirtyForms(form).length) guard.confirmDiscard(action);
+    else action();
+  };
   const currentUrl = () => new URL(window.location.href);
   const hasOverlay = () => currentUrl().searchParams.get("overlay") === "1";
   const overlayUrl = (source) => {
@@ -24,10 +49,10 @@
     url.searchParams.set("overlay", "1");
     return url.href;
   };
-  const hasConfirmation = () => confirmationDialog instanceof HTMLDialogElement && confirmationDialog.open;
+  const hasConfirmation = () => confirmationDialog instanceof HTMLElement && !confirmationDialog.hidden;
 
   const build = () => {
-    if (!(dialog instanceof HTMLDialogElement)) {
+    if (!(dialog instanceof HTMLDialogElement) && hasOverlay()) {
       dialog = document.createElement("dialog");
       dialog.className = "admin-route-dialog account-manage-route-dialog";
       content = document.createElement("div");
@@ -35,6 +60,7 @@
       dialog.append(content);
       (main || document.body).append(dialog);
       dialog.addEventListener("cancel", (event) => {
+        if (guard.pending || guard.cancelDiscard()) { event.preventDefault(); return; }
         if (hasConfirmation()) {
           event.preventDefault();
           closeConfirmation();
@@ -45,21 +71,25 @@
       });
       dialog.addEventListener("keydown", (event) => {
         if (event.key !== "Escape") return;
+        if (guard.pending || guard.cancelDiscard()) { event.preventDefault(); return; }
         event.preventDefault();
+        if (guard.pending || guard.cancelDiscard()) return;
         if (hasConfirmation()) closeConfirmation();
         else closeWithHistory();
       });
       dialog.addEventListener("click", (event) => {
-        if (event.target !== dialog) return;
+        if (event.target !== dialog || guard.pending || guard.cancelDiscard()) return;
         if (hasConfirmation()) closeConfirmation();
         else closeWithHistory();
       });
     }
 
-    if (confirmationDialog instanceof HTMLDialogElement) return;
-    confirmationDialog = document.createElement("dialog");
+    if (confirmationDialog instanceof HTMLElement) return;
+    confirmationDialog = document.createElement("div");
+    confirmationDialog.hidden = true;
+    confirmationDialog.setAttribute("role", "group");
     confirmationDialog.id = "admin-account-confirmation-dialog";
-    confirmationDialog.className = "admin-account-confirmation-dialog";
+    confirmationDialog.className = "event-confirmation-box admin-account-inline-confirmation";
     confirmationDialog.setAttribute("aria-labelledby", "admin-account-confirmation-title");
     confirmationDialog.setAttribute("aria-describedby", "admin-account-confirmation-support");
 
@@ -95,7 +125,7 @@
     form.append(actions);
     surface.append(heading, support, form);
     confirmationDialog.append(surface);
-    (main || document.body).append(confirmationDialog);
+
 
     close.addEventListener("click", (event) => { event.preventDefault(); closeConfirmation(); });
     cancel.addEventListener("click", (event) => { event.preventDefault(); closeConfirmation(); });
@@ -121,7 +151,10 @@
 
   function closeConfirmation(restoreFocus = true) {
     const trigger = confirmationOpener;
-    if (confirmationDialog?.open) confirmationDialog.close();
+    if (guard.pending) return;
+    if (confirmationDialog) confirmationDialog.hidden = true;
+    if (trigger) trigger.hidden = false;
+    content?.querySelectorAll("details.admin-account-action-confirmation").forEach(item => { item.open = false; });
     confirmationForm?.removeAttribute("aria-busy");
     confirmationOpener = null;
     if (restoreFocus && trigger instanceof HTMLElement && document.body.contains(trigger)) trigger.focus({ preventScroll: true });
@@ -132,10 +165,18 @@
     confirmation.dataset.accountConfirmationBound = "true";
     confirmation.addEventListener("toggle", () => {
       if (!confirmation.open) return;
+      if (guard.pending) { confirmation.open = false; return; }
+      if (hasConfirmation() || guard.dirtyForms(confirmation.querySelector("form")).length) {
+        confirmation.open = false;
+        guarded(() => { closeConfirmation(false); confirmation.open = true; guard.initialize(); }, confirmation.querySelector("form"));
+        return;
+      }
+      content.querySelectorAll("details.admin-account-action-confirmation").forEach(item => { if (item !== confirmation) item.open = false; });
       window.setTimeout(() => confirmation.querySelector("[data-account-confirmation-cancel]")?.focus({ preventScroll: true }), 0);
     });
     confirmation.addEventListener("keydown", (event) => {
       if (event.key !== "Escape" || !confirmation.open) return;
+      if (guard.pending) { event.preventDefault(); event.stopPropagation(); return; }
       event.preventDefault();
       event.stopPropagation();
       closeDetailsConfirmation(confirmation);
@@ -164,6 +205,7 @@
     if (describedBy) dialog.setAttribute("aria-describedby", describedBy);
     else dialog.removeAttribute("aria-describedby");
     bindContent();
+    guard.initialize();
     return true;
   };
 
@@ -171,6 +213,7 @@
 
   const finishRedirect = (href) => {
     const destination = new URL(href || currentUrl(), window.location.href);
+    parentRefreshFailed = false;
     hide(false);
     window.location.assign(destination.href);
   };
@@ -220,7 +263,7 @@
       trigger.dataset.accountEmergencyBound = "true";
       trigger.addEventListener("click", (event) => {
         event.preventDefault();
-        if (canEnhance() && dialog?.open) openConfirmation(trigger);
+        guarded(() => openConfirmation(trigger));
       });
     });
   };
@@ -235,8 +278,8 @@
 
   async function submitCreateScope(form) {
     const requestId = ++loadId;
-    form.setAttribute("aria-busy", "true");
     const url = createFormUrl(form);
+    const finish = guard.begin(form);
     try {
       const response = await window.fetch(url, { credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } });
       if (!response.ok) throw new Error("Create scope request failed.");
@@ -247,16 +290,19 @@
     } catch {
       if (requestId === loadId) {
         form.removeAttribute("aria-busy");
-        window.showBingoToast?.(adminText("adminAccountTeamsError"), "error");
+        const selection = form.querySelector("select[name='eventId']");
+        if (selection) selection.value = content.querySelector("input[name='Input.EventId']")?.value || "";
+        guard.showFailure(adminText("adminAccountTeamsError"));
       }
-    }
+    } finally { finish(); }
   }
 
   async function submitCreate(form, event) {
-    event.preventDefault();
+    event?.preventDefault();
+    if (guard.pending) return;
     const requestId = ++loadId;
-    form.setAttribute("aria-busy", "true");
     const data = new FormData(form);
+    const finish = guard.begin(form);
     data.set("Overlay", "true");
     try {
       const action = new URL(form.action || currentUrl(), window.location.href);
@@ -277,18 +323,22 @@
           ? adminText("adminAccountCreatedDisabled").replace("{0}", username.trim())
           : adminText("adminAccountCreated");
         const feedback = responseToast(html) || { message: fallbackMessage, type: "success" };
-        try { hydrateDirectory(html); } catch { /* The server mutation still succeeded. */ }
-        destination.search = "";
-        destination.hash = "";
+        // Refresh the originating filtered/paged directory before returning to it.
+        const refreshed = await refreshDirectory();
+        if (!refreshed) { finish(); guard.initialize(); guard.showFailure(adminText("adminAccountParentRefreshError")); return; }
+        destination.href = parentUrl || destination.href;
+
         const state = { ...(history.state || {}) };
         delete state.accountManageOverlay;
         delete state.accountDialogReturnUrl;
         history.replaceState(state, "", destination.href);
+        finish();
         hide(false);
         closing = false;
         window.setTimeout(() => window.showBingoToast?.(feedback.message, feedback.type), 0);
         return;
       }
+      if (validationMessage(html)) { guard.showFailure(validationMessage(html)); return; }
       if (!replaceContent(html)) {
         throw new Error("Create overlay component was not returned.");
       }
@@ -298,28 +348,36 @@
     } catch {
       if (requestId === loadId) {
         form.removeAttribute("aria-busy");
-        window.showBingoToast?.(adminText("adminAccountCreateError"), "error");
+        guard.showFailure(adminText("adminAccountCreateError"));
       }
-    }
+    } finally { finish(); }
   }
 
   const bindCreateForms = () => {
+    if (!content.querySelector("[data-account-create-page]")) return;
     const scopeForm = content.querySelector("form.admin-account-option-form");
     if (scopeForm instanceof HTMLFormElement && scopeForm.dataset.accountCreateBound !== "true") {
       scopeForm.dataset.accountCreateBound = "true";
       scopeForm.addEventListener("submit", (event) => {
-        if (canEnhance() && dialog?.open) {
+        if (dialog?.open) {
           event.preventDefault();
-          submitCreateScope(scopeForm);
+          guarded(() => submitCreateScope(scopeForm), scopeForm);
         }
       });
-      scopeForm.querySelector("select[name='eventId']")?.addEventListener("change", () => scopeForm.requestSubmit());
+      const selection = scopeForm.querySelector("select[name='eventId']");
+      if (selection) selection.value = content.querySelector("input[name='Input.EventId']")?.value || selection.value;
+      const loadedEvent = selection?.value;
+      selection?.addEventListener("change", () => {
+        const requestedEvent = selection.value;
+        selection.value = loadedEvent;
+        guarded(() => { selection.value = requestedEvent; submitCreateScope(scopeForm); }, scopeForm);
+      });
     }
     const createForm = [...content.querySelectorAll("form")].find((form) => !form.classList.contains("admin-account-option-form"));
     if (createForm instanceof HTMLFormElement && createForm.dataset.accountCreateBound !== "true") {
       createForm.dataset.accountCreateBound = "true";
       createForm.addEventListener("submit", (event) => {
-        if (canEnhance() && dialog?.open) submitCreate(createForm, event);
+        if (dialog?.open) { event.preventDefault(); guarded(() => submitCreate(createForm), createForm); }
       });
     }
   };
@@ -327,15 +385,12 @@
   function bindContent() {
     if (!(content instanceof HTMLElement)) return;
     content.querySelectorAll("[data-account-dialog-close], [data-account-manage-close]").forEach((close) => {
-      close.addEventListener("click", (event) => {
-        event.preventDefault();
-        if (hasConfirmation()) closeConfirmation();
-        else closeWithHistory();
-      });
+      close.addEventListener("click", (event) => { event.preventDefault(); closeWithHistory(); });
     });
     content.querySelectorAll("[data-account-dialog-cancel], [data-account-confirmation-cancel]").forEach((cancel) => {
       cancel.addEventListener("click", (event) => {
         event.preventDefault();
+        if (guard.pending || guard.cancelDiscard()) return;
         const confirmation = cancel.closest("details");
         if (confirmation instanceof HTMLDetailsElement) closeDetailsConfirmation(confirmation);
         else if (hasConfirmation()) closeConfirmation();
@@ -345,44 +400,51 @@
     content.querySelectorAll("details.admin-account-action-confirmation").forEach(bindConfirmation);
     bindEmergencyActions();
     bindCreateForms();
+    if (content.querySelector("[data-account-manage-page]")) content.querySelectorAll("form").forEach(form => {
+      form.addEventListener("submit", event => { event.preventDefault(); guarded(() => submitManage(form), form); });
+    });
   }
 
-  async function submitConfirmation(event) {
+  function submitConfirmation(event) {
     event.preventDefault();
-    if (!(confirmationForm instanceof HTMLFormElement) || !confirmationOpener) return;
-    const form = confirmationForm;
-    const requestId = ++loadId;
-    form.setAttribute("aria-busy", "true");
+    guarded(() => submitManage(confirmationForm), confirmationForm);
+  }
+
+  async function submitManage(form) {
+    if (guard.pending) return;
+    if (!dialog?.open) { guard.initialize(); form.submit(); return; }
     const action = new URL(form.action || currentUrl(), window.location.href);
+    action.searchParams.set("overlay", "1");
     const data = new FormData(form);
     data.set("overlay", "1");
+    const finish = guard.begin(form);
     try {
-      const response = await window.fetch(action.href, {
-        method: "POST",
-        body: data,
-        credentials: "same-origin",
-        headers: { "X-Requested-With": "XMLHttpRequest" }
-      });
-      if (!response.ok) throw new Error("Account confirmation request failed.");
+      const response = await window.fetch(action.href, { method: "POST", body: data, credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } });
+      if (!response.ok) throw new Error("Account request failed.");
       const html = await response.text();
-      if (requestId !== loadId || !dialog?.open || !hasOverlay()) return;
-      closeConfirmation(false);
+      if (validationMessage(html)) {
+        guard.showFailure(validationMessage(html));
+        return;
+      }
       if (!replaceContent(html)) {
+        finish();
         finishRedirect(response.url || action.href);
         return;
       }
       history.replaceState(history.state, "", response.url || action.href);
+      await refreshDirectory();
+      finish();
+      closeConfirmation(false);
       focusAccountContent("manage");
       showResponseFeedback(html);
+      if (parentRefreshFailed) guard.showFailure(adminText("adminAccountParentRefreshError"));
     } catch {
-      if (requestId === loadId) {
-        form.removeAttribute("aria-busy");
-      window.showBingoToast?.(adminText("adminAccountActionError"), "error");
-      }
-    }
+      guard.showFailure(adminText("adminAccountActionError"));
+    } finally { finish(); }
   }
 
   function openConfirmation(trigger) {
+    closeConfirmation(false);
     build();
     confirmationOpener = trigger;
     const title = confirmationDialog.querySelector("#admin-account-confirmation-title");
@@ -405,7 +467,7 @@
     const overlay = document.createElement("input");
     overlay.type = "hidden";
     overlay.name = "overlay";
-    overlay.value = "1";
+    overlay.value = hasOverlay() ? "1" : "0";
     form.append(overlay);
     if (trigger.dataset.accountConfirmationReason === "true") {
       const field = document.createElement("div");
@@ -423,7 +485,13 @@
       form.append(field);
     }
     form.append(actions);
-    confirmationDialog.showModal();
+    // Keep the confirmation beside its action, outside any enclosing form.
+    const host = trigger.closest("form") || trigger;
+    host.parentElement.append(confirmationDialog);
+    confirmationDialog.hidden = false;
+    trigger.hidden = true;
+    guard.initialize();
+    confirmationDialog.scrollIntoView({ block: "nearest", behavior: "instant" });
     window.setTimeout(() => confirmationDialog.querySelector("[data-account-confirmation-cancel]")?.focus({ preventScroll: true }), 0);
   }
 
@@ -443,14 +511,21 @@
       else restore();
     }
     opener = null;
+    window.scrollTo?.(0, parentScroll);
+    if (parentRefreshFailed) {
+      if (new URL(parentUrl, window.location.href).href === currentUrl().href) window.location.reload();
+      else window.location.replace(parentUrl);
+    }
   };
 
   function closeWithHistory(afterClose) {
-    if (hasConfirmation()) {
-      closeConfirmation();
-      return;
-    }
-    if (closing) return;
+    if (guard.pending || guard.cancelDiscard()) return;
+    if (guard.dirtyForms().length) { guard.confirmDiscard(() => closeNow(afterClose)); return; }
+    closeNow(afterClose);
+  }
+
+  function closeNow(afterClose) {
+    if (closing || guard.pending) return;
     closing = true;
     if (hasOverlay() && history.state?.accountManageOverlay) {
       if (afterClose) window.addEventListener("popstate", afterClose, { once: true });
@@ -479,15 +554,16 @@
 
   const load = async (trigger, push) => {
     const href = push ? trigger.getAttribute("href") : currentUrl().href;
-    if (!href || !canEnhance()) return;
+    if (!href) return;
     opener = trigger;
+    if (push) { parentUrl = currentUrl().href; parentScroll = window.scrollY; parentRefreshFailed = false; }
     if (push) history.pushState({ ...(history.state || {}), accountManageOverlay: true, accountDialogReturnUrl: currentUrl().href }, "", overlayUrl(href));
     const requestId = ++loadId;
     try {
       const response = await window.fetch(overlayUrl(href), { credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } });
       if (!response.ok) throw new Error("Account management request failed.");
       const html = await response.text();
-      if (requestId !== loadId || !canEnhance() || !hasOverlay()) return;
+      if (requestId !== loadId || !hasOverlay()) return;
       if (!replaceContent(html)) throw new Error("Account dialog component was not returned.");
       if (!dialog.open) dialog.showModal();
       document.body.classList.add("admin-route-dialog-open");
@@ -506,21 +582,35 @@
     const root = parsed.querySelector(".admin-accounts-page");
     if (!(root instanceof HTMLElement)) return false;
     const nextDirectory = document.importNode(root, true);
-    const hosts = [dialog, confirmationDialog].filter(host => host instanceof HTMLElement && host.parentElement === main);
-    if (directory instanceof HTMLElement && directory.parentElement === main) main.replaceChildren(nextDirectory, ...hosts);
+    if (directory instanceof HTMLElement && directory.parentElement === main) directory.replaceWith(nextDirectory);
     else main.replaceChildren(nextDirectory);
     directory = nextDirectory;
+    if (opener) opener = findOpener() || directory.querySelector(triggerSelector);
     bindTriggers(directory);
+    window.initializeAdminAccountSearch?.();
+    document.dispatchEvent(new CustomEvent("bingo:content-updated", { detail: { section: directory } }));
     return true;
   };
 
+  const refreshDirectory = async () => {
+    try {
+      const response = await window.fetch(parentUrl || "/Admin/Accounts/Index", { credentials: "same-origin" });
+      if (!response.ok || !hydrateDirectory(await response.text())) throw new Error("Directory refresh failed.");
+      parentRefreshFailed = false;
+      window.scrollTo?.(0, parentScroll);
+      return true;
+    } catch { parentRefreshFailed = true; return false; }
+  };
+
   const bootstrapDirectOverlay = async () => {
-    if (directBootstrap || directory instanceof HTMLElement || !canEnhance() || !hasOverlay()) return;
+    if (directBootstrap || directory instanceof HTMLElement || !hasOverlay()) return;
     directBootstrap = true;
     try {
       const directUrl = currentUrl();
       const routeRoot = main.querySelector("[data-account-dialog-page]");
-      const directoryUrl = new URL(routeRoot?.getAttribute("data-account-directory-url") || "/Admin/Accounts/Index", directUrl.href);
+      const directoryUrl = new URL(history.state?.accountDialogReturnUrl || routeRoot?.getAttribute("data-account-directory-url") || "/Admin/Accounts/Index", directUrl.href);
+      parentUrl = directoryUrl.href;
+      parentScroll = window.scrollY;
       const [directoryResponse, overlayResponse] = await Promise.all([
         window.fetch(directoryUrl.href, { credentials: "same-origin" }),
         window.fetch(overlayUrl(directUrl.href), { credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } })
@@ -547,15 +637,11 @@
   };
 
   const sync = () => {
-    if (!canEnhance()) {
-      if (hasOverlay()) {
-        const url = currentUrl();
-        url.searchParams.delete("overlay");
-        window.location.replace(url.href);
-        return;
-      }
-      if (dialog?.open) hide();
-      closing = false;
+    if (restoringHistory && hasOverlay()) { restoringHistory = false; return; }
+    if (!hasOverlay() && dialog?.open && !closing && (guard.pending || guard.dirtyForms().length)) {
+      restoringHistory = true;
+      history.forward();
+      if (!guard.pending) guard.confirmDiscard(closeNow);
       return;
     }
     if (hasOverlay()) {
@@ -575,19 +661,44 @@
       if (!(trigger instanceof HTMLAnchorElement) || trigger.dataset.accountManageBound === "true") return;
       trigger.dataset.accountManageBound = "true";
       trigger.addEventListener("click", (event) => {
-        if (!canEnhance()) return;
-        event.preventDefault();
+          event.preventDefault();
         load(trigger, true);
       });
     });
   };
 
+  const standalone = main.querySelector("[data-account-dialog-page]");
+  if (!hasOverlay() && standalone instanceof HTMLElement) {
+    content = standalone;
+    bindEmergencyActions();
+    content.querySelectorAll("details.admin-account-action-confirmation").forEach(bindConfirmation);
+    content.querySelectorAll("[data-account-confirmation-cancel]").forEach(cancel => cancel.addEventListener("click", event => { event.preventDefault(); closeDetailsConfirmation(cancel.closest("details")); }));
+    content.querySelectorAll("form").forEach(form => {
+      const selection = form.classList.contains("admin-account-option-form") ? form.querySelector("select[name='eventId']") : null;
+      if (selection) selection.value = content.querySelector("input[name='Input.EventId']")?.value || selection.value;
+      const loadedEvent = selection?.value;
+      form.addEventListener("submit", event => {
+        if (!selection) { guard.initialize(); return; }
+        event.preventDefault();
+        const requestedEvent = selection.value;
+        selection.value = loadedEvent;
+        guarded(() => {
+          selection.value = requestedEvent;
+          guard.initialize();
+          form.submit();
+        }, form);
+      });
+    });
+    guard.initialize();
+  }
   if (directory instanceof HTMLElement) bindTriggers(directory);
   document.addEventListener("bingo:account-directory-updated", (event) => {
     if (event.detail?.section instanceof HTMLElement) bindTriggers(event.detail.section);
   });
 
   window.addEventListener("popstate", sync);
-  window.addEventListener("resize", sync);
+  window.addEventListener("beforeunload", event => {
+    if (guard.pending || guard.dirtyForms().length) { event.preventDefault(); event.returnValue = ""; }
+  });
   if (hasOverlay()) sync();
 })();

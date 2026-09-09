@@ -27,7 +27,7 @@
         };
 }
 
-<section class="table-page board-page event-manage-page">
+<section class="table-page board-page event-manage-page" data-board-tile-outcome="@TempData["BoardTileOutcome"]" data-board-version="@Model.BoardView?.Version">
         <aside class="collaboration-status board-presence" data-admin-board-event="@RouteData.Values["id"]" data-current-account="@Model.CurrentAccountId" data-can-edit="@Model.CanEditBoard.ToString().ToLowerInvariant()" data-editor-expires-at="@Model.BoardEditorLeaseExpiresAt?.ToUniversalTime().ToString("O")" data-presence-template="@T["Also viewing: {0}."]" hidden>
         <strong>@T["Other administrators are viewing this board."]</strong><span data-board-presence-names></span>
     </aside>
@@ -225,10 +225,11 @@
                         <p class="tile-dialog-ehb"><strong>@tile.Ehb.ToString("0.##") EHB</strong></p>
                         @if (editable)
                         {
-                            <form method="post" asp-page-handler="Remove" onsubmit="return confirm('@T["Remove this tile? The position will become empty."]');">
+                            <form method="post" asp-page-handler="Remove" data-board-tile-remove data-native-submit>
                                 <input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" />
                                 <input type="hidden" name="tileId" value="@tile.Id" />
-                                <button class="btn admin-button-secondary action-danger-outline">@T["Remove tile"]</button>
+                                <button type="button" class="btn admin-button-secondary action-danger-outline" data-tile-remove-trigger>@T["Remove tile"]</button>
+                                <div class="event-confirmation-box" data-tile-remove-confirmation role="alertdialog" aria-label="@T["Remove tile"]" hidden><p>@T["Remove this tile? The position will become empty."]</p><div class="event-confirmation-actions"><button type="button" class="btn admin-button-secondary" data-tile-remove-cancel>@T["Cancel"]</button><button type="submit" class="btn admin-button-secondary action-danger-outline">@T["Remove tile"]</button></div></div>
                             </form>
                         }
                     </dialog>
@@ -297,11 +298,17 @@
                     <details class="manual-ehb-override"><summary><span>@T["Manual EHB override"]</span><svg class="board-dialog-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m6 9 6 6 6-6" /></svg></summary><div class="manual-ehb-override-content"><div class="admin-field"><label asp-for="TileDraft.ManualEhb"><span class="tile-field-label"><span>@T["Manual total EHB estimate"]</span><small>@T["Required for a custom challenge; otherwise overrides the live catalogue calculation."]</small></span></label><input asp-for="TileDraft.ManualEhb" class="form-control" type="number" min="0" step="any" /></div></div></details>
                     <div class="dialog-actions"><button type="button" class="btn admin-button-secondary dialog-cancel">@T["Cancel"]</button><button class="btn admin-button-secondary" id="save-tile-button">@T["Create tile"]</button></div>
                 </form>
+                <p data-board-editor-feedback role="alert" tabindex="-1" hidden></p>
+                <button type="button" class="btn admin-button-secondary" data-board-reload hidden>@T["Reload"]</button>
+                <div class="event-confirmation-box board-editor-discard" data-board-editor-discard role="alertdialog" aria-labelledby="board-editor-discard-title" aria-describedby="board-editor-discard-description" hidden>
+                    <p><strong id="board-editor-discard-title">@T["Discard unsaved changes?"]</strong><br /><span id="board-editor-discard-description">@T["Continuing will discard unsaved changes in this editor."]</span></p>
+                    <div class="event-confirmation-actions"><button type="button" class="btn admin-button-secondary" data-board-editor-keep>@T["Cancel"]</button><button type="button" class="btn admin-button-secondary action-danger-outline" data-board-editor-discard-confirm>@T["Discard changes"]</button></div>
+                </div>
             </dialog>
-            <dialog id="remove-objective-dialog" class="tile-dialog board-confirmation-dialog" aria-labelledby="remove-objective-question">
-                <h2 id="remove-objective-question">@T["Are you sure you wanna remove this objective?"]</h2>
-                <div class="dialog-actions"><button type="button" class="btn admin-button-secondary dialog-cancel">@T["Cancel"]</button><button type="button" class="btn admin-button-secondary action-danger-outline" id="confirm-remove-objective">@T["Remove objective"]</button></div>
-            </dialog>
+            <div id="remove-objective-dialog" class="event-confirmation-box" role="alertdialog" aria-labelledby="remove-objective-question" hidden>
+                <p id="remove-objective-question">@T["Are you sure you wanna remove this objective?"]</p>
+                <div class="event-confirmation-actions"><button type="button" class="btn admin-button-secondary" id="cancel-remove-objective">@T["Cancel"]</button><button type="button" class="btn admin-button-secondary action-danger-outline" id="confirm-remove-objective">@T["Remove objective"]</button></div>
+            </div>
             <template id="requirement-template"><partial name="_BoardRequirementEditor" model="@(new Bingo.Web.Pages.Admin.Events.BoardRequirementEditorViewModel(-1, Model.Bosses, Model.Drops))" /></template>
             <script type="application/json" id="tile-editor-data">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TileEditors, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }))</script>
         }
@@ -396,17 +403,59 @@ function syncBoardDialogState() { document.body.classList.toggle('board-dialog-o
 function showBoardDialog(dialog) { if (!dialog?.open) dialog?.showModal(); syncBoardDialogState(); }
 boardDialogs.forEach(dialog => dialog.addEventListener('close', syncBoardDialogState));
 syncBoardDialogState();
-document.querySelectorAll('.dialog-close, .dialog-cancel').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
+document.querySelectorAll('.dialog-close, .dialog-cancel').forEach(button => button.addEventListener('click', event => {
+    if (tileSavePending) { event.preventDefault(); return; }
+    const dialog = button.closest('dialog');
+    if (dialog?.id === 'create-tile-dialog') {
+        event.preventDefault();
+        requestTileEditorClose();
+        return;
+    }
+    dialog?.close();
+}));
 document.querySelectorAll('.board-publication-confirmation [data-confirmation-cancel]').forEach(button => button.addEventListener('click', () => button.closest('details')?.removeAttribute('open')));
+function isGenuineBackdropClick(dialog, event) {
+    if (event.target !== dialog) return false;
+    const rect = dialog.getBoundingClientRect?.();
+    if (!rect || typeof event.clientX !== 'number' || typeof event.clientY !== 'number') return true;
+    return event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
+}
+const backdropStarts = new WeakMap();
+boardDialogs.forEach(dialog => dialog.addEventListener('pointerdown', event => backdropStarts.set(dialog, isGenuineBackdropClick(dialog, event))));
+boardDialogs.forEach(dialog => dialog.addEventListener('pointercancel', () => backdropStarts.delete(dialog)));
 boardDialogs.forEach(dialog => dialog.addEventListener('click', event => {
-    if (event.target !== dialog || window.matchMedia?.('(max-width: 900px)')?.matches) return;
-    dialog.close();
+    const startedOutside = backdropStarts.get(dialog);
+    backdropStarts.delete(dialog);
+    if (tileSavePending) return;
+    if (!startedOutside || !isGenuineBackdropClick(dialog, event)) return;
+    if (dialog.id === 'create-tile-dialog') requestTileEditorClose();
+    else if (!window.matchMedia?.('(max-width: 900px)')?.matches) dialog.close();
 }));
 
 const createDialog = document.getElementById('create-tile-dialog'); const tileForm = document.getElementById('create-tile-form');
 const removeObjectiveDialog = document.getElementById('remove-objective-dialog'); let objectiveToRemove = null;
-removeObjectiveDialog?.addEventListener('close', () => objectiveToRemove = null);
+function cancelObjectiveRemoval() {
+    if (!objectiveToRemove) return false;
+    const trigger = objectiveToRemove.querySelector('.remove-requirement');
+    removeObjectiveDialog.hidden = true;
+    createDialog.append(removeObjectiveDialog);
+    objectiveToRemove = null;
+    if (trigger) { trigger.hidden = false; trigger.focus(); }
+    return true;
+}
+document.getElementById('cancel-remove-objective')?.addEventListener('click', cancelObjectiveRemoval);
 const tileEditorData = new Map(JSON.parse(document.getElementById('tile-editor-data')?.textContent || '[]').map(tile => [tile.id, tile]));
+const tileEditorGuard = window.createAdminEditorGuard({ editor: () => createDialog, prefix: 'board-editor', closeConfirmation: cancelObjectiveRemoval });
+let tileSavePending = false;
+let tileSaveBlocked = false;
+function continueBoardAction(action) {
+    if (tileSavePending || tileEditorGuard.pending) return;
+    if (createDialog?.open && tileEditorGuard.dirtyForms().length) {
+        tileEditorGuard.confirmDiscard(() => { cancelObjectiveRemoval(); restoreTileEditor(); action(); });
+        createDialog.querySelector('[data-board-editor-discard]')?.scrollIntoView?.({ block: 'nearest' });
+    } else action();
+}
+let activeTileId = null; let activeCreatePosition = '';
 let tileNameEdited = false; document.getElementById('tile-name')?.addEventListener('input', event => tileNameEdited = event.target.value.trim().length > 0);
 function resetTileForm() { tileForm.reset(); tileForm.action = tileForm.dataset.createAction; document.getElementById('tile-id').value = ''; document.getElementById('tile-remove-image-row').hidden = true; document.getElementById('requirements').innerHTML = document.getElementById('requirement-template').innerHTML.replaceAll('Requirements[-1]', 'Requirements[0]').replaceAll('requirement--1', 'requirement-0').replaceAll('data-index="-1"', 'data-index="0"'); requirementIndex = 1; tileNameEdited = false; initializeRequirements(); }
 let requirementIndex = 1;
@@ -414,16 +463,55 @@ function renumberObjectiveHeadings() { document.querySelectorAll('#requirements 
 function addRequirement(values = null) { const index = requirementIndex++; const html = document.getElementById('requirement-template').innerHTML.replaceAll('Requirements[-1]', `Requirements[${index}]`).replaceAll('requirement--1', `requirement-${index}`).replaceAll('data-index="-1"', `data-index="${index}"`); document.getElementById('requirements').insertAdjacentHTML('beforeend', html); initializeRequirements(); renumberObjectiveHeadings(); const editor = document.getElementById(`requirement-${index}`); if (values) populateRequirement(editor, values); return editor; }
 document.getElementById('add-requirement')?.addEventListener('click', () => addRequirement());
 function populateRequirement(editor, values) { editor.querySelector('input[name$=".Target"]').value = values.target; editor.querySelector('.requirement-kind').value = values.kind; editor.querySelector('.requirement-kind').dispatchEvent(new Event('change')); editor.querySelector('.challenge-description').value = values.kind === 'challenge' ? values.description : ''; editor.querySelector('input[name$=".DuplicatesAllowed"]').checked = values.duplicatesAllowed; editor.querySelectorAll('.boss-checkbox').forEach(input => input.checked = values.bossIds.includes(input.value)); editor.querySelector('.boss-checkbox')?.dispatchEvent(new Event('change')); const hasWeights = Object.values(values.dropWeights || {}).some(weight => weight > 1); const weightsToggle = editor.querySelector('.individual-drop-weights-toggle'); if (weightsToggle) weightsToggle.checked = hasWeights; editor.querySelectorAll('.eligible-drop-checkbox').forEach(input => { input.checked = values.dropIds.includes(input.value); const weightInput = input.closest('.eligible-drop-option')?.querySelector('.drop-weight-field input'); if (weightInput) weightInput.value = values.dropWeights?.[input.value] || 1; }); weightsToggle?.dispatchEvent(new Event('change')); }
+function prepareCreateTileEditor(position) {
+    activeTileId = null;
+    activeCreatePosition = String(position ?? '');
+    resetTileForm();
+    document.getElementById('tile-position').value = activeCreatePosition;
+    document.getElementById('create-tile-heading').textContent = `Create tile in position ${Number(activeCreatePosition) + 1}`;
+    document.getElementById('save-tile-button').textContent = 'Create tile';
+    tileEditorGuard.initialize();
+}
+function prepareEditTileEditor(tile) {
+    activeTileId = tile.id;
+    activeCreatePosition = '';
+    resetTileForm();
+    tileForm.action = tileForm.dataset.editAction;
+    document.getElementById('tile-id').value = tile.id;
+    document.getElementById('tile-name').value = tile.name;
+    document.getElementById('TileDraft_Description').value = tile.description;
+    document.getElementById('tile-remove-image-row').hidden = !tile.imageUrl;
+    document.getElementById('TileDraft_RemoveImage').checked = false;
+    document.getElementById('TileDraft_ManualEhb').value = tile.manualEhb ?? '';
+    tileNameEdited = true;
+    document.getElementById('requirements').innerHTML = '';
+    requirementIndex = 0;
+    tile.requirements.forEach(requirement => addRequirement(requirement));
+    document.getElementById('create-tile-heading').textContent = `Edit ${tile.name}`;
+    document.getElementById('save-tile-button').textContent = 'Save tile';
+    tileEditorGuard.initialize();
+}
+function restoreTileEditor() {
+    const tile = activeTileId ? tileEditorData.get(activeTileId) : null;
+    if (tile) prepareEditTileEditor(tile);
+    else prepareCreateTileEditor(activeCreatePosition);
+}
+function closeTileEditorNow() { if (!tileEditorGuard.pending) createDialog?.close(); }
+function discardAndCloseTileEditor() { if (tileEditorGuard.pending) return; restoreTileEditor(); closeTileEditorNow(); }
+function requestTileEditorClose() {
+    if (!createDialog?.open || tileEditorGuard.pending || tileSavePending) return;
+    if (cancelObjectiveRemoval()) return;
+    if (tileEditorGuard.cancelDiscard()) return;
+    if (tileEditorGuard.dirtyForms().length) { tileEditorGuard.confirmDiscard(discardAndCloseTileEditor); return; }
+    closeTileEditorNow();
+}
+createDialog?.addEventListener('cancel', event => { event.preventDefault(); requestTileEditorClose(); });
 document.addEventListener('click', event => {
     if (!(event.target instanceof Element)) return;
 
     const createButton = event.target.closest('.create-tile-button');
     if (createButton) {
-        resetTileForm();
-        document.getElementById('tile-position').value = createButton.dataset.position;
-        document.getElementById('create-tile-heading').textContent = `Create tile in position ${Number(createButton.dataset.position) + 1}`;
-        document.getElementById('save-tile-button').textContent = 'Create tile';
-        showBoardDialog(createDialog);
+        continueBoardAction(() => { prepareCreateTileEditor(createButton.dataset.position); showBoardDialog(createDialog); });
         return;
     }
 
@@ -431,34 +519,23 @@ document.addEventListener('click', event => {
     if (editButton) {
         const tile = tileEditorData.get(editButton.dataset.tileId);
         if (!tile) return;
-        resetTileForm();
-        tileForm.action = tileForm.dataset.editAction;
-        document.getElementById('tile-id').value = tile.id;
-        document.getElementById('tile-name').value = tile.name;
-        document.getElementById('TileDraft_Description').value = tile.description;
-        document.getElementById('tile-remove-image-row').hidden = !tile.imageUrl;
-        document.getElementById('TileDraft_RemoveImage').checked = false;
-        document.getElementById('TileDraft_ManualEhb').value = tile.manualEhb ?? '';
-        tileNameEdited = true;
-        document.getElementById('requirements').innerHTML = '';
-        requirementIndex = 0;
-        tile.requirements.forEach(requirement => addRequirement(requirement));
-        document.getElementById('create-tile-heading').textContent = `Edit ${tile.name}`;
-        document.getElementById('save-tile-button').textContent = 'Save tile';
-        showBoardDialog(createDialog);
+        continueBoardAction(() => { prepareEditTileEditor(tile); showBoardDialog(createDialog); });
         return;
     }
 
     const detailsButton = event.target.closest('.tile-details-button');
-    if (detailsButton) showBoardDialog(document.getElementById(detailsButton.dataset.detailsId));
+    if (detailsButton) continueBoardAction(() => { closeTileEditorNow(); showBoardDialog(document.getElementById(detailsButton.dataset.detailsId)); });
 });
 document.getElementById('confirm-remove-objective')?.addEventListener('click', () => {
+    if (tileEditorGuard.pending) return;
     if (objectiveToRemove?.isConnected) {
-        objectiveToRemove.remove();
+        const removed = objectiveToRemove;
+        cancelObjectiveRemoval();
+        removed.remove();
         renumberObjectiveHeadings();
+        document.getElementById('add-requirement')?.focus();
     }
     objectiveToRemove = null;
-    removeObjectiveDialog?.close();
 });
 function initializeRequirements() {
         document.querySelectorAll('.requirement-editor:not([data-ready])').forEach(editor => {
@@ -471,13 +548,110 @@ function initializeRequirements() {
         const weightsToggle = editor.querySelector('.individual-drop-weights-toggle'); const weightFields = [...editor.querySelectorAll('.drop-weight-field')];
         const updateWeights = () => { const enabled = weightsToggle?.checked === true; weightFields.forEach(field => { field.hidden = !enabled; const input = field.querySelector('input'); if (input && !enabled) input.value = '1'; }); };
         weightsToggle?.addEventListener('change', updateWeights); updateWeights();
-        editor.querySelector('.remove-requirement')?.addEventListener('click', () => { objectiveToRemove = editor; showBoardDialog(removeObjectiveDialog); });
+        editor.querySelector('.remove-requirement')?.addEventListener('click', event => {
+            if (tileSavePending || tileEditorGuard.pending) return;
+            cancelObjectiveRemoval(); objectiveToRemove = editor;
+            editor.append(removeObjectiveDialog); event.currentTarget.hidden = true;
+            removeObjectiveDialog.hidden = false;
+            removeObjectiveDialog.scrollIntoView?.({ block: 'nearest' });
+            document.getElementById('cancel-remove-objective')?.focus();
+        });
     });
     renumberObjectiveHeadings();
 }
 initializeRequirements();
+window.addEventListener('beforeunload', event => {
+    if (tileSavePending || tileEditorGuard.pending || tileEditorGuard.dirtyForms().length) { event.preventDefault(); event.returnValue = ''; }
+});
 document.querySelectorAll('form[data-auto-submit] input').forEach(input => input.addEventListener('change', () => input.form.requestSubmit()));
-document.getElementById('create-tile-form')?.addEventListener('submit', () => { document.querySelectorAll('#requirements .requirement-editor').forEach((editor, index) => editor.querySelectorAll('[name]').forEach(field => field.name = field.name.replace(/Requirements\[-?\d+\]/, `Requirements[${index}]`))); });
+document.addEventListener('click', event => {
+    const link = event.target.closest?.('a[href]');
+    if (tileSavePending) { event.preventDefault(); event.stopImmediatePropagation(); return; }
+    if (!link || !createDialog?.open || !tileEditorGuard.dirtyForms().length) return;
+    if ((link.target && link.target.toLowerCase() !== '_self') || link.hasAttribute('download') || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || (event.button != null && event.button !== 0)) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    continueBoardAction(() => { closeTileEditorNow(); window.location.assign(link.href); });
+}, true);
+document.addEventListener('submit', event => {
+    if (tileSavePending || tileEditorGuard.pending) { event.preventDefault(); event.stopImmediatePropagation(); return; }
+    if (event.target === tileForm) return;
+    if (createDialog?.open && tileEditorGuard.dirtyForms().length) {
+        event.preventDefault(); event.stopImmediatePropagation();
+        const submitter = event.submitter;
+        continueBoardAction(() => { closeTileEditorNow(); event.target.requestSubmit(submitter); });
+    }
+}, true);
+document.querySelectorAll('form[data-board-tile-remove]').forEach(form => {
+    const trigger = form.querySelector('[data-tile-remove-trigger]');
+    const box = form.querySelector('[data-tile-remove-confirmation]');
+    const cancel = form.querySelector('[data-tile-remove-cancel]');
+    const hide = () => { box.hidden = true; trigger.hidden = false; trigger.focus(); };
+    trigger.addEventListener('click', () => {
+        if (tileSavePending) return;
+        trigger.hidden = true; box.hidden = false;
+        box.scrollIntoView({ block: 'nearest' }); cancel.focus();
+    });
+    cancel.addEventListener('click', hide);
+    form.closest('dialog').addEventListener('cancel', event => {
+        if (tileSavePending || !box.hidden) { event.preventDefault(); if (!tileSavePending) hide(); }
+    });
+});
+async function saveBoardTile(event) {
+    event.preventDefault();
+    if (tileSavePending || tileEditorGuard.pending || tileSaveBlocked) return;
+    const form = event.currentTarget;
+    document.querySelectorAll('#requirements .requirement-editor').forEach((editor, index) => editor.querySelectorAll('[name]').forEach(field => field.name = field.name.replace(/Requirements\[-?\d+\]/, `Requirements[${index}]`)));
+    const data = new FormData(form);
+    if (event.submitter?.name) data.append(event.submitter.name, event.submitter.value);
+    const currentUrl = window.location.href;
+    const pageState = capturePostNavigationState();
+    const dialog = form.closest('dialog');
+    const controls = [...dialog.querySelectorAll('input, select, textarea, button')].filter(control => !control.disabled);
+    tileSavePending = true;
+    controls.forEach(control => control.disabled = true);
+    form.setAttribute('aria-busy', 'true');
+    let committed = false;
+    let message = @Json.Serialize(T["The save outcome could not be confirmed. Your inputs are retained. Reload and check the board before trying again."].Value);
+    try {
+        const response = await fetch(form.action, { method: 'POST', body: data, credentials: 'same-origin' });
+        const html = await response.text();
+        const result = new DOMParser().parseFromString(html, 'text/html');
+        const board = result.querySelector('.board-page');
+        const outcome = board?.dataset.boardTileOutcome;
+        committed = outcome === 'committed';
+        if (committed && response.ok) {
+            tileSaveBlocked = true;
+            tileSavePending = false;
+            tileEditorGuard.initialize();
+            rememberPostNavigationState(pageState, currentUrl, response.url || currentUrl);
+            document.open(); document.write(html); document.close();
+            return;
+        }
+        tileSaveBlocked = outcome !== 'failed' || board?.dataset.boardVersion !== data.get('BoardVersion');
+        const serverMessage = result.querySelector('[data-transient-toast] .app-toast-copy span')?.textContent?.trim();
+        if (outcome === 'failed') message = tileSaveBlocked
+            ? @Json.Serialize(T["This record changed. Your edits are still here. Reload current values before saving again."].Value)
+            : serverMessage || @Json.Serialize(T["The changes were not saved. Your inputs are retained."].Value);
+    } catch {
+        tileSaveBlocked = true;
+        if (committed) message = @Json.Serialize(T["The changes were saved, but the board could not be refreshed. Reload to see the saved board. Do not submit again."].Value);
+    } finally {
+        tileSavePending = false;
+        controls.forEach(control => control.disabled = false);
+        form.removeAttribute('aria-busy');
+        if (committed) tileEditorGuard.initialize();
+    }
+    form.querySelectorAll('button[type="submit"], #save-tile-button').forEach(button => button.disabled = tileSaveBlocked);
+    let feedback = dialog.querySelector('[data-board-editor-feedback]');
+    if (!feedback) { feedback = document.createElement('p'); feedback.setAttribute('data-board-editor-feedback', ''); feedback.setAttribute('role', 'alert'); feedback.tabIndex = -1; dialog.append(feedback); }
+    feedback.textContent = message; feedback.hidden = false; feedback.focus();
+    let reload = dialog.querySelector('[data-board-reload]');
+    if (!reload) { reload = document.createElement('button'); reload.setAttribute('data-board-reload', ''); reload.type = 'button'; reload.className = 'btn admin-button-secondary'; reload.textContent = @Json.Serialize(T["Reload"].Value); dialog.append(reload); }
+    reload.hidden = !tileSaveBlocked;
+    reload.onclick = () => continueBoardAction(() => { tileEditorGuard.initialize(); window.location.reload(); });
+}
+tileForm?.addEventListener('submit', saveBoardTile);
+document.querySelectorAll('form[data-board-tile-remove]').forEach(form => form.addEventListener('submit', saveBoardTile));
 })();
 </script>
 }

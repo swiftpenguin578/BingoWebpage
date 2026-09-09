@@ -36,6 +36,12 @@
     {
         <header class="admin-account-route-heading"><div><h1 id="@headingId">@item.Username</h1><p>@(item.AccountType == AccountType.WebsiteAccount ? T["Website account administration"] : T["Team-scoped emergency credential administration"])</p></div></header>
     }
+    <div class="event-confirmation-box account-editor-discard" data-account-editor-discard role="alertdialog" aria-labelledby="account-discard-title" hidden>
+        <p><strong id="account-discard-title">@T["Discard unsaved changes?"]</strong><br />@T["Continuing will discard unsaved changes in this editor."]</p>
+        <div class="event-confirmation-actions"><button type="button" class="admin-button-secondary" data-account-editor-keep>@T["Cancel"]</button><button type="button" class="admin-button-secondary action-danger-outline" data-account-editor-discard-confirm>@T["Discard changes"]</button></div>
+    </div>
+    <p data-account-editor-feedback role="alert" tabindex="-1" hidden></p>
+
     <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
 
     <section class="admin-account-route-panel admin-account-summary-panel">

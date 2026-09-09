@@ -40,10 +40,17 @@ assert.ok(manageScript.includes("hide(false, false)"));
 assert.ok(manageScript.includes("const focusTarget = directRouteFallback && returnToParticipants ? trigger : opener"));
 assert.ok(manageScript.includes("!focusTarget.hidden"));
 assert.ok(manageScript.includes("setRouteVisibility(true)"));
+assert.ok(manageScript.includes("window.createAdminEditorGuard"));
+assert.ok(manageScript.includes('prefix: "participant-add"'));
+assert.ok(manageScript.includes("response.url || action"));
+assert.ok(!manageScript.includes("const canEnhance = () => window.innerWidth > 900"));
 assert.ok(participantsMarkup.includes("data-participant-add-route-trigger hidden"));
 assert.ok(participantsMarkup.indexOf("data-participant-add-route-trigger hidden") < participantsMarkup.indexOf('<section class="participant-add-route-page"'));
+assert.ok(participantForm.includes("data-participant-add-discard"));
+assert.ok(participantForm.includes("data-participant-add-feedback"));
 assert.ok(participantForm.includes('class="btn admin-button-create" type="submit">+ @T["Create participant"]'));
 assert.ok(siteCss.includes(".admin-shell-body .admin-button-create"));
+assert.ok(siteCss.includes("#participant-add-dialog { width: 100%; max-width: none; height: 100dvh;"));
 assert.ok(!siteCss.includes("participant-add-dialog-page .admin-dialog-page-actions .admin-button-primary"));
 
 class Element {
@@ -196,6 +203,7 @@ global.window = {
   history: { replaceState(_state, _title, next) { this.last = next; global.window.location.href = next instanceof URL ? next.href : `https://example.test${next}`; }, pushState(_state, _title, next) { this.last = next; global.window.location.href = next instanceof URL ? next.href : `https://example.test${next}`; }, state: null },
   setTimeout(callback) { callback(); },
   addEventListener() {},
+  removeEventListener() {},
   fetch: async (url) => { global.fetchedParticipantUrl = String(url); return { ok: false }; }
 };
 global.history = global.window.history;
@@ -209,6 +217,7 @@ global.document = {
   querySelectorAll(selector) { return selector === ".event-participants-page" ? [page] : []; }
 };
 
+require("../../src/Bingo.Web/wwwroot/js/admin-editor-guard.js");
 require("../../src/Bingo.Web/wwwroot/js/event-manage.js");
 
 void (async () => {

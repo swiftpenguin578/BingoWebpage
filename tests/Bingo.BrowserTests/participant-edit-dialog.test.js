@@ -21,6 +21,7 @@ class Node {
   }
 
   append(...children) { children.flat().forEach(child => { child.parentElement = this; this.children.push(child); }); }
+  prepend(...children) { children.forEach(child => { child.parentElement = this; }); this.children.unshift(...children); }
   replaceChildren(...children) { this.children = []; this.append(...children); }
   replaceWith(next) { const index = this.parentElement.children.indexOf(this); this.parentElement.children.splice(index, 1, next); next.parentElement = this.parentElement; }
   remove() { this.parentElement?.children.splice(this.parentElement.children.indexOf(this), 1); this.parentElement = null; }
@@ -34,6 +35,7 @@ class Node {
   getAttribute(name) { if (name === "id") return this.id ?? null; if (name === "class") return this.className || null; return this.attributes[name] ?? null; }
   removeAttribute(name) { delete this.attributes[name]; }
   focus() { this.focused = true; }
+  scrollIntoView(options) { this.scrollOptions = options; }
   contains(node) { return this === node || this.children.some(child => child.contains(node)); }
   closest(selector) { for (let node = this; node; node = node.parentElement) if (node.matches(selector)) return node; return null; }
   querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
@@ -69,7 +71,7 @@ class Node {
     if (selector === "[open]") return this.open;
     return this.tagName === selector.toUpperCase();
   }
-  cloneNode(deep) { return new this.constructor(this.tagName, { id: this.id, className: this.className, dataset: { ...this.dataset }, textContent: this.textContent, children: deep ? this.children.map(child => child.cloneNode(true)) : [] }); }
+  cloneNode(deep) { const copy = new this.constructor(this.tagName, { id: this.id, className: this.className, dataset: { ...this.dataset }, textContent: this.textContent, children: deep ? this.children.map(child => child.cloneNode(true)) : [] }); copy.hidden = this.hidden; return copy; }
 }
 
 class Form extends Node {}
@@ -87,18 +89,29 @@ function editor(overlay) {
   if (overlay) page.append(new Node("button", { dataset: { participantEditClose: "" } }));
   const workspace = new Node("div", { className: "participant-admin-workspace" });
   const form = new Form("form");
-  workspace.append(form);
+  workspace.append(form, new Form("form", { id: "admin-notes" }));
+  const discard = new Node("div", { dataset: { participantEditorDiscard: "" }, children: [new Node("button", { dataset: { participantEditorKeep: "" } }), new Node("button", { dataset: { participantEditorDiscardConfirm: "" } })] });
+  discard.hidden = true;
+  page.append(new Node("p", { dataset: { participantEditorFeedback: "" } }));
+  page.append(discard);
   page.append(workspace);
   if (overlay) {
     const footer = new Node("div", { className: "participant-lifecycle-footer" });
-    const confirmation = new Node("details", { className: "participant-confirmation-box participant-restore-confirmation" });
-    const summary = new Node("summary", { className: "admin-button-secondary" });
-    const box = new Node("div", { className: "event-confirmation-box" });
-    const cancel = new Node("button", { dataset: { confirmationCancel: "" } });
-    const confirm = new Node("button", { className: "admin-button-secondary" });
-    confirmation.append(summary, box);
-    box.append(cancel, confirm);
-    footer.append(confirmation);
+    const participantConfirmation = className => {
+      const confirmation = new Node("details", { className });
+      const summary = new Node("summary", { className: "admin-button-secondary" });
+      const box = new Node("div", { className: "event-confirmation-box" });
+      const cancel = new Node("button", { dataset: { confirmationCancel: "" } });
+      const confirm = new Node("button", { className: "admin-button-secondary" });
+      confirmation.append(summary, box);
+      box.append(cancel, confirm);
+      return confirmation;
+    };
+    footer.append(
+      participantConfirmation("participant-confirmation-box participant-ownership-confirmation"),
+      participantConfirmation("participant-confirmation-box participant-restore-confirmation"),
+      participantConfirmation("admin-destructive-confirmation participant-confirmation-box")
+    );
     page.append(footer);
   }
   page.form = form;
@@ -115,7 +128,7 @@ function participantsPage() {
   status.value = "";
   status.setAttribute("name", "ParticipantStatus");
   filter.append(search, status);
-  page.append(filter);
+  page.append(filter, new Node("a", { dataset: { signupQuestionsTrigger: "true" } }));
   const row = new Node("div", { dataset: { participantId: "p1" } });
   row.append(new Node("a", { className: "participant-edit-action", dataset: {}, children: [] }));
   row.children[0].setAttribute("href", "/Admin/Events/Participant/test/Participants/p1");
@@ -141,7 +154,7 @@ const replacements = [];
 let mainReplacementWasHidden = null;
 const windowListeners = {};
 const documentListeners = {};
-const body = new Node("body");
+const body = new Node("body", { dataset: { adminParentRefreshError: "Saved; close to refresh." } });
 const main = new Node("main", { id: "main-content" });
 const initialEditor = editor(false);
 body.append(adminPageContext("Participants"));
@@ -153,9 +166,11 @@ const history = {
   state: entries[0].state,
   replaceState(state, _title, value) { historyReplaceCount++; entries[entryIndex] = { state, url: new URL(value, window.location.href).href }; this.state = state; setUrl(entries[entryIndex].url); },
   pushState(state, _title, value) { entries.splice(entryIndex + 1); entries.push({ state, url: new URL(value, window.location.href).href }); entryIndex++; this.state = state; setUrl(entries[entryIndex].url); },
+  forward() { entryIndex++; this.state = entries[entryIndex].state; setUrl(entries[entryIndex].url); windowListeners.popstate?.forEach(listener => listener({ type: "popstate" })); },
   back() { if (entryIndex === 0) return; entryIndex--; this.state = entries[entryIndex].state; setUrl(entries[entryIndex].url); windowListeners.popstate?.forEach(listener => listener({ type: "popstate" })); }
 };
 
+global.CustomEvent = class { constructor(type, options) { this.type = type; Object.assign(this, options); } };
 global.HTMLElement = Node;
 global.HTMLFormElement = Form;
 global.HTMLSelectElement = class extends Node {};
@@ -163,15 +178,17 @@ global.HTMLInputElement = class extends Node {};
 global.HTMLDialogElement = Dialog;
 global.window = {
   innerWidth: 1200,
-  location: { href: entries[0].url, replace(value) { this.replaced = new URL(value, this.href).href; replacements.push(this.replaced); setUrl(this.replaced); } },
+  scrollX: 0, scrollY: 320, scrollTo(value) { this.lastScroll = value; },
+  location: { href: entries[0].url, reload() { this.reloadCount = (this.reloadCount || 0) + 1; }, replace(value) { this.replaced = new URL(value, this.href).href; replacements.push(this.replaced); setUrl(this.replaced); } },
   history,
   fetch: async url => {
     requestedUrls.push(String(url));
     if (failedDirectEntry && String(url).includes("/Participant/test/")) throw new Error("forced editor fetch failure");
-    return { ok: true, text: async () => String(url).includes("/Participants/test") && !String(url).includes("/Participant/test/") ? "participants" : "overlay-editor" };
+    return { ok: true, headers: { get: () => null }, text: async () => String(url).includes("/Participants/test") && !String(url).includes("/Participant/test/") ? "participants" : "overlay-editor" };
   },
   setTimeout: callback => callback(),
   addEventListener(type, listener) { (windowListeners[type] ??= []).push(listener); },
+  removeEventListener(type, listener) { windowListeners[type] = (windowListeners[type] || []).filter(item => item !== listener); },
   dispatchEvent(event) { windowListeners[event.type]?.forEach(listener => listener(event)); }
 };
 global.history = history;
@@ -179,6 +196,7 @@ global.document = {
   body,
   activeElement: null,
   addEventListener(type, listener) { (documentListeners[type] ??= []).push(listener); },
+  removeEventListener(type, listener) { documentListeners[type] = (documentListeners[type] || []).filter(item => item !== listener); },
   dispatchEvent(event) { documentListeners[event.type]?.forEach(listener => listener(event)); },
   createElement: tag => tag === "dialog" ? new Dialog() : new Node(tag),
   importNode: node => node.cloneNode(true),
@@ -186,12 +204,20 @@ global.document = {
   querySelectorAll: selector => body.querySelectorAll(selector)
 };
 global.DOMParser = class {
-  parseFromString(value) { return { querySelector: selector => value === "participants" && selector === ".event-participants-page" ? participantsPage() : value === "participants" && selector === ".admin-page-context" ? adminPageContext("Participants & signups", "Manage signup settings, capacity, and participants.") : value === "overlay-editor" && selector === "[data-participant-edit-page]" ? editor(true) : null }; }
+  parseFromString(value) { return { querySelectorAll: () => [], querySelector: selector => value === "participants" && selector === ".event-participants-page" ? participantsPage() : value === "participants" && selector === ".admin-page-context" ? adminPageContext("Participants & signups", "Manage signup settings, capacity, and participants.") : value === "overlay-editor" && selector === "[data-participant-edit-page]" ? editor(true) : null }; }
 };
 
 const originalMainReplaceChildren = main.replaceChildren.bind(main);
 main.replaceChildren = (...children) => { mainReplacementWasHidden = main.hidden; originalMainReplaceChildren(...children); };
 
+global.FormData = class { constructor(form) { this.entries = form.entries || []; } [Symbol.iterator]() { return this.entries[Symbol.iterator](); } };
+require("../../src/Bingo.Web/wwwroot/js/admin-editor-guard.js");
+const questionsDialog = new Dialog();
+questionsDialog.id = "signup-questions-dialog";
+questionsDialog.dataset.signupQuestionsDialog = "";
+questionsDialog.append(new Node("div", { dataset: { signupQuestionsContent: "" } }));
+body.append(questionsDialog);
+require("../../src/Bingo.Web/wwwroot/js/signup-questions-overlay.js");
 require("../../src/Bingo.Web/wwwroot/js/event-manage.js");
 
 (async () => {
@@ -218,6 +244,9 @@ require("../../src/Bingo.Web/wwwroot/js/event-manage.js");
   assert.equal(document.querySelector(".admin-page-context .admin-page-title")?.textContent, "Participants & signups", "restored dialog keeps the canonical Participants header");
   assert.equal(document.querySelector(".admin-page-context .admin-page-description")?.textContent, "Manage signup settings, capacity, and participants.", "restored dialog keeps the canonical Participants description");
   assert.equal(history.state?.participantEditOverlay, true, "restored dialog keeps its history state");
+  const restoredQuestionsTrigger = main.querySelector("[data-signup-questions-trigger='true']");
+  assert.equal(restoredQuestionsTrigger.dataset.signupQuestionsTriggerReady, "true", "direct reload restoration binds the shared Questions trigger that did not exist at script startup");
+  assert.equal(restoredQuestionsTrigger.listeners.click.length, 1, "restoration binds the Questions trigger once");
   const dialog = document.querySelector("dialog#participant-edit-dialog[open]");
   assert.ok(dialog, "direct desktop entry opens the participant dialog");
 
@@ -232,8 +261,20 @@ require("../../src/Bingo.Web/wwwroot/js/event-manage.js");
   assert.equal(confirm.classList.contains("admin-button-primary"), false, "Restore confirmation does not use the primary action");
   assert.equal(confirm.classList.contains("admin-button-accent-outline"), false, "Restore confirmation does not use the invented Admin accent-outline action");
   assert.equal(confirm.classList.contains("action-accent-outline"), false, "Restore confirmation does not use the legacy accent-outline action");
+  const revealParticipantConfirmation = (item, label) => {
+    item.open = true;
+    item.setAttribute("open", "");
+    item.dispatch("toggle");
+    assert.deepEqual(item.scrollOptions, { block: "nearest" }, `${label} reveal scrolls into view`);
+    item.querySelector("[data-confirmation-cancel]").dispatch("click");
+    assert.equal(item.open, false, `${label} Cancel closes only the confirmation`);
+  };
+  revealParticipantConfirmation(dialog.querySelector("details.participant-ownership-confirmation"), "Transfer ownership");
+  revealParticipantConfirmation(dialog.querySelector("details.admin-destructive-confirmation"), "Remove");
   confirmation.open = true;
   confirmation.setAttribute("open", "");
+  confirmation.dispatch("toggle");
+  assert.deepEqual(confirmation.scrollOptions, { block: "nearest" }, "Restore reveal scrolls into view");
   assert.ok(confirmation.querySelector(".event-confirmation-box"), "Restore uses the compact confirmation layer");
   assert.ok(confirm, "Restore confirmation uses the accent-outline action");
   cancel.dispatch("click");
@@ -246,7 +287,51 @@ require("../../src/Bingo.Web/wwwroot/js/event-manage.js");
   assert.equal(confirmation.open, false, "Restore Escape closes only the confirmation");
   assert.equal(dialog.open, true, "Restore Escape retains the participant dialog");
 
+  const beforeSave = requestedUrls.length;
+  const priorRow = main.querySelector("[data-participant-id]");
+  dialog.querySelector("form").dispatch("submit");
+  for (let index = 0; index < 30; index++) await Promise.resolve();
+  assert.equal(requestedUrls.length, beforeSave + 2, "successful save fetches its current parent once");
+  assert.equal(requestedUrls.at(-1), `https://example.test${canonicalListPath}`, "refresh retains parent filters and sort");
+  assert.notEqual(main.querySelector("[data-participant-id]"), priorRow, "parent rows and concurrency fields are replaced");
+  assert.equal(dialog.open, true, "refresh keeps editor open");
+  assert.deepEqual(window.lastScroll, { left: 0, top: 320 });
+
+  const normalFetch = window.fetch;
+  window.fetch = async (url, options) => options?.method === "POST" ? normalFetch(url, options) : { ok: false };
+  dialog.querySelector("form").dispatch("submit");
+  for (let index = 0; index < 20; index++) await Promise.resolve();
+  assert.equal(dialog.querySelector("[data-participant-editor-feedback]").textContent, "Saved; close to refresh.", "refresh failure acknowledges persisted save without suggesting another POST");
+  window.fetch = normalFetch;
+
+  let failedSaveRequests = 0;
+  window.fetch = async () => { failedSaveRequests++; return { ok: false }; };
+  const currentRow = main.querySelector("[data-participant-id]");
+  dialog.querySelector("form").dispatch("submit");
+  for (let index = 0; index < 10; index++) await Promise.resolve();
+  assert.equal(failedSaveRequests, 1, "failed mutation does not fetch the parent");
+  assert.equal(main.querySelector("[data-participant-id]"), currentRow);
+  window.fetch = normalFetch;
+
   const form = dialog.querySelector("form");
+  form.entries = [["Input.Answer", "Unsaved answer"]];
+  const discard = dialog.querySelector("[data-participant-editor-discard]");
+  const keep = dialog.querySelector("[data-participant-editor-keep]");
+  const beforeGuardFetches = requestedUrls.length;
+  dialog.querySelector("#admin-notes").dispatch("submit");
+  assert.equal(requestedUrls.length, beforeGuardFetches, "another form cannot save over unsaved answers without a discard decision");
+  assert.equal(discard.hidden, false);
+  keep.dispatch("click");
+  assert.equal(form.entries[0][1], "Unsaved answer");
+  history.back();
+  assert.equal(dialog.open, true, "dirty Back keeps the editor open");
+  assert.equal(new URL(window.location.href).searchParams.get("overlay"), "1");
+  assert.equal(discard.hidden, false);
+  keep.dispatch("click");
+  dialog.querySelector("[data-participant-edit-close]").dispatch("click");
+  assert.equal(discard.hidden, false, "Close uses the same discard decision");
+  keep.dispatch("click");
+  form.entries = [];
   const replacement = new Node("div", { className: "participant-admin-workspace", textContent: "Validation: enter a valid character" });
   document.dispatchEvent({ type: "bingo:content-will-update", detail: { selectors: [".participant-admin-workspace"], form } });
   dialog.querySelector(".participant-admin-workspace").replaceWith(replacement);
@@ -257,6 +342,7 @@ require("../../src/Bingo.Web/wwwroot/js/event-manage.js");
 
   dialog.querySelector("[data-participant-edit-close]").dispatch("click");
   assert.equal(window.location.href, `https://example.test${canonicalListPath}`, "close restores the canonical list URL");
+  assert.equal(window.location.reloadCount, 1, "failed parent refresh forces a document reload even at the same fragment-bearing parent URL");
   assert.equal(history.state?.participantEditOverlay, undefined, "close removes participant dialog route state");
   assert.equal(history.state?.participantEditBase, undefined, "close removes the participant base marker");
   assert.equal(history.state?.participantEditReturnUrl, undefined, "close removes the participant return marker");
@@ -269,6 +355,7 @@ require("../../src/Bingo.Web/wwwroot/js/event-manage.js");
   for (let index = 0; index < 10; index++) await Promise.resolve();
   window.innerWidth = 800;
   window.dispatchEvent({ type: "resize" });
-  assert.equal(new URL(window.location.replaced).pathname, directPath, "narrow resize navigates to the normal edit route");
-  assert.equal(new URL(window.location.replaced).searchParams.has("overlay"), false);
+  assert.ok(document.querySelector("dialog#participant-edit-dialog[open]"), "narrow resize retains the same modal");
+  assert.equal(new URL(window.location.href).searchParams.get("overlay"), "1");
+  assert.equal(window.location.replaced, undefined, "resize never navigates away from the editor");
 })().catch(error => { console.error(error); process.exitCode = 1; });

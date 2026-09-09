@@ -629,7 +629,7 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AdminReviewKeepsLinkedChildSubmissionInTheExistingQueueQuery()
+    public async Task AdminReviewDetailsJourneyPreservesFiltersAndSubmissionEventBoundaries()
     {
         var now = DateTimeOffset.UtcNow;
         var admin = Website("admin-review-linked-child", now);
@@ -659,10 +659,165 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(client, admin.LoginName);
 
-        using var response = await client.GetAsync($"/Admin/Review?eventId={live.Id}");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var html = await response.Content.ReadAsStringAsync();
-        Assert.Contains($"/Admin/Review/Details/{child.Id}", html, StringComparison.Ordinal);
+        var search = "Admin review player";
+        var queueUrl = $"/Admin/Review?eventId={live.Id}&search={Uri.EscapeDataString(search)}&status=Pending";
+        var queueHtml = await client.GetStringAsync(queueUrl);
+        var detailsUrl = WebUtility.HtmlDecode(Regex.Match(queueHtml, $"<a class=\"admin-review-cell-value admin-review-submission-link\"[^>]*href=\"([^\"]*/Admin/Review/Details/{child.Id}[^\"]*)\"").Groups[1].Value);
+        Assert.NotEmpty(detailsUrl);
+        var detailsHtml = await client.GetStringAsync(detailsUrl);
+        AssertContext(detailsHtml);
+
+        var rejectForm = Regex.Matches(detailsHtml, @"<form\b[\s\S]*?</form>")
+            .Select(match => match.Value).Single(form => form.Contains("data-admin-review-reject-form", StringComparison.Ordinal));
+        var action = WebUtility.HtmlDecode(Regex.Match(rejectForm, "action=\"([^\"]+)\"").Groups[1].Value);
+        var fields = Regex.Matches(rejectForm, @"<input\b[^>]*>").Select(match => match.Value)
+            .Where(input => input.Contains("type=\"hidden\"", StringComparison.Ordinal))
+            .ToDictionary(input => Regex.Match(input, "name=\"([^\"]+)\"").Groups[1].Value,
+                input => WebUtility.HtmlDecode(Regex.Match(input, "value=\"([^\"]*)\"").Groups[1].Value));
+        fields["Input.Reason"] = "Journey rejection reason.";
+        using var decision = await client.PostAsync(action, new FormUrlEncodedContent(fields));
+        Assert.Equal(HttpStatusCode.Redirect, decision.StatusCode);
+        var redirect = decision.Headers.Location!.OriginalString;
+        Assert.StartsWith($"/Admin/Review/Details/{child.Id}?", redirect, StringComparison.Ordinal);
+        var resolvedHtml = await client.GetStringAsync(redirect);
+        AssertContext(resolvedHtml);
+        Assert.Contains("Journey rejection reason.", resolvedHtml, StringComparison.Ordinal);
+        var backUrl = WebUtility.HtmlDecode(Regex.Match(resolvedHtml, "<a[^>]*class=\"[^\"]*admin-review-back-link[^\"]*\"[^>]*href=\"([^\"]+)\"").Groups[1].Value);
+        var backQuery = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(client.BaseAddress!, backUrl).Query);
+        Assert.Equal(live.Id.ToString(), backQuery["eventId"].ToString());
+        Assert.Equal(search, backQuery["search"].ToString());
+        Assert.Equal("Pending", backQuery["status"].ToString());
+        var returnedQueue = await client.GetStringAsync(backUrl);
+        Assert.Contains($"data-event-id=\"{live.Id}\"", returnedQueue, StringComparison.Ordinal);
+        await using (var db = new ApplicationDbContext(options))
+            Assert.Equal(SubmissionStatus.Rejected, (await db.Submissions.SingleAsync(item => item.Id == child.Id)).Status);
+
+        AssertContext(await client.GetStringAsync($"/Admin/Review/Details/{child.Id}"));
+        var other = LiveEvent(admin.Id, "Other details context", "other-details-context", now);
+        var denied = Website("details-denied", now);
+        denied.SetPassword(new PasswordHasher<Account>().HashPassword(denied, "password"), false, now, false);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(other, denied);
+            await db.SaveChangesAsync();
+        }
+        AssertContext(await client.GetStringAsync($"/Admin/Review/Details/{child.Id}?eventId={other.Id}"));
+        using var deniedClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(deniedClient, denied.LoginName);
+        using var deniedResponse = await deniedClient.GetAsync(detailsUrl);
+        Assert.Equal(HttpStatusCode.Redirect, deniedResponse.StatusCode);
+        Assert.Contains("AccessDenied", deniedResponse.Headers.Location!.OriginalString, StringComparison.Ordinal);
+        Assert.DoesNotContain("Admin review player", await deniedResponse.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var eventItem = await db.Events.SingleAsync(item => item.Id == live.Id);
+            eventItem.EndEvent(now);
+            eventItem.FinalizeResults(now);
+            eventItem.Hide(admin.Id, now, eventItem.Name, "Hidden details boundary fixture.");
+            await db.SaveChangesAsync();
+        }
+        using var hiddenResponse = await client.GetAsync($"/Admin/Review/Details/{child.Id}?eventId={other.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, hiddenResponse.StatusCode);
+        var hiddenHtml = await hiddenResponse.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("Admin review player", hiddenHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-admin-event-navigation", hiddenHtml, StringComparison.Ordinal);
+
+        void AssertContext(string html)
+        {
+            Assert.Contains($"<span class=\"admin-selected-event-name\">{live.Name}</span>", html, StringComparison.Ordinal);
+            Assert.Contains($"data-admin-event-section=\"overview\" href=\"/Admin/Events/Manage/{live.Id}\"", html, StringComparison.Ordinal);
+            Assert.Contains("data-admin-review-detail", html, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task AdminReviewSelectsExplicitVisibleEventsAndKeepsTheQueueEventScoped()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var admin = Website("admin-review-event-scope", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "password"), false, now, false);
+        var emptyDraft = new BingoEvent(Guid.NewGuid(), "Admin review empty draft", "admin-review-empty-draft", "UTC", admin.Id, now);
+        var selected = LiveEvent(admin.Id, "Admin review finalized", "admin-review-finalized", now);
+        selected.EndEvent(now.AddHours(-1));
+        selected.FinalizeResults(now.AddMinutes(-30));
+        var other = LiveEvent(admin.Id, "Admin review other", "admin-review-other", now);
+        var hidden = LiveEvent(admin.Id, "Admin review hidden", "admin-review-hidden", now);
+        hidden.EndEvent(now.AddHours(-1));
+        hidden.FinalizeResults(now.AddMinutes(-30));
+        hidden.Hide(admin.Id, now, hidden.Name, "Hidden review boundary fixture.");
+
+        var selectedTeam = new Team(Guid.NewGuid(), selected.Id, "Selected review team", "selected-review-team", TeamFormationType.Drafted, null, true);
+        var selectedParticipant = new EventParticipant(Guid.NewGuid(), selected.Id, SignupStatus.Confirmed, 1, now.AddDays(-1), SignupSource.AdminCreated);
+        var selectedMembership = new TeamMembership(Guid.NewGuid(), selectedTeam.Id, selectedParticipant.Id, TeamMembershipRole.Participant, now.AddDays(-1), null, "test");
+        var selectedCharacter = new OsrsCharacter(Guid.NewGuid(), "Selected review player", "SELECTED REVIEW PLAYER", now);
+        var selectedAssignment = new EventParticipantCharacter(Guid.NewGuid(), selected.Id, selectedParticipant.Id, selectedCharacter.Id, 0, now, null, null, EventCharacterRole.Playing, 10m, EhbSource.Manual, null);
+        var selectedBoard = new Board(Guid.NewGuid(), selected.Id, "Selected review board", 1, 1);
+        var selectedTile = new BoardTile(Guid.NewGuid(), selectedBoard.Id, Guid.NewGuid(), 0, 0, "Selected review tile", "Description", "", 1m);
+        var selectedRequirement = new BoardRequirementSnapshot(Guid.NewGuid(), selectedTile.Id, 0, 1, true, false, "Requirement", true);
+        var selectedSubmission = new Submission(Guid.NewGuid(), selected.Id, selectedTeam.Id, selectedTile.Id, selectedRequirement.Id, null, selectedParticipant.Id, selectedCharacter.Id, selectedCharacter.DisplayName, admin.Id, 1, now.AddMinutes(-5), null, null);
+
+        var newerPending = new Submission(Guid.NewGuid(), selected.Id, selectedTeam.Id, selectedTile.Id, selectedRequirement.Id, null, selectedParticipant.Id, selectedCharacter.Id, selectedCharacter.DisplayName, admin.Id, 1, now.AddMinutes(-4), null, null);
+        var approved = new Submission(Guid.NewGuid(), selected.Id, selectedTeam.Id, selectedTile.Id, selectedRequirement.Id, null, selectedParticipant.Id, selectedCharacter.Id, selectedCharacter.DisplayName, admin.Id, 1, now.AddMinutes(-3), null, null);
+        approved.Approve(1, now);
+        var rejected = new Submission(Guid.NewGuid(), selected.Id, selectedTeam.Id, selectedTile.Id, selectedRequirement.Id, null, selectedParticipant.Id, selectedCharacter.Id, selectedCharacter.DisplayName, admin.Id, 1, now.AddMinutes(-2), null, null);
+        rejected.Reject("Ordering fixture.", now);
+
+        var otherTeam = new Team(Guid.NewGuid(), other.Id, "Other review team", "other-review-team", TeamFormationType.Drafted, null, true);
+        var otherParticipant = new EventParticipant(Guid.NewGuid(), other.Id, SignupStatus.Confirmed, 1, now.AddDays(-1), SignupSource.AdminCreated);
+        var otherMembership = new TeamMembership(Guid.NewGuid(), otherTeam.Id, otherParticipant.Id, TeamMembershipRole.Participant, now.AddDays(-1), null, "test");
+        var otherCharacter = new OsrsCharacter(Guid.NewGuid(), "Other review player", "OTHER REVIEW PLAYER", now);
+        var otherAssignment = new EventParticipantCharacter(Guid.NewGuid(), other.Id, otherParticipant.Id, otherCharacter.Id, 0, now, null, null, EventCharacterRole.Playing, 10m, EhbSource.Manual, null);
+        var otherBoard = new Board(Guid.NewGuid(), other.Id, "Other review board", 1, 1);
+        var otherTile = new BoardTile(Guid.NewGuid(), otherBoard.Id, Guid.NewGuid(), 0, 0, "Other review tile", "Description", "", 1m);
+        var otherRequirement = new BoardRequirementSnapshot(Guid.NewGuid(), otherTile.Id, 0, 1, true, false, "Requirement", true);
+        var otherSubmission = new Submission(Guid.NewGuid(), other.Id, otherTeam.Id, otherTile.Id, otherRequirement.Id, null, otherParticipant.Id, otherCharacter.Id, otherCharacter.DisplayName, admin.Id, 1, now.AddMinutes(-4), null, null);
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(admin, emptyDraft, selected, other, hidden,
+                selectedTeam, selectedParticipant, selectedMembership, selectedCharacter, selectedAssignment, selectedBoard, selectedTile, selectedRequirement, selectedSubmission, newerPending, approved, rejected,
+                otherTeam, otherParticipant, otherMembership, otherCharacter, otherAssignment, otherBoard, otherTile, otherRequirement, otherSubmission);
+            await db.SaveChangesAsync();
+        }
+
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, admin.LoginName);
+
+        var emptyResponse = await client.GetAsync($"/Admin/Review?eventId={emptyDraft.Id}");
+        var emptyHtml = await emptyResponse.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, emptyResponse.StatusCode);
+        Assert.Contains($"data-event-id=\"{emptyDraft.Id}\"", emptyHtml, StringComparison.Ordinal);
+        Assert.Contains("No submissions match these filters", emptyHtml, StringComparison.Ordinal);
+
+        var selectedResponse = await client.GetAsync($"/Admin/Review?eventId={selected.Id}");
+        var selectedHtml = await selectedResponse.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, selectedResponse.StatusCode);
+        Assert.Contains($"data-event-id=\"{selected.Id}\"", selectedHtml, StringComparison.Ordinal);
+        Assert.Contains("Selected review team", selectedHtml, StringComparison.Ordinal);
+        Assert.Contains("Selected review player", selectedHtml, StringComparison.Ordinal);
+        Assert.Contains("Selected review tile", selectedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-review-team=\"Other review team\"", selectedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-review-player=\"Other review player\"", selectedHtml, StringComparison.Ordinal);
+        Assert.Contains($"/Admin/Review/Details/{selectedSubmission.Id}", selectedHtml, StringComparison.Ordinal);
+
+        var renderedSubmissionIds = Regex.Matches(selectedHtml, @"<tr data-admin-review-row[^>]*>[\s\S]*?/Admin/Review/Details/([0-9a-f-]+)")
+            .Select(match => Guid.Parse(match.Groups[1].Value)).ToArray();
+        Assert.Equal(new[] { newerPending.Id, selectedSubmission.Id, rejected.Id, approved.Id }, renderedSubmissionIds);
+
+        var hiddenResponse = await client.GetAsync($"/Admin/Review?eventId={hidden.Id}");
+        var hiddenHtml = await hiddenResponse.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, hiddenResponse.StatusCode);
+        Assert.Contains("data-event-id=\"\"", hiddenHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Selected review team", hiddenHtml, StringComparison.Ordinal);
+
+        var invalidResponse = await client.GetAsync($"/Admin/Review?eventId={Guid.NewGuid()}");
+        var invalidHtml = await invalidResponse.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, invalidResponse.StatusCode);
+        Assert.Contains("data-event-id=\"\"", invalidHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Selected review team", invalidHtml, StringComparison.Ordinal);
     }
 
     private static BingoEvent LiveEvent(Guid ownerId, string name, string slug, DateTimeOffset now)

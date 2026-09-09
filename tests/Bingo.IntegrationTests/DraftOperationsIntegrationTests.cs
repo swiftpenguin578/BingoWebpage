@@ -24,6 +24,8 @@ using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Mvc.ViewFeatures.Infrastructure;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
@@ -232,7 +234,7 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DraftedSetupAssignmentStartsAsParticipantThenCaptainAuthorityUnlocksDraftStart()
+    public async Task DraftedSetupAssignmentCanChooseCaptainAndUnlockDraftStartInOneStep()
     {
         var setup = await SeedAsync();
         Guid secondTeamId; Guid secondMembershipId;
@@ -244,20 +246,15 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
             Assert.True((await authority.ChangeRoleAsync(new(setup.EventId, secondMembershipId, TeamMembershipRole.Participant, setup.FirstAdminId, "draft-admin"))).Succeeded);
         }
 
-        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddMemberAsync(setup.EventId, secondTeamId, setup.PlayerIds[2], "Preassign Captain", CancellationToken.None));
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddMemberAsync(setup.EventId, secondTeamId, setup.PlayerIds[2], "Preassign Captain", CancellationToken.None, role: TeamMembershipRole.Captain));
         Guid addedMembershipId;
         await using (var verify = new ApplicationDbContext(options))
         {
             var membership = await verify.TeamMemberships.SingleAsync(item => item.TeamId == secondTeamId && item.EventParticipantId == setup.PlayerIds[2] && item.LeftAt == null);
             addedMembershipId = membership.Id;
-            Assert.Equal(TeamMembershipRole.Participant, membership.Role);
-            Assert.Empty(await verify.TeamMembershipRoleTransitions.Where(item => item.TeamMembershipId == addedMembershipId).ToListAsync());
-        }
-
-        await using (var promote = new ApplicationDbContext(options))
-        {
-            var authority = new TeamCaptainAuthorityService(promote, new FixedTimeProvider(now));
-            Assert.True((await authority.ChangeRoleAsync(new(setup.EventId, addedMembershipId, TeamMembershipRole.Captain, setup.FirstAdminId, "draft-admin"))).Succeeded);
+            Assert.Equal(TeamMembershipRole.Captain, membership.Role);
+            Assert.Single(await verify.TeamMembershipRoleTransitions.Where(item => item.TeamMembershipId == addedMembershipId && item.FromRole == TeamMembershipRole.Participant && item.ToRole == TeamMembershipRole.Captain).ToListAsync());
+            Assert.Single(await verify.AuditEntries.Where(item => item.EventId == setup.EventId && item.Action == "team.membership_role_changed" && item.TargetId == addedMembershipId.ToString()).ToListAsync());
         }
         await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAcquireControlAsync(setup.EventId, CancellationToken.None));
         await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostStartAsync(setup.EventId, CancellationToken.None));
@@ -265,6 +262,106 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         await using var completed = new ApplicationDbContext(options);
         Assert.Equal(DraftState.Running, await completed.DraftSessions.Where(draft => draft.EventId == setup.EventId).Select(draft => draft.State).SingleAsync());
         Assert.Single(await completed.TeamMembershipRoleTransitions.Where(item => item.TeamMembershipId == addedMembershipId && item.ToRole == TeamMembershipRole.Captain).ToListAsync());
+    }
+
+    [Fact]
+    public async Task InvalidOrFailedSelectedRoleLeavesManualRosterAdditionWithoutResidue()
+    {
+        var setup = await SeedAsync();
+        var teamId = await TeamIdAsync(setup.EventId, "Second");
+        var before = await RosterMutationCountsAsync(setup.EventId);
+
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddMemberAsync(
+            setup.EventId, teamId, setup.PlayerIds[2], "Invalid role", CancellationToken.None,
+            role: (TeamMembershipRole)999));
+        Assert.Equal(before, await RosterMutationCountsAsync(setup.EventId));
+
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddMemberAsync(
+            setup.EventId, teamId, setup.PlayerIds[2], "Rejected role", CancellationToken.None,
+            role: TeamMembershipRole.Captain), captainAuthority: new RejectingCaptainAuthority());
+        Assert.Equal(before, await RosterMutationCountsAsync(setup.EventId));
+        var externalTeamName = $"External rollback {Guid.NewGuid():N}";
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(setup.EventId, externalTeamName, TeamFormationType.Preformed, null, CancellationToken.None));
+        var externalTeamId = await TeamIdAsync(setup.EventId, externalTeamName);
+        var externalBefore = await ExternalRosterCountsAsync(setup.EventId);
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddExternalMemberAsync(
+            setup.EventId, externalTeamId, "Rejected external", 12, "Rejected account", CancellationToken.None,
+            role: TeamMembershipRole.Captain), captainAuthority: new RejectingCaptainAuthority());
+        Assert.Equal(externalBefore, await ExternalRosterCountsAsync(setup.EventId));
+        await using var verify = new ApplicationDbContext(options);
+        Assert.False(await verify.TeamMemberships.AnyAsync(item => item.EventParticipantId == setup.PlayerIds[2] && item.LeftAt == null));
+        Assert.False(await verify.EventParticipants.AnyAsync(item => item.EventId == setup.EventId && item.Source == SignupSource.AdminCreated));
+    }
+
+    [Fact]
+    public async Task MalformedPostedRoleIsRejectedBeforeMemberOrExternalWrites()
+    {
+        var setup = await SeedAsync();
+        var draftedTeamId = await TeamIdAsync(setup.EventId, "Second");
+        var externalTeamName = $"External malformed {Guid.NewGuid():N}";
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(setup.EventId, externalTeamName, TeamFormationType.Preformed, null, CancellationToken.None));
+        var externalTeamId = await TeamIdAsync(setup.EventId, externalTeamName);
+
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+                .ConfigureServices(services =>
+                {
+                    services.RemoveAll<TimeProvider>();
+                    services.AddSingleton<TimeProvider>(new FixedTimeProvider(now));
+                }));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, await LoginNameAsync(setup.FirstAdminId));
+        var draftPath = $"/Admin/Events/Draft/{setup.EventId}";
+        var token = AntiforgeryToken(await client.GetStringAsync(draftPath));
+
+        var beforeMember = await RosterMutationCountsAsync(setup.EventId);
+        var memberResponse = await client.PostAsync($"{draftPath}?handler=AddMember", Form(token, new Dictionary<string, string>
+        {
+            ["teamId"] = draftedTeamId.ToString(),
+            ["participantId"] = setup.PlayerIds[2].ToString(),
+            ["reason"] = "Malformed role",
+            ["role"] = "NotARole"
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, memberResponse.StatusCode);
+        Assert.Contains("Choose Participant, Captain, or Co-captain.", await client.GetStringAsync(draftPath));
+        Assert.Equal(beforeMember, await RosterMutationCountsAsync(setup.EventId));
+
+        var beforeExternal = await ExternalRosterCountsAsync(setup.EventId);
+        var externalResponse = await client.PostAsync($"{draftPath}?handler=AddExternalMember", Form(token, new Dictionary<string, string>
+        {
+            ["teamId"] = externalTeamId.ToString(),
+            ["name"] = "Malformed external",
+            ["ehb"] = "7.5",
+            ["additionalAccounts"] = "",
+            ["role"] = "NotARole"
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, externalResponse.StatusCode);
+        Assert.Contains("Choose Participant, Captain, or Co-captain.", await client.GetStringAsync(draftPath));
+        Assert.Equal(beforeExternal, await ExternalRosterCountsAsync(setup.EventId));
+    }
+
+    [Fact]
+    public async Task DraftPageRendersAttentionForUnownedCurrentCaptainWithoutEmergencyAccess()
+    {
+        var setup = await SeedAsync();
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+                .ConfigureServices(services =>
+                {
+                    services.RemoveAll<TimeProvider>();
+                    services.AddSingleton<TimeProvider>(new FixedTimeProvider(now));
+                }));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, await LoginNameAsync(setup.FirstAdminId));
+
+        var response = await client.GetAsync($"/Admin/Events/Draft/{setup.EventId}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        var readiness = Regex.Matches(html, "<p class=\"team-readiness-status\">.*?</p>", RegexOptions.Singleline)
+            .Select(match => match.Value)
+            .First(block => block.Contains("A Captain is assigned, but website access is not ready."));
+        Assert.Contains("admin-status-pill is-danger\">Attention</span>", readiness);
+        Assert.DoesNotContain("admin-status-pill is-danger\">Enabled</span>", readiness);
     }
 
     [Fact]
@@ -436,15 +533,18 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
             firstExternalTeam = await lookup.Teams.Where(x => x.EventId == setup.EventId && x.Name == "External A").Select(x => x.Id).SingleAsync();
             secondExternalTeam = await lookup.Teams.Where(x => x.EventId == setup.EventId && x.Name == "External B").Select(x => x.Id).SingleAsync();
         }
-        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddExternalMemberAsync(setup.EventId, firstExternalTeam, "Frozen external", 10, null, CancellationToken.None, true));
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddExternalMemberAsync(setup.EventId, firstExternalTeam, "Frozen external", 10, null, CancellationToken.None, true, role: TeamMembershipRole.Captain));
 
         Guid membershipId;
         await using (var afterAdd = new ApplicationDbContext(options))
         {
             membershipId = await afterAdd.TeamMemberships.Where(x => x.TeamId == firstExternalTeam && x.LeftAt == null).Select(x => x.Id).SingleAsync();
+            var externalParticipantId = await afterAdd.TeamMemberships.Where(x => x.Id == membershipId).Select(x => x.EventParticipantId).SingleAsync();
+            Assert.Equal(TeamMembershipRole.Captain, await afterAdd.TeamMemberships.Where(x => x.Id == membershipId).Select(x => x.Role).SingleAsync());
             var draft = await afterAdd.DraftSessions.SingleAsync(x => x.EventId == setup.EventId);
             Assert.Equal(4, await afterAdd.DraftPublicationCycles.CountAsync(x => x.DraftSessionId == draft.Id));
-            Assert.Single(await afterAdd.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id && x.SupersededAt == null).ToListAsync());
+            var addedCycleId = await afterAdd.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id && x.SupersededAt == null).Select(x => x.Id).SingleAsync();
+            Assert.Equal(TeamMembershipRole.Captain, await afterAdd.DraftPublicationRosters.Where(x => x.DraftPublicationCycleId == addedCycleId && x.EventParticipantId == externalParticipantId).Select(x => x.Role).SingleAsync());
             Assert.Equal(2, await afterAdd.DraftPicks.CountAsync(x => x.DraftSessionId == draft.Id));
         }
 
@@ -630,7 +730,17 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
             await db.PersonalNotifications.CountAsync());
     }
 
-    private async Task<IActionResult> ExecuteAsync(Guid eventId, Guid accountId, Func<DraftModel, Task<IActionResult>> action, Bingo.Application.Auditing.IAuditWriter? auditWriter = null, IAdminCollaborationNotifier? collaboration = null, DateTimeOffset? at = null)
+    private async Task<ExternalRosterCounts> ExternalRosterCountsAsync(Guid eventId)
+    {
+        await using var db = new ApplicationDbContext(options);
+        var teamIds = db.Teams.Where(team => team.EventId == eventId).Select(team => team.Id);
+        return new(
+            await db.EventParticipants.CountAsync(participant => participant.EventId == eventId && participant.Source == SignupSource.AdminCreated),
+            await db.EventParticipantCharacters.CountAsync(assignment => assignment.EventId == eventId),
+            await db.TeamMemberships.CountAsync(membership => teamIds.Contains(membership.TeamId)));
+    }
+
+    private async Task<IActionResult> ExecuteAsync(Guid eventId, Guid accountId, Func<DraftModel, Task<IActionResult>> action, Bingo.Application.Auditing.IAuditWriter? auditWriter = null, IAdminCollaborationNotifier? collaboration = null, DateTimeOffset? at = null, ITeamCaptainAuthorityService? captainAuthority = null)
     {
         await using var db = new ApplicationDbContext(options);
         var context = new DefaultHttpContext
@@ -639,7 +749,7 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
                 [new Claim(ClaimTypes.NameIdentifier, accountId.ToString()), new Claim(ClaimTypes.Name, $"admin-{accountId:N}")], "test"))
         };
         var clock = new FixedTimeProvider(at ?? now);
-        var page = new DraftModel(db, clock, auditWriter ?? new AuditWriter(db, clock), collaboration ?? new NullAdminCollaborationNotifier(), null!, new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, clock))
+        var page = new DraftModel(db, clock, auditWriter ?? new AuditWriter(db, clock), collaboration ?? new NullAdminCollaborationNotifier(), null!, new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, clock), captainAuthority: captainAuthority ?? new TeamCaptainAuthorityService(db, clock))
         {
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new EmptyTempDataProvider())
@@ -655,7 +765,7 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
             User = new ClaimsPrincipal(new ClaimsIdentity(
                 [new Claim(ClaimTypes.NameIdentifier, accountId.ToString()), new Claim(ClaimTypes.Name, $"admin-{accountId:N}")], "test"))
         };
-        var page = new DraftModel(db, new FixedTimeProvider(now), new AuditWriter(db, new FixedTimeProvider(now)), new NullAdminCollaborationNotifier(), null!, new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, new FixedTimeProvider(now)))
+        var page = new DraftModel(db, new FixedTimeProvider(now), new AuditWriter(db, new FixedTimeProvider(now)), new NullAdminCollaborationNotifier(), null!, new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, new FixedTimeProvider(now)), captainAuthority: new TeamCaptainAuthorityService(db, new FixedTimeProvider(now)))
         {
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new EmptyTempDataProvider())
@@ -737,9 +847,16 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
 
     private sealed record Setup(Guid EventId, Guid FirstAdminId, Guid SecondAdminId, Guid[] PlayerIds);
     private sealed record MutationSnapshot(string Memberships, string Assignments, string Cycles, string Roster, int AuditCount, int NotificationCount);
+    private sealed record ExternalRosterCounts(int Participants, int CharacterReservations, int Memberships);
     private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider { public override DateTimeOffset GetUtcNow() => value; }
     private sealed class EmptyTempDataProvider : ITempDataProvider { public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>(); public void SaveTempData(HttpContext context, IDictionary<string, object> values) { } }
     private sealed class ThrowingAuditWriter : Bingo.Application.Auditing.IAuditWriter { public Task WriteAsync(Guid? actorAccountId, string actorUsername, string action, string targetType, string? targetId = null, string? details = null, CancellationToken cancellationToken = default) => throw new InvalidOperationException("Injected audit failure"); public Task WriteAsync(Guid? actorAccountId, string actorUsername, string action, string targetType, string? targetId, string? details, Guid? eventId, CancellationToken cancellationToken = default) => throw new InvalidOperationException("Injected audit failure"); }
+    private sealed class RejectingCaptainAuthority : ITeamCaptainAuthorityService
+    {
+        public Task<TeamCaptainRoleChangeResult> ChangeRoleAsync(TeamCaptainRoleChange change, CancellationToken ct = default) => Task.FromResult(new TeamCaptainRoleChangeResult(false, "Injected role failure."));
+        public Task<bool> HasDraftSignupTableAccessAsync(Guid accountId, Guid eventId, CancellationToken ct = default) => Task.FromResult(false);
+        public Task<bool> HasCurrentCaptainAuthorityAsync(Guid accountId, Guid eventId, Guid? teamId = null, CancellationToken ct = default) => Task.FromResult(false);
+    }
     private sealed class RecordingCollaborationNotifier : IAdminCollaborationNotifier
     {
         public List<Guid> DraftEvents { get; } = [];

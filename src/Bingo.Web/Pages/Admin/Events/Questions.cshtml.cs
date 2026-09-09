@@ -31,6 +31,7 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
     public bool CanEdit { get; private set; }
     public bool CanEditSettings { get; private set; }
     public bool HasFirstResponse { get; private set; }
+    public bool HasSignupCode { get; private set; }
     [BindProperty] public bool Overlay { get; set; }
     public bool IsOverlay => Overlay || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
     public string EventName { get; private set; } = string.Empty;
@@ -231,8 +232,9 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
         EventName = bingoEvent.Name;
         CanEdit = CanEditSignupQuestions(bingoEvent.State, bingoEvent.DraftLocked);
         CanEditSettings = !bingoEvent.DraftLocked && bingoEvent.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed);
-        var form = await dbContext.SignupForms.AsNoTracking().Where(item => item.EventId == id).Select(item => new { item.RequireSignupCode, item.FirstResponseAt }).SingleAsync(ct);
+        var form = await dbContext.SignupForms.AsNoTracking().Where(item => item.EventId == id).Select(item => new { item.RequireSignupCode, item.FirstResponseAt, HasSignupCode = item.SignupCodeHash != null }).SingleAsync(ct);
         HasFirstResponse = form.FirstResponseAt is not null;
+        HasSignupCode = form.HasSignupCode;
         Settings = new SignupSettingsInput { RequireSignupCode = form.RequireSignupCode };
         Questions = await dbContext.SignupQuestions
             .AsNoTracking()

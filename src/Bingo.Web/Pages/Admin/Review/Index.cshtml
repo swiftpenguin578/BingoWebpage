@@ -8,146 +8,100 @@
     ViewData["AdminPageDescription"] = T["Review submitted evidence and resolve contribution decisions."];
 }
 
-<section class="admin-review-page admin-review-queue-page">
-    <header class="admin-review-heading">
-        <div>
-            <p class="admin-module-eyebrow">@T["Active event review"]</p>
-            <h1>@T["Evidence queue"]</h1>
-            <p>@(Model.EventId is null ? T["Choose a live or final-review event to load its submissions."] : Model.EventName)</p>
-        </div>
-        <a class="admin-button-secondary" asp-page="/Admin/Index">@T["Administration"]</a>
-    </header>
-
-    <form method="get" class="admin-review-filters">
-        <div class="admin-review-filter-grid">
-            <label class="admin-review-filter-field">
-                <span>@T["Event"]</span>
-                <select name="eventId" class="admin-review-select" aria-label='@T["Event"]'>
-                    <option value="">@T["Choose event"]</option>
-                    @foreach (var item in Model.Events)
-                    {
-                        <option value="@item.Id" selected="@(item.Id == Model.EventId ? "selected" : null)">@item.Name</option>
-                    }
-                </select>
-            </label>
-            @if (Model.EventId is not null)
-            {
-                <label class="admin-review-filter-field">
-                    <span>@T["Team"]</span>
-                    <select name="teamId" class="admin-review-select">
-                        <option value="">@T["All teams"]</option>
-                        @foreach (var team in Model.Teams)
-                        {
-                            <option value="@team.Id" selected="@(team.Id == Model.TeamId ? "selected" : null)">@team.Name</option>
-                        }
-                    </select>
-                </label>
-                <label class="admin-review-filter-field">
-                    <span>@T["Tile"]</span>
-                    <select name="tileId" class="admin-review-select">
-                        <option value="">@T["All tiles"]</option>
-                        @foreach (var tile in Model.Tiles)
-                        {
-                            <option value="@tile.Id" selected="@(tile.Id == Model.TileId ? "selected" : null)">@tile.Name</option>
-                        }
-                    </select>
-                </label>
-                <label class="admin-review-filter-field">
-                    <span>@T["Status"]</span>
-                    <select name="status" class="admin-review-select">
-                        <option value="">@T["All statuses"]</option>
-                        @foreach (var status in Enum.GetValues<SubmissionStatus>())
-                        {
-                            <option value="@status" selected="@(status == Model.Status ? "selected" : null)">@T[status.ToString()]</option>
-                        }
-                    </select>
-                </label>
-            }
-        </div>
-        <div class="admin-review-filter-actions">
-            <button class="admin-button-primary" type="submit">@(Model.EventId is null ? T["Open queue"] : T["Apply filters"])</button>
-        </div>
-    </form>
-
-    @if (Model.Events.Count == 0)
-    {
-        <div class="admin-review-empty" role="status">
-            <h2>@T["No live or final-review events"]</h2>
-            <p>@T["Evidence review becomes available when an event is live or awaiting final review."]</p>
-        </div>
-    }
-    else if (Model.EventId is null)
+<section class="admin-review-page admin-review-queue-page" data-admin-review-queue data-event-id="@Model.EventId">
+    @if (Model.EventId is null)
     {
         <div class="admin-review-empty" role="status">
             <h2>@T["Select an event"]</h2>
-            <p>@T["Choose an event above to load its evidence submissions."]</p>
+            <p>@T["Open Review from an event workspace to load its evidence submissions."]</p>
         </div>
     }
     else
     {
+        <div class="admin-events-directory-controls">
+            <form method="get" class="admin-events-toolbar" data-admin-review-filter-form>
+                <input type="hidden" name="eventId" value="@Model.EventId" />
+                <div class="admin-search-field admin-events-search">
+                    <label class="visually-hidden" for="admin-review-search">@T["Search team, player or tile"]</label>
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                    <input id="admin-review-search" class="admin-search-field-input form-control" type="search" name="search" value="@Model.Search" placeholder="@T["Search team, player or tile"]" data-admin-review-search />
+                    <button class="admin-search-clear" type="button" data-admin-search-clear aria-label='@T["Clear search"]' hidden="@(string.IsNullOrWhiteSpace(Model.Search) ? "hidden" : null)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
+                </div>
+                <div class="admin-events-state-filter admin-field">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
+                    <label for="admin-review-status">@T["Status"]:</label>
+                    <div class="admin-events-state-select">
+                        <select id="admin-review-status" class="admin-filter-select form-select" name="status" data-admin-review-status>
+                            <option value="">@T["All"]</option>
+                            @foreach (var status in Enum.GetValues<SubmissionStatus>())
+                            {
+                                <option value="@status" selected="@(status == Model.Status ? "selected" : null)">@T[status.ToString()]</option>
+                            }
+                        </select>
+                        <svg class="admin-events-state-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
+                    </div>
+                </div>
+            </form>
+        </div>
         <section class="admin-review-queue-surface" aria-labelledby="review-queue-title">
             <header class="admin-review-surface-heading">
                 <div>
                     <p class="admin-module-eyebrow">@Model.EventName</p>
-                    <h2 id="review-queue-title">@T["submissions"]</h2>
+                    <h2 id="review-queue-title">@T["Submissions"]</h2>
                     <p>@T["Review the evidence record, contribution, and eligibility warnings from each row."]</p>
                 </div>
             </header>
-            @if (Model.Rows.Count == 0)
-            {
-                <div class="admin-review-empty admin-review-empty-in-surface" role="status">
-                    <h3>@T["No submissions match these filters"]</h3>
-                    <p>@T["Clear a filter or wait for a new evidence submission."]</p>
-                </div>
-            }
-            else
-            {
-                <div class="admin-review-table-scroll">
-                    <table class="admin-review-table">
-                        <thead>
-                            <tr>
-                                <th>@T["Submitted"]</th>
-                                <th>@T["Team"]</th>
-                                <th>@T["Tile"]</th>
-                                <th>@T["Credited player"]</th>
-                                <th>@T["Status"]</th>
-                                <th>@T["Contribution"]</th>
-                                <th>@T["Expected code"]</th>
-                                <th>@T["Actions"]</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var row in Model.Rows)
+            <div class="admin-review-empty admin-review-empty-in-surface" data-admin-review-empty role="status" hidden="@(Model.Rows.Count > 0 ? "hidden" : null)">
+                <h3>@T["No submissions match these filters"]</h3>
+                <p>@T["Clear a filter or wait for a new evidence submission."]</p>
+            </div>
+            <div class="admin-review-table-scroll" data-admin-review-table-wrap hidden="@(Model.Rows.Count == 0 ? "hidden" : null)">
+                <table class="admin-review-table">
+                    <thead>
+                        <tr>
+                            <th>@T["Submitted"]</th>
+                            <th>@T["Team"]</th>
+                            <th>@T["Tile"]</th>
+                            <th>@T["Credited player"]</th>
+                            <th>@T["Status"]</th>
+                            <th>@T["Contribution"]</th>
+                            <th>@T["Expected code"]</th>
+                            <th>@T["Actions"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            var statusModifier = row.Status switch
                             {
-                                var statusModifier = row.Status switch
-                                {
-                                    SubmissionStatus.Pending => "is-yellow",
-                                    SubmissionStatus.Approved => "is-green",
-                                    SubmissionStatus.Rejected or SubmissionStatus.Reversed => "is-danger",
-                                    _ => "is-muted"
-                                };
-                                <tr>
-                                    <td data-label='@T["Submitted"]'>
-                                        <a class="admin-review-cell-value admin-review-submission-link" asp-page="Details" asp-route-id="@row.Id">@DateTimePresentation.Format(row.SubmittedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)</a>
-                                        <small>@row.SubmittedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'")</small>
-                                        @if (row.DuringGrace)
-                                        {
-                                            <small class="admin-review-warning-text">@T["After event end — verify screenshot time"]</small>
-                                        }
-                                    </td>
-                                    <td data-label='@T["Team"]'><span class="admin-review-cell-value">@row.Team</span></td>
-                                    <td data-label='@T["Tile"]'><span class="admin-review-cell-value">@row.Tile</span></td>
-                                    <td data-label='@T["Credited player"]'><span class="admin-review-cell-value">@row.Player</span></td>
-                                    <td data-label='@T["Status"]'><span class="admin-status-pill @statusModifier">@T[row.Status.ToString()]</span></td>
-                                    <td data-label='@T["Contribution"]'><span class="admin-review-cell-value">@row.Claimed → @row.Approved</span></td>
-                                    <td data-label='@T["Expected code"]'><span class="admin-review-cell-value">@(row.ExpectedCode ?? T["Disabled"])</span></td>
-                                    <td class="admin-review-row-action" data-label='@T["Actions"]'><a class="event-overview-row-action" asp-page="Details" asp-route-id="@row.Id">@T["Details"]</a></td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+                                SubmissionStatus.Pending => "is-yellow",
+                                SubmissionStatus.Approved => "is-green",
+                                SubmissionStatus.Rejected or SubmissionStatus.Reversed => "is-danger",
+                                _ => "is-muted"
+                            };
+                            <tr data-admin-review-row data-review-team="@row.Team" data-review-tile="@row.Tile" data-review-player="@row.Player" data-review-status="@row.Status">
+                                <td data-label='@T["Submitted"]'>
+                                    <a class="admin-review-cell-value admin-review-submission-link" asp-page="Details" asp-route-id="@row.Id" asp-route-eventId="@Model.EventId" asp-route-search="@Model.Search" asp-route-status="@Model.Status">@DateTimePresentation.Format(row.SubmittedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)</a>
+                                    <small>@row.SubmittedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'")</small>
+                                    @if (row.DuringGrace)
+                                    {
+                                        <small class="admin-review-warning-text">@T["After event end — verify screenshot time"]</small>
+                                    }
+                                </td>
+                                <td data-label='@T["Team"]'><span class="admin-review-cell-value">@row.Team</span></td>
+                                <td data-label='@T["Tile"]'><span class="admin-review-cell-value">@row.Tile</span></td>
+                                <td data-label='@T["Credited player"]'><span class="admin-review-cell-value">@row.Player</span></td>
+                                <td data-label='@T["Status"]'><span class="admin-status-pill @statusModifier">@T[row.Status.ToString()]</span></td>
+                                <td data-label='@T["Contribution"]'><span class="admin-review-cell-value">@row.Claimed → @row.Approved</span></td>
+                                <td data-label='@T["Expected code"]'><span class="admin-review-cell-value">@(row.ExpectedCode ?? T["Disabled"])</span></td>
+                                <td class="admin-review-row-action" data-label='@T["Actions"]'><a class="event-overview-row-action" asp-page="Details" asp-route-id="@row.Id" asp-route-eventId="@Model.EventId" asp-route-search="@Model.Search" asp-route-status="@Model.Status">@T["Details"]</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
                 </div>
-            }
         </section>
     }
 </section>
+
+@section Scripts { <script src="~/js/admin-review-queue.js" asp-append-version="true"></script> }

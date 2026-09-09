@@ -1,7 +1,500 @@
 # Current project status
 
-**Active handoff:** 2026-09-07. This is the concise current-state handoff;
-historical material is preserved separately and is non-authoritative.
+**Active handoff:** 2026-09-09. Authoritative checkout:
+`/private/tmp/BingoWebpage-admin-popup-recovery-20260908`, branch
+`codex/admin-consistency`; use Git status/log for current commit state. Do not use the
+Documents checkout or damaged old event-functionality checkout.
+New planners follow [DELIVERY_PLAN section 4.2.1](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff)
+and resume the recorded next action without repeating completed investigation/checks.
+
+## Accepted Admin batch — local packaging 2026-09-09
+
+- User authorizes packaging/local commit of accepted Admin popup and Review work;
+  artwork excluded, Finalize stays deferred. No push, merge or deployment authorized.
+- Inventory: 53 text files (47 modified/6 new): eight documentation files,23 backend/
+  Razor/shell/localization/CSS files,eight JavaScript files and14 focused test files.
+  No artwork/binary/config assets in the changes; ignored catalogue image cache and
+  build artifacts remain excluded. No changes from other checkouts imported.
+- Packaging checks: all10 changed Node test files passed; all12 changed C# files pass
+  scoped whitespace formatting; diff check and bounded added-content credential scan
+  clear. Existing accepted build/HTTP/backend review evidence retained below.
+- Full-solution format verification could not finish: missing xUnit Fact/Theory references
+  in untouched Application/Domain test projects. This was not repaired or represented
+  as passing; scoped changed-file formatting passed. No full-suite/release claim.
+- Package only the explicit53-file inventory. Keep all artwork out, preserve Finalize,
+  and stop after the authorized local commit. Future publication needs user direction.
+
+## Admin Review details — manually approved 2026-09-09
+
+- User approves final follow-up: pre-trial content-driven sizing, equal-height contained
+  evidence, compact gap, and Approve text/border `#78B86A` with unfilled background.
+  Open rejection hides approval copy/normal row, leaving reason/hint/Reject/Cancel;
+  Cancel restores content. Scoped CSS includes initially expanded server-error state.
+  Source/diff checks passed; final visual acceptance supplied by user.
+- User approves Review Details after the named corrections. Review queue also approved;
+  UI_PAGE_MATRIX owns exact approval. DELIVERY_PLAN sections15–16 complete. Finalize deferred.
+- Accepted Details: image-first workspace; desktop evidence card matches combined facts/
+  actions height with contained image in the three-row header/image/footer layout; natural
+  mobile stack; Admin fonts/tokens; all fact values including UTC match heading colour;
+  muted labels; full-width action copy/rejection panel and compact Cancel recovery.
+  Status sits right of tile heading. Approve uses the page-approved leaf green
+  `#78B86A` for text/border. Claimed/Contribution display and
+  duplicate copy removed; both submission times retained. Event/sidebar/filter-preserving
+  Back and action redirects, review rules/version/authorization/history/viewer protected.
+- Evidence: Astra Low backend source review clear; controlled PostgreSQL rendered queue/
+  Details/rejection/redirect/Back journey plus event/filter/direct/mismatched/hidden/denied
+  boundaries passed; focused binding tests2/2, Node filter checks and Release builds passed.
+  Later small CSS changes used source and scoped diff checks, then user visual acceptance.
+  Earlier isolated layout fixtures missed actual resize/cascade defects and are not proof
+  of final geometry. User stopped browser/fixture work and excess coordination; keep future
+  corrections code-focused with only checks detecting their actual risk. Safari inspection
+  was unavailable because Computer Use permission was not granted; do not repeat it.
+- No active workers or unresolved findings. Next permitted action: agree next user task;
+  approval does not authorize another family, audit, packaging or publication.
+- Before snapshots remain under `/private/tmp/review-details-before-20260909/`,
+  `/private/tmp/review-details-journey-before-20260909/`,
+  `/private/tmp/review-details-visual-before-20260909/`,
+  `/private/tmp/review-details-geometry-before-20260909/`.
+- Preserve all dirty work in authoritative checkout above. No stage/commit/push/deploy,
+  user DB mutation or restart of HTTPS7131 authorized/performed.
+
+## Admin Review queue — manually approved 2026-09-09
+
+- User approves the Review queue after the named visual corrections. UI_PAGE_MATRIX
+  owns exact approval scope; Review details and Finalize remain deferred.
+- DELIVERY_PLAN section 15 complete: selected-event context across lifecycle states,
+  live combined team/player/tile search plus Status, Pending-first/newest-within-group
+  ordering, no masthead/Administration button, established Admin font/neutral tokens,
+  right-aligned Status and table weight 400. Preserve accepted behavior/composition.
+- Verification: Release Web build (0 warnings/errors), focused queue-binding test,
+  authenticated HTTP event isolation/lifecycle/hidden-context and mixed-row ordering
+  tests, Node live-filter test, XML and scoped CSS/cascade/diff checks passed.
+  Astra Low backend/functionality review clear; visual acceptance supplied by user.
+  No full-suite result claimed; no independent visual review was requested/performed.
+- No active workers or unresolved findings. Next permitted action: agree the next
+  user task; no further page family, audit or implementation authorized by approval.
+- Before snapshots: `/private/tmp/review-queue-before-20260909/`,
+  `/private/tmp/review-visual-before-20260909/`, `/private/tmp/review-pending-before-20260909/`,
+  `/private/tmp/review-table-weight-before-20260909/`.
+- Task exception: inspector/reviewer Astra Low; visual implementer/remediator Luna Max.
+  Authoritative checkout/branch above; all changes remain uncommitted. No packaging,
+  stage/commit/push, deployment, user DB mutation or HTTPS 7131 app restart authorized.
+
+## Overview lifecycle confirmations — approved; work paused 2026-09-08
+
+- User manually approves the lifecycle corrections. User reports approximately 50%
+  of weekly usage spent today, mainly on popup work. Stop further execution; discuss
+  reducing actual workflow steps before any new dispatch. Agreed 2026-09-09:
+  pinpoint observed problems, expected results, protected parts and focused checks
+  before implementation; if unknown, one bounded inspection produces the fix list.
+  Durable workflow updated in DELIVERY_PLAN section 4.2.1; AGENTS already links it.
+- Six authorized findings corrected: Close skips opening-only acknowledgements;
+  rejected actions retain confirmation/typed fields; explicit refreshed-version
+  retry notice preserves concurrency; pending Cancel/Escape blocked using existing
+  transport state; all branches reveal/focus; Cancel-first order and return-to-
+  trigger fragments; explicit signup success/error/information severity. EN/DA
+  retry copy present. Existing layout, domain/services/rules/routes unchanged.
+- Astra High source review and three named correction rechecks clear. Web/Razor
+  build passes (0 warnings/errors); final resource-only entry passes XML/diff/key
+  checks. Scoped Node guard/syntax and Participants UI/Manage/roster checks pass.
+- Focused EventCreationUiTests: 26 pass, 1 unrelated stale Participant source
+  assertion at line269 expects initializeOwnerAccountPicker(content); missing in
+  both before/current script. No extra Participant remediation authorized.
+  Browser test restore succeeded; test-runner socket needed approved escalation.
+- Verification limit: no browser rendering, real lifecycle mutation or database
+  handler fixture executed. Changed handlers are compiled/source-reviewed; source
+  tests do not prove persisted lifecycle behavior. User app/data left untouched.
+- Cumulative patch `/private/tmp/lifecycle-confirmation-fix.patch`; before snapshots
+  `/private/tmp/lifecycle-confirmation-fix-before/`. Durable patch/current files,
+  executable guard check, source verdict and results in task visualization
+  `lifecycle-confirmation-pass/`. All work uncommitted; no active workers.
+- Identity confirmation manually approved 2026-09-09. Next action is owned by the
+  fresh planner handoff above; Review/Finalize remain deferred.
+
+## Event-settings confirmations — Identity approved 2026-09-09
+
+- Schedule change/warning review and Super Admin ownership-transfer confirmation
+  manually approved; matrix records exact scope.
+- Astra High read-only Overview lifecycle review found: close-signup warning dead
+  end, failed-input loss, pending Cancel links, missing reveal/keyboard handling,
+  destructive button order and misleading signup severity. No lifecycle code edited
+  or runtime/manual proof claimed. Remediation now authorized above; full source report
+  in task visualization `event-settings-confirmations/lifecycle-source-review.md`.
+- Identity timezone confirmation fixed with existing data-confirmation-box marker,
+  event-manage.js include and scoped compact paragraph/title CSS. Source review
+  clears; targeted Node execution confirms focus/scroll/bind-once, wiring/cascade
+  and diff checks pass. No new JS implementation, browser/build/DB/app restart.
+- Identity patch `/private/tmp/identity-confirmation-fix.patch`; durable patch,
+  changed files and results in visualization `event-settings-confirmations/`.
+  No active workers. A possible new-script interaction was ruled unreachable from
+  Identity; no unrelated correction made.
+- Lifecycle remediation is completed above; Identity confirmation manually approved
+  2026-09-09.
+  Review/Finalize remain deferred; no broader rollout, packaging,
+  commit, push or deployment authorized.
+
+## Participant confirmation visibility — approved 2026-09-08
+
+- Catalogue Add/Edit and Participant Manage manually approved; matrix updated.
+  Participant approval includes Remove, Restore and Transfer ownership reveal.
+- Existing shared Participant toggle handler now scrolls the opened confirmation
+  into view before focusing Cancel with preventScroll. Layout, typed state,
+  Cancel/Escape, guards and backend behavior unchanged.
+- Focused Participant regression covers all three reveal/Cancel paths and passes;
+  syntax/diff checks pass. Existing test mock now implements removeEventListener,
+  resolving the previously recorded null restore-confirmation fixture failure.
+  Astra High focused source review clears. No browser, build, DB or app restart.
+- Evidence `/private/tmp/participant-confirmation-reveal.patch` and before source
+  snapshots; durable patch/current changed files/results in this task visualization
+  `participant-confirmation-reveal/`. No active workers.
+- Stop until the user authorizes the next work. Review/Finalize remain deferred;
+  no other rollout, packaging, commit or push authorized.
+
+## Bundled popup walkthrough — corrections approved 2026-09-08
+
+- User approves inspected Board tile details/removal, toolbar popovers/confirmations,
+  and Teams/Draft roster/member/move/draft confirmation surfaces. Matrix owns scope.
+- Fixed false dirty prompts: shared guard ignores unstable timestamps on empty-name,
+  zero-size upload placeholders; real file metadata, including named zero-byte files,
+  remains tracked. Focused Board/roster tests now model changing empty-file timestamps.
+- Page-level Remove team SVG now uses the existing compact roster dimensions;
+  button hit target, focus, padding and accepted layouts remain unchanged.
+  User manually approves both corrections, including clean roster/tile closure.
+- Eight existing consumer checks pass: Accounts, Board, Catalogue, Add team, roster,
+  Add participant, Participants UI, Signup questions. Participant Manage test fails
+  at line 245 (null restore-confirmation fixture); same failure reproduced with the
+  before-change guard, so it is recorded separately and not remediated in this pass.
+  Astra High focused source review clears; no browser, build, DB or app restart.
+- Incremental patch `/private/tmp/popup-clean-close-fix.patch`; before snapshots
+  `/private/tmp/popup-clean-close-fix-before/`; durable correction files/evidence in
+  this task's visualization `popup-clean-close-fix/`. No active workers.
+- Review and Finalize need general page overhauls; user explicitly tables both.
+  Subsequent Catalogue approval and Participant visibility correction are recorded
+  in the active entry above. No overhaul, packaging, commit, push or deploy authorized.
+
+## Repository instruction cleanup — complete 2026-09-08
+
+- User-approved concise AGENTS guide is active: assignment scope, roles/model table,
+  repository/data protections, bounded execution, verification and authority links.
+  Approved model defaults preserved; Board-only Astra Low completion is not a global
+  UI model change. No pass history or dated model exceptions in the startup guide.
+- Unique planning/readiness, change-control, evidence/review, slice-preflight,
+  completion and branch procedures now live in DELIVERY_PLAN sections 4.1–4.7.
+  UI protocol remains in UI_SYSTEM; commands remain in README. Only relevant
+  subsections are required for a task. This does not waive delivery gates.
+- Section 4.2.1 now records lean dispatch, early worker uncertainty escalation to
+  the calling planner, progress intervention, the brief template and planner
+  handoff. AGENTS links it and keeps only the universal escalation rule.
+  Current worker ownership and next action are recorded in the active entry above.
+- Documentation-only change; no application edits, test/build reruns, app restart,
+  commit or rollout. Before files and scoped change evidence are in this task's
+  visualization `agents-rework/`. Board approval is recorded below.
+
+## Board Create/Edit tile popup — approved 2026-09-08
+
+- User's manual finding: discard confirmation text was oversized. Typography-only
+  scoped CSS correction now uses compact body/supporting text and an emphasized
+  body title; buttons, spacing and behavior unchanged. Focused cascade/source
+  recheck and diff check pass; patch `/private/tmp/board-confirmation-type.patch`.
+  User manually approves the corrected popup; no repeated build or behavior checks.
+- Accepted composition/flow preserved. DELIVERY_PLAN section 14 behavior pass is
+  implemented: dirty/dynamic/file guards, pending/duplicate protection, retained
+  failed inputs and guarded stale/unknown recovery, explicit committed-with-warning
+  outcome, fresh full Board response/context and one truthful toast; compact local
+  objective/tile confirmations, narrow fullscreen and collaboration protection.
+- Browser Back/reload/leave uses native unsaved-change protection, not a new popup
+  history system. New-tab Catalogue links retain their original behavior. No
+  backend rules, schema, route, service or shared-guard rewrite.
+- Luna Max close and CSS/collaboration changes retained. User-approved Astra Low
+  completed remaining work and five named fixes: new-tab/modifier navigation,
+  clean completed-save recovery, genuine backdrop gesture, reused failure controls,
+  and truthful stale wording. Astra High source-only review/recheck clears all.
+- Focused Board Node tests with real shared guard and executable failure/recovery
+  checks pass; syntax/diff checks pass. Final Razor build passed (0 warnings/errors)
+  before JS-only review fixes; no redundant rebuild. No browser or persisted
+  mutation/concurrency test claimed. User manual acceptance is now recorded in the matrix.
+- User app on HTTPS7131 left running. No agent DB mutation/reset, app restart,
+  commit or deploy.
+- Combined pass patch `/private/tmp/board-popup-final.patch`, original baseline
+  `/private/tmp/board-pass-baseline`; durable evidence and complete modified-file
+  backup in this task visualization `board-popup-pass/`. Incomplete prior attempts
+  preserved outside checkout and restored before final work. AGENTS records the
+  accepted lean workflow; the Board-only model exception remains in this handoff
+  and DELIVERY_PLAN section 14. All work uncommitted.
+- Stop until the user authorizes another pass; no packaging/push/deployment. Roster
+  guard and other page approval states remain unchanged.
+
+## Teams/Draft roster guards — ready for manual check 2026-09-08
+
+- User-approved roster composition, role-at-add/readiness corrections, compact
+  removal glyph/button and small positioned removal confirmation are preserved.
+  The initially missed outside-click and dirty/pending paths are now implemented;
+  DELIVERY_PLAN section 13 guard completion is the final scope authority.
+- Shared guards cover dirty X/Escape/outside/Back/application navigation, switching
+  editors and cross-form submission; Keep retains edits/focus, Discard resets them.
+  Pending blocks duplicates/dismissal; failed saves retain inputs and dirty baseline.
+  File-only image/CSV edits are detected. Native modal guards work across widths.
+- Mutations require explicit success evidence; roster and sibling participant data
+  refresh with view/scroll state. Shared toast host stays connected and visible;
+  completed-save/failed-refresh recovery avoids false save failure or resubmission.
+- Luna Max implementation/remediation complete. Astra High source-only review clears
+  all five named findings and final file-only dirty-state question. Focused roster
+  test, five affected guard consumers, syntax/diff checks and Razor build pass
+  (0 warnings/errors). No browser harness, application DB work, app restart, commit,
+  push or deployment. New guard states await user check; prior visual approval remains.
+- Evidence `/private/tmp/roster-guards.patch`, `/private/tmp/roster-guard-fixes.patch`
+  and their before snapshots; durable patches, verification and complete current
+  modified-file backup in this task visualization `roster-guards/`. Earlier role/
+  visual/backdrop evidence remains in sibling `roster-corrections/`.
+- User subsequently authorized Board Create/Edit tile; its current implementation
+  handoff is above. This does not broaden roster guard manual acceptance.
+
+## Teams/Draft Add team popup — approved 2026-09-08
+
+- DELIVERY_PLAN section 12 complete with overall composition preserved. Add-only
+  shared dirty/pending guards, actual discard/reset, retained failed inputs,
+  finalized inline confirmation visibility/order/focus/keyboard behavior and
+  resize scroll lock implemented. Blank-name error is now accurate in EN/DA;
+  backend validation/lifecycle/transaction rules and roster dialogs are unchanged.
+- Corrected initial source findings: success notice carried through existing
+  pending-toast owner before real reload; errors use shared native-modal toast
+  opt-in; misleading test mock removed. Astra High source-only review clears all
+  named fixes; Luna Max handled implementation/remediation and focused execution.
+- Add team test, directly affected Participant checks, syntax/diff and Razor/
+  resource build pass (0 warnings/errors). No reviewer visual inspection or browser
+  harness; no real team creation/database writes, app restart or full-suite rerun.
+  User now approves Add team, accepting minor behavior differences from the other
+  popups without further remediation. This does not change the general popup rules.
+- Evidence `/private/tmp/add-team-popup-pass.patch`, `/private/tmp/add-team-fixes.patch`;
+  durable patches/working-file backup in current task visualization
+  `add-team-popup-pass/`. Same recovery checkout/branch, all changes uncommitted.
+  Stop before roster or other popup rollout, packaging, commit, push or deployment;
+  the next pass requires user authorization.
+
+## Add Participant popup — approved 2026-09-08
+
+- Admin -> event -> Participants -> Add participant (DELIVERY_PLAN section 11)
+  now uses shared guards and the same modal at all widths, fullscreen <=900.
+  Dirty/pending protection, load retry, retained failure inputs and truthful
+  creation feedback preserve the existing form and backend rules.
+- User approves visuals; Astra High source-only correctness review clears after
+  Luna Max fixes current filter/sort context and successful-creation/failed-refresh
+  recovery. Completed creation cannot be resubmitted; Close/Escape/Back really
+  reloads Participants without a discard prompt when refresh fails.
+- Add/Participants/Participant Manage Node regressions, syntax and diff checks
+  pass. Razor build passed with 0 warnings/errors before JS-only corrections.
+  Client responses mocked; no browser harness, persisted creation test, production
+  authentication proof, app restart or database mutation by the agent.
+- Patches `/private/tmp/participant-add-popup-pass.patch` and
+  `/private/tmp/participant-add-fixes.patch`; durable patches/working-file backup
+  in the current task visualization directory `participant-add-popup-pass/`.
+  Same recovery checkout/branch, all changes uncommitted. Stop before another
+  popup family or packaging. Participant Manage/Catalogue approvals unchanged;
+  Teams/Draft was not part of this pass.
+- Worker mistakenly sent its completion to old pinned Planner Orchestrator v7.
+  That triggered turn is interrupted/idle with no recorded turn items. AGENTS now
+  explicitly requires parent-only subagent reporting; no further cross-task work.
+
+## Current-popup confirmation trigger correction — manually approved 2026-09-08
+
+- User authorizes hiding the initiating button while its inline action confirmation
+  is open across Questions, Participant Manage, Accounts Create/Manage and Catalogue
+  Add/Edit. Restore the trigger before Cancel/Escape focus; preserve values, discard
+  recovery, pending safeguards and layouts. General rule recorded in UI_SYSTEM;
+  bounded correction scope recorded at the end of DELIVERY_PLAN section 10.
+- Correction complete: scoped CSS hides open native confirmation summaries;
+  Accounts and Catalogue dynamic triggers hide/restore through existing adapters.
+  Focus restoration, typed values and discard recovery remain protected.
+  Accounts/Catalogue/Participant/Questions Node regressions and diff check pass.
+  Astra High source-only correction review clears; no browser/build/database
+  actions or app restart. User manually approves the trigger-hiding correction.
+  Other page approval states remain unchanged.
+  Exact correction evidence: `/private/tmp/admin-confirmation-trigger-correction.patch`;
+  pre-correction copies: `/private/tmp/admin-confirmation-trigger-before/`.
+- User updates reported popup usage to roughly 15% of weekly budget. Agree a
+  substantially leaner workflow before any further family rollout; that discussion
+  is now active. User chooses Luna Max for routine UI implementation/corrections;
+  AGENTS records this override. User agrees independent review stays read-only and
+  source-focused on behavior/correctness, with no reviewer visual inspection;
+  implementer owns focused execution and user owns visual acceptance. Existing
+  correctness review gates remain; broader workflow reductions are not yet agreed.
+  No packaging, commit, push or deployment authorized.
+
+## Catalogue Add/Edit — approved 2026-09-08
+
+- DELIVERY_PLAN section 10 implemented with existing activity/drop composition
+  preserved. Shared dirty/pending/discard guards, one all-width modal, inline
+  confirmation visibility/focus and parent freshness now apply to Add/Edit.
+- Success/error/warning toasts use the shared owner and truthful outcome text;
+  failures retain values. Stale/missing records explicitly require guarded reload;
+  deleted activities return to the catalogue. Standalone completed deletion carries
+  one success toast without an unsaved-change prompt. Typed DELETE, duplicate-item
+  choices, rate parsing and all backend/version/permission protections unchanged.
+- Source-only independent review clears. Focused Catalogue normal/direct-failure
+  Node regressions and diff check pass; compiled Razor/resources build passed with
+  0 warnings/errors. Final small JS corrections have focused regression coverage.
+  Root Chrome checked dirty Close/failed input retention, pending resize/Escape,
+  native modal after parent refresh, one visible success toast, confirmation reveal/
+  Escape, refreshed Edit -> Add handoff and standalone Edit. Two POST responses were
+  simulated, zero actual catalogue writes or JS errors. Backend deletion/concurrency
+  mutations were not executed; their handlers remain unchanged and source-reviewed.
+- Evidence `/private/tmp/catalogue-popup-pass/results.json` and `checks.cjs`, copied
+  to durable task visualization `catalogue-popup-pass/` with working-source backup.
+- User manually approves Add/Edit 2026-09-08. Earlier budget/workflow discussion is
+  superseded by the accepted lean procedure in DELIVERY_PLAN section 4.2.1.
+  No additional Catalogue work or packaging authorized.
+- Same authoritative checkout `/private/tmp/BingoWebpage-admin-popup-recovery-20260908`,
+  branch `codex/admin-consistency`; accepted prior-family changes preserved.
+
+## Accounts Create/Manage — manually approved 2026-09-08
+
+- User approves both Create and Manage after the confirmation auto-scroll correction.
+- DELIVERY_PLAN section 9 behavior rollout implemented; existing composition
+  preserved. Accounts now uses the shared editor guard, compact inline action
+  confirmations and one modal across widths. Required reasons/one-time link
+  disclosure and all PageModel/backend permissions/handlers remain unchanged.
+- Manual visibility correction: opening Disable/Generate link brings the revealed
+  inline confirmation into view with native nearest scrolling; Cancel focus is
+  preserved. No layout, save or permission changes.
+- Dirty/cross-form/scope-change, pending/duplicate/dismissal and failed-save
+  retention protections added. Manage refresh preserves native modal connection,
+  current link response, parent filters/page/scroll. Create returns to refreshed
+  directory. Failed refresh after a save reports truthful reload recovery.
+- Source-only independent review clears with no open findings. Named fixes: standalone actions/reason binding,
+  connected dialog during parent refresh, restoring typed reason after discard
+  Cancel, and standalone Create scope GET protection. These are corrected. Current
+  selector also reflects authoritative loaded event after scope changes.
+- Accounts/Participant/Questions focused Node checks and diff check pass. Root
+  compiled Razor/resources/preview with 0 warnings/errors. Chrome passes 11 focused
+  groups covering inline reason/failed save, pending resize/Escape, directory refresh,
+  dirty Create, emergency/reload handoff, reason cancellation, native modal/link
+  retention, Create scope/success, and standalone actions/scope cancellation.
+  Four POST responses were simulated; zero actual account writes or JS errors.
+  No real password/reset link was generated (one-time response used synthetic text).
+  Test Admin preview disables background workers; persisted security mutations and
+  production authentication were not re-tested, and the full suite was not rerun.
+- Evidence `/private/tmp/accounts-popup-pass/{results,followup-results,scope-results}.json`;
+  durable results/scripts plus working-file backup under the task visualization
+  directory `accounts-popup-pass/`. Independent reviewer did not use a browser.
+- Authoritative checkout remains `/private/tmp/BingoWebpage-admin-popup-recovery-20260908`,
+  branch `codex/admin-consistency`; prior accepted changes preserved, no commit/push.
+  Next action: agree the next bounded Admin family or packaging step; neither is
+  authorized yet. AGENTS records the agreed source-only rollout policy.
+
+## Participant-management popup — approved 2026-09-08
+
+- Participant pass and latest user refinements implemented: compact paired summary,
+  answers -> notes -> actions; Save shares the last answer row when space permits;
+  only action triggers form a right-aligned wrapping row. Section headings are
+  consistently smaller than the popup title. No backend participant rules changed.
+- Participant and accepted Questions physically share dirty/pending/discard guards.
+  Both refresh affected Participants data after successful saves while preserving
+  filters/sort/scroll and the open editor. Failed parent refresh explicitly reports
+  that saving succeeded; Close reloads the canonical list (including #players).
+  UI_SYSTEM records parent freshness as a general popup contract.
+- Manual follow-up corrected: Manage -> reload -> close -> Edit signup form now
+  binds the restored Questions trigger through the existing content-update event.
+  Combined-script regression verifies one binding; Chrome executes that exact
+  sequence and stays modal with parent sort/filter URL retained, no writes.
+- Focused Participant/Questions Node tests and Razor/resource build pass (0 warnings/
+  errors); independent review corrected parent freshness, refresh-failure feedback,
+  stale Add-dialog listeners, section heading specificity and real reload fallback.
+  Current desktop/mobile/action-confirmation and light-setting rendering reviewed.
+- Chrome preview passes dirty cross-form/Back/discard, failed-note retention,
+  pending resize/dismissal guard, successful parent refresh for both editors,
+  explicit standalone route, and actual reload after failed parent refresh for both.
+  Six POSTs were simulated across primary/fallback checks; zero persisted writes or
+  browser errors. Preview uses a local test Admin and disables background workers;
+  this proves client behavior, not production authentication or persisted lifecycle.
+- Authoritative checkout `/private/tmp/BingoWebpage-admin-popup-recovery-20260908`,
+  branch `codex/admin-consistency`; prior accepted changes remain uncommitted.
+  Evidence `/private/tmp/participant-popup-pass/{results,fallback-results}.json`;
+  durable evidence/source backup in the task visualization directory under
+  `participant-popup-pass/`. No package, push or next page family authorized.
+  Next action: user checks current Participant spacing/action flow and save/close
+  on local 7131. Questions prior manual acceptance remains; freshness follow-up is
+  verified and available for the same spot-check.
+
+## Admin popup pilot — 2026-09-08
+
+- Active branch `codex/admin-consistency` in isolated checkout
+  `/private/tmp/BingoWebpage-admin-popup-recovery-20260908`, based on
+  deployed main `42b2a7d`; preserve local rollout notes. User prioritizes Admin
+  component/behavior reuse while preserving public UI. Read-only source discovery
+  and one independent bounded behavior review complete. Pilot implemented; focused
+  Node regression and compilation pass; independent source/visual review clears.
+  User manually approves the complete pilot and code-settings/full-screen follow-up
+  on 2026-09-08 after trying it locally (DELIVERY_PLAN section 7).
+- Existing shared shell/tokens/toasts are real owners. Accounts/Catalogue/Questions
+  dialog lifecycle and confirmation handling were duplicated. Questions failure
+  recovery is corrected and browser-verified. The separate Catalogue focus-callback
+  source finding remains outside this pilot; its rendered impact is unverified.
+- User approved Signup Questions as the first popup pilot, including compact inline
+  delete/discard confirmations, unsaved-edit protection, Admin typography hierarchy,
+  consistent lifecycle/failure recovery; latest decision replaces narrow switching
+  with the same modal at every width, full-screen at <=900.
+  DELIVERY_PLAN section 7 freezes scope and proof; UI_SYSTEM owns reusable rules.
+- Pilot implementation is complete and manually approved; another Admin page
+  family/rollout and packaging require separate user authorization.
+  Existing source review remains applicable; no additional broad readiness audit.
+  Verification complete: web build 0 warnings/errors, focused Node regression and
+  diff check pass. Real Chrome rendered-preview checks passed 8 scenario groups:
+  unchanged focus/close, dirty Close/Back cancellation, confirmed discard after
+  narrowing, transport and validation retention, pending duplicate/dismissal guard,
+  inline deletion/Escape, and narrow-route failure/retry. Five question POSTs were
+  intercepted; no persisted question/answer writes were exercised. Preview used an
+  Admin test identity and disabled background workers, not production authentication
+  proof. Direct Admin -> Events -> editable event -> Participants -> Signup form
+  navigation was executed against current compiled Razor.
+  Two independent findings (dirty narrow close and standalone save recovery) were
+  corrected and cleared by fixes-only review. Desktop/narrow/current theme-setting
+  screenshots clear visual review; user manual acceptance is now recorded.
+  No commit, push, shared rollout or other page-family work performed.
+- Environment recovery: around local midnight, `.git` and project files disappeared
+  from `/private/tmp/BingoWebpage-admin-event-functionality` during verification.
+  Cause unverified; no agent deletion. Preserved four changed docs and six source/test
+  files in a persistent recovery archive, cloned the exact base `42b2a7d` into the
+  new checkout above, restored those files, and verified the expected 10-file diff
+  with `git diff --check`. The old checkout and saved project remain untouched.
+  Archive: `/Users/christopher/.codex/visualizations/2026/09/07/01a07c97-2f5a-7352-8c13-184837121f0b/admin-popup-recovery-20260908.tar.gz`.
+- Current evidence: `/private/tmp/questions-popup-pilot/results.json` and
+  `checks.cjs`; durable screenshot/results copies under
+  `/Users/christopher/.codex/visualizations/2026/09/07/01a07c97-2f5a-7352-8c13-184837121f0b/admin-popup-pilot/`.
+  Follow-up verification: Node regression, web build (0 warnings/errors), diff check
+  and independent scoped source/visual review pass. Chrome passed six changed-flow
+  groups: mobile modal entry/reload, clean/dirty/pending resize, code visibility and
+  required state without autosave, failed-code retention, modeled existing-code
+  blank replacement, mobile Close/Back/discard, and explicit standalone route.
+  Three question POSTs were simulated; stored-code persistence was not re-exercised
+  and its existing handler semantics remain unchanged. Settled mobile scroll evidence
+  confirms title/Close stay visible. No further findings.
+  Evidence: `/private/tmp/questions-popup-pilot/followup-results.json`, `followup.cjs`,
+  and screenshots copied to the durable evidence directory above.
+  Next permitted action: agree the next bounded Admin popup rollout, using this
+  accepted behavior as the target. Participant rollout is now authorized above;
+  commit/push remain unauthorized.
+
+## PR #7 production rollout — complete 2026-09-07
+
+- User authorized merge and deployment after green local/PR CI. PR #7 merged
+  normally as `42b2a7dac0f5fd56e627359cba989a5c63c383de`; feature branch retained.
+- Exact main CI run `34160464984` passed all jobs and published the verified
+  `linux/amd64` candidate for that source SHA. Production image:
+  `ghcr.io/swiftpenguin578/bingowebpage@sha256:b2450a791eb22efdce61d185dd6f630810a1aab170a797916db293f99b4739f7`.
+- Authorized production workflow `34161651143` completed successfully, including
+  candidate validation and the host backup/migration/preflight/replacement/health
+  procedure. A success receipt was written on the host; its log path is partially
+  redacted by GitHub. Receipt contents were not separately fetched over SSH.
+- Post-deployment read-only smoke passed: `/health/live`, `/`, `/Account/Login`
+  and Danish `/HowTo` all returned HTTP 200. Login contains its Discord entry;
+  HowTo serves the new Danish wording including the corrected Regular-account
+  meaning. No live signup/participant test records were created.
+- Local evidence: `/private/tmp/pr7-production-candidate/candidate.json`,
+  `/private/tmp/pr7-production-smoke.json`, `/private/tmp/pr7-production-deployment.log`.
+  CI: https://github.com/swiftpenguin578/BingoWebpage/actions/runs/34160464984.
+  Deploy: https://github.com/swiftpenguin578/BingoWebpage/actions/runs/34161651143.
+  This release handoff update is local documentation only and uncommitted;
+  earlier unmerged/unpushed/pending-test notes below are historical checkpoints.
 
 ## PR #7 CI formatting correction — 2026-09-07
 
@@ -595,10 +1088,12 @@ historical material is preserved separately and is non-authoritative.
 
 ## Active production-release handoff
 
-PR #5 was merged and deployed on 2026-09-01. The deployed source SHA is
-`1f893133edc26455c41535807633225fdee36292`, and the immutable image digest is
-`sha256:5de9882be6cd63e170b6d68fc1b869ea134e9b67f3bfab6a1b7eb042ed4c1a20`.
-CI, deployment, and focused production smoke passed.
+PR #7 was merged and deployed on 2026-09-07. Current deployed source SHA is
+`42b2a7dac0f5fd56e627359cba989a5c63c383de`, with immutable image digest
+`sha256:b2450a791eb22efdce61d185dd6f630810a1aab170a797916db293f99b4739f7`.
+Main CI run `34160464984`, production deployment `34161651143`, and focused
+public health/login/Danish HowTo smoke checks passed. This supersedes the old
+PR #5 production version; retained infrastructure/import history follows.
 
 Better Stack production monitoring is active: the public `/health/live` monitor,
 quarter-hour disk heartbeat, and nightly backup heartbeat are configured, with

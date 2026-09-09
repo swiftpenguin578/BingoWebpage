@@ -197,14 +197,14 @@ docker compose down --volumes
 Docker must be running because the integration suite starts an isolated PostgreSQL container.
 
 ```bash
-dotnet test Bingo.slnx
+dotnet test Bingo.slnx --no-restore
 ```
 
-Format and verify:
+Verify formatting and build:
 
 ```bash
-dotnet format Bingo.slnx
-dotnet build Bingo.slnx --configuration Release
+dotnet format Bingo.slnx --no-restore --verify-no-changes
+dotnet build Bingo.slnx --configuration Release --no-restore
 ```
 
 ## Project structure
