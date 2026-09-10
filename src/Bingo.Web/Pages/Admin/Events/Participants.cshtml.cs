@@ -124,7 +124,7 @@ public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService si
                     db.Teams.Any(team => team.Id == membership.TeamId && team.EventId == id && team.Active && team.FormationType == TeamFormationType.Preformed)))
             .OrderBy(item => item.SignedUpAt).ThenBy(item => item.SignupSequence).ToListAsync(ct);
         ActiveSignupQuestions = await db.SignupQuestions.AsNoTracking().Where(item => item.EventId == id && item.Active).OrderBy(item => item.Position)
-            .Select(item => new ParticipantModel.QuestionView(item.Id, item.Label, item.Type, item.Required, true, item.AccountAnswerRole, item.Options == null ? Array.Empty<string>() : item.Options.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), null)).ToListAsync(ct);
+            .Select(item => new ParticipantModel.QuestionView(item.Id, item.Label, item.Type, item.Required, true, item.AccountAnswerRole, item.SystemField, item.Options == null ? Array.Empty<string>() : item.Options.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), null)).ToListAsync(ct);
         TotalParticipantCount = allParticipants.Count;
         WithdrawnParticipantCount = allParticipants.Count(item => item.SignupStatus == SignupStatus.Withdrawn);
 
@@ -151,6 +151,12 @@ public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService si
 
         var authorities = await db.AdminPrimaryCharacters().AsNoTracking().Where(item => item.EventId == id).ToDictionaryAsync(item => item.ParticipantId, ct);
         var waiting = allParticipants.Where(item => item.SignupStatus == SignupStatus.WaitingList).Select((item, index) => (item.Id, Position: index + 1)).ToDictionary(item => item.Id, item => item.Position);
+        var coCaptainQuestion = ActiveSignupQuestions.FirstOrDefault(question => question.SystemField == SignupSystemField.CoCaptainName);
+        var coCaptainAnswers = coCaptainQuestion is null
+            ? new Dictionary<Guid, string>()
+            : await db.SignupAnswers.AsNoTracking()
+                .Where(answer => participantIds.Contains(answer.EventParticipantId) && answer.SignupQuestionId == coCaptainQuestion.Id && answer.OsrsCharacterId == null)
+                .ToDictionaryAsync(answer => answer.EventParticipantId, answer => answer.Value, ct);
         var teams = await db.Teams.AsNoTracking().Where(item => item.EventId == id).OrderBy(item => item.Name).ToListAsync(ct);
         ParticipantTeams = teams.Select(item => new TeamOption(item.Id, item.Name)).ToList();
         var teamNames = teams.ToDictionary(item => item.Id, item => item.Name);
@@ -158,6 +164,7 @@ public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService si
             authorities.TryGetValue(item.Id, out var primary) ? primary.Name : "External roster member",
             authorities.TryGetValue(item.Id, out primary) ? primary.Ehb : 0m,
             item.SignupStatus, item.PaymentStatus, item.SignedUpAt, item.CaptainVolunteer,
+            coCaptainAnswers.GetValueOrDefault(item.Id),
             waiting.TryGetValue(item.Id, out var position) ? position : null, item.Source,
             item.AccountId is { } owner && owners.TryGetValue(owner, out var account) && account.Active && account.AccountType == AccountType.WebsiteAccount ? account.LoginName : null,
             item.AccountId is { } linkedOwner && owners.TryGetValue(linkedOwner, out var discordAccount) && discordAccount.DiscordUserId is not null,
@@ -173,6 +180,7 @@ public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService si
             "status" => descending ? rows.OrderByDescending(item => item.Status).ThenBy(item => item.Sequence) : rows.OrderBy(item => item.Status).ThenBy(item => item.Sequence),
             "payment" => descending ? rows.OrderByDescending(item => item.Payment).ThenBy(item => item.Sequence) : rows.OrderBy(item => item.Payment).ThenBy(item => item.Sequence),
             "signedup" => descending ? rows.OrderByDescending(item => item.SignedUpAt).ThenBy(item => item.Sequence) : rows.OrderBy(item => item.SignedUpAt).ThenBy(item => item.Sequence),
+            "captain" => descending ? rows.OrderByDescending(item => item.CaptainVolunteer).ThenBy(item => item.Sequence) : rows.OrderBy(item => item.CaptainVolunteer).ThenBy(item => item.Sequence),
             "ownership" => descending ? rows.OrderByDescending(item => item.TeamName ?? string.Empty).ThenBy(item => item.Sequence) : rows.OrderBy(item => item.TeamName ?? string.Empty).ThenBy(item => item.Sequence),
             _ => rows.OrderBy(item => item.Sequence)
         }).ToList();
@@ -195,7 +203,7 @@ public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService si
     }
 
     public sealed record EventView(Guid Id, string Name, EventState State, bool DraftLocked, int ParticipantCap, int Confirmed, int Waiting, bool WaitingListEnabled, long Version, bool CanEditParticipant);
-    public sealed record ParticipantRow(Guid Id, long Sequence, string Name, decimal Ehb, SignupStatus Status, PaymentStatus Payment, DateTimeOffset SignedUpAt, bool CaptainVolunteer, int? WaitingPosition, SignupSource Source, string? WebsiteUsername, bool DiscordLinked, string? TeamName);
+    public sealed record ParticipantRow(Guid Id, long Sequence, string Name, decimal Ehb, SignupStatus Status, PaymentStatus Payment, DateTimeOffset SignedUpAt, bool CaptainVolunteer, string? CoCaptainName, int? WaitingPosition, SignupSource Source, string? WebsiteUsername, bool DiscordLinked, string? TeamName);
     public sealed record TeamOption(Guid Id, string Name);
     public sealed record OwnerAccountOption(Guid Id, string Username);
     public sealed class InternalParticipantInput

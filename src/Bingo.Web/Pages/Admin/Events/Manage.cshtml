@@ -17,6 +17,7 @@
     var showResultsControl = showAllControlStages || eventView.State is EventState.Finalized or EventState.Archived;
     var showDestructivePreLiveControl = showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
     var partialUpdateTargets = "#app-notice-region, .event-overview, .event-overview-dates-panel, .event-control-workspace";
+    var manageUrl = Url.Page("/Admin/Events/Manage", new { id = eventView.Id });
     var signupUrl = Url.Page("/Events/Signup", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
     var signupTableUrl = Url.Page("/Events/Signups", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
     var publicBoardUrl = Url.Page("/Events/Board", null, new { slug = eventView.Slug }, Request.Scheme, Request.Host.Value);
@@ -261,13 +262,13 @@ else
                             }
                             else
                             {
-                                <form method="post" asp-page-handler="PrepareSignupConfirmation" data-update-targets="@partialUpdateTargets"><button class="btn event-create-cancel" type="submit" disabled="@(signupAndPlayersLocked ? "disabled" : null)">@(eventView.State == EventState.SignupOpen ? T["Close now"] : eventView.State == EventState.SignupClosed ? T["Reopen now"] : T["Open now"])</button></form>
+                                <form method="post" asp-page-handler="PrepareSignupConfirmation" data-update-targets="@partialUpdateTargets"><button id="manage-signup-confirm-trigger" class="btn event-create-cancel" type="submit" disabled="@(signupAndPlayersLocked ? "disabled" : null)">@(eventView.State == EventState.SignupOpen ? T["Close now"] : eventView.State == EventState.SignupClosed ? T["Reopen now"] : T["Open now"])</button></form>
                             }
                             @if (Model.ConfirmationAction == "signup")
                             {
                                 @if (signupWarningAcknowledgementRequired)
                                 {
-                                    <section class="admin-signup-warning-ack" aria-labelledby="manage-warning-heading">
+                                    <section class="admin-signup-warning-ack" data-confirmation-box tabindex="-1" aria-labelledby="manage-warning-heading">
                                         <div class="event-control-copy">
                                             <h3 id="manage-warning-heading">@T["Review signup warnings"]</h3>
                                             <p>@T["Acknowledge these active signup warnings before continuing."]</p>
@@ -281,8 +282,8 @@ else
                                         <form method="post" asp-page-handler="ConfirmSignup" class="event-confirmation-form" data-update-targets="@partialUpdateTargets">
                                             <input asp-for="EventVersion" type="hidden" />
                                             <div class="event-confirmation-actions">
+                                                <a class="admin-button-secondary" href="@manageUrl#manage-signup-confirm-trigger">@T["Cancel"]</a>
                                                 <button class="admin-button-secondary" type="submit" name="AcknowledgeSignupWarnings" value="true">@T["Confirm warnings"]</button>
-                                                <a class="admin-button-secondary" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a>
                                             </div>
                                         </form>
                                     </section>
@@ -298,9 +299,9 @@ else
                                     <form method="post" asp-page-handler="ConfirmSignup" class="event-confirmation-form" data-update-targets="@partialUpdateTargets">
                                         <input asp-for="EventVersion" type="hidden" />
                                         <div class="event-confirmation-actions">
+                                            <a class="btn event-create-cancel" href="@manageUrl#manage-signup-confirm-trigger">@T["Cancel"]</a>
                                             @if (Model.SignupCloseRequiresAcceptance && !Model.SignupCloseAcknowledged) { <button class="btn event-create-cancel" type="submit" name="AcceptProposedClose" value="true">@T["Accept proposed close"]</button> }
                                             @if ((eventView.State == EventState.SignupOpen || Model.SignupReadiness?.Warnings.Count == 0 || Model.SignupWarningAcknowledged) && (!Model.SignupCloseRequiresAcceptance || Model.SignupCloseAcknowledged)) { <button class="btn event-create-cancel" type="submit">@T["Confirm"]</button> }
-                                            <a class="btn event-create-cancel" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a>
                                         </div>
                                     </form>
                                     </div>
@@ -335,11 +336,11 @@ else
                             @if (Model.StartReadiness?.Blockers.Count > 0) { <p class="event-control-status is-yellow">@T["{0} blockers remain.", Model.StartReadiness.Blockers.Count] <a href="#readiness">@T["Review readiness"]</a></p> }
                             @if (Model.ConfirmationAction == "start")
                             {
-                                <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["Starting now changes the event to Live and preserves the configured schedule."]</p><form method="post" asp-page-handler="StartEvent" class="event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="StartReason">@T["Reason (required before the configured start)"]</label><input asp-for="StartReason" class="form-control" /></div><div class="event-confirmation-actions"><button class="btn event-create-cancel" type="submit" name="ConfirmStartEvent" value="true">@T["Confirm start"]</button><a class="btn event-create-cancel" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a></div></form></div>
+                                <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["Starting now changes the event to Live and preserves the configured schedule."]</p><form method="post" asp-page-handler="StartEvent" class="event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="StartReason">@T["Reason (required before the configured start)"]</label><input asp-for="StartReason" class="form-control" /></div><div class="event-confirmation-actions"><a class="btn event-create-cancel" href="@manageUrl#manage-start-confirm-trigger">@T["Cancel"]</a><button class="btn event-create-cancel" type="submit" name="ConfirmStartEvent" value="true">@T["Confirm start"]</button></div></form></div>
                             }
                             else
                             {
-                                <form method="post" asp-page-handler="PrepareStartConfirmation" data-update-targets="@partialUpdateTargets"><button class="btn event-create-cancel" type="submit">@T["Start event now"]</button></form>
+                                <form method="post" asp-page-handler="PrepareStartConfirmation" data-update-targets="@partialUpdateTargets"><button id="manage-start-confirm-trigger" class="btn event-create-cancel" type="submit">@T["Start event now"]</button></form>
                             }
                         }
                         @if (showLiveControls)
@@ -347,11 +348,11 @@ else
                             <a class="btn event-create-cancel" asp-page="/Admin/Review/Index" asp-route-eventId="@eventView.Id">@T["Review submissions"]</a>
                             @if (Model.ConfirmationAction == "end")
                             {
-                                <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["Ending now moves the event to final review; the configured end remains recorded."]</p><form method="post" asp-page-handler="EndEvent" class="event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="EndReason">@T["Reason (required before the configured end)"]</label><input asp-for="EndReason" class="form-control" /></div><div class="event-confirmation-actions"><button class="btn event-create-cancel" type="submit" name="ConfirmEndEvent" value="true">@T["Confirm end"]</button><a class="btn event-create-cancel" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a></div></form></div>
+                                <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["Ending now moves the event to final review; the configured end remains recorded."]</p><form method="post" asp-page-handler="EndEvent" class="event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="EndReason">@T["Reason (required before the configured end)"]</label><input asp-for="EndReason" class="form-control" /></div><div class="event-confirmation-actions"><a class="btn event-create-cancel" href="@manageUrl#manage-end-confirm-trigger">@T["Cancel"]</a><button class="btn event-create-cancel" type="submit" name="ConfirmEndEvent" value="true">@T["Confirm end"]</button></div></form></div>
                             }
                             else
                             {
-                                <form method="post" asp-page-handler="PrepareEndConfirmation" data-update-targets="@partialUpdateTargets"><button class="btn event-create-cancel" type="submit">@T["End event"]</button></form>
+                                <form method="post" asp-page-handler="PrepareEndConfirmation" data-update-targets="@partialUpdateTargets"><button id="manage-end-confirm-trigger" class="btn event-create-cancel" type="submit">@T["End event"]</button></form>
                             }
                         }
                         @if (showFinalReviewControls)
@@ -381,11 +382,11 @@ else
                             <div class="event-admin-event-actions">
                                 @if (Model.ConfirmationAction == "resume")
                                 {
-                                    <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["The prior end remains in immutable history. Confirm the retained or replacement end to resume live play."]</p><form method="post" asp-page-handler="ResumeEvent" class="form-stack event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="ReplacementEventEndsAtLocal"><span>@T["Replacement event end"]</span></label><input asp-for="ReplacementEventEndsAtLocal" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" required="@(Model.ResumeRequiresReplacement ? "required" : null)" /></div><div class="event-create-field"><label asp-for="ResumeReason"><span>@T["Reason (required)"]</span></label><textarea asp-for="ResumeReason" class="form-control" rows="3" required></textarea></div><div class="event-confirmation-actions"><button class="btn event-create-cancel" type="submit" name="ConfirmResumeEvent" value="true">@T["Confirm resume"]</button><a class="btn event-create-cancel" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a></div></form></div>
+                                    <div class="event-confirmation-box" data-confirmation-box tabindex="-1"><p>@T["The prior end remains in immutable history. Confirm the retained or replacement end to resume live play."]</p><form method="post" asp-page-handler="ResumeEvent" class="form-stack event-confirmation-form" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="ReplacementEventEndsAtLocal"><span>@T["Replacement event end"]</span></label><input asp-for="ReplacementEventEndsAtLocal" type="text" class="form-control" data-event-manage-datetime-picker data-time-label="@T["Time"]" required="@(Model.ResumeRequiresReplacement ? "required" : null)" /></div><div class="event-create-field"><label asp-for="ResumeReason"><span>@T["Reason (required)"]</span></label><textarea asp-for="ResumeReason" class="form-control" rows="3" required></textarea></div><div class="event-confirmation-actions"><a class="btn event-create-cancel" href="@manageUrl#manage-resume-confirm-trigger">@T["Cancel"]</a><button class="btn event-create-cancel" type="submit" name="ConfirmResumeEvent" value="true">@T["Confirm resume"]</button></div></form></div>
                                 }
                                 else
                                 {
-                                    <form method="post" asp-page-handler="PrepareResumeConfirmation" data-update-targets="@partialUpdateTargets"><button class="btn event-create-cancel" type="submit">@T["Resume event"]</button></form>
+                                    <form method="post" asp-page-handler="PrepareResumeConfirmation" data-update-targets="@partialUpdateTargets"><button id="manage-resume-confirm-trigger" class="btn event-create-cancel" type="submit">@T["Resume event"]</button></form>
                                 }
                             </div>
                         </section>
@@ -520,11 +521,11 @@ else
                         </div>
                         @if (Model.ConfirmationAction == "destructive")
                         {
-                            <div class="event-danger-zone-form"><p>@(Model.CanDiscard ? T["Discarding removes this empty setup permanently."] : T["Cancelling preserves history but stops the event permanently."])</p>@if (Model.CanDiscard) { <form method="post" asp-page-handler="Discard" class="form-stack" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-confirmation-actions"><button class="btn event-create-cancel action-danger-outline" type="submit" name="ConfirmDestructiveAction" value="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="m4.9 4.9 14.2 14.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" /></svg>@T["Confirm discard"]</button><a class="btn event-create-cancel" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a></div></form> } else { <form method="post" asp-page-handler="Cancel" class="form-stack" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="CancellationReason">@T["Cancellation reason"]</label><textarea asp-for="CancellationReason" class="form-control" rows="2" required></textarea></div><div class="event-confirmation-actions"><button class="btn event-create-cancel action-danger-outline" type="submit" name="ConfirmDestructiveAction" value="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="m4.9 4.9 14.2 14.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" /></svg>@T["Confirm cancellation"]</button><a class="btn event-create-cancel" asp-page="Manage" asp-route-id="@eventView.Id">@T["Cancel"]</a></div></form> }</div>
+                            <div class="event-danger-zone-form" data-confirmation-box tabindex="-1"><p>@(Model.CanDiscard ? T["Discarding removes this empty setup permanently."] : T["Cancelling preserves history but stops the event permanently."])</p>@if (Model.CanDiscard) { <form method="post" asp-page-handler="Discard" class="form-stack" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-confirmation-actions"><a class="btn event-create-cancel" href="@manageUrl#manage-destructive-confirm-trigger">@T["Cancel"]</a><button class="btn event-create-cancel action-danger-outline" type="submit" name="ConfirmDestructiveAction" value="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="m4.9 4.9 14.2 14.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" /></svg>@T["Confirm discard"]</button></div></form> } else { <form method="post" asp-page-handler="Cancel" class="form-stack" data-update-targets="@partialUpdateTargets"><input asp-for="EventVersion" type="hidden" /><div class="event-create-field"><label asp-for="CancellationReason">@T["Cancellation reason"]</label><textarea asp-for="CancellationReason" class="form-control" rows="2" required></textarea></div><div class="event-confirmation-actions"><a class="btn event-create-cancel" href="@manageUrl#manage-destructive-confirm-trigger">@T["Cancel"]</a><button class="btn event-create-cancel action-danger-outline" type="submit" name="ConfirmDestructiveAction" value="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="m4.9 4.9 14.2 14.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" /></svg>@T["Confirm cancellation"]</button></div></form> }</div>
                         }
                         else
                         {
-                            <form method="post" asp-page-handler="PrepareDestructiveConfirmation" data-update-targets="@partialUpdateTargets"><button class="btn event-create-cancel action-danger-outline" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="m4.9 4.9 14.2 14.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" /></svg>@(Model.CanDiscard ? T["Discard event"] : T["Cancel event"])</button></form>
+                            <form method="post" asp-page-handler="PrepareDestructiveConfirmation" data-update-targets="@partialUpdateTargets"><button id="manage-destructive-confirm-trigger" class="btn event-create-cancel action-danger-outline" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="m4.9 4.9 14.2 14.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" /></svg>@(Model.CanDiscard ? T["Discard event"] : T["Cancel event"])</button></form>
                         }
                     </section>
                 }

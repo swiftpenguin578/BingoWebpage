@@ -269,7 +269,7 @@ else
     @if (Model.Draft.State is DraftState.Setup or DraftState.Finalized)
     {
         <div class="team-heading-actions">
-            <button type="button" class="admin-button-create" data-draft-dialog-open="add-team" onclick="document.getElementById('add-team').showModal()">＋ @T["Add team"]</button>
+            <button type="button" class="admin-button-create" data-draft-dialog-open="add-team" onclick="if (!document.getElementById('add-team').open) document.getElementById('add-team').showModal()">＋ @T["Add team"]</button>
         </div>
     }
 </div>
@@ -323,11 +323,16 @@ else
         <div class="team-card-footer"><p>@if(team.FormationType == TeamFormationType.Drafted){<text>@team.TotalEhb.ToString("0.##") EHB · </text>}@T["{0} member(s)", team.Members.Count]</p><div class="dialog-actions"><a class="admin-button-secondary" asp-page="Draft" asp-route-id="@RouteData.Values["id"]" asp-route-rosterTeamId="@team.Id" data-draft-roster-trigger="team-@team.Id">@T["Edit / roster"]</a></div></div>
         }
     </article>
-    <dialog id="team-@team.Id" class="tile-dialog team-roster-dialog" data-preserve-post-dialog @(Model.RosterTeamId == team.Id ? "open" : null) aria-labelledby="team-@team.Id-title">
+    <dialog id="team-@team.Id" class="tile-dialog team-roster-dialog" data-preserve-post-dialog data-toast-host @(Model.RosterTeamId == team.Id ? "open" : null) aria-labelledby="team-@team.Id-title">
         <header class="team-roster-dialog-header">
             <div><p class="eyebrow">@T["Team roster"]</p><h2 id="team-@team.Id-title">@team.Name</h2></div>
             <button type="button" class="admin-route-dialog-close" aria-label="@T["Close roster for {0}", team.Name]" data-draft-roster-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
         </header>
+        <div class="event-confirmation-box team-roster-discard" data-draft-roster-discard role="alertdialog" aria-labelledby="team-@team.Id-discard-title" hidden>
+            <p><strong id="team-@team.Id-discard-title">@T["Discard unsaved changes?"]</strong><br />@T["Continuing will discard unsaved changes in this editor."]</p>
+            <div class="event-confirmation-actions"><button type="button" class="admin-button-secondary" data-draft-roster-keep>@T["Cancel"]</button><button type="button" class="admin-button-secondary action-danger-outline" data-draft-roster-discard-confirm>@T["Discard changes"]</button></div>
+        </div>
+        <p class="team-roster-feedback" data-draft-roster-feedback role="alert" aria-live="assertive" tabindex="-1" hidden></p>
 
         <details class="team-roster-section">
             <summary><span><span>@T["Team details"]</span><small>@T["Name, clan and image"]</small></span></summary>
@@ -352,8 +357,24 @@ else
                 <p class="team-readiness-status">
                     @if (team.FormationType == TeamFormationType.Drafted)
                     {
-                        <span class="admin-status-pill @(team.HasUsableCaptain ? "is-green" : "is-danger")">@(team.HasUsableCaptain ? T["Ready"] : T["Attention"])</span>
-                        <text>@(team.HasUsableCaptain ? T["Captain access is ready."] : T["A current Captain is required before the draft can start."])</text>
+                        <span class="admin-status-pill @(!team.HasCurrentCaptain || (!team.HasUsableCaptain && !team.HasEnabledEmergencyAccess) ? "is-danger" : team.HasUsableCaptain ? "is-green" : "is-yellow")">@(!team.HasCurrentCaptain || (!team.HasUsableCaptain && !team.HasEnabledEmergencyAccess) ? T["Attention"] : team.HasUsableCaptain ? T["Ready"] : T["Enabled"])</span>
+                        if (!team.HasCurrentCaptain)
+                        {
+                            <text>@T["A current Captain is required before the draft can start."]</text>
+                        }
+                        else if (team.HasUsableCaptain)
+                        {
+                            <text>@T["Captain access is ready."]</text>
+                        }
+                        else if (team.HasEnabledEmergencyAccess)
+                        {
+                            <text>@T["Emergency access is enabled."]</text>
+                        }
+                        else
+                        {
+                            <text>@T["A Captain is assigned, but website access is not ready."]</text>
+                            <a asp-page="/Admin/Accounts/Create" asp-route-eventId="@Model.EventId" asp-route-teamId="@team.Id">@T["Emergency credential"]</a>
+                        }
                     }
                     else if (team.HasUsableCaptain)
                     {
@@ -364,6 +385,12 @@ else
                     {
                         <span class="admin-status-pill is-yellow">@T["Enabled"]</span>
                         <text>@T["Emergency access is enabled."]</text>
+                    }
+                    else if (team.HasCurrentCaptain)
+                    {
+                        <span class="admin-status-pill is-danger">@T["Attention"]</span>
+                        <text>@T["A Captain is assigned, but website access is not ready."]</text>
+                        <a asp-page="/Admin/Accounts/Create" asp-route-eventId="@Model.EventId" asp-route-teamId="@team.Id">@T["Emergency credential"]</a>
                     }
                     else
                     {
@@ -465,6 +492,7 @@ else
                             <label class="admin-field"><span class="field-label">@T["In-game name"]</span><input name="name" class="form-control" required /></label>
                             <label class="admin-field"><span class="field-label">@T["Primary EHB"]</span><input name="ehb" type="number" min="0" step="0.01" class="form-control" required /></label>
                             <label class="admin-field"><span class="field-label">@T["Additional OSRS accounts (one per line)"]</span><textarea name="additionalAccounts" class="form-control"></textarea></label>
+                            <label class="admin-field"><span class="field-label">@T["Role"]</span><select name="role" class="form-select"><option value="Participant" selected>@T["Participant"]</option><option value="Captain">@T["Captain"]</option><option value="CoCaptain">@T["Co-captain"]</option></select></label>
                             <input type="hidden" name="confirmed" value="true" />
                             <div class="event-confirmation-actions"><button class="action-danger-outline">@T["Confirm add player"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div>
                         </form>
@@ -478,6 +506,7 @@ else
                         <label class="admin-field"><span class="field-label">@T["In-game name"]</span><input name="name" class="form-control" required /></label>
                         <label class="admin-field"><span class="field-label">@T["Primary EHB"]</span><input name="ehb" type="number" min="0" step="0.01" class="form-control" required /></label>
                         <label class="admin-field"><span class="field-label">@T["Additional OSRS accounts (one per line)"]</span><textarea name="additionalAccounts" class="form-control"></textarea></label>
+                        <label class="admin-field"><span class="field-label">@T["Role"]</span><select name="role" class="form-select"><option value="Participant" selected>@T["Participant"]</option><option value="Captain">@T["Captain"]</option><option value="CoCaptain">@T["Co-captain"]</option></select></label>
                         <div class="dialog-actions"><button class="admin-button-primary">@T["Add player"]</button></div>
                     </form>
                 }
@@ -521,6 +550,7 @@ else
                         <input type="hidden" name="teamId" value="@team.Id" />
                         <input type="hidden" name="rosterTeamId" value="@team.Id" />
                         <label class="admin-field"><span class="field-label">@T["Available participant"]</span><select name="participantId" class="form-select"><option value="">@T["Choose participant"]</option>@foreach (var player in Model.Participants.Where(x => x.TeamId is null)){<option value="@player.Id">@player.Name (@player.Ehb EHB)</option>}</select></label>
+                        <label class="admin-field"><span class="field-label">@T["Role"]</span><select name="role" class="form-select"><option value="Participant" selected>@T["Participant"]</option><option value="Captain">@T["Captain"]</option><option value="CoCaptain">@T["Co-captain"]</option></select></label>
                         <div class="dialog-actions"><button class="admin-button-primary">@T["Add website signup"]</button></div>
                     </form>
                 </details>
@@ -534,6 +564,7 @@ else
                     <input type="hidden" name="teamId" value="@team.Id" />
                     <input type="hidden" name="rosterTeamId" value="@team.Id" />
                     <label class="admin-field"><span class="field-label">@T["Available participant"]</span><select name="participantId" class="form-select"><option value="">@T["Choose participant"]</option>@foreach (var player in Model.Participants.Where(x => x.TeamId is null)){<option value="@player.Id">@player.Name (@player.Ehb EHB)</option>}</select></label>
+                    <label class="admin-field"><span class="field-label">@T["Role"]</span><select name="role" class="form-select"><option value="Participant" selected>@T["Participant"]</option><option value="Captain">@T["Captain"]</option><option value="CoCaptain">@T["Co-captain"]</option></select></label>
                     <label class="admin-field"><span class="field-label">@T["Reason"]</span><input name="reason" class="form-control" required value="Manual roster assignment" /></label>
                     <div class="dialog-actions"><button class="admin-button-primary">@T["Add to roster"]</button></div>
                 </form>
@@ -544,7 +575,7 @@ else
 </div>
 </section>
 
-<section class="draft-participant-section" data-participant-group data-no-matches="@T["No matching participants."]">
+<section class="draft-participant-section" data-draft-participant-section data-participant-group data-no-matches="@T["No matching participants."]">
     <div class="admin-events-directory-controls draft-participant-controls">
         <label class="admin-search-field"><span class="visually-hidden">@T["Search participants"]</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg><input class="admin-search-field-input form-control" type="search" placeholder="@T["Search participants"]" aria-label="@T["Search participants"]" data-participant-search /></label>
     </div>
@@ -635,28 +666,33 @@ else
  </div>
 
 
-<dialog id="add-team" class="tile-dialog team-roster-dialog external-team-dialog" data-preserve-post-dialog aria-labelledby="add-team-title">
+<dialog id="add-team" class="tile-dialog team-roster-dialog external-team-dialog" data-preserve-post-dialog data-toast-host data-draft-add-team-dialog aria-labelledby="add-team-title">
     <header class="team-roster-dialog-header">
         <div><p class="eyebrow">@T["Team setup"]</p><h2 id="add-team-title">@T["Add team"]</h2></div>
-        <button type="button" class="admin-route-dialog-close" aria-label="@T["Close add team dialog"]" data-draft-dialog-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+        <button type="button" class="admin-route-dialog-close" aria-label="@T["Close add team dialog"]" data-draft-dialog-close data-draft-add-team-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
     </header>
     <p class="external-team-dialog-intro">@T["Choose whether this is a website-drafted or pre-formed team. Pre-formed teams never receive draft turns."]</p>
+    <div class="event-confirmation-box draft-add-team-discard" data-draft-add-team-discard role="alertdialog" aria-labelledby="add-team-discard-title" hidden>
+        <p><strong id="add-team-discard-title">@T["Discard unsaved changes?"]</strong><br />@T["Continuing will discard unsaved changes in this editor."]</p>
+        <div class="event-confirmation-actions"><button type="button" class="admin-button-secondary" data-draft-add-team-keep>@T["Cancel"]</button><button type="button" class="admin-button-secondary action-danger-outline" data-draft-add-team-discard-confirm>@T["Discard changes"]</button></div>
+    </div>
+    <p data-draft-add-team-feedback role="alert" tabindex="-1" hidden></p>
     <section class="team-roster-section team-roster-form-section">
         <header><h3>@T["Team details"]</h3><small>@T["Only the team name is required."]</small></header>
-        <form method="post" asp-page-handler="AddTeam" class="form-stack">
+        <form method="post" asp-page-handler="AddTeam" class="form-stack" data-draft-add-team-form>
             <label class="admin-field"><span class="field-label">@T["Team name"]</span><input name="name" class="form-control" required /></label>
             <label class="admin-field"><span class="field-label">@T["Formation"]</span><select name="formationType" class="form-select"><option value="Drafted">@T["Drafted"]</option><option value="Preformed">@T["Pre-formed"]</option></select></label>
             <label class="admin-field"><span class="field-label">@T["Affiliation / clan"]</span><input name="affiliation" class="form-control" /></label>
             @if (isFinalizedDraft)
             {
-                <details class="admin-destructive-confirmation draft-confirmation">
-                    <summary class="admin-button-create">@T["Review add team"]</summary>
-                    <div class="event-confirmation-box" role="alertdialog" aria-labelledby="add-team-confirm-heading"><p><strong id="add-team-confirm-heading">@T["Add this pre-formed team to the published roster?"]</strong><br /><span class="event-confirmation-supporting">@T["The correction will be audited and the roster will be republished."]</span></p><input type="hidden" name="confirmed" value="true" /><div class="event-confirmation-actions"><button class="admin-button-primary">＋ @T["Add team"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></div>
+                <details class="admin-destructive-confirmation draft-confirmation" data-draft-add-team-confirmation>
+                    <summary class="admin-button-create" data-draft-add-team-review>@T["Review add team"]</summary>
+                    <div class="event-confirmation-box" role="alertdialog" aria-labelledby="add-team-confirm-heading"><p><strong id="add-team-confirm-heading">@T["Add this pre-formed team to the published roster?"]</strong><br /><span class="event-confirmation-supporting">@T["The correction will be audited and the roster will be republished."]</span></p><input type="hidden" name="confirmed" value="true" data-draft-add-team-confirmed disabled /><div class="event-confirmation-actions"><button type="button" class="admin-button-secondary" data-confirmation-cancel data-draft-add-team-cancel>@T["Cancel"]</button><button type="submit" class="admin-button-primary" data-draft-add-team-confirm>＋ @T["Add team"]</button></div></div>
                 </details>
             }
             else
             {
-                <div class="dialog-actions"><button class="admin-button-create">＋ @T["Add team"]</button></div>
+                <div class="dialog-actions"><button type="submit" class="admin-button-create">＋ @T["Add team"]</button></div>
             }
         </form>
     </section>

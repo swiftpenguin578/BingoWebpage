@@ -11,6 +11,7 @@ public sealed class Slice4SignupPersistenceDomainTests
         var form = new SignupForm(Guid.NewGuid(), Guid.NewGuid(), now);
         var regular = new SignupQuestion(Guid.NewGuid(), form.Id, form.EventId, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var captain = new SignupQuestion(Guid.NewGuid(), form.Id, form.EventId, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
+        var coCaptain = new SignupQuestion(Guid.NewGuid(), form.Id, form.EventId, SignupQuestion.CoCaptainKey, SignupQuestion.CoCaptainLabel, SignupQuestionType.Text, false, 2, null, SignupSystemField.CoCaptainName);
         var participant = new EventParticipant(Guid.NewGuid(), form.EventId, SignupStatus.Confirmed, 1, now, SignupSource.Website);
 
         form.RecordAcceptedResponse(now);
@@ -23,6 +24,7 @@ public sealed class Slice4SignupPersistenceDomainTests
         Assert.NotNull(answer.OsrsCharacterId);
         Assert.Throws<InvalidOperationException>(() => regular.Deactivate());
         Assert.Throws<InvalidOperationException>(() => captain.Deactivate());
+        Assert.Throws<InvalidOperationException>(() => coCaptain.Deactivate());
         Assert.Throws<ArgumentException>(() => new SignupQuestion(Guid.NewGuid(), form.Id, form.EventId, "bad", "Bad", SignupQuestionType.Account, false, 2, null));
     }
 

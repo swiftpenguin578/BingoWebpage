@@ -86,8 +86,8 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
                 return new AccountView(question.Label, x.DisplayName, question.AccountAnswerRole == EventCharacterRole.Playing ? x.Assignment.EhbSnapshot : null);
             }).ToList();
             var answers = await db.SignupAnswers.AsNoTracking().Where(x => x.EventParticipantId == row.Participant.Id && x.OsrsCharacterId == null).ToListAsync(ct);
-            Answers = answers.Where(x => questions.TryGetValue(x.SignupQuestionId, out var question) && question.SystemField == SignupSystemField.None)
-                .Select(x => new AnswerView(questions[x.SignupQuestionId].Label, x.Value)).ToList();
+            Answers = answers.Where(x => questions.TryGetValue(x.SignupQuestionId, out var question) && question.SystemField is SignupSystemField.None or SignupSystemField.CoCaptainName)
+                .Select(x => new AnswerView(questions[x.SignupQuestionId].SystemField == SignupSystemField.CoCaptainName ? text[SignupQuestion.CoCaptainLabel].Value : questions[x.SignupQuestionId].Label, x.Value)).ToList();
             Answers = Answers.Append(new AnswerView(text["Captain volunteer"].Value, text[row.Participant.CaptainVolunteer ? "Yes" : "No"].Value)).ToList();
             return Page();
         }

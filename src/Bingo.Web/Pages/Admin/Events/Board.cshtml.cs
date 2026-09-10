@@ -105,6 +105,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
 
     public async Task<IActionResult> OnPostCreateTileAsync(Guid id, CancellationToken ct)
     {
+        TempData["BoardTileOutcome"] = "failed";
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
         if (!board.IsEditable || TileDraft.Position < 0 || TileDraft.Position >= board.Rows * board.Columns)
         {
@@ -150,11 +151,13 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         await ReplaceTileImageAsync(id, tile, ct);
         await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct); await WriteAudit("board.tile_created", board.Id, name, ct);
         SetSuccessIfMissing(Localize("Tile created."));
+        TempData["BoardTileOutcome"] = "committed";
         return RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnPostEditTileAsync(Guid id, CancellationToken ct)
     {
+        TempData["BoardTileOutcome"] = "failed";
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
         if (!board.IsEditable || TileDraft.TileId is null)
         {
@@ -227,6 +230,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         await ReplaceTileImageAsync(id, tile, ct);
         await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct); await WriteAudit("board.tile_edited", board.Id, name, ct);
         SetSuccessIfMissing(Localize("Tile updated."));
+        TempData["BoardTileOutcome"] = "committed";
         return RedirectToPage(new { id });
     }
 
@@ -628,6 +632,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
 
     public async Task<IActionResult> OnPostRemoveAsync(Guid id, Guid tileId, CancellationToken ct)
     {
+        TempData["BoardTileOutcome"] = "failed";
         await using var transaction = await db.Database.BeginTransactionAsync(ct); var board = await db.Boards.SingleAsync(x => x.EventId == id, ct); if (!board.IsEditable) { SetStatus(Localize("This board is no longer editable."), UiMessageType.Warning); return RedirectToPage(new { id }); }
         if (!await TryEnsurePublishedCorrectionLifecycleAsync(board, id, ct)) { SetStatus(Localize("This event is read-only in its current lifecycle state."), UiMessageType.Warning); return RedirectToPage(new { id }); }
         if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id }); if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
@@ -636,6 +641,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         var images = await db.BoardTileImageAssets.Where(x => x.BoardTileId == tile.Id).ToListAsync(ct);
         db.BoardRequirementBossSnapshots.RemoveRange(await db.BoardRequirementBossSnapshots.Where(x => ids.Contains(x.RequirementId)).ToListAsync(ct)); db.BoardRequirementDropSnapshots.RemoveRange(await db.BoardRequirementDropSnapshots.Where(x => ids.Contains(x.RequirementId)).ToListAsync(ct)); db.BoardRequirementSnapshots.RemoveRange(requirements); db.BoardTileImageAssets.RemoveRange(images); db.BoardTiles.Remove(tile);
         board.SetTotalEhb(Math.Max(0, board.TotalEhbEstimate - tile.EstimatedEhbSnapshot)); await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
+        TempData["BoardTileOutcome"] = "committed";
         foreach (var image in images) await storage.DeleteAsync(image.StorageKey, ct);
         await WriteAudit("board.tile_removed", board.Id, tile.NameSnapshot, ct); SetSuccessIfMissing(Localize("Tile removed.")); return RedirectToPage(new { id });
     }

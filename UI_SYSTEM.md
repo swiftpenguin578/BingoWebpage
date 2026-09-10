@@ -541,8 +541,8 @@ current uses, permitted variants, and forbidden legacy residue.
 | Headings/support | Shared Admin typography tokens; markup owners are each page heading/component heading; Manage is the hierarchy reference | Page, component, row label, and support roles | Promoting a page selector to global or duplicating headings inside nested surfaces |
 | Rows/panels/callouts | `.event-overview-section`, `.event-overview-row`, `.event-confirmation-box`, and `.information-callout` CSS; Manage/Board references | Operational row, tonal panel, compact confirmation, and informational note | Unnamed nested boxes, legacy card wrappers, or decorative dividers without owner |
 | Information rail | No shared markup owner; Manage `.event-overview-dates-panel`, Identity `.identity-event-information-rail`, and Schedule `.schedule-event-information-rail` are canonical patterns | Detail/form only on wide desktop; page-local content may differ | Adding it to full-width/table pages or relocating it below constrained forms |
-| Route dialogs | Questions uses the static host in `_AdminLayout.cshtml` plus `signup-questions-overlay.js`; Accounts and Catalogue create/manage hosts through `account-manage-dialog.js` and `catalogue-admin.js` | Canonical desktop progressive route-dialog behavior; ordinary route remains available at `max-width: 900px`, for direct loads, and when enhancement fails | A second page shell, opaque host surface, generalized overlay framework, or new route-dialog variant |
-| Compact/nested confirmations | `event-confirmation-box`; Participants geometry and Accounts/Board dialog markup are references | Centered confirmation with neutral cancel and semantic confirm; nested backdrop stays transparent | Stacked dim layers, typed-reason prompts where handler does not support them, or loose destructive copy |
+| Route dialogs | Questions uses `_AdminLayout.cshtml` + `signup-questions-overlay.js`; Participant uses the dialog section of `event-manage.js`; both use `admin-editor-guard.js` for dirty/pending/failure safeguards. Accounts/Catalogue retain their existing owners | Questions/Participant share the accepted modal policy at every width with fullscreen at <=900; explicit routes/reload/recovery remain. Other owners retain their current behavior until authorized rollout | A second page shell, opaque host surface, generalized overlay framework, or new route-dialog variant |
+| Compact/nested confirmations | `event-confirmation-box`; Questions/Participant use compact inline markup and `admin-editor-guard.js` for unsaved-discard mechanics | Compact inline confirmation inside an editor, neutral Cancel before semantic action, body-size consequences; no additional dim layer | Stacked dim layers, typed-reason prompts where handler does not support them, or loose destructive copy |
 | Backdrop/focus/scroll/history | Admin route CSS plus `site.js`, `signup-questions-overlay.js`, `account-manage-dialog.js`, and `catalogue-admin.js`; public Board retains its evidence viewer and submission drawer but no team-board popup | Modal/drawer backdrop, body-scroll lock, trigger focus restore where applicable, route history, bounded overlay content scroll | A page-local duplicate modal policy, lost focus, background scrolling, or realtime interrupting an active submission/result |
 | Toasts | `_TransientToast.cshtml`, `.app-toast` CSS, and `site.js` transient-toast layer | Success, warning, error, information; live region, dismiss button, timeout pause, reduced motion | Inline duplicate toast systems, non-announced mutation feedback, or toast-only authorization/validation |
 | Removable-object X | `.action-remove-x` for self-evident removable objects, using the standard inline two-stroke crossed-line SVG; shared close glyph path is `.admin-route-dialog-close` | Muted neutral Board-style default and neutral hover treatment for banner/evidence/objective removal, with accessible label and focus state | Pink/red default, bare unlabeled font/text `×`, oversized invisible target without focus, or using X for non-removal actions |
@@ -580,6 +580,102 @@ the primitive includes removing conflicting local rules and wrappers.
   rendered submission destination or no-JavaScript acceptance surface.
 - `max-width: 600px`: the narrow Admin shell and component transitions apply;
   content remains readable and may document-scroll when necessary.
+
+### Admin action feedback — rollout rule accepted 2026-09-08
+
+Every Admin pass checks correct and missing outcome feedback as part of its normal
+scope. An action message identifies what happened (and the affected object where
+useful), uses the correct success/information/warning/error severity, and gives a
+usable next step on failure. Avoid vague success notices, missing feedback, duplicate
+toasts and messages contradicted by the visible state. In particular, distinguish
+save failure from a successful save followed by refresh failure. Messages remain
+visible and announced while a modal is open, using the existing shared toast owner;
+field validation and durable recovery actions remain beside the relevant inputs.
+Native Admin dialogs may opt into the shared toast layer with `data-toast-host`,
+preserving their own layout classes. Add team uses this opt-in; route dialogs
+retain their existing shared toast behavior.
+Apply this during each page's authorized pass; it does not require a separate
+whole-site audit or imply unvisited pages already conform.
+
+User clarification (2026-09-08): saying a page/popup's general appearance is good
+approves its overall composition only. It does not approve every action-revealed
+popup, confirmation, expanded section, font/typography, error or toast state.
+Preserve that composition while checking these details against the shared system;
+the implementer/planner may use a targeted render where a concrete visual
+uncertainty warrants it. This does not add duplicate reviewer visual inspection.
+
+### Admin popup and confirmation contract — accepted 2026-09-07
+
+Ordinary Admin popups inherit the shared Admin type family and size hierarchy:
+popup title, smaller section headings, normal body/label/input/button sizes and
+smaller muted help. Inline confirmation headings use emphasized body text; warning
+copy must not dominate the item heading or inherit public/page-introduction sizing.
+Use semantic shared Admin styling; do not invent a page-local typography scale.
+
+Use a compact inline confirmation beside the affected object inside an existing
+editor popup. On ordinary pages, destructive actions may use a small confirmation
+dialog. These contexts share Cancel-before-destructive button order, accessible
+focus, concise consequence-specific wording and danger styling. Use Delete for
+permanent deletion and Remove for unlinking. A non-account question must not show
+account-removal consequences. Escape cancels the topmost confirmation first and
+returns focus to its trigger; do not stack editor modals.
+
+While an inline action confirmation is open, hide its initiating action button so
+the action appears only once, beside Cancel. Restore the trigger before returning
+focus on Cancel/Escape; switching or dismissing confirmations must not leave a
+trigger hidden. Preserve typed values, discard recovery and pending-request guards.
+This general rule is accepted 2026-09-08; the current correction covers Questions,
+Participant Manage, Accounts Create/Manage and Catalogue Add/Edit only.
+
+Unchanged editors dismiss without confirmation. Closing actual unsaved changes
+requires a compact discard choice that preserves edits when cancelled. Close,
+Cancel, Escape, Back and outside-click paths must not bypass this protection or
+leave URL/focus/scroll state inconsistent. Reload/navigation away may use native
+browser unsaved-change protection. While a save is pending, keep the editor present
+until it settles; prevent duplicate submissions. Failures retain values and usable
+localized retry controls. Replacing content after any action must not silently
+discard edits in another form in the same editor.
+
+Successful ordinary saves return to and update their originating context with one
+result notice. Every popup must refresh all affected parent data before the user
+returns, including table columns, rows, counts and action state; updating only a
+summary is insufficient. Preserve the parent filters and scroll. Failed or
+unchanged edits do not require a mutation refresh, and refresh failure must not
+silently present stale data as current. Signup Questions is an explicit multi-question-editor exception:
+saving keeps the editor open and updates its list and parent summary. For the user-approved 2026-09-08 follow-up, Participants opens this same modal
+at every width; <=900 uses a full-screen dialog. Resizing never closes, reloads or
+changes its URL, unsaved values or pending request. Deliberately loaded standalone
+URLs remain available for direct navigation/recovery. This supersedes the prior
+width-based standalone fallback for Signup Questions only. Long content must leave
+closing reachable; focus is meaningful and contained while modal, background scroll
+is locked, and close restores focus to the originating context. Direct routes and
+reloads remain usable.
+
+Signup Questions is manually accepted. The user-authorized 2026-09-08 Participant
+editor pass now adopts the same modal/full-screen, dirty/pending/recovery and
+typography rules with real shared ownership where appropriate. This does not claim
+other Admin popups conform or authorize their rollout. Participant-specific authority
+and lifecycle actions remain explicit and protected.
+
+Accounts Create/Manage adopts this same shared guard, inline-confirmation and
+all-width modal contract for the 2026-09-08 behavior rollout. Its existing compact
+composition and account-specific action/secret disclosure semantics remain intact.
+The general Accounts narrow standalone switch is superseded; deliberate standalone
+routes still provide direct navigation and recovery. Independent rollout review is
+source-only by user decision; changed client behavior receives one targeted browser
+check and the user provides final visual acceptance.
+
+Catalogue Add/Edit adopts the same all-width modal/shared guard/inline confirmation
+and parent-freshness contract for the user-approved 2026-09-08 rollout. Preserve the
+specialized activity/drop layout, typed-delete and duplicate-item decisions. Revealed
+confirmations must scroll into view, with ordinary Admin body typography and no
+second modal layer. Explicit standalone routes remain usable.
+
+Add Participant adopts the same all-width modal/shared guard contract on 2026-09-08,
+superseding its narrow-width route switch. Preserve its form composition and
+existing direct/reload route. Successful creation returns to fresh Participants
+context; confirmed creation with failed refresh blocks resubmission and offers
+actual reload without unsaved-change prompts for the completed form.
 
 ### Route-backed popup lifecycle
 
@@ -658,6 +754,12 @@ page-local override; the override must be removed or recorded as an exception.
 
 ## UI task and review contract
 
+Use the role/model policy in `AGENTS.md`; this section owns visual-work procedure,
+not a second model assignment. The source-only reviewer exception for approved
+Admin popup behavior passes remains in `AGENTS.md` and the assigned pass plan.
+The major visual-pass workflow below does not add a rendered reviewer or readiness
+review to those behavior passes or to tiny corrections.
+
 Every UI task states the exact page/result, reference markup, classes, states,
 files, and non-goals before implementation.
 
@@ -681,16 +783,17 @@ does not remove the page-family user approval gate.
 
 User-supplied screenshots are the normal post-implementation visual evidence.
 They may include browser chrome or slight viewport-size variance when the
-application viewport remains identifiable. The canonical reference is always
-the target and the new screenshot is always current implementation evidence.
-The reviewer compares those images plus the scoped code diff; it does not require
+application viewport remains identifiable. Historical reference pictures are targets only when the user explicitly
+reactivates them for the current task. Otherwise use current supplied screenshots,
+named findings and the existing implementation. The reviewer compares applicable
+current evidence and reactivated references plus the scoped code diff; it does not require
 the implementer to repeat route rendering or broad reference inspection for a
 named small correction. Static editorial copy is not frozen unless the matrix
 says otherwise: it may change to serve the approved hierarchy while preserving
 meaning, truthful claims, localization, dynamic facts, and action semantics.
 
-Admin families without a canonical screenshot reference do not require a
-screenshot-to-reference gate. Their independent review inspects the rendered
+Major Admin visual passes without a canonical screenshot reference do not require
+a screenshot-to-reference gate. Their independent review inspects the rendered
 routes and scoped diff against the approved Admin shell, tokens, typography,
 component owners, layout-family rules, responsive transitions, focus treatment,
 and protected behavior. It must reject legacy or Public UI visual residue such
@@ -715,7 +818,7 @@ cannot approve visual fidelity.
 
 For each major unapproved UI page/pass, use this workflow:
 
-1. Before first implementation, one independent read-only Sol High
+1. Before first implementation, one independent read-only
    rendered-page readiness/residue review compares the relevant rendered states
    with this document, `UI_PAGE_MATRIX.md`, and the named canonical references.
    It produces a numbered implementation contract stating the exact residue to
@@ -726,15 +829,15 @@ For each major unapproved UI page/pass, use this workflow:
    states as applicable. No separate no-JavaScript state review is required.
 2. The user resolves and approves genuine design decisions before
    implementation.
-3. Luna Max implements the smallest complete change against that frozen
+3. The assigned implementer implements the smallest complete change against that frozen
    checklist; “smallest” means the smallest complete implementation, not the
    smallest diff.
 4. The user supplies current light/dark desktop and narrow/mobile screenshots as
-   applicable. One independent Sol High post-implementation review checks every
+   applicable. One independent post-implementation review checks every
    numbered item against those screenshots, the complete scoped diff, and the
    canonical reference, reporting each item as satisfied or unsatisfied with
    concrete evidence.
-5. If needed, one fresh Luna Max remediation addresses only named failures,
+5. If needed, one fresh remediation addresses only named failures,
    followed by the user's focused confirmation rather than another broad review
    unless the composition materially changed.
 6. User manual visual acceptance remains the page-specific approval gate, and
@@ -743,6 +846,12 @@ For each major unapproved UI page/pass, use this workflow:
 A tiny visual correction retains the shorter focused workflow and does not
 require this full cycle; run only the focused verification needed to prove the
 correction.
+
+Explicit continuous multi-pass authorization may defer final manual acceptance;
+it does not skip the required implementation, current evidence, review or named
+remediation. Record cleared pages as awaiting manual approval. The later combined
+walkthrough includes shared-shell/CSS regressions across those pages. This does
+not authorize scope expansion, packaging, commits, deployment or bypassing a blocker.
 
 ## Protected baselines
 

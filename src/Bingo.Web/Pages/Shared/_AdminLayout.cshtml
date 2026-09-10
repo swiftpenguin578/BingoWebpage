@@ -79,7 +79,9 @@
       data-admin-draft-ready="@T["Order ready."]"
       data-admin-saving="@T["Saving"]"
       data-admin-participant-load-error="@T["The participant details could not be loaded."]"
+      data-admin-participant-close="@T["Close participant details"]"
       data-admin-participant-form-error="@T["The participant form could not be loaded."]"
+      data-admin-participant-add-close="@T["Close add participant"]"
       data-admin-copy-success="@T["Link copied."]"
       data-admin-copy-error="@T["The link could not be copied."]"
       data-admin-time="@T["Time"]"
@@ -89,8 +91,17 @@
       data-admin-sort-current-template="@T["Currently sorted by {0} {1}. Activate to sort {2}."]"
       data-admin-sort-template="@T["Sort by {0} {1}."]"
       data-admin-post-error="@T["The change could not be sent. Check your connection and try again."]"
+      data-admin-roster-saved="@T["Changes saved."]"
+      data-admin-roster-parent-refresh-error="@T["Changes saved, but the roster could not refresh. Close this editor to reload the roster."]"
       data-signup-questions-request-error="@T["Signup form request failed."]"
       data-signup-questions-editor-error="@T["Signup form editor was not returned."]"
+      data-admin-catalogue-stale-error="@T["This record changed. Your edits are still here. Reload current values before saving again."]"
+      data-admin-catalogue-parent-refresh-error="@T["Changes saved, but the catalogue could not refresh. Close this editor to reload the list."]"
+      data-admin-account-parent-refresh-error="@T["Changes saved, but the account list could not refresh. Close this editor to reload the list."]"
+      data-admin-parent-refresh-error="@T["Changes saved, but the participant list could not refresh. Close this editor to reload the list."]"
+      data-signup-questions-save-error="@T["Could not save. Your changes are still here. Try saving again."]"
+      data-signup-questions-retry="@T["Try again"]"
+      data-signup-questions-close="@T["Close signup questions"]"
       data-signup-questions-load-error="@T["The signup form could not be loaded."]">
     <a class="skip-link" href="#main-content">@T["Skip to main content"]</a>
     <header class="admin-header">
@@ -295,6 +306,7 @@
         <script src="~/js/notification-inbox.js" asp-append-version="true"></script>
     }
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/admin-editor-guard.js" asp-append-version="true"></script>
     <script src="~/js/signup-questions-overlay.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

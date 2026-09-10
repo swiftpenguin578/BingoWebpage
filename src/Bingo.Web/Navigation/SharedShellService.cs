@@ -209,7 +209,16 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
     private async Task<AdminEventContext?> GetAdminEventContextAsync(string page, RouteValueDictionary values, string? selectedEventId, CancellationToken cancellationToken)
     {
         Guid eventId;
-        if (page.StartsWith("/Admin/Events/", StringComparison.Ordinal) && page is not "/Admin/Events/Index" and not "/Admin/Events/Create" && TryGuid(values, "id", out var routeEventId))
+        if (page == "/Admin/Review/Details" && TryGuid(values, "id", out var submissionId))
+        {
+            var submissionEventId = await db.Submissions.AsNoTracking()
+                .Where(item => item.Id == submissionId)
+                .Select(item => (Guid?)item.EventId)
+                .SingleOrDefaultAsync(cancellationToken);
+            if (submissionEventId is null) return null;
+            eventId = submissionEventId.Value;
+        }
+        else if (page.StartsWith("/Admin/Events/", StringComparison.Ordinal) && page is not "/Admin/Events/Index" and not "/Admin/Events/Create" && TryGuid(values, "id", out var routeEventId))
             eventId = routeEventId;
         else if (page.StartsWith("/Admin/Review/", StringComparison.Ordinal) && Guid.TryParse(selectedEventId, out var queryEventId))
             eventId = queryEventId;

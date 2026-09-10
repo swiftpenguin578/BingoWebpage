@@ -40,6 +40,11 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
         await db.SaveChangesAsync();
 
         var service = new TeamCaptainAuthorityService(db, TimeProvider.System);
+        var invalid = await service.ChangeRoleAsync(new(item.Id, membership.Id, (TeamMembershipRole)999, admin.Id, admin.LoginName), CancellationToken.None);
+        Assert.False(invalid.Succeeded);
+        Assert.Empty(await db.TeamMembershipRoleTransitions.Where(x => x.TeamMembershipId == membership.Id).ToListAsync());
+        Assert.Empty(await db.PersonalNotifications.ToListAsync());
+
         var promoted = await service.ChangeRoleAsync(new(item.Id, membership.Id, TeamMembershipRole.Captain, admin.Id, admin.LoginName), CancellationToken.None);
 
         Assert.True(promoted.Succeeded);

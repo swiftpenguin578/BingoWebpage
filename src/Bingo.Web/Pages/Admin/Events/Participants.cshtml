@@ -12,8 +12,9 @@
     var requiredSignupQuestions = Model.ActiveSignupQuestions.Where(question => question.Required).ToList();
     var optionalSignupQuestions = Model.ActiveSignupQuestions.Where(question => !question.Required).ToList();
     var accountQuestion = Model.ActiveSignupQuestions.FirstOrDefault(question => question.Type == SignupQuestionType.Account);
-    var captainVolunteerQuestion = Model.ActiveSignupQuestions.FirstOrDefault(question => string.Equals(question.Label, "Captain volunteer", StringComparison.OrdinalIgnoreCase));
-    var remainingPreviewQuestionCount = signupQuestionCount - (accountQuestion is null ? 0 : 1) - (captainVolunteerQuestion is null ? 0 : 1);
+    var captainVolunteerQuestion = Model.ActiveSignupQuestions.FirstOrDefault(question => question.SystemField == SignupSystemField.CaptainVolunteer);
+    var coCaptainQuestion = Model.ActiveSignupQuestions.FirstOrDefault(question => question.SystemField == SignupSystemField.CoCaptainName);
+    var remainingPreviewQuestionCount = Model.ActiveSignupQuestions.Count(question => question.SystemField == SignupSystemField.None);
     var activeSort = string.IsNullOrWhiteSpace(Model.Sort) ? "ownership" : Model.Sort.ToLowerInvariant();
     var activeDirection = string.Equals(Model.Direction, "asc", StringComparison.OrdinalIgnoreCase) ? "asc" : "desc";
     const string updateTargets = "#app-notice-region, .event-participants-page";
@@ -45,6 +46,10 @@
                     @if (captainVolunteerQuestion is not null)
                     {
                         <li><span>@captainVolunteerQuestion.Label</span><small>@(captainVolunteerQuestion.Required ? T["Required"] : T["Optional"])</small></li>
+                    }
+                    @if (coCaptainQuestion is not null)
+                    {
+                        <li><span>@T["Co-captain (optional)"]</span><small>@T["Optional"]</small></li>
                     }
                     @if (remainingPreviewQuestionCount > 0)
                     {
@@ -159,7 +164,7 @@
                 <header class="participant-group-heading"><div><h2>@group.Title</h2><p>@group.Description</p></div><span class="admin-badge">@group.Rows.Count</span></header>
                 <div class="admin-events-table-wrap participant-table-wrap"><div class="admin-events-table-scroll">
                     <table class="event-table participant-table" data-participant-table="@group.Table" data-participant-no-matches="@T["No matching participants."]"><thead><tr>
-                        @foreach (var header in new[] { (Key: "sequence", Label: "#"), (Key: "participant", Label: "Participant"), (Key: "ehb", Label: "EHB"), (Key: "status", Label: "Status"), (Key: "payment", Label: "Payment"), (Key: "signedup", Label: "Signed up"), (Key: "ownership", Label: "Team") })
+                        @foreach (var header in new[] { (Key: "sequence", Label: "#"), (Key: "participant", Label: "Participant"), (Key: "ehb", Label: "EHB"), (Key: "status", Label: "Status"), (Key: "payment", Label: "Payment"), (Key: "signedup", Label: "Signed up"), (Key: "captain", Label: "Captain volunteer"), (Key: "ownership", Label: "Team") })
                         {
                             var nextDirection = SortDirection(header.Key);
                             @if (activeSort == header.Key)
@@ -173,7 +178,7 @@
                         }
                         <th class="event-actions-heading"><span class="participant-actions-heading-label">@T["Actions"]</span></th>
                     </tr></thead><tbody>
-                    <tr class="participant-table-empty" hidden="@(group.Rows.Count > 0 ? "hidden" : null)"><td colspan="8">@T["No matching participants."]</td></tr>
+                    <tr class="participant-table-empty" hidden="@(group.Rows.Count > 0 ? "hidden" : null)"><td colspan="9">@T["No matching participants."]</td></tr>
                     @foreach (var participant in group.Rows)
                     {
                         var participantStatus = participant.Status == SignupStatus.WaitingList && participant.WaitingPosition is { } waitingPosition
@@ -181,7 +186,7 @@
                             : T[participant.Status.ToString()];
                         var paymentLabel = participant.Payment == PaymentStatus.Paid ? T["Paid"] : T["Unpaid"];
                         var paymentNext = participant.Payment == PaymentStatus.Paid ? PaymentStatus.Unpaid : PaymentStatus.Paid;
-                        <tr id="participant-row-@participant.Id" data-participant-row data-participant-id="@participant.Id" data-participant-sequence="@participant.Sequence" data-participant-name="@participant.Name" data-participant-ehb="@participant.Ehb.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-participant-status="@participant.Status" data-participant-payment="@participant.Payment" data-participant-signed-up="@participant.SignedUpAt.ToUnixTimeMilliseconds()" data-participant-ownership="@(participant.TeamName ?? "Unassigned")">
+                        <tr id="participant-row-@participant.Id" data-participant-row data-participant-id="@participant.Id" data-participant-sequence="@participant.Sequence" data-participant-name="@participant.Name" data-participant-ehb="@participant.Ehb.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-participant-status="@participant.Status" data-participant-payment="@participant.Payment" data-participant-signed-up="@participant.SignedUpAt.ToUnixTimeMilliseconds()" data-participant-captain="@(participant.CaptainVolunteer ? "1" : "0")" data-participant-ownership="@(participant.TeamName ?? "Unassigned")">
                             <td data-label="#">@participant.Sequence</td>
                             <td data-label="@T["Participant"]"><span class="participant-primary-value">@participant.Name</span><small>@(participant.WebsiteUsername ?? T["Unlinked"])</small><small>@(participant.DiscordLinked ? T["Discord linked"] : T["Discord unlinked"])</small></td>
                             <td data-label="@T["EHB"]">@participant.Ehb.ToString("0.##")</td>
@@ -197,17 +202,14 @@
                                 }
                             </td>
                             <td data-label="@T["Signed up"]"><span class="participant-primary-value">@DateTimePresentation.Format(participant.SignedUpAt, "dd MMM yyyy, HH:mm", Model.EventTimezone)</span><small>@T[participant.Source.ToString()]</small></td>
-                            <td data-label="@T["Team"]"><span class="participant-primary-value">@(participant.TeamName ?? T["Unassigned"])</span>@if (participant.CaptainVolunteer) { <small>@T["Volunteered to captain"]</small> }</td>
+                            <td data-label="@T["Captain volunteer"]"><span class="participant-primary-value">@T[participant.CaptainVolunteer ? "Yes" : "No"]</span>@if (!string.IsNullOrWhiteSpace(participant.CoCaptainName)) { <small>@T["Co-captain"]: @participant.CoCaptainName</small> }</td>
+                            <td data-label="@T["Team"]"><span class="participant-primary-value">@(participant.TeamName ?? T["Unassigned"])</span></td>
                             <td class="event-row-action participant-actions-cell">
                                 <div class="participant-row-actions">
                                 <a class="participant-edit-action" aria-label="@T["Edit {0}", participant.Name]" title="@T["Edit {0}", participant.Name]" asp-page="Participant" asp-route-id="@eventView.Id" asp-route-participantId="@participant.Id"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg><span class="visually-hidden">@T["Edit {0}", participant.Name]</span></a>
-                                @if (group.Table == "current")
+                                @if (group.Table == "current" && eventView.State != EventState.Live)
                                 {
-                                    @if (eventView.State == EventState.Live)
-                                    {
-                                        <a class="admin-button-secondary" asp-page="Participant" asp-route-id="@eventView.Id" asp-route-participantId="@participant.Id">@T["Manage live participant"]</a>
-                                    }
-                                    else if (eventView.CanEditParticipant)
+                                    @if (eventView.CanEditParticipant)
                                     {
                                         <details class="admin-destructive-confirmation">
                                             <summary class="admin-button-secondary action-danger-outline">@T["Remove"]</summary>
@@ -236,4 +238,4 @@
     </div>
 </section>
 
-@section Scripts { <script src="~/js/event-manage.js" asp-append-version="true"></script> }
+@section Scripts { <script src="~/js/event-manage.js" asp-append-version="true"></script><script src="~/js/co-captain-input.js" asp-append-version="true"></script> }

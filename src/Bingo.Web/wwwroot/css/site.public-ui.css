@@ -2889,6 +2889,7 @@ html[data-public-theme="dark"] .signup-sheet__number { color: var(--signup-blue-
 .signup-sheet__fetch { display: inline-flex; min-height: 1.8rem; gap: 0.25rem; align-items: center; justify-content: center; padding: 0.3rem 0.2rem; color: var(--signup-blue-text); background: transparent; border: 0; font-size: 0.67rem; white-space: nowrap; cursor: pointer; }
 .signup-sheet__fetch svg { width: 0.85rem; height: 0.85rem; }
 .signup-sheet__error { min-height: 1em; color: #B8402F; font-size: 0.72rem; }
+.signup-sheet__field[data-co-captain-field] > .signup-sheet__error:has(> .field-validation-valid) { display: none; }
 .signup-sheet__hint, .signup-sheet__empty { color: var(--signup-muted); font-size: 0.76rem; line-height: 1.35; }
 .signup-sheet__empty { grid-column: 1 / -1; margin: 0; }
 .signup-sheet__account-group { min-width: 0; margin: 0; padding: 0; border: 0; }

@@ -100,9 +100,9 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var current = await dbContext.Events.AsNoTracking().Where(x => x.Id == id).Select(x => x.State).SingleOrDefaultAsync(ct);
         return current == EventState.SignupClosed ? await OnPostReopenSignupAsync(id, ct) : await OnPostOpenSignupAsync(id, ct);
     }
-    public async Task<IActionResult> OnPostOpenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.OpenAsync(id, EventVersion, AcknowledgeSignupWarnings, AcceptProposedClose, Actor, ct), id, "Signups opened.");
-    public async Task<IActionResult> OnPostCloseSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.CloseAsync(id, EventVersion, Actor, ct), id, "Signups closed.");
-    public async Task<IActionResult> OnPostReopenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.ReopenAsync(id, EventVersion, AcknowledgeSignupWarnings, AcceptProposedClose, Actor, ct), id, "Signups reopened.");
+    public async Task<IActionResult> OnPostOpenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.OpenAsync(id, EventVersion, AcknowledgeSignupWarnings, AcceptProposedClose, Actor, ct), id, "Signups opened.", ct);
+    public async Task<IActionResult> OnPostCloseSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.CloseAsync(id, EventVersion, Actor, ct), id, "Signups closed.", ct);
+    public async Task<IActionResult> OnPostReopenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.ReopenAsync(id, EventVersion, AcknowledgeSignupWarnings, AcceptProposedClose, Actor, ct), id, "Signups reopened.", ct);
     public async Task<IActionResult> OnPostCapacityAsync(Guid id, CancellationToken ct)
     {
         if (HasBindingErrors(nameof(NewCap))) { TempData["StatusMessage"] = Localize("Enter a valid player cap."); return RedirectToPage(new { id }); }
@@ -130,6 +130,9 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public async Task<IActionResult> OnPostConfirmSignupAsync(Guid id, CancellationToken ct)
     {
         var state = await dbContext.Events.AsNoTracking().Where(item => item.Id == id).Select(item => item.State).SingleOrDefaultAsync(ct);
+        if (state == EventState.SignupOpen)
+            return await SignupResult(await signupLifecycle.CloseAsync(id, EventVersion, Actor, ct), id, "Signups closed.", ct);
+
         var readiness = await readinessEvaluator.GetSignupReadinessAsync(id, state == EventState.SignupClosed ? SignupOpeningMode.Reopen : SignupOpeningMode.OpenNow, timeProvider.GetUtcNow(), ct);
         var acknowledgeWarnings = Request.Form.ContainsKey(nameof(AcknowledgeSignupWarnings));
         var acceptProposedClose = Request.Form.ContainsKey(nameof(AcceptProposedClose));
@@ -139,26 +142,27 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var closeConfirmed = state is not (EventState.Draft or EventState.SignupClosed) || readiness?.CloseDecision.RequiresAcceptance != true || acceptProposedClose || TempData.Peek(SignupConfirmationKey(id, "close")) is not null;
         if (!warningsConfirmed || !closeConfirmed)
         {
-            SetStatus(Localize("Confirm each listed signup consequence before continuing."), UiMessageType.Error);
+            SetStatus(Localize("Confirm each listed signup consequence before continuing."), UiMessageType.Information);
             return RedirectToPage(new { id, confirm = "signup" });
         }
-        TempData.Remove(SignupConfirmationKey(id, "warnings"));
-        TempData.Remove(SignupConfirmationKey(id, "close"));
-        if (state == EventState.SignupOpen) return await OnPostCloseSignupAsync(id, ct);
         return await SignupResult(state == EventState.SignupClosed
             ? await signupLifecycle.ReopenAsync(id, EventVersion, warningsConfirmed, closeConfirmed, Actor, ct)
-            : await signupLifecycle.OpenAsync(id, EventVersion, warningsConfirmed, closeConfirmed, Actor, ct), id, state == EventState.SignupClosed ? "Signups reopened." : "Signups opened.");
+            : await signupLifecycle.OpenAsync(id, EventVersion, warningsConfirmed, closeConfirmed, Actor, ct), id, state == EventState.SignupClosed ? "Signups reopened." : "Signups opened.", ct);
     }
     public async Task<IActionResult> OnPostStartEventAsync(Guid id, CancellationToken ct)
     {
         var result = await eventLifecycle.StartNowAsync(id, EventVersion, ConfirmStartEvent, StartReason, Actor, ct);
-        SetStatus(result.Succeeded ? Localize("Event started.") : result.Error ?? Localize("The event could not be started."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        if (!result.Succeeded)
+            return await LifecycleFailureAsync(id, "start", result.Error ?? Localize("The event could not be started."), ct);
+        SetStatus(Localize("Event started."), UiMessageType.Success);
         return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostEndEventAsync(Guid id, CancellationToken ct)
     {
         var result = await eventLifecycle.EndNowAsync(id, EventVersion, ConfirmEndEvent, EndReason, Actor, ct);
-        SetStatus(result.Succeeded ? Localize("Event ended and moved to final review.") : result.Error ?? Localize("The event could not be ended."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        if (!result.Succeeded)
+            return await LifecycleFailureAsync(id, "end", result.Error ?? Localize("The event could not be ended."), ct);
+        SetStatus(Localize("Event ended and moved to final review."), UiMessageType.Success);
         return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostResumeEventAsync(Guid id, CancellationToken ct)
@@ -168,7 +172,9 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var replacementEnd = ParseEventLocal(ReplacementEventEndsAtLocal, timezoneId, nameof(ReplacementEventEndsAtLocal), "Replacement event end")
             ?? (string.IsNullOrWhiteSpace(ReplacementEventEndsAtLocal) && ReplacementEventEndsAt != default ? ReplacementEventEndsAt.ToUniversalTime() : null);
         var result = await eventLifecycle.ResumePrematureEndAsync(id, EventVersion, ConfirmResumeEvent, ResumeReason, replacementEnd, Actor, ct);
-        SetStatus(result.Succeeded ? Localize("Event resumed and returned to live play.") : result.Error ?? Localize("The event could not be resumed."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        if (!result.Succeeded)
+            return await LifecycleFailureAsync(id, "resume", result.Error ?? Localize("The event could not be resumed."), ct);
+        SetStatus(Localize("Event resumed and returned to live play."), UiMessageType.Success);
         return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostCompetitionAsync(Guid id, CancellationToken ct)
@@ -221,13 +227,17 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public async Task<IActionResult> OnPostDiscardAsync(Guid id, CancellationToken ct)
     {
         var result = await destructiveLifecycle.DiscardAsync(id, EventVersion, ConfirmDestructiveAction, Actor, ct);
-        SetStatus(result.Succeeded ? Localize("Event discarded.") : result.Error ?? Localize("The event could not be discarded."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
-        return result.Succeeded ? RedirectToPage("Index") : RedirectToPage(new { id });
+        if (!result.Succeeded)
+            return await LifecycleFailureAsync(id, "destructive", result.Error ?? Localize("The event could not be discarded."), ct);
+        SetStatus(Localize("Event discarded."), UiMessageType.Success);
+        return RedirectToPage("Index");
     }
     public async Task<IActionResult> OnPostCancelAsync(Guid id, CancellationToken ct)
     {
         var result = await destructiveLifecycle.CancelAsync(id, EventVersion, ConfirmDestructiveAction, CancellationReason, Actor, ct);
-        SetStatus(result.Succeeded ? Localize("Event cancelled.") : result.Error ?? Localize("The event could not be cancelled."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        if (!result.Succeeded)
+            return await LifecycleFailureAsync(id, "destructive", result.Error ?? Localize("The event could not be cancelled."), ct);
+        SetStatus(Localize("Event cancelled."), UiMessageType.Success);
         return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostHideAsync(Guid id, CancellationToken ct)
@@ -480,8 +490,40 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         EventVersion = item.Version; CompetitionId = CompetitionIntegration?.CompetitionId; NewCap = item.ParticipantCap ?? 0; NewSignupOpening = item.SignupOpensAt ?? now; NewSignupClosing = item.SignupClosesAt ?? now.AddDays(1); EvidenceCodeActivatesAt = now; EvidenceCodeActivatesAtLocal = DateTimePresentation.Format(EvidenceCodeActivatesAt.Value, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); ReopenUntil = now.AddHours(1); ReopenUntilLocal = DateTimePresentation.Format(ReopenUntil.Value, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); ReplacementEventEndsAt = item.EventEndsAt ?? now.AddHours(1); ReplacementEventEndsAtLocal = DateTimePresentation.Format(ReplacementEventEndsAt, "yyyy-MM-ddTHH:mm", item.Timezone, CultureInfo.InvariantCulture); return true;
     }
     private LifecycleActor Actor => new(User.GetAccountId()!.Value, User.Identity!.Name!);
-    private Task<IActionResult> SignupResult(SignupLifecycleResult result, Guid id, string success)
-    { TempData["StatusMessage"] = result.Succeeded ? Localize(success) : result.ProposedClose is { } close ? $"{result.Error} Proposed close: {DateTimePresentation.Format(close, "dd MMM yyyy, HH:mm", EventView?.Timezone, CultureInfo.CurrentCulture)}." : result.Error; if (result.Succeeded) TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString(); return Task.FromResult<IActionResult>(RedirectToPage(new { id })); }
+    private async Task<IActionResult> SignupResult(SignupLifecycleResult result, Guid id, string success, CancellationToken ct)
+    {
+        if (result.Succeeded)
+        {
+            TempData.Remove(SignupConfirmationKey(id, "warnings"));
+            TempData.Remove(SignupConfirmationKey(id, "close"));
+            SetStatus(Localize(success), UiMessageType.Success);
+            return RedirectToPage(new { id });
+        }
+
+        var postedVersion = EventVersion;
+        if (!await LoadAsync(id, ct)) return NotFound();
+        var versionChanged = EventVersion != postedVersion;
+        ModelState.Remove(nameof(EventVersion));
+        var message = result.ProposedClose is { } close
+            ? $"{result.Error ?? Localize("Review the proposed signup close.")} Proposed close: {DateTimePresentation.Format(close, "dd MMM yyyy, HH:mm", EventView?.Timezone, CultureInfo.CurrentCulture)}."
+            : result.Error ?? Localize("The signup change could not be completed.");
+        if (versionChanged) message = $"{message} {LifecycleRefreshNotice()}";
+        SetStatus(message, result.ProposedClose is not null ? UiMessageType.Information : UiMessageType.Error);
+        ConfirmationAction = "signup";
+        return Page();
+    }
+    private async Task<IActionResult> LifecycleFailureAsync(Guid id, string confirmationAction, string message, CancellationToken ct)
+    {
+        var postedVersion = EventVersion;
+        if (!await LoadAsync(id, ct)) return NotFound();
+        var versionChanged = EventVersion != postedVersion;
+        ModelState.Remove(nameof(EventVersion));
+        if (versionChanged) message = $"{message} {LifecycleRefreshNotice()}";
+        SetStatus(message, UiMessageType.Error);
+        ConfirmationAction = confirmationAction;
+        return Page();
+    }
+    private string LifecycleRefreshNotice() => Localize("The event details were refreshed. Your entries were kept. Review them before retrying.");
     private Task AuditAsync(string action, BingoEvent item, string details, CancellationToken ct) => auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, action, "event", item.Id.ToString(), details, item.Id, ct);
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     private string CompetitionRefreshFailure(EventCompetitionRefreshResult result)

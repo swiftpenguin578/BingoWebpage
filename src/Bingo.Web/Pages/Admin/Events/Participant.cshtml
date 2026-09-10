@@ -8,6 +8,8 @@
     var overlayValue = Model.IsOverlay ? "1" : null;
     var participantsUrl = Url.Page("Participants", new { id = Model.EventId });
     var editPath = Url.Page("Participant", new { id = Model.EventId, participantId = Model.RouteParticipantId });
+    var captainQuestion = Model.Questions.FirstOrDefault(question => question.SystemField == SignupSystemField.CaptainVolunteer);
+    var captainVolunteered = captainQuestion is not null && Model.Input.CustomAnswers.GetValueOrDefault(captainQuestion.Id) == "true";
 }
 
 <section class="event-create-page participant-admin-page @(Model.IsOverlay ? "participant-edit-dialog-page admin-dialog-page event-overview-section" : null)" data-participant-edit-page="true" data-participants-url="@participantsUrl" data-edit-path="@editPath" data-participant-id="@Model.RouteParticipantId">
@@ -31,6 +33,11 @@
         </div>
     }
 
+    <div class="event-confirmation-box participant-editor-discard" data-participant-editor-discard role="alertdialog" aria-labelledby="participant-discard-title" hidden>
+        <p><strong id="participant-discard-title">@T["Discard unsaved changes?"]</strong><br />@T["Continuing will discard unsaved changes in this editor."]</p>
+        <div class="event-confirmation-actions"><button type="button" class="admin-button-secondary" data-participant-editor-keep>@T["Cancel"]</button><button type="button" class="admin-button-secondary action-danger-outline" data-participant-editor-discard-confirm>@T["Discard changes"]</button></div>
+    </div>
+    <p class="participant-editor-feedback" data-participant-editor-feedback role="alert" tabindex="-1" hidden></p>
     <div class="participant-admin-workspace">
         <section class="panel participant-edit-component participant-summary-card">
             <header><h2>@T["Signup information"]</h2></header>
@@ -66,7 +73,7 @@
             @if (Model.Questions.Any(question => question.Active))
             {
                     <section class="participant-edit-component participant-custom-answers">
-                    <header><h3>@T["Signup questions"]</h3><p>@T["Questions added after this player signed up may be unanswered."]</p></header>
+                    <header><h3>@T["Signup questions"]</h3></header>
                     <div class="participant-field-grid">
                         @foreach (var question in Model.Questions.Where(question => question.Active))
                         {
@@ -75,7 +82,7 @@
                             var account = Model.Input.AccountAnswers.GetValueOrDefault(question.Id) ?? new ParticipantModel.AccountInput();
                             var accountName = $"Input.AccountAnswers[{question.Id}].CharacterName";
                             var accountEhb = $"Input.AccountAnswers[{question.Id}].Ehb";
-                            <div class="admin-field event-create-field @(question.Type == SignupQuestionType.Text ? "full-field" : null)">
+                            <div class="admin-field event-create-field @(question.Type == SignupQuestionType.Text ? "full-field" : null)" data-co-captain-field="@(question.SystemField == SignupSystemField.CoCaptainName ? "true" : null)" hidden="@(question.SystemField == SignupSystemField.CoCaptainName && !captainVolunteered ? "hidden" : null)">
                                 @if (question.Type == SignupQuestionType.Account)
                                 {
                                     <div class="participant-account-controls @(question.AccountRole == EventCharacterRole.Playing ? null : "is-single")">
@@ -96,14 +103,18 @@
                                 }
                                 else
                                 {
-                                    <label for="question-@question.Id">@question.Label</label>
-                                    @if (question.Type == SignupQuestionType.Text)
+                                    <label for="question-@question.Id">@(question.SystemField == SignupSystemField.CoCaptainName ? T["Co-captain (optional)"] : question.Label)</label>
+                                    @if (question.SystemField == SignupSystemField.CoCaptainName)
+                                    {
+                                        <input id="question-@question.Id" name="@fieldName" value="@value" class="form-control" type="text" placeholder="@T["Not answered"]" data-co-captain-input="true" disabled="@(!captainVolunteered ? "disabled" : null)" />
+                                    }
+                                    else if (question.Type == SignupQuestionType.Text)
                                     {
                                         <textarea id="question-@question.Id" name="@fieldName" class="form-control" rows="3" placeholder="@T["Not answered"]">@value</textarea>
                                     }
                                     else if (question.Type == SignupQuestionType.YesNo)
                                     {
-                                        <select id="question-@question.Id" name="@fieldName" class="form-select"><option value="">@T["Not answered"]</option>@if (value == "true") { <option value="true" selected>@T["Yes"]</option> } else { <option value="true">@T["Yes"]</option> } @if (value == "false") { <option value="false" selected>@T["No"]</option> } else { <option value="false">@T["No"]</option> }</select>
+                                        <select id="question-@question.Id" name="@fieldName" class="form-select" data-captain-volunteer-input="@(question.SystemField == SignupSystemField.CaptainVolunteer ? "true" : null)"><option value="">@T["Not answered"]</option>@if (value == "true") { <option value="true" selected>@T["Yes"]</option> } else { <option value="true">@T["Yes"]</option> } @if (value == "false") { <option value="false" selected>@T["No"]</option> } else { <option value="false">@T["No"]</option> }</select>
                                     }
                                     else if (question.Type == SignupQuestionType.SingleChoice)
                                     {
@@ -117,8 +128,8 @@
                                 <span asp-validation-for="Input.CustomAnswers[question.Id]" class="field-error"></span>
                             </div>
                         }
+                        <footer class="participant-answer-save"><button class="admin-button-secondary" type="submit">@T["Save changes"]</button></footer>
                     </div>
-                    <footer><button class="admin-button-secondary" type="submit">@T["Save changes"]</button></footer>
                 </section>
             }
 
@@ -138,19 +149,12 @@
                 <header><div><h2>@T["Participant details"]</h2><p>@T["This participant is locked and can only be reviewed here."]</p></div></header>
                 <div class="information-callout participant-read-only-note"><strong>@T["Participant administration is read-only"]</strong><span>@T["Answers, roster details, and signup lifecycle changes are locked in this event. Private payment and Admin notes remain editable."]</span></div>
                 <dl class="participant-detail-rows">
-                    <div><dt>@T["Event"]</dt><dd>@Model.EventName</dd></div>
-                    <div><dt>@T["Status"]</dt><dd>@T[Model.StatusLabel]</dd></div>
-                    <div><dt>@T["Signed up"]</dt><dd>@DateTimePresentation.Format(Model.SignedUpAt, "dd MMM yyyy, HH:mm", Model.EventTimezone)</dd></div>
-                    <div><dt>@T["Signup order"]</dt><dd>#@Model.SignupSequence</dd></div>
-                    <div><dt>@T["Signup source"]</dt><dd>@T[Model.SourceLabel]</dd></div>
-                    <div><dt>@T["Team"]</dt><dd>@(Model.TeamName ?? T["Not assigned"])</dd></div>
-                    @if (!string.IsNullOrWhiteSpace(Model.StatusReason)) { <div><dt>@T["Status note"]</dt><dd>@Model.StatusReason</dd></div> }
                     @foreach (var question in Model.Questions.Where(question => question.Active))
                     {
                         var answer = question.Type == SignupQuestionType.Account
                             ? Model.Input.AccountAnswers.GetValueOrDefault(question.Id)?.CharacterName
                             : Model.Input.CustomAnswers.GetValueOrDefault(question.Id);
-                        <div><dt>@question.Label</dt><dd>@(string.IsNullOrWhiteSpace(answer) ? T["Not answered"] : answer)@if (question.Type == SignupQuestionType.Account && question.AccountRole == EventCharacterRole.Playing && Model.Input.AccountAnswers.GetValueOrDefault(question.Id)?.Ehb is { } ehb) { <span> · EHB @ehb</span> }</dd></div>
+                        <div><dt>@(question.SystemField == SignupSystemField.CoCaptainName ? T["Co-captain (optional)"] : question.Label)</dt><dd>@(string.IsNullOrWhiteSpace(answer) ? T["Not answered"] : answer)@if (question.Type == SignupQuestionType.Account && question.AccountRole == EventCharacterRole.Playing && Model.Input.AccountAnswers.GetValueOrDefault(question.Id)?.Ehb is { } ehb) { <span> · EHB @ehb</span> }</dd></div>
                     }
                 </dl>
             </section>
@@ -163,36 +167,16 @@
                 <h2>@T["Private admin notes"]</h2><p>@T["Only administrators can see these notes."]</p>
                 <input type="hidden" name="overlay" value="@overlayValue" />
                 <input type="hidden" asp-for="ExpectedAdminNote" />
-                <textarea asp-for="AdminNote" class="form-control" rows="3" maxlength="2000" placeholder="@T["Only administrators can see these notes."]"></textarea>
+                <textarea asp-for="AdminNote" class="form-control" rows="3" maxlength="2000"></textarea>
                 <div class="participant-note-actions"><button class="admin-button-secondary" type="submit">@T["Save note"]</button></div>
             </form>
             }
 
-            @if (Model.CanTransferOwnership)
+            @if (Model.CanTransferOwnership || Model.CanFillVacancy || Model.PromotionFollowUp is not null || Model.CanAdminWithdraw || Model.CanAdminRestore)
             {
-            <details class="participant-confirmation-box participant-ownership-confirmation">
-                <summary class="admin-button-secondary action-accent-outline">@T["Transfer participant ownership"]</summary>
-                <div class="event-confirmation-box" role="alertdialog" aria-labelledby="transfer-ownership-heading">
-                    <p><strong id="transfer-ownership-heading">@T["Transfer {0}?", Model.Name]</strong><br />@T["This immediately revokes the former account's event access and preserves the participant's history."]</p>
-                    <form id="ownership" method="post" asp-page-handler="TransferOwnership" class="participant-edit-component participant-edit-link-card" data-update-targets="#app-notice-region, .participant-admin-workspace">
-                        <input type="hidden" name="overlay" value="@overlayValue" />
-                        <input type="hidden" asp-for="ExpectedOwnerAccountId" />
-                        <input type="hidden" name="ConfirmOwnershipTransfer" value="true" />
-                        <div class="admin-field event-create-field participant-owner-picker" data-owner-account-picker data-owner-account-search-url="@participantsUrl">
-                            <label for="destination-owner-account-search">@T["Destination website account"]</label>
-                            <input id="destination-owner-account-search" class="form-control" type="search" autocomplete="off" maxlength="100" role="combobox" aria-autocomplete="list" aria-controls="destination-owner-account-results" aria-expanded="false" data-owner-account-search />
-                            <input asp-for="DestinationOwnerAccountId" type="hidden" data-owner-account-id />
-                            <div id="destination-owner-account-results" role="listbox" data-owner-account-results hidden></div>
-                        </div>
-                        <div class="event-confirmation-actions">
-                            <button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button>
-                            <button class="admin-button-secondary action-accent-outline" type="submit">@T["Confirm ownership transfer"]</button>
-                        </div>
-                    </form>
-                </div>
-            </details>
-            }
-                @if (Model.CanFillVacancy || Model.PromotionFollowUp is not null)
+            <section class="participant-actions participant-edit-component">
+                <h2>@T["Participant actions"]</h2>
+            @if (Model.CanFillVacancy || Model.PromotionFollowUp is not null)
                 {
                     <section class="panel participant-edit-component participant-edit-link-card participant-secondary-actions-panel">
                 @if (Model.CanFillVacancy)
@@ -230,10 +214,32 @@
                 }
                 </section>
                 }
-        </aside>
-    </div>
-
-    @if (Model.CanAdminWithdraw || Model.CanAdminRestore)
+            <div class="participant-action-triggers">
+            @if (Model.CanTransferOwnership)
+            {
+            <details class="participant-confirmation-box participant-ownership-confirmation">
+                <summary class="admin-button-secondary action-accent-outline">@T["Transfer participant ownership"]</summary>
+                <div class="event-confirmation-box" role="alertdialog" aria-labelledby="transfer-ownership-heading">
+                    <p><strong id="transfer-ownership-heading">@T["Transfer {0}?", Model.Name]</strong><br />@T["This immediately revokes the former account's event access and preserves the participant's history."]</p>
+                    <form id="ownership" method="post" asp-page-handler="TransferOwnership" class="participant-edit-component participant-edit-link-card" data-update-targets="#app-notice-region, .participant-admin-workspace">
+                        <input type="hidden" name="overlay" value="@overlayValue" />
+                        <input type="hidden" asp-for="ExpectedOwnerAccountId" />
+                        <input type="hidden" name="ConfirmOwnershipTransfer" value="true" />
+                        <div class="admin-field event-create-field participant-owner-picker" data-owner-account-picker data-owner-account-search-url="@participantsUrl">
+                            <label for="destination-owner-account-search">@T["Destination website account"]</label>
+                            <input id="destination-owner-account-search" class="form-control" type="search" autocomplete="off" maxlength="100" role="combobox" aria-autocomplete="list" aria-controls="destination-owner-account-results" aria-expanded="false" data-owner-account-search />
+                            <input asp-for="DestinationOwnerAccountId" type="hidden" data-owner-account-id />
+                            <div id="destination-owner-account-results" role="listbox" data-owner-account-results hidden></div>
+                        </div>
+                        <div class="event-confirmation-actions">
+                            <button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button>
+                            <button class="admin-button-secondary action-accent-outline" type="submit">@T["Confirm ownership transfer"]</button>
+                        </div>
+                    </form>
+                </div>
+            </details>
+            }
+        @if (Model.CanAdminWithdraw || Model.CanAdminRestore)
     {
         <div class="participant-lifecycle-footer">
             @if (Model.CanAdminRestore)
@@ -274,9 +280,17 @@
             }
         </div>
     }
+            </div>
+            </section>
+            }
+        </aside>
+    </div>
+
+
 </section>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/event-manage.js" asp-append-version="true"></script>
+    <script src="~/js/co-captain-input.js" asp-append-version="true"></script>
 }

@@ -5,6 +5,8 @@
 @{
     var requiredSignupQuestions = Model.ActiveSignupQuestions.Where(question => question.Required).ToList();
     var optionalSignupQuestions = Model.ActiveSignupQuestions.Where(question => !question.Required).ToList();
+    var captainQuestion = Model.ActiveSignupQuestions.FirstOrDefault(question => question.SystemField == SignupSystemField.CaptainVolunteer);
+    var captainVolunteered = captainQuestion is not null && Model.InternalParticipant.Answers.GetValueOrDefault(captainQuestion.Id) == "true";
     const string updateTargets = "#app-notice-region, .event-participants-page";
 }
 
@@ -13,6 +15,11 @@
         <div><h2 id="participant-add-dialog-title">@T["Add participant"]</h2><p id="participant-add-dialog-description">@T["Use the active signup form. An owner is optional; external roster members are managed in Teams / Draft, not here."]</p></div>
         <button type="button" class="admin-route-dialog-close" data-participant-add-close aria-label="@T["Close add participant"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
     </div>
+    <div class="event-confirmation-box participant-add-editor-discard" data-participant-add-discard role="alertdialog" aria-labelledby="participant-add-discard-title" aria-describedby="participant-add-discard-description" hidden>
+        <p><strong id="participant-add-discard-title">@T["Discard unsaved changes?"]</strong><br /><span id="participant-add-discard-description">@T["Continuing will discard unsaved changes in this editor."]</span></p>
+        <div class="event-confirmation-actions"><button type="button" class="admin-button-secondary" data-participant-add-keep>@T["Cancel"]</button><button type="button" class="admin-button-secondary action-danger-outline" data-participant-add-discard-confirm>@T["Discard changes"]</button></div>
+    </div>
+    <p class="participant-add-editor-feedback" data-participant-add-feedback role="alert" tabindex="-1" hidden></p>
     <form method="post" asp-page-handler="CreateInternalParticipant" class="admin-dialog-form" data-update-targets="@updateTargets">
         <input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="ParticipantPayment" value="@Model.ParticipantPayment" /><input type="hidden" name="ParticipantDiscord" value="@Model.ParticipantDiscord" /><input type="hidden" name="ParticipantCaptain" value="@Model.ParticipantCaptain" /><input type="hidden" name="ParticipantSource" value="@Model.ParticipantSource" /><input type="hidden" name="ParticipantTeamId" value="@Model.ParticipantTeamId" /><input type="hidden" name="sort" value="@Model.Sort" /><input type="hidden" name="direction" value="@Model.Direction" />
         <section class="event-overview-row admin-dialog-form-section" aria-labelledby="participant-owner-heading">
@@ -31,7 +38,7 @@
                 {
                     var account = Model.InternalParticipant.AccountAnswers.GetValueOrDefault(question.Id) ?? new ParticipantModel.AccountInput();
                     var answer = Model.InternalParticipant.Answers.GetValueOrDefault(question.Id);
-                    <div class="admin-field event-create-field"><label for="internal-@question.Id">@question.Label <small>@T["Required"]</small></label>
+                    <div class="admin-field event-create-field" data-co-captain-field="@(question.SystemField == SignupSystemField.CoCaptainName ? "true" : null)" hidden="@(question.SystemField == SignupSystemField.CoCaptainName && !captainVolunteered ? "hidden" : null)"><label for="internal-@question.Id">@(question.SystemField == SignupSystemField.CoCaptainName ? T["Co-captain (optional)"] : question.Label) <small>@T["Required"]</small></label>
                         @if (question.Type == SignupQuestionType.Account)
                         {
                             <div class="participant-account-controls@(question.AccountRole == EventCharacterRole.Playing ? "" : " is-single")">
@@ -39,8 +46,9 @@
                                 @if (question.AccountRole == EventCharacterRole.Playing) { <input name="InternalParticipant.AccountAnswers[@question.Id].Ehb" value="@account.Ehb" class="form-control" type="number" min="0" step="0.01" placeholder="@T["EHB"]" aria-label="@T["EHB"]" /> }
                             </div>
                         }
+                        else if (question.SystemField == SignupSystemField.CoCaptainName) { <input id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" value="@answer" class="form-control" type="text" data-co-captain-input="true" disabled="@(!captainVolunteered ? "disabled" : null)" /> }
                         else if (question.Type == SignupQuestionType.Text) { <textarea id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-control" rows="3">@answer</textarea> }
-                        else if (question.Type == SignupQuestionType.YesNo) { <select id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option><option value="true">@T["Yes"]</option><option value="false">@T["No"]</option></select> }
+                        else if (question.Type == SignupQuestionType.YesNo) { <select id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-select" data-captain-volunteer-input="@(question.SystemField == SignupSystemField.CaptainVolunteer ? "true" : null)"><option value="">@T["Choose…"]</option><option value="true">@T["Yes"]</option><option value="false">@T["No"]</option></select> }
                         else if (question.Type == SignupQuestionType.SingleChoice) { <select id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option>@foreach (var option in question.Options) { <option value="@option">@option</option> }</select> }
                         else { <input id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" value="@answer" class="form-control" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" /> }
                     </div>
@@ -56,7 +64,7 @@
                     {
                         var account = Model.InternalParticipant.AccountAnswers.GetValueOrDefault(question.Id) ?? new ParticipantModel.AccountInput();
                         var answer = Model.InternalParticipant.Answers.GetValueOrDefault(question.Id);
-                        <div class="admin-field event-create-field"><label for="internal-@question.Id">@question.Label <small>@T["Optional"]</small></label>
+                        <div class="admin-field event-create-field" data-co-captain-field="@(question.SystemField == SignupSystemField.CoCaptainName ? "true" : null)" hidden="@(question.SystemField == SignupSystemField.CoCaptainName && !captainVolunteered ? "hidden" : null)"><label for="internal-@question.Id">@(question.SystemField == SignupSystemField.CoCaptainName ? T["Co-captain (optional)"] : question.Label) <small>@T["Optional"]</small></label>
                             @if (question.Type == SignupQuestionType.Account)
                             {
                                 <div class="participant-account-controls@(question.AccountRole == EventCharacterRole.Playing ? "" : " is-single")">
@@ -64,8 +72,9 @@
                                     @if (question.AccountRole == EventCharacterRole.Playing) { <input name="InternalParticipant.AccountAnswers[@question.Id].Ehb" value="@account.Ehb" class="form-control" type="number" min="0" step="0.01" placeholder="@T["EHB"]" aria-label="@T["EHB"]" /> }
                                 </div>
                             }
+                            else if (question.SystemField == SignupSystemField.CoCaptainName) { <input id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" value="@answer" class="form-control" type="text" data-co-captain-input="true" disabled="@(!captainVolunteered ? "disabled" : null)" /> }
                             else if (question.Type == SignupQuestionType.Text) { <input id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" value="@answer" class="form-control" type="text" /> }
-                            else if (question.Type == SignupQuestionType.YesNo) { <select id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option><option value="true">@T["Yes"]</option><option value="false">@T["No"]</option></select> }
+                            else if (question.Type == SignupQuestionType.YesNo) { <select id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-select" data-captain-volunteer-input="@(question.SystemField == SignupSystemField.CaptainVolunteer ? "true" : null)"><option value="">@T["Choose…"]</option><option value="true">@T["Yes"]</option><option value="false">@T["No"]</option></select> }
                             else if (question.Type == SignupQuestionType.SingleChoice) { <select id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" class="form-select"><option value="">@T["Choose…"]</option>@foreach (var option in question.Options) { <option value="@option">@option</option> }</select> }
                             else { <input id="internal-@question.Id" name="InternalParticipant.Answers[@question.Id]" value="@answer" class="form-control" type="@(question.Type == SignupQuestionType.Number ? "number" : "text")" /> }
                         </div>

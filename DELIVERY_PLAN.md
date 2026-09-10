@@ -1073,7 +1073,7 @@ local operator input remains outside Git.
   and subdued bronze archived. Do not use generic all-blue or nth-child styling;
   verify accessible hover/focus contrast in both themes.
 - Major functional slices still require the formal readiness review in
-  `AGENTS.md`. Ordinary UI passes use the lean sequence: agree page/result,
+  section 4.1 below. Ordinary UI passes use the lean sequence: agree page/result,
   bounded implementation, one independent review when appropriate, focused
   remediation, and manual acceptance.
 - F-04 is resolved by retaining Live identity and display timezone as read-only.
@@ -1087,6 +1087,278 @@ local operator input remains outside Git.
   separate no-JavaScript parity work is planned or gated.
 - Stage, commit, push, deploy, or archive additional legacy documents only
   after the relevant acceptance and explicit authorization.
+
+The detailed procedures below are relocated from `AGENTS.md`; this is their active
+owner. Use the subsection relevant to the assignment, not the entire checklist for
+every correction. Sections 4.1 and 4.5 govern major functional-slice planning and
+acceptance; sections 4.2–4.4 govern the changed scope and risk boundaries; section 4.6
+retains applicable completion gates and small-UI/documentation exceptions. Explicit
+user-approved pass gates, verification substitutes and waivers remain in force.
+`UI_SYSTEM.md` owns the UI task/review protocol; the Admin popup source-only reviewer
+exception in `AGENTS.md` remains applicable. Model/role defaults stay in `AGENTS.md`.
+
+
+### 4.1 Functional-slice planning and readiness
+
+Before splitting a functional slice into implementation passes, the planner maps
+all approved user outcomes into a compact journey/coverage table in the existing
+slice plan. Carry the manual steps into `MANUAL_TEST_CHECKLIST.md`; do not create a
+new inventory document or duplicate the full product specification.
+For a small correction, update the affected journey or state its outcome and proof
+in the task prompt; do not introduce a full slice plan solely for this rule.
+
+For each journey record:
+
+- The actor and effective role, starting lifecycle/data, and actual UI entry point.
+- The action sequence, expected persisted result, visible result, and next reachable
+  step, including the destination emitted by a notification when applicable.
+- Relevant boundary/recovery cases and the invariant each protects.
+- The owning pass, planned proof at the failure boundary, and manual-only or blocked
+  parts. Track execution against these outcomes, not just counts of passing tests.
+
+Select variations from the affected behavior: zero/one/multiple records and valid
+ties; global plus event roles; current plus retained memberships; EN/DA client and
+server input; before/at/after time boundaries; stale/repeated/concurrent requests;
+partial failure and retry; retained snapshots and changed current data. These are
+prompts for relevant risks, not a mandatory Cartesian product or one test per case.
+A happy path must reach a usable result. Correct rejection of invalid requests does
+not establish that an authorized user can complete the action.
+
+The planner owns coverage across passes and reconciles the final checklist against
+every approved outcome. A journey omitted from the checklist is not implicitly
+waived. Implementers and reviewers must flag gaps they discover. Trace changed
+rules through their entry points and directly affected consumers, including derived
+progress, completion, rankings, notifications, and retained-history reads where
+applicable; a correct write alone does not prove those results agree.
+
+After the user approves product behavior, run exactly one independent read-only
+implementation-readiness review for a major functional slice. It compares the
+complete proposed slice with current code and active authorities, challenges missing
+journeys and assumptions, and assesses pass ordering and independent deployability.
+It must establish:
+
+- Real UI reachability and minimum Development reset accounts, roles, states, and
+  records for acceptance. Fixtures must coexist and permit the documented sequence;
+  do not bypass the behavior under test or add broad demonstration data.
+- For removed/replaced behavior, a bounded inventory of affected domain values,
+  persistence, services, routes, controls, notifications, seeds, tests, and authority
+  wording so obsolete behavior cannot survive accidentally.
+- A complexity budget of concrete new tables, services, pages/routes, policies,
+  jobs, dependencies, and abstractions. Each addition needs a specific persistence,
+  transaction, authorization, operational, or demonstrated reuse need.
+- For fail-closed migrations/preflight, the exact operator diagnosis, safe record
+  correction/adjudication, and retry path. Use retained-data rehearsal where required;
+  never infer historical identity from mutable current state.
+- Approved scope, explicit non-goals, necessary dependencies, optional suggestions,
+  verification boundaries, and outstanding product decisions.
+
+Resolve named decisions and update the plan before implementation. Do not repeat
+readiness review without a genuine contradiction or missing product decision.
+Ordinary implementation defects belong to bounded remediation. Optional suggestions
+do not become requirements without approval.
+
+### 4.2 Implementation and change control
+
+Extend existing entities, services, pages, policies, and shared components before
+adding abstractions. Preserve required invariants and protected interactions. Do not
+add speculative frameworks, compatibility layers, or unrelated cleanup. Existing
+route-backed recovery stays protected; separate no-JavaScript parity is not required.
+
+Implementers may resolve ordinary technical details within the approved pass. Stop
+for user direction before changing a product rule, broadening a pass, introducing
+unbudgeted infrastructure, or fixing an adjacent issue not needed for safe delivery.
+Record unrelated defects separately. A missing integration step required for an
+approved journey is in scope, even when its owning file is outside the initial diff.
+If the plan explicitly excludes a necessary change, report that conflict before
+implementing it.
+
+The final approved plan is the review baseline. Before implementing a user-approved
+material change, update its affected pass, acceptance criteria, non-goals/complexity
+budget, and relevant product/data/UI authority. A change is material when it affects
+behavior, migration, authorization, routes, manual acceptance, or review conclusions.
+Clarifications with no behavioral effect need no separate paperwork. Remediation
+cannot silently revise the baseline or settle an unresolved product decision.
+
+#### 4.2.1 Lean execution and planner handoff
+
+This is the reusable coordination procedure. Read it before dispatching work or
+resuming as planner; apply the assigned pass's gates without creating extra stages.
+
+1. Resume from `CURRENT_STATUS.md`, the assigned pass and the smallest relevant
+   diff. Confirm the checkout, existing work and next authorized action. Reuse
+   recorded checks and findings; changing planners does not restart discovery,
+   implementation or review. Resolve only missing, changed or conflicting evidence.
+2. Before implementation, turn the user's goal into a short, agreed fix list:
+   observed problems, expected results, protected working behavior/composition,
+   and the smallest checks that demonstrate the fixes. The planner owns this
+   translation; the user need not identify files or technical causes. If problems
+   are not yet known, perform one bounded inspection and return the concrete list
+   before dispatching implementation. An already explicit user correction needs
+   no extra approval round. Name the existing implementation to reuse; do not add
+   a preliminary reviewer by default. Report additional discoveries separately
+   unless they directly block the agreed fixes.
+3. The worker implements a connected change and runs its focused checks. After one
+   focused lookup, unresolved consequential uncertainty goes to the calling planner:
+   what is unclear, the relevant evidence, and the recommended choice. Pause only
+   the dependent work and continue independent assigned work where useful.
+4. The planner answers from the approved scope and evidence. Ask the user only for
+   a new product/scope decision, required permission, environment blocker or manual
+   acceptance. Check promptly when progress stalls or a worker is interrupted;
+   repeated reading without a concrete result requires a narrower next step or a
+   changed approach, not another open-ended continuation.
+5. Run the required independent review once; remediate and recheck named findings
+   and direct consequences. For Admin popups, review is source-only and the user
+   supplies final visual acceptance. Stop at the assigned acceptance boundary.
+6. Before a planner handoff, consolidate the active `CURRENT_STATUS.md` entry with
+   the checkout/branch, assigned pass, completed work/checks and evidence locations,
+   unresolved findings, active worker ownership (if any), acceptance state and exact
+   next permitted action. Link this procedure; do not copy it into the handoff or
+   rely on chat history. Preserve approval authority in `UI_PAGE_MATRIX.md`.
+
+Use this compact worker brief; include only relevant facts and authority sections:
+
+```text
+Role and approved model/reasoning:
+Checkout / branch:
+Observed problems and expected results (agreed fix list):
+Starting files/helper and established evidence:
+Protected behavior / non-goals / relevant authority sections:
+Required focused checks and completion boundary:
+Escalation: after one focused lookup, ask the calling planner about consequential
+uncertainty with evidence and a recommendation; continue independent assigned work.
+Return: changed files, checks/results, unresolved findings and next needed action.
+```
+
+### 4.3 Verification at affected boundaries
+
+Derive verification from the journey outcomes and affected risks before minimizing
+commands or assertions. A required journey or relevant integration boundary without
+proof is a concrete uncertainty. Use existing discriminating tests where they cover
+it; one scenario may prove several consecutive steps or related invariants.
+
+Match evidence to the boundary that can fail:
+
+| Risk | Required kind of evidence |
+| --- | --- |
+| Route, filter, authorization, binding, or navigation | Requests as the intended actor, including anonymous users where applicable, through the real pipeline; follow rendered links/forms and emitted destinations where required. Direct handler calls cannot prove filter or navigation reachability. |
+| Client validation, localized form input, or DOM interaction | Execute the affected behavior in a browser. Source/markup and HTTP proof cover only their own layers; they cannot establish client acceptance. |
+| Persistence, transaction, concurrency, or retained migration | Exercise the relevant PostgreSQL behavior, failure/retry boundary, or approved copied-data rehearsal. In-memory success cannot establish database guarantees. |
+| Derived results or retained reads after mutation | Check the directly affected consumers and usable rendered result, including valid multiple-record cases where applicable. |
+| Visual composition and usability | Inspect current rendered evidence under the UI protocol; source checks cannot establish visual acceptance. |
+
+Use controlled/disposable data and existing fixtures without touching user-owned or
+production data beyond authorization. If an environment prevents the required proof,
+report exactly which outcome remains unverified and the smallest way to execute it.
+Alternative source or lower-layer checks may narrow uncertainty but do not turn the
+blocked boundary into a pass. The user may explicitly accept a substitute or waive a
+named case; preserve that decision and do not revive it without new evidence.
+
+A required test must fail for the plausible defect it claims to prevent. Check that
+its setup actually reaches the relevant actor, state, and operation and its assertions
+observe the outcome. Avoid assertions that merely mirror implementation, exact counts
+unrelated to behavior, or duplicated coverage at every layer. Do not weaken a failed
+test as “stale” without establishing the approved contract and replacement proof.
+Expand coverage for concrete security, privacy, concurrency, data-integrity, migration,
+or escaped-regression risks. Run focused gates per pass and the complete suite at the
+documented final gate or when the blast radius warrants it.
+
+### 4.4 Independent review and bounded remediation
+
+Use the existing required readiness/post-implementation review gates; these rules do
+not add a separate reviewer per risk or require repeated model agreement. The reviewer
+first derives expected journeys, invariants, and plausible failures from the approved
+behavior and current authorities, then evaluates the implementation and its evidence.
+
+Review the exact base-to-current diff against the final plan and inspect unchanged
+entry points and direct consumers when needed to trace changed behavior. The diff is
+the change inventory, not the limit of behavior inspection. Report:
+
+- Required scope delivered and missing, material additions without approved mapping,
+  changed non-goals, and unbudgeted tables/services/routes/policies/jobs/abstractions.
+- Concrete behavior/security/privacy/authorization/concurrency/data-integrity defects,
+  non-discriminating required tests, and required outcomes lacking sufficient proof.
+- For each finding, the triggering actor/state/sequence, expected and observed or
+  source-inferred result, evidence, and smallest necessary correction.
+
+A plan omission is reportable; distinguish an implementation defect within approved
+behavior from an unresolved product decision requiring the user. Do not invent new
+requirements or demand stylistic expansion, redundant assertion syntax, or exhaustive
+duplicate tests. Incidental supporting code/tests/docs need proportionate scope
+justification, not a separate plan bullet for every file.
+Missing approved behavior, unapproved material additions, concrete correctness
+defects, and inadequate required proof block acceptance until resolved or explicitly
+adjudicated by the user. Optional improvements do not block it.
+
+A fresh remediator addresses named findings. Verify the fix at its failure boundary,
+rerun the affected functional journey, and check direct consumers where the correction
+can change them. Small visual corrections follow the UI exception in `AGENTS.md` and `UI_SYSTEM.md`.
+Follow any required fixes-only review gate. Reopen wider review only for a concrete
+new implication, contradiction, or material scope change. Do not use repeated broad
+reviews as a substitute for executing a missing journey.
+
+### 4.5 Functional-slice preflight and handoff
+
+After required review/remediation clears, perform one bounded preflight against the
+exact checklist and authoritative Development reset state before asking the user to
+walk the slice. Reuse applicable executed evidence; do not rerun every passing check.
+Follow each journey from its documented start through actual rendered navigation,
+forms, and role-appropriate notification destinations, verifying a renderable result
+and the next step. Use browser execution where client behavior can block the journey.
+Do not manufacture destination URLs or ready database states to skip required steps.
+
+If a journey fails, stop that journey, route the smallest authorized remediation to
+the appropriate role, rerun it, and resume the remaining preflight. Subjective visual
+clarity, responsive composition, and wording remain manual-only unless they prevent
+completion. Hand over only when required executable journeys pass or the user has
+explicitly accepted their named limitations. A recorded blocker alone is not acceptance.
+
+Handoffs distinguish **implemented**, **source-reviewed**, **execution passed**,
+**blocked/unverified**, and **manually accepted or explicitly waived**. State the exact
+revision or working-tree scope, commands/scenarios and results, evidence limitations,
+and next permitted action. A generic “PASS,” test count, or approved screenshot does
+not establish all of these. The planner reconciles coverage before claiming the
+slice complete; omitted or blocked required outcomes remain open.
+
+Stop when approved outcomes exist, applicable verification and acceptance gates are
+satisfied, and no unresolved finding could materially change correctness, security,
+privacy, authorization, concurrency, data integrity, or the requested result. Do not
+continue for extra corroboration, reviewer agreement, or speculative improvements.
+
+### 4.6 Completion gates
+
+Before reporting implementation work complete:
+
+- Every approved journey has its required result through the appropriate layers;
+  the planner has reconciled coverage and reported any explicit user waiver.
+- Relevant tests were added or updated and pass.
+- The release build passes with no unexpected warnings.
+- Formatting verification passes.
+- Authorization, validation, audit, concurrency, privacy, and lifecycle effects were considered where relevant.
+- UI changes satisfy the applicable roadmap checks and user approval gate.
+- Database changes include consistent migrations and were exercised against PostgreSQL.
+- Documentation and `CURRENT_STATUS.md` were updated if behavior, architecture, commands, roadmap position, or known verification state materially changed.
+- Required independent review is clear, and executed checks are distinguished from
+  source review and manual acceptance. Unrun required checks remain open unless
+  explicitly waived; report all limitations using the handoff rules above.
+
+Apply the documented small-UI exception where appropriate. Documentation-only work
+uses scoped diff, consistency, and reference checks; it does not require .NET gates.
+
+Milestones are complete only when their documented completion criteria are satisfied—not merely because corresponding files or pages exist.
+
+### 4.7 Branch cleanup and publication
+
+Use concise purpose-based branch names such as `ui-overhaul`, `fix/button-colors`,
+or `release/production-prep`; do not add an agent-identifying prefix unless the user
+requests it. When practical, settle the branch name before its first push; renaming
+is not a code/history change. Preserve an explicitly assigned checkout/branch.
+
+Before deleting old local or remote branches, produce a bounded read-only inventory
+separating fully merged branches, branches with unique commits and active branches.
+Delete only the exact branches then authorized by the user. Removing a merged branch
+pointer does not remove its commits or rename historical merge/PR records. Staging,
+committing, merging, pushing and deploying each require applicable authorization.
+
 
 ## 5. Admin event-functionality correction — approved pass plan (2026-09-03)
 
@@ -1555,3 +1827,931 @@ its callback is not localhost; the user accepted the discriminating EN/DA render
 control and persisted-comma integration proof in place of that manual step. These
 were fixes to approved Pass 1 behavior, not added scope. **Pass 1 is complete.**
 Stop here; Pass 2 and package/commit/push/merge/deploy remain separately gated.
+
+
+## 7. Admin consistency — approved signup-question popup pilot (2026-09-07)
+
+The user prioritizes Admin UI consistency and actual reuse of components and
+behavior. Preserve the accepted public UI, except focused regression where an
+Admin-owned change has public consumers. Discovery is complete; the user approved the popup behavior, confirmation and
+typography contract and this first implementation pilot. Work in the isolated checkout on
+`codex/admin-consistency`, based on merged/deployed `42b2a7d`.
+
+Use the existing UI_SYSTEM primitive registry and UI_PAGE_MATRIX family map;
+do not replace them with a new inventory/specimen system. A bounded route scan
+found 23 Admin Razor page entries excluding the two historical reference/specimen
+routes; this includes the existing WIP dashboard and compatibility/preview entries,
+not 23 independently verified workflows. Existing page approvals remain intact.
+
+| Pattern / area | Source evidence | Next relevant coverage |
+| --- | --- | --- |
+| Shell, tokens and feedback | Physical shared Admin layouts, Admin CSS tokens, shared toast partial/site.js already exist | Preserve ownership; inspect affected rendering/focus only when changed |
+| Directory controls / tables | Events and Accounts reuse CSS but render their own toolbars/table markup; Audit and Review compose filters separately | Compare realistic populated/empty/filter states; choose actual repeated subcontrols before extracting; keep page-specific columns |
+| Fields / action groups | `.admin-field` and button CSS reused across Identity, Schedule and Questions; page composition owns markup | Validate consistent grouping, validation placement, pending/locked controls on the selected pilot |
+| Route dialogs | Three lifecycle owners: Questions, Catalogue, Accounts | Shared close/focus/scroll/history behavior; preserve route/host distinctions and desktop-to-narrow navigation |
+| Save / recovery | site.js has existing enhanced POST machinery; Catalogue uses it, Accounts/Questions implement transport separately | Preserve entered values on failure and usable retry; prevent repeated submission; keep cross-path routing guard |
+| Specialized workspaces / review / closeout | Board, Draft, Catalogue, Review, Finalize have distinct tasks; existing matrix owns their geometry/status | Later workflow-specific passes; preserve workspace spatial context, role/state locks, evidence/history and public result consumers |
+
+Read-only independent behavior findings:
+- Catalogue close callback reads `opener` after it is cleared (`catalogue-admin.js`
+  284–285); source defect verified, actual focus loss may be masked by native dialog
+  restoration and requires rendered verification.
+- Questions POST transport failure replaces the editor with an alert, removing
+  entered controls and the visible close/retry controls (`signup-questions-overlay.js`
+  138–155). DOM loss is source-confirmed; no live fault was injected.
+- Shared details-confirmation mechanics are copied across three modules; Accounts
+  moves focus to Cancel while Catalogue/Questions do not.
+- Generic POST helper already handles submitter values, duplicate-submit guards,
+  control restoration and content updates. Questions responses have a different
+  path from their host, so blindly applying `data-update-targets` would conflict
+  with the existing same-path guard in site.js. Preserve that boundary.
+
+The user approved a single Signup Questions pilot after agreeing intended behavior;
+existing pages are evidence, not automatic design targets. UI_SYSTEM owns the
+accepted reusable popup rules. Later rollout and shared behavior extraction await
+manual acceptance of this pilot.
+
+### Approved pilot scope and outcomes
+
+Actor/entry: authorized event Admin, existing editable Development event, navigate
+through Admin Events -> event Participants -> Signup form. Preserve actual route,
+authorization, handler names, stored question/answer semantics and locked states.
+
+| Journey | Required result and proof |
+| --- | --- |
+| Open, close, reopen; direct route and reload | Predictable dialog/fallback, correct URL, focus and body scroll; browser proof |
+| Add/edit/save valid question | Keep this multi-question editor open, update list/count, one result notice, next edit reachable |
+| Invalid input or failed request -> correct/retry | Preserve all unsaved editor values, usable localized feedback and retry, no duplicate save |
+| Close/Cancel/Escape/Back/outside click with unsaved edits | Compact inline discard choice; cancel retains edits and open URL, discard leaves expected parent; unchanged close has no prompt |
+| Save pending -> attempted dismissal | Keep editor present until request settles; do not imply aborting a request cancels a server write |
+| Delete question -> cancel/confirm | Compact inline confirmation, Cancel before Delete question, consequence copy specific to Account vs other types; Escape dismisses only the active confirmation |
+| Other dirty question forms -> save/reorder/delete | Updating one question must not silently erase unrelated unsaved edits; preserve them or obtain the same discard decision before destructive replacement |
+| Narrow screen, keyboard, light/dark, long content | Same modal at every width, full-screen at <=900; resize preserves editor/URL/values/pending state, meaningful focus, visible close, no clipping; direct standalone URLs retained |
+
+Typography: shared Admin family/scale, popup title above section headings, normal
+body/control text and smaller muted help. Confirmation title is emphasized body
+text, never a competing page heading. Fix the current oversized warning and use
+Delete for permanent question deletion. EN/DA wording preserves actual consequences.
+Unsaved discard protection is approved; no prompt when unchanged. Reload/navigation
+away may use the browser's native unsaved warning; do not build custom infrastructure.
+
+Files: signup-questions-overlay.js, Questions.cshtml, its existing Admin CSS owners,
+necessary scoped layout/localization bindings, and focused existing test surfaces.
+Do not modify Accounts/Catalogue lifecycles, public UI behavior, backend deletion
+semantics, migrations or protected Board/Draft workspaces. Zero new tables, services,
+routes, dependencies, jobs or generic overlay/dirty-state frameworks. Reuse current
+owners; extraction across pages follows acceptance, not this pilot.
+
+Verification: execute focused browser journeys including save failure, validation,
+dirty dismissal/history, duplicate-save prevention and scoped rendered theme/narrow
+checks. Use disposable local data or a controlled browser harness with real rendered
+markup; distinguish harness behavior from authenticated server proof. Run compilation
+if Razor changes, affected existing tests where assertions cover changed bindings,
+and diff checks. No full suite or broad Admin audit. One independent scoped review
+then bounded remediation; user performs final visual acceptance. No commit/push,
+production mutation, further page family or rollout is authorized by this pilot.
+
+### Approved pilot follow-up — 2026-09-08
+
+User accepts the current visual direction and authorizes two final corrections:
+1. Signup code flow: toggle controls code-field visibility without saving. Enabling
+   without an existing code requires a new code; with an existing code show
+   Replacement code and Leave blank to keep the current code. Save code settings
+   explicitly persists both toggle and code. Disabling hides the irrelevant input;
+   preserve server hashing, validation, permission and disable/clear semantics.
+2. Responsive popup: remove viewport-dependent closing/navigation for this editor.
+   Opening from Participants at any width uses the same route-backed modal; <=900
+   becomes full-screen through CSS. Resizing either way never closes/reloads it or
+   discards values, alters URL or cancels a pending write. Keep standalone direct
+   routes for deliberate navigation/recovery. Existing Close/Back/discard/focus and
+   pending guards apply at every width.
+
+Extend only Questions markup/model non-secret presentation state if needed, its
+existing JS/CSS/localization and focused tests. No database schema/rule changes,
+no other popup rollout. Verify code off/on/existing-code blank-retain/failed save,
+small-screen open/reload, resize clean/dirty/pending, close/Back/discard and direct
+route retention. Prior unrelated passing pilot checks remain applicable.
+
+Pilot and follow-up manually accepted by the user on 2026-09-08 after local use.
+The accepted target can guide the next separately authorized Admin popup pass;
+this acceptance does not authorize rollout, extraction, packaging or push.
+
+## 8. Participant-management popup — approved next pass (2026-09-08)
+
+User approves continuing the Admin popup work and supplies current Participant
+management screenshots showing a spread-out summary and disconnected lower actions.
+This pass targets the pictured Participant editor, reached from Participants via
+Edit; website Accounts Create/Manage is not the pictured surface and remains later.
+Use the accepted Signup Questions pilot as the behavior/typography target.
+
+### Scope, composition and protected behavior
+
+- Compact signup summary: keep all current event/status/date/order/source/team/
+  owner/payment/status-note information, with labels near their values and a
+  readable responsive grouping. Preserve payment's actual toggle form/handler.
+- Signup answers follow the summary, then private Admin notes with their own clear
+  save action. Remove duplicated static help/placeholder wording and excess space.
+  Preserve all question types, optional Regular/Alt distinctions, EHB, validation,
+  previous/readonly answers and optimistic version inputs.
+- User refinement (2026-09-08): place Save changes beside the final answer
+  when width and field shape allow; wrap naturally for full-width answers/mobile.
+  Right-align the lower action triggers on one wrapping row, with expanded
+  confirmations retaining readable available width.
+- Group ownership transfer and withdrawal/restoration into a named participant
+  actions area. Keep confirmations compact and inline, Cancel before commit action.
+  Retain the exact conditional availability and bindings for owner search, transfer,
+  remove/restore, vacancy replacement and promotion follow-up. Do not collapse these
+  distinct authority/lifecycle operations into one generic confirmation configuration.
+- Use the same modal at every width with full-screen presentation at <=900.
+  Resizing preserves URL/content/dirty/pending state. Deliberate standalone/direct
+  routes and reload remain usable; preserve Participants filters/scroll on close.
+- Apply accepted close/Back/discard/focus/scroll rules, pending duplicate protection,
+  input retention on failed/invalid saves and safeguards against losing another
+  dirty form when payment/notes/details/actions replace content. Successful independent
+  saves stay in this participant workspace with accurate updated state/feedback;
+  existing authoritative redirects after lifecycle actions remain meaningful.
+  After a successful mutation, closing must return to refreshed Participants data,
+  preserving filters and scroll; refresh failure must not silently present stale
+  data as current.
+  User follow-up explicitly includes the accepted Signup Questions editor: its
+  question-count update alone leaves parent table columns/answers stale. Apply
+  the same freshness rule there after question changes/deletion, with focused
+  regression; no unrelated Questions layout changes.
+
+Preserve authorization, privacy, concurrency tokens, audit, ownership handoff,
+retained signup history, lifecycle and capacity rules exactly. No backend rule,
+route, schema, data migration, public-page or Board/Draft change. Directory table
+composition stays intact apart from necessary trigger/refresh bindings.
+
+### Ownership and complexity budget
+
+Primary files: Participant.cshtml, participant dialog section of event-manage.js,
+existing Admin CSS/localization/layout script bindings and focused existing tests.
+Make common editor guard/lifecycle/feedback behavior physically shared with Signup
+Questions where both need it; retain explicit page-specific URL/response adapters.
+Budget at most one small Admin-only shared JS owner and, only if useful to eliminate
+actual repeated discard/feedback markup, one shared Razor partial. Prefer existing
+owners where they already fit. No new dependency, service, route, table, policy,
+job, generic overlay framework or declarative action system. Touch the accepted
+Questions consumer only to adopt identical shared behavior; protect its accepted
+composition/code settings with a focused regression. Avoid changing public site.js
+transport unless a concrete integration requirement proves it necessary.
+
+### Journeys and proof
+
+| Journey | Required outcome / focused proof |
+| --- | --- |
+| Admin Participants -> Edit, close/reopen/reload/direct URL | Same participant/context and correct URL/focus; real rendered navigation/browser |
+| Compact populated summary, long names, read-only/withdrawn states | All facts/allowed actions still visible, readable at desktop and narrow; scoped source + current rendering |
+| Edit answers or notes -> invalid/failing save -> correct/retry | Values remain, validation/feedback usable, successful state updated; browser intercepted responses + existing binding tests |
+| Dirty answers -> payment/notes/transfer/lifecycle action | No silent loss of other unsaved forms; pending duplicate guard and explicit discard decision; browser guard proof |
+| Close/Back/Escape with dirty state or nested confirmation | Only relevant confirmation dismissed; cancel preserves content, discard leaves expected context |
+| Resize clean/dirty/pending; narrow open and scrolling | Modal stays present; visible Close, focus, scroll containment and readable action layout |
+| Shared Questions consumer | Accepted code visibility/save and modal/dirty/pending behavior unaffected; focused existing Node regression and one browser smoke |
+
+Use controlled local read-only preview and mocked writes for UI proof, explicitly
+separating that from persisted lifecycle verification. Backend unchanged means no
+full integration-suite rerun. Compile Razor; run relevant existing Node regressions,
+scoped diff checks and one independent source/visual review, then bounded named
+remediation. Final user acceptance is page-specific. Stop before any next family,
+commit, push, deployment or unrelated cleanup. A concrete product contradiction or
+unbudgeted owner requires planner/user direction before implementation.
+
+## 9. Accounts Create/Manage popup behavior — approved 2026-09-08
+
+User authorizes the next Accounts/Roles pass and considers its general appearance
+already good. Preserve directory/detail composition; focus on behavior and the
+content revealed by action buttons. Create is the existing emergency-credential
+creation route; Manage includes website accounts and emergency credentials.
+
+- Reuse the accepted Admin editor guard; same modal at all widths (fullscreen
+  <=900), clean close without prompting, dirty Close/Back/cancel protection,
+  pending duplicate/dismissal guard, failures retaining inputs and clear retry.
+- Replace confirmation-modal-inside-editor with compact inline confirmation,
+  one visible confirmation at a time, Cancel before action, body-sized wording,
+  Escape/cancel returning focus to the trigger. Preserve required reason fields,
+  every action's real handler/data/availability, and one-time link disclosure.
+- Preserve create scope/event/team semantics and deliberate directory success
+  navigation. Scope changes must not silently lose typed credential details.
+  Manage saves retain meaningful current state/feedback. Both paths refresh the
+  affected Accounts directory including filters/pagination/scroll; failure after
+  successful save reports that truth and reloads instead of exposing stale data.
+- Reload/direct overlay restoration must restore all new trigger bindings;
+  deliberate standalone routes/recovery remain usable. Preserve action-specific
+  transfer/navigation destinations rather than forcing all actions into a popup.
+- Protect role gating, website/emergency distinction, authorization, concurrency,
+  disable/reset/restore history, credential/token handling and cutoff rules.
+  No backend/product/route/schema/security changes or unrelated page rollout.
+
+Files: Accounts Create/Manage Razor, account-manage-dialog.js, scoped existing
+Admin CSS/localization if needed, existing account dialog tests. Shared guard may
+be extended only for an actual common need, with focused consumer regression.
+No new generic framework, dependency, service, database object or route.
+
+Implementation Astra Low, independent source-only review Astra High (user-approved
+lean rollout policy). Implementer performs focused existing Node checks and Razor
+build only for compiled markup changes. One short real-browser check by root for
+nested confirmation, dirty/pending/failure, parent refresh and reload handoff;
+intercept mutations, protect local data, explicitly separate UI proof from persisted
+account/security behavior. User provides final visual acceptance. No independent
+reviewer browser pass or broad audit/full suite. Stop before next family or package.
+
+Accounts Create/Manage manual acceptance complete on 2026-09-08 after the bounded
+Disable/Generate-link confirmation visibility correction. No next-family or
+packaging authorization is implied.
+
+## 10. Catalogue Add/Edit popup behavior — approved 2026-09-08
+
+User accepts the general Catalogue appearance and authorizes behavior-first Add/Edit
+rollout, including action-revealed text/font/confirmation defects and suspected stale
+parent data. Preserve its specialized activity/drop composition and existing forms.
+
+- Adopt the accepted shared Admin dirty/pending/discard/failure safeguards and same
+  modal across widths (fullscreen <=900). Clean close is immediate; dirty Close,
+  Back and cross-form actions require an explicit decision; failed/invalid saves
+  retain inputs and usable retry. Resize never changes route or abandons edits.
+- Keep confirmations compact and inline, only one decision visible, Cancel first,
+  normal Admin body typography, meaningful focus and revealed content scrolled into
+  view. Cancelling discard restores the same typed confirmation/visible editor.
+  Preserve typed DELETE requirements and duplicate-item choice semantics exactly.
+- Successful Add/Edit/drop/state/delete operations refresh affected parent catalogue
+  data before return, preserving search/filter/pagination/scroll and native modal
+  connection. Refresh failure after success is truthful and offers actual reload;
+  deleted activity/create redirects remain meaningful. No stale previous editor.
+- User clarification: include correct/missing toast messages across Add/Edit/drop,
+  state/deletion and failure/recovery paths. Preserve one truthful outcome message
+  with correct severity, visible during the modal; do not confuse save failure with
+  saved-but-parent-refresh failure or show duplicate success notices.
+- Preserve expanded drop editing, item-name duplicate selection, probability/rate
+  parsing and labels, image cache actions, readonly/server error states, every
+  hidden ID/version binding and existing action-specific redirects. Direct/reload
+  overlay restoration rebinds new triggers; explicit standalone routes remain usable.
+- Protect Admin/SuperAdmin gates, audit/concurrency, dependency-safe delete versus
+  deactivate, immutable catalogue identity, board snapshots/history and image source
+  security. No backend/domain/schema/import/Board/public behavior changes.
+
+Primary files Catalogue/Index.cshtml, catalogue-admin.js, scoped existing Admin CSS
+and localization, existing catalogue-admin.test.js. Reuse admin-editor-guard.js;
+extend it only for a demonstrated common need and check affected consumers. No new
+framework, dependency, route, service, persistence or generalized configuration.
+
+Astra Low implementation; Astra High source-only independent review, no reviewer
+browser inspection. Focused existing Node tests and Razor build only as appropriate.
+Root executes one bounded browser chain for changed interactions: dirty/failure and
+confirmation recovery, native modal/parent refresh, Add/Edit reload handoff and
+narrow resize; use mocked writes/read-only local fixtures, no catalogue mutations.
+User final visual/action-message acceptance remains separate. No broad audit/full
+suite, next-family rollout, packaging, commit or push is authorized.
+
+### Current-popup confirmation trigger correction — approved 2026-09-08
+
+Apply to the existing Questions, Participant Manage, Accounts Create/Manage and
+Catalogue Add/Edit adapters: hide the initiating action button while its inline
+confirmation is visible; restore it before Cancel/Escape focus return and when
+switching/dismissing that confirmation. Preserve typed values, discard recovery,
+pending/duplicate protection and existing layouts/handlers. Adopt the general rule
+in UI_SYSTEM; no other family rollout or whole-site audit is included.
+Use Astra Low for the bounded correction and Astra High for one source-only review
+of this correction, without reopening the completed popup passes. Verify the
+changed visibility/focus paths and affected guards with focused existing checks;
+no repeat build or browser harness work unless a concrete changed risk requires it.
+Prior page approvals remain page-specific; the user manually approves this
+correction on 2026-09-08. Catalogue's broader approval remains separately recorded.
+Now agree the leaner
+workflow before further rollout; no packaging, commit, push or deployment.
+
+## 11. Add Participant popup behavior — authorized 2026-09-08
+
+User authorizes the next popup pass after agreeing Luna Max implementation,
+focused implementer verification and read-only correctness review without reviewer
+visual inspection. Next bounded surface: Participants -> Add participant, including
+its existing `addParticipant=1` reload/direct entry. Preserve the existing form
+composition, owner picker, question/account inputs, lifecycle availability and
+CreateInternalParticipant handler/capacity/waiting-list rules (FUNCTIONAL_CONTRACTS
+5.5). Participant Manage and Catalogue approval states remain separately owned.
+
+- Same modal at every width, fullscreen <=900; resize preserves values, URL and
+  pending work. Retain existing deliberate route/recovery behavior.
+- Reuse shared editor guard for dirty Close/Cancel/Escape/Back and pending duplicate/
+  dismissal protection; discard Cancel preserves values/focus. Inline confirmations
+  follow the accepted trigger hiding, focus and visibility rule where applicable.
+- Failed load has usable close/retry; validation/transport failure retains submitted
+  values and usable localized recovery. Preserve owner-picker and form bindings.
+- Successful creation returns to fresh Participants data with retained filter/sort
+  context and appropriate scroll, one truthful success notice and no false dirty
+  prompt. Existing route-backed navigation is acceptable; no new partial-refresh
+  infrastructure. Saved-but-refresh-failed feedback must not imply creation failed.
+- Check correct/missing toast outcome, severity, duplication and modal visibility
+  within this pass. No separate toast audit.
+
+Files: Add-dialog region and necessary initialization hooks in event-manage.js,
+_InternalParticipantForm.cshtml, necessary Participants.cshtml/layout/localization
+bindings, existing Admin CSS and focused Participants tests. Shared guard changes
+only for a demonstrated common need. No new backend rule, domain/schema/service,
+route, dependency or generic framework. No Board/Draft or unrelated family work.
+
+Luna Max implementer owns changes and focused runnable checks for all-width open/
+resize, dirty dismissal, pending duplicate/dismissal, retained failure input and
+successful fresh return/reopen. Reuse existing test infrastructure; compile only
+when Razor/resources require it. Use controlled mocked writes, never mutate/reset
+the user's database or restart their 7131 app. A browser check is only justified
+by a named changed risk not covered by existing executable checks; no repeated
+harness debugging. One Astra High source-only correctness review of this exact
+pass; no reviewer browser/screenshots or duplicate passing checks. User supplies
+visual acceptance. Stop after this pass for feedback; no packaging/commit/push/
+deployment or automatic next family.
+
+Add Participant pass complete 2026-09-08: user visual approval and source-only
+correctness review clear after fixing current filter/sort context and successful
+creation/failed-refresh reload recovery. Add/Participants/Participant Manage Node
+regressions, syntax and diff checks pass; Razor build passed with 0 warnings/errors
+before JS-only corrections. No backend changes or persisted creation tests; client
+responses were mocked in focused tests. Stop before another popup family.
+
+## 12. Teams/Draft Add team popup — authorized 2026-09-08
+
+User says Add team's appearance is already good; preserve the current native modal,
+field order, typography and Draft workspace geometry. Scope is only the Add team
+trigger/dialog/form (`#add-team`) on Admin -> event -> Teams/Draft, in Setup and
+the permitted finalized pre-formed correction state. Team roster dialogs, Draft
+controller/turns, Board, imports and other popup families are excluded.
+
+General-look approval covers composition, not blanket approval of revealed
+confirmations/content, typography or feedback states. Inspect applicable details
+against UI_SYSTEM; the user notes no extra revealed surfaces requiring an added
+render for this popup. Future passes may use targeted renders for concrete gaps,
+without duplicate reviewer visual inspection.
+
+- Reuse admin-editor-guard in the existing Add team adapter: clean dismissal,
+  dirty Close/Escape/outside-click with compact discard/keep choice, native
+  navigation/Back unsaved protection where applicable, pending duplicate/dismissal
+  protection. Keep this modal at all widths; resizing never abandons entered data.
+- Preserve name/formation/affiliation and all existing AddTeam bindings, permissions,
+  state/confirmation rules, audit and transaction semantics. Finalized inline
+  confirmation follows Cancel-first, hidden trigger, reveal/focus and typed-value
+  restoration rules. No new route marker or generic modal framework is required.
+- Intercept only this form as necessary to retain typed inputs on failed POST;
+  distinguish rendered success/error outcomes (both currently redirect). Success
+  returns to fresh Draft state with one accurate toast and retained useful context;
+  no false dirty prompt or completed-operation resubmission. Reuse existing shared
+  toast and navigation owners; do not rewrite global site.js POST transport.
+- Check Add outcome text/severity/recovery/visibility while modal. Correct the
+  demonstrated blank-name error currently mislabeled as locked draft, by separating
+  presentation messages only; validation/lifecycle behavior stays unchanged.
+
+Files: Add-specific Draft.cshtml markup, event-manage.js Add-only initialization,
+existing scoped CSS/layout/localization if required, focused Add team test using
+existing popup test infrastructure. Draft.cshtml.cs may change only AddTeam status
+wording/selection for blank name; no other handler/backend-rule change. Zero new
+route/service/schema/dependency/abstraction. Snapshot only edited files for review.
+
+Luna Max implementer: one focused runnable Add test covering dirty/confirmation,
+pending/failure and success feedback/reopen, plus directly affected existing
+event-manage consumer regression and syntax/diff checks. Compile once for Razor/
+resource changes; add only a focused check if server-message branch changes.
+No browser harness, DB mutation/reset, app restart or repeated verification.
+Astra High read-only source correctness review; user provides visual acceptance.
+Stop after Add team for feedback; no roster pass, packaging, commit/push or deploy.
+
+Named review remediation stays within this pass: preserve the consumed success
+notice through the existing pending-toast owner; make Discard reset fields/baseline;
+fix confirmation hidden/inline CSS, order, keyboard/focus/reveal and resize scroll
+locking; add the missing Danish blank-name resource. The shared site.js toast-host
+selector may receive a minimal Add-native-dialog opt-in to keep toasts in the
+modal without adding layout classes; its POST transport stays unchanged. Correct
+the test that fabricated a success toast on navigation so it checks actual notice
+handoff instead. No backend/lifecycle expansion.
+
+Implementation/remediation and source-only review complete 2026-09-08. All named
+findings corrected; focused Add team/affected Participant checks, syntax/diff and
+Razor/resource build pass (0 warnings/errors). No browser or persisted team writes.
+User manually approves the completed Add team pass, accepting minor behavior
+differences from other popups without further remediation. No next pass authorized.
+
+
+## 13. Teams/Draft roster corrections — authorized 2026-09-08
+
+User protects the roster popup's general composition and requests two changes:
+show truthful Captain readiness after a Captain is assigned, and choose a role
+while manually adding a participant. This bounded correction does not reopen the
+whole roster workspace or import workflow.
+
+- Add Participant (default), Captain and Co-captain selection to existing manual
+  AddMember and AddExternalMember forms, including permitted pre-formed correction
+  variants. Existing post-add role editing remains. CSV role semantics are unchanged.
+- Persist membership creation and selected role atomically. Invalid roles or failed
+  assignment leave no partial membership/participant/character changes. Reuse the
+  existing Captain authority rules, role history, audit and owned-account
+  notification behavior; do not implement two client requests or duplicate those
+  rules in JavaScript. Preserve lifecycle, permissions, version/concurrency,
+  source/capacity/character-reservation rules and finalized correction publication.
+- Distinguish a current Captain role (draft-start requirement) from usable owned
+  website-account access (event-start requirement, with existing emergency option).
+  Once a Captain exists, do not still claim that a Captain must be assigned. If
+  website access is missing, name that issue accurately; Co-captain alone does not
+  satisfy the Captain requirement. Keep the warning synchronized with server state.
+- Preserve composition, subsequent role changes, existing popup handling and other
+  completed passes. New controls/feedback follow UI_SYSTEM localization, typography
+  and toast rules. No generalized popup rewrite, CSV expansion, new schema, route,
+  service, dependency or standalone framework. A small extension to the existing
+  authority service for atomic caller-owned transactions is allowed if needed.
+
+Luna Max implementation with a self-contained bounded prompt; Astra High independent
+source-only correctness review; user visual acceptance. Focused isolated PostgreSQL
+integration tests prove selected/default roles, relevant rollback/history/authority
+and truthful readiness; use existing suites rather than a browser harness. Compile
+Razor/resources and run only directly affected checks. Docker is available through
+approved sandbox escalation; never use or reset the user's application database.
+Stop after these corrections and review, without another family or packaging.
+
+Section 13 implementation and bounded remediation complete 2026-09-08. Independent
+source-only review clears all findings: truthful badge, malformed-role model-binding
+rejection, external selected-role finalized publication/rollback and rendered
+readiness proof. Focused isolated PostgreSQL checks and Razor builds pass; final
+binding test fixes the lifecycle clock and asserts role-specific rejection. No
+application database mutation or browser harness. Await user visual acceptance of
+the changed states; general composition approval and other page statuses remain.
+
+User manually accepts section 13 on 2026-09-08 with one small visual correction:
+reduce the roster participant remove SVG glyph size while preserving its clickable
+area, focus, accessible label, confirmation and existing composition. This authorizes
+only a scoped CSS correction with focused cascade/whitespace checks, not another
+behavior pass, backend test/build cycle or popup family.
+
+Further section 13 manual correction: user explicitly retains the existing small
+positioned roster-member removal confirmation (no move inline) and requests compact
+Remove member action typography consistent with Cancel. Match its scoped button typography, padding and height to Cancel; the follow-up
+screenshot confirms font-only correction leaves an undersized button. Confirmation
+placement, behavior and other controls are protected.
+Focused cascade/whitespace inspection suffices for this CSS-only correction.
+
+User manually approves the completed Teams/Draft roster popup on 2026-09-08,
+including the remove glyph and confirmation button typography/padding corrections.
+Section 13 accepted; no next popup/family or packaging authorized.
+
+Section 13 dismissal correction: user reports main roster popup fails to close on
+outside click. Add bounded backdrop handling through the existing close/history/
+focus path, preserving entered values and applicable pending protection; clicks
+inside the dialog or its small removal confirmation must not dismiss it. Add a
+focused executable regression for that missing event path, without another popup
+family, layout/backend rewrite, full suite or browser harness. Prior approval
+remains for visuals and role/readiness corrections; dismissal awaits correction.
+
+### Section 13 guard completion — authorized 2026-09-08
+
+User explicitly requires completing the missing roster dirty/pending safeguards
+before moving on. Reuse admin-editor-guard and existing roster/add-team transport
+patterns; preserve all approved composition, role/backend behavior and the small
+positioned removal confirmation. Cover all editable forms within this roster.
+
+- Dirty X, Escape, outside dismissal, Back/navigation and switching team/editor
+  require Discard/Keep. Keep restores focus and entered values; Discard actually
+  restores baseline fields before completion. Other-form submission cannot silently
+  lose unrelated edits. No false dirty warning after a completed mutation.
+- Pending saves block duplicates and dismissal/navigation until resolved, while
+  retaining submitted values and correct submitter/form data. Failure restores
+  usable controls and retains inputs with truthful visible feedback. Successful
+  saves refresh authoritative parent/roster content, preserve useful route/scroll
+  context and produce one accurate outcome toast. Completed mutation with failed
+  refresh must be distinguished from failed saving and must not be resubmitted.
+- Guards remain effective across widths/resizing; use existing all-width modal
+  treatment as needed, without abandoning inputs or redesigning roster layout.
+  Existing form routes, authorization, versions, role history, CSV preview/apply
+  semantics and finalized publication remain unchanged. No new backend/route/schema
+  or generalized popup framework; extend only existing page adapter/guard as needed.
+
+Luna Max implementation, smallest direct runnable guard/response regressions plus
+directly affected consumers, one Razor build only if markup/resources change;
+Astra High source-only review. No browser harness, app restart, application database
+mutation, full suite or repeated passing checks. Planner identifies the next popup
+from bounded repository evidence in parallel, but does not start it.
+
+Guard completion implemented and source-reviewed 2026-09-08. All five findings
+resolved: preserve submitted dirty baseline through cross-form discard/failure;
+require explicit success evidence; refresh sibling participant data; guard native
+modal/application navigation across widths; retain visible connected toast host.
+File-only changes are serialized with file metadata and covered by the roster
+regression. Focused roster and five affected consumer checks pass; Razor build
+0 warnings/errors. User check of new guard states remains; no next pass started.
+
+
+## 14. Board tile popup behavior — authorized 2026-09-08
+
+User accepts current Create/Edit tile composition and flow as shown in the two
+current screenshots. Proposed spacing changes, sticky footer, optional-detail or
+counting-option collapse, picker search, objective summaries/collapse and wizard
+work are NOT authorized. Preserve layout, field order, density and information.
+Apply the usual Admin popup behavior and inspect leftover/revealed UI (including
+confirmations, expanded controls, type hierarchy, focus and outcome feedback).
+
+Scope: Board Create/Edit tile shared editor, its objective-removal confirmation,
+and existing tile-detail/removal popup states affected by the same dialog owner.
+Preserve Board canvas/sidebar/toolbar/drag-drop/collaboration, objective semantics,
+weights/counting/source selection, image behavior, EHB, versions/permissions,
+lifecycle and publication rules. No backend/domain/schema redesign or other family.
+
+- Adopt shared admin-editor-guard with page-specific adapter. Clean Close/Cancel/
+  Escape/outside dismiss; dirty in-page dismissal, application navigation and
+  switching tile/editor require Discard/Keep. Browser Back/reload/leave use native
+  unload protection; do not introduce Back-closes-popup or a new history machine. Keep retains typed state/focus; Discard resets original fields,
+  dynamically added/removed objectives and file selection. Initial Edit is clean.
+- Same modal across widths, fullscreen on narrow screens; resize preserves typed
+  or pending state. Outside-click uses actual bounds/gesture checks and never
+  dismisses from inside padding or child confirmations. Restore opener focus.
+- Pending mutation blocks duplicates/dismissal/navigation and conflicting actions.
+  Capture FormData, submitter and contiguous requirement names before disabling
+  controls. Retain all submitted fields/objectives/files on validation, transport,
+  permission or concurrency failure; show truthful localized recovery and restore
+  controls. Stale board versions require explicit recovery, not silent data loss.
+- Objective-removal uses compact local confirmation rather than a nested editor
+  modal; preserve local-only removal semantics. Existing tile-removal confirmation
+  uses the shared compact pattern while keeping its handler/version semantics.
+  Cancel first, hide initiating action while shown, restore trigger before focus,
+  Escape cancels only the topmost confirmation, and reveal scrolls into view.
+  Use existing complete button primitives (type, padding/height, focus and severity),
+  not isolated typography overrides that leave undersized controls.
+- Successful mutations return to freshly authoritative Board context: canvas,
+  tile/editor data, statistics, version/actions and related summaries all refresh,
+  retaining useful scroll/context. Use one correctly severe visible toast; shared
+  native-modal toast host must stay connected while needed. Success is explicit,
+  not inferred from HTTP200/no errors. Distinguish committed save with image/other
+  warning and failed post-save refresh from failed saving; completed work cannot
+  be submitted twice. Do not let a background refresh discard active edits/results.
+
+Implementer may extend Board.cshtml scoped markup/inline adapter (or extract only
+that existing adapter to a focused JS file if necessary for maintainability and
+execution), existing shared guard/layout/CSS/localization and focused tests. Keep
+shared changes minimal with existing callers' defaults unchanged. PageModel changes
+are limited to minimal presentation/outcome evidence if necessary to distinguish
+committed-with-warning from failed POST; no business-rule or persistence change.
+No new route, service, schema, dependency or generic modal framework.
+
+Luna Max implementer; Astra High independent source-only reviewer; user final visual
+acceptance of changed/revealed states. Reuse board-dialog.test.js and current popup
+Node infrastructure. Direct regressions cover dynamic/file dirty state, every
+close/navigation path, topmost confirmation/focus/trigger restoration, pending
+serialization/blocking, retained failures, explicit success/warning distinction,
+fresh parent and failed-refresh recovery. Run affected consumers only if shared
+code changes and one Razor/resource build where required. No browser harness,
+application database mutation/reset, app restart, full suite, packaging/commit/push
+or deployment. Stop after this family for acceptance. The supplied screenshots
+are accepted current composition evidence, not authorization to redesign it.
+
+### Section 14 implementation safety boundary
+
+User-approved completion assignment: Astra Low replaces Luna Max only for the
+remaining Board save recovery, navigation guards and compact confirmations after
+prolonged turnaround. Keep tested close/fullscreen/collaboration corrections; one
+completion assignment with focused checks, then Astra High source-only review and
+manual acceptance. No new preliminary review or broad discovery.
+
+Lean resumption — user authorized continuation after accepting the gap-first
+workflow. Existing source assessment supplies four concrete gaps; do not repeat
+discovery: unconditional dismissal bypasses dirty/pending protection; native POST
+loses the current form/files on failure; objective/tile confirmations need the
+compact local behavior; narrow fullscreen and collaboration's dialog-owner query
+need focused correction. Existing editor population, Board data/rules and layout
+remain the starting point. Implement these gaps, then one focused verification and
+source review; no new preliminary review.
+
+Automatic edit review rejected the initial broad navigation/history/submission and
+generic baseline-restoration rewrite as excessive regression/data-loss risk. The
+incomplete Board-only edits were restored to their canonical pre-pass snapshots;
+all earlier working changes are preserved. The rejected attempt remains evidence,
+not an implementation baseline. Do not reconstruct it through incremental patches.
+
+Independent read-only assessment identifies a materially smaller implementation:
+reuse existing resetTileForm/addRequirement/populateRequirement/initializeRequirements
+and cached tileEditorData to reconstruct the original selected tile/create position
+on Discard. Extract only existing open/populate blocks as needed; initialize the
+shared guard after population. Replace unconditional close listeners in place with
+one guarded close/switch/application-navigation path. No generic DOM snapshot/state
+framework and no new history machine. Native browser-owned departure protection is
+the existing UI_SYSTEM exception; within-page guards remain required.
+
+Retain form DOM during a narrow async POST adapter (including File inputs on error),
+use minimal consumed outcome markers to distinguish commit/warnings/stale recovery,
+and reuse existing full-response navigation installation/context preservation on
+success. Do not add a Board fragment refresh framework or shared-guard rewrite.
+Add only local confirmation wiring and scoped fullscreen/feedback CSS, and correct
+collaboration's open-dialog query to the owning Board page. If automatic review
+rejects this different smaller architecture too, report the exact rejection and
+stop edits immediately; do not retry with smaller pieces or alternate edit tools.
+
+### Section 14 completion checkpoint — manually approved 2026-09-08
+
+Accepted layout preserved. Existing close/fullscreen/collaboration corrections are
+retained; user-approved Astra Low completed save recovery, navigation and local
+confirmations. Astra High source-only review cleared five focused corrections:
+preserve new-tab/modifier links, clean committed recovery, genuine backdrop gesture,
+reuse failure feedback/reload controls and truthful stale-response wording. Focused
+Board Node tests and syntax/diff checks pass; final Razor build had 0 warnings and
+0 errors before JS-only fixes. No browser/DB or persisted concurrency claim. The
+user manually approved the popup after a typography-only correction to the discard
+confirmation; focused CSS source review and diff checks passed. Approval is recorded
+in UI_PAGE_MATRIX. No next-family rollout without user authorization.
+
+
+### Bundled Board/Teams manual corrections — authorized 2026-09-08
+
+Preserve approved Board tile details/toolbar and inspected Teams/Draft popup
+composition. Fix only the false dirty/discard prompt when untouched roster/tile
+editors close and the oversized page-level Remove team X. Reuse shared guard and
+existing compact removal glyph styling; preserve genuine input/file changes,
+pending protection, focus and click targets. Verify the demonstrated clean/dirty
+boundary and affected shared consumers, then one focused source review. No backend
+or layout redesign. Review and Finalize are deferred for separately scoped page
+overhauls; stop after these named corrections for user acceptance.
+
+Correction implemented: empty upload placeholder timestamp normalization and compact
+page-level team-removal glyph. Board/roster regressions and eight direct consumer
+checks pass; Participant Manage fixture failure reproduces with the previous guard
+and is outside this correction. Focused independent source review clears; user
+manually approves both corrections 2026-09-08. No backend or markup change, browser
+harness, build or DB work. Stop before further implementation without authorization.
+
+
+### Participant confirmation reveal correction — authorized 2026-09-08
+
+User approves Catalogue Add/Edit. Participant Manage Remove, Restore and Transfer
+ownership reveal inline confirmations out of view. Bring newly opened confirmations
+into view using the existing shared Participant binding; retain focus restoration,
+input state, guards and composition. Scope is this defect, its focused executable
+check (including directly required test fixture correction), and one source review.
+Stop for user acceptance; Review/Finalize overhauls remain deferred.
+
+Implemented with one scroll call in the existing shared toggle handler. All three
+confirmation reveals/Cancel paths pass the focused Participant regression; its
+missing document.removeEventListener mock was corrected. Syntax/diff and independent
+source review clear. User manually approves Participant Manage including the reveal
+correction, 2026-09-08; no build/browser/DB work.
+
+
+### Event-settings confirmation follow-up — authorized 2026-09-08
+
+User approves Schedule change/warning and Accounts ownership-transfer confirmations.
+Overview signup/start/end/resume/cancel/discard confirmations receive one bounded
+read-only source review because manual lifecycle-state walkthrough is impractical.
+Report concrete rendered-flow/handler/recovery/feedback findings; do not mutate data
+or equate source review with execution/manual acceptance. Identity timezone review
+receives only auto-scroll using existing reveal wiring and compact confirmation
+fonts; preserve preview values, button padding, routes and other page composition.
+Use focused checks and source review for that correction. Review and Finalize stay
+deferred; no further rollout or backend redesign authorized.
+
+Source review completed with six bounded Overview lifecycle findings, recorded in
+CURRENT_STATUS and the linked source report; remediation not yet authorized.
+Identity correction uses existing reveal marker/helper script plus scoped typography;
+helper execution/wiring/cascade/diff checks and independent source review clear.
+User check pending. No broader initializer or backend changes were made.
+
+
+### Overview lifecycle confirmation remediation — authorized 2026-09-08
+
+Fix the six named source findings as one bounded pass:
+
+- Close signup must not require opening-only warning/proposed-close acknowledgements;
+  preserve existing server confirmation, permission, state and version checks.
+- Failed Start/End/Resume/Cancel (and directly related confirmation failure paths)
+  retain entered reasons/replacement end and confirmation context. Do not expose
+  reasons in query strings or erase concurrency protection on retry.
+- Pending lifecycle mutation blocks duplicate submission and dismissal/navigation
+  through its confirmation controls until the result is known. Reuse existing post
+  navigation state; scope changes to Overview confirmations instead of rewriting
+  global navigation or adding a history framework.
+- All lifecycle confirmation branches reveal/scroll and focus consistently. Cancel
+  or Escape returns to the initiating control and follows the existing route;
+  pending cannot be bypassed. Cancel precedes the semantic/destructive action.
+- Signup outcomes set explicit correct severity. Intermediate acknowledgement steps
+  are informative, concurrency/rejection is an error, successful mutation is success.
+
+Preserve Overview composition and backend lifecycle/domain/service rules, routes,
+permissions, versions, audit and persistence. Prefer local handler/markup/adapter
+fixes; no new service/schema/route or general framework. Identity user acceptance
+remains separate; Review/Finalize stay deferred. One focused handler/interaction
+verification set plus affected compilation, then one source review against this
+scope; do not run a full suite or manipulate user data/lifecycle states. Stop after
+named corrections and checks, without packaging, commit, push or deployment.
+
+Completion: all six named corrections implemented; scoped source review and three
+named fixes cleared. Concurrency failure now refreshes only version binding, retains
+other posted fields and explicitly requests review of fresh details before retry.
+Cancel-first/focus-return completed for every scoped branch. Focused JS and compiled
+Web/Razor checks pass. EventCreationUiTests has 26 passes and one unrelated stale
+Participant source assertion (also absent before this pass). Final Danish notice
+entry passes XML/diff checks. No real lifecycle/database handler execution or
+browser proof claimed; see CURRENT_STATUS/evidence. User manually approves these
+corrections. Further work is paused for budget/workflow discussion; no new dispatch.
+
+
+## 15. Admin Review queue — agreed scope 2026-09-09
+
+- Reuse established Admin implementation/styles (including Participants search/status
+  controls), not screenshot approximation. Replace Review queue legacy typography,
+  outlines and dividers; preserve overall table composition and information.
+- User visual correction: Review table text uses weight 400, including remaining
+  explicit bold table descendants; retain the separate heading/toolbar hierarchy.
+- Remove the queue masthead and Administration button; shared header retains Review.
+  Capitalize Submissions and use established Admin table-heading typography.
+- Replace Event/Team/Tile dropdowns and Apply filters with search on the left and
+  Status on the right. Search team name, credited player name and tile name;
+  combine search/status and update results without page reloads.
+- User follow-up 2026-09-09: Pending submissions always sort before other statuses,
+  newest first within Pending and within the remaining rows. Search/Status may hide
+  rows but preserve this order among visible results. Verify ordering with mixed
+  statuses/timestamps using the existing focused queue test.
+- Review navigation always targets the current selected event, including events
+  with no evidence or unable to receive evidence. Preserve authorization and
+  hidden-event boundaries. No cross-event queue through the removed filter.
+- Protect status semantics, table data, Details destinations, evidence integrity,
+  review actions and linked-resubmission behavior. Details presentation/workflows,
+  Finalize, global Admin redesign and unrelated cleanup are outside this pass.
+- Focused checks: event-scoped navigation/queue including empty/ineligible states,
+  combined search/status across the three fields, no-reload updates and empty
+  results; applicable Razor compilation and scoped diff checks. Reuse current tests.
+- User-approved task exception: bounded source inspection and fresh independent
+  review use GPT-6 Astra Low. Independent review covers backend/functionality only,
+  with no UI/visual review; user owns visual acceptance. Routine UI implementation
+  uses the AGENTS default GPT-5.6 Luna Max. No new dependencies, tables, services or
+  generalized frameworks are planned. Stop for consequential scope uncertainty.
+- No packaging, stage/commit/push, deployment, user database mutation or restart of
+  the user's HTTPS 7131 application. Stop at user visual acceptance.
+
+Section 15 checkpoint: implemented and backend/functionality-only source-reviewed
+2026-09-09. Release Web build, focused authenticated HTTP event-scope test, existing
+queue binding test, Node live-filter test, XML and scoped diff checks passed. One
+fixture expectation was corrected without production changes. User then rejected the
+visual styling: the named correction adds Review queue to the existing Admin font/token
+scope and fixes desktop Status alignment; scoped cascade/diff checks pass. Pending-first
+ordering is implemented with a passing mixed-row HTTP test and clear Astra Low functional
+delta review. User manually approves the Review queue on 2026-09-09 after the final
+table-weight-400 correction. Details and Finalize remain deferred; no user-app restart,
+packaging or deployment performed.
+
+
+## 16. Admin Review details — approved 2026-09-09
+
+- Purpose: lean evidence inspection and approve/reject flow. Desktop: large uncropped
+  image left with existing enlarged viewer; compact facts and decision controls right.
+  Narrow screens: facts, image, then actions. Remove masthead, oversized headings,
+  repeated explanatory copy and padding; compact Back to review link alone. User
+  follow-up places the status badge at the right of the tile heading in the facts card.
+- Facts: credited player, team as secondary context, tile, drop, submission time in
+  chosen timezone and UTC, verification code or explicit disabled state. Keep tile
+  requirement, submission note and eligibility warnings visible. User correction:
+  remove Claimed and Contribution display only; calculations and stored values unchanged.
+- Approve/Reject together below facts. Final user approval selects leaf green
+  `#78B86A` for both Approve text and border, with unfilled background.
+  Rejection mode hides the normal action row and approval explanation while showing
+  the full-width reason and Reject/Cancel; Cancel restores normal content and focus.
+  Reject reveals required reason and confirmation;
+  preserve validation and recovery. Retain existing approval/rejection/reversal rules,
+  confirmation protections, action eligibility and post-decision navigation.
+- User visual correction 2026-09-09: remove the duplicate player/team sentence under
+  the tile heading; label local submission time simply Submitted (retain local and
+  UTC values). Fix effective Admin font/weights/colours and neutral borders/dividers.
+  Tighten facts/actions gap to established spacing, align Approve/Reject on one line,
+  and make collapsed secondary sections content-height. User rejected stretched image
+  and increased sidebar gap: eliminate image/grid-driven excess height, keep facts and
+  actions together with a normal fixed gap, and retain uncropped/natural responsive media.
+  User follow-up: desktop image card must exactly match the combined right-card
+  height including gap; the right column sets row height, the contained image must
+  not enlarge it. Rejection expansion/cancel resizes naturally; mobile stays stacked.
+  User rejected the taller desktop minimum experiment: restore pre-trial content-driven
+  sizing without stretched facts, preserving equal-height contained image/right column
+  and compact gap. Mobile remains natural.
+  Team-name value uses the same value colour as other facts. Rejection reason expands
+  full-width below the action row; explanatory content also spans full width, with
+  only the Approve/Reject buttons sharing a row. Cancel restores compact geometry with no retained
+  expansion. Verify real rendered dimensions at baseline/reveal/cancel and narrow
+  width in an isolated fixture using actual styles; this is implementation regression
+  verification, not independent UI review or replacement for user visual acceptance.
+- Metadata correction remains collapsed. Prior evidence, evidence versions and review
+  history become compact expandable sections, preserving contents and access.
+- Use existing Admin font/neutral tokens and control styling, normal-weight values,
+  and queue styling lessons; no blue legacy borders or page-local theme. Preserve
+  approved queue layout, live filtering and Pending-first order.
+- Resolve event context from the authorized submission on Details, including direct
+  loads, so event selector and event sidebar remain present. Back to review targets
+  that event and preserves search/status when entered from a filtered queue.
+- Preserve routes, bindings, evidence viewer, immutable timestamps/assets/history,
+  authorization/hidden-event boundaries, concurrency, correction/reversal/audit and
+  contribution semantics. Missing image in supplied screenshot is local fixture data,
+  explicitly outside scope. Finalize, unrelated pages and new review behavior deferred.
+- Existing-model session choice continues: bounded source inspection and independent
+  backend/functionality-only review Astra Low; routine UI implementer Luna Max. User
+  owns visual acceptance; no separate UI review. No new tables/services/dependencies
+  or general frameworks budgeted. One bounded source inspection before assignment.
+- Focused checks: Web/Razor build; authenticated route navigation Details event/sidebar
+  and queue return (direct and filtered entry, protected boundaries); required reason
+  reveal/validation/recovery and retained review bindings using existing tests. Check
+  localized strings, scoped cascade/diff. Do not repeat unaffected queue tests or full
+  suite; add executable proof only for changed functional boundaries.
+- No user database mutation, HTTPS 7131 restart, packaging, stage/commit/push or deployment.
+  Stop for consequential scope uncertainty; otherwise finish checks and one functional
+  review, then hand to user for visual acceptance.
+
+Section16 checkpoint 2026-09-09: implemented; Astra Low backend/functionality source
+review found no production defect. Missing authenticated journey proof was supplied
+with a passing controlled PostgreSQL rendered queue/Details/rejection/Back scenario,
+including direct/mismatched context and hidden/unauthorized boundaries. Release build,
+focused binding tests2/2, Node queue-link/filter and mocked-DOM rejection checks, scoped
+source/cascade/diff checks pass. No actual browser visual verdict; awaiting user manual
+acceptance. User app was not restarted; no packaging/deployment/user database mutation.
+
+Section16 completion: user manually approves Review Details on 2026-09-09 after named
+corrections. Desktop evidence card matches the combined facts/actions height through a
+contained three-row header/image/footer layout; mobile stays natural. Fact values/UTC use
+heading colour; labels stay muted. Status sits beside tile heading. Approve uses the final page-approved
+`#78B86A` for text/border and remains unfilled. Full-width action
+copy/rejection and compact Cancel recovery retained. Later fixes were source-scoped and
+manually accepted; earlier isolated geometry fixtures did not establish final correctness.
+No further Review or Finalize work, packaging or deployment authorized by this approval.
+
+Final follow-up manually approved: taller-height experiment removed; pre-trial content-driven
+facts/image sizing restored. Rejection mode hides normal approval copy/buttons, retaining
+reason/hint/Reject/Cancel; Cancel restores them. Final leaf-green Approve `#78B86A` accepted.
+Source/diff checks and user acceptance close the pass; no further work authorized.
+
+
+## Co-captain signup request — approved 2026-09-10
+
+Isolated checkout `/private/tmp/BingoWebpage-admin-co-captain-20260910`, branch
+`codex/admin-co-captain`, starting at committed `admin-consistency` / `86e7dc3`.
+Any eventual user-authorized PR to `main` includes that existing committed Admin work
+plus this request.
+Do not import uncommitted sweep documentation, T05 or C05/C09 from the recovery checkout.
+This request is not an application-sweep ticket and adds no TICKETS.md entry.
+
+Approved scope:
+
+- Admin Participants / Signups gains a Captain volunteer column showing Yes/No,
+  with Co-captain: Name on a second line when supplied. Remove the existing
+  volunteered-to-captain note from Team. Captain volunteer appears before Team and is
+  sortable in both the route-backed and enhanced table; Team remains sortable. Preserve
+  filters, editing, table enhancement, permission states and responsive composition.
+- Co-captain (optional) is a permanent optional default text question for existing
+  and new event forms, separately identified/stored through the existing question
+  and answer system. Existing responses remain blank; no account lookup or automatic
+  Captain/co-captain role assignment. No new table/service/route/policy/job or generic
+  question-dependency framework is budgeted.
+- Only show the input when Captain volunteer is checked. On uncheck, hide AND disable
+  it so its value is omitted from submission. Preserve the unsaved typed value if
+  toggled back on before submit. Server-side enforce the same rule: when volunteering
+  is false, ignore supplied co-captain text and clear any previously saved answer.
+- Participant and Admin viewing/editing use existing flows and permissions. Do not
+  expose the new answer on public signup tables or through non-owner/non-Admin draft
+  projections. This scope grants no new editing windows or permissions.
+- Keep optional status, English/Danish labels, validation/error redisplay and existing
+  form/response concurrency semantics consistent. Update the smallest existing
+  authorities to capture this accepted behavior. Preserve historical answers and
+  schema migration integrity; any required default-question backfill must preserve
+  existing records, be safe to apply once, and not require a live production mutation
+  during development.
+
+Manual-review refinements approved for implementation on 2026-09-10:
+
+- Co-captain uses a single-line text input and renders immediately after Captain
+  volunteer, ahead of custom text questions even when the existing-form backfill was
+  appended later. This is presentation ordering only; stored question positions and
+  historical custom-question order remain unchanged.
+- Empty co-captain validation output must not reserve an extra row, while a real
+  validation error remains visible. The opened signup-question deletion confirmation
+  spans the available question row. Review queue secondary UTC text inherits the Admin
+  table font.
+- Remove the redundant Live-only `Manage live participant` text action; the existing
+  pencil remains the participant editor entry point at every applicable lifecycle state.
+
+Execution: one separate Sol Medium manager owns direct collaboration-worker dispatch
+and all handoffs. Luna Max implementation/remediation, fresh Astra Medium independent
+review. Root planner does not shadow routine execution; ask it only for decisions or
+help. If manager lacks worker-dispatch capability, report the tooling blocker instead
+of silently falling back to root-assisted spawning. Workers receive bounded assignments
+and may not independently advance scope. Use existing plans/authority and focused reads;
+no new readiness review for this bounded change unless a real product contradiction
+appears. Review/remediate named defects only; optional cleanup remains excluded.
+
+Verify signup/edit with and without a co-captain; checkbox hide/disable/re-enable and
+malicious unchecked submissions; persisted clearing; Admin column/real enhancement;
+public/non-owner privacy; existing/new form defaults and retained-response compatibility.
+Use smallest executable checks for these boundaries, isolated DB/HTTP fixtures, scoped
+format/diff checks and required packaging gates. UI acceptance remains user-owned: do
+not silently mark a page approved; request current screenshot/visual acceptance only
+when required, and record any pending manual acceptance in the draft PR.
+
+Local test remediation on 2026-09-10 corrected only the four contracts reported by the
+user's full .NET run: three BrowserTests source contracts and the migration rehearsal.
+Each exact isolated filter passed and fresh independent review cleared the correction
+diff. The user accepted that focused proof together with their existing full-run evidence
+and declined a redundant second full-suite execution; do not represent a second full
+suite as run. No production behavior changed in this remediation.
+
+After completing the current manual-review corrections, the user explicitly authorized
+packaging on 2026-09-10. This supersedes the earlier packaging prohibition for this
+isolated branch only. One Luna Max packager may stage and commit the exact accepted
+checkout inventory, push `codex/admin-co-captain` and open one ready-for-review PR to
+`main`. Verify that the full PR scope includes the intended committed Admin base and this
+request, excludes recovery-checkout C05/C09, sweep/T05 and untracked tickets, and reports
+the actual validation and limitations without claiming an unrun second full suite or JS
+suite. No merge/deployment, app HTTPS7131 restart, production DB scan/repair, live
+provider calls or other external messages are authorized.

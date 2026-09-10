@@ -7,6 +7,8 @@
 @{
     ViewData["Title"] = T["OSRS catalogue"];
     ViewData["AdminPageDescription"] = T["Manage bosses, activities, their drops and the values used to calculate EHB."];
+    var catalogueStatus = TempData["StatusMessage"]?.ToString();
+    var catalogueStatusType = TempData[Bingo.Web.UI.UiMessage.TypeKey]?.ToString();
     var categories = new[] { "Boss", "Skilling boss", "Minigame" };
     var partialTargets = "#app-notice-region, .catalogue-editor-component";
     var pageUrl = Url.Page("/Admin/Catalogue/Index");
@@ -15,7 +17,7 @@
     var isEditorRoute = Model.IsEditorRoute;
 }
 
-<section class="admin-catalogue-page @(Model.IsOverlay ? "admin-dialog-page" : null)" data-catalogue-page="true" data-catalogue-editor-route="@isEditorRoute.ToString().ToLowerInvariant()" data-catalogue-overlay="@Model.IsOverlay.ToString().ToLowerInvariant()" data-catalogue-url="@pageUrl">
+<section class="admin-catalogue-page @(Model.IsOverlay ? "admin-dialog-page" : null)" data-catalogue-page="true" data-catalogue-status-message="@(catalogueStatus ?? string.Empty)" data-catalogue-status-type="@(catalogueStatusType ?? string.Empty)" data-catalogue-editor-route="@isEditorRoute.ToString().ToLowerInvariant()" data-catalogue-overlay="@Model.IsOverlay.ToString().ToLowerInvariant()" data-catalogue-url="@pageUrl">
     @if (isEditorRoute)
     {
         <section class="catalogue-editor-component @(Model.IsOverlay ? "catalogue-editor-dialog-page" : "catalogue-standalone-editor") @(Model.AddBoss ? "catalogue-add-boss-dialog" : null)" data-catalogue-editor="true" aria-labelledby="catalogue-editor-title" aria-describedby="catalogue-editor-description">
@@ -33,6 +35,13 @@
                     <a class="admin-button-secondary" href="@pageUrl">@T["Back to catalogue"]</a>
                 </header>
             }
+
+            <div class="event-confirmation-box catalogue-editor-discard" data-catalogue-editor-discard role="alertdialog" aria-labelledby="catalogue-discard-title" hidden>
+                <p><strong id="catalogue-discard-title">@T["Discard unsaved changes?"]</strong><br />@T["Continuing will discard unsaved changes in this editor."]</p>
+                <div class="catalogue-confirmation-actions"><button type="button" class="admin-button-secondary" data-catalogue-editor-keep>@T["Cancel"]</button><button type="button" class="admin-button-secondary action-danger-outline" data-catalogue-editor-discard-confirm>@T["Discard changes"]</button></div>
+            </div>
+            <p data-catalogue-editor-feedback role="alert" tabindex="-1" hidden></p>
+            <button type="button" class="admin-button-secondary" data-catalogue-reload hidden>@T["Reload current values"]</button>
 
             @if (Model.AddBoss)
             {

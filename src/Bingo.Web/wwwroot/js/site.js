@@ -264,7 +264,7 @@ function initializeTransientToastLayer() {
   let homeParent = host.parentElement;
   let homeNextSibling = host.nextSibling;
   const syncHostLayer = () => {
-    const openDialog = document.querySelector("dialog.admin-route-dialog[open]");
+    const openDialog = document.querySelector("dialog.admin-route-dialog[open], dialog[data-toast-host][open]");
     if (openDialog instanceof HTMLDialogElement && !openDialog.contains(host)) {
       if (!homeParent) { homeParent = host.parentElement; homeNextSibling = host.nextSibling; }
       openDialog.append(host);

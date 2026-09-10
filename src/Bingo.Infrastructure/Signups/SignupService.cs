@@ -206,6 +206,8 @@ public sealed class SignupService(
 
         var form = await dbContext.SignupForms.SingleAsync(x => x.EventId == request.EventId, cancellationToken);
         var questions = await dbContext.SignupQuestions.Where(x => x.SignupFormId == form.Id && x.Active).OrderBy(x => x.Position).ToListAsync(cancellationToken);
+        var captain = questions.SingleOrDefault(x => x.SystemField == SignupSystemField.CaptainVolunteer);
+        var captainVolunteered = IsCaptainVolunteered(captain, request.Answers);
         var links = await (from link in dbContext.AccountOsrsCharacters
                            join character in dbContext.OsrsCharacters on link.OsrsCharacterId equals character.Id
                            where link.AccountId == request.AccountId && link.Active
@@ -234,6 +236,7 @@ public sealed class SignupService(
                 if (reserved) return new(false, "That account is already signed up for this event. Choose another account.", null, null, null, question.Id);
                 continue;
             }
+            if (question.SystemField == SignupSystemField.CoCaptainName && !captainVolunteered) continue;
             if (!ValidateAnswer(question, request.Answers.TryGetValue(question.Id, out var value) ? value : null, out var error))
                 return new(false, error, null, null, null);
         }
@@ -251,8 +254,7 @@ public sealed class SignupService(
             dbContext.EventParticipants.Add(participant);
         }
         else status = participant.SignupStatus;
-        var captain = questions.SingleOrDefault(x => x.SystemField == SignupSystemField.CaptainVolunteer);
-        participant.SetCaptainVolunteer(captain is not null && request.Answers.TryGetValue(captain.Id, out var captainAnswer) && bool.TryParse(captainAnswer, out var volunteered) && volunteered);
+        participant.SetCaptainVolunteer(captainVolunteered);
         var answers = existing is null ? [] : await dbContext.SignupAnswers.Where(x => x.EventParticipantId == participant.Id).ToListAsync(cancellationToken);
         var answersByQuestion = answers.ToDictionary(x => x.SignupQuestionId);
         var order = (await dbContext.EventParticipantCharacters.Where(x => x.EventParticipantId == participant.Id).MaxAsync(x => (int?)x.RegistrationOrder, cancellationToken) ?? -1) + 1;
@@ -293,7 +295,9 @@ public sealed class SignupService(
         }
         foreach (var question in questions.Where(x => x.Type != SignupQuestionType.Account && x.SystemField != SignupSystemField.CaptainVolunteer))
         {
-            var value = request.Answers.TryGetValue(question.Id, out var submitted) ? CanonicalAnswer(question, submitted) : null;
+            var value = question.SystemField == SignupSystemField.CoCaptainName && !captainVolunteered
+                ? null
+                : request.Answers.TryGetValue(question.Id, out var submitted) ? CanonicalAnswer(question, submitted) : null;
             if (string.IsNullOrWhiteSpace(value))
             {
                 if (answersByQuestion.Remove(question.Id, out var removedAnswer)) dbContext.SignupAnswers.Remove(removedAnswer);
@@ -395,6 +399,8 @@ public sealed class SignupService(
         var form = await dbContext.SignupForms.SingleOrDefaultAsync(x => x.EventId == request.EventId, ct);
         if (form is null) return new(false, "This event has no signup form.");
         var questions = await dbContext.SignupQuestions.Where(x => x.SignupFormId == form.Id && x.Active).OrderBy(x => x.Position).ToListAsync(ct);
+        var captain = questions.SingleOrDefault(x => x.SystemField == SignupSystemField.CaptainVolunteer);
+        var captainVolunteered = IsCaptainVolunteered(captain, request.Answers);
         EventParticipant? participant = null;
         if (!creating)
         {
@@ -423,6 +429,7 @@ public sealed class SignupService(
                 if (!submittedCharacters.Add(normalized)) return new(false, "Choose each account only once.");
                 if (question.AccountAnswerRole == EventCharacterRole.Playing && (answer?.Ehb is null || answer.Ehb < 0)) return new(false, $"'{question.Label}' requires EHB.");
             }
+            else if (question.SystemField == SignupSystemField.CoCaptainName && !captainVolunteered) continue;
             else if (!ValidateAnswer(question, request.Answers.TryGetValue(question.Id, out var value) ? value : null, out var error)) return new(false, error);
         }
         SignupStatus status;
@@ -456,11 +463,12 @@ public sealed class SignupService(
             else { existing?.Release(request.ActorAccountId, now); dbContext.EventParticipantCharacters.Add(new EventParticipantCharacter(Guid.NewGuid(), request.EventId, participant.Id, character.Id, order++, now, request.ActorAccountId, question.Id, role, supplied?.Ehb, role == EventCharacterRole.Playing ? EhbSource.AdminCorrection : null, null)); }
             if (answersByQuestion.TryGetValue(question.Id, out var saved)) saved.SetAccountCharacter(character.Id); else dbContext.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, question.Id, question.Label, string.Empty, character.Id));
         }
-        var captain = questions.SingleOrDefault(x => x.SystemField == SignupSystemField.CaptainVolunteer);
-        participant.SetCaptainVolunteer(captain is not null && request.Answers.TryGetValue(captain.Id, out var captainValue) && bool.TryParse(captainValue, out var volunteered) && volunteered);
+        participant.SetCaptainVolunteer(captainVolunteered);
         foreach (var question in questions.Where(x => x.Type != SignupQuestionType.Account && x.SystemField != SignupSystemField.CaptainVolunteer))
         {
-            var value = request.Answers.TryGetValue(question.Id, out var answer) ? CanonicalAnswer(question, answer) : null;
+            var value = question.SystemField == SignupSystemField.CoCaptainName && !captainVolunteered
+                ? null
+                : request.Answers.TryGetValue(question.Id, out var answer) ? CanonicalAnswer(question, answer) : null;
             if (string.IsNullOrWhiteSpace(value)) { if (answersByQuestion.Remove(question.Id, out var removed)) dbContext.SignupAnswers.Remove(removed); }
             else if (answersByQuestion.TryGetValue(question.Id, out var saved)) saved.Update(value); else dbContext.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, question.Id, question.Label, value));
         }
@@ -531,6 +539,9 @@ public sealed class SignupService(
             ? boolean ? "true" : "false"
             : trimmed;
     }
+
+    private static bool IsCaptainVolunteered(SignupQuestion? captain, IReadOnlyDictionary<Guid, string> answers) =>
+        captain is not null && answers.TryGetValue(captain.Id, out var value) && bool.TryParse(value, out var volunteered) && volunteered;
 
     public async Task<int> IncreaseCapacityAndPromoteAsync(Guid eventId, int newCap, CancellationToken cancellationToken = default)
     {
@@ -817,6 +828,8 @@ public sealed class SignupService(
         var form = await dbContext.SignupForms.SingleOrDefaultAsync(x => x.EventId == eventId, ct);
         if (form is null) return (null, "This event has no signup form for internal replacement validation.");
         var questions = await dbContext.SignupQuestions.Where(x => x.SignupFormId == form.Id && x.Active).OrderBy(x => x.Position).ToListAsync(ct);
+        var captain = questions.SingleOrDefault(x => x.SystemField == SignupSystemField.CaptainVolunteer);
+        var captainVolunteered = IsCaptainVolunteered(captain, request.Answers);
         Account? owner = null;
         if (request.OwnerAccountId is { } ownerId)
         {
@@ -842,12 +855,14 @@ public sealed class SignupService(
                 if (question.AccountAnswerRole == EventCharacterRole.Playing && (answer?.Ehb is null || answer.Ehb < 0))
                     return (null, $"'{question.Label}' requires EHB.");
             }
+            else if (question.SystemField == SignupSystemField.CoCaptainName && !captainVolunteered) continue;
             else if (!ValidateAnswer(question, request.Answers.TryGetValue(question.Id, out var value) ? value : null, out var error))
                 return (null, error);
         }
 
         var sequence = (await dbContext.EventParticipants.Where(x => x.EventId == eventId).MaxAsync(x => (long?)x.SignupSequence, ct) ?? 0) + 1;
         var participant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, sequence, now, SignupSource.AdminCreated);
+        participant.SetCaptainVolunteer(captainVolunteered);
         if (owner is not null) participant.AssignOwner(owner);
         dbContext.EventParticipants.Add(participant);
         var order = 0;
@@ -865,7 +880,9 @@ public sealed class SignupService(
         }
         foreach (var question in questions.Where(x => x.Type != SignupQuestionType.Account && x.SystemField != SignupSystemField.CaptainVolunteer))
         {
-            var value = request.Answers.TryGetValue(question.Id, out var answer) ? CanonicalAnswer(question, answer) : null;
+            var value = question.SystemField == SignupSystemField.CoCaptainName && !captainVolunteered
+                ? null
+                : request.Answers.TryGetValue(question.Id, out var answer) ? CanonicalAnswer(question, answer) : null;
             if (!string.IsNullOrWhiteSpace(value)) dbContext.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, question.Id, question.Label, value));
         }
         form.RecordAcceptedResponse(now);

@@ -19,44 +19,28 @@ public sealed class TeamCaptainAuthorityService(ApplicationDbContext db, TimePro
         if (change.Role is not (TeamMembershipRole.Participant or TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain))
             return new(false, "Choose Participant, Captain, or Co-captain.");
 
+        if (db.Database.CurrentTransaction is not null)
+        {
+            try { return await ChangeRoleInTransactionAsync(change, ct); }
+            catch (Exception exception) when (IsExpectedConflict(exception))
+            {
+                db.ChangeTracker.Clear();
+                return new(false, "Another administrator changed this membership first. The latest roster has been loaded.");
+            }
+        }
+
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
-            var now = time.GetUtcNow();
-            var row = await (from membership in db.TeamMemberships
-                             join team in db.Teams on membership.TeamId equals team.Id
-                             join participant in db.EventParticipants on membership.EventParticipantId equals participant.Id
-                             join item in db.Events on team.EventId equals item.Id
-                             where membership.Id == change.MembershipId && membership.LeftAt == null && item.HiddenAt == null
-                             select new { membership, team, participant, item }).SingleOrDefaultAsync(ct);
-            if (row is null || row.team.EventId != change.EventId || row.participant.EventId != change.EventId)
-                return new(false, "That current team membership no longer exists.");
-            if (row.item.State is EventState.Cancelled or EventState.Finalized or EventState.Archived or EventState.Discarded)
-                return new(false, "This event is read-only in its current lifecycle state.");
-            if (row.item.State == EventState.AwaitingFinalReview && !row.item.AcceptsNewSubmissions(now))
-                return new(false, "Captain roles are read-only after the submission window closes.");
-            if (change.ExpectedMembershipVersion is { } expected && row.membership.Version != expected)
-                return new(false, "This membership changed in another request. Reload before changing its role.");
-            if (row.membership.Role == change.Role)
-                return new(false, "That member already has this role.");
+            var result = await ChangeRoleInTransactionAsync(change, ct);
+            if (!result.Succeeded)
+            {
+                await tx.RollbackAsync(ct);
+                return result;
+            }
 
-            var previous = row.membership.Role;
-            row.membership.ChangeRole(change.Role);
-            db.TeamMembershipRoleTransitions.Add(new TeamMembershipRoleTransition(Guid.NewGuid(), row.membership.Id, previous, change.Role, change.ActorAccountId, now));
-            db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, change.ActorAccountId, change.ActorUsername,
-                "team.membership_role_changed", "membership", row.membership.Id.ToString(), null, change.EventId,
-                JsonSerializer.Serialize(new { role = previous.ToString() }), JsonSerializer.Serialize(new { role = change.Role.ToString(), teamId = row.team.Id })));
-
-            var owner = row.participant.AccountId is { } ownerId
-                ? await db.Accounts.SingleOrDefaultAsync(x => x.Id == ownerId && x.Active && x.AccountType == AccountType.WebsiteAccount, ct)
-                : null;
-            if (owner is not null)
-                db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), owner.Id, "Team role updated", "Your team role was updated by an administrator.", $"/Events/{row.item.Slug}/Teams", now, row.item.Id));
-
-            await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
-            var participantName = await db.PrimaryCharacters().Where(x => x.ParticipantId == row.participant.Id).Select(x => x.Name).SingleOrDefaultAsync(ct) ?? "Member";
-            return new(true, ParticipantName: participantName);
+            return result;
         }
         catch (Exception exception) when (IsExpectedConflict(exception))
         {
@@ -64,6 +48,44 @@ public sealed class TeamCaptainAuthorityService(ApplicationDbContext db, TimePro
             db.ChangeTracker.Clear();
             return new(false, "Another administrator changed this membership first. The latest roster has been loaded.");
         }
+    }
+
+    private async Task<TeamCaptainRoleChangeResult> ChangeRoleInTransactionAsync(TeamCaptainRoleChange change, CancellationToken ct)
+    {
+        var now = time.GetUtcNow();
+        var row = await (from membership in db.TeamMemberships
+                         join team in db.Teams on membership.TeamId equals team.Id
+                         join participant in db.EventParticipants on membership.EventParticipantId equals participant.Id
+                         join item in db.Events on team.EventId equals item.Id
+                         where membership.Id == change.MembershipId && membership.LeftAt == null && item.HiddenAt == null
+                         select new { membership, team, participant, item }).SingleOrDefaultAsync(ct);
+        if (row is null || row.team.EventId != change.EventId || row.participant.EventId != change.EventId)
+            return new(false, "That current team membership no longer exists.");
+        if (row.item.State is EventState.Cancelled or EventState.Finalized or EventState.Archived or EventState.Discarded)
+            return new(false, "This event is read-only in its current lifecycle state.");
+        if (row.item.State == EventState.AwaitingFinalReview && !row.item.AcceptsNewSubmissions(now))
+            return new(false, "Captain roles are read-only after the submission window closes.");
+        if (change.ExpectedMembershipVersion is { } expected && row.membership.Version != expected)
+            return new(false, "This membership changed in another request. Reload before changing its role.");
+        if (row.membership.Role == change.Role)
+            return new(false, "That member already has this role.");
+
+        var previous = row.membership.Role;
+        row.membership.ChangeRole(change.Role);
+        db.TeamMembershipRoleTransitions.Add(new TeamMembershipRoleTransition(Guid.NewGuid(), row.membership.Id, previous, change.Role, change.ActorAccountId, now));
+        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, change.ActorAccountId, change.ActorUsername,
+            "team.membership_role_changed", "membership", row.membership.Id.ToString(), null, change.EventId,
+            JsonSerializer.Serialize(new { role = previous.ToString() }), JsonSerializer.Serialize(new { role = change.Role.ToString(), teamId = row.team.Id })));
+
+        var owner = row.participant.AccountId is { } ownerId
+            ? await db.Accounts.SingleOrDefaultAsync(x => x.Id == ownerId && x.Active && x.AccountType == AccountType.WebsiteAccount, ct)
+            : null;
+        if (owner is not null)
+            db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), owner.Id, "Team role updated", "Your team role was updated by an administrator.", $"/Events/{row.item.Slug}/Teams", now, row.item.Id));
+
+        await db.SaveChangesAsync(ct);
+        var participantName = await db.PrimaryCharacters().Where(x => x.ParticipantId == row.participant.Id).Select(x => x.Name).SingleOrDefaultAsync(ct) ?? "Member";
+        return new(true, ParticipantName: participantName);
     }
 
     public Task<bool> HasCurrentCaptainAuthorityAsync(Guid accountId, Guid eventId, Guid? teamId = null, CancellationToken ct = default) =>

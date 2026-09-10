@@ -2,6 +2,7 @@
     if (!window.signalR) return;
 
     const boardRoot = document.querySelector('[data-admin-board-event]');
+    const boardPage = boardRoot?.closest?.('.board-page');
     const draftRoot = document.querySelector('[data-admin-draft-event]');
     const eventsControlRoot = document.querySelector('[data-admin-events-control]');
     if (!boardRoot && !draftRoot && !eventsControlRoot) return;
@@ -15,7 +16,21 @@
     let boardExpiryTimer;
     let localBoardChangeUntil = 0;
     let localDraftChangeUntil = 0;
-    const reloadBoard = () => window.location.reload();
+    let boardReloadPending = false;
+    const reloadBoard = () => {
+        if (boardPage?.querySelector?.('dialog.tile-dialog[open]')) {
+            boardReloadPending = true;
+            return;
+        }
+
+        boardReloadPending = false;
+        window.location.reload();
+    };
+    boardPage?.addEventListener?.('close', () => {
+        if (boardReloadPending && !boardPage.querySelector('dialog.tile-dialog[open]')) {
+            reloadBoard();
+        }
+    }, true);
     const scheduleDraftReload = () => {
         if (Date.now() < localDraftChangeUntil) return;
         const notice = document.querySelector('[data-draft-update]');

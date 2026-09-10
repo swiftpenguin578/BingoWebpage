@@ -154,14 +154,36 @@ public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
                 {
                     Assert.Equal("primary_regular_account", primary.Key);
                     Assert.Equal(SignupQuestionType.Account, primary.Type);
+                    Assert.True(primary.Required);
+                    Assert.Equal(SignupSystemField.PrimaryRegularAccount, primary.SystemField);
+                    Assert.Equal(EventCharacterRole.Playing, primary.AccountAnswerRole);
                     Assert.Equal(0, primary.Position);
                 },
                 captain =>
                 {
                     Assert.Equal("captain_volunteer", captain.Key);
                     Assert.Equal(SignupQuestionType.YesNo, captain.Type);
+                    Assert.False(captain.Required);
+                    Assert.Equal(SignupSystemField.CaptainVolunteer, captain.SystemField);
+                    Assert.Null(captain.AccountAnswerRole);
                     Assert.Equal(1, captain.Position);
+                },
+                coCaptain =>
+                {
+                    Assert.Equal(SignupQuestion.CoCaptainKey, coCaptain.Key);
+                    Assert.Equal(SignupQuestion.CoCaptainLabel, coCaptain.Label);
+                    Assert.Equal(SignupQuestionType.Text, coCaptain.Type);
+                    Assert.False(coCaptain.Required);
+                    Assert.Equal(SignupSystemField.CoCaptainName, coCaptain.SystemField);
+                    Assert.Null(coCaptain.HelpText);
+                    Assert.Null(coCaptain.Options);
+                    Assert.Null(coCaptain.AccountAnswerRole);
+                    Assert.True(coCaptain.PublicOnSignupBoard);
+                    Assert.True(coCaptain.Position > 1);
+                    Assert.Equal(legacyQuestion.Position + 1, coCaptain.Position);
                 });
+            var coCaptainQuestion = Assert.Single(questions, question => question.SystemField == SignupSystemField.CoCaptainName);
+            Assert.False(await migrated.SignupAnswers.AnyAsync(answer => answer.EventParticipantId == participantId && answer.SignupQuestionId == coCaptainQuestion.Id));
             var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["DiscordAuthentication:ClientId"] = "test",

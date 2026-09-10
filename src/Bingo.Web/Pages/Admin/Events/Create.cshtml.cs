@@ -86,6 +86,7 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
             db.SignupForms.Add(form);
             db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing));
             db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer));
+            db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, SignupQuestion.CoCaptainKey, SignupQuestion.CoCaptainLabel, SignupQuestionType.Text, false, 2, null, SignupSystemField.CoCaptainName));
             if (Input.Banner is { Length: > 0 })
             {
                 banner = new EventBannerAsset(Guid.NewGuid(), item.Id, string.Empty, string.Empty, string.Empty, 0, 0, 0, string.Empty, actorId, now);
@@ -169,14 +170,14 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
 
     private void AddQuestions(BingoEvent item, SignupForm form)
     {
-        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { SignupQuestion.CoCaptainKey };
         for (var index = 0; index < Input.CustomQuestions.Count; index++)
         {
             var question = Input.CustomQuestions[index];
             var baseKey = EventSlugGenerator.Generate(question.Label).Replace('-', '_');
             var key = baseKey;
             for (var suffix = 2; !keys.Add(key); suffix++) key = $"{baseKey}_{suffix}";
-            db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, key, question.Label.Trim(), question.Type, question.Required, index + 2, question.Type == SignupQuestionType.SingleChoice ? string.Join('\n', Split(question.Options)) : null));
+            db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, key, question.Label.Trim(), question.Type, question.Required, index + 3, question.Type == SignupQuestionType.SingleChoice ? string.Join('\n', Split(question.Options)) : null));
         }
     }
 
