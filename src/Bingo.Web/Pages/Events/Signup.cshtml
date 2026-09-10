@@ -8,7 +8,15 @@
         .Where(question => question.Type == SignupQuestionType.Account)
         .OrderBy(question => question.SystemField == SignupSystemField.PrimaryRegularAccount ? 0 : question.AccountRole == EventCharacterRole.Playing ? 1 : 2)
         .ToList();
-    var preferenceQuestions = Model.Questions.Where(question => question.Type != SignupQuestionType.Account && (question.SystemField == SignupSystemField.CaptainVolunteer || question.Type == SignupQuestionType.Text)).ToList();
+    var preferenceQuestions = Model.Questions
+        .Where(question => question.Type != SignupQuestionType.Account && (question.SystemField == SignupSystemField.CaptainVolunteer || question.Type == SignupQuestionType.Text))
+        .OrderBy(question => question.SystemField switch
+        {
+            SignupSystemField.CaptainVolunteer => 0,
+            SignupSystemField.CoCaptainName => 1,
+            _ => 2
+        })
+        .ToList();
     var eventQuestions = Model.Questions.Where(question => question.Type != SignupQuestionType.Account && !preferenceQuestions.Contains(question)).ToList();
     var statusLabel = Model.EventView!.Cancelled ? T["Event cancelled"] : Model.EventView.Accepting ? T["Signups open"] : T["Signups are not currently open"];
     var primaryAccountQuestion = accountQuestions.FirstOrDefault(question => question.SystemField == SignupSystemField.PrimaryRegularAccount);
@@ -187,7 +195,11 @@
                         {
                             @if (question.SystemField == SignupSystemField.CaptainVolunteer)
                             {
-                                <label class="signup-sheet__check"><input type="checkbox" name="Input.Answers[@question.Id]" value="true" checked="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "true" ? "checked" : null)" /><span aria-hidden="true"></span>@T["I am willing to be a captain"]</label>
+                                <label class="signup-sheet__check"><input type="checkbox" name="Input.Answers[@question.Id]" value="true" checked="@(Model.Input.Answers.GetValueOrDefault(question.Id) == "true" ? "checked" : null)" data-captain-volunteer-input /><span aria-hidden="true"></span>@T["I am willing to be a captain"]</label>
+                            }
+                            else if (question.SystemField == SignupSystemField.CoCaptainName)
+                            {
+                                <div class="signup-sheet__field signup-sheet__field--wide" data-co-captain-field hidden="@(captainPreference == true ? null : "hidden")"><label for="question-@question.Id">@T["Co-captain (optional)"]</label><input id="question-@question.Id" name="Input.Answers[@question.Id]" class="signup-sheet__input" type="text" value="@Model.Input.Answers.GetValueOrDefault(question.Id)" data-co-captain-input disabled="@(captainPreference == true ? null : "disabled")" /><span class="signup-sheet__error">@Html.ValidationMessage($"Input.Answers[{question.Id}]")</span></div>
                             }
                             else if (question.Type == SignupQuestionType.Text)
                             {
@@ -286,4 +298,14 @@ document.querySelectorAll("button[data-account-input]").forEach((button) => {
         }
     });
 });
+const captainVolunteer = document.querySelector("[data-captain-volunteer-input]");
+const coCaptainField = document.querySelector("[data-co-captain-field]");
+const coCaptainInput = coCaptainField?.querySelector("[data-co-captain-input]");
+const syncCoCaptain = () => {
+    const enabled = captainVolunteer?.checked === true;
+    if (coCaptainField) coCaptainField.hidden = !enabled;
+    if (coCaptainInput) coCaptainInput.disabled = !enabled;
+};
+captainVolunteer?.addEventListener("change", syncCoCaptain);
+syncCoCaptain();
 </script> }

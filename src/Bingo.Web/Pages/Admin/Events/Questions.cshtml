@@ -39,7 +39,7 @@
             <div class="signup-field-list" aria-label="@T["Standard signup fields"]">
                 @foreach (var question in Model.Questions.Where(question => question.SystemField != SignupSystemField.None))
                 {
-                    <div aria-readonly="true"><span><strong>@question.Label</strong><small>@(question.SystemField == SignupSystemField.PrimaryRegularAccount ? T["Required Regular account selector. EHB belongs to this account answer."] : T["Optional yes or no"])</small></span><span class="system-field-badge">@T["Standard"]</span></div>
+                    <div aria-readonly="true"><span><strong>@(question.SystemField == SignupSystemField.CoCaptainName ? T["Co-captain (optional)"] : question.Label)</strong><small>@(question.SystemField == SignupSystemField.PrimaryRegularAccount ? T["Required Regular account selector. EHB belongs to this account answer."] : question.SystemField == SignupSystemField.CoCaptainName ? T["Optional text answer"] : T["Optional yes or no"])</small></span><span class="system-field-badge">@T["Standard"]</span></div>
                 }
             </div>
         </section>

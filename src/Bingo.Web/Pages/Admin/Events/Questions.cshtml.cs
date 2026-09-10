@@ -257,6 +257,7 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
     private async Task<string> CreateUniqueKeyAsync(Guid id, string label, CancellationToken ct)
     {
         var baseKey = EventSlugGenerator.Generate(label).Replace('-', '_');
+        if (string.Equals(baseKey, SignupQuestion.CoCaptainKey, StringComparison.OrdinalIgnoreCase)) baseKey += "_custom";
         var key = baseKey;
         for (var suffix = 2;
              await dbContext.SignupQuestions.AnyAsync(question => question.EventId == id && question.Key == key, ct);

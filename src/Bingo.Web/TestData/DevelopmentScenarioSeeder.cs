@@ -1539,12 +1539,13 @@ public sealed class DevelopmentScenarioSeeder(
         db.SignupForms.Add(form);
         var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
-        var text = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_note", "Seeded note", SignupQuestionType.Text, false, 2, null);
-        var number = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_number", "Seeded number", SignupQuestionType.Number, false, 3, null);
-        var yesNo = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_yes_no", "Seeded yes/no", SignupQuestionType.YesNo, false, 4, null);
-        var choice = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_choice", "Seeded choice", SignupQuestionType.SingleChoice, false, 5, "North\nSouth");
-        var alt = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_alt_account", "Alt account", SignupQuestionType.Account, false, 6, null, accountAnswerRole: EventCharacterRole.Informational);
-        db.SignupQuestions.AddRange(regular, captain, text, number, yesNo, choice, alt);
+        var coCaptain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, SignupQuestion.CoCaptainKey, SignupQuestion.CoCaptainLabel, SignupQuestionType.Text, false, 2, null, SignupSystemField.CoCaptainName);
+        var text = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_note", "Seeded note", SignupQuestionType.Text, false, 3, null);
+        var number = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_number", "Seeded number", SignupQuestionType.Number, false, 4, null);
+        var yesNo = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_yes_no", "Seeded yes/no", SignupQuestionType.YesNo, false, 5, null);
+        var choice = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_choice", "Seeded choice", SignupQuestionType.SingleChoice, false, 6, "North\nSouth");
+        var alt = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "seeded_alt_account", "Alt account", SignupQuestionType.Account, false, 7, null, accountAnswerRole: EventCharacterRole.Informational);
+        db.SignupQuestions.AddRange(regular, captain, coCaptain, text, number, yesNo, choice, alt);
         seedForms.Add(bingoEvent.Id, new SeedSignupForm(form, regular.Id, alt.Id, text.Id, number.Id, yesNo.Id, choice.Id));
     }
 

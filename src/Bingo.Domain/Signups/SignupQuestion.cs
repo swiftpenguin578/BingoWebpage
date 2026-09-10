@@ -3,6 +3,8 @@ namespace Bingo.Domain.Signups;
 public sealed class SignupQuestion
 {
     public const string DeletedReason = "deleted";
+    public const string CoCaptainKey = "co_captain";
+    public const string CoCaptainLabel = "Co-captain (optional)";
     private SignupQuestion() { }
     public SignupQuestion(Guid id, Guid signupFormId, Guid eventId, string key, string label, SignupQuestionType type, bool required, int position, string? options, SignupSystemField systemField = SignupSystemField.None, EventCharacterRole? accountAnswerRole = null, string? helpText = null)
     {
@@ -38,7 +40,7 @@ public sealed class SignupQuestion
 
     public void Deactivate(Guid? actorId = null, DateTimeOffset? now = null, string? reason = null)
     {
-        if (SystemField is SignupSystemField.PrimaryRegularAccount or SignupSystemField.CaptainVolunteer) throw new InvalidOperationException("Required system questions cannot be disabled.");
+        if (SystemField is SignupSystemField.PrimaryRegularAccount or SignupSystemField.CaptainVolunteer or SignupSystemField.CoCaptainName) throw new InvalidOperationException("Standard signup questions cannot be disabled.");
         Active = false; DisabledAt = (now ?? DateTimeOffset.UtcNow).ToUniversalTime(); DisabledByAccountId = actorId; DisabledReason = reason?.Trim(); Version++;
     }
     public void Delete(Guid actorId, DateTimeOffset now)

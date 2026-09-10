@@ -162,6 +162,14 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
                 Assert.False(question.Required);
                 Assert.Equal(SignupSystemField.CaptainVolunteer, question.SystemField);
                 Assert.Equal(1, question.Position);
+            },
+            question =>
+            {
+                Assert.Equal(SignupQuestion.CoCaptainKey, question.Key);
+                Assert.Equal(SignupQuestionType.Text, question.Type);
+                Assert.False(question.Required);
+                Assert.Equal(SignupSystemField.CoCaptainName, question.SystemField);
+                Assert.Equal(2, question.Position);
             });
 
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["DiscordAuthentication:ClientId"] = "test", ["DiscordAuthentication:ClientSecret"] = "test" }).Build();

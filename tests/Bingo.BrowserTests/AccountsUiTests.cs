@@ -205,7 +205,15 @@ public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Progra
         Assert.Contains("emergency-account-search", accounts);
         Assert.Contains("accountManageBound", manageDialogScript);
         Assert.Contains("bingo:account-directory-updated", manageDialogScript);
-        Assert.Contains("window.innerWidth > 900", manageDialogScript);
+        Assert.DoesNotContain("window.innerWidth > 900", manageDialogScript);
+        var accountLoadStart = manageDialogScript.IndexOf("const load = async", StringComparison.Ordinal);
+        var accountLoadEnd = manageDialogScript.IndexOf("const hydrateDirectory", accountLoadStart, StringComparison.Ordinal);
+        Assert.True(accountLoadStart >= 0 && accountLoadEnd > accountLoadStart);
+        var accountLoad = manageDialogScript[accountLoadStart..accountLoadEnd];
+        Assert.Contains("if (!dialog.open) dialog.showModal();", accountLoad);
+        Assert.Contains("destination.searchParams.delete(\"overlay\");", accountLoad);
+        Assert.Contains("fallback(destination.href);", accountLoad);
+        Assert.Contains(".admin-route-dialog { width: 100vw; max-width: none; max-height: 100dvh; }", styles);
         Assert.Contains("window.fetch", manageDialogScript);
         Assert.Contains("if (!response.ok)", manageDialogScript);
         Assert.Contains("window.location.assign(href)", manageDialogScript);
@@ -246,7 +254,7 @@ public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Progra
         Assert.DoesNotContain("admin-account-emergency-confirmation", manage);
         Assert.DoesNotContain("admin-account-emergency-confirmation", manageDialogScript);
         Assert.DoesNotContain("admin-account-emergency-confirmation", styles);
-        Assert.DoesNotContain("role=\"alertdialog\"", manage);
+        Assert.Contains("data-account-editor-discard role=\"alertdialog\"", manage);
         Assert.DoesNotContain("Issue a one-time credential link.", manage);
         Assert.DoesNotContain("Stop this fallback login.", manage);
         Assert.DoesNotContain("Allow the configured fallback login.", manage);

@@ -581,6 +581,7 @@
         status: [row.dataset.participantStatus, "text"],
         payment: [row.dataset.participantPayment, "text"],
         signedup: [row.dataset.participantSignedUp, "number"],
+        captain: [row.dataset.participantCaptain, "number"],
         ownership: [row.dataset.participantOwnership, "text"]
       };
       return values[key] || ["", "text"];

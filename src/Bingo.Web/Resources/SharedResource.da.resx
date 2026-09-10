@@ -2663,4 +2663,6 @@
   <data name="The changes were not saved. Your inputs are retained." xml:space="preserve"><value>Ændringerne blev ikke gemt. Dine indtastninger er bevaret.</value></data>
   <data name="The changes were saved, but the board could not be refreshed. Reload to see the saved board. Do not submit again." xml:space="preserve"><value>Ændringerne blev gemt, men Boardet kunne ikke opdateres. Genindlæs for at se det gemte Board. Indsend ikke igen.</value></data>
   <data name="Reload" xml:space="preserve"><value>Genindlæs</value></data>
+  <data name="Co-captain (optional)" xml:space="preserve"><value>Medkaptajn (valgfrit)</value></data>
+  <data name="Optional text answer" xml:space="preserve"><value>Valgfrit tekstsvar</value></data>
 </root>

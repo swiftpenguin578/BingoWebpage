@@ -47,6 +47,39 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Fact]
+    public async Task CoCaptainMigrationBackfillsExistingFormsWithoutTouchingRetainedAnswers()
+    {
+        await using var db = new ApplicationDbContext(options);
+        await db.GetService<IMigrator>().MigrateAsync("20260907185521_RepairDeletedSignupQuestions");
+        var now = DateTimeOffset.UtcNow;
+        var admin = Website($"co-migration-{Guid.NewGuid():N}", now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Co-captain migration", $"co-captain-migration-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+        var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
+        var retained = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, SignupQuestion.CoCaptainKey, "Retained answer", SignupQuestionType.Text, false, 2, null);
+        retained.Deactivate(admin.Id, now, "retained historical question");
+        var participant = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated);
+        participant.AssignOwner(admin);
+        db.AddRange(admin, bingoEvent, form, regular, captain, retained, participant,
+            new SignupAnswer(Guid.NewGuid(), participant.Id, retained.Id, retained.Label, "keep this answer"));
+        await db.SaveChangesAsync();
+
+        await db.GetService<IMigrator>().MigrateAsync();
+        var co = await db.SignupQuestions.AsNoTracking().SingleAsync(x => x.SignupFormId == form.Id && x.SystemField == SignupSystemField.CoCaptainName);
+        Assert.StartsWith($"{SignupQuestion.CoCaptainKey}_", co.Key, StringComparison.Ordinal);
+        Assert.NotEqual(retained.Key, co.Key);
+        Assert.Equal(SignupQuestion.CoCaptainLabel, co.Label);
+        Assert.Equal(SignupQuestionType.Text, co.Type);
+        Assert.False(co.Required);
+        Assert.True(co.Active);
+        Assert.Equal(3, co.Position);
+        Assert.Equal("keep this answer", await db.SignupAnswers.Where(x => x.EventParticipantId == participant.Id && x.SignupQuestionId == retained.Id).Select(x => x.Value).SingleAsync());
+        Assert.Equal(SignupQuestion.CoCaptainKey, await db.SignupQuestions.Where(x => x.Id == retained.Id).Select(x => x.Key).SingleAsync());
+        Assert.Empty(await db.SignupAnswers.Where(x => x.EventParticipantId == participant.Id && x.SignupQuestionId == co.Id).ToListAsync());
+    }
+
+    [Fact]
     public async Task DeleteQuestionMigrationRepairsOnlyPriorRemovalsInPreDraftEvents()
     {
         await using var db = new ApplicationDbContext(options);
@@ -101,6 +134,66 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             Assert.Equal(item.Delete ? 1 : 0, await db.SignupForms.Where(x => x.Id == question.SignupFormId).Select(x => x.Version).SingleAsync());
         }
         Assert.Equal(3, await db.AuditEntries.CountAsync(x => x.Action == "signup_question.deleted"));
+    }
+
+    [Fact]
+    public async Task CoCaptainSignupAndAdminFlowsGateAnswersAndClearPersistedValues()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var db = new ApplicationDbContext(options);
+        var admin = Website($"co-captain-admin-{Guid.NewGuid():N}", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var bingoEvent = Event(admin.Id, now);
+        var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+        var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
+        var coCaptain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, SignupQuestion.CoCaptainKey, SignupQuestion.CoCaptainLabel, SignupQuestionType.Text, false, 2, null, SignupSystemField.CoCaptainName);
+        var main = new OsrsCharacter(Guid.NewGuid(), "Co-captain main", $"CO CAPTAIN MAIN {Guid.NewGuid():N}", now);
+        var mainLink = new AccountOsrsCharacter(Guid.NewGuid(), admin.Id, main.Id, admin.Id, true, 0, null, 18m, now);
+        db.AddRange(admin, bingoEvent, form, regular, captain, coCaptain, main, mainLink);
+        await db.SaveChangesAsync();
+        var service = new SignupService(db, new SecretHasher(), new FixedSignupTimeProvider(now));
+        var accountAnswers = new Dictionary<Guid, AuthenticatedAccountAnswer> { [regular.Id] = new(main.Id, 18m) };
+
+        var created = await service.SignUpAuthenticatedAsync(new(bingoEvent.Id, admin.Id, accountAnswers,
+            new Dictionary<Guid, string> { [captain.Id] = "false", [coCaptain.Id] = "malicious unchecked value" }, null));
+        Assert.True(created.Succeeded, created.Error);
+        var participant = await db.EventParticipants.SingleAsync(x => x.Id == created.ParticipantId);
+        Assert.False(participant.CaptainVolunteer);
+        Assert.Empty(await db.SignupAnswers.Where(x => x.EventParticipantId == participant.Id && x.SignupQuestionId == coCaptain.Id).ToListAsync());
+
+        var enabled = await service.SignUpAuthenticatedAsync(new(bingoEvent.Id, admin.Id, accountAnswers,
+            new Dictionary<Guid, string> { [captain.Id] = "true", [coCaptain.Id] = "saved co-captain" }, null, participant.ResponseVersion));
+        Assert.True(enabled.Succeeded, enabled.Error);
+        Assert.Equal("saved co-captain", await db.SignupAnswers.Where(x => x.EventParticipantId == participant.Id && x.SignupQuestionId == coCaptain.Id).Select(x => x.Value).SingleAsync());
+
+        var disabled = await service.SignUpAuthenticatedAsync(new(bingoEvent.Id, admin.Id, accountAnswers,
+            new Dictionary<Guid, string> { [captain.Id] = "false", [coCaptain.Id] = "ignored unchecked value" }, null, participant.ResponseVersion));
+        Assert.True(disabled.Succeeded, disabled.Error);
+        Assert.False(participant.CaptainVolunteer);
+        Assert.Empty(await db.SignupAnswers.Where(x => x.EventParticipantId == participant.Id && x.SignupQuestionId == coCaptain.Id).ToListAsync());
+
+        var corrected = await service.CorrectAdminParticipantAsync(new(bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, null,
+            new Dictionary<Guid, AdminAccountAnswer> { [regular.Id] = new(main.DisplayName, 19m) },
+            new Dictionary<Guid, string> { [captain.Id] = "true", [coCaptain.Id] = "admin co-captain" }, participant.ResponseVersion));
+        Assert.True(corrected.Succeeded, corrected.Error);
+        Assert.Equal("admin co-captain", await db.SignupAnswers.Where(x => x.EventParticipantId == participant.Id && x.SignupQuestionId == coCaptain.Id).Select(x => x.Value).SingleAsync());
+
+        var cleared = await service.CorrectAdminParticipantAsync(new(bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, null,
+            new Dictionary<Guid, AdminAccountAnswer> { [regular.Id] = new(main.DisplayName, 19m) },
+            new Dictionary<Guid, string> { [captain.Id] = "false", [coCaptain.Id] = "forged unchecked value" }, participant.ResponseVersion));
+        Assert.True(cleared.Succeeded, cleared.Error);
+        Assert.Empty(await db.SignupAnswers.Where(x => x.EventParticipantId == participant.Id && x.SignupQuestionId == coCaptain.Id).ToListAsync());
+
+        var internalCharacter = new OsrsCharacter(Guid.NewGuid(), "Internal replacement", $"INTERNAL REPLACEMENT {Guid.NewGuid():N}", now);
+        db.OsrsCharacters.Add(internalCharacter);
+        await db.SaveChangesAsync();
+        var internalResult = await service.CreateAdminParticipantAsync(new(bingoEvent.Id, null, admin.Id, admin.LoginName, null,
+            new Dictionary<Guid, AdminAccountAnswer> { [regular.Id] = new(internalCharacter.DisplayName, 12m) },
+            new Dictionary<Guid, string> { [captain.Id] = "false", [coCaptain.Id] = "forged internal value" }));
+        Assert.True(internalResult.Succeeded, internalResult.Error);
+        Assert.False(await db.EventParticipants.Where(x => x.Id == internalResult.ParticipantId).Select(x => x.CaptainVolunteer).SingleAsync());
+        Assert.Empty(await db.SignupAnswers.Where(x => x.EventParticipantId == internalResult.ParticipantId && x.SignupQuestionId == coCaptain.Id).ToListAsync());
     }
 
     [Theory]
@@ -1632,6 +1725,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         string adminLogin;
         string superAdminLogin;
         string formerAdminLogin;
+        Guid eventId;
         Guid formerAdminId;
         await using (var db = new ApplicationDbContext(options))
         {
@@ -1656,14 +1750,16 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             var bingoEvent = Event(owner.Id, now);
             bingoEvent.MarkFirstPublic(now);
             slug = bingoEvent.Slug;
+            eventId = bingoEvent.Id;
             var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
             var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
             var secondRegular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "second_regular", "Anything", SignupQuestionType.Account, false, 2, null, SignupSystemField.None, EventCharacterRole.Playing);
             var alt = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "alt_account", "Anything else", SignupQuestionType.Account, false, 3, null, SignupSystemField.None, EventCharacterRole.Informational);
             var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
+            var coCaptain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, SignupQuestion.CoCaptainKey, SignupQuestion.CoCaptainLabel, SignupQuestionType.Text, false, 7, null, SignupSystemField.CoCaptainName);
             var answer = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "favourite_boss", "Favourite boss", SignupQuestionType.Text, false, 4, null);
             var optional = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "later_optional", "Later optional", SignupQuestionType.Text, false, 5, null);
-            var historical = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "retired_question", "Retired question", SignupQuestionType.Text, false, 6, null); historical.Deactivate(owner.Id, now, "replaced");
+            var historical = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "retired_question", "Retired question", SignupQuestionType.Text, false, 8, null); historical.Deactivate(owner.Id, now, "replaced");
 
             var confirmed = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website); confirmed.AssignOwner(owner); confirmed.SetCaptainVolunteer(true); confirmed.SetAdminNotes("ADMIN-NOTES-SENTINEL"); confirmed.SetPaymentReceived(true);
             var waiting = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.WaitingList, 2, now.AddMinutes(1), SignupSource.Website, null); waiting.AssignOwner(waitingOwner);
@@ -1679,7 +1775,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             var historyParticipant = new EventParticipant(Guid.NewGuid(), history.Id, SignupStatus.Confirmed, 1, now.AddDays(-10), SignupSource.Website, null); historyParticipant.AssignOwner(owner);
             var historyCharacter = new OsrsCharacter(Guid.NewGuid(), "History Main", $"HISTORY MAIN {Guid.NewGuid():N}", now);
 
-            db.AddRange(owner, waitingOwner, withdrawnOwner, admin, superAdmin, formerAdmin, emergency, privateEvent, bingoEvent, form, regular, secondRegular, alt, captain, answer, optional, historical, confirmed, waiting, withdrawn, main, second, altCharacter, waitingCharacter, withdrawnCharacter, history, historyBoard, historyParticipant, historyCharacter,
+            db.AddRange(owner, waitingOwner, withdrawnOwner, admin, superAdmin, formerAdmin, emergency, privateEvent, bingoEvent, form, regular, secondRegular, alt, captain, coCaptain, answer, optional, historical, confirmed, waiting, withdrawn, main, second, altCharacter, waitingCharacter, withdrawnCharacter, history, historyBoard, historyParticipant, historyCharacter,
                 new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, confirmed.Id, main.Id, 0, now, owner.Id, regular.Id, EventCharacterRole.Playing, 123.45m, EhbSource.Manual, null),
                 new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, confirmed.Id, second.Id, 1, now, owner.Id, secondRegular.Id, EventCharacterRole.Playing, 67m, EhbSource.Manual, null),
                 new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, confirmed.Id, altCharacter.Id, 2, now, owner.Id, alt.Id, EventCharacterRole.Informational, null, null, null),
@@ -1688,7 +1784,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
                 new EventParticipantCharacter(Guid.NewGuid(), history.Id, historyParticipant.Id, historyCharacter.Id, 0, now, owner.Id, null, EventCharacterRole.Playing, 1m, EhbSource.Manual, null));
             await db.SaveChangesAsync();
             await BoardApprovalFixture.PublishAsync(db, historyBoard, now);
-            db.AddRange(new SignupAnswer(Guid.NewGuid(), confirmed.Id, answer.Id, "Favourite boss", "Allowed answer"), new SignupAnswer(Guid.NewGuid(), confirmed.Id, historical.Id, "Retired question", "Historical answer"));
+            db.AddRange(new SignupAnswer(Guid.NewGuid(), confirmed.Id, answer.Id, "Favourite boss", "Allowed answer"), new SignupAnswer(Guid.NewGuid(), confirmed.Id, coCaptain.Id, SignupQuestion.CoCaptainLabel, "Private co-captain"), new SignupAnswer(Guid.NewGuid(), confirmed.Id, historical.Id, "Retired question", "Historical answer"));
             await db.SaveChangesAsync();
             ownerLogin = owner.LoginName;
             adminLogin = admin.LoginName;
@@ -1709,6 +1805,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.Contains("Confirmed", table, StringComparison.Ordinal); Assert.Contains("Waiting list", table, StringComparison.Ordinal);
         Assert.Contains("Account 1", table, StringComparison.Ordinal); Assert.Contains("Account 2", table, StringComparison.Ordinal); Assert.Contains("Alt account", table, StringComparison.Ordinal);
         Assert.Contains("Allowed Main", table, StringComparison.Ordinal); Assert.Contains("123.45", table, StringComparison.Ordinal); Assert.Contains("EHB", table, StringComparison.Ordinal); Assert.Contains("Allowed answer", table, StringComparison.Ordinal); Assert.Contains("Historical answer", table, StringComparison.Ordinal); Assert.Contains("Not answered", table, StringComparison.Ordinal); Assert.Contains("Waiting Main", table, StringComparison.Ordinal); Assert.Contains("01", table, StringComparison.Ordinal);
+        Assert.DoesNotContain("Private co-captain", table, StringComparison.Ordinal); Assert.DoesNotContain("Co-captain (optional)", table, StringComparison.Ordinal);
         Assert.DoesNotContain("Withdrawn Main", table, StringComparison.Ordinal);
         foreach (var secret in new[] { "PUBLIC-USERNAME-", "DISCORD-ID-SENTINEL", "DISCORD-NAME-SENTINEL", "DISCORD-PARTICIPANT-SENTINEL", "PRIVATE-COMMENTS-SENTINEL", "ADMIN-NOTES-SENTINEL", "EDIT-TOKEN-SENTINEL", "EMERGENCY-SENTINEL" }) Assert.DoesNotContain(secret, table, StringComparison.Ordinal);
 
@@ -1719,6 +1816,11 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.Contains($"/Events/{slug}/Signup/Confirmation", myEvents, StringComparison.Ordinal);
         Assert.Contains($"/Events/{historySlug}/Board", myEvents, StringComparison.Ordinal);
         Assert.DoesNotContain("Private sentinel", await anonymous.GetStringAsync("/"), StringComparison.Ordinal);
+        var signupPage = await ownerClient.GetStringAsync($"/Events/{slug}/Signup?edit=true");
+        var captainPreference = signupPage.IndexOf("I am willing to be a captain", StringComparison.Ordinal);
+        var coCaptainPreference = signupPage.IndexOf("Co-captain (optional)", StringComparison.Ordinal);
+        var customPreference = signupPage.IndexOf("Favourite boss", StringComparison.Ordinal);
+        Assert.True(captainPreference >= 0 && coCaptainPreference >= 0 && customPreference >= 0 && captainPreference < coCaptainPreference && coCaptainPreference < customPreference);
 
         await using (var db = new ApplicationDbContext(options))
         {
@@ -1744,6 +1846,19 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var adminTable = await adminClient.GetStringAsync($"/Events/{slug}/Signups");
         Assert.Contains("Historical answer", adminTable, StringComparison.Ordinal);
         Assert.DoesNotContain("ADMIN-NOTES-SENTINEL", adminTable, StringComparison.Ordinal);
+        var adminParticipants = await adminClient.GetStringAsync($"/Admin/Events/Participants/{eventId}");
+        Assert.Contains("Private co-captain", adminParticipants, StringComparison.Ordinal);
+        Assert.Contains("Captain volunteer", adminParticipants, StringComparison.Ordinal);
+        Assert.DoesNotContain("Volunteered to captain", adminParticipants, StringComparison.Ordinal);
+        var captainHeader = adminParticipants.IndexOf("data-sort-key=\"captain\"", StringComparison.Ordinal);
+        var teamHeader = adminParticipants.IndexOf("data-sort-key=\"ownership\"", StringComparison.Ordinal);
+        var teamCell = adminParticipants.IndexOf("data-label=\"Team\"", StringComparison.Ordinal);
+        var captainCell = adminParticipants.IndexOf("data-label=\"Captain volunteer\"", StringComparison.Ordinal);
+        Assert.True(captainHeader >= 0 && teamHeader >= 0 && captainHeader < teamHeader);
+        Assert.True(captainCell >= 0 && teamCell >= 0 && captainCell < teamCell);
+        Assert.Contains("data-participant-captain=\"1\"", adminParticipants, StringComparison.Ordinal);
+        var captainAscending = await adminClient.GetStringAsync($"/Admin/Events/Participants/{eventId}?sort=captain&direction=asc");
+        Assert.True(captainAscending.IndexOf("Waiting Main", StringComparison.Ordinal) < captainAscending.IndexOf("Allowed Main", StringComparison.Ordinal));
         Assert.Contains("Historical answer", await superAdminClient.GetStringAsync($"/Events/{slug}/Signups"), StringComparison.Ordinal);
         await using (var db = new ApplicationDbContext(options))
         {

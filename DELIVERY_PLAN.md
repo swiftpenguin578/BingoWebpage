@@ -2672,3 +2672,86 @@ Final follow-up manually approved: taller-height experiment removed; pre-trial c
 facts/image sizing restored. Rejection mode hides normal approval copy/buttons, retaining
 reason/hint/Reject/Cancel; Cancel restores them. Final leaf-green Approve `#78B86A` accepted.
 Source/diff checks and user acceptance close the pass; no further work authorized.
+
+
+## Co-captain signup request — approved 2026-09-10
+
+Isolated checkout `/private/tmp/BingoWebpage-admin-co-captain-20260910`, branch
+`codex/admin-co-captain`, starting at committed `admin-consistency` / `86e7dc3`.
+Any eventual user-authorized PR to `main` includes that existing committed Admin work
+plus this request.
+Do not import uncommitted sweep documentation, T05 or C05/C09 from the recovery checkout.
+This request is not an application-sweep ticket and adds no TICKETS.md entry.
+
+Approved scope:
+
+- Admin Participants / Signups gains a Captain volunteer column showing Yes/No,
+  with Co-captain: Name on a second line when supplied. Remove the existing
+  volunteered-to-captain note from Team. Captain volunteer appears before Team and is
+  sortable in both the route-backed and enhanced table; Team remains sortable. Preserve
+  filters, editing, table enhancement, permission states and responsive composition.
+- Co-captain (optional) is a permanent optional default text question for existing
+  and new event forms, separately identified/stored through the existing question
+  and answer system. Existing responses remain blank; no account lookup or automatic
+  Captain/co-captain role assignment. No new table/service/route/policy/job or generic
+  question-dependency framework is budgeted.
+- Only show the input when Captain volunteer is checked. On uncheck, hide AND disable
+  it so its value is omitted from submission. Preserve the unsaved typed value if
+  toggled back on before submit. Server-side enforce the same rule: when volunteering
+  is false, ignore supplied co-captain text and clear any previously saved answer.
+- Participant and Admin viewing/editing use existing flows and permissions. Do not
+  expose the new answer on public signup tables or through non-owner/non-Admin draft
+  projections. This scope grants no new editing windows or permissions.
+- Keep optional status, English/Danish labels, validation/error redisplay and existing
+  form/response concurrency semantics consistent. Update the smallest existing
+  authorities to capture this accepted behavior. Preserve historical answers and
+  schema migration integrity; any required default-question backfill must preserve
+  existing records, be safe to apply once, and not require a live production mutation
+  during development.
+
+Manual-review refinements approved for implementation on 2026-09-10:
+
+- Co-captain uses a single-line text input and renders immediately after Captain
+  volunteer, ahead of custom text questions even when the existing-form backfill was
+  appended later. This is presentation ordering only; stored question positions and
+  historical custom-question order remain unchanged.
+- Empty co-captain validation output must not reserve an extra row, while a real
+  validation error remains visible. The opened signup-question deletion confirmation
+  spans the available question row. Review queue secondary UTC text inherits the Admin
+  table font.
+- Remove the redundant Live-only `Manage live participant` text action; the existing
+  pencil remains the participant editor entry point at every applicable lifecycle state.
+
+Execution: one separate Sol Medium manager owns direct collaboration-worker dispatch
+and all handoffs. Luna Max implementation/remediation, fresh Astra Medium independent
+review. Root planner does not shadow routine execution; ask it only for decisions or
+help. If manager lacks worker-dispatch capability, report the tooling blocker instead
+of silently falling back to root-assisted spawning. Workers receive bounded assignments
+and may not independently advance scope. Use existing plans/authority and focused reads;
+no new readiness review for this bounded change unless a real product contradiction
+appears. Review/remediate named defects only; optional cleanup remains excluded.
+
+Verify signup/edit with and without a co-captain; checkbox hide/disable/re-enable and
+malicious unchecked submissions; persisted clearing; Admin column/real enhancement;
+public/non-owner privacy; existing/new form defaults and retained-response compatibility.
+Use smallest executable checks for these boundaries, isolated DB/HTTP fixtures, scoped
+format/diff checks and required packaging gates. UI acceptance remains user-owned: do
+not silently mark a page approved; request current screenshot/visual acceptance only
+when required, and record any pending manual acceptance in the draft PR.
+
+Local test remediation on 2026-09-10 corrected only the four contracts reported by the
+user's full .NET run: three BrowserTests source contracts and the migration rehearsal.
+Each exact isolated filter passed and fresh independent review cleared the correction
+diff. The user accepted that focused proof together with their existing full-run evidence
+and declined a redundant second full-suite execution; do not represent a second full
+suite as run. No production behavior changed in this remediation.
+
+After completing the current manual-review corrections, the user explicitly authorized
+packaging on 2026-09-10. This supersedes the earlier packaging prohibition for this
+isolated branch only. One Luna Max packager may stage and commit the exact accepted
+checkout inventory, push `codex/admin-co-captain` and open one ready-for-review PR to
+`main`. Verify that the full PR scope includes the intended committed Admin base and this
+request, excludes recovery-checkout C05/C09, sweep/T05 and untracked tickets, and reports
+the actual validation and limitations without claiming an unrun second full suite or JS
+suite. No merge/deployment, app HTTPS7131 restart, production DB scan/repair, live
+provider calls or other external messages are authorized.

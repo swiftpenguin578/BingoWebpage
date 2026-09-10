@@ -4694,7 +4694,7 @@ body.admin-shell-body {
 .admin-shell-body .signup-question-order-button { display: grid; width: 1.5rem; min-width: 1.5rem; height: 1.15rem; min-height: 1.15rem; place-items: center; padding: 0; color: var(--admin-muted); background: transparent !important; border: 0 !important; border-radius: 0.25rem; box-shadow: none !important; font-size: 0.6875rem; font-weight: 500; line-height: 1; }
 .admin-shell-body .signup-question-order-button:hover { color: var(--admin-text); background: transparent !important; }
 .admin-shell-body .signup-question-order-button:focus-visible { outline: 2px solid var(--admin-focus-accent-strong); outline-offset: 2px; }
-.admin-shell-body .signup-question-item .signup-question-remove[open] { z-index: 2; }
+.admin-shell-body .signup-question-item .signup-question-remove[open] { display: block; grid-column: 1 / -1; grid-row: 3; min-width: 0; z-index: 2; }
 .admin-shell-body .signup-question-edit-form { display: grid; gap: 0.65rem; margin-top: 0.65rem; padding-top: 0.65rem; }
 .admin-shell-body .signup-question-edit-form[hidden] { display: none; }
 .admin-shell-body .signup-question-edit-form > p { margin: 0; color: #8a8a8e; font-size: 0.6875rem; font-weight: 400; line-height: 1.4; }
@@ -6402,7 +6402,7 @@ body.public-event-shell .recent-drop-card.private-drop .recent-drop-placeholder 
 .admin-shell-body .admin-review-queue-page .admin-review-table th { padding: 0.65rem 1rem; color: var(--admin-text); background: transparent; border: 0; font-family: inherit; font-size: 0.6875rem; font-weight: 400; letter-spacing: normal; line-height: 1.25; text-transform: none; }
 .admin-shell-body .admin-review-queue-page .admin-review-table td { padding: 0.8rem 1rem; color: var(--admin-text-soft); border: 0; font-family: inherit; font-size: 0.75rem; font-weight: 400; line-height: 1.5; }
 .admin-shell-body .admin-review-queue-page .admin-review-table tbody { color: var(--admin-text-soft); font-family: inherit; font-size: 0.75rem; font-weight: 400; line-height: 1.5; }
-.admin-shell-body .admin-review-queue-page .admin-review-table td > small { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.625rem; font-weight: 400; line-height: 1.5; }
+.admin-shell-body .admin-review-queue-page .admin-review-table td > small { font-family: inherit; font-size: 0.625rem; font-weight: 400; line-height: 1.5; }
 .admin-shell-body .admin-review-queue-page .admin-review-table :is(strong, .admin-review-submission-link, .event-overview-row-action) { font-weight: 400; }
 .admin-shell-body .admin-review-queue-page .admin-review-table td::before { font-weight: 400; }
 .admin-shell-body .admin-review-queue-page .admin-review-table-scroll[hidden],

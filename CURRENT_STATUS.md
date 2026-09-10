@@ -1,5 +1,60 @@
 # Current project status
 
+## Active co-captain request — 2026-09-10
+
+For this task use `/private/tmp/BingoWebpage-admin-co-captain-20260910` on
+`codex/admin-co-captain`, isolated from committed Admin base `86e7dc3`. The older
+checkout instructions below are historical for this task. Preserve the original
+recovery checkout and its unapproved C05/C09/sweep work; do not import it here.
+Approved scope, model assignments and boundaries are in DELIVERY_PLAN under Co-captain
+signup request. Sol Medium manager task `01a08c77-c46c-7502-82d9-9ce9aecf6fd8`
+completed implementation, review and the user-requested manual-review corrections.
+
+- Implemented the permanent optional Co-captain system question for new and existing
+  signup forms through the existing question/answer model. The additive, collision-safe
+  migration preserves custom questions, historical answers and blank existing responses.
+  Public, owner and Admin flows hide/disable the input unless Captain volunteer is
+  selected; server enforcement ignores forged unchecked values and clears saved answers.
+- Admin Participants shows sortable Captain volunteer before sortable Team, with Yes/No
+  and the co-captain name. The redundant Live-only Manage live participant link was
+  removed; the pencil remains. Public/non-owner projections remain private.
+- Manual-review refinements: single-line co-captain controls; Captain and Co-captain render
+  together before existing custom text questions without rewriting stored positions;
+  empty co-captain validation space collapses while real errors remain visible; signup-
+  question delete confirmation uses the full row; Review queue UTC secondary text uses
+  the normal Admin table font.
+- Fresh Astra Medium review found two P2 defects (Admin header/cell order and migration
+  custom-key collision); focused remediation and reviewer recheck cleared both. Initial
+  Web/Integration/Domain builds passed with zero warnings/errors; focused co-captain,
+  migration/default, privacy/Admin and domain tests passed. Later Web Release build and
+  repeated `git diff --check` passed. Bundled Node is available at
+  `/Users/christopher/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node`;
+  prior changed browser-JavaScript checks were simply not executed.
+- After the user's full .NET run reported four failures, a bounded test-only remediation
+  changed exactly `BoardEditingUiTests.cs`, `AccountsUiTests.cs`,
+  `EventCreationUiTests.cs` and `Slice2MigrationRehearsalTests.cs`. The three stale
+  BrowserTests contracts now assert current route/dialog/safety behavior, and the
+  migration rehearsal asserts all three defaults plus blank retained co-captain answers
+  and deterministic append-after-history behavior. Each formerly failing test passed
+  its exact isolated filter; scoped format/diff checks passed; fresh Astra Medium review
+  found no blocker. No production file changed in that remediation. The user judged a
+  second full-suite run redundant because their run had proved the remainder, so the
+  verifier was stopped before migration or tests began; its disposable container and
+  temporary storage were removed.
+- The user completed the current manual-review corrections, confirmed the final spacing
+  result and on 2026-09-10 explicitly authorized packaging the complete accepted current
+  work, committing it, pushing `codex/admin-co-captain` and opening one pull request to
+  `main`. This supersedes the earlier packaging prohibition for this isolated branch.
+- Nothing was staged or committed before that authorization; HEAD remains `86e7dc3` at
+  handoff to the packager. Package only the accepted isolated checkout inventory and the
+  proportional authorities/migration/tests. Exclude recovery-checkout C05/C09, sweep/T05
+  and untracked tickets. No merge or deployment is authorized.
+
+Next permitted action: one Luna Max packager performs bounded inventory/format/leak/diff
+checks, commits the exact accepted work, pushes `codex/admin-co-captain` and opens one
+ready-for-review PR to `main`, then stops without merge or deployment.
+
+
 **Active handoff:** 2026-09-09. Authoritative checkout:
 `/private/tmp/BingoWebpage-admin-popup-recovery-20260908`, branch
 `codex/admin-consistency`; use Git status/log for current commit state. Do not use the

@@ -4,5 +4,6 @@ public enum SignupSystemField
 {
     None = 0,
     PrimaryRegularAccount = 1,
-    CaptainVolunteer = 2
+    CaptainVolunteer = 2,
+    CoCaptainName = 3
 }

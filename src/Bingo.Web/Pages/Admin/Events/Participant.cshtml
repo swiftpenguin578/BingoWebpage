@@ -8,6 +8,8 @@
     var overlayValue = Model.IsOverlay ? "1" : null;
     var participantsUrl = Url.Page("Participants", new { id = Model.EventId });
     var editPath = Url.Page("Participant", new { id = Model.EventId, participantId = Model.RouteParticipantId });
+    var captainQuestion = Model.Questions.FirstOrDefault(question => question.SystemField == SignupSystemField.CaptainVolunteer);
+    var captainVolunteered = captainQuestion is not null && Model.Input.CustomAnswers.GetValueOrDefault(captainQuestion.Id) == "true";
 }
 
 <section class="event-create-page participant-admin-page @(Model.IsOverlay ? "participant-edit-dialog-page admin-dialog-page event-overview-section" : null)" data-participant-edit-page="true" data-participants-url="@participantsUrl" data-edit-path="@editPath" data-participant-id="@Model.RouteParticipantId">
@@ -80,7 +82,7 @@
                             var account = Model.Input.AccountAnswers.GetValueOrDefault(question.Id) ?? new ParticipantModel.AccountInput();
                             var accountName = $"Input.AccountAnswers[{question.Id}].CharacterName";
                             var accountEhb = $"Input.AccountAnswers[{question.Id}].Ehb";
-                            <div class="admin-field event-create-field @(question.Type == SignupQuestionType.Text ? "full-field" : null)">
+                            <div class="admin-field event-create-field @(question.Type == SignupQuestionType.Text ? "full-field" : null)" data-co-captain-field="@(question.SystemField == SignupSystemField.CoCaptainName ? "true" : null)" hidden="@(question.SystemField == SignupSystemField.CoCaptainName && !captainVolunteered ? "hidden" : null)">
                                 @if (question.Type == SignupQuestionType.Account)
                                 {
                                     <div class="participant-account-controls @(question.AccountRole == EventCharacterRole.Playing ? null : "is-single")">
@@ -101,14 +103,18 @@
                                 }
                                 else
                                 {
-                                    <label for="question-@question.Id">@question.Label</label>
-                                    @if (question.Type == SignupQuestionType.Text)
+                                    <label for="question-@question.Id">@(question.SystemField == SignupSystemField.CoCaptainName ? T["Co-captain (optional)"] : question.Label)</label>
+                                    @if (question.SystemField == SignupSystemField.CoCaptainName)
+                                    {
+                                        <input id="question-@question.Id" name="@fieldName" value="@value" class="form-control" type="text" placeholder="@T["Not answered"]" data-co-captain-input="true" disabled="@(!captainVolunteered ? "disabled" : null)" />
+                                    }
+                                    else if (question.Type == SignupQuestionType.Text)
                                     {
                                         <textarea id="question-@question.Id" name="@fieldName" class="form-control" rows="3" placeholder="@T["Not answered"]">@value</textarea>
                                     }
                                     else if (question.Type == SignupQuestionType.YesNo)
                                     {
-                                        <select id="question-@question.Id" name="@fieldName" class="form-select"><option value="">@T["Not answered"]</option>@if (value == "true") { <option value="true" selected>@T["Yes"]</option> } else { <option value="true">@T["Yes"]</option> } @if (value == "false") { <option value="false" selected>@T["No"]</option> } else { <option value="false">@T["No"]</option> }</select>
+                                        <select id="question-@question.Id" name="@fieldName" class="form-select" data-captain-volunteer-input="@(question.SystemField == SignupSystemField.CaptainVolunteer ? "true" : null)"><option value="">@T["Not answered"]</option>@if (value == "true") { <option value="true" selected>@T["Yes"]</option> } else { <option value="true">@T["Yes"]</option> } @if (value == "false") { <option value="false" selected>@T["No"]</option> } else { <option value="false">@T["No"]</option> }</select>
                                     }
                                     else if (question.Type == SignupQuestionType.SingleChoice)
                                     {
@@ -148,7 +154,7 @@
                         var answer = question.Type == SignupQuestionType.Account
                             ? Model.Input.AccountAnswers.GetValueOrDefault(question.Id)?.CharacterName
                             : Model.Input.CustomAnswers.GetValueOrDefault(question.Id);
-                        <div><dt>@question.Label</dt><dd>@(string.IsNullOrWhiteSpace(answer) ? T["Not answered"] : answer)@if (question.Type == SignupQuestionType.Account && question.AccountRole == EventCharacterRole.Playing && Model.Input.AccountAnswers.GetValueOrDefault(question.Id)?.Ehb is { } ehb) { <span> · EHB @ehb</span> }</dd></div>
+                        <div><dt>@(question.SystemField == SignupSystemField.CoCaptainName ? T["Co-captain (optional)"] : question.Label)</dt><dd>@(string.IsNullOrWhiteSpace(answer) ? T["Not answered"] : answer)@if (question.Type == SignupQuestionType.Account && question.AccountRole == EventCharacterRole.Playing && Model.Input.AccountAnswers.GetValueOrDefault(question.Id)?.Ehb is { } ehb) { <span> · EHB @ehb</span> }</dd></div>
                     }
                 </dl>
             </section>
@@ -286,4 +292,5 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/event-manage.js" asp-append-version="true"></script>
+    <script src="~/js/co-captain-input.js" asp-append-version="true"></script>
 }

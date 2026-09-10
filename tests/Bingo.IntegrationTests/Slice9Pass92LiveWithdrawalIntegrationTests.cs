@@ -237,7 +237,7 @@ public sealed class Slice9Pass92LiveWithdrawalIntegrationTests : IAsyncLifetime
         Assert.DoesNotContain("Locked for draft", participants, StringComparison.Ordinal);
         Assert.Contains($"/Admin/Events/Participant/{seed.EventId}/Participants/{externalParticipantId}", participants, StringComparison.Ordinal);
         Assert.Contains("External roster member", participants, StringComparison.Ordinal);
-        Assert.Contains("Manage live participant", participants, StringComparison.Ordinal);
+        Assert.DoesNotContain("Manage live participant", participants, StringComparison.Ordinal);
 
         var liveParticipant = await client.GetStringAsync($"/Admin/Events/Participant/{seed.EventId}/Participants/{externalParticipantId}");
         Assert.Equal(externalMembershipVersion.ToString(CultureInfo.InvariantCulture), InputValue(liveParticipant, "ExpectedMembershipVersion"));

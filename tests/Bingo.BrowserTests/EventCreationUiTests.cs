@@ -233,6 +233,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         var participant = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participant.cshtml"));
         var participantHandler = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participant.cshtml.cs"));
         var participantForm = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "_InternalParticipantForm.cshtml"));
+        var signup = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Events", "Signup.cshtml"));
         var adminLayout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminLayout.cshtml"));
         var manageScript = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "event-manage.js"));
         var questionsScript = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "signup-questions-overlay.js"));
@@ -254,8 +255,15 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("class=\"participant-primary-value\">@participant.Name</span>", participants);
         Assert.Contains("@(participant.WebsiteUsername ?? T[\"Unlinked\"])", participants);
         Assert.DoesNotContain("<strong>@participant.Name</strong>", participants);
-        var participantActionCell = participants[participants.IndexOf("<td class=\"event-row-action participant-actions-cell\"", StringComparison.Ordinal)..];
-        Assert.True(participantActionCell.IndexOf("participant-edit-action", StringComparison.Ordinal) < participantActionCell.IndexOf("@if (group.Table == \"current\")", StringComparison.Ordinal));
+        var participantActionStart = participants.IndexOf("<td class=\"event-row-action participant-actions-cell\"", StringComparison.Ordinal);
+        var participantActionEnd = participants.IndexOf("</td>", participantActionStart, StringComparison.Ordinal);
+        Assert.True(participantActionStart >= 0 && participantActionEnd > participantActionStart);
+        var participantActionCell = participants[participantActionStart..participantActionEnd];
+        Assert.Contains("class=\"participant-edit-action\"", participantActionCell);
+        Assert.Contains("asp-page=\"Participant\" asp-route-id=\"@eventView.Id\" asp-route-participantId=\"@participant.Id\"", participantActionCell);
+        Assert.Contains("@if (group.Table == \"current\" && eventView.State != EventState.Live)", participantActionCell);
+        Assert.Contains("@if (eventView.CanEditParticipant)", participantActionCell);
+        Assert.DoesNotContain("Manage live participant", participants);
         Assert.Contains("name=\"overlay\" value=\"@overlayValue\"", participant);
         Assert.Contains("[FromForm] bool overlay", participantHandler);
         Assert.Contains("RedirectToParticipant", participantHandler);
@@ -266,7 +274,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("participantEditOverlay", manageScript);
         Assert.Contains("participantEditBase", manageScript);
         Assert.Contains("initializeParticipantEditDialog", manageScript);
-        Assert.Contains("initializeOwnerAccountPicker(content);", manageScript);
+        Assert.Equal(2, manageScript.Split("initializeOwnerAccountPicker(currentEditor);", StringSplitOptions.None).Length - 1);
         Assert.DoesNotContain("establishDirectReturn", manageScript);
         Assert.Contains("loadDirectWorkspace", manageScript);
         Assert.Contains("main.hidden = true", manageScript);
@@ -285,7 +293,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains(".admin-shell-body .admin-button-secondary,", siteCss);
         Assert.DoesNotContain(".admin-shell-body .admin-button-accent-outline", siteCss);
         Assert.Contains(".admin-shell-body .participant-confirmation-box > summary { cursor: pointer; }", siteCss);
-        Assert.Contains("<tr class=\"participant-table-empty\" hidden=\"@(group.Rows.Count > 0 ? \"hidden\" : null)\"><td colspan=\"8\">", participants);
+        Assert.Contains("<tr class=\"participant-table-empty\" hidden=\"@(group.Rows.Count > 0 ? \"hidden\" : null)\"><td colspan=\"9\">", participants);
         Assert.Contains("<form method=\"post\" asp-page-handler=\"Restore\" class=\"event-confirmation-form\" data-update-targets=\"@partialTargets\">", participant);
         Assert.Contains("<form method=\"post\" asp-page-handler=\"FillVacancy\" class=\"form-stack\" data-update-targets=\"@partialTargets\">", participant);
         Assert.Contains("<form method=\"post\" asp-page-handler=\"CompletePromotionFollowUp\" data-update-targets=\"@partialTargets\">", participant);
@@ -317,6 +325,8 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("participant-account-controls", participantForm);
         Assert.Contains("aria-label=\"@T[\"EHB\"]\"", participantForm);
         Assert.Contains("type=\"text\" />", participantForm);
+        Assert.Contains("type=\"text\" placeholder=\"@T[\"Not answered\"]\" data-co-captain-input=\"true\" disabled=", participant);
+        Assert.Contains("class=\"signup-sheet__input\" type=\"text\" value=\"@Model.Input.Answers.GetValueOrDefault(question.Id)\" data-co-captain-input", signup);
         Assert.Contains("InternalParticipant.OwnerAccountId", participantForm);
         Assert.DoesNotContain("OwnerUsername", participantForm);
         Assert.Contains("OnGetSearchOwnerAccountsAsync", participantsHandler);
@@ -333,7 +343,7 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("admin-route-dialog", manageScript);
         Assert.Contains("participantAddOverlay", manageScript);
         Assert.Contains("history.back()", manageScript);
-        Assert.Contains("window.innerWidth > 900", manageScript);
+        Assert.DoesNotContain("window.innerWidth > 900", manageScript);
         Assert.Contains("const routePage = page.querySelector(\".participant-add-route-page\")", manageScript);
         Assert.Contains("const interactionTarget = trigger instanceof HTMLElement ? trigger : routePage", manageScript);
         Assert.Contains("const directRouteFallback = routePage instanceof HTMLElement && trigger?.hidden === true", manageScript);
@@ -348,7 +358,8 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("ownerId.value = \"\"", manageScript);
         Assert.Contains("option.role = \"option\"", manageScript);
         Assert.Contains("if (!query) {\n          clearResults();\n          return;\n        }", manageScript);
-        Assert.Contains("window.innerWidth > 900", questionsScript);
+        Assert.DoesNotContain("window.innerWidth > 900", questionsScript);
+        Assert.Contains("if (!dialog.open) dialog.showModal();", questionsScript);
         Assert.Contains("history.back()", questionsScript);
         Assert.Contains("signup-questions-page-title", questions);
         Assert.Contains("aria-describedby=\"@(Model.IsOverlay ? \"signup-questions-dialog-description\" : null)\"", questions);

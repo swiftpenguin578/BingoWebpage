@@ -50,7 +50,23 @@ public sealed class BoardEditingUiTests
         Assert.Contains("event.target.closest('.tile-details-button')", boardMarkup);
         var dialogInteraction = boardMarkup[boardMarkup.IndexOf("const createDialog", StringComparison.Ordinal)..];
         Assert.Contains("showBoardDialog(createDialog);", dialogInteraction);
-        Assert.DoesNotContain("window.location", dialogInteraction, StringComparison.Ordinal);
+        Assert.Contains("continueBoardAction(() => { prepareCreateTileEditor(createButton.dataset.position); showBoardDialog(createDialog); });", dialogInteraction);
+        Assert.Contains("continueBoardAction(() => { prepareEditTileEditor(tile); showBoardDialog(createDialog); });", dialogInteraction);
+        Assert.Contains("continueBoardAction(() => { closeTileEditorNow(); showBoardDialog(document.getElementById(detailsButton.dataset.detailsId)); });", dialogInteraction);
+
+        var navigationStart = boardMarkup.IndexOf(
+            "document.addEventListener('click', event => {\n    const link = event.target.closest?.('a[href]');",
+            StringComparison.Ordinal);
+        var navigationEnd = boardMarkup.IndexOf(
+            "document.addEventListener('submit', event => {",
+            navigationStart,
+            StringComparison.Ordinal);
+        Assert.True(navigationStart >= 0 && navigationEnd > navigationStart);
+        var linkNavigation = boardMarkup[navigationStart..navigationEnd];
+        Assert.Contains("if (!link || !createDialog?.open || !tileEditorGuard.dirtyForms().length) return;", linkNavigation);
+        Assert.Contains("if ((link.target && link.target.toLowerCase() !== '_self') || link.hasAttribute('download') || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || (event.button != null && event.button !== 0)) return;", linkNavigation);
+        Assert.Contains("event.preventDefault(); event.stopImmediatePropagation();", linkNavigation);
+        Assert.Contains("continueBoardAction(() => { closeTileEditorNow(); window.location.assign(link.href); });", linkNavigation);
         Assert.Contains("(() => {", boardMarkup);
         Assert.Contains("})();", boardMarkup);
         Assert.DoesNotContain("document.querySelectorAll('.create-tile-button').forEach", boardMarkup);

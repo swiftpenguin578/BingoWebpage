@@ -16,7 +16,7 @@ const narrowCss = siteCss.slice(narrowReset);
 assert.match(participantsMarkup, /participant-capacity-field[\s\S]*Maximum players[\s\S]*SignupAdministration\.ParticipantCap/);
 assert.match(participantsMarkup, /participant-shared-row[\s\S]*participant-shared-row-heading[\s\S]*waiting list enabled[\s\S]*participant-shared-row-content[\s\S]*Keep accepting signups after capacity is reached\./);
 assert.ok(participantsMarkup.includes('aria-labelledby="waiting-list-enabled-heading" aria-describedby="waiting-list-enabled-support"'));
-assert.match(participantsMarkup, /<tr class="participant-table-empty" hidden="@\(group\.Rows\.Count > 0 \? "hidden" : null\)"><td colspan="8">/);
+assert.match(participantsMarkup, /<tr class="participant-table-empty" hidden="@\(group\.Rows\.Count > 0 \? "hidden" : null\)"><td colspan="9">/);
 assert.ok(siteCss.includes("grid-template-areas: \"capacity-heading waiting-heading\" \"capacity-control waiting-control\" \"capacity-error .\" \"confirm confirm\";"));
 assert.ok(siteCss.includes("gap: 0.25rem 1.25rem; margin-inline: 0;"));
 assert.ok(siteCss.includes(".participant-capacity-region .participant-capacity-field > label { grid-area: capacity-heading; }"));
@@ -43,6 +43,7 @@ assert.ok(manageScript.includes("setRouteVisibility(true)"));
 assert.ok(manageScript.includes("window.createAdminEditorGuard"));
 assert.ok(manageScript.includes('prefix: "participant-add"'));
 assert.ok(manageScript.includes("response.url || action"));
+assert.ok(manageScript.includes('captain: [row.dataset.participantCaptain, "number"]'));
 assert.ok(!manageScript.includes("const canEnhance = () => window.innerWidth > 900"));
 assert.ok(participantsMarkup.includes("data-participant-add-route-trigger hidden"));
 assert.ok(participantsMarkup.indexOf("data-participant-add-route-trigger hidden") < participantsMarkup.indexOf('<section class="participant-add-route-page"'));
@@ -129,7 +130,7 @@ function table(rows, sortButtons) {
   return { element, empty, tbody };
 }
 
-function row(name, status, sequence) {
+function row(name, status, sequence, captain = 0) {
   return new Element({
     tagName: "tr",
     textContent: `${sequence} ${name} ${status}`,
@@ -141,6 +142,7 @@ function row(name, status, sequence) {
       participantEhb: String(sequence),
       participantPayment: "Unpaid",
       participantSignedUp: String(sequence),
+      participantCaptain: String(captain),
       participantOwnership: "Unassigned"
     }
   });
@@ -154,13 +156,15 @@ function sortButton(key, label) {
 }
 
 const currentSort = sortButton("ownership", "Team");
+const currentCaptain = sortButton("captain", "Captain volunteer");
 const currentName = sortButton("participant", "Participant");
 const historySort = sortButton("ownership", "Team");
+const historyCaptain = sortButton("captain", "Captain volunteer");
 const historyName = sortButton("participant", "Participant");
-const currentRows = [row("Bob", "WaitingList", 2), row("Alice", "Confirmed", 1)];
+const currentRows = [row("Bob", "WaitingList", 2, 0), row("Alice", "Confirmed", 1, 1)];
 const historyRows = [row("Carol", "Withdrawn", 3)];
-const current = table(currentRows, [currentSort.button, currentName.button]);
-const history = table(historyRows, [historySort.button, historyName.button]);
+const current = table(currentRows, [currentSort.button, currentCaptain.button, currentName.button]);
+const history = table(historyRows, [historySort.button, historyCaptain.button, historyName.button]);
 const search = new InputElement({ dataset: { participantSearchInput: "" } });
 search.value = "";
 const clear = new Element({ dataset: { adminSearchClear: "" } });
@@ -182,7 +186,7 @@ addTrigger.setAttribute("href", "/Admin/Events/Participants/test?addParticipant=
 page.selectors = {
   "form[data-participant-filter-form]": [form],
   "[data-participant-table]": [current.element, history.element],
-  "[data-participant-sort]": [currentSort.button, currentName.button, historySort.button, historyName.button],
+  "[data-participant-sort]": [currentSort.button, currentCaptain.button, currentName.button, historySort.button, historyCaptain.button, historyName.button],
   "[data-participant-group]": [],
   "[data-participant-add-trigger]": [addTrigger]
 };
@@ -239,8 +243,10 @@ assert.equal(click.defaultPrevented, true);
 assert.deepEqual(current.element.querySelectorAll("[data-participant-row]").map((item) => item.dataset.participantName), ["Alice", "Bob"]);
 assert.equal(currentName.th.getAttribute("aria-sort"), "ascending");
 assert.equal(currentSort.th.getAttribute("aria-sort"), null);
+assert.equal(currentCaptain.th.getAttribute("aria-sort"), null);
 assert.equal(historyName.th.getAttribute("aria-sort"), "ascending");
 assert.equal(historySort.th.getAttribute("aria-sort"), null);
+assert.equal(historyCaptain.th.getAttribute("aria-sort"), null);
 assert.equal(currentName.button.querySelectorAll(".participant-sort-icon").length, 1);
 assert.equal(currentSort.button.querySelectorAll(".participant-sort-icon").length, 0);
 assert.equal(historyName.button.querySelectorAll(".participant-sort-icon").length, 1);
@@ -249,6 +255,13 @@ assert.match(window.location.href, /ParticipantSearch=alice/);
 assert.match(window.location.href, /ParticipantStatus=Confirmed/);
 assert.match(window.location.href, /sort=participant/);
 assert.match(window.location.href, /direction=asc/);
+
+const captainClick = currentCaptain.button.dispatch("click");
+assert.equal(captainClick.defaultPrevented, true);
+assert.deepEqual(current.element.querySelectorAll("[data-participant-row]").map((item) => item.dataset.participantName), ["Bob", "Alice"]);
+assert.equal(currentCaptain.th.getAttribute("aria-sort"), "ascending");
+assert.equal(currentName.th.getAttribute("aria-sort"), null);
+assert.match(window.location.href, /sort=captain/);
 
 search.value = "nobody";
 search.dispatch("input");

@@ -249,6 +249,7 @@ public sealed class ParticipantModel(
                 question.Required,
                 question.Active,
                 question.AccountAnswerRole,
+                question.SystemField,
                 question.Options?.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [],
                 answers.GetValueOrDefault(question.Id)?.Value))
             .ToList();
@@ -327,5 +328,5 @@ public sealed class ParticipantModel(
     public sealed record PromotionFollowUpView(Guid Id, DateTimeOffset? CompletedAt, Guid? CompletedByAccountId);
 
     public sealed record QuestionView(
-        Guid Id, string Label, SignupQuestionType Type, bool Required, bool Active, EventCharacterRole? AccountRole, string[] Options, string? Value);
+        Guid Id, string Label, SignupQuestionType Type, bool Required, bool Active, EventCharacterRole? AccountRole, SignupSystemField SystemField, string[] Options, string? Value);
 }
