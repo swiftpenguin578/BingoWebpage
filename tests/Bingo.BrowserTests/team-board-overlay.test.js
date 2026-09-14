@@ -27,7 +27,8 @@ assert.match(teamBoard, /aria-label="@T\["Team statistics"\]"/, "base TeamBoard 
 assert.match(teamBoard, /asp-page="\/Events\/TeamBoard"[\s\S]*asp-route-tileRoute="@\(\$\"Tiles\/{tile\.TileId\}\"\)"/, "tile links retain the nested real TeamBoard URL");
 assert.match(tileSidebar, /data-open-submission-drawer/, "tile sidebar retains the shared Captain drawer entry");
 assert.match(tileSidebar, /asp-page="\/Events\/TeamBoard"[\s\S]*asp-route-slug="@eventSlug"[\s\S]*asp-route-teamSlug="@teamSlug"[\s\S]*asp-route-tileRoute=""[\s\S]*data-team-sidebar-return/, "tile sidebar restores the route-backed Team overview action and clears the tile route");
-assert.match(tileSidebar, /public-ui-overline">TILE @Model\.SequenceNumber\.ToString\("00"\)<\/span>/, "tile sidebar renders the numbered overline");
+assert.match(tileSidebar, /public-ui-overline">@T\["Tile"\] @Model\.SequenceNumber\.ToString\("00"\)<\/span>/, "tile sidebar renders the localized tile label and two-digit sequence");
+assert.match(tileSidebar, /<h2 class="public-ui-component-title">@Model\.Tile\.TileName<\/h2>/, "tile sidebar identifies the selected tile by name");
 assert.match(tileSidebar, /tile-context-sidebar__progress-summary" aria-label="@T\["\{0\} of \{1\} drops", Model\.Tile\.Approved, Model\.Tile\.Target\][\s\S]*public-ui-data-label">@T\["Drops"\]/, "tile progress summary renders an accessible drops label");
 assert.doesNotMatch(tileSidebar, /public-ui-progress-meter/, "tile sidebar no longer renders the progress meter");
 assert.doesNotMatch(tileSidebar, /tile-context-sidebar__rail/, "tile sidebar does not render the removed rail");

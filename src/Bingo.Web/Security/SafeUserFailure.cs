@@ -20,6 +20,8 @@ public static class SafeUserFailure
         "The current password is incorrect.",
         "This submission is no longer editable.",
         "This objective has already been completed.",
+        "The published board changed while this submission was being prepared. Reload and try again.",
+        "The published objective identities are unavailable. Contact an administrator.",
         "This event is not accepting submissions.",
         "You can only submit evidence for your own team.",
         "A public username is required.",

@@ -52,6 +52,8 @@ public sealed class TeamCaptainAuthorityService(ApplicationDbContext db, TimePro
 
     private async Task<TeamCaptainRoleChangeResult> ChangeRoleInTransactionAsync(TeamCaptainRoleChange change, CancellationToken ct)
     {
+        // Creation and live withdrawal lock the event before any membership write.
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM events WHERE id = {change.EventId} AND hidden_at IS NULL FOR UPDATE", ct);
         var now = time.GetUtcNow();
         var row = await (from membership in db.TeamMemberships
                          join team in db.Teams on membership.TeamId equals team.Id
@@ -81,7 +83,19 @@ public sealed class TeamCaptainAuthorityService(ApplicationDbContext db, TimePro
             ? await db.Accounts.SingleOrDefaultAsync(x => x.Id == ownerId && x.Active && x.AccountType == AccountType.WebsiteAccount, ct)
             : null;
         if (owner is not null)
-            db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), owner.Id, "Team role updated", "Your team role was updated by an administrator.", $"/Events/{row.item.Slug}/Teams", now, row.item.Id));
+        {
+            var rosterPublished = await (from cycle in db.DraftPublicationCycles
+                                         join draft in db.DraftSessions on cycle.DraftSessionId equals draft.Id
+                                         where draft.EventId == row.item.Id && cycle.SupersededAt == null &&
+                                               db.DraftPublicationRosters.Any(roster => roster.DraftPublicationCycleId == cycle.Id)
+                                         select cycle.Id).AnyAsync(ct);
+            var route = rosterPublished
+                ? $"/Events/{Uri.EscapeDataString(row.item.Slug)}/Teams"
+                : owner.GlobalRole is GlobalRole.Admin or GlobalRole.SuperAdmin
+                    ? $"/Admin/Events/Draft/{row.item.Id}?rosterTeamId={row.team.Id}"
+                    : $"/Events/{Uri.EscapeDataString(row.item.Slug)}/Signup/Confirmation?participantId={row.participant.Id}";
+            db.PersonalNotifications.Add(new PersonalNotification(Guid.NewGuid(), owner.Id, "Team role updated", "Your team role was updated by an administrator.", route, now, row.item.Id));
+        }
 
         await db.SaveChangesAsync(ct);
         var participantName = await db.PrimaryCharacters().Where(x => x.ParticipantId == row.participant.Id).Select(x => x.Name).SingleOrDefaultAsync(ct) ?? "Member";

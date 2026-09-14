@@ -1,6 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Bingo.Application.Access;
 using Bingo.Application.Auditing;
 using Bingo.Application.Boards;
@@ -11,6 +14,7 @@ using Bingo.Domain.Boards;
 using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
 using Bingo.Domain.Teams;
+using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
@@ -48,6 +52,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     [BindProperty, Range(1, 8)] public int Rows { get; set; } = 5;
     [BindProperty, Range(1, 8)] public int Columns { get; set; } = 5;
     [BindProperty] public long BoardVersion { get; set; }
+    [BindProperty] public string? ApprovalCatalogueFingerprint { get; set; }
     [BindProperty] public TileDraftInput TileDraft { get; set; } = new();
 
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
@@ -66,7 +71,8 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         }
         var board = new Board(Guid.NewGuid(), id, "Main board", Rows, Columns);
         board.AcquireEditing(AdminId, time.GetUtcNow(), BoardEditingLease.Duration);
-        db.Boards.Add(board); await db.SaveChangesAsync(ct); await WriteAudit("board.created", board.Id, $"{Rows}x{Columns}", ct);
+        db.Boards.Add(board); await WriteAudit("board.created", board, null, BoardAuditState(board), ct);
+        await collaboration.NotifyBoardChangedAsync(id, ct);
         SetStatus(Localize("Board created."), UiMessageType.Success);
         return RedirectToPage(new { id });
     }
@@ -76,10 +82,10 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
         try
         {
+            var before = BoardAuditState(board);
             var previous = board.AcquireEditing(AdminId, time.GetUtcNow(), BoardEditingLease.Duration, force: true);
-            await db.SaveChangesAsync(ct);
-            await WriteAudit(previous is null ? "board.editing_acquired" : "board.editing_taken_over", board.Id,
-                previous is null ? $"Editor: {User.Identity!.Name}" : $"New editor: {User.Identity!.Name}; previous account: {previous}", ct);
+            await WriteAudit(previous is null ? "board.editing_acquired" : "board.editing_taken_over", board, before, BoardAuditState(board), ct);
+            await collaboration.NotifyBoardChangedAsync(id, ct);
             SetStatus(previous is null ? Localize("Board editing control acquired.") : Localize("Board editing control taken over."), UiMessageType.Success);
         }
         catch (Exception exception) when (exception is InvalidOperationException or DbUpdateConcurrencyException)
@@ -95,7 +101,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     public async Task<IActionResult> OnPostReleaseEditingAsync(Guid id, CancellationToken ct)
     {
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
-        try { board.ReleaseEditing(AdminId, time.GetUtcNow()); await db.SaveChangesAsync(ct); await WriteAudit("board.editing_released", board.Id, $"Released by {User.Identity!.Name}", ct); SetStatus(Localize("Board editing control released."), UiMessageType.Success); }
+        try { var before = BoardAuditState(board); board.ReleaseEditing(AdminId, time.GetUtcNow()); await WriteAudit("board.editing_released", board, before, BoardAuditState(board), ct); await collaboration.NotifyBoardChangedAsync(id, ct); SetStatus(Localize("Board editing control released."), UiMessageType.Success); }
         catch (Exception exception) when (exception is InvalidOperationException or DbUpdateConcurrencyException)
         {
             db.ChangeTracker.Clear(); SetStatus(exception is DbUpdateConcurrencyException ? Localize("Editing control changed before it could be released. The latest board has been loaded.") : Localize("The board editing control could not be released."), UiMessageType.Warning);
@@ -123,10 +129,15 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (!requirement.IsManual && requirement.DropIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one eligible drop for each collect-drops requirement."));
             if (requirement.IsManual && string.IsNullOrWhiteSpace(requirement.Description)) ModelState.AddModelError(string.Empty, Localize("Describe the challenge requirements."));
         }
-        if (TileDraft.Requirements.Any(x => x.IsManual) && TileDraft.ManualEhb is not > 0) ModelState.AddModelError(string.Empty, Localize("A custom challenge needs an explicit manual EHB estimate."));
+        if (TileDraft.Requirements.Select(x => x.IsManual).Distinct().Count() > 1)
+            ModelState.AddModelError(string.Empty, Localize("Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind."));
+        if (TileDraft.Requirements.Any(x => !x.IsManual) && TileDraft.ManualEhb is not null)
+            ModelState.AddModelError(string.Empty, Localize("Catalogue tiles use automatic EHB. Remove the manual estimate and correct any missing catalogue rates."));
+        if (TileDraft.Requirements.All(x => x.IsManual) && TileDraft.ManualEhb is not > 0) ModelState.AddModelError(string.Empty, Localize("A custom challenge needs an explicit manual EHB estimate."));
         if (!ModelState.IsValid) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Warning); return RedirectToPage(new { id }); }
 
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
+        var before = new { board = BoardAuditState(board), tile = (object?)null };
         if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id });
         if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
         var selectedBossIds = TileDraft.Requirements.SelectMany(x => x.BossIds).Distinct().ToList();
@@ -148,8 +159,22 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         }
         await db.SaveChangesAsync(ct);
         var tile = await PlaceTemplateAsync(board, template, requirements, TileDraft.Position, ct);
-        await ReplaceTileImageAsync(id, tile, ct);
-        await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct); await WriteAudit("board.tile_created", board.Id, name, ct);
+        // Persist the tile before assigning an image which references it in return.
+        await db.SaveChangesAsync(ct);
+        var uploaded = await ReplaceTileImageAsync(id, tile, ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await WriteAudit("board.tile_created", board, before, new { board = BoardAuditState(board), tile = await TileAuditStateAsync(tile, ct) }, ct);
+            await transaction.CommitAsync(ct);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            if (uploaded is not null) await storage.DeleteAsync(uploaded, CancellationToken.None);
+            throw;
+        }
+        await collaboration.NotifyBoardChangedAsync(id, ct);
         SetSuccessIfMissing(Localize("Tile created."));
         TempData["BoardTileOutcome"] = "committed";
         return RedirectToPage(new { id });
@@ -158,80 +183,141 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     public async Task<IActionResult> OnPostEditTileAsync(Guid id, CancellationToken ct)
     {
         TempData["BoardTileOutcome"] = "failed";
-        var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
-        if (!board.IsEditable || TileDraft.TileId is null)
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        var committed = false;
+        string? uploaded = null;
+        try
         {
-            SetStatus(Localize("This board is no longer editable or the tile is invalid."), UiMessageType.Warning);
+            if (await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {id} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct) is null) return NotFound();
+            var board = await db.Boards.FromSqlInterpolated($"SELECT * FROM boards WHERE event_id = {id} FOR UPDATE").SingleOrDefaultAsync(ct); if (board is null) return NotFound();
+            if (!board.IsEditable || TileDraft.TileId is null)
+            {
+                SetStatus(Localize("This board is no longer editable or the tile is invalid."), UiMessageType.Warning);
+                return RedirectToPage(new { id });
+            }
+            var tile = await db.BoardTiles.SingleOrDefaultAsync(x => x.BoardId == board.Id && x.Id == TileDraft.TileId, ct); if (tile is null) return NotFound();
+            TileDraft.Requirements = TileDraft.Requirements.Where(x => !string.IsNullOrWhiteSpace(x.Description) || x.BossIds.Count > 0 || x.DropIds.Count > 0).ToList();
+            if (TileDraft.Requirements.Count == 0) ModelState.AddModelError(string.Empty, Localize("Add at least one requirement."));
+            foreach (var requirement in TileDraft.Requirements)
+            {
+                if (requirement.Target < 1) ModelState.AddModelError(string.Empty, Localize("Every requirement needs a quantity of at least 1."));
+                if (requirement.DropWeights.Any(x => x.Value < 1)) ModelState.AddModelError(string.Empty, Localize("Every drop weight must be at least 1."));
+                if (!requirement.IsManual && requirement.BossIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one boss for each collect-drops requirement."));
+                if (!requirement.IsManual && requirement.DropIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one eligible drop for each collect-drops requirement."));
+                if (requirement.IsManual && string.IsNullOrWhiteSpace(requirement.Description)) ModelState.AddModelError(string.Empty, Localize("Describe the challenge requirements."));
+            }
+            if (TileDraft.Requirements.Select(x => x.IsManual).Distinct().Count() > 1)
+                ModelState.AddModelError(string.Empty, Localize("Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind."));
+            if (TileDraft.Requirements.Any(x => !x.IsManual) && TileDraft.ManualEhb is not null)
+                ModelState.AddModelError(string.Empty, Localize("Catalogue tiles use automatic EHB. Remove the manual estimate and correct any missing catalogue rates."));
+            if (TileDraft.Requirements.All(x => x.IsManual) && TileDraft.ManualEhb is not > 0) ModelState.AddModelError(string.Empty, Localize("A custom challenge needs an explicit manual EHB estimate."));
+            if (!ModelState.IsValid) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Warning); return RedirectToPage(new { id }); }
+
+            if (!await TryEnsurePublishedCorrectionLifecycleAsync(board, id, ct))
+            {
+                SetStatus(Localize("This event is read-only in its current lifecycle state."), UiMessageType.Warning);
+                return RedirectToPage(new { id });
+            }
+            var before = new { board = BoardAuditState(board), tile = await TileAuditStateAsync(tile, ct) };
+            if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id });
+            if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
+            var selectedBossIds = TileDraft.Requirements.SelectMany(x => x.BossIds).Distinct().ToList();
+            var selectedBosses = await db.BossActivities.Where(x => selectedBossIds.Contains(x.Id)).OrderBy(x => x.Name).ToListAsync(ct);
+            var name = string.IsNullOrWhiteSpace(TileDraft.Name) ? DefaultTileName(selectedBosses.Select(x => x.Name)) : TileDraft.Name.Trim();
+            var requirementDescriptions = TileDraft.Requirements.Select(RequirementDescription).ToList();
+            var description = string.IsNullOrWhiteSpace(TileDraft.Description) ? string.Join("; ", requirementDescriptions) : TileDraft.Description.Trim();
+            var objectiveType = TileDraft.Requirements.All(x => x.IsManual) ? ObjectiveType.Manual : ObjectiveType.DropRequirements;
+            var template = await db.TileTemplates.SingleAsync(x => x.Id == tile.TileTemplateId, ct);
+            var oldSnapshots = await db.BoardRequirementSnapshots.Where(x => x.BoardTileId == tile.Id).ToListAsync(ct);
+            var oldSnapshotIds = oldSnapshots.Select(x => x.Id).ToList();
+            var oldBosses = await db.BoardRequirementBossSnapshots.Where(x => oldSnapshotIds.Contains(x.RequirementId)).ToListAsync(ct);
+            var oldDrops = await db.BoardRequirementDropSnapshots.Where(x => oldSnapshotIds.Contains(x.RequirementId)).ToListAsync(ct);
+            var inputIds = TileDraft.Requirements.Where(x => x.RequirementId != null).Select(x => x.RequirementId!.Value).ToList();
+            if (inputIds.Distinct().Count() != inputIds.Count || inputIds.Any(x => !oldSnapshotIds.Contains(x)))
+                throw new InvalidOperationException("An objective no longer belongs to this tile. Reload before editing.");
+            bool SameRules(RequirementInput input, BoardRequirementSnapshot old) =>
+                old.HasSameRules(input.Target, input.DuplicatesAllowed, input.HasHigherWeights, input.IsManual, old.CreditedWeight) &&
+                oldBosses.Where(x => x.RequirementId == old.Id).Select(x => x.BossActivityId).ToHashSet().SetEquals(input.BossIds) &&
+                oldDrops.Where(x => x.RequirementId == old.Id).Select(x => x.SourceDropId).ToHashSet().SetEquals(input.DropIds) &&
+                oldDrops.Where(x => x.RequirementId == old.Id).All(x => x.CreditedWeight == input.WeightFor(x.SourceDropId));
+            var retained = TileDraft.Requirements.Where(x => template.ManualEhbOverride == TileDraft.ManualEhb && x.RequirementId is { } requirementId && SameRules(x, oldSnapshots.Single(y => y.Id == requirementId)))
+                .Select(x => x.RequirementId!.Value).ToHashSet();
+            var evidenced = await db.EvidencedObjectiveIdsAsync(id, ct);
+            if (oldSnapshotIds.Any(x => evidenced.Contains(x) && !retained.Contains(x)) ||
+                oldSnapshotIds.Any(evidenced.Contains) && template.ManualEhbOverride != TileDraft.ManualEhb)
+                throw new InvalidOperationException("Objectives with submitted evidence cannot change requirements or scoring, or be removed. Only wording corrections are allowed.");
+            var publishedTile = await db.BoardApprovalTileSnapshots.AsNoTracking()
+                .SingleOrDefaultAsync(x => x.ApprovalSnapshotId == board.ActiveApprovalSnapshotId && x.BoardTileId == tile.Id, ct);
+            var publishedTileRequirements = publishedTile is null ? [] : await db.BoardApprovalRequirementSnapshots.AsNoTracking()
+                .Where(x => x.ApprovalTileSnapshotId == publishedTile.Id).ToListAsync(ct);
+            var protectsPublishedScoring = publishedTileRequirements.Any(x => evidenced.Contains(x.BoardRequirementSnapshotId));
+            if (protectsPublishedScoring && TileDraft.Requirements.Sum(x => (long)x.Target) != publishedTileRequirements.Sum(x => (long)x.TargetContribution))
+                throw new InvalidOperationException("Objectives with submitted evidence cannot change requirements or scoring, or be removed. Only wording corrections are allowed.");
+            template.Update(name, description, objectiveType, string.Empty, TileDraft.ManualEhb);
+
+            var oldTemplateRequirements = await db.TileTemplateRequirements.Where(x => x.TileTemplateId == template.Id).ToListAsync(ct);
+            var oldTemplateRequirementIds = oldTemplateRequirements.Select(x => x.Id).ToList();
+            db.TemplateRequirementBosses.RemoveRange(await db.TemplateRequirementBosses.Where(x => oldTemplateRequirementIds.Contains(x.RequirementId)).ToListAsync(ct));
+            db.TemplateRequirementDrops.RemoveRange(await db.TemplateRequirementDrops.Where(x => oldTemplateRequirementIds.Contains(x.RequirementId)).ToListAsync(ct));
+            db.TileTemplateRequirements.RemoveRange(oldTemplateRequirements);
+
+            var removedIds = oldSnapshotIds.Where(x => !retained.Contains(x)).ToList();
+            var publishedIds = await db.BoardApprovalRequirementSnapshots.Where(x => removedIds.Contains(x.BoardRequirementSnapshotId)).Select(x => x.BoardRequirementSnapshotId).ToHashSetAsync(ct);
+            db.BoardRequirementBossSnapshots.RemoveRange(oldBosses.Where(x => removedIds.Contains(x.RequirementId)));
+            db.BoardRequirementDropSnapshots.RemoveRange(oldDrops.Where(x => removedIds.Contains(x.RequirementId) && !publishedIds.Contains(x.RequirementId)));
+            db.BoardRequirementSnapshots.RemoveRange(oldSnapshots.Where(x => removedIds.Contains(x.Id)));
+            await db.SaveChangesAsync(ct);
+
+            var estimates = new List<decimal?>();
+            for (var index = 0; index < TileDraft.Requirements.Count; index++)
+            {
+                var input = TileDraft.Requirements[index];
+                var requirement = new TileTemplateRequirement(Guid.NewGuid(), template.Id, index + 1, input.Target, input.DuplicatesAllowed, input.HasHigherWeights, requirementDescriptions[index], input.IsManual);
+                db.TileTemplateRequirements.Add(requirement);
+                foreach (var bossId in input.BossIds.Distinct()) db.TemplateRequirementBosses.Add(new TemplateRequirementBoss(Guid.NewGuid(), requirement.Id, bossId));
+                foreach (var dropId in input.DropIds.Distinct()) db.TemplateRequirementDrops.Add(new TemplateRequirementDrop(Guid.NewGuid(), requirement.Id, dropId, input.DuplicatesAllowed ? null : 1, input.WeightFor(dropId)));
+
+                var selectedDrops = await (from drop in db.SourceDrops where input.DropIds.Contains(drop.Id) join boss in db.BossActivities on drop.BossActivityId equals boss.Id join item in db.CatalogueItems on drop.ItemId equals item.Id select new { drop, boss, item }).ToListAsync(ct);
+                if (selectedDrops.Count != input.DropIds.Distinct().Count() || selectedDrops.Any(x => !input.BossIds.Contains(x.boss.Id)))
+                    throw new InvalidOperationException("Choose eligible drops from the selected bosses.");
+                if (input.RequirementId is { } priorId && retained.Contains(priorId))
+                {
+                    oldSnapshots.Single(x => x.Id == priorId).CorrectWording(index + 1, requirementDescriptions[index]);
+                }
+                else
+                {
+                    var snapshot = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, index + 1, input.Target, input.DuplicatesAllowed, input.HasHigherWeights, requirementDescriptions[index], input.IsManual);
+                    db.BoardRequirementSnapshots.Add(snapshot);
+                    foreach (var boss in selectedBosses.Where(x => input.BossIds.Contains(x.Id))) db.BoardRequirementBossSnapshots.Add(new BoardRequirementBossSnapshot(Guid.NewGuid(), snapshot.Id, boss.Id, boss.Name, boss.EfficientCompletionsPerHour));
+                    foreach (var value in selectedDrops) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), snapshot.Id, value.drop.Id, value.drop.ItemId, value.boss.Name, value.item.Name, value.drop.DisplayRate, value.drop.NumericProbability, input.DuplicatesAllowed ? null : 1, value.drop.DefaultEhbEstimate, input.WeightFor(value.drop.Id)));
+                }
+                estimates.Add(input.IsManual ? null : EhbCalculator.CalculateDropRequirement(input.Target, selectedDrops.Select(x => new EligibleDropRate(x.boss.EfficientCompletionsPerHour, x.drop.NumericProbability, x.drop.ItemId, x.boss.Id, input.WeightFor(x.drop.Id), x.drop.RollsPerCompletion, x.drop.RollGroup)), input.DuplicatesAllowed));
+            }
+            var ehb = oldSnapshotIds.Any(evidenced.Contains) && retained.Count == oldSnapshots.Count && retained.Count == TileDraft.Requirements.Count
+                ? tile.EstimatedEhbSnapshot : EhbCalculator.CalculateTileEstimate(objectiveType, TileDraft.Requirements.Zip(estimates, (requirement, estimate) => (requirement.IsManual, estimate)), TileDraft.ManualEhb);
+            if (protectsPublishedScoring && decimal.Round(ehb, 4) != publishedTile!.EstimatedEhb)
+                throw new InvalidOperationException("Objectives with submitted evidence cannot change requirements or scoring, or be removed. Only wording corrections are allowed.");
+            board.SetTotalEhb(Math.Max(0, board.TotalEhbEstimate - tile.EstimatedEhbSnapshot + ehb));
+            tile.UpdateContent(name, description, string.Empty, ehb);
+            uploaded = await ReplaceTileImageAsync(id, tile, ct);
+            await db.SaveChangesAsync(ct);
+            await WriteAudit("board.tile_edited", board, before, new { board = BoardAuditState(board), tile = await TileAuditStateAsync(tile, ct) }, ct);
+            await transaction.CommitAsync(ct);
+            committed = true;
+            await collaboration.NotifyBoardChangedAsync(id, ct);
+            SetSuccessIfMissing(Localize("Tile updated."));
+            TempData["BoardTileOutcome"] = "committed";
             return RedirectToPage(new { id });
         }
-        var tile = await db.BoardTiles.SingleOrDefaultAsync(x => x.BoardId == board.Id && x.Id == TileDraft.TileId, ct); if (tile is null) return NotFound();
-        TileDraft.Requirements = TileDraft.Requirements.Where(x => !string.IsNullOrWhiteSpace(x.Description) || x.BossIds.Count > 0 || x.DropIds.Count > 0).ToList();
-        if (TileDraft.Requirements.Count == 0) ModelState.AddModelError(string.Empty, Localize("Add at least one requirement."));
-        foreach (var requirement in TileDraft.Requirements)
+        catch (Exception exception) when (!committed)
         {
-            if (requirement.Target < 1) ModelState.AddModelError(string.Empty, Localize("Every requirement needs a quantity of at least 1."));
-            if (requirement.DropWeights.Any(x => x.Value < 1)) ModelState.AddModelError(string.Empty, Localize("Every drop weight must be at least 1."));
-            if (!requirement.IsManual && requirement.BossIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one boss for each collect-drops requirement."));
-            if (!requirement.IsManual && requirement.DropIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one eligible drop for each collect-drops requirement."));
-            if (requirement.IsManual && string.IsNullOrWhiteSpace(requirement.Description)) ModelState.AddModelError(string.Empty, Localize("Describe the challenge requirements."));
-        }
-        if (TileDraft.Requirements.Any(x => x.IsManual) && TileDraft.ManualEhb is not > 0) ModelState.AddModelError(string.Empty, Localize("A custom challenge needs an explicit manual EHB estimate."));
-        if (!ModelState.IsValid) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Warning); return RedirectToPage(new { id }); }
-
-        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
-        if (!await TryEnsurePublishedCorrectionLifecycleAsync(board, id, ct))
-        {
-            SetStatus(Localize("This event is read-only in its current lifecycle state."), UiMessageType.Warning);
+            await transaction.RollbackAsync(CancellationToken.None);
+            if (uploaded is not null) await storage.DeleteAsync(uploaded, CancellationToken.None);
+            db.ChangeTracker.Clear();
+            if (!IsApprovalConflict(exception) && exception is not InvalidOperationException) throw;
+            SetStatus(exception is InvalidOperationException ? Localize(exception.Message) : Localize("The board changed while this correction was being saved. Reload and try again."), UiMessageType.Warning);
             return RedirectToPage(new { id });
         }
-        if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id });
-        if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
-        var selectedBossIds = TileDraft.Requirements.SelectMany(x => x.BossIds).Distinct().ToList();
-        var selectedBosses = await db.BossActivities.Where(x => selectedBossIds.Contains(x.Id)).OrderBy(x => x.Name).ToListAsync(ct);
-        var name = string.IsNullOrWhiteSpace(TileDraft.Name) ? DefaultTileName(selectedBosses.Select(x => x.Name)) : TileDraft.Name.Trim();
-        var requirementDescriptions = TileDraft.Requirements.Select(RequirementDescription).ToList();
-        var description = string.IsNullOrWhiteSpace(TileDraft.Description) ? string.Join("; ", requirementDescriptions) : TileDraft.Description.Trim();
-        var objectiveType = TileDraft.Requirements.All(x => x.IsManual) ? ObjectiveType.Manual : ObjectiveType.DropRequirements;
-        var template = await db.TileTemplates.SingleAsync(x => x.Id == tile.TileTemplateId, ct);
-        template.Update(name, description, objectiveType, string.Empty, TileDraft.ManualEhb);
-
-        var oldTemplateRequirements = await db.TileTemplateRequirements.Where(x => x.TileTemplateId == template.Id).ToListAsync(ct);
-        var oldTemplateRequirementIds = oldTemplateRequirements.Select(x => x.Id).ToList();
-        db.TemplateRequirementBosses.RemoveRange(await db.TemplateRequirementBosses.Where(x => oldTemplateRequirementIds.Contains(x.RequirementId)).ToListAsync(ct));
-        db.TemplateRequirementDrops.RemoveRange(await db.TemplateRequirementDrops.Where(x => oldTemplateRequirementIds.Contains(x.RequirementId)).ToListAsync(ct));
-        db.TileTemplateRequirements.RemoveRange(oldTemplateRequirements);
-
-        var oldSnapshots = await db.BoardRequirementSnapshots.Where(x => x.BoardTileId == tile.Id).ToListAsync(ct);
-        var oldSnapshotIds = oldSnapshots.Select(x => x.Id).ToList();
-        db.BoardRequirementBossSnapshots.RemoveRange(await db.BoardRequirementBossSnapshots.Where(x => oldSnapshotIds.Contains(x.RequirementId)).ToListAsync(ct));
-        db.BoardRequirementDropSnapshots.RemoveRange(await db.BoardRequirementDropSnapshots.Where(x => oldSnapshotIds.Contains(x.RequirementId)).ToListAsync(ct));
-        db.BoardRequirementSnapshots.RemoveRange(oldSnapshots);
-        await db.SaveChangesAsync(ct);
-
-        var estimates = new List<decimal?>();
-        for (var index = 0; index < TileDraft.Requirements.Count; index++)
-        {
-            var input = TileDraft.Requirements[index];
-            var requirement = new TileTemplateRequirement(Guid.NewGuid(), template.Id, index + 1, input.Target, input.DuplicatesAllowed, input.HasHigherWeights, requirementDescriptions[index], input.IsManual);
-            db.TileTemplateRequirements.Add(requirement);
-            foreach (var bossId in input.BossIds.Distinct()) db.TemplateRequirementBosses.Add(new TemplateRequirementBoss(Guid.NewGuid(), requirement.Id, bossId));
-            foreach (var dropId in input.DropIds.Distinct()) db.TemplateRequirementDrops.Add(new TemplateRequirementDrop(Guid.NewGuid(), requirement.Id, dropId, input.DuplicatesAllowed ? null : 1, input.WeightFor(dropId)));
-
-            var snapshot = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, index + 1, input.Target, input.DuplicatesAllowed, input.HasHigherWeights, requirementDescriptions[index], input.IsManual);
-            db.BoardRequirementSnapshots.Add(snapshot);
-            foreach (var boss in selectedBosses.Where(x => input.BossIds.Contains(x.Id))) db.BoardRequirementBossSnapshots.Add(new BoardRequirementBossSnapshot(Guid.NewGuid(), snapshot.Id, boss.Id, boss.Name, boss.EfficientCompletionsPerHour));
-            var selectedDrops = await (from drop in db.SourceDrops where input.DropIds.Contains(drop.Id) join boss in db.BossActivities on drop.BossActivityId equals boss.Id join item in db.CatalogueItems on drop.ItemId equals item.Id select new { drop, boss, item }).ToListAsync(ct);
-            foreach (var value in selectedDrops) db.BoardRequirementDropSnapshots.Add(new BoardRequirementDropSnapshot(Guid.NewGuid(), snapshot.Id, value.drop.Id, value.drop.ItemId, value.boss.Name, value.item.Name, value.drop.DisplayRate, value.drop.NumericProbability, input.DuplicatesAllowed ? null : 1, value.drop.DefaultEhbEstimate, input.WeightFor(value.drop.Id)));
-            estimates.Add(input.IsManual ? null : EhbCalculator.CalculateDropRequirement(input.Target, selectedDrops.Select(x => new EligibleDropRate(x.boss.EfficientCompletionsPerHour, x.drop.NumericProbability, x.drop.ItemId, x.boss.Id, input.WeightFor(x.drop.Id), x.drop.RollsPerCompletion, x.drop.RollGroup)), input.DuplicatesAllowed));
-        }
-        var ehb = EhbCalculator.SumRequirements(estimates, TileDraft.ManualEhb);
-        board.SetTotalEhb(Math.Max(0, board.TotalEhbEstimate - tile.EstimatedEhbSnapshot + ehb));
-        tile.UpdateContent(name, description, string.Empty, ehb);
-        await ReplaceTileImageAsync(id, tile, ct);
-        await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct); await WriteAudit("board.tile_edited", board.Id, name, ct);
-        SetSuccessIfMissing(Localize("Tile updated."));
-        TempData["BoardTileOutcome"] = "committed";
-        return RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnPostMoveAsync(Guid id, Guid sourceId, int targetPosition, CancellationToken ct)
@@ -272,11 +358,14 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (!isInlineRequest) SetSuccessIfMissing(message);
             return isInlineRequest ? MoveSuccess(board.Version, message) : RedirectToPage(new { id });
         }
+        var before = new { source = TilePositionAuditState(source), target = target is null ? null : TilePositionAuditState(target) };
         var oldRow = source.RowIndex; var oldColumn = source.ColumnIndex;
         source.Move(-1, -1); await db.SaveChangesAsync(ct);
         if (target is not null) { target.Move(oldRow, oldColumn); await db.SaveChangesAsync(ct); }
-        source.Move(targetRow, targetColumn); await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
-        await WriteAudit(target is null ? "board.tile_moved" : "board.tiles_swapped", board.Id, source.NameSnapshot, ct);
+        source.Move(targetRow, targetColumn);
+        await WriteAudit(target is null ? "board.tile_moved" : "board.tiles_swapped", board, before, new { source = TilePositionAuditState(source), target = target is null ? null : TilePositionAuditState(target) }, ct);
+        await transaction.CommitAsync(ct);
+        await collaboration.NotifyBoardChangedAsync(id, ct);
         var successMessage = Localize("Tile moved.");
         if (!isInlineRequest) SetSuccessIfMissing(successMessage);
         return isInlineRequest ? MoveSuccess(board.Version, successMessage) : RedirectToPage(new { id });
@@ -289,9 +378,12 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         try
         {
             if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id });
+            var before = new { board.Rows, board.Columns, tiles = TileLayoutAuditState(tiles) };
             board.Resize(Rows, Columns, tiles.Count); if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id }); for (var i = 0; i < tiles.Count; i++) tiles[i].Move(-1, -i - 1); await db.SaveChangesAsync(ct);
-            for (var i = 0; i < tiles.Count; i++) tiles[i].Move(i / Columns, i % Columns); await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
-            await WriteAudit("board.resized", board.Id, $"{Rows}x{Columns}", ct);
+            for (var i = 0; i < tiles.Count; i++) tiles[i].Move(i / Columns, i % Columns);
+            await WriteAudit("board.resized", board, before, new { board.Rows, board.Columns, tiles = TileLayoutAuditState(tiles) }, ct);
+            await transaction.CommitAsync(ct);
+            await collaboration.NotifyBoardChangedAsync(id, ct);
         }
         catch (InvalidOperationException) { SetStatus(Localize("The board change could not be saved."), UiMessageType.Warning); }
         SetSuccessIfMissing(Localize("Board resized to {0}x{1}.", Rows, Columns));
@@ -300,12 +392,14 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
 
     public async Task<IActionResult> OnPostTeamSizeAsync(Guid id, int expectedTeamSize, CancellationToken ct)
     {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
         if (expectedTeamSize is < 1 or > 100) { SetStatus(Localize("Expected team size must be between 1 and 100."), UiMessageType.Warning); return RedirectToPage(new { id }); }
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
         if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
         var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (bingoEvent is null) return NotFound();
+        var before = new { bingoEvent.ExpectedTeamSize };
         bingoEvent.ConfigurePlanning(bingoEvent.PublicRules, bingoEvent.BuyInDescription, bingoEvent.PrizeDescription, bingoEvent.ExpectedTeamCount, expectedTeamSize, bingoEvent.ExpectedBoardRows, bingoEvent.ExpectedBoardColumns);
-        await db.SaveChangesAsync(ct); await WriteAudit("board.expected_team_size_changed", board.Id, expectedTeamSize.ToString(CultureInfo.InvariantCulture), ct); SetStatus(Localize("Expected team size updated."), UiMessageType.Success); return RedirectToPage(new { id });
+        await WriteAudit("board.expected_team_size_changed", board, before, new { bingoEvent.ExpectedTeamSize }, ct); await transaction.CommitAsync(ct); await collaboration.NotifyBoardChangedAsync(id, ct); SetStatus(Localize("Expected team size updated."), UiMessageType.Success); return RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnPostPublishAsync(Guid id, bool confirmed, CancellationToken ct)
@@ -390,15 +484,179 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         return RedirectToPage(new { id });
     }
 
-    public async Task<IActionResult> OnPostApproveAsync(Guid id, bool confirmed, CancellationToken ct)
+    public async Task<IActionResult> OnPostDiscardCorrectionAsync(Guid id, bool confirmed, CancellationToken ct)
     {
+        if (!confirmed)
+        {
+            SetStatus(Localize("Confirm discarding all unpublished board edits before continuing."), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
-            var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct);
+            var bingoEvent = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {id} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct);
+            var board = await db.Boards.FromSqlInterpolated($"SELECT * FROM boards WHERE event_id = {id} FOR UPDATE").SingleOrDefaultAsync(ct);
+            if (board is null || bingoEvent is null) return NotFound();
+            if (board.Version != BoardVersion)
+            {
+                SetStatus(Localize("This board changed after you opened it. Reload before discarding the correction."), UiMessageType.Warning);
+                return RedirectToPage(new { id });
+            }
+            bingoEvent.EnsurePublishedBoardCorrectionAllowed();
+            board.RequireEditing(AdminId, time.GetUtcNow());
+            if (board.State != BoardState.Published || !board.PublishedCorrectionInProgress || board.ActiveApprovalSnapshotId is not { } approvalId)
+                throw new InvalidOperationException("An open published correction is required.");
+            var published = await db.ApprovalObjectivesAsync(board.Id, approvalId, ct)
+                ?? throw new InvalidOperationException("The current publication cannot be restored.");
+            await RestorePublishedWorkingCopyAsync(board, published, ct);
+            board.DiscardPublishedCorrection(published.Approval);
+            AddBoardAudit("board.published_correction_discarded", board, "Private correction", "Discarded all unpublished board edits after explicit confirmation.",
+                $"{{\"activeApprovalSnapshotId\":\"{approvalId}\",\"workingCopy\":true}}",
+                $"{{\"activeApprovalSnapshotId\":\"{approvalId}\",\"workingCopy\":false,\"confirmed\":true}}");
+            await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+        }
+        catch (Exception exception) when (IsApprovalConflict(exception) || exception is InvalidOperationException or DbUpdateException or IOException)
+        {
+            await transaction.RollbackAsync(ct);
+            db.ChangeTracker.Clear();
+            SetStatus(Localize("The private correction could not be discarded. No changes were saved. Reload and try again; if required published data or artwork is unavailable, contact an administrator."), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
+        SetStatus(Localize("Private correction discarded. All unpublished board edits were removed and the working board was restored to the current publication."), UiMessageType.Success);
+        await collaboration.NotifyBoardChangedAsync(id, ct);
+        return RedirectToPage(new { id });
+    }
+
+    private async Task RestorePublishedWorkingCopyAsync(Board board, PublishedBoardData published, CancellationToken ct)
+    {
+        var approvalTiles = await db.BoardApprovalTileSnapshots.AsNoTracking().Where(x => x.ApprovalSnapshotId == published.Approval.Id).ToListAsync(ct);
+        var approvalTileIds = approvalTiles.Select(x => x.Id).ToList();
+        var approvalRequirements = await db.BoardApprovalRequirementSnapshots.AsNoTracking().Where(x => approvalTileIds.Contains(x.ApprovalTileSnapshotId)).ToListAsync(ct);
+        var approvalRequirementIds = approvalRequirements.Select(x => x.Id).ToList();
+        var bosses = await db.BoardApprovalRequirementBossSnapshots.AsNoTracking().Where(x => approvalRequirementIds.Contains(x.ApprovalRequirementSnapshotId)).ToListAsync(ct);
+        var drops = await db.BoardApprovalRequirementDropSnapshots.AsNoTracking().Where(x => approvalRequirementIds.Contains(x.ApprovalRequirementSnapshotId)).ToListAsync(ct);
+        var sourceIds = drops.Select(x => x.SourceDropId).ToList();
+        var sourceBossIds = await db.SourceDrops.AsNoTracking().Where(x => sourceIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.BossActivityId, ct);
+        var restoredTileIds = published.Tiles.Select(x => x.Id).ToList();
+        var templateIds = published.Tiles.Select(x => x.TileTemplateId).ToList();
+        var templates = await db.TileTemplates.Where(x => templateIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
+        if (templates.Count != templateIds.Count || await db.BoardTiles.AnyAsync(x => templateIds.Contains(x.TileTemplateId) && !restoredTileIds.Contains(x.Id), ct))
+            throw new InvalidOperationException("A published template is missing or shared with another tile.");
+        var tiles = await db.BoardTiles.Where(x => x.BoardId == board.Id || restoredTileIds.Contains(x.Id)).ToListAsync(ct);
+        if (tiles.Any(x => x.BoardId != board.Id)) throw new InvalidOperationException("A published tile identity belongs to another board.");
+        var workingTileIds = tiles.Select(x => x.Id).ToList();
+        var restoredRequirementIds = published.Requirements.Select(x => x.Id).ToList();
+        var requirements = await db.BoardRequirementSnapshots.Where(x => workingTileIds.Contains(x.BoardTileId) || restoredRequirementIds.Contains(x.Id)).ToListAsync(ct);
+        if (requirements.Any(x => !workingTileIds.Contains(x.BoardTileId) && !restoredTileIds.Contains(x.BoardTileId)))
+            throw new InvalidOperationException("A published objective identity belongs to another board.");
+        var workingRequirementIds = requirements.Select(x => x.Id).ToList();
+        var images = await db.BoardTileImageAssets.Where(x => workingTileIds.Contains(x.BoardTileId) || restoredTileIds.Contains(x.BoardTileId)).ToListAsync(ct);
+        var restoredImages = new Dictionary<Guid, BoardTileImageAsset>();
+        foreach (var tile in approvalTiles.Where(x => x.ArtworkReference != null))
+        {
+            var matches = images.Where(x => x.EventId == board.EventId && x.BoardTileId == tile.BoardTileId && x.StorageKey == tile.ArtworkReference).ToList();
+            if (matches.Count != 1) throw new InvalidOperationException("Published artwork is missing or ambiguous.");
+            try
+            {
+                await using var content = await storage.OpenReadAsync(matches[0].StorageKey, ct);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or Amazon.Runtime.AmazonServiceException or HttpRequestException)
+            {
+                throw new InvalidOperationException("Required published artwork could not be read.", exception);
+            }
+            restoredImages.Add(tile.BoardTileId, matches[0]);
+        }
+        // Only private additions may be removed here. Retained historical artwork
+        // must never be deleted to make a restoration fit the working rows.
+        var extraImages = images.Where(x => !restoredTileIds.Contains(x.BoardTileId)).ToList();
+        var extraKeys = extraImages.Select(x => x.StorageKey).ToList();
+        if (await db.BoardApprovalTileSnapshots.AnyAsync(x => x.ArtworkReference != null && extraKeys.Contains(x.ArtworkReference), ct))
+            throw new InvalidOperationException("A private tile still owns published artwork.");
+        var manualEstimates = new Dictionary<Guid, decimal?>();
+        foreach (var tile in approvalTiles)
+        {
+            var estimates = new List<decimal?>();
+            foreach (var requirement in approvalRequirements.Where(x => x.ApprovalTileSnapshotId == tile.Id))
+            {
+                if (requirement.ManualObjective) { estimates.Add(null); continue; }
+                var rates = new List<EligibleDropRate>();
+                foreach (var drop in drops.Where(x => x.ApprovalRequirementSnapshotId == requirement.Id))
+                {
+                    if (!sourceBossIds.TryGetValue(drop.SourceDropId, out var bossId)) throw new InvalidOperationException("A published drop association is missing.");
+                    var matches = bosses.Where(x => x.ApprovalRequirementSnapshotId == requirement.Id && x.BossActivityId == bossId).ToList();
+                    if (matches.Count != 1) throw new InvalidOperationException("A published boss association is missing or ambiguous.");
+                    rates.Add(new(matches[0].EfficientRate, drop.NumericProbability, drop.ItemIdSnapshot, bossId, drop.CreditedWeight, drop.RollsPerCompletion, drop.RollGroup));
+                }
+                if (rates.Count == 0) throw new InvalidOperationException("Published drop rules are missing.");
+                estimates.Add(EhbCalculator.CalculateDropRequirement(requirement.TargetContribution, rates, requirement.DuplicatesAllowed));
+            }
+            if (estimates.Count == 0) throw new InvalidOperationException("Published objectives are missing.");
+            // Approval stores the effective EHB, not whether an equal manual override
+            // was entered. Restore that frozen value without consulting live rates.
+            manualEstimates.Add(tile.BoardTileId, estimates.Any(x => x == null) || EhbCalculator.SumRequirements(estimates) != tile.EstimatedEhb ? tile.EstimatedEhb : null);
+        }
+        if (approvalTiles.Count != published.Approval.Rows * published.Approval.Columns || approvalTiles.Any(x => x.RowIndex < 0 || x.RowIndex >= published.Approval.Rows || x.ColumnIndex < 0 || x.ColumnIndex >= published.Approval.Columns))
+            throw new InvalidOperationException("Published board positions are incomplete.");
+
+        // Vacate occupied positions before restoring exact tile identities/positions.
+        foreach (var tile in tiles) { tile.Move(-1, -tiles.IndexOf(tile) - 1); tile.SetActiveImageAsset(null); }
+        db.BoardTileImageAssets.RemoveRange(extraImages);
+        await db.SaveChangesAsync(ct);
+        db.BoardTiles.RemoveRange(tiles.Where(x => !restoredTileIds.Contains(x.Id)));
+        db.BoardRequirementSnapshots.RemoveRange(requirements.Where(x => !restoredRequirementIds.Contains(x.Id)));
+        db.BoardRequirementBossSnapshots.RemoveRange(await db.BoardRequirementBossSnapshots.Where(x => workingRequirementIds.Contains(x.RequirementId) || restoredRequirementIds.Contains(x.RequirementId)).ToListAsync(ct));
+        var retainedDropRequirements = await db.BoardApprovalRequirementSnapshots.Where(x => workingRequirementIds.Contains(x.BoardRequirementSnapshotId)).Select(x => x.BoardRequirementSnapshotId).ToListAsync(ct);
+        db.BoardRequirementDropSnapshots.RemoveRange(await db.BoardRequirementDropSnapshots.Where(x => workingRequirementIds.Contains(x.RequirementId) && !retainedDropRequirements.Contains(x.RequirementId)).ToListAsync(ct));
+        var templateRequirements = await db.TileTemplateRequirements.Where(x => templateIds.Contains(x.TileTemplateId)).ToListAsync(ct);
+        var oldTemplateIds = templateRequirements.Select(x => x.Id).ToList();
+        db.TemplateRequirementBosses.RemoveRange(await db.TemplateRequirementBosses.Where(x => oldTemplateIds.Contains(x.RequirementId)).ToListAsync(ct));
+        db.TemplateRequirementDrops.RemoveRange(await db.TemplateRequirementDrops.Where(x => oldTemplateIds.Contains(x.RequirementId)).ToListAsync(ct));
+        db.TileTemplateRequirements.RemoveRange(templateRequirements);
+        await db.SaveChangesAsync(ct);
+        foreach (var tile in published.Tiles)
+        {
+            var restored = tiles.SingleOrDefault(x => x.Id == tile.Id);
+            if (restored is null) { restored = tile; db.BoardTiles.Add(restored); }
+            else db.Entry(restored).CurrentValues.SetValues(tile);
+            if (restoredImages.TryGetValue(tile.Id, out var image)) { image.Restore(); restored.SetActiveImageAsset(image.Id); }
+            foreach (var imageToRetire in images.Where(x => x.BoardTileId == tile.Id && x.Id != restored.ActiveImageAssetId)) imageToRetire.Replace(time.GetUtcNow());
+            var tileRequirements = published.Requirements.Where(x => x.BoardTileId == tile.Id).ToList();
+            templates[tile.TileTemplateId].Update(tile.NameSnapshot, tile.DescriptionSnapshot, tileRequirements.All(x => x.ManualObjective) ? ObjectiveType.Manual : ObjectiveType.DropRequirements, tile.EvidenceInstructionsSnapshot, manualEstimates[tile.Id]);
+            foreach (var requirement in tileRequirements)
+            {
+                var restoredRequirement = requirements.SingleOrDefault(x => x.Id == requirement.Id);
+                if (restoredRequirement is null) db.BoardRequirementSnapshots.Add(requirement);
+                else db.Entry(restoredRequirement).CurrentValues.SetValues(requirement);
+                var templateRequirement = new TileTemplateRequirement(Guid.NewGuid(), tile.TileTemplateId, requirement.Position, requirement.TargetContribution, requirement.DuplicatesAllowed, requirement.AllowHigherWeightings, requirement.Description, requirement.ManualObjective);
+                db.TileTemplateRequirements.Add(templateRequirement);
+                var approvalRequirement = approvalRequirements.Single(x => x.BoardRequirementSnapshotId == requirement.Id);
+                foreach (var boss in bosses.Where(x => x.ApprovalRequirementSnapshotId == approvalRequirement.Id))
+                {
+                    db.BoardRequirementBossSnapshots.Add(new(Guid.NewGuid(), requirement.Id, boss.BossActivityId, boss.Name, boss.EfficientRate));
+                    db.TemplateRequirementBosses.Add(new(Guid.NewGuid(), templateRequirement.Id, boss.BossActivityId));
+                }
+                foreach (var drop in published.Drops.Where(x => x.RequirementId == requirement.Id))
+                {
+                    var retained = await db.BoardRequirementDropSnapshots.SingleAsync(x => x.Id == drop.Id, ct);
+                    db.Entry(retained).CurrentValues.SetValues(drop);
+                    db.TemplateRequirementDrops.Add(new(Guid.NewGuid(), templateRequirement.Id, drop.SourceDropId, drop.MaximumContribution, drop.CreditedWeight));
+                }
+            }
+        }
+    }
+
+    public async Task<IActionResult> OnPostApproveAsync(Guid id, bool confirmed, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        var approved = false;
+        var publishingCorrection = false;
+        try
+        {
             var bingoEvent = await db.Events
                 .FromSqlInterpolated($"SELECT * FROM events WHERE id = {id} AND hidden_at IS NULL FOR UPDATE")
                 .SingleOrDefaultAsync(ct);
+            var board = await db.Boards.FromSqlInterpolated($"SELECT * FROM boards WHERE event_id = {id} FOR UPDATE").SingleOrDefaultAsync(ct);
             if (board is null || bingoEvent is null) return NotFound();
             if (board.Version != BoardVersion)
             {
@@ -407,7 +665,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             }
             board.RequireEditing(AdminId, time.GetUtcNow());
 
-            var publishingCorrection = board.State == BoardState.Published && board.PublishedCorrectionInProgress;
+            publishingCorrection = board.State == BoardState.Published && board.PublishedCorrectionInProgress;
             if (publishingCorrection)
             {
                 if (!confirmed)
@@ -433,20 +691,41 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                     : $"{{\"state\":\"Validated\",\"activeApprovalSnapshotId\":\"{snapshot.Id}\",\"approvalVersion\":{snapshot.Version}}}");
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
-            await collaboration.NotifyBoardChangedAsync(id, ct);
-            SetStatus(publishingCorrection
-                ? Localize("Corrected board published as a replacement snapshot. The prior public snapshot remains in history.")
-                : Localize("Board approved privately. Publication remains a separate later action."), UiMessageType.Success);
+            approved = true;
         }
         catch (Exception exception) when (IsApprovalConflict(exception))
         {
             db.ChangeTracker.Clear();
             SetStatus(Localize("The board or catalogue changed while approval was being prepared. No approval was saved; reload and try again."), UiMessageType.Warning);
         }
-        catch (InvalidOperationException)
+        catch (BoardApprovalValidationException exception)
         {
             db.ChangeTracker.Clear();
-            SetStatus(Localize("The board approval could not be changed."), UiMessageType.Warning);
+            SetStatus(Localize(exception.ResourceKey, exception.Arguments), UiMessageType.Warning);
+        }
+        catch (InvalidOperationException exception)
+        {
+            db.ChangeTracker.Clear();
+            SetStatus(Localize(exception.Message is "Submitted evidence now references an objective changed or removed by this correction. The active publication has been preserved." or
+                "A tile with submitted evidence cannot change its scoring. The active publication has been preserved." or
+                "The active publication has unavailable objective identities. No replacement was published."
+                ? exception.Message : "The board approval could not be changed."), UiMessageType.Warning);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            db.ChangeTracker.Clear();
+            SetStatus(Localize("The board approval could not be changed."), UiMessageType.Error);
+        }
+        if (approved)
+        {
+            SetStatus(publishingCorrection
+                ? Localize("Corrected board published as a replacement snapshot. The prior public snapshot remains in history.")
+                : Localize("Board approved privately. Publication remains a separate later action."), UiMessageType.Success);
+            try { await collaboration.NotifyBoardChangedAsync(id, ct); }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                SetStatus(Localize("Board approval was saved, but the live update could not be sent. Reload to see the current board."), UiMessageType.Warning);
+            }
         }
         return RedirectToPage(new { id });
     }
@@ -490,40 +769,94 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     private async Task<BoardApprovalSnapshot> CreateApprovalSnapshotAsync(Board board, CancellationToken ct, bool allowPublished = false)
     {
         if (board.State != BoardState.Draft && !(allowPublished && board.State == BoardState.Published && board.PublishedCorrectionInProgress))
-            throw new InvalidOperationException("Only an unapproved private board can be approved.");
+            throw new BoardApprovalValidationException("Only an unapproved private board can be approved.");
 
         var tiles = await db.BoardTiles.Where(x => x.BoardId == board.Id).OrderBy(x => x.RowIndex).ThenBy(x => x.ColumnIndex).ToListAsync(ct);
         if (tiles.Count != board.Rows * board.Columns)
-            throw new InvalidOperationException("Fill every board position before approving the board.");
+            throw new BoardApprovalValidationException("Fill every board position before approving the board.");
         if (tiles.Select(x => (x.RowIndex, x.ColumnIndex)).Distinct().Count() != tiles.Count)
-            throw new InvalidOperationException("The board has conflicting tile positions. Reload and correct the layout before approving it.");
+            throw new BoardApprovalValidationException("The board has conflicting tile positions. Reload and correct the layout before approving it.");
 
         var tileIds = tiles.Select(x => x.Id).ToList();
         var requirements = await db.BoardRequirementSnapshots.Where(x => tileIds.Contains(x.BoardTileId)).OrderBy(x => x.Position).ToListAsync(ct);
         if (tiles.Any(tile => requirements.All(requirement => requirement.BoardTileId != tile.Id)))
-            throw new InvalidOperationException("Every board tile needs at least one objective before approval.");
+            throw new BoardApprovalValidationException("Every board tile needs at least one objective before approval.");
 
         var templateIds = tiles.Select(x => x.TileTemplateId).Distinct().ToList();
         var templates = await db.TileTemplates.Where(x => templateIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
         if (templates.Count != templateIds.Count)
-            throw new InvalidOperationException("A tile definition is no longer available. Reload the board before approval.");
+            throw new BoardApprovalValidationException("A tile definition is no longer available. Reload the board before approval.");
 
         var requirementIds = requirements.Select(x => x.Id).ToList();
         var requirementBosses = await db.BoardRequirementBossSnapshots.Where(x => requirementIds.Contains(x.RequirementId)).ToListAsync(ct);
         var requirementDrops = await db.BoardRequirementDropSnapshots.Where(x => requirementIds.Contains(x.RequirementId)).ToListAsync(ct);
-        var bossIds = requirementBosses.Select(x => x.BossActivityId).Distinct().ToList();
-        var currentBosses = await db.BossActivities.Where(x => bossIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
-        if (currentBosses.Count != bossIds.Count || currentBosses.Values.Any(x => !x.Active))
-            throw new InvalidOperationException("A referenced boss or activity is no longer active. Correct the board before approval.");
+        var evidenced = await db.EvidencedObjectiveIdsAsync(board.EventId, ct);
+        var prior = allowPublished && board.ActiveApprovalSnapshotId is { } activeId
+            ? await db.ApprovalObjectivesAsync(board.Id, activeId, ct) : null;
+        if (allowPublished && prior is null) throw new InvalidOperationException("The active publication has unavailable objective identities. No replacement was published.");
+        if (prior is not null)
+        {
+            foreach (var requirementId in evidenced)
+            {
+                var old = prior.Requirements.SingleOrDefault(x => x.Id == requirementId);
+                var current = requirements.SingleOrDefault(x => x.Id == requirementId);
+                if (old is null || current is null || old.BoardTileId != current.BoardTileId ||
+                    !old.HasSameRules(current.TargetContribution, current.DuplicatesAllowed, current.AllowHigherWeightings, current.ManualObjective, current.CreditedWeight) ||
+                    !SameDropRules(prior.Drops.Where(x => x.RequirementId == requirementId), requirementDrops.Where(x => x.RequirementId == requirementId)))
+                    throw new InvalidOperationException("Submitted evidence now references an objective changed or removed by this correction. The active publication has been preserved.");
+            }
+        }
+        if (prior is not null)
+        {
+            foreach (var current in requirements)
+            {
+                var old = prior.Requirements.SingleOrDefault(x => x.Id == current.Id);
+                if (old is not null && (old.BoardTileId != current.BoardTileId ||
+                    !old.HasSameRules(current.TargetContribution, current.DuplicatesAllowed, current.AllowHigherWeightings, current.ManualObjective, current.CreditedWeight) ||
+                    !SameDropRules(prior.Drops.Where(x => x.RequirementId == current.Id), requirementDrops.Where(x => x.RequirementId == current.Id))))
+                    throw new InvalidOperationException("An approved objective identity cannot be reused for different rules.");
+            }
+        }
+        var priorRequirementIds = prior?.Requirements.Select(x => x.Id).ToHashSet() ?? [];
+        var priorApprovalRequirements = prior is null ? [] : await db.BoardApprovalRequirementSnapshots.Where(x => priorRequirementIds.Contains(x.BoardRequirementSnapshotId))
+            .Join(db.BoardApprovalTileSnapshots.Where(x => x.ApprovalSnapshotId == prior.Approval.Id), x => x.ApprovalTileSnapshotId, x => x.Id, (x, _) => x).ToListAsync(ct);
+        var priorSnapshotIds = priorApprovalRequirements.Select(x => x.Id).ToList();
+        var priorBosses = await db.BoardApprovalRequirementBossSnapshots.Where(x => priorSnapshotIds.Contains(x.ApprovalRequirementSnapshotId)).ToListAsync(ct);
+        var priorDrops = await db.BoardApprovalRequirementDropSnapshots.Where(x => priorSnapshotIds.Contains(x.ApprovalRequirementSnapshotId)).ToListAsync(ct);
+        foreach (var locked in priorApprovalRequirements.Where(x => requirementIds.Contains(x.BoardRequirementSnapshotId)))
+        {
+            if (!priorBosses.Where(x => x.ApprovalRequirementSnapshotId == locked.Id).Select(x => x.BossActivityId).ToHashSet()
+                .SetEquals(requirementBosses.Where(x => x.RequirementId == locked.BoardRequirementSnapshotId).Select(x => x.BossActivityId)))
+                throw new InvalidOperationException("An objective with submitted evidence cannot change its eligible sources.");
+        }
+        var requiredCurrentBossIds = requirementBosses.Where(x => !priorRequirementIds.Contains(x.RequirementId)).Select(x => x.BossActivityId).Distinct().ToArray();
+        var bossIds = requirementBosses.Select(x => x.BossActivityId).Distinct().ToArray();
+        var currentBosses = await db.BossActivities
+            .FromSqlInterpolated($"SELECT * FROM boss_activities WHERE id = ANY({bossIds}) ORDER BY id FOR SHARE")
+            .AsNoTracking().ToDictionaryAsync(x => x.Id, ct);
+        if (requiredCurrentBossIds.Any(id => !currentBosses.TryGetValue(id, out var boss) || !boss.Active))
+            throw new BoardApprovalValidationException("A referenced boss or activity is no longer active. Correct the board before approval.");
 
-        var dropIds = requirementDrops.Select(x => x.SourceDropId).Distinct().ToList();
-        var currentDrops = await (from drop in db.SourceDrops
-                                  join boss in db.BossActivities on drop.BossActivityId equals boss.Id
-                                  join item in db.CatalogueItems on drop.ItemId equals item.Id
+        var requiredCurrentDropIds = requirementDrops.Where(x => !priorRequirementIds.Contains(x.RequirementId)).Select(x => x.SourceDropId).Distinct().ToArray();
+        var dropIds = requirementDrops.Select(x => x.SourceDropId).Distinct().ToArray();
+        // Lock all referenced catalogue rows until the approval transaction commits.
+        // Serializable detects changes since its snapshot; SHARE prevents later writes.
+        var lockedDrops = db.SourceDrops.FromSqlInterpolated($"""
+            SELECT d.* FROM source_drops AS d
+            JOIN boss_activities AS b ON d.boss_activity_id = b.id
+            JOIN catalogue_items AS i ON d.item_id = i.id
+            WHERE d.id = ANY({dropIds}) ORDER BY d.id FOR SHARE OF d, b, i
+            """).AsNoTracking();
+        var currentDrops = await (from drop in lockedDrops
+                                  join boss in db.BossActivities.AsNoTracking() on drop.BossActivityId equals boss.Id
+                                  join item in db.CatalogueItems.AsNoTracking() on drop.ItemId equals item.Id
                                   where dropIds.Contains(drop.Id)
                                   select new ApprovalLiveDrop(drop, boss, item)).ToDictionaryAsync(x => x.Drop.Id, ct);
-        if (currentDrops.Count != dropIds.Count || currentDrops.Values.Any(x => !x.Drop.Active || !x.Boss.Active || !x.Item.Active))
-            throw new InvalidOperationException("A referenced catalogue drop is no longer active. Correct the board before approval.");
+        if (requiredCurrentDropIds.Any(id => !currentDrops.TryGetValue(id, out var drop) || !drop.Drop.Active || !drop.Boss.Active || !drop.Item.Active))
+            throw new BoardApprovalValidationException("A referenced catalogue drop is no longer active. Correct the board before approval.");
+
+        if (!string.Equals(ApprovalCatalogueFingerprint, CatalogueFingerprint(currentBosses.Values, currentDrops.Values), StringComparison.Ordinal))
+            throw new BoardApprovalValidationException("The catalogue changed after you opened this board. Reload and review the current values before approving it.");
 
         var images = await db.BoardTileImageAssets.Where(x => tileIds.Contains(x.BoardTileId) && x.ReplacedAt == null).ToListAsync(ct);
         var imagesById = images.ToDictionary(x => x.Id);
@@ -538,16 +871,38 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (tile.ActiveImageAssetId is { } imageId)
             {
                 if (!imagesById.TryGetValue(imageId, out var image) || image.EventId != board.EventId || image.BoardTileId != tile.Id)
-                    throw new InvalidOperationException("A managed tile image no longer belongs to this event. Correct the tile before approval.");
+                    throw new BoardApprovalValidationException("A managed tile image no longer belongs to this event. Correct the tile before approval.");
                 artwork = image.StorageKey;
             }
             var approvalTile = new BoardApprovalTileSnapshot(Guid.NewGuid(), approval.Id, tile.Id, tile.TileTemplateId, tile.RowIndex, tile.ColumnIndex, tile.NameSnapshot, tile.DescriptionSnapshot, string.Empty, 0m, artwork);
             db.BoardApprovalTileSnapshots.Add(approvalTile);
+            var tileRequirements = requirements.Where(x => x.BoardTileId == tile.Id).OrderBy(x => x.Position).ToList();
+            if (tileRequirements.Select(x => x.ManualObjective).Distinct().Count() > 1)
+                throw new BoardApprovalValidationException("Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind.");
+            var template = templates[tile.TileTemplateId];
+            var manualTile = tileRequirements.All(x => x.ManualObjective);
+            if ((template.ObjectiveType == ObjectiveType.Manual) != manualTile)
+                throw new BoardApprovalValidationException("The tile kind does not match its objectives. Edit and save the tile with one objective kind before approval.");
             var tileEstimates = new List<decimal?>();
-            foreach (var requirement in requirements.Where(x => x.BoardTileId == tile.Id).OrderBy(x => x.Position))
+            foreach (var requirement in tileRequirements)
             {
                 var approvalRequirement = new BoardApprovalRequirementSnapshot(Guid.NewGuid(), approvalTile.Id, requirement.Id, requirement.Position, requirement.TargetContribution, requirement.DuplicatesAllowed, requirement.AllowHigherWeightings, requirement.CreditedWeight, requirement.Description, requirement.ManualObjective);
                 db.BoardApprovalRequirementSnapshots.Add(approvalRequirement);
+                if (priorRequirementIds.Contains(requirement.Id))
+                {
+                    var previous = priorApprovalRequirements.Single(x => x.BoardRequirementSnapshotId == requirement.Id);
+                    var bosses = priorBosses.Where(x => x.ApprovalRequirementSnapshotId == previous.Id).ToList();
+                    var drops = priorDrops.Where(x => x.ApprovalRequirementSnapshotId == previous.Id).ToList();
+                    foreach (var boss in bosses) db.BoardApprovalRequirementBossSnapshots.Add(new(Guid.NewGuid(), approvalRequirement.Id, boss.BossActivityId, boss.Name, boss.EfficientRate, boss.CatalogueVersion));
+                    foreach (var drop in drops) db.BoardApprovalRequirementDropSnapshots.Add(new(Guid.NewGuid(), approvalRequirement.Id, drop.SourceDropId, drop.ItemIdSnapshot, drop.BossName, drop.ItemName, drop.DisplayRate, drop.NumericProbability, drop.MaximumContribution, drop.EhbPerContribution, drop.CreditedWeight, drop.CatalogueVersion, drop.ProbabilityScope, drop.ConditionalOnParent, drop.ParentProbability, drop.AssumedParticipants, drop.RollsPerCompletion, drop.RollGroup, drop.RateCondition));
+                    var identityBosses = await db.SourceDrops.AsNoTracking().Where(x => drops.Select(d => d.SourceDropId).Contains(x.Id)).Select(x => new { x.Id, x.BossActivityId }).ToDictionaryAsync(x => x.Id, ct);
+                    tileEstimates.Add(requirement.ManualObjective ? null : EhbCalculator.CalculateDropRequirement(requirement.TargetContribution, drops.Select(drop =>
+                    {
+                        var boss = bosses.Single(x => x.BossActivityId == identityBosses[drop.SourceDropId].BossActivityId);
+                        return new EligibleDropRate(boss.EfficientRate, drop.NumericProbability, drop.ItemIdSnapshot, boss.BossActivityId, drop.CreditedWeight, drop.RollsPerCompletion, drop.RollGroup);
+                    }), requirement.DuplicatesAllowed));
+                    continue;
+                }
                 foreach (var requirementBoss in requirementBosses.Where(x => x.RequirementId == requirement.Id))
                 {
                     var currentBoss = currentBosses[requirementBoss.BossActivityId];
@@ -558,12 +913,12 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                 if (!requirement.ManualObjective && !requirement.DuplicatesAllowed) EnsureConsistentItemCaps(frozenDrops);
                 var selectedDrops = frozenDrops.Select(x => currentDrops[x.SourceDropId]).ToList();
                 if (!requirement.ManualObjective && selectedDrops.Count == 0)
-                    throw new InvalidOperationException("Every catalogue objective needs an active eligible drop before approval.");
+                    throw new BoardApprovalValidationException("Every catalogue objective needs an active eligible drop before approval.");
                 foreach (var selected in selectedDrops)
                 {
                     var sourceSnapshot = requirementDrops.Single(x => x.RequirementId == requirement.Id && x.SourceDropId == selected.Drop.Id);
                     if (selected.Drop.ItemId != sourceSnapshot.ItemIdSnapshot)
-                        throw new InvalidOperationException($"Catalogue item identity changed for source drop {selected.Drop.Id}. Retarget the board explicitly before publishing a correction.");
+                        throw new BoardApprovalValidationException("A catalogue item identity changed. Reselect the affected drop in the tile before approving the board.");
                     var approvalDrop = new BoardApprovalRequirementDropSnapshot(Guid.NewGuid(), approvalRequirement.Id, selected.Drop.Id, sourceSnapshot.ItemIdSnapshot, selected.Boss.Name, selected.Item.Name, selected.Drop.DisplayRate, selected.Drop.NumericProbability, sourceSnapshot.MaximumContribution, selected.Drop.DefaultEhbEstimate, sourceSnapshot.CreditedWeight, selected.Drop.Version, selected.Drop.ProbabilityScope, selected.Drop.ConditionalOnParent, selected.Drop.ParentProbability, selected.Drop.AssumedParticipants, selected.Drop.RollsPerCompletion, selected.Drop.RollGroup, selected.Drop.RateConditionNote);
                     db.BoardApprovalRequirementDropSnapshots.Add(approvalDrop);
                 }
@@ -576,9 +931,20 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                         return new EligibleDropRate(drop.Boss.EfficientCompletionsPerHour, drop.Drop.NumericProbability, drop.Drop.ItemId, drop.Boss.Id, snapshot.CreditedWeight, drop.Drop.RollsPerCompletion, drop.Drop.RollGroup);
                     }), requirement.DuplicatesAllowed));
             }
-            var tileEhb = EhbCalculator.SumRequirements(tileEstimates, templates[tile.TileTemplateId].ManualEhbOverride);
+            var tileEhb = EhbCalculator.CalculateTileEstimate(template.ObjectiveType, tileRequirements.Zip(tileEstimates, (requirement, estimate) => (requirement.ManualObjective, estimate)), template.ManualEhbOverride);
+            if (prior is not null && requirements.Any(x => x.BoardTileId == tile.Id && evidenced.Contains(x.Id)))
+            {
+                var priorTile = prior.Tiles.Single(x => x.Id == tile.Id);
+                if (decimal.Round(tileEhb, 4) != priorTile.EstimatedEhbSnapshot ||
+                    requirements.Where(x => x.BoardTileId == tile.Id).Sum(x => (long)x.TargetContribution) !=
+                    prior.Requirements.Where(x => x.BoardTileId == tile.Id).Sum(x => (long)x.TargetContribution))
+                    throw new InvalidOperationException("A tile with submitted evidence cannot change its scoring. The active publication has been preserved.");
+                tileEhb = priorTile.EstimatedEhbSnapshot;
+            }
             if (tileEhb <= 0)
-                throw new InvalidOperationException($"{tile.NameSnapshot} needs authoritative catalogue EHB data or an explicit manual EHB estimate before approval.");
+                throw new BoardApprovalValidationException(manualTile
+                    ? "{0} needs a positive manual EHB estimate. Edit the custom tile before approval."
+                    : "{0} needs automatic EHB. Correct the catalogue rates or drop requirements before approval; a manual estimate cannot replace them.", tile.NameSnapshot);
             db.Entry(approvalTile).Property(x => x.EstimatedEhb).CurrentValue = tileEhb;
             totalEhb += tileEhb;
         }
@@ -605,22 +971,39 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         return true;
     }
 
+    private static bool SameDropRules(IEnumerable<BoardRequirementDropSnapshot> old, IEnumerable<BoardRequirementDropSnapshot> current)
+        => old.Select(x => (x.Id, x.SourceDropId, x.ItemIdSnapshot, x.MaximumContribution, x.CreditedWeight)).ToHashSet()
+            .SetEquals(current.Select(x => (x.Id, x.SourceDropId, x.ItemIdSnapshot, x.MaximumContribution, x.CreditedWeight)));
+
     private static void EnsureConsistentItemCaps(IEnumerable<BoardRequirementDropSnapshot> drops)
     {
         foreach (var itemDrops in drops.GroupBy(x => x.ItemIdSnapshot))
         {
             var caps = itemDrops.Select(x => x.MaximumContribution ?? 1).Distinct().ToList();
-            if (caps.Count != 1) throw new InvalidOperationException($"Catalogue item {itemDrops.Key} has inconsistent alias contribution caps. Correct the requirement before approval.");
+            if (caps.Count != 1) throw new BoardApprovalValidationException("A catalogue item has inconsistent contribution limits across its sources. Correct the requirement before approval.");
         }
     }
 
     private void AddBoardAudit(string action, Board board, string details, string description, string? beforeState, string? afterState) =>
         db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), time.GetUtcNow(), AdminId, User.Identity?.Name ?? "Admin", action, "board", board.Id.ToString(), description, board.EventId, beforeState, afterState));
 
-    private static bool IsApprovalConflict(Exception exception) => exception is DbUpdateConcurrencyException or PostgresException { SqlState: "40001" } or DbUpdateException { InnerException: PostgresException { SqlState: "40001" } };
+    private static bool IsApprovalConflict(Exception exception) => exception is DbUpdateConcurrencyException or PostgresException { SqlState: "40001" or "40P01" } or DbUpdateException { InnerException: PostgresException { SqlState: "40001" or "40P01" } };
 
-    public async Task<IActionResult> OnGetTileImageAsync(Guid id, Guid tileId, CancellationToken ct)
+    public async Task<IActionResult> OnGetTileImageAsync(Guid id, Guid tileId, CancellationToken ct, Guid? approvalId = null)
     {
+        if (approvalId is { } retainedApprovalId)
+        {
+            var retained = await (from board in db.Boards.AsNoTracking()
+                                  join approval in db.BoardApprovalSnapshots.AsNoTracking() on board.Id equals approval.BoardId
+                                  join tile in db.BoardApprovalTileSnapshots.AsNoTracking() on approval.Id equals tile.ApprovalSnapshotId
+                                  join image in db.BoardTileImageAssets.AsNoTracking() on tile.BoardTileId equals image.BoardTileId
+                                  where board.EventId == id && approval.Id == retainedApprovalId && tile.BoardTileId == tileId &&
+                                        image.EventId == id && tile.ArtworkReference == image.StorageKey
+                                  select image).SingleOrDefaultAsync(ct);
+            if (retained is null) return NotFound();
+            try { return File(await storage.OpenReadAsync(retained.StorageKey, ct), retained.MediaType); }
+            catch (FileNotFoundException) { return NotFound(); }
+        }
         var asset = await (from tile in db.BoardTiles.AsNoTracking()
                            join board in db.Boards.AsNoTracking() on tile.BoardId equals board.Id
                            join image in db.BoardTileImageAssets.AsNoTracking() on tile.ActiveImageAssetId equals image.Id
@@ -633,17 +1016,46 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     public async Task<IActionResult> OnPostRemoveAsync(Guid id, Guid tileId, CancellationToken ct)
     {
         TempData["BoardTileOutcome"] = "failed";
-        await using var transaction = await db.Database.BeginTransactionAsync(ct); var board = await db.Boards.SingleAsync(x => x.EventId == id, ct); if (!board.IsEditable) { SetStatus(Localize("This board is no longer editable."), UiMessageType.Warning); return RedirectToPage(new { id }); }
-        if (!await TryEnsurePublishedCorrectionLifecycleAsync(board, id, ct)) { SetStatus(Localize("This event is read-only in its current lifecycle state."), UiMessageType.Warning); return RedirectToPage(new { id }); }
-        if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id }); if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
-        var tile = await db.BoardTiles.SingleOrDefaultAsync(x => x.BoardId == board.Id && x.Id == tileId, ct); if (tile is null) return NotFound();
-        var requirements = await db.BoardRequirementSnapshots.Where(x => x.BoardTileId == tile.Id).ToListAsync(ct); var ids = requirements.Select(x => x.Id).ToList();
-        var images = await db.BoardTileImageAssets.Where(x => x.BoardTileId == tile.Id).ToListAsync(ct);
-        db.BoardRequirementBossSnapshots.RemoveRange(await db.BoardRequirementBossSnapshots.Where(x => ids.Contains(x.RequirementId)).ToListAsync(ct)); db.BoardRequirementDropSnapshots.RemoveRange(await db.BoardRequirementDropSnapshots.Where(x => ids.Contains(x.RequirementId)).ToListAsync(ct)); db.BoardRequirementSnapshots.RemoveRange(requirements); db.BoardTileImageAssets.RemoveRange(images); db.BoardTiles.Remove(tile);
-        board.SetTotalEhb(Math.Max(0, board.TotalEhbEstimate - tile.EstimatedEhbSnapshot)); await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
-        TempData["BoardTileOutcome"] = "committed";
-        foreach (var image in images) await storage.DeleteAsync(image.StorageKey, ct);
-        await WriteAudit("board.tile_removed", board.Id, tile.NameSnapshot, ct); SetSuccessIfMissing(Localize("Tile removed.")); return RedirectToPage(new { id });
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        var committed = false;
+        try
+        {
+            if (await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {id} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct) is null) return NotFound();
+            var board = await db.Boards.FromSqlInterpolated($"SELECT * FROM boards WHERE event_id = {id} FOR UPDATE").SingleAsync(ct); if (!board.IsEditable) { SetStatus(Localize("This board is no longer editable."), UiMessageType.Warning); return RedirectToPage(new { id }); }
+            if (!await TryEnsurePublishedCorrectionLifecycleAsync(board, id, ct)) { SetStatus(Localize("This event is read-only in its current lifecycle state."), UiMessageType.Warning); return RedirectToPage(new { id }); }
+            var boardBefore = BoardAuditState(board);
+            if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id }); if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
+            var tile = await db.BoardTiles.SingleOrDefaultAsync(x => x.BoardId == board.Id && x.Id == tileId, ct); if (tile is null) return NotFound();
+            var before = new { board = boardBefore, tile = await TileAuditStateAsync(tile, ct) };
+            var requirements = await db.BoardRequirementSnapshots.Where(x => x.BoardTileId == tile.Id).ToListAsync(ct); var ids = requirements.Select(x => x.Id).ToList();
+            var evidenced = await db.EvidencedObjectiveIdsAsync(id, ct);
+            if (ids.Any(evidenced.Contains) || await db.Submissions.AnyAsync(x => x.EventId == id && x.BoardTileId == tileId, ct))
+                throw new InvalidOperationException("A tile with submitted evidence cannot be removed.");
+            var retainedIds = await db.BoardApprovalRequirementSnapshots.Where(x => ids.Contains(x.BoardRequirementSnapshotId)).Select(x => x.BoardRequirementSnapshotId).ToHashSetAsync(ct);
+            var images = await db.BoardTileImageAssets.Where(x => x.EventId == id && x.BoardTileId == tile.Id).ToListAsync(ct);
+            var retainedKeys = await (from approval in db.BoardApprovalSnapshots
+                                      join snapshotTile in db.BoardApprovalTileSnapshots on approval.Id equals snapshotTile.ApprovalSnapshotId
+                                      where approval.BoardId == board.Id && snapshotTile.BoardTileId == tile.Id && snapshotTile.ArtworkReference != null
+                                      select snapshotTile.ArtworkReference).ToHashSetAsync(ct);
+            var removedImages = images.Where(image => !retainedKeys.Contains(image.StorageKey)).ToList();
+            foreach (var image in images.Except(removedImages).Where(image => image.ReplacedAt is null)) image.Replace(time.GetUtcNow());
+            // Break the working tile/image reference before removing only unreferenced images.
+            if (tile.ActiveImageAssetId is not null) { tile.SetActiveImageAsset(null); await db.SaveChangesAsync(ct); }
+            db.BoardRequirementBossSnapshots.RemoveRange(await db.BoardRequirementBossSnapshots.Where(x => ids.Contains(x.RequirementId)).ToListAsync(ct)); db.BoardRequirementDropSnapshots.RemoveRange(await db.BoardRequirementDropSnapshots.Where(x => ids.Contains(x.RequirementId) && !retainedIds.Contains(x.RequirementId)).ToListAsync(ct)); db.BoardRequirementSnapshots.RemoveRange(requirements); db.BoardTileImageAssets.RemoveRange(removedImages); db.BoardTiles.Remove(tile);
+            board.SetTotalEhb(Math.Max(0, board.TotalEhbEstimate - tile.EstimatedEhbSnapshot));
+            await WriteAudit("board.tile_removed", board, before, new { board = BoardAuditState(board), tile = (object?)null }, ct);
+            await transaction.CommitAsync(ct); committed = true;
+            TempData["BoardTileOutcome"] = "committed";
+            foreach (var image in removedImages) await storage.DeleteAsync(image.StorageKey, ct);
+            await collaboration.NotifyBoardChangedAsync(id, ct); SetSuccessIfMissing(Localize("Tile removed.")); return RedirectToPage(new { id });
+        }
+        catch (Exception exception) when (!committed && (IsApprovalConflict(exception) || exception is InvalidOperationException))
+        {
+            await transaction.RollbackAsync(ct);
+            db.ChangeTracker.Clear();
+            SetStatus(exception is InvalidOperationException ? Localize(exception.Message) : Localize("The board changed while this correction was being saved. Reload and try again."), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
     }
 
     private async Task<BoardTile> PlaceTemplateAsync(Board board, TileTemplate template, IReadOnlyList<TileTemplateRequirement> requirements, int position, CancellationToken ct)
@@ -656,7 +1068,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             var rates = rateRows.Select(x => new EligibleDropRate(x.boss.EfficientCompletionsPerHour, x.drop.NumericProbability, x.drop.ItemId, x.boss.Id, x.link.CreditedWeight, x.drop.RollsPerCompletion, x.drop.RollGroup));
             estimates.Add(EhbCalculator.CalculateDropRequirement(requirement.TargetContribution, rates, requirement.DuplicatesAllowed));
         }
-        var ehb = EhbCalculator.SumRequirements(estimates, template.ManualEhbOverride); var boardTile = new BoardTile(Guid.NewGuid(), board.Id, template.Id, position / board.Columns, position % board.Columns, template.Name, template.Description, template.EvidenceInstructions, ehb, template.ImageUrl); db.BoardTiles.Add(boardTile);
+        var ehb = EhbCalculator.CalculateTileEstimate(template.ObjectiveType, requirements.Zip(estimates, (requirement, estimate) => (requirement.ManualObjective, estimate)), template.ManualEhbOverride); var boardTile = new BoardTile(Guid.NewGuid(), board.Id, template.Id, position / board.Columns, position % board.Columns, template.Name, template.Description, template.EvidenceInstructions, ehb, template.ImageUrl); db.BoardTiles.Add(boardTile);
         foreach (var requirement in requirements)
         {
             var snapshot = new BoardRequirementSnapshot(Guid.NewGuid(), boardTile.Id, requirement.Position, requirement.TargetContribution, requirement.DuplicatesAllowed, requirement.AllowHigherWeightings, requirement.Description, requirement.ManualObjective); db.BoardRequirementSnapshots.Add(snapshot);
@@ -687,6 +1099,10 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
 
     private async Task<bool> Load(Guid id, CancellationToken ct)
     {
+        // Render choices, live estimates and their fingerprint from one coherent read.
+        await using var readTransaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct)
+            : null;
         var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct); if (bingoEvent is null) return false; EventName = bingoEvent.Name; EventState = bingoEvent.State;
         Bosses = await db.BossActivities.AsNoTracking().Where(x => x.Active).OrderBy(x => x.Name).Select(x => new BossView(x.Id, x.Name, x.Category, x.EfficientCompletionsPerHour)).ToListAsync(ct);
         var catalogueDrops = await (from drop in db.SourceDrops.AsNoTracking()
@@ -714,7 +1130,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         var editorBosses = await db.BoardRequirementBossSnapshots.AsNoTracking().Where(x => editorRequirementIds.Contains(x.RequirementId)).ToListAsync(ct);
         var editorDrops = await db.BoardRequirementDropSnapshots.AsNoTracking().Where(x => editorRequirementIds.Contains(x.RequirementId)).ToListAsync(ct);
         var editorTemplateIds = boardTilesForEditors.Select(x => x.TileTemplateId).Distinct().ToList();
-        var manualEhbByTemplate = await db.TileTemplates.AsNoTracking().Where(x => editorTemplateIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.ManualEhbOverride, ct);
+        var editorTemplates = await db.TileTemplates.AsNoTracking().Where(x => editorTemplateIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
         var useLiveDerivation = board.State == BoardState.Draft || board.PublishedCorrectionInProgress;
         var requirementsByTile = editorRequirements.GroupBy(value => value.BoardTileId).ToDictionary(group => group.Key, group => (IReadOnlyList<BoardRequirementSnapshot>)group.OrderBy(value => value.Position).ToList());
         var bossesByRequirement = editorBosses.GroupBy(value => value.RequirementId).ToDictionary(group => group.Key, group => (IReadOnlyList<BoardRequirementBossSnapshot>)group.ToList());
@@ -727,6 +1143,13 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                      where editorRequirementIds.Contains(snapshot.RequirementId)
                      select new LiveDrop(snapshot.RequirementId, snapshot.SourceDropId, snapshot, drop, boss, item)).ToListAsync(ct)
             : [];
+        if (useLiveDerivation)
+        {
+            var referencedBossIds = editorBosses.Select(x => x.BossActivityId).Distinct().ToList();
+            var referencedBosses = await db.BossActivities.AsNoTracking().Where(x => referencedBossIds.Contains(x.Id)).ToListAsync(ct);
+            ApprovalCatalogueFingerprint = CatalogueFingerprint(referencedBosses,
+                liveDropRows.Select(x => new ApprovalLiveDrop(x.Drop, x.Boss, x.Item)));
+        }
         var liveDropsByRequirement = liveDropRows.GroupBy(value => value.RequirementId).ToDictionary(group => group.Key, group => (IReadOnlyList<LiveDrop>)group.ToList());
         var liveDropsById = liveDropRows.GroupBy(value => value.SourceDropId).ToDictionary(group => group.Key, group => group.First());
 
@@ -753,20 +1176,20 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         }
 
         Tiles = useLiveDerivation
-            ? BuildLiveTiles(boardTilesForEditors, requirementsByTile, liveDropsByRequirement, manualEhbByTemplate, board.Columns)
+            ? BuildLiveTiles(boardTilesForEditors, requirementsByTile, liveDropsByRequirement, editorTemplates, board.Columns)
             : BuildFrozenTiles(boardTilesForEditors, frozenTiles, board.Columns);
         var displayedTotal = activeApproval?.TotalEhbEstimate ?? Tiles.Sum(tile => tile.Ehb);
         BoardView = new(board.Rows, board.Columns, board.State, displayedTotal, board.Version, board.PublishedCorrectionInProgress);
         ReadinessWarnings = useLiveDerivation
-            ? Tiles.Where(tile => tile.Ehb <= 0).Select(tile => $"{tile.Name} needs authoritative catalogue EHB data or an explicit manual EHB estimate.").ToList()
+            ? Tiles.Where(tile => tile.Ehb <= 0).Select(tile => Localize("{0} needs a valid estimate. Catalogue tiles require automatic EHB; custom tiles require manual EHB. Keep the objective kinds in separate tiles.", tile.Name)).ToList()
             : [];
         var managedImages = await db.BoardTileImageAssets.AsNoTracking().Where(image => tileIds.Contains(image.BoardTileId) && image.ReplacedAt == null).ToDictionaryAsync(image => image.Id, ct);
         TileEditors = boardTilesForEditors.Select(tile => new TileEditorView(tile.Id,
             useLiveDerivation ? tile.NameSnapshot : frozenTiles[tile.Id].Name,
             useLiveDerivation ? tile.DescriptionSnapshot : frozenTiles[tile.Id].Description,
             tile.ActiveImageAssetId is { } imageId && managedImages.TryGetValue(imageId, out var image) && image.BoardTileId == tile.Id && image.EventId == id ? Url.Page("Board", "TileImage", new { id, tileId = tile.Id }) : null,
-            manualEhbByTemplate.GetValueOrDefault(tile.TileTemplateId),
-            requirementsByTile.GetValueOrDefault(tile.Id, []).Select(requirement => new RequirementEditorView(requirement.ManualObjective ? "challenge" : "drops", requirement.Description, requirement.TargetContribution, requirement.DuplicatesAllowed,
+            editorTemplates.GetValueOrDefault(tile.TileTemplateId) is { ObjectiveType: ObjectiveType.Manual } manualTemplate ? manualTemplate.ManualEhbOverride : null,
+            requirementsByTile.GetValueOrDefault(tile.Id, []).Select(requirement => new RequirementEditorView(requirement.Id, requirement.ManualObjective ? "challenge" : "drops", requirement.Description, requirement.TargetContribution, requirement.DuplicatesAllowed,
                 bossesByRequirement.GetValueOrDefault(requirement.Id, []).Select(value => value.BossActivityId).ToList(),
                 dropsByRequirement.GetValueOrDefault(requirement.Id, []).Select(value => value.SourceDropId).ToList(),
                 dropsByRequirement.GetValueOrDefault(requirement.Id, []).ToDictionary(value => value.SourceDropId, value => value.CreditedWeight),
@@ -796,12 +1219,58 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     }
 
     private Guid AdminId => User.GetAccountId()!.Value;
-    private async Task WriteAudit(string action, Guid boardId, string details, CancellationToken ct)
+    private Task WriteAudit(string action, Board board, object? before, object? after, CancellationToken ct) =>
+        audit.WriteAsync(AdminId, User.Identity?.Name ?? "Admin", action, "board", board.Id.ToString(), JsonSerializer.Serialize(new { before, after }), board.EventId, ct);
+
+    private static object BoardAuditState(Board board) => new { board.Id, board.Name, board.Rows, board.Columns, State = board.State.ToString(), board.TotalEhbEstimate, board.EditorAccountId, board.EditorLeaseExpiresAt, board.EditControlVersion };
+    private static object TilePositionAuditState(BoardTile tile) => new { tile.Id, tile.RowIndex, tile.ColumnIndex };
+    private async Task<object> TileAuditStateAsync(BoardTile tile, CancellationToken ct)
     {
-        await audit.WriteAsync(User.GetAccountId(), User.Identity!.Name!, action, "board", boardId.ToString(), details, ct);
-        var eventId = await db.Boards.AsNoTracking().Where(x => x.Id == boardId).Select(x => x.EventId).SingleAsync(ct);
-        await collaboration.NotifyBoardChangedAsync(eventId, ct);
+        var requirements = await db.BoardRequirementSnapshots.AsNoTracking().Where(x => x.BoardTileId == tile.Id).OrderBy(x => x.Position).ToListAsync(ct);
+        var ids = requirements.Select(x => x.Id).ToList();
+        var bosses = await db.BoardRequirementBossSnapshots.AsNoTracking().Where(x => ids.Contains(x.RequirementId)).ToListAsync(ct);
+        var drops = await db.BoardRequirementDropSnapshots.AsNoTracking().Where(x => ids.Contains(x.RequirementId)).ToListAsync(ct);
+        var manualEhb = await db.TileTemplates.AsNoTracking().Where(x => x.Id == tile.TileTemplateId).Select(x => new { x.ManualEhbOverride }).SingleOrDefaultAsync(ct);
+        var requirementState = requirements.Select(requirement => new
+        {
+            requirement.Position,
+            requirement.TargetContribution,
+            requirement.Description,
+            requirement.ManualObjective,
+            requirement.DuplicatesAllowed,
+            requirement.AllowHigherWeightings,
+            bosses = bosses.Where(x => x.RequirementId == requirement.Id).Select(x => x.BossActivityId).OrderBy(x => x).ToArray(),
+            drops = drops.Where(x => x.RequirementId == requirement.Id).OrderBy(x => x.SourceDropId).Select(x => new { x.SourceDropId, x.MaximumContribution, x.CreditedWeight }).ToArray()
+        }).ToArray();
+        return new
+        {
+            tile.Id,
+            tile.TileTemplateId,
+            tile.RowIndex,
+            tile.ColumnIndex,
+            NameSnapshot = AuditText(tile.NameSnapshot),
+            DescriptionSnapshot = AuditText(tile.DescriptionSnapshot),
+            tile.EstimatedEhbSnapshot,
+            tile.ActiveImageAssetId,
+            TemplatePresent = manualEhb is not null,
+            ManualEhbOverride = manualEhb?.ManualEhbOverride,
+            requirements = BoundedCollectionAuditState(requirementState)
+        };
     }
+
+    // These board-specific summaries preserve valid large layouts/objectives within
+    // the existing audit column. The digest covers the complete canonical value;
+    // an omitted collection or text suffix is explicitly identified, never invented.
+    private static JsonElement TileLayoutAuditState(IEnumerable<BoardTile> tiles) =>
+        BoundedCollectionAuditState(tiles.OrderBy(tile => tile.Id).Select(TilePositionAuditState).ToArray());
+    private static JsonElement BoundedCollectionAuditState<T>(T[] values)
+    {
+        var json = JsonSerializer.Serialize(values);
+        return json.Length <= 600 ? JsonSerializer.SerializeToElement(values) : JsonSerializer.SerializeToElement(new { Count = values.Length, ValuesOmitted = true, Sha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json))) });
+    }
+    private static JsonElement AuditText(string value) => JsonSerializer.Serialize(value).Length <= 100 ? JsonSerializer.SerializeToElement(value)
+        : JsonSerializer.SerializeToElement(new { Preview = value[..Math.Min(value.Length, 24)], value.Length, Truncated = true, Sha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))) });
+
     private async Task<bool> TryClaimBoardAsync(Board board, CancellationToken ct, bool reportStatus = true)
     {
         try { board.RenewEditing(AdminId, time.GetUtcNow(), BoardEditingLease.Duration); }
@@ -829,7 +1298,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     private static JsonResult MoveSuccess(long boardVersion, string message) => new(new { success = true, boardVersion, message, type = UiMessageType.Success.ToString().ToLowerInvariant() });
     private static JsonResult MoveFailure(string message, UiMessageType type) => new(new { success = false, message, type = type.ToString().ToLowerInvariant() });
     private static string DefaultTileName(IEnumerable<string> names) { var list = names.Distinct(StringComparer.OrdinalIgnoreCase).ToList(); return list.Count switch { 0 => "New tile", 1 => list[0], _ => string.Join(" + ", list) }; }
-    private async Task ReplaceTileImageAsync(Guid eventId, BoardTile tile, CancellationToken ct)
+    private async Task<string?> ReplaceTileImageAsync(Guid eventId, BoardTile tile, CancellationToken ct)
     {
         var now = time.GetUtcNow();
         if (TileDraft.RemoveImage && tile.ActiveImageAssetId is { } priorId)
@@ -837,7 +1306,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             (await db.BoardTileImageAssets.SingleOrDefaultAsync(x => x.Id == priorId, ct))?.Replace(now);
             tile.SetActiveImageAsset(null);
         }
-        if (TileDraft.Image is not { Length: > 0 }) return;
+        if (TileDraft.Image is not { Length: > 0 }) return null;
         var assetId = Guid.NewGuid();
         await using var content = TileDraft.Image.OpenReadStream();
         var stored = await storage.StoreAsync(eventId, assetId, TileDraft.Image.FileName, content, ct);
@@ -845,18 +1314,20 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             (await db.BoardTileImageAssets.SingleOrDefaultAsync(x => x.Id == currentId, ct))?.Replace(now);
         db.BoardTileImageAssets.Add(new BoardTileImageAsset(assetId, eventId, tile.Id, stored.StorageKey, stored.OriginalFilename, stored.MediaType, stored.ByteSize, stored.Width, stored.Height, stored.Checksum, AdminId, now));
         tile.SetActiveImageAsset(assetId);
+        return stored.StorageKey;
     }
     private static List<TileView> BuildLiveTiles(
         IReadOnlyList<BoardTile> tiles,
         IReadOnlyDictionary<Guid, IReadOnlyList<BoardRequirementSnapshot>> requirementsByTile,
         IReadOnlyDictionary<Guid, IReadOnlyList<LiveDrop>> dropsByRequirement,
-        IReadOnlyDictionary<Guid, decimal?> manualEhbByTemplate,
+        Dictionary<Guid, TileTemplate> templates,
         int columns)
     {
         return tiles.Select(tile =>
         {
             var estimates = new List<decimal?>();
-            foreach (var requirement in requirementsByTile.GetValueOrDefault(tile.Id, []))
+            var requirements = requirementsByTile.GetValueOrDefault(tile.Id, []);
+            foreach (var requirement in requirements)
             {
                 if (requirement.ManualObjective) { estimates.Add(null); continue; }
                 var selected = dropsByRequirement.GetValueOrDefault(requirement.Id, []);
@@ -865,7 +1336,9 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                     selected.Select(drop => new EligibleDropRate(drop.Boss.EfficientCompletionsPerHour, drop.Drop.NumericProbability, drop.Drop.ItemId, drop.Boss.Id, drop.Snapshot.CreditedWeight, drop.Drop.RollsPerCompletion, drop.Drop.RollGroup)),
                     requirement.DuplicatesAllowed));
             }
-            var ehb = EhbCalculator.SumRequirements(estimates, manualEhbByTemplate.GetValueOrDefault(tile.TileTemplateId));
+            var ehb = templates.TryGetValue(tile.TileTemplateId, out var template)
+                ? EhbCalculator.CalculateTileEstimate(template.ObjectiveType, requirements.Zip(estimates, (requirement, estimate) => (requirement.ManualObjective, estimate)), template.ManualEhbOverride)
+                : 0;
             return new TileView(tile.Id, tile.RowIndex * columns + tile.ColumnIndex, tile.NameSnapshot, tile.DescriptionSnapshot, string.Empty, ehb);
         }).ToList();
     }
@@ -881,7 +1354,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     private static string RequirementDescription(RequirementInput input) => input.IsManual ? input.Description!.Trim() : $"Collect {input.Target} eligible drop{(input.Target == 1 ? string.Empty : "s")}";
 
     public sealed class TileDraftInput { public Guid? TileId { get; set; } public int Position { get; set; } public string? Name { get; set; } public string? Description { get; set; } public IFormFile? Image { get; set; } public bool RemoveImage { get; set; } [Range(0, 100000)] public decimal? ManualEhb { get; set; } public List<RequirementInput> Requirements { get; set; } = [new()]; }
-    public sealed class RequirementInput { public string Kind { get; set; } = "drops"; public string? Description { get; set; } [Range(1, 10000)] public int Target { get; set; } = 1; public bool DuplicatesAllowed { get; set; } = true; public Dictionary<Guid, int> DropWeights { get; set; } = []; public List<Guid> BossIds { get; set; } = []; public List<Guid> DropIds { get; set; } = []; public bool IsManual => string.Equals(Kind, "challenge", StringComparison.OrdinalIgnoreCase); public int WeightFor(Guid dropId) => Math.Max(1, DropWeights.GetValueOrDefault(dropId, 1)); public bool HasHigherWeights => DropIds.Any(x => WeightFor(x) > 1); }
+    public sealed class RequirementInput { public Guid? RequirementId { get; set; } public string Kind { get; set; } = "drops"; public string? Description { get; set; } [Range(1, 10000)] public int Target { get; set; } = 1; public bool DuplicatesAllowed { get; set; } = true; public Dictionary<Guid, int> DropWeights { get; set; } = []; public List<Guid> BossIds { get; set; } = []; public List<Guid> DropIds { get; set; } = []; public bool IsManual => string.Equals(Kind, "challenge", StringComparison.OrdinalIgnoreCase); public int WeightFor(Guid dropId) => Math.Max(1, DropWeights.GetValueOrDefault(dropId, 1)); public bool HasHigherWeights => DropIds.Any(x => WeightFor(x) > 1); }
     public sealed record BoardDetails(int Rows, int Columns, BoardState State, decimal TotalEhb, long Version, bool PublishedCorrectionInProgress);
     public sealed record BoardStatistics(decimal TotalEhb, int? TeamSize, decimal? EhbPerPlayer, decimal? EhbPerPlayerPerDay, decimal AverageTileEhb, decimal LowestLineEhb, decimal HighestLineEhb, int MissingEhbTiles, decimal DurationDays);
     public sealed record TileView(Guid Id, int Position, string Name, string Description, string EvidenceInstructions, decimal Ehb);
@@ -889,9 +1362,27 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     public sealed record BossView(Guid Id, string Name, string Category, decimal? EfficientRate);
     public sealed record DropView(Guid Id, Guid BossId, string BossName, string ItemName, string Rate);
     private sealed record LiveDrop(Guid RequirementId, Guid SourceDropId, BoardRequirementDropSnapshot Snapshot, SourceDrop Drop, BossActivity Boss, CatalogueItem Item);
+    private static string CatalogueFingerprint(IEnumerable<BossActivity> bosses, IEnumerable<ApprovalLiveDrop> drops)
+    {
+        var rows = drops.ToList();
+        var inputs = new
+        {
+            Bosses = bosses.Concat(rows.Select(x => x.Boss)).DistinctBy(x => x.Id).OrderBy(x => x.Id).Select(x => new { x.Id, x.Version }),
+            Drops = rows.Select(x => x.Drop).DistinctBy(x => x.Id).OrderBy(x => x.Id).Select(x => new { x.Id, x.Version, x.BossActivityId, x.ItemId }),
+            Items = rows.Select(x => x.Item).DistinctBy(x => x.Id).OrderBy(x => x.Id).Select(x => new { x.Id, x.Version })
+        };
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(inputs))));
+    }
+
+    private sealed class BoardApprovalValidationException(string resourceKey, params object[] arguments) : InvalidOperationException
+    {
+        public string ResourceKey { get; } = resourceKey;
+        public object[] Arguments { get; } = arguments;
+    }
+
     private sealed record ApprovalLiveDrop(SourceDrop Drop, BossActivity Boss, CatalogueItem Item);
     public sealed record TileEditorView(Guid Id, string Name, string Description, string? ImageUrl, decimal? ManualEhb, IReadOnlyList<RequirementEditorView> Requirements);
-    public sealed record RequirementEditorView(string Kind, string Description, int Target, bool DuplicatesAllowed, IReadOnlyList<Guid> BossIds, IReadOnlyList<Guid> DropIds, IReadOnlyDictionary<Guid, int> DropWeights, IReadOnlyList<RequirementDropView> Drops);
+    public sealed record RequirementEditorView(Guid RequirementId, string Kind, string Description, int Target, bool DuplicatesAllowed, IReadOnlyList<Guid> BossIds, IReadOnlyList<Guid> DropIds, IReadOnlyDictionary<Guid, int> DropWeights, IReadOnlyList<RequirementDropView> Drops);
     public sealed record RequirementDropView(Guid Id, string BossName, string ItemName, string DisplayRate, int CreditedWeight);
     public sealed record TeamWorkloadView(string TeamName, TeamFormationType FormationType, int ActualRosterSize, int? SizeUsed, decimal? EhbPerPlayer);
 }

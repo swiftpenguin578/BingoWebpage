@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Net;
 using System.Text.RegularExpressions;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
@@ -18,6 +20,7 @@ using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
@@ -204,7 +207,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         await service.AddOrReactivateAsync(owner.Id, "Scoped Character", "Owner", 10m, CancellationToken.None);
         var link = await db.AccountOsrsCharacters.SingleAsync(item => item.AccountId == owner.Id);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdateAsync(other.Id, link.Id, "Scoped Character", "Attempted", 20m, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdateAsync(other.Id, link.Id, link.Version, "Scoped Character", "Attempted", 20m, CancellationToken.None));
 
         var unchanged = await db.AccountOsrsCharacters.AsNoTracking().SingleAsync(item => item.Id == link.Id);
         Assert.Equal("Owner", unchanged.PersonalLabel);
@@ -228,7 +231,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         db.AddRange(owner, oldCharacter, link, open, closed, openParticipant, closedParticipant, openAssignment, closedAssignment);
         await db.SaveChangesAsync();
 
-        await new MyAccountsService(db, TimeProvider.System).UpdateAsync(owner.Id, link.Id, "Misspelled", link.PersonalLabel, 77m, CancellationToken.None);
+        await new MyAccountsService(db, TimeProvider.System).UpdateAsync(owner.Id, link.Id, link.Version, "Misspelled", link.PersonalLabel, 77m, CancellationToken.None);
 
         var corrected = await db.OsrsCharacters.SingleAsync(item => item.NormalizedName == "MISSPELLED");
         var persistedLink = await db.AccountOsrsCharacters.SingleAsync(item => item.Id == link.Id);
@@ -239,6 +242,130 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         Assert.Equal(77m, persistedLink.SavedEhb);
         Assert.Equal(corrected.Id, await db.EventParticipantCharacters.Where(item => item.Id == openAssignment.Id).Select(item => item.OsrsCharacterId).SingleAsync());
         Assert.Equal(oldCharacter.Id, await db.EventParticipantCharacters.Where(item => item.Id == closedAssignment.Id).Select(item => item.OsrsCharacterId).SingleAsync());
+    }
+
+    [Theory]
+    [InlineData("en-GB")]
+    [InlineData("da-DK")]
+    public async Task MyAccountsSequentialStaleFormsPreserveInputsAndRequireReloadBeforeCorrection(string culture)
+    {
+        var now = DateTimeOffset.UtcNow;
+        Guid accountId, linkId, otherLinkId, originalCharacterId, openAssignmentId, closedAssignmentId;
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            var owner = Website("stale-my-accounts", now);
+            owner.SetPassword(new PasswordHasher<Account>().HashPassword(owner, "stale-forms-password"), false, now, incrementVersion: false);
+            var original = new OsrsCharacter(Guid.NewGuid(), "Original Character", "ORIGINAL CHARACTER", now);
+            var otherCharacter = new OsrsCharacter(Guid.NewGuid(), "Other Character", "OTHER CHARACTER", now);
+            var link = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, original.Id, owner.Id, true, 0, "Original label", 10m, now);
+            var otherLink = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, otherCharacter.Id, owner.Id, false, 1, "Other label", 20m, now);
+            var open = Event(now, "stale-open", signupOpen: true);
+            var closed = Event(now, "stale-closed", signupOpen: false);
+            var openParticipant = Participant(open.Id, "Open", 1, now); openParticipant.AssignOwner(owner);
+            var closedParticipant = Participant(closed.Id, "Closed", 1, now); closedParticipant.AssignOwner(owner);
+            var openAssignment = Playing(open.Id, openParticipant.Id, original.Id, owner.Id, now);
+            var closedAssignment = Playing(closed.Id, closedParticipant.Id, original.Id, owner.Id, now);
+            seed.AddRange(owner, original, otherCharacter, link, otherLink, open, closed, openParticipant, closedParticipant, openAssignment, closedAssignment);
+            await seed.SaveChangesAsync();
+            accountId = owner.Id; linkId = link.Id; otherLinkId = otherLink.Id; originalCharacterId = original.Id;
+            openAssignmentId = openAssignment.Id; closedAssignmentId = closedAssignment.Id;
+        }
+
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
+            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .ConfigureServices(services =>
+            {
+                services.RemoveAll<IWiseOldManPlayerLookup>();
+                services.AddSingleton<IWiseOldManPlayerLookup>(new StaleFormPlayerLookup());
+            }));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+        var login = await client.GetStringAsync("/Account/Login");
+        using var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = "stale-my-accounts",
+            ["Input.Password"] = "stale-forms-password",
+            ["__RequestVerificationToken"] = AntiforgeryToken(login)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
+        const string route = "/Account/MyAccounts?ReturnUrl=%2FAccount%2FSettings";
+        var olderPage = await client.GetStringAsync(route);
+        var newerPage = await client.GetStringAsync(route);
+        var oldVersion = Value(EditForm(olderPage, linkId), "Edit.Version");
+        Assert.NotEmpty(oldVersion);
+        using var winner = await Post("Update", newerPage, "Current Character", "Current label", "22");
+        Assert.Equal(HttpStatusCode.Redirect, winner.StatusCode);
+        Assert.Equal("/Account/Settings", winner.Headers.Location?.OriginalString);
+
+        using var fetched = await Post("Fetch", olderPage, "Stale Character", "My <entered> label", "99");
+        Assert.Equal(HttpStatusCode.OK, fetched.StatusCode);
+        var fetchedPage = await fetched.Content.ReadAsStringAsync();
+        Assert.Equal(oldVersion, Value(EditForm(fetchedPage, linkId), "Edit.Version"));
+        var enteredEhb = culture == "da-DK" ? "55,25" : "55.25";
+        Assert.Equal(enteredEhb, Value(EditForm(fetchedPage, linkId), "Edit.SavedEhb"));
+        using var stale = await Post("Update", fetchedPage, "Stale Character", "My <entered> label", enteredEhb);
+        Assert.Equal(HttpStatusCode.OK, stale.StatusCode);
+        var rejectedPage = await stale.Content.ReadAsStringAsync();
+        Assert.Contains(culture == "da-DK" ? "Dine ændringer i Mine konti var i konflikt med en anden opdatering." : "Your My Accounts changes conflicted with another update.", WebUtility.HtmlDecode(rejectedPage));
+        var rejectedForm = EditForm(rejectedPage, linkId);
+        Assert.Equal("Stale Character", Value(rejectedForm, "Edit.CharacterName"));
+        Assert.Equal("My <entered> label", Value(rejectedForm, "Edit.PersonalLabel"));
+        Assert.Equal(enteredEhb, Value(rejectedForm, "Edit.SavedEhb"));
+        Assert.Equal(oldVersion, Value(rejectedForm, "Edit.Version"));
+        Assert.Equal(otherLinkId.ToString(), Value(EditForm(rejectedPage, otherLinkId), "Edit.LinkId"));
+        using var repeated = await Post("Update", rejectedPage, "Stale Character", "My <entered> label", enteredEhb);
+        Assert.Equal(HttpStatusCode.OK, repeated.StatusCode);
+
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            var current = await verify.AccountOsrsCharacters.SingleAsync(link => link.Id == linkId);
+            Assert.NotEqual(int.Parse(oldVersion, CultureInfo.InvariantCulture), current.Version);
+            Assert.Equal("Current label", current.PersonalLabel);
+            Assert.Equal(22m, current.SavedEhb);
+            Assert.Equal("CURRENT CHARACTER", await verify.OsrsCharacters.Where(character => character.Id == current.OsrsCharacterId).Select(character => character.NormalizedName).SingleAsync());
+            Assert.False(await verify.OsrsCharacters.AnyAsync(character => character.NormalizedName == "STALE CHARACTER"));
+            Assert.Equal(current.OsrsCharacterId, await verify.EventParticipantCharacters.Where(item => item.Id == openAssignmentId).Select(item => item.OsrsCharacterId).SingleAsync());
+            Assert.Equal(originalCharacterId, await verify.EventParticipantCharacters.Where(item => item.Id == closedAssignmentId).Select(item => item.OsrsCharacterId).SingleAsync());
+            Assert.Equal(2, await verify.AccountOsrsCharacters.CountAsync(link => link.AccountId == accountId && link.Active));
+            var otherVersion = await verify.AccountOsrsCharacters.Where(link => link.Id == otherLinkId).Select(link => link.Version).SingleAsync();
+            Assert.Equal(otherVersion.ToString(CultureInfo.InvariantCulture), Value(EditForm(rejectedPage, otherLinkId), "Edit.Version"));
+        }
+
+        var reloadLabel = culture == "da-DK" ? "Genindlæs aktuelle værdier" : "Reload current values";
+        var reloadLink = Regex.Match(WebUtility.HtmlDecode(rejectedPage), $"<a(?=[^>]*href=\"([^\"]+)\")[^>]*>{Regex.Escape(reloadLabel)}</a>");
+        Assert.True(reloadLink.Success);
+        var reloaded = await client.GetStringAsync(reloadLink.Groups[1].Value);
+        Assert.Equal("Current Character", Value(EditForm(reloaded, linkId), "Edit.CharacterName"));
+        Assert.NotEqual(oldVersion, Value(EditForm(reloaded, linkId), "Edit.Version"));
+        using var recovered = await Post("Update", reloaded, "Recovered Character", "Recovered label", "33");
+        Assert.Equal(HttpStatusCode.Redirect, recovered.StatusCode);
+        Assert.Equal("/Account/Settings", recovered.Headers.Location?.OriginalString);
+        await using var final = new ApplicationDbContext(options);
+        var saved = await final.AccountOsrsCharacters.SingleAsync(link => link.Id == linkId);
+        Assert.Equal("Recovered label", saved.PersonalLabel);
+        Assert.Equal(33m, saved.SavedEhb);
+        Assert.Equal("RECOVERED CHARACTER", await final.OsrsCharacters.Where(character => character.Id == saved.OsrsCharacterId).Select(character => character.NormalizedName).SingleAsync());
+        Assert.Equal(saved.OsrsCharacterId, await final.EventParticipantCharacters.Where(item => item.Id == openAssignmentId).Select(item => item.OsrsCharacterId).SingleAsync());
+        Assert.Equal(originalCharacterId, await final.EventParticipantCharacters.Where(item => item.Id == closedAssignmentId).Select(item => item.OsrsCharacterId).SingleAsync());
+
+        Task<HttpResponseMessage> Post(string handler, string html, string character, string label, string ehb) => client.PostAsync($"/Account/MyAccounts?handler={handler}", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Edit.LinkId"] = linkId.ToString(),
+            ["Edit.Version"] = Value(EditForm(html, linkId), "Edit.Version"),
+            ["Edit.CharacterName"] = character,
+            ["Edit.PersonalLabel"] = label,
+            ["Edit.SavedEhb"] = ehb,
+            ["ReturnUrl"] = Value(EditForm(html, linkId), "ReturnUrl"),
+            ["__RequestVerificationToken"] = AntiforgeryToken(html)
+        }));
+        static string EditForm(string html, Guid id) => Regex.Match(html, $"<form id=\"edit-{id}\".*?</form>", RegexOptions.Singleline).Value;
+        static string Value(string html, string name) => WebUtility.HtmlDecode(Regex.Match(html, $"<input(?=[^>]*name=\"{Regex.Escape(name)}\")[^>]*value=\"([^\"]*)\"").Groups[1].Value);
+    }
+
+    private sealed class StaleFormPlayerLookup : IWiseOldManPlayerLookup
+    {
+        public Task<WiseOldManPlayerLookupResult> LookupPlayerAsync(string characterName, CancellationToken cancellationToken = default)
+            => Task.FromResult(new WiseOldManPlayerLookupResult(WiseOldManLookupStatus.Success, 55.25m, DateTimeOffset.UtcNow));
     }
 
     [Fact]
@@ -252,17 +379,22 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         var corrected = new OsrsCharacter(Guid.NewGuid(), "Typo", "TYPO", now);
         var link = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, oldCharacter.Id, owner.Id, true, 0, null, 5m, now);
         var bingoEvent = Event(now, "conflict-correction", signupOpen: true);
+        var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+        var primary = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var ownerParticipant = Participant(bingoEvent.Id, "Owner", 1, now); ownerParticipant.AssignOwner(owner);
         var otherParticipant = Participant(bingoEvent.Id, "Other", 2, now); otherParticipant.AssignOwner(other);
-        var oldAssignment = Playing(bingoEvent.Id, ownerParticipant.Id, oldCharacter.Id, owner.Id, now);
+        var oldAssignment = new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, ownerParticipant.Id, oldCharacter.Id, 0, now, owner.Id, primary.Id, EventCharacterRole.Playing, 1m, EhbSource.Manual, null);
         var correctedAssignment = Playing(bingoEvent.Id, otherParticipant.Id, corrected.Id, other.Id, now);
-        db.AddRange(owner, other, oldCharacter, corrected, link, bingoEvent, ownerParticipant, otherParticipant, oldAssignment, correctedAssignment);
+        db.AddRange(owner, other, oldCharacter, corrected, link, bingoEvent, form, primary, ownerParticipant, otherParticipant, oldAssignment, correctedAssignment,
+            new SignupAnswer(Guid.NewGuid(), ownerParticipant.Id, primary.Id, primary.Label, string.Empty, oldCharacter.Id));
         await db.SaveChangesAsync();
 
         await Assert.ThrowsAsync<MyAccountsCorrectionConflictException>(() => new MyAccountsService(db, TimeProvider.System).CorrectAsync(owner.Id, link.Id, "Typo", CancellationToken.None));
 
         Assert.Equal(oldCharacter.Id, await db.AccountOsrsCharacters.Where(item => item.Id == link.Id).Select(item => item.OsrsCharacterId).SingleAsync());
         Assert.Equal(oldCharacter.Id, await db.EventParticipantCharacters.Where(item => item.Id == oldAssignment.Id).Select(item => item.OsrsCharacterId).SingleAsync());
+        Assert.Equal(oldCharacter.Id, await db.SignupAnswers.Where(item => item.EventParticipantId == ownerParticipant.Id && item.SignupQuestionId == primary.Id).Select(item => item.OsrsCharacterId).SingleAsync());
+        Assert.Equal(1, await db.EventParticipants.Where(item => item.Id == ownerParticipant.Id).Select(item => item.ResponseVersion).SingleAsync());
     }
 
     [Fact]

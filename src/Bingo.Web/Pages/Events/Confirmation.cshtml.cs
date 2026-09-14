@@ -41,7 +41,9 @@ public sealed class ConfirmationModel(ApplicationDbContext db, TimeProvider time
                              select new { Participant = participant, Event = item }).SingleOrDefaultAsync(ct);
             if (row is null) return Forbid();
             var rosterExists = await db.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && db.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == row.Event.Id), ct);
-            if (!User.IsInRole("Admin"))
+            // Reopening withdraws the roster without necessarily withdrawing the board.
+            // Keep pre-Live owner confirmation private until a roster is published again.
+            if (!User.IsInRole("Admin") && (rosterExists || row.Event.ActualStartedAt is not null))
             {
                 var destination = EventDestinationPolicy.Decide(EventDestinationPolicy.From(row.Event, rosterExists), false);
                 if (destination == EventDestination.Roster) return RedirectToPage("Teams", new { slug, participantId });

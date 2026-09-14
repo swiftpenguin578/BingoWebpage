@@ -25,7 +25,16 @@ class Node {
     this.listeners = {};
     this.attributes = {};
     this.hidden = false;
-    this.classList = { values: new Set(), contains: name => this.classList.values.has(name), toggle: (name, enabled) => enabled ? this.classList.values.add(name) : this.classList.values.delete(name) };
+    this.classList = {
+      values: new Set(),
+      contains(name) { return this.values.has(name); },
+      toggle(name, force) {
+        const enabled = force === undefined ? !this.values.has(name) : Boolean(force);
+        if (enabled) this.values.add(name);
+        else this.values.delete(name);
+        return enabled;
+      }
+    };
     children.forEach(child => child.parentElement = this);
   }
 
@@ -71,6 +80,17 @@ class Node {
     });
     return this.children.flatMap(child => [ ...(matches(child) ? [child] : []), ...child.querySelectorAll(selector) ]);
   }
+}
+
+// Guard the fixture contract as well as the production interactions below.
+const toggleClasses = new Node().classList;
+for (const [args, expected] of [
+  [["active"], true], [["active"], false],
+  [["active", true], true], [["active", true], true],
+  [["active", false], false], [["active", false], false]
+]) {
+  assert.equal(toggleClasses.toggle(...args), expected, "toggle returns the final membership");
+  assert.equal(toggleClasses.contains("active"), expected, "toggle changes or forces membership");
 }
 
 const activityLink = new Node({ dataset: { publicLeaderboardView: "activity" }, href: "https://example.test/Events/test/Board?view=leaderboards&ranking=activity" });
@@ -386,10 +406,23 @@ const siteCss = ["site.transitional.foundation.css", "site.public-ui.css", "site
   .join("\n");
 const publicUiCss = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/wwwroot/css/site.public-ui.css"), "utf8");
 const publicLeaderboardsJs = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/wwwroot/js/public-leaderboards.js"), "utf8");
+// Limit column checks to the relevant table header so later tables cannot satisfy them.
+const tableHead = (markup, marker) => {
+  const start = markup.indexOf(marker);
+  assert.ok(start >= 0, `${marker} table is present`);
+  const head = markup.slice(start).match(/<thead>[\s\S]*?<\/thead>/)?.[0];
+  assert.ok(head, `${marker} header is present`);
+  return head;
+};
+const boardPlayersHead = tableHead(boardMarkup, "data-public-leaderboard-players-table");
+const boardEhbHead = tableHead(boardMarkup, "public-ui-table--nested-ehb");
+const cataloguePlayersHead = tableHead(catalogueMarkup, "data-public-leaderboard-players-table");
+const catalogueEhbHead = tableHead(catalogueMarkup, "public-ui-table--nested-ehb");
+const catalogueDropHead = tableHead(catalogueMarkup, "public-ui-table--nested-drop-ehb");
 const boardStandingsMarkup = boardMarkup.match(/<section class="public-ui-standings[\s\S]*?<\/section>/)?.[0] ?? "";
 const catalogueStandingsMarkup = catalogueMarkup.match(/<section class="public-ui-standings[\s\S]*?<\/section>/)?.[0] ?? "";
-assert.match(boardMarkup, /Event overview[\s\S]*?data-public-countdown[\s\S]*?public-ui-masthead-result[\s\S]*?Most spooned[\s\S]*?public-dashboard-masthead-actions/, "production masthead keeps the permanent lead before Most spooned and actions");
-assert.match(boardMarkup, /<div class="public-dashboard-masthead-section public-ui-masthead-card public-dashboard-title">[\s\S]*?<span class="public-ui-overline">Event overview<\/span>[\s\S]*?<div class="public-ui-component-header">[\s\S]*?<h1 class="public-ui-component-title">[\s\S]*?<\/h1>[\s\S]*?<\/div>[\s\S]*?<p class="public-ui-supporting-text"><span class="event-status-dot">/, "production Event overview uses the shared three-row masthead anatomy");
+assert.match(boardMarkup, /public-board-masthead__hero[\s\S]*?@T\["Event overview"\][\s\S]*?data-public-countdown[\s\S]*?public-board-masthead__result[\s\S]*?@T\["Most spooned"\][\s\S]*?public-board-masthead__actions/, "production hero keeps countdown, current result, metric and actions in order");
+assert.match(boardMarkup, /<div class="public-board-masthead__identity">\s*<div class="public-masthead-copy">\s*<span class="public-ui-overline public-masthead-kicker">@T\["Event overview"\]<\/span>\s*<h1 class="public-board-masthead__title public-masthead-title">@Model\.Board\.EventName<\/h1>/, "production hero identifies the event with a localized overline and primary heading");
 assert.doesNotMatch(boardMarkup, /public-ui-component-header__copy public-dashboard-title/, "production Event overview has no legacy copy wrapper");
 assert.doesNotMatch(siteCss, /\.public-dashboard-title \{ gap: 0\.15rem; \}/, "Event overview has no special spacing compensation");
 assert.match(boardMarkup, /@if \(isDrops\)[\s\S]*?public-recent-drops\.js[\s\S]*?\}\s*<script src="~\/js\/public-leaderboards\.js"/, "production loads the masthead selector initializer on every Board view");
@@ -398,7 +431,7 @@ assert.match(boardModelMarkup, /HighestDropEhb = Players[\s\S]*?Where\(value => 
 assert.match(boardModelMarkup, /HighestEhb = Players[\s\S]*?Where\(value => value\.HasActivity && value\.Participant\.TotalGainedEhb > 0\)[\s\S]*?OrderByDescending\(value => value\.Participant\.TotalGainedEhb\)/, "Highest EHB is based on usable roster player activity");
 assert.match(boardMarkup, /Model\.Activity\.HasRankings[\s\S]*?data-public-ui-compact-dropdown[\s\S]*?data-public-ui-dropdown-option="spooned"[\s\S]*?data-public-ui-dropdown-option="drops"[\s\S]*?data-public-ui-dropdown-option="ehb"/, "production renders the three-metric dropdown only with usable rankings");
 assert.match(boardMarkup, /if \(Model\.Activity\.HasRankings\)[\s\S]*?else[\s\S]*?<span class="public-ui-overline">@T\["Highest DEHB"\]<\/span>/, "production falls back to static Highest DEHB without rankings");
-assert.match(boardMarkup, /data-public-masthead-metric="spooned"[\s\S]*?mostSpooned\.TotalDrops\.ToString\("\+0;-0;0"\)[\s\S]*?data-public-masthead-metric="drops"[\s\S]*?highestDropEhb\.DropEhb\.ToString\("\+0\.00;-0\.00;0\.00"\)[\s\S]*?data-public-masthead-metric="ehb"[\s\S]*?highestEhb\.Participant\.TotalGainedEhb\.ToString\("\+0\.00;-0\.00;0\.00"\)/, "production formats count, DEHB, and EHB masthead metrics distinctly");
+assert.match(boardMarkup, /data-public-masthead-metric="spooned"[\s\S]*?mostSpooned\.TotalDrops\.ToString\("0"\)[\s\S]*?data-public-masthead-metric="drops"[\s\S]*?highestDropEhb\.DropEhb\.ToString\("0;-0;0"\)[\s\S]*?data-public-masthead-metric="ehb"[\s\S]*?highestEhb\.Participant\.TotalGainedEhb\.ToString\("0;-0;0"\)/, "production hero retains each metric's source with the accepted compact whole-number formatting");
 assert.match(catalogueMarkup, /data-public-ui-compact-dropdown[\s\S]*?data-public-ui-dropdown-option="spooned"[\s\S]*?data-public-ui-dropdown-option="drops"[\s\S]*?data-public-ui-dropdown-option="ehb"[\s\S]*?data-public-masthead-static-fallback/, "catalogue represents the metric dropdown and no-rankings fallback state");
 assert.match(publicLeaderboardsJs, /sessionStorage\?\.getItem\(storageKey\)[\s\S]*?sessionStorage\?\.setItem\(storageKey, metric\)/, "masthead metric selection uses best-effort session storage");
 assert.match(publicLeaderboardsJs, /data-public-ui-compact-dropdown[\s\S]*?ArrowDown[\s\S]*?Escape[\s\S]*?chooseCompactDropdownValue/, "compact dropdown supports keyboard navigation and option selection");
@@ -428,14 +461,14 @@ assert.doesNotMatch(catalogueMarkup, /id="public-masthead-metric-panels"|id="pub
 assert.match(boardMarkup, /public-ui-masthead-metric-selector[\s\S]*public-ui-masthead-metric" data-public-masthead-metric="spooned"[\s\S]*public-ui-component-header[\s\S]*public-ui-supporting-text/, "production ranking section exposes selector, metric header, and supporting text as direct rows");
 assert.match(catalogueMarkup, /public-ui-masthead-metric-selector[\s\S]*public-ui-masthead-metric" data-public-masthead-metric="spooned"[\s\S]*public-ui-component-header[\s\S]*public-ui-supporting-text/, "catalogue ranking section exposes selector, metric header, and supporting text as direct rows");
 assert.match(boardMarkup, /public-ui-masthead-metric-chevron[^>]*>[\s\S]*?<path d="m6 9 6 6 6-6" \/>/, "production metric selector uses the shared downward chevron geometry");
-assert.match(boardMarkup, /var hasDualMastheadActions = showSubmitDrop && Model\.Board\.WiseOldManCompetitionId is not null;[\s\S]*?public-dashboard-masthead-actions @\(hasDualMastheadActions \? "public-dashboard-masthead-actions--dual" : null\)/, "production exposes a minimal dual-action masthead state hook");
+assert.match(boardMarkup, /hasDualMastheadActions \? "public-board-masthead__actions--dual" : null/, "production hero retains its dual-action state hook");
 assert.doesNotMatch(boardMarkup, /else if \(showDropResult\)/, "production actions no longer replace the permanent lead slot");
 assert.match(boardMarkup, /var leadResult = Model\.Board\.EventResult[\s\S]*?EventState\.Live[\s\S]*?new PublicEventResult/, "production masthead provides a live current-leader fallback");
-assert.match(boardMarkup, /Model\.Board\.WiseOldManCompetitionId is \{ \} competitionId[\s\S]*?href="https:\/\/wiseoldman\.net\/competitions\/@competitionId" target="_blank" rel="noopener noreferrer" aria-label="@T\["View Wise Old Man competition"\]" title="@T\["View Wise Old Man competition"\]">@T\["WoM"\]<\/a>/, "production actions expose the compact WoM label with full accessible meaning and safe new-tab behavior");
+assert.match(boardMarkup, /Model\.Board\.WiseOldManCompetitionId is \{ \} competitionId[\s\S]*?href="https:\/\/wiseoldman\.net\/competitions\/@competitionId" target="_blank" rel="noopener noreferrer" aria-label="@T\["View Wise Old Man competition"\]" title="@T\["View Wise Old Man competition"\]">@T\["WOM"\] →<\/a>/, "production WOM action retains full accessible meaning and safe new-tab behavior");
 assert.match(boardMarkup, /class="public-ui-action public-ui-action--standard public-ui-action--hyperlink" href="https:\/\/wiseoldman\.net\/competitions\/@competitionId"/, "production competition link uses the neutral standard action treatment");
 assert.match(publicBoardServiceMarkup, /EventCompetitionSynchronizations\.AsNoTracking\(\)[\s\S]*?CompetitionId != null[\s\S]*?OrderByDescending\(value => value\.Generation\)/, "competition links use stored configuration without triggering a fetch");
-assert.match(catalogueMarkup, /Event overview[\s\S]*?Ends in[\s\S]*?In the lead[\s\S]*?Most spooned[\s\S]*?Actions[\s\S]*?WoM/, "catalogue represents all five masthead slots and dual actions");
-assert.match(catalogueMarkup, /class="public-ui-action public-ui-action--standard public-ui-action--hyperlink" href="https:\/\/wiseoldman\.net\/competitions\/145197" target="_blank" rel="noopener noreferrer" aria-label="View Wise Old Man competition" title="View Wise Old Man competition">WoM<\/a>/, "catalogue competition link uses the compact label, accessible meaning, and neutral standard action treatment");
+assert.match(catalogueMarkup, /Event overview[\s\S]*?Ends in[\s\S]*?In the lead[\s\S]*?Most spooned[\s\S]*?Actions[\s\S]*?>WOM<\/a>/, "catalogue retains its five-slot specimen with a WOM action");
+assert.match(catalogueMarkup, /class="public-ui-action public-ui-action--standard public-ui-action--hyperlink" href="https:\/\/wiseoldman\.net\/competitions\/145197" target="_blank" rel="noopener noreferrer" aria-label="@T\["View Wise Old Man competition"\]" title="@T\["View Wise Old Man competition"\]">WOM<\/a>/, "catalogue competition link retains its label, localized accessible meaning and neutral action treatment");
 assert.match(catalogueMarkup, /public-dashboard-masthead-actions public-dashboard-masthead-actions--dual/, "catalogue represents the dual-action masthead state");
 assert.match(siteCss, /\.public-event-dashboard \.public-dashboard-hero \{[^}]*grid-template-columns: minmax\(0, 1fr\) 1px minmax\(0, 1fr\) 1px minmax\(0, 1fr\) 1px minmax\(0, 1fr\) 1px minmax\(0, 1fr\)/, "production masthead keeps five explicit desktop slots and four dividers on one row");
 assert.match(siteCss, /\.public-ui-masthead-row \{ display: grid; width: min\(100%, 80rem\); grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/, "catalogue masthead uses the shared five-slot composition");
@@ -459,15 +492,15 @@ assert.match(siteCss, /\.public-event-dashboard \.public-dashboard-hero > \.publ
 assert.match(boardMarkup, /<tr class="public-ui-leaderboard-detail-row">\s*<td colspan="7">\s*<details/, "production leaderboards use full-width detail rows");
 assert.equal((boardMarkup.match(/public-ui-table--nested(?:\s|")/g) ?? []).length, 2, "production has one nested detail table per leaderboard variant");
 assert.match(boardMarkup, /data-public-leaderboard-view="activity"[\s\S]*?data-public-leaderboard-view="drops"[\s\S]*?data-public-leaderboard-view="players"/, "production exposes the route-backed three-view selector");
-assert.match(boardMarkup, /<div class="public-ui-surface-content">\s*<nav[^>]*data-public-leaderboard-switcher[\s\S]*?data-public-leaderboard-panel="activity"[\s\S]*?data-public-leaderboard-panel="drops"[\s\S]*?data-public-leaderboard-panel="players"[\s\S]*?<\/div>\s*<\/section>/, "production keeps all three leaderboard panels inside the owning surface content");
-assert.match(boardMarkup, /data-public-leaderboard-players-table[\s\S]*?@T\["Rank"\][\s\S]*?@T\["Player"\][\s\S]*?@T\["Team"\][\s\S]*?@T\["EHB gained"\][\s\S]*?@T\["Drop EHB"\][\s\S]*?@T\["Total drops"\][\s\S]*?@T\["WoM"\]/, "production Players view uses the approved owner table columns");
+assert.match(boardMarkup, /<div class="public-ui-leaderboards-tabs">\s*<nav[^>]*data-public-leaderboard-switcher[\s\S]*?<\/nav>\s*<\/div>\s*<div class="public-ui-leaderboards-divider" aria-hidden="true"><\/div>\s*<div class="public-ui-section public-ui-leaderboards-main">\s*<section[^>]*aria-label="@T\["Selected leaderboard"\]">\s*<div class="public-ui-surface-content">\s*<div id="public-leaderboard-activity"[\s\S]*?data-public-leaderboard-panel="drops"[\s\S]*?data-public-leaderboard-panel="players"/, "production tabs precede the shared surface containing all three panels");
+assert.match(boardPlayersHead, /@T\["Rank"\][\s\S]*?@T\["Player"\][\s\S]*?@T\["Team"\][\s\S]*?@T\["EHB gained"\][\s\S]*?@T\["Drop EHB"\][\s\S]*?@T\["Total drops"\][\s\S]*?@T\["WOM"\]/, "production Players header retains the ordered owner, metrics and WOM columns");
 assert.match(boardMarkup, /data-sort-player="@primaryAccountName" data-sort-team="@player\.TeamName" data-sort-ehb-gained="@\(player\.HasActivity \? participant\.TotalGainedEhb/, "production Players rows expose owner/team and conditional EHB sort values");
 assert.match(boardMarkup, /data-sort-ehb-gained="@\(player\.HasActivity \? participant\.TotalGainedEhb\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\) : null\)" data-sort-drop-ehb="@\(player\.TotalDrops > 0 \? player\.DropEhb\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\) : null\)" data-sort-total-drops="@player\.TotalDrops"/, "production Players rows expose conditional EHB and independent approved-drop sort values");
 assert.match(boardMarkup, /player\.HasActivity \? player\.Rank\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\) : null[\s\S]*?player\.HasActivity \? participant\.TotalGainedEhb\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\) : null/, "production Players leave Rank and EHB unavailable before activity");
 assert.match(boardMarkup, /player\.TotalDrops > 0 \? player\.DropEhb\.ToString\("\+0\.00;-0\.00;0\.00"\) : "—"/, "production Players show an em dash for zero-drop Drop EHB");
 assert.match(boardMarkup, /class="public-ui-section-heading @\(player\.HasActivity \? "public-ui-positive-delta--success" : null\)">@gainedEhb/, "production unavailable EHB values omit the success color");
 assert.match(boardMarkup, /class="public-ui-section-heading @\(player\.TotalDrops > 0 \? "public-ui-positive-delta--success" : null\)">@\(player\.TotalDrops > 0/, "production unavailable Drop EHB values omit the success color");
-assert.match(boardMarkup, /public-ui-table--nested-ehb[\s\S]*?@T\["Rank"\][\s\S]*?@T\["Player"\][\s\S]*?@T\["EHB gained"\][\s\S]*?@T\["Start EHB"\][\s\S]*?@T\["End EHB"\][\s\S]*?@T\["WoM"\]/, "production EHB details use the ranked six-column variant and approved column order");
+assert.match(boardEhbHead, /@T\["Rank"\][\s\S]*?@T\["Player"\][\s\S]*?@T\["EHB gained"\][\s\S]*?@T\["Start EHB"\][\s\S]*?@T\["End EHB"\][\s\S]*?@T\["WOM"\]/, "production EHB details retain the ordered six-column header");
 assert.match(boardMarkup, /public-ui-table--nested-drop-ehb[\s\S]*?@T\["Rank"\][\s\S]*?@T\["Player"\][\s\S]*?@T\["Drop EHB"\][\s\S]*?@T\["Total drops"\][\s\S]*?@T\["Team share"\][\s\S]*?@T\["Drops"\]/, "production Drop EHB details use the approved six-column order");
 assert.match(boardMarkup, /var teamShareValue = team\.TotalDrops == 0 \? 0m : player\.ApprovedSubmissions \/ \(decimal\)team\.TotalDrops \* 100m;[\s\S]*?var teamShare = team\.TotalDrops == 0 \? "—" : \$"\{teamShareValue:0\.0\}%";[\s\S]*?<td><strong class="public-ui-section-heading">@teamShare<\/strong>/, "production Drop EHB details derive neutral team share from approved drop counts with an all-zero em dash");
 assert.match(boardMarkup, /data-sort-rank="@\(player\.ApprovedSubmissions > 0 \? \(playerIndex \+ 1\)\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\) : null\)"[\s\S]*?data-sort-drop-ehb="@\(player\.ApprovedSubmissions > 0 \? player\.DropEhb\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\) : null\)"[\s\S]*?player\.ApprovedSubmissions > 0 \? player\.DropEhb\.ToString\("\+0\.00;-0\.00;0\.00"\) : "—"/, "production Drop EHB rows keep unavailable rank and Drop EHB values out of numeric sorting");
@@ -486,24 +519,24 @@ assert.notEqual(boardEhbWomCell, "", "production EHB WoM cell is present");
 assert.match(boardEhbWomCell, /public-ui-leaderboard-detail-secondary/, "production EHB WoM cell marks secondary account links with the shared detail role");
 assert.doesNotMatch(boardEhbWomCell, /if \(accountIndex > 0\)[\s\S]*?<span aria-hidden="true"> · <\/span>/, "production EHB WoM links no longer use an inline separator");
 assert.match(boardMarkup, /asp-route-dropSearch="@dropSearch"/, "Drop EHB details preserve the real search fallback");
-assert.equal((boardMarkup.match(/<div class="public-ui-section">\s*<header class="public-ui-component-header">[\s\S]*?<table class="public-ui-table(?: [^"]+)?" data-public-leaderboard-table/g) ?? []).length, 3, "production metadata and tables share the Public UI section gap");
-assert.match(boardMarkup, /<small class="public-ui-supporting-text">@T\["Calculated from approved drops"\]<\/small>/, "production uses concise Drop EHB metadata");
-assert.match(boardMarkup, /id="public-leaderboard-players-heading" class="public-ui-supporting-text"><span>@T\["Wise Old Man"\]<\/span> <span aria-hidden="true">·<\/span> <span>@T\["Player activity across all teams"\]<\/span>/, "production Players uses compact sibling metadata");
+assert.equal((boardMarkup.match(/data-public-leaderboard-panel="(?:activity|drops|players)"[^\n]*\n\s*<div class="public-ui-section">\s*<table class="public-ui-table(?: [^"]+)?" data-public-leaderboard-table/g) ?? []).length, 3, "each production panel places its table directly in the section wrapper");
+assert.match(boardMarkup, /data-public-leaderboard-panel="drops"[^\n]*\n\s*<div class="public-ui-section">\s*<table class="public-ui-table" data-public-leaderboard-table aria-label="@T\["Drop EHB leaderboard"\]">/, "production Drop EHB table retains its accessible identity without the retired metadata header");
+assert.match(boardMarkup, /<table[^>]*data-public-leaderboard-players-table aria-label="@T\["Players leaderboard"\]">/, "production Players table retains its localized accessible identity");
 assert.match(boardMarkup, /data-public-leaderboard-players-table[^>]*class="public-ui-table public-ui-table--players"|class="public-ui-table public-ui-table--players"[^>]*data-public-leaderboard-players-table/, "production Players uses the scoped action-column alignment class");
 assert.equal((catalogueMarkup.match(/public-ui-table--nested(?:\s|")/g) ?? []).length, 4, "catalogue mirrors nested detail tables for both variants");
 assert.equal((catalogueMarkup.match(/public-ui-table--nested-ehb/g) ?? []).length, 2, "catalogue mirrors the EHB nested variant");
 assert.equal((catalogueMarkup.match(/public-ui-table--nested-drop-ehb/g) ?? []).length, 2, "catalogue mirrors the Drop EHB nested variant");
-assert.match(catalogueMarkup, /data-public-leaderboard-sort-key="rank"[\s\S]*?data-public-leaderboard-sort-key="player"[\s\S]*?data-public-leaderboard-sort-key="ehb-gained"[\s\S]*?data-public-leaderboard-sort-key="start-ehb"[\s\S]*?data-public-leaderboard-sort-key="end-ehb"[\s\S]*?<th[^>]*>WoM<\/th>/, "catalogue EHB details include the approved ranked sortable column order");
-assert.match(catalogueMarkup, /data-public-leaderboard-sort-key="rank"[\s\S]*?data-public-leaderboard-sort-key="player"[\s\S]*?data-public-leaderboard-sort-key="drop-ehb"[\s\S]*?data-public-leaderboard-sort-key="total-drops"[\s\S]*?data-public-leaderboard-sort-key="team-share"[\s\S]*?<th[^>]*>Drops<\/th>/, "catalogue Drop EHB details include the approved ranked sortable column order");
+assert.match(catalogueEhbHead, /data-public-leaderboard-sort-key="rank"[\s\S]*?data-public-leaderboard-sort-key="player"[\s\S]*?data-public-leaderboard-sort-key="ehb-gained"[\s\S]*?data-public-leaderboard-sort-key="start-ehb"[\s\S]*?data-public-leaderboard-sort-key="end-ehb"[\s\S]*?<th[^>]*>WOM<\/th>/, "catalogue EHB details retain ranked sortable column order and the WOM action");
+assert.match(catalogueDropHead, /data-public-leaderboard-sort-key="rank"[\s\S]*?data-public-leaderboard-sort-key="player"[\s\S]*?data-public-leaderboard-sort-key="drop-ehb"[\s\S]*?data-public-leaderboard-sort-key="total-drops"[\s\S]*?data-public-leaderboard-sort-key="team-share"[\s\S]*?<th[^>]*>@T\["Drops"\]<\/th>/, "catalogue Drop EHB details retain ranked sortable column order and localized Drops action");
 assert.match(catalogueMarkup, /<small class="public-ui-supporting-text"><a class="public-ui-action public-ui-action--text public-ui-action--hyperlink"[\s\S]*?>RuneWarden<\/a><\/small><small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary"><a class="public-ui-action public-ui-action--text public-ui-action--hyperlink"[\s\S]*?>SpoonDealer<\/a><\/small>/, "catalogue demonstrates compact stacked independently clickable EHB links");
 assert.doesNotMatch(catalogueMarkup, /RuneWarden<\/a> · <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink"[\s\S]*?>SpoonDealer<\/a>/, "catalogue EHB WoM links omit the inline separator");
 assert.match(catalogueMarkup, /public-ui-leaderboard-detail-row/, "catalogue demonstrates full-width detail rows");
 assert.equal((catalogueMarkup.match(/<div class="public-ui-section">\s*<header class="public-ui-component-header">[\s\S]*?<table class="public-ui-table(?: [^"]+)?" data-public-leaderboard-table/g) ?? []).length, 3, "catalogue metadata and tables share the Public UI section gap");
 assert.match(catalogueMarkup, /data-public-leaderboard-view="activity"[\s\S]*?data-public-leaderboard-view="drops"[\s\S]*?data-public-leaderboard-view="players"/, "catalogue mirrors the three-view selector");
 assert.match(catalogueMarkup, /<div class="public-ui-surface-content">\s*<nav[^>]*data-public-leaderboard-switcher[\s\S]*?data-public-leaderboard-panel="activity"[\s\S]*?data-public-leaderboard-panel="drops"[\s\S]*?data-public-leaderboard-panel="players"[\s\S]*?<\/div>\s*<\/section>/, "catalogue keeps all three leaderboard panels inside the owning surface content");
-assert.match(catalogueMarkup, /data-public-leaderboard-players-table[\s\S]*?Rank[\s\S]*?Player[\s\S]*?Team[\s\S]*?EHB gained[\s\S]*?Drop EHB[\s\S]*?Total drops[\s\S]*?WoM/, "catalogue mirrors the Players table columns");
+assert.match(cataloguePlayersHead, /@T\["Rank"\][\s\S]*?@T\["Player"\][\s\S]*?@T\["Team"\][\s\S]*?@T\["EHB gained"\][\s\S]*?@T\["Drop EHB"\][\s\S]*?@T\["Total drops"\][\s\S]*?@T\["WOM"\]/, "catalogue Players header retains the same localized column order");
 assert.match(catalogueMarkup, /data-public-leaderboard-pagination[\s\S]*?data-public-leaderboard-page-control="first"[\s\S]*?data-public-leaderboard-page-control="last"/, "catalogue mirrors the shared Players pagination controls");
-assert.match(catalogueMarkup, /id="public-ui-players-table-heading" class="public-ui-supporting-text"><span>Wise Old Man<\/span> <span aria-hidden="true">·<\/span> <span>Player activity across all teams<\/span>/, "catalogue Players uses compact sibling metadata");
+assert.match(catalogueMarkup, /id="public-ui-players-table-heading" class="public-ui-supporting-text"><span>Wise Old Man<\/span> <span aria-hidden="true">·<\/span> <span>@T\["Player activity across all teams"\]<\/span>/, "catalogue Players metadata retains its localized scope description");
 assert.match(catalogueMarkup, /data-public-leaderboard-players-table[^>]*class="public-ui-table public-ui-table--players"|class="public-ui-table public-ui-table--players"[^>]*data-public-leaderboard-players-table/, "catalogue Players uses the scoped action-column alignment class");
 assert.match(catalogueMarkup, /var hasActivity = playerIndex < 21;[\s\S]*?data-sort-rank="@\(hasActivity \? playerIndex\.ToString\(\) : null\)"[\s\S]*?data-sort-drop-ehb="@\(totalDrops > 0 \? dropEhb\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\) : null\)"[\s\S]*?totalDrops > 0 \? \$"\+\{dropEhb:0\.00\}" : "—"/, "catalogue Players demonstrates roster-first unavailable activity with independent drops");
 assert.match(catalogueMarkup, /data-sort-player="IronMoth" data-sort-drop-ehb="" data-sort-total-drops="0" data-sort-team-share="0"[\s\S]*?<td><strong class="public-ui-section-heading">—<\/strong><\/td>[\s\S]*?<td><strong class="public-ui-section-heading">0<\/strong><\/td>[\s\S]*?dropSearch=IronMoth/, "catalogue Drop EHB demonstrates an all-zero roster row with usable Drops search");
@@ -511,7 +544,7 @@ assert.match(catalogueMarkup, /class="public-ui-section-heading @\(hasActivity \
 assert.match(catalogueMarkup, /class="public-ui-section-heading @\(totalDrops > 0 \? "public-ui-positive-delta--success" : null\)">@\(totalDrops > 0/, "catalogue unavailable Drop EHB values omit the success color");
 assert.match(boardMarkup, /data-public-leaderboard-page-control="first"[\s\S]*?<path d="M4 6v12" \/><path d="m15 6-6 6 6 6" \/>[\s\S]*?data-public-leaderboard-page-control="previous"[\s\S]*?<path d="m15 6-6 6 6 6" \/>[\s\S]*?data-public-leaderboard-page-control="next"[\s\S]*?<path d="m9 6 6 6-6 6" \/>[\s\S]*?data-public-leaderboard-page-control="last"[\s\S]*?<path d="m9 6 6 6-6 6" \/><path d="M20 6v12" \/>/, "production Players pager keeps horizontal first/last bar geometry");
 assert.match(catalogueMarkup, /data-public-leaderboard-page-control="first"[\s\S]*?<path d="M4 6v12" \/><path d="m15 6-6 6 6 6" \/>[\s\S]*?data-public-leaderboard-page-control="last"[\s\S]*?<path d="m9 6 6 6-6 6" \/><path d="M20 6v12" \/>/, "catalogue Players pager keeps horizontal first/last bar geometry");
-assert.match(catalogueMarkup, /<small class="public-ui-supporting-text">Calculated from approved drops<\/small>/, "catalogue uses concise Drop EHB metadata");
+assert.match(catalogueMarkup, /<small class="public-ui-supporting-text">@T\["Calculated from approved drops"\]<\/small>/, "catalogue retains localized approved-drop provenance");
 assert.match(siteCss, /\.public-ui-action--standard:hover:not\(:disabled\):not\(\[aria-disabled="true"\]\)[\s\S]*?\.public-ui-action--text\.public-ui-action--hyperlink:hover:not\(:disabled\):not\(\[aria-disabled="true"\]\)/, "standard hyperlink actions retain standard hover while text hyperlinks keep ghost hover");
 assert.doesNotMatch(boardStandingsMarkup, /public-ui-data-line/, "live standings rows omit decorative data lines");
 assert.doesNotMatch(catalogueStandingsMarkup, /public-ui-data-line/, "catalogue standings rows omit decorative data lines");
@@ -522,11 +555,11 @@ assert.match(boardStandingsMarkup, /data-public-leaderboard-standings-metric="dr
 assert.match(catalogueMarkup, /data-public-leaderboard-switcher[\s\S]*?data-public-leaderboard-view="activity"[\s\S]*?data-public-leaderboard-view="drops"/, "catalogue standings reuse the leaderboard switcher");
 assert.match(catalogueStandingsMarkup, /data-public-leaderboard-standings-metric="activity" class="public-ui-section-heading public-ui-positive-delta--success">\+2487\.00 EHB/, "catalogue EHB metric uses the green small role");
 assert.match(catalogueStandingsMarkup, /data-public-leaderboard-standings-metric="drops" class="public-ui-section-heading public-ui-positive-delta--success" hidden>\+842\.70 DEHB/, "catalogue Drop EHB metric uses the green small role");
-assert.match(boardMarkup, /<div class="public-ui-recent-drops-sidebar public-ui-recent-drops-sidebar--flush">\s*<section class="public-ui-standings/, "live standings reuse the sticky sidebar wrapper");
+assert.match(boardMarkup, /<div class="public-ui-leaderboards-sidebar public-ui-recent-drops-sidebar public-ui-recent-drops-sidebar--flush">\s*<section class="public-ui-standings/, "live standings retain the shared sticky sidebar with leaderboard layout ownership");
 assert.match(catalogueMarkup, /public-ui-leaderboard-overview-layout">\s*<div class="public-ui-section">\s*<section[\s\S]*public-ui-recent-drops-sidebar public-ui-recent-drops-sidebar--flush[\s\S]*public-ui-standings/, "catalogue represents the direct main section and standings sidebar composition");
-assert.match(boardStandingsMarkup, /<span class="public-ui-overline">@T\["Team progress"\]<\/span>\s*<strong id="standings-heading" class="public-ui-component-title">@T\["Bingo standings"\]<\/strong>/, "live standings use the two-line Team progress header");
+assert.match(boardStandingsMarkup, /<button[^>]*data-public-leaderboards-rail-toggle aria-expanded="true" aria-controls="public-leaderboards-rail-body" aria-label="@T\["Collapse Bingo standings"\]" data-expanded-label="@T\["Collapse Bingo standings"\]" data-collapsed-label="@T\["Expand Bingo standings"\]">\s*<strong id="standings-heading" class="public-ui-component-title">@T\["Bingo standings"\]<\/strong>[\s\S]*?<div id="public-leaderboards-rail-body" data-public-leaderboards-rail-body>/, "live standings title is the accessible collapse control for its rail body");
 assert.doesNotMatch(boardStandingsMarkup, /Always live|<small class="public-ui-supporting-text">@T\["Team progress"\]<\/small>/, "live standings omit redundant header lines");
-assert.match(catalogueStandingsMarkup, /<span class="public-ui-overline">Team progress<\/span>\s*<strong id="public-standings-specimen-heading" class="public-ui-component-title">Bingo standings<\/strong>/, "catalogue standings use the two-line Team progress header");
+assert.match(catalogueStandingsMarkup, /<span class="public-ui-overline">@T\["Team progress"\]<\/span>\s*<strong id="public-standings-specimen-heading" class="public-ui-component-title">@T\["Bingo standings"\]<\/strong>/, "catalogue standings retain their localized two-line specimen header");
 assert.doesNotMatch(catalogueStandingsMarkup, /A compact team summary alongside public drop activity\./, "catalogue standings omit the extra supporting line");
 assert.doesNotMatch(boardStandingsMarkup, /public-ui-positive-delta(?!-[-]?success)/, "live standings contain no blue metric values");
 assert.doesNotMatch(catalogueStandingsMarkup, /public-ui-positive-delta(?!-[-]?success)/, "catalogue standings contain no blue metric values");
@@ -556,7 +589,7 @@ assert.match(siteCss, /\.public-ui-table:not\(\.public-ui-table--nested\) > tbod
 assert.match(siteCss, /\.public-ui-table--nested > tbody > tr:not\(:last-child\) > td \{ border-bottom: 1px solid color-mix\(in srgb, var\(--public-ui-divider\) 70%, transparent\); \}/, "nested tables retain softer dividers between player rows for both variants");
 assert.match(siteCss, /\.public-ui-table--nested > tbody > tr:last-child > td \{ border-bottom: 1px solid color-mix\(in srgb, var\(--public-ui-divider\) 70%, transparent\); \}/, "nested tables restore the closing divider beneath the final player row");
 assert.match(siteCss, /\.public-ui-table > tbody > tr:has\(\+ \.public-ui-leaderboard-detail-row details\[open\]\) > td \{ background: color-mix\(in srgb, var\(--public-ui-charcoal-surface\) 82%, var\(--public-ui-flat-surface\)\); border-bottom: 0; \}/, "expanded team rows receive a selected surface tone");
-assert.match(siteCss, /\.public-ui-table > tbody > \.public-ui-leaderboard-detail-row:has\(details\[open\]\) > td > details \{ margin-inline: 0\.6rem; background: color-mix\(in srgb, var\(--public-ui-charcoal-surface\) 72%, var\(--public-ui-page-canvas\)\); border-left: 2px solid var\(--public-ui-data-blue\); \}/, "expanded detail regions stay within parent bounds with an inset tone and shared accent rail");
+assert.match(siteCss, /\.public-ui-table > tbody > \.public-ui-leaderboard-detail-row:has\(details\[open\]\) > td > details \{ margin-inline: 0\.6rem; background: var\(--public-ui-charcoal-surface\); border-left: 2px solid var\(--public-ui-data-blue\); \}/, "expanded details retain the bounded inset, shared surface and accent rail");
 assert.match(siteCss, /\.public-ui-table--nested-ehb th:nth-child\(1\), \.public-ui-table--nested-ehb td:nth-child\(1\) \{ width: 8%;/, "EHB nested columns keep rank compact");
 assert.match(siteCss, /\.public-ui-table--nested-ehb th:nth-child\(2\), \.public-ui-table--nested-ehb td:nth-child\(2\) \{ width: 21%;/, "EHB nested columns distribute reclaimed width to Player");
 assert.match(siteCss, /\.public-ui-table--nested-ehb th:nth-child\(3\), \.public-ui-table--nested-ehb td:nth-child\(3\) \{ width: 17%;/, "EHB nested columns distribute reclaimed width to gained values");
@@ -587,3 +620,13 @@ assert.match(siteCss, /\.public-ui-table--nested th:last-child \{ padding-inline
 assert.match(siteCss, /\.public-ui-leaderboard-pagination \{ display: flex; flex-wrap: wrap; gap: 0\.6rem; align-items: center; justify-content: center;/, "Players pagination is centered and responsive");
 assert.match(siteCss, /\.public-ui-leaderboard-pagination-control \{ display: grid; width: 1\.85rem; height: 1\.75rem;[^}]*border: 1px solid var\(--public-ui-divider\);/, "Players pagination reuses an outlined Public UI control treatment");
 assert.match(siteCss, /\.public-ui-leaderboard-pagination-control:focus-visible \{ outline: 2px solid var\(--public-ui-data-blue\);/, "Players pagination controls reuse the Public UI focus treatment");
+
+// Keep the old heading assertion's accessibility safeguard after all other checks,
+// independent of the retired visible metadata composition. Missing targets are
+// product defects, not test-fixture corrections.
+const playersPanelMarkup = boardMarkup.match(/<section id="public-leaderboard-players"[^\n]+/)?.[0];
+assert.ok(playersPanelMarkup, "production Players panel is present");
+const playersLabelledBy = playersPanelMarkup.match(/aria-labelledby="([^"\n]+)"/)?.[1];
+assert.ok(playersLabelledBy, "production Players panel retains an accessible label reference");
+for (const id of playersLabelledBy.split(/\s+/))
+  assert.ok(boardMarkup.includes(`id="${id}"`), `production Players panel label resolves: ${id}`);

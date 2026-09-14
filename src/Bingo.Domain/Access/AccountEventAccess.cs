@@ -16,6 +16,8 @@ public sealed class AccountEventAccess
     /// <summary>Records that the lifecycle worker has applied the event's original submission cutoff.</summary>
     public bool CutoffDisabled { get; private set; }
     public void Enable() => Enabled = true;
+    /// <summary>An explicit pre-start grant begins now, independently of the planned event start.</summary>
+    public void EnableFrom(DateTimeOffset grantedAt) { ActiveFrom = grantedAt.ToUniversalTime(); Enabled = true; }
     public void Disable() => Enabled = false;
     public void DisableAtCutoff() { Enabled = false; CutoffDisabled = true; }
     /// <summary>Lifecycle mutation windows are authoritative on the event, not on this credential projection.</summary>

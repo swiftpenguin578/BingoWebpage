@@ -317,6 +317,36 @@ public sealed class EventLifecycleFoundationTests
         Assert.Equal(EventState.AwaitingFinalReview, item.State);
         Assert.Null(item.ReopenedSubmissionCutoffAt);
         Assert.False(item.AcceptsNewSubmissions(Now.AddDays(4).AddMinutes(1)));
+        Assert.False(item.AcceptsEmergencySubmissions(Now.AddDays(4).AddMinutes(1)));
+        Assert.Throws<InvalidOperationException>(() => item.ReopenSubmissions(Now.AddDays(4), Now.AddDays(4)));
+        Assert.False(item.AcceptsNewSubmissions(Now.AddDays(4).AddMinutes(1)));
+        item.ReopenSubmissions(Now.AddDays(5), Now.AddDays(4));
+        Assert.True(item.AcceptsNewSubmissions(Now.AddDays(4).AddMinutes(1)));
+        Assert.True(item.AcceptsEmergencySubmissions(Now.AddDays(4).AddMinutes(1)));
+        Assert.True(item.CloseSubmissionsIfDue(Now.AddDays(5)));
+        Assert.True(item.AcceptsNewSubmissions(Now.AddDays(5)));
+        Assert.False(item.AcceptsEmergencySubmissions(Now.AddDays(5)));
+        Assert.False(item.AcceptsNewSubmissions(Now.AddDays(5).AddTicks(1)));
+        item.FinalizeResults(Now.AddDays(5));
+        item.Unfinalize("Another review cycle");
+        Assert.Null(item.ReopenedSubmissionCutoffAt);
+        Assert.False(item.AcceptsNewSubmissions(Now.AddDays(5)));
+    }
+
+    [Fact]
+    public void OrdinaryCutoffStaysInclusiveAfterTheWorkerRecordsClosure()
+    {
+        var item = Event();
+        item.OpenSignups(Now);
+        item.CloseSignups(Now.AddHours(1));
+        item.StartEvent(Now.AddDays(2));
+        item.EndEvent(Now.AddDays(3));
+        var cutoff = item.SubmissionCutoffAt!.Value;
+        Assert.True(item.AcceptsEmergencySubmissions(cutoff.AddTicks(-1)));
+        Assert.True(item.CloseSubmissionsIfDue(cutoff));
+        Assert.True(item.AcceptsNewSubmissions(cutoff));
+        Assert.False(item.AcceptsEmergencySubmissions(cutoff));
+        Assert.False(item.AcceptsNewSubmissions(cutoff.AddTicks(1)));
     }
 
     private static BingoEvent Event() => new(Guid.NewGuid(), "Test", $"test-{Guid.NewGuid():N}", "Test", "UTC", Now, Now.AddDays(1), Now.AddDays(2), Now.AddDays(3), Now.AddDays(4), 20, Guid.NewGuid(), Now);

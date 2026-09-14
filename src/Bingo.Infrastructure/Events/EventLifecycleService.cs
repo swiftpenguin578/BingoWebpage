@@ -271,7 +271,9 @@ public sealed class EventLifecycleService(
                                   select membership.TeamId).Distinct().ToListAsync(ct);
         var emergencyTeams = await (from access in db.AccountEventAccesses.AsNoTracking()
                                     join account in db.Accounts.AsNoTracking() on access.AccountId equals account.Id
-                                    where access.EventId == item.Id && access.Enabled && account.Active && account.AccountType == AccountType.EmergencyCaptain
+                                    where access.EventId == item.Id && access.Enabled && account.Active && account.PasswordHash != null && !account.MustChangePassword && account.AccountType == AccountType.EmergencyCaptain
+                                        && (access.ActiveFrom == null || access.ActiveFrom <= now) && (access.ExpiresAt == null || access.ExpiresAt > now)
+                                        && activeTeamIds.Contains(access.TeamId)
                                     select access.TeamId).Distinct().ToListAsync(ct);
         foreach (var team in activeTeams.Where(x => !captainTeams.Contains(x.Id) && !emergencyTeams.Contains(x.Id)))
             blockers.Add(new("TEAM_ACCESS_MISSING", $"{team.Name} needs a current Captain or enabled emergency credential.", $"/Admin/Events/Draft/{item.Id}"));

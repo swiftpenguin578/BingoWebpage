@@ -21,7 +21,7 @@
 @font-face { font-family: "Geist Public UI"; src: url("/fonts/prototypes/geist/Geist-Variable.woff2") format("woff2"); font-style: normal; font-weight: 100 900; font-display: swap; }
 @font-face { font-family: "Barlow Condensed Public UI"; src: url("/fonts/public/BarlowCondensed-ExtraBold.woff2") format("woff2"), url("/fonts/public/BarlowCondensed-ExtraBold.ttf") format("truetype"); font-style: normal; font-weight: 800; font-display: swap; }
 @font-face { font-family: "Barlow Condensed Public UI"; src: url("/fonts/public/BarlowCondensed-SemiBold.woff2") format("woff2"), url("/fonts/public/BarlowCondensed-SemiBold.ttf") format("truetype"); font-style: normal; font-weight: 600; font-display: swap; }
-@font-face { font-family: "Barlow Condensed Public UI"; src: url("/fonts/public/BarlowCondensed-Medium.ttf") format("truetype"); font-style: normal; font-weight: 500; font-display: swap; }
+@font-face { font-family: "Barlow Condensed Public UI"; src: url("/fonts/public/BarlowCondensed-Medium.woff2") format("woff2"), url("/fonts/public/BarlowCondensed-Medium.ttf") format("truetype"); font-style: normal; font-weight: 500; font-display: swap; }
 .public-ui-surface { --public-ui-text-supporting: rgba(255, 255, 255, 0.6); position: relative; width: 50%; min-height: 31rem; margin: 0 0 0.85rem; overflow: hidden; isolation: isolate; font-family: "Geist Public UI", system-ui, sans-serif; background: var(--public-ui-glass-surface); border: 1px solid var(--public-ui-glass-border); border-radius: 0.85rem; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12); -webkit-backdrop-filter: blur(1.1rem) saturate(115%); backdrop-filter: blur(1.1rem) saturate(115%); }
 .public-ui-surface--flat { background: var(--public-ui-charcoal-surface); background-image: none; border-color: transparent; box-shadow: none; filter: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
 .public-ui-surface--charcoal { background: var(--public-ui-charcoal-surface); background-image: none; border: 1px solid rgba(255, 255, 255, 0.06); box-shadow: none; filter: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
@@ -1394,13 +1394,17 @@ html[data-public-theme="dark"] .captain-operations-page .captain-focus-clear-for
 .captain-summary-item--rejected { color: var(--pass2-danger); }
 .captain-summary-item--approved { color: var(--pass2-success); }
 .captain-ledger { margin-top: 2rem; }
+.captain-ledger-heading { flex-wrap: wrap; }
+.captain-ledger-status-filter { display: flex; align-items: center; gap: 0.65rem; min-width: 0; max-width: 100%; margin-left: auto; }
+.captain-ledger-status-filter label { color: var(--pass2-muted); font: 500 0.85rem/1.2 "Geist Public UI", system-ui, sans-serif; }
+.captain-ledger-status-filter .captain-ledger-select-wrap { flex: 1; }
 .captain-ledger-filters { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(14rem, 1fr); width: min(100%, 100rem); gap: 1.25rem; align-items: end; margin-top: 1rem; }
 .captain-ledger-search-field, .captain-ledger-player-field { min-width: 0; }
 .captain-ledger-search-control, .captain-ledger-select-wrap { position: relative; min-width: 0; }
 .captain-operations-page .captain-ledger-search-input { width: 100%; min-height: 2.55rem; box-sizing: border-box; padding: 0.5rem 2.45rem 0.5rem 2.15rem; color: var(--pass2-text); background: var(--pass2-field); border: 1px solid var(--pass2-rule); border-radius: 0; font: 400 1rem/1.2 "Geist Public UI", system-ui, sans-serif; }
-.captain-operations-page .captain-ledger-player-field .public-ui-control-visual--select { width: 100%; min-height: 2.55rem; box-sizing: border-box; padding: 0.5rem 1.8rem 0.5rem 0.65rem; color: var(--pass2-text); background: var(--pass2-field); border: 1px solid var(--pass2-rule); border-radius: 0; font: 400 1rem/1.2 "Geist Public UI", system-ui, sans-serif; }
+.captain-operations-page :is(.captain-ledger-player-field, .captain-ledger-status-filter) .public-ui-control-visual--select { width: 100%; min-height: 2.55rem; box-sizing: border-box; padding: 0.5rem 1.8rem 0.5rem 0.65rem; color: var(--pass2-text); background: var(--pass2-field); border: 1px solid var(--pass2-rule); border-radius: 0; font: 400 1rem/1.2 "Geist Public UI", system-ui, sans-serif; }
 .captain-ledger-search-input::placeholder { color: var(--pass2-muted); }
-.captain-operations-page .captain-ledger-search-input:focus-visible, .captain-operations-page .captain-ledger-player-field .public-ui-control-visual--select:focus-visible { outline: 2px solid var(--pass2-accent); outline-offset: 3px; box-shadow: none; }
+.captain-operations-page .captain-ledger-search-input:focus-visible, .captain-operations-page :is(.captain-ledger-player-field, .captain-ledger-status-filter) .public-ui-control-visual--select:focus-visible { outline: 2px solid var(--pass2-accent); outline-offset: 3px; box-shadow: none; }
 .captain-ledger-search-input::-webkit-search-cancel-button, .captain-ledger-search-input::-webkit-search-decoration { appearance: none; -webkit-appearance: none; }
 .captain-ledger-search-icon { position: absolute; top: 50%; left: 0.7rem; width: 1rem; height: 1rem; color: var(--pass2-muted); pointer-events: none; transform: translateY(-50%); }
 .captain-ledger-search-clear { position: absolute; top: 50%; right: 0.15rem; display: grid; width: 2.2rem; height: 2.2rem; place-items: center; padding: 0; color: var(--pass2-muted); background: transparent; border: 0; border-radius: 0; cursor: pointer; transform: translateY(-50%); }
@@ -1408,7 +1412,7 @@ html[data-public-theme="dark"] .captain-operations-page .captain-focus-clear-for
 .captain-ledger-search-clear:focus-visible { outline: 2px solid var(--public-ui-data-blue); outline-offset: -1px; }
 .captain-ledger-search-clear svg { width: 0.9rem; height: 0.9rem; }
 .captain-ledger-search-clear[hidden] { display: none; }
-.captain-ledger-player-field .public-ui-control-visual--select { appearance: none; -webkit-appearance: none; }
+:is(.captain-ledger-player-field, .captain-ledger-status-filter) .public-ui-control-visual--select { appearance: none; -webkit-appearance: none; }
 .captain-ledger-select-wrap .public-ui-select-chevron { position: absolute; top: 50%; right: 0.7rem; border-color: var(--pass2-text); pointer-events: none; transform: translateY(-65%) rotate(45deg); }
 .captain-ledger-count { margin: 0.9rem 0 0.35rem; color: var(--pass2-muted); font-size: 0.9rem; }
 .captain-ledger-results { min-width: 0; }
@@ -2728,6 +2732,9 @@ html[data-public-theme="dark"] .status-editorial--403 .editorial-button--coral-o
 .status-request { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: baseline; }
 .status-request span { color: var(--editorial-blue); font-size: 0.78rem; }
 .status-request code { color: var(--editorial-ink); font: 400 0.8rem/1.3 "Geist Public UI", monospace; overflow-wrap: anywhere; }
+
+.status-editorial.status-editorial--cancelled { grid-template-columns: minmax(0, 1fr); }
+.status-editorial.status-editorial--cancelled .status-editorial__copy { width: min(100%, 32rem); justify-self: center; padding: 0; border: 0; }
 
 @media (max-width: 60rem) {
   .signup-masthead, .confirmation-masthead { grid-template-columns: 1fr; gap: 1.5rem; }

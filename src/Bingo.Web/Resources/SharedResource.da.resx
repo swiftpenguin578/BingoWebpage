@@ -2345,6 +2345,7 @@
   <data name="Another code already activates at that exact time." xml:space="preserve"><value>En anden kode aktiveres allerede på præcis dette tidspunkt.</value></data>
   <data name="Approved with {0} contribution." xml:space="preserve"><value>Godkendt med {0} bidrag.</value></data>
   <data name="Assign a current Captain to every drafted team before starting: {0}." xml:space="preserve"><value>Tildel en nuværende Captain til alle draftede hold, før du starter: {0}.</value></data>
+  <data name="Assign a current Captain to every drafted team before finalizing: {0}." xml:space="preserve"><value>Tildel en nuværende Captain til alle draftede hold, før du afslutter draften: {0}.</value></data>
   <data name="Board approval was removed. The preserved approval remains in history." xml:space="preserve"><value>Board-godkendelsen blev fjernet. Den bevarede godkendelse findes stadig i historikken.</value></data>
   <data name="Board approved privately. Publication remains a separate later action." xml:space="preserve"><value>Boardet blev godkendt privat. Publicering er fortsat en separat senere handling.</value></data>
   <data name="Board created." xml:space="preserve"><value>Board oprettet.</value></data>
@@ -2410,7 +2411,7 @@
   <data name="Internal participant could not be created." xml:space="preserve"><value>Intern deltager kunne ikke oprettes.</value></data>
   <data name="Internal participant created at waiting-list position {0}." xml:space="preserve"><value>Intern deltager oprettet på ventelisteplads {0}.</value></data>
   <data name="Internal participant created." xml:space="preserve"><value>Intern deltager oprettet.</value></data>
-  <data name="Only confirmed website-draft participants can be preassigned to a drafted team." xml:space="preserve"><value>Kun bekræftede deltagere fra webstedets draft kan forhåndstildeles et draftet hold.</value></data>
+  <data name="Only confirmed draft participants can be preassigned to a drafted team." xml:space="preserve"><value>Kun bekræftede draftdeltagere kan forhåndstildeles et draftet hold.</value></data>
   <data name="Participant administration is read-only after the draft starts." xml:space="preserve"><value>Deltageradministration er skrivebeskyttet, efter draften er startet.</value></data>
   <data name="Participant could not be restored." xml:space="preserve"><value>Deltageren kunne ikke gendannes.</value></data>
   <data name="Participant could not be withdrawn." xml:space="preserve"><value>Deltageren kunne ikke trækkes tilbage.</value></data>
@@ -2665,4 +2666,86 @@
   <data name="Reload" xml:space="preserve"><value>Genindlæs</value></data>
   <data name="Co-captain (optional)" xml:space="preserve"><value>Medkaptajn (valgfrit)</value></data>
   <data name="Optional text answer" xml:space="preserve"><value>Valgfrit tekstsvar</value></data>
+  <data name="Signup opening must be in the future." xml:space="preserve"><value>Åbning af tilmeldingen skal ligge i fremtiden.</value></data>
+  <data name="Signup closing must be in the future." xml:space="preserve"><value>Lukning af tilmeldingen skal ligge i fremtiden.</value></data>
+  <data name="Draft time must be in the future." xml:space="preserve"><value>Tidspunktet for holdfordelingen skal ligge i fremtiden.</value></data>
+  <data name="Event start must be in the future." xml:space="preserve"><value>Begivenhedens start skal ligge i fremtiden.</value></data>
+  <data name="Event end must be in the future." xml:space="preserve"><value>Begivenhedens slutning skal ligge i fremtiden.</value></data>
+  <data name="Signup closing must be no later than event start." xml:space="preserve"><value>Tilmeldingen skal lukke senest ved begivenhedens start.</value></data>
+  <data name="Signup closing must be after signup opening." xml:space="preserve"><value>Tilmeldingen skal lukke efter åbningen.</value></data>
+  <data name="An event link could not be allocated. Try creating the event again." xml:space="preserve"><value>Der kunne ikke tildeles et link til begivenheden. Prøv at oprette begivenheden igen.</value></data>
+  <data name="Answers to text questions will be public on the signup table." xml:space="preserve"><value>Svar på tekstspørgsmål vil være offentlige i tilmeldingsoversigten.</value></data>
+  <data name="The CSV must use valid UTF-8 encoding. Save it as UTF-8 and upload it again." xml:space="preserve"><value>CSV-filen skal bruge gyldig UTF-8-kodning. Gem den som UTF-8, og upload den igen.</value></data>
+  <data name="Primary Account is required." xml:space="preserve"><value>Den primære konto er påkrævet.</value></data>
+  <data name="Only an unapproved private board can be approved." xml:space="preserve"><value>Kun et ikke-godkendt privat board kan godkendes.</value></data>
+  <data name="Fill every board position before approving the board." xml:space="preserve"><value>Udfyld alle boardets felter, før du godkender boardet.</value></data>
+  <data name="The board has conflicting tile positions. Reload and correct the layout before approving it." xml:space="preserve"><value>Boardets feltplaceringer er i konflikt. Genindlæs og ret placeringerne før godkendelse.</value></data>
+  <data name="Every board tile needs at least one objective before approval." xml:space="preserve"><value>Hvert boardfelt skal have mindst ét mål før godkendelse.</value></data>
+  <data name="A tile definition is no longer available. Reload the board before approval." xml:space="preserve"><value>En feltdefinition er ikke længere tilgængelig. Genindlæs boardet før godkendelse.</value></data>
+  <data name="A referenced boss or activity is no longer active. Correct the board before approval." xml:space="preserve"><value>En valgt boss eller aktivitet er ikke længere aktiv. Ret boardet før godkendelse.</value></data>
+  <data name="A referenced catalogue drop is no longer active. Correct the board before approval." xml:space="preserve"><value>Et valgt katalogdrop er ikke længere aktivt. Ret boardet før godkendelse.</value></data>
+  <data name="The catalogue changed after you opened this board. Reload and review the current values before approving it." xml:space="preserve"><value>Kataloget er ændret, siden du åbnede boardet. Genindlæs og gennemgå de aktuelle værdier før godkendelse.</value></data>
+  <data name="A managed tile image no longer belongs to this event. Correct the tile before approval." xml:space="preserve"><value>Et feltbillede tilhører ikke længere dette event. Ret feltet før godkendelse.</value></data>
+  <data name="Every catalogue objective needs an active eligible drop before approval." xml:space="preserve"><value>Hvert katalogmål skal have et aktivt, gyldigt drop før godkendelse.</value></data>
+  <data name="A catalogue item identity changed. Reselect the affected drop in the tile before approving the board." xml:space="preserve"><value>Identiteten på et katalogitem er ændret. Vælg det berørte drop igen i feltet før godkendelse af boardet.</value></data>
+  <data name="A catalogue item has inconsistent contribution limits across its sources. Correct the requirement before approval." xml:space="preserve"><value>Et katalogitem har forskellige bidragsgrænser på tværs af sine kilder. Ret kravet før godkendelse.</value></data>
+  <data name="Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind." xml:space="preserve"><value>Brug separate felter til katalogdrops og brugerdefinerede udfordringer. Alle mål i et felt skal være af samme type.</value></data>
+  <data name="Catalogue tiles use automatic EHB. Remove the manual estimate and correct any missing catalogue rates." xml:space="preserve"><value>Katalogfelter bruger automatisk EHB. Fjern det manuelle estimat, og ret eventuelle manglende katalograter.</value></data>
+  <data name="The tile kind does not match its objectives. Edit and save the tile with one objective kind before approval." xml:space="preserve"><value>Feltets type stemmer ikke overens med målene. Rediger og gem feltet med én måltype før godkendelse.</value></data>
+  <data name="{0} needs a positive manual EHB estimate. Edit the custom tile before approval." xml:space="preserve"><value>{0} kræver et positivt manuelt EHB-estimat. Rediger det brugerdefinerede felt før godkendelse.</value></data>
+  <data name="{0} needs automatic EHB. Correct the catalogue rates or drop requirements before approval; a manual estimate cannot replace them." xml:space="preserve"><value>{0} kræver automatisk EHB. Ret katalograterne eller dropkravene før godkendelse; et manuelt estimat kan ikke erstatte dem.</value></data>
+  <data name="{0} needs a valid estimate. Catalogue tiles require automatic EHB; custom tiles require manual EHB. Keep the objective kinds in separate tiles." xml:space="preserve"><value>{0} kræver et gyldigt estimat. Katalogfelter kræver automatisk EHB, og brugerdefinerede felter kræver manuelt EHB. Hold måltyperne i separate felter.</value></data>
+  <data name="Manual EHB estimate" xml:space="preserve"><value>Manuelt EHB-estimat</value></data>
+  <data name="Required for custom challenges. Catalogue drops use automatic EHB." xml:space="preserve"><value>Påkrævet for brugerdefinerede udfordringer. Katalogdrops bruger automatisk EHB.</value></data>
+  <data name="Each tile uses one objective kind. Use separate tiles for catalogue drops and custom challenges." xml:space="preserve"><value>Hvert felt bruger én måltype. Brug separate felter til katalogdrops og brugerdefinerede udfordringer.</value></data>
+  <data name="Board approval was saved, but the live update could not be sent. Reload to see the current board." xml:space="preserve"><value>Board-godkendelsen blev gemt, men liveopdateringen kunne ikke sendes. Genindlæs for at se det aktuelle board.</value></data>
+  <data name="A live event's competition cannot be cleared. Link a validated replacement with a matching event window." xml:space="preserve"><value>En live-events konkurrence kan ikke fjernes. Tilknyt en valideret erstatning med et matchende eventtidsrum.</value></data>
+  <data name="Try a different status, search or player. The complete retained history remains available above." xml:space="preserve"><value>Prøv en anden status, søgning eller spiller. Den komplette gemte historik er stadig tilgængelig ovenfor.</value></data>
+  <data name="Participant withdrawn before event start" xml:space="preserve"><value>Deltager trukket før eventstart</value></data>
+  <data name="Replacement confirmed before event start" xml:space="preserve"><value>Erstatning bekræftet før eventstart</value></data>
+  <data name="Signup details are locked" xml:space="preserve">
+    <value>Tilmeldingsoplysninger er låst</value>
+  </data>
+  <data name="Answers and registered accounts remain locked. Use the participant actions below to record a departure or explicitly fill a vacancy." xml:space="preserve">
+    <value>Svar og registrerede konti forbliver låst. Brug deltagerhandlingerne nedenfor til at registrere en udtrædelse eller udtrykkeligt besætte en ledig plads.</value>
+  </data>
+  <data name="A note is appended to existing private Admin notes, up to 2,000 characters in total. Leave blank to preserve them." xml:space="preserve">
+    <value>Noten føjes til de eksisterende private administratornoter, op til 2.000 tegn i alt. Lad feltet stå tomt for at bevare dem.</value>
+  </data>
+  <data name="Historical player unavailable" xml:space="preserve">
+    <value>Historisk spilleroplysning er ikke tilgængelig</value>
+  </data>
+  <data name="Roster corrections require a finalized draft before the event starts and a future event end." xml:space="preserve">
+    <value>Rettelser af holdopstillingen kræver en afsluttet draft før eventstart og et fremtidigt sluttidspunkt.</value>
+  </data>
+  <data name="Replacement requires Live or a finalized draft before the event starts and a future event end." xml:space="preserve">
+    <value>En erstatning kræver et igangværende event eller en afsluttet draft før eventstart og et fremtidigt sluttidspunkt.</value>
+  </data>
+  <data name="The withdrawal note and existing Admin notes must total 2,000 characters or fewer. Shorten the note or withdraw without adding one." xml:space="preserve">
+    <value>Udtrædelsesnoten og de eksisterende administratornoter må højst fylde 2.000 tegn i alt. Forkort noten, eller registrer udtrædelsen uden at tilføje en note.</value>
+  </data>
+  <data name="The roster correction could not be saved. No changes were applied. Reload and try again." xml:space="preserve">
+    <value>Rettelsen af holdopstillingen kunne ikke gemmes. Ingen ændringer blev anvendt. Genindlæs, og prøv igen.</value>
+  </data>
+  <data name="The role correction could not be saved. No changes were applied. Reload and try again." xml:space="preserve">
+    <value>Rollerettelsen kunne ikke gemmes. Ingen ændringer blev anvendt. Genindlæs, og prøv igen.</value>
+  </data>
+  <data name="Objectives with submitted evidence allow wording corrections only. Their meaning, requirements and scoring must stay the same." xml:space="preserve"><value>Mål med indsendt dokumentation tillader kun sproglige rettelser. Betydning, krav og pointberegning skal forblive uændrede.</value></data>
+  <data name="Objectives with submitted evidence cannot change requirements or scoring, or be removed. Only wording corrections are allowed." xml:space="preserve"><value>Mål med indsendt dokumentation kan ikke ændre krav eller pointberegning eller fjernes. Kun sproglige rettelser er tilladt.</value></data>
+  <data name="A tile with submitted evidence cannot be removed." xml:space="preserve"><value>En tile med indsendt dokumentation kan ikke fjernes.</value></data>
+  <data name="The board changed while this correction was being saved. Reload and try again." xml:space="preserve"><value>Boardet blev ændret, mens rettelsen blev gemt. Genindlæs siden, og prøv igen.</value></data>
+  <data name="Submitted evidence now references an objective changed or removed by this correction. The active publication has been preserved." xml:space="preserve"><value>Indsendt dokumentation henviser nu til et mål, som denne rettelse har ændret eller fjernet. Det offentliggjorte board er bevaret.</value></data>
+  <data name="A tile with submitted evidence cannot change its scoring. The active publication has been preserved." xml:space="preserve"><value>Pointberegningen for en tile med indsendt dokumentation kan ikke ændres. Det offentliggjorte board er bevaret.</value></data>
+  <data name="The active publication has unavailable objective identities. No replacement was published." xml:space="preserve"><value>Det offentliggjorte board har utilgængelige målidentiteter. Ingen erstatning blev offentliggjort.</value></data>
+  <data name="An objective no longer belongs to this tile. Reload before editing." xml:space="preserve"><value>Et mål tilhører ikke længere denne tile. Genindlæs siden, før du redigerer.</value></data>
+  <data name="Choose eligible drops from the selected bosses." xml:space="preserve"><value>Vælg gyldige drops fra de valgte bosser.</value></data>
+  <data name="The published board changed while this submission was being prepared. Reload and try again." xml:space="preserve"><value>Det offentliggjorte board blev ændret, mens indsendelsen blev forberedt. Genindlæs siden, og prøv igen.</value></data>
+  <data name="The published objective identities are unavailable. Contact an administrator." xml:space="preserve"><value>De offentliggjorte målidentiteter er utilgængelige. Kontakt en administrator.</value></data>
+  <data name="Discard private correction" xml:space="preserve"><value>Kassér privat rettelse</value></data>
+  <data name="Discard private correction?" xml:space="preserve"><value>Kassér privat rettelse?</value></data>
+  <data name="All unpublished board edits in this correction will be lost. The working board will return to the current publication. Published results and submitted evidence will remain intact." xml:space="preserve"><value>Alle upublicerede ændringer af pladen i denne rettelse går tabt. Arbejdskopien gendannes fra den aktuelle offentliggjorte plade. Offentliggjorte resultater og indsendt dokumentation bevares.</value></data>
+  <data name="Confirm discarding all unpublished board edits before continuing." xml:space="preserve"><value>Bekræft, at alle upublicerede ændringer af pladen skal kasseres, før du fortsætter.</value></data>
+  <data name="This board changed after you opened it. Reload before discarding the correction." xml:space="preserve"><value>Pladen er ændret, siden du åbnede den. Genindlæs, før du kasserer rettelsen.</value></data>
+  <data name="The private correction could not be discarded. No changes were saved. Reload and try again; if required published data or artwork is unavailable, contact an administrator." xml:space="preserve"><value>Den private rettelse kunne ikke kasseres. Ingen ændringer blev gemt. Genindlæs og prøv igen. Kontakt en administrator, hvis nødvendige offentliggjorte data eller billeder ikke er tilgængelige.</value></data>
+  <data name="Private correction discarded. All unpublished board edits were removed and the working board was restored to the current publication." xml:space="preserve"><value>Den private rettelse er kasseret. Alle upublicerede ændringer af pladen blev fjernet, og arbejdskopien blev gendannet fra den aktuelle offentliggjorte plade.</value></data>
 </root>

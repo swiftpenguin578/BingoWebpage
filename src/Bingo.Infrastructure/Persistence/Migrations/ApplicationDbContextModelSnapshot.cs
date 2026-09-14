@@ -3976,15 +3976,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
-            modelBuilder.Entity("Bingo.Domain.Boards.BoardTileImageAsset", b =>
-                {
-                    b.HasOne("Bingo.Domain.Boards.BoardTile", null)
-                        .WithMany()
-                        .HasForeignKey("BoardTileId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Bingo.Domain.Events.BingoEvent", b =>
                 {
                     b.HasOne("Bingo.Domain.Events.EventBannerAsset", null)

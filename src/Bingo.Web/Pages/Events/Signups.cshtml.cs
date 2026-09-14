@@ -91,10 +91,11 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
                                  where participantIds.Contains(assignment.EventParticipantId) && assignment.ReleasedAt == null
                                  select new { assignment.EventParticipantId, assignment.SignupQuestionId, assignment.EventRole, assignment.EhbSnapshot, character.DisplayName }).ToListAsync(ct);
         var answers = await db.SignupAnswers.AsNoTracking().Where(x => participantIds.Contains(x.EventParticipantId)).ToListAsync(ct);
-        var views = participants.Select((participant, index) =>
+        var waitingPosition = 0;
+        var views = participants.Select(participant =>
         {
             var values = columns.Select(column => ValueFor(column, participant, assignments, answers, text)).ToList();
-            return new ParticipantView(participant.SignupStatus == SignupStatus.WaitingList ? index - participants.FindIndex(x => x.SignupStatus == SignupStatus.WaitingList) + 1 : null, values);
+            return new ParticipantView(participant.SignupStatus == SignupStatus.WaitingList ? ++waitingPosition : null, values);
         }).ToList();
         Confirmed = views.Where((_, index) => participants[index].SignupStatus == SignupStatus.Confirmed).ToList();
         Waiting = views.Where((_, index) => participants[index].SignupStatus == SignupStatus.WaitingList).ToList();

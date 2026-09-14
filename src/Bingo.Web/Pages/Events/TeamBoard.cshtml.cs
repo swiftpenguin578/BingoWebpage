@@ -4,6 +4,7 @@ using Bingo.Application.Evidence;
 using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Signups;
 using Bingo.Application.Teams;
+using Bingo.Domain.Events;
 using Bingo.Domain.Teams;
 using Bingo.Web.HistoricalImport;
 using Bingo.Web.Security;
@@ -41,9 +42,10 @@ public sealed class TeamBoardModel(
         if (!TryParseTileRoute(tileRoute, out var tileId)) return NotFound();
         var board = await boards.GetEventBoardAsync(slug, cancellationToken);
         if (board is null) return NotFound();
+        Board = board;
+        if (board.EventState == EventState.Cancelled) return Page();
         var index = board.Teams.ToList().FindIndex(value => value.TeamSlug == teamSlug);
         if (index < 0) return NotFound();
-        Board = board;
         Team = board.Teams[index];
         Activity = activity is null
             ? new(EventCompetitionActivityState.NotConfigured, 0, null, null, [])
@@ -87,6 +89,7 @@ public sealed class TeamBoardModel(
     {
         if (!TryParseTileRoute(tileRoute, out var tileId) || tileId is null) return NotFound();
         var board = await boards.GetEventBoardAsync(slug, cancellationToken);
+        if (board?.EventState == EventState.Cancelled) return Partial("_EventCancelled", board.EventName);
         var team = board?.Teams.SingleOrDefault(value => value.TeamSlug == teamSlug);
         var tile = board is null ? null : await boards.GetTileAsync(slug, teamSlug, tileId.Value, cancellationToken);
         if (board is null || team is null || tile is null) return NotFound();

@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Net;
 using System.Text.RegularExpressions;
 using Bingo.Application.Teams;
@@ -175,7 +176,7 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
             var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, "seed");
             setup.AddRange(admin, owner, item, team, participant, membership); await setup.SaveChangesAsync(); eventId = item.Id; membershipId = membership.Id; adminId = admin.Id; ownerId = owner.Id;
         }
-        var barrier = new RoleChangeRaceBarrier();
+        var barrier = new RoleChangeRaceBarrier(membershipId);
         var raceOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(barrier).Options;
         async Task<(TeamMembershipRole Role, TeamCaptainRoleChangeResult Result)> Change(TeamMembershipRole role)
         { await using var context = new ApplicationDbContext(raceOptions); return (role, await new TeamCaptainAuthorityService(context, TimeProvider.System).ChangeRoleAsync(new(eventId, membershipId, role, adminId, "race-admin"))); }
@@ -194,19 +195,30 @@ public sealed class CaptainAuthorityIntegrationTests : IAsyncLifetime
         Assert.Empty(await verify.AccountEventAccesses.ToListAsync());
     }
 
-    private sealed class RoleChangeRaceBarrier : SaveChangesInterceptor
+    private sealed class RoleChangeRaceBarrier(Guid membershipId) : DbCommandInterceptor
     {
         private int arrivals;
         private readonly TaskCompletionSource<bool> release = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        public override async ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(DbCommand command, CommandEventData eventData,
+            InterceptionResult<int> result, CancellationToken cancellationToken = default)
         {
-            if (!eventData.Context!.ChangeTracker.Entries<TeamMembershipRoleTransition>().Any(entry => entry.State == EntityState.Added))
+            if (!command.CommandText.Contains("FROM events WHERE", StringComparison.Ordinal) || !command.CommandText.Contains("FOR UPDATE", StringComparison.Ordinal))
                 return result;
 
+            // Establish both serializable snapshots before the shared event lock.
+            // A barrier at SaveChanges would now wait behind the first writer's lock.
+            await using var snapshot = command.Connection!.CreateCommand();
+            snapshot.Transaction = command.Transaction;
+            snapshot.CommandText = "SELECT version FROM team_memberships WHERE id = @membershipId";
+            var parameter = snapshot.CreateParameter();
+            parameter.ParameterName = "membershipId";
+            parameter.Value = membershipId;
+            snapshot.Parameters.Add(parameter);
+            Assert.NotNull(await snapshot.ExecuteScalarAsync(cancellationToken));
             if (Interlocked.Increment(ref arrivals) == 2)
                 release.TrySetResult(true);
-            await release.Task.WaitAsync(cancellationToken);
+            await release.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
             return result;
         }
     }

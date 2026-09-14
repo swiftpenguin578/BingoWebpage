@@ -13,4 +13,5 @@ public sealed record SubmissionLedgerViewModel(
     int TotalSubmissionCount,
     string? Search,
     Guid? PlayerFilter,
-    string EventTimezone = DateTimePresentation.DefaultTimezoneId);
+    string EventTimezone = DateTimePresentation.DefaultTimezoneId,
+    string? StatusFilter = null);

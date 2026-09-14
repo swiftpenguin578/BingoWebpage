@@ -13,6 +13,10 @@
         <p>@T["Keep a personal ordered list of OSRS characters for future signups."]</p>
     </header>
     <div asp-validation-summary="ModelOnly" class="public-pass2-validation" tabindex="-1"></div>
+    @if (Model.Edit.LinkId != Guid.Empty && !ModelState.IsValid)
+    {
+        <p class="public-pass2-note"><a asp-page="MyAccounts" asp-route-ReturnUrl="@Model.ReturnUrl" class="public-pass2-text-link">@T["Reload current values"]</a></p>
+    }
 
     <section class="public-pass2-overview-section" aria-labelledby="add-character-heading">
         <header class="public-pass2-section-heading public-pass2-ledger-heading"><h2 id="add-character-heading">@T["Add OSRS character"]</h2><span aria-hidden="true"></span></header>
@@ -45,6 +49,7 @@
             <div class="public-pass2-character-list" role="list">
                 @foreach (var link in Model.Links)
                 {
+                    var editVersion = Model.Edit.LinkId == link.Id ? ModelState["Edit.Version"]?.AttemptedValue ?? Model.Edit.Version?.ToString(CultureInfo.InvariantCulture) : link.Version.ToString(CultureInfo.InvariantCulture);
                     var editCharacterName = Model.Edit.LinkId == link.Id && ModelState.ContainsKey("Edit.CharacterName") ? ModelState["Edit.CharacterName"]?.AttemptedValue ?? Model.Edit.CharacterName : link.CharacterName;
                     var editPersonalLabel = Model.Edit.LinkId == link.Id && ModelState.ContainsKey("Edit.PersonalLabel") ? ModelState["Edit.PersonalLabel"]?.AttemptedValue ?? Model.Edit.PersonalLabel : Model.FetchFailureLinkId == link.Id ? Model.FetchFailureLabel : link.PersonalLabel;
                     var editSavedEhb = Model.Edit.LinkId == link.Id && ModelState.ContainsKey("Edit.SavedEhb") ? ModelState["Edit.SavedEhb"]?.AttemptedValue ?? Model.Edit.SavedEhb?.ToString("0.00", CultureInfo.CurrentCulture) : Model.FetchFailureLinkId == link.Id ? Model.FetchFailureEhb : link.SavedEhb?.ToString("0.00", CultureInfo.CurrentCulture);
@@ -63,6 +68,7 @@
                                 <form id="edit-@link.Id" method="post" asp-page-handler="Update" class="public-pass2-character-edit">
                                     <input asp-for="ReturnUrl" type="hidden" />
                                     <input asp-for="Edit.LinkId" type="hidden" value="@link.Id" />
+                                    <input type="hidden" name="Edit.Version" value="@editVersion" />
                                     <div class="public-pass2-field"><label for="character-name-@link.Id">@T["OSRS character"]</label><input id="character-name-@link.Id" name="Edit.CharacterName" value="@editCharacterName" /><span asp-validation-for="Edit.CharacterName" class="public-pass2-field-error"></span></div>
                                     <div class="public-pass2-field"><label for="personal-label-@link.Id">@T["Personal label"]</label><input id="personal-label-@link.Id" name="Edit.PersonalLabel" value="@editPersonalLabel" /><span asp-validation-for="Edit.PersonalLabel" class="public-pass2-field-error"></span></div>
                                     <div class="public-pass2-field public-pass2-field--ehb"><label for="ehb-@link.Id">@T["EHB"]</label><div class="public-pass2-inline-field"><input id="ehb-@link.Id" name="Edit.SavedEhb" value="@editSavedEhb" inputmode="decimal" /><button type="submit" formaction="?handler=Fetch" class="public-pass2-text-link"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M13 6a5 5 0 0 0-8.5-1L3 6.5M3 3v3.5h3.5M3 10a5 5 0 0 0 8.5 1l1.5-1.5M13 13v-3.5H9.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" /></svg>@T["Fetch"]</button></div><span asp-validation-for="Edit.SavedEhb" class="public-pass2-field-error"></span></div>

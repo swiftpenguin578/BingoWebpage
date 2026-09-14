@@ -1,6 +1,7 @@
 using Bingo.Application.Boards;
 using Bingo.Application.Evidence;
 using Bingo.Application.Integrations.WiseOldMan;
+using Bingo.Domain.Events;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -72,6 +73,7 @@ public sealed class BoardModel(
         var board = await boards.GetEventBoardAsync(slug, requestedDropCount, DropSearch, DropTeam, cancellationToken);
         if (board is null) return NotFound();
         Board = board;
+        if (board.EventState == EventState.Cancelled) return Page();
         var accountId = User.GetAccountId();
         if (accountId is Guid actorAccountId)
         {

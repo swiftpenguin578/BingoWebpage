@@ -45,7 +45,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public EventCompetitionView? CompetitionIntegration { get; private set; }
     public string? PrivateCancellationReason { get; private set; }
     public IReadOnlyList<QuarantineAuditRow> QuarantineAuditHistory { get; private set; } = [];
-    public bool SignupWarningAcknowledged => EventView is not null && TempData.Peek(SignupConfirmationKey(EventView.Id, "warnings")) is not null;
+    public bool SignupWarningAcknowledged => EventView is not null && WarningsAcknowledged(EventView.Id, SignupReadiness);
     public bool SignupCloseAcknowledged => EventView is not null && TempData.Peek(SignupConfirmationKey(EventView.Id, "close")) is not null;
     public bool SignupCloseRequiresAcceptance => (EventView?.State is EventState.Draft or EventState.SignupClosed) && SignupReadiness?.CloseDecision.RequiresAcceptance == true;
     [BindProperty, Range(1, 10000), Display(Name = "New participant cap")] public int NewCap { get; set; }
@@ -65,6 +65,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     [BindProperty] public bool ConfirmCompetitionClear { get; set; }
     [BindProperty, StringLength(2000)] public string? CompetitionClearReason { get; set; }
     [BindProperty] public bool AcknowledgeSignupWarnings { get; set; }
+    [BindProperty] public string[] SignupWarningCodes { get; set; } = [];
     [BindProperty] public bool AcceptProposedClose { get; set; }
     [BindProperty] public bool ConfirmStartEvent { get; set; }
     [BindProperty, StringLength(2000)] public string? StartReason { get; set; }
@@ -100,9 +101,9 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var current = await dbContext.Events.AsNoTracking().Where(x => x.Id == id).Select(x => x.State).SingleOrDefaultAsync(ct);
         return current == EventState.SignupClosed ? await OnPostReopenSignupAsync(id, ct) : await OnPostOpenSignupAsync(id, ct);
     }
-    public async Task<IActionResult> OnPostOpenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.OpenAsync(id, EventVersion, AcknowledgeSignupWarnings, AcceptProposedClose, Actor, ct), id, "Signups opened.", ct);
+    public async Task<IActionResult> OnPostOpenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.OpenAsync(id, EventVersion, AcknowledgeSignupWarnings ? SignupWarningCodes : [], AcceptProposedClose, Actor, ct), id, "Signups opened.", ct);
     public async Task<IActionResult> OnPostCloseSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.CloseAsync(id, EventVersion, Actor, ct), id, "Signups closed.", ct);
-    public async Task<IActionResult> OnPostReopenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.ReopenAsync(id, EventVersion, AcknowledgeSignupWarnings, AcceptProposedClose, Actor, ct), id, "Signups reopened.", ct);
+    public async Task<IActionResult> OnPostReopenSignupAsync(Guid id, CancellationToken ct) => await SignupResult(await signupLifecycle.ReopenAsync(id, EventVersion, AcknowledgeSignupWarnings ? SignupWarningCodes : [], AcceptProposedClose, Actor, ct), id, "Signups reopened.", ct);
     public async Task<IActionResult> OnPostCapacityAsync(Guid id, CancellationToken ct)
     {
         if (HasBindingErrors(nameof(NewCap))) { TempData["StatusMessage"] = Localize("Enter a valid player cap."); return RedirectToPage(new { id }); }
@@ -136,9 +137,9 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var readiness = await readinessEvaluator.GetSignupReadinessAsync(id, state == EventState.SignupClosed ? SignupOpeningMode.Reopen : SignupOpeningMode.OpenNow, timeProvider.GetUtcNow(), ct);
         var acknowledgeWarnings = Request.Form.ContainsKey(nameof(AcknowledgeSignupWarnings));
         var acceptProposedClose = Request.Form.ContainsKey(nameof(AcceptProposedClose));
-        if (acknowledgeWarnings) TempData[SignupConfirmationKey(id, "warnings")] = true;
+        if (acknowledgeWarnings) TempData[SignupConfirmationKey(id, "warnings")] = string.Join(',', SignupWarningCodes.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
         if (acceptProposedClose) TempData[SignupConfirmationKey(id, "close")] = true;
-        var warningsConfirmed = (readiness?.Warnings.Count ?? 0) == 0 || acknowledgeWarnings || TempData.Peek(SignupConfirmationKey(id, "warnings")) is not null;
+        var warningsConfirmed = (readiness?.Warnings.Count ?? 0) == 0 || WarningsAcknowledged(id, readiness);
         var closeConfirmed = state is not (EventState.Draft or EventState.SignupClosed) || readiness?.CloseDecision.RequiresAcceptance != true || acceptProposedClose || TempData.Peek(SignupConfirmationKey(id, "close")) is not null;
         if (!warningsConfirmed || !closeConfirmed)
         {
@@ -146,8 +147,8 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             return RedirectToPage(new { id, confirm = "signup" });
         }
         return await SignupResult(state == EventState.SignupClosed
-            ? await signupLifecycle.ReopenAsync(id, EventVersion, warningsConfirmed, closeConfirmed, Actor, ct)
-            : await signupLifecycle.OpenAsync(id, EventVersion, warningsConfirmed, closeConfirmed, Actor, ct), id, state == EventState.SignupClosed ? "Signups reopened." : "Signups opened.", ct);
+            ? await signupLifecycle.ReopenAsync(id, EventVersion, AcknowledgedSignupWarningCodes(id), closeConfirmed, Actor, ct)
+            : await signupLifecycle.OpenAsync(id, EventVersion, AcknowledgedSignupWarningCodes(id), closeConfirmed, Actor, ct), id, state == EventState.SignupClosed ? "Signups reopened." : "Signups opened.", ct);
     }
     public async Task<IActionResult> OnPostStartEventAsync(Guid id, CancellationToken ct)
     {
@@ -542,6 +543,12 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
 
     private string Localize(string key, params object[] arguments)
         => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
+    private string[] AcknowledgedSignupWarningCodes(Guid id)
+        => (TempData.Peek(SignupConfirmationKey(id, "warnings")) as string ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries);
+    private bool WarningsAcknowledged(Guid id, SignupReadiness? readiness)
+        => readiness is not null && TempData.Peek(SignupConfirmationKey(id, "warnings")) is string scope && scope == WarningScope(readiness);
+    private static string WarningScope(SignupReadiness? readiness)
+        => string.Join(',', (readiness?.Warnings.Select(item => item.Code) ?? []).Order(StringComparer.Ordinal));
     private static string SignupConfirmationKey(Guid id, string kind) => $"ManageSignupConfirmation:{id}:{kind}";
     private async Task<IActionResult> PrepareConfirmation(Guid id, string action, CancellationToken ct)
     {

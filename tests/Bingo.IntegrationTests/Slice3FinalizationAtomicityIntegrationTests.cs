@@ -191,7 +191,9 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         {
             var service = new EventFinalizationService(failing, new ReadyBoard(teamId, completed: true), new FixedClock(now));
             var cycleId = await failing.EventStateTransitions.Where(x => x.EventId == eventId && x.ToState == EventState.AwaitingFinalReview).Select(x => x.Id).SingleAsync();
-            await Assert.ThrowsAsync<InvalidOperationException>(() => service.AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, 1, cycleId));
+            var readiness = (await service.GetReadinessAsync(eventId))!;
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, 1, cycleId, expectedInspectionKey: readiness.Blockers.Single(x => x.TeamId == teamId).Key));
+            Assert.Equal("Simulated review audit failure.", exception.Message);
         }
 
         await using (var verify = new ApplicationDbContext(options))
@@ -204,7 +206,8 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         {
             var service = new EventFinalizationService(success, new ReadyBoard(teamId, completed: true), new FixedClock(now));
             var cycleId = await success.EventStateTransitions.Where(x => x.EventId == eventId && x.ToState == EventState.AwaitingFinalReview).Select(x => x.Id).SingleAsync();
-            await service.AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, 1, cycleId);
+            var readiness = (await service.GetReadinessAsync(eventId))!;
+            await service.AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, 1, cycleId, expectedInspectionKey: readiness.Blockers.Single(x => x.TeamId == teamId).Key);
         }
 
         await using var committed = new ApplicationDbContext(options);
@@ -229,11 +232,13 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
 
         Guid cycleOne;
         long versionOne;
+        string inspectionKeyOne;
         await using (var read = new ApplicationDbContext(options))
         {
             var readiness = await new EventFinalizationService(read, new ReadyBoard(teamId, completed: true), new FixedClock(now)).GetReadinessAsync(eventId);
             cycleOne = readiness!.ReviewCycleId;
             versionOne = readiness.EventVersion;
+            inspectionKeyOne = readiness.Blockers.Single(x => x.TeamId == teamId).Key;
         }
 
         await using (var missingTokens = new ApplicationDbContext(options))
@@ -242,7 +247,7 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         await using (var first = new ApplicationDbContext(options))
         {
             var service = new EventFinalizationService(first, new ReadyBoard(teamId, completed: true), new FixedClock(now));
-            await service.AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, versionOne, cycleOne);
+            await service.AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, versionOne, cycleOne, expectedInspectionKey: inspectionKeyOne);
         }
         await using (var afterFirst = new ApplicationDbContext(options))
         {
@@ -252,7 +257,7 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         }
 
         await using (var retry = new ApplicationDbContext(options))
-            await new EventFinalizationService(retry, new ReadyBoard(teamId, completed: true), new FixedClock(now)).AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, versionOne, cycleOne);
+            await new EventFinalizationService(retry, new ReadyBoard(teamId, completed: true), new FixedClock(now)).AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, versionOne, cycleOne, expectedInspectionKey: inspectionKeyOne);
 
         await using (var stale = new ApplicationDbContext(options))
         {
@@ -304,7 +309,9 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         try
         {
-            await new EventFinalizationService(db, new ReadyBoard(teamId, completed: true), new FixedClock(now)).AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, expectedVersion, expectedReviewCycleId);
+            var service = new EventFinalizationService(db, new ReadyBoard(teamId, completed: true), new FixedClock(now));
+            var readiness = (await service.GetReadinessAsync(eventId))!;
+            await service.AcknowledgeCompletionTimeAsync(eventId, teamId, actorId, expectedVersion, expectedReviewCycleId, expectedInspectionKey: readiness.Blockers.Single(x => x.TeamId == teamId).Key);
             return null;
         }
         catch (Exception exception)
@@ -329,6 +336,7 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         return new FinalizeModel(finalization ?? new EventFinalizationService(db, new ReadyBoard(teamId), new FixedClock(now)), db, null!)
         {
             FinalizeConfirmation = withConfirmation ? "PUBLISH_OFFICIAL_RESULTS" : null,
+            ExpectedVersion = db.Events.AsNoTracking().Where(x => x.Slug == "atomic-finalization").Select(x => x.State == EventState.Finalized ? x.Version - 1 : x.Version).SingleOrDefault(),
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new DictionaryTempDataProvider())
         };
@@ -379,7 +387,7 @@ public sealed class Slice3FinalizationAtomicityIntegrationTests : IAsyncLifetime
         public DateTimeOffset? CorrectedAt { get; private set; }
         public Task<FinalReviewReadiness?> GetReadinessAsync(Guid eventId, CancellationToken ct = default) => Task.FromResult<FinalReviewReadiness?>(null);
         public Task ResolveBlockerAsync(Guid eventId, string blockerKey, string reason, bool confirmed, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default) => Task.CompletedTask;
-        public Task AcknowledgeCompletionTimeAsync(Guid eventId, Guid teamId, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default) => Task.CompletedTask;
+        public Task AcknowledgeCompletionTimeAsync(Guid eventId, Guid teamId, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, string? expectedInspectionKey = null, CancellationToken ct = default) => Task.CompletedTask;
         public Task CorrectCompletionAsync(Guid eventId, Guid teamId, DateTimeOffset correctedAt, string reason, Guid adminId, long? expectedVersion = null, Guid? expectedReviewCycleId = null, CancellationToken ct = default) { CorrectedAt = correctedAt; return Task.CompletedTask; }
         public Task FinalizeAsync(Guid eventId, LifecycleActor actor, long? expectedVersion = null, CancellationToken ct = default) => Task.CompletedTask;
         public Task UnfinalizeAsync(Guid eventId, string reason, bool confirmed, LifecycleActor actor, long? expectedVersion = null, CancellationToken ct = default) => Task.CompletedTask;

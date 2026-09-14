@@ -21,9 +21,10 @@ public sealed class FinalizeModel(IEventFinalizationService finalization, Applic
     [BindProperty] public string? FinalizeConfirmation { get; set; }
     [BindProperty] public long? ExpectedVersion { get; set; }
     [BindProperty] public Guid? ExpectedReviewCycleId { get; set; }
+    [BindProperty] public string? ExpectedInspectionKey { get; set; }
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct) { _ = audit; var value = await finalization.GetReadinessAsync(id, ct); if (value is null) return NotFound(); Readiness = value; EventTimezone = await db.Events.AsNoTracking().Where(x => x.Id == id).Select(x => x.Timezone).SingleAsync(ct); return Page(); }
     public async Task<IActionResult> OnPostResolveAsync(Guid id, string blockerKey, bool confirmOverride, CancellationToken ct) => await Run(id, async () => await finalization.ResolveBlockerAsync(id, blockerKey, Reason ?? string.Empty, confirmOverride, AdminId, ExpectedVersion, ExpectedReviewCycleId, ct), ct);
-    public async Task<IActionResult> OnPostAcknowledgeCompletionAsync(Guid id, Guid teamId, CancellationToken ct) => await Run(id, async () => await finalization.AcknowledgeCompletionTimeAsync(id, teamId, AdminId, ExpectedVersion, ExpectedReviewCycleId, ct), ct);
+    public async Task<IActionResult> OnPostAcknowledgeCompletionAsync(Guid id, Guid teamId, CancellationToken ct) => await Run(id, async () => await finalization.AcknowledgeCompletionTimeAsync(id, teamId, AdminId, ExpectedVersion, ExpectedReviewCycleId, ExpectedInspectionKey, ct), ct);
     public async Task<IActionResult> OnPostCorrectCompletionAsync(Guid id, Guid teamId, string? correctedAtLocal, CancellationToken ct) => await Run(id, async () =>
     {
         if (!DateTime.TryParseExact(correctedAtLocal, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var entered))
@@ -41,11 +42,11 @@ public sealed class FinalizeModel(IEventFinalizationService finalization, Applic
     {
         if (!string.Equals(FinalizeConfirmation, "PUBLISH_OFFICIAL_RESULTS", StringComparison.Ordinal))
             throw new InvalidOperationException(Localize("Confirm that these placements should be published as the official results."));
-        await finalization.FinalizeAsync(id, Actor, ExpectedVersion > 0 ? ExpectedVersion : null, ct);
+        await finalization.FinalizeAsync(id, Actor, ExpectedVersion, ct);
     }, ct);
     public async Task<IActionResult> OnPostUnfinalizeAsync(Guid id, CancellationToken ct) => await Run(id, async () => await finalization.UnfinalizeAsync(id, Reason ?? string.Empty, ConfirmLifecycleAction, Actor, ExpectedVersion > 0 ? ExpectedVersion : null, ct), ct);
     public async Task<IActionResult> OnPostArchiveAsync(Guid id, CancellationToken ct) => await Run(id, async () => await finalization.ArchiveAsync(id, ConfirmLifecycleAction, Actor, ct), ct);
-    private async Task<IActionResult> Run(Guid id, Func<Task> action, CancellationToken ct) { try { await action(); } catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; } return RedirectToPage(new { id }); }
+    private async Task<IActionResult> Run(Guid id, Func<Task> action, CancellationToken ct) { try { await action(); } catch (InvalidOperationException ex) { TempData["StatusMessage"] = ex.Message; TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString(); } return RedirectToPage(new { id }); }
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private Guid AdminId => User.GetAccountId()!.Value;
     private LifecycleActor Actor => new(AdminId, User.Identity!.Name!);

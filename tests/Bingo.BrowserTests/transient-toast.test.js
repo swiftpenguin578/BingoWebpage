@@ -58,11 +58,14 @@ FakeElement.Dismiss = class extends FakeNode {
 };
 
 const source = fs.readFileSync("src/Bingo.Web/wwwroot/js/site.js", "utf8");
+const popoverStart = source.indexOf("function initializePublicHeaderPopovers()");
+const popoverEnd = source.indexOf("function initializePublicTheme()", popoverStart);
 const start = source.indexOf("const transientToastTypes");
 const end = source.indexOf("function initializeAdminMenu");
 const showStart = source.indexOf("window.showBingoToast =");
 const showEnd = source.indexOf("\n};", showStart) + 3;
 assert.ok(start >= 0 && end > start && showStart > end && showEnd > showStart, "toast implementation boundary is present");
+assert.ok(popoverStart >= 0 && popoverEnd > popoverStart && popoverEnd < start, "actual popover initializer dependency is present");
 
 let now = 0;
 let nextTimer = 1;
@@ -83,7 +86,13 @@ dialog.appendChild(host);
 body.appendChild(dialog);
 const document = {
   body,
-  addEventListener() {},
+  readyState: "complete",
+  documentElement: { dataset: {
+    publicToastSuccess: "Success", publicToastWarning: "Warning", publicToastError: "Error",
+    publicToastInformation: "Information", publicToastDismiss: "Dismiss"
+  } },
+  listeners: {},
+  addEventListener(type, listener) { (this.listeners[type] ??= []).push(listener); },
   querySelectorAll() { return []; },
   querySelector(selector) { return selector === "#app-notice-region" ? host : null; },
   createElement(tagName) { return new FakeElement(tagName); }
@@ -98,7 +107,10 @@ const context = {
   document,
   window
 };
-vm.runInNewContext(source.slice(start, end) + source.slice(showStart, showEnd), context);
+// The toast slice registers and invokes this real dependency. This fixture has no
+// header menus, so its normal empty-menu path runs without loading unrelated UI.
+vm.runInNewContext(source.slice(popoverStart, popoverEnd) + source.slice(start, end) + source.slice(showStart, showEnd), context);
+assert.ok(document.listeners["bingo:content-updated"].includes(context.initializePublicHeaderPopovers), "content updates retain the actual popover initializer");
 
 const toast = new FakeElement();
 toast.dataset.toastDuration = "6000";
@@ -149,3 +161,25 @@ const visibleToast = host.children.at(-1);
 assert.equal(host.parentElement, body, "a toast host is restored outside a closed route dialog");
 assert.equal(dialog.contains(host), false, "a closed route dialog no longer owns the toast host");
 assert.equal(visibleToast?.dataset.transientToast, "true", "the shared toast remains visible after reparenting");
+
+for (const [input, expected, label] of [
+  ["success", "success", "Success"], ["warning", "warning", "Warning"],
+  ["error", "error", "Error"], ["information", "information", "Information"],
+  ["INFO", "information", "Information"], ["unknown", "information", "Information"]
+]) {
+  context.window.showBingoToast("Fixture <message>", input);
+  const current = host.children.at(-1);
+  assert.equal(current.className, `app-toast app-toast-${expected}`, `${input} uses normalized severity styling`);
+  assert.equal(current.attributes.role, expected === "error" ? "alert" : "status", `${input} uses the appropriate announcement role`);
+  assert.ok(current.innerHTML.includes(`<strong>${label}</strong>`), `${input} retains its localized severity label`);
+  assert.match(current.innerHTML, /data-dismiss-toast aria-label="Dismiss"/, "generated toast has a labeled dismiss button");
+  assert.equal(current.querySelector(".app-toast-copy span").textContent, "Fixture <message>", "message is assigned as text");
+  assert.equal(current.dataset.toastDuration, "6000", "each severity retains the default duration");
+  assert.equal(timers.get(current._toastTimer).at, now + 6000, "generated toast schedules its actual duration");
+  const timer = current._toastTimer;
+  context.initializeTransientToast(current);
+  assert.equal(current._toastTimer, timer, "reinitialization preserves the existing timer");
+  current.dismiss.dispatch("click");
+  assert.equal(current.connected, false, "generated toast supports reduced-motion dismissal");
+  assert.equal(timers.has(timer), false, "dismissal clears the generated toast timer");
+}

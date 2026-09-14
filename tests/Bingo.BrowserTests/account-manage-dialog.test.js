@@ -160,7 +160,10 @@ const manageRoot = (redirect = false) => {
   page.append(new Node("button", { dataset: { accountDialogClose: "true" } }));
   page.append(new Node("input", { name: "__RequestVerificationToken", value: "manage-token" }));
   page.append(new Node("button", { dataset: { accountFinalAction: "true", accountHandler: "GenerateResetLink", accountConfirmationTitle: "Generate a reset link?", accountConfirmationSupport: "The link is shown once and expires after 60 minutes.", accountConfirmationLabel: "Generate reset link", accountConfirmationStyle: "secondary" } }));
-  page.append(new Node("button", { dataset: { accountFinalAction: "true", accountHandler: "Disable", accountConfirmationTitle: "Disable this account?", accountConfirmationSupport: "Existing authorization and sessions will be protected by the account state change.", accountConfirmationLabel: "Disable account", accountConfirmationStyle: "danger", accountConfirmationReason: "true", accountConfirmationReasonLabel: "Disable reason" } }));
+  const disableForm = new Form("form");
+  disableForm.append(new Node("input", { name: "ExpectedAuthorizationVersion", value: "7", type: "hidden" }));
+  disableForm.append(new Node("button", { dataset: { accountFinalAction: "true", accountHandler: "Disable", accountConfirmationTitle: "Disable this account?", accountConfirmationSupport: "Existing authorization and sessions will be protected by the account state change.", accountConfirmationLabel: "Disable account", accountConfirmationStyle: "danger", accountConfirmationReason: "true", accountConfirmationReasonLabel: "Disable reason" } }));
+  page.append(disableForm);
   page.append(new Node("button", { dataset: { accountEmergencyAction: "true", accountHandler: "GenerateEmergencyLink", accountConfirmationTitle: "Generate a setup or reset link?", accountConfirmationSupport: "The link is shown once and expires after 60 minutes.", accountConfirmationLabel: "Generate link", accountConfirmationStyle: "secondary" } }));
   page.append(new Node("button", { dataset: { accountEmergencyAction: "true", accountHandler: "DisableEmergency", accountConfirmationTitle: "Disable this emergency credential?", accountConfirmationSupport: "The assigned team will no longer be able to use this fallback login.", accountConfirmationLabel: "Disable credential", accountConfirmationStyle: "danger" } }));
   return addGuard(page);
@@ -376,6 +379,7 @@ const nested = () => (lastConfirmation = body.querySelector(".admin-account-inli
   assert.equal(nested().hidden, false, "website disable action uses the shared inline confirmation");
   assert.equal(nested().querySelector("textarea").required, true, "website disable confirmation keeps the required reason field");
   assert.equal(nested().querySelector("textarea").name, "Reason");
+  assert.equal(nested().querySelector("input[name='ExpectedAuthorizationVersion']").value, "7", "the confirmation retains the target freshness from its originating form");
   const reason = nested().querySelector("textarea");
   reason.value = "Retained reason";
   outer().querySelector("[data-account-dialog-close]").dispatch("click");

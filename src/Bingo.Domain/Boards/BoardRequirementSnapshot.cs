@@ -12,4 +12,13 @@ public sealed class BoardRequirementSnapshot
     public bool AllowHigherWeightings { get; private set; }
     public int CreditedWeight { get; private set; } = 1;
     public string Description { get; private set; } = string.Empty; public bool ManualObjective { get; private set; }
+    public void CorrectWording(int position, string description)
+    {
+        Position = position;
+        Description = description;
+    }
+
+    public bool HasSameRules(int target, bool duplicates, bool higherWeights, bool manual, int creditedWeight = 1)
+        => TargetContribution == target && DuplicatesAllowed == duplicates && AllowHigherWeightings == higherWeights &&
+           ManualObjective == manual && CreditedWeight == (higherWeights ? creditedWeight : 1);
 }

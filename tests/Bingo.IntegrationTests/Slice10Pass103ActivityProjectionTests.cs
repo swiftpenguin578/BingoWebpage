@@ -445,13 +445,14 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             Assert.Equal(expectedNames.Count, await verify.EventCompetitionCharacterActivities.CountAsync(value => value.EventId == state.EventId && value.Generation == state.Generation));
         }
 
-        Assert.Contains("name=\"ConfirmCompetitionClear\"", manage, StringComparison.Ordinal);
+        Assert.DoesNotContain("handler=ClearCompetition", manage, StringComparison.Ordinal);
+        Assert.DoesNotContain("name=\"ConfirmCompetitionClear\"", manage, StringComparison.Ordinal);
         using (var rejectedClear = await client.PostAsync($"{manageRoute}?handler=ClearCompetition", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["EventVersion"] = Regex.Match(manage, "name=\"EventVersion\"[^>]*value=\"([^\"]+)\"").Groups[1].Value,
             ["__RequestVerificationToken"] = Regex.Match(manage, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
         }))) Assert.Equal(HttpStatusCode.Redirect, rejectedClear.StatusCode);
-        Assert.Contains("requires explicit confirmation and a reason.", await client.GetStringAsync(manageRoute), StringComparison.Ordinal);
+        Assert.Contains("competition cannot be cleared.", await client.GetStringAsync(manageRoute), StringComparison.Ordinal);
         await using (var verifyRejectedClear = new ApplicationDbContext(options))
             Assert.Equal(1515, (await verifyRejectedClear.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == liveId)).CompetitionId);
 
@@ -465,8 +466,12 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         }))) Assert.Equal(HttpStatusCode.Redirect, cleared.StatusCode);
         await using (var verifyCleared = new ApplicationDbContext(options))
         {
-            Assert.Null((await verifyCleared.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == liveId)).CompetitionId);
-            Assert.Contains(await verifyCleared.AuditEntries.Where(value => value.EventId == liveId && value.Action == "event.competition_cleared").Select(value => value.Details).ToListAsync(), value => value?.Contains("Correct the live event window before relinking Wise Old Man.", StringComparison.Ordinal) == true);
+            var retained = await verifyCleared.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == liveId);
+            Assert.Equal(1515, retained.CompetitionId);
+            Assert.True(retained.LatestComplete);
+            Assert.NotNull(retained.LastSuccessfulAt);
+            Assert.Equal(expectedNames.Count, await verifyCleared.EventCompetitionCharacterActivities.CountAsync(value => value.EventId == liveId && value.Generation == retained.Generation));
+            Assert.False(await verifyCleared.AuditEntries.AnyAsync(value => value.EventId == liveId && value.Action == "event.competition_cleared"));
         }
 
         Guid lookupId;

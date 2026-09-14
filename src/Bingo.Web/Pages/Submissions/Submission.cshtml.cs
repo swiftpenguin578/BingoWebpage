@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Bingo.Application.Evidence;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
+using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
@@ -127,11 +128,13 @@ public sealed class SubmissionModel(
         EventSlug = context.EventSlug;
         EventTimezone = context.Timezone;
         TeamSlug = context.TeamSlug;
-        var tile = await db.BoardTiles.AsNoTracking().SingleAsync(x => x.Id == submission.BoardTileId, ct);
-        var requirement = await db.BoardRequirementSnapshots.AsNoTracking().SingleAsync(x => x.Id == submission.RequirementId, ct);
-        var drop = submission.DropSnapshotId is Guid dropId
-            ? await db.BoardRequirementDropSnapshots.AsNoTracking().Where(x => x.Id == dropId).Select(x => new { x.ItemName, x.DisplayRate }).SingleOrDefaultAsync(ct)
-            : null;
+        var publication = await db.PublishedObjectivesAsync(submission.EventId, ct);
+        if (publication is null) return false;
+        var tile = publication.Tiles.SingleOrDefault(x => x.Id == submission.BoardTileId);
+        var requirement = publication.Requirements.SingleOrDefault(x => x.Id == submission.RequirementId && x.BoardTileId == submission.BoardTileId);
+        if (tile is null || requirement is null) return false;
+        var drop = submission.DropSnapshotId is Guid dropId ? publication.Drops.SingleOrDefault(x => x.Id == dropId && x.RequirementId == requirement.Id) : null;
+        if (submission.DropSnapshotId is not null && drop is null) return false;
         var asset = await db.EvidenceAssets.AsNoTracking().Where(x => x.SubmissionId == id && x.Active).OrderByDescending(x => x.UploadedAt).FirstOrDefaultAsync(ct);
         var replacementId = await db.Submissions.AsNoTracking()
             .Where(x => x.EventId == submission.EventId && x.TeamId == submission.TeamId && x.ResubmissionOfSubmissionId == id)
@@ -153,13 +156,13 @@ public sealed class SubmissionModel(
         CanResubmit = Details.Resubmittable;
 
         var board = await db.Boards.AsNoTracking().SingleAsync(x => x.EventId == submission.EventId, ct);
-        var tiles = await db.BoardTiles.AsNoTracking().Where(x => x.BoardId == board.Id).ToListAsync(ct);
+        var tiles = publication.Tiles;
         var tileMap = tiles.ToDictionary(x => x.Id);
         var tileIds = tiles.Select(x => x.Id).ToList();
-        var requirementEntities = await db.BoardRequirementSnapshots.AsNoTracking().Where(x => tileIds.Contains(x.BoardTileId)).OrderBy(x => x.Position).ToListAsync(ct);
+        var requirementEntities = publication.Requirements.OrderBy(x => x.Position).ToList();
         Requirements = requirementEntities.Select(x => new RequirementView(x.Id, x.BoardTileId, tileMap[x.BoardTileId].NameSnapshot, x.Description, x.AllowHigherWeightings, x.ManualObjective)).ToList();
         var requirementIds = Requirements.Select(x => x.Id).ToList();
-        Drops = await db.BoardRequirementDropSnapshots.AsNoTracking().Where(x => requirementIds.Contains(x.RequirementId)).OrderBy(x => x.BossName).ThenBy(x => x.ItemName).Select(x => new DropView(x.Id, x.RequirementId, x.BossName, x.ItemName, x.DisplayRate)).ToListAsync(ct);
+        Drops = publication.Drops.OrderBy(x => x.BossName).ThenBy(x => x.ItemName).Select(x => new DropView(x.Id, x.RequirementId, x.BossName, x.ItemName, x.DisplayRate)).ToList();
         TargetOptions = Requirements.SelectMany(item => Drops.Where(dropItem => dropItem.RequirementId == item.Id).Select(dropItem => new TargetView(item.TileId, item.Id, dropItem.Id, $"drop:{dropItem.Id}", $"{dropItem.Item} ({dropItem.Rate})", item.Description)))
             .Concat(Requirements.Where(item => item.Manual).Select(item => new TargetView(item.TileId, item.Id, null, $"manual:{item.Id}", item.Description, item.Description)))
             .ToList();

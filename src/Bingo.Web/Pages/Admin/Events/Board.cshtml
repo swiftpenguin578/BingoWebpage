@@ -76,7 +76,7 @@
                     <details><summary class="btn admin-button-secondary">@T["Board size"]</summary><form method="post" asp-page-handler="Resize" class="toolbar-popover board-size-popover"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><div class="board-size-fields"><div class="admin-field"><label asp-for="Rows"></label><input asp-for="Rows" class="form-control" /></div><div class="admin-field"><label asp-for="Columns"></label><input asp-for="Columns" class="form-control" /></div></div><div class="board-size-actions"><button class="btn admin-button-secondary">@T["Apply size"]</button></div></form></details>
                     @if (Model.BoardView.State == BoardState.Draft)
                     {
-                        <form method="post" asp-page-handler="Approve"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><button class="btn admin-button-secondary">@T["Approve board"]</button></form>
+                        <form method="post" asp-page-handler="Approve"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><input type="hidden" name="ApprovalCatalogueFingerprint" value="@Model.ApprovalCatalogueFingerprint" /><button class="btn admin-button-secondary">@T["Approve board"]</button></form>
                     }
                     else if (Model.BoardView.State == BoardState.Validated)
                     {
@@ -84,7 +84,18 @@
                     }
                     else if (Model.BoardView.State == BoardState.Published && Model.BoardView.PublishedCorrectionInProgress && (Model.EventState is EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview))
                     {
-                        <details class="admin-destructive-confirmation board-publication-confirmation"><summary class="btn admin-button-primary">@T["Publish corrected board"]</summary><div class="event-confirmation-box" role="alertdialog" aria-labelledby="publish-corrected-board-heading"><p><strong id="publish-corrected-board-heading">@T["Publish corrected board"]</strong><br /><span class="event-confirmation-supporting">@T["The current public snapshot remains live until this corrected working copy is published."]</span></p><form method="post" asp-page-handler="Approve"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><input type="hidden" name="confirmed" value="true" /><div class="event-confirmation-actions"><button class="btn admin-button-primary">@T["Publish corrected board"]</button><button type="button" class="btn admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div></details>
+                        <details class="admin-destructive-confirmation board-publication-confirmation" data-discard-correction>
+                            <summary class="btn action-danger-outline">@T["Discard private correction"]</summary>
+                            <div class="event-confirmation-box" role="alertdialog" aria-labelledby="discard-correction-heading" aria-describedby="discard-correction-description">
+                                <p><strong id="discard-correction-heading">@T["Discard private correction?"]</strong><br /><span id="discard-correction-description">@T["All unpublished board edits in this correction will be lost. The working board will return to the current publication. Published results and submitted evidence will remain intact."]</span></p>
+                                <form method="post" asp-page-handler="DiscardCorrection">
+                                    <input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" />
+                                    <input type="hidden" name="confirmed" value="true" />
+                                    <div class="event-confirmation-actions"><button type="button" class="btn admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button><button class="btn action-danger-outline">@T["Discard private correction"]</button></div>
+                                </form>
+                            </div>
+                        </details>
+                        <details class="admin-destructive-confirmation board-publication-confirmation"><summary class="btn admin-button-primary">@T["Publish corrected board"]</summary><div class="event-confirmation-box" role="alertdialog" aria-labelledby="publish-corrected-board-heading"><p><strong id="publish-corrected-board-heading">@T["Publish corrected board"]</strong><br /><span class="event-confirmation-supporting">@T["The current public snapshot remains live until this corrected working copy is published."]</span></p><form method="post" asp-page-handler="Approve"><input type="hidden" name="BoardVersion" value="@Model.BoardView.Version" /><input type="hidden" name="ApprovalCatalogueFingerprint" value="@Model.ApprovalCatalogueFingerprint" /><input type="hidden" name="confirmed" value="true" /><div class="event-confirmation-actions"><button class="btn admin-button-primary">@T["Publish corrected board"]</button><button type="button" class="btn admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div></form></div></details>
                     }
                 }
                 @if (Model.BoardView.State == BoardState.Validated && Model.DraftFinalized)
@@ -115,6 +126,7 @@
             else if (editable && Model.BoardView.State == BoardState.Published && Model.BoardView.PublishedCorrectionInProgress)
             {
                 <p class="board-toolbar-support">@T["The current public snapshot remains live until this corrected working copy is published."]</p>
+                <p class="board-toolbar-support">@T["Objectives with submitted evidence allow wording corrections only. Their meaning, requirements and scoring must stay the same."]</p>
             }
         </div>
 
@@ -295,7 +307,7 @@
                     </aside>
                     <div id="requirements"><partial name="_BoardRequirementEditor" model="@(new Bingo.Web.Pages.Admin.Events.BoardRequirementEditorViewModel(0, Model.Bosses, Model.Drops))" /></div>
                     <div class="tile-editor-actions"><button type="button" class="btn admin-button-secondary add-objective-button" id="add-requirement">＋ @T["Add another objective"]</button></div>
-                    <details class="manual-ehb-override"><summary><span>@T["Manual EHB override"]</span><svg class="board-dialog-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m6 9 6 6 6-6" /></svg></summary><div class="manual-ehb-override-content"><div class="admin-field"><label asp-for="TileDraft.ManualEhb"><span class="tile-field-label"><span>@T["Manual total EHB estimate"]</span><small>@T["Required for a custom challenge; otherwise overrides the live catalogue calculation."]</small></span></label><input asp-for="TileDraft.ManualEhb" class="form-control" type="number" min="0" step="any" /></div></div></details>
+                    <details class="manual-ehb-override" hidden><summary><span>@T["Manual EHB estimate"]</span><svg class="board-dialog-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m6 9 6 6 6-6" /></svg></summary><div class="manual-ehb-override-content"><div class="admin-field"><label asp-for="TileDraft.ManualEhb"><span class="tile-field-label"><span>@T["Manual total EHB estimate"]</span><small>@T["Required for custom challenges. Catalogue drops use automatic EHB."]</small></span></label><input asp-for="TileDraft.ManualEhb" class="form-control" type="number" min="0" step="any" /></div></div></details>
                     <div class="dialog-actions"><button type="button" class="btn admin-button-secondary dialog-cancel">@T["Cancel"]</button><button class="btn admin-button-secondary" id="save-tile-button">@T["Create tile"]</button></div>
                 </form>
                 <p data-board-editor-feedback role="alert" tabindex="-1" hidden></p>
@@ -309,6 +321,7 @@
                 <p id="remove-objective-question">@T["Are you sure you wanna remove this objective?"]</p>
                 <div class="event-confirmation-actions"><button type="button" class="btn admin-button-secondary" id="cancel-remove-objective">@T["Cancel"]</button><button type="button" class="btn admin-button-secondary action-danger-outline" id="confirm-remove-objective">@T["Remove objective"]</button></div>
             </div>
+            <p class="admin-field-help">@T["Each tile uses one objective kind. Use separate tiles for catalogue drops and custom challenges."]</p>
             <template id="requirement-template"><partial name="_BoardRequirementEditor" model="@(new Bingo.Web.Pages.Admin.Events.BoardRequirementEditorViewModel(-1, Model.Bosses, Model.Drops))" /></template>
             <script type="application/json" id="tile-editor-data">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TileEditors, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }))</script>
         }
@@ -414,6 +427,21 @@ document.querySelectorAll('.dialog-close, .dialog-cancel').forEach(button => but
     dialog?.close();
 }));
 document.querySelectorAll('.board-publication-confirmation [data-confirmation-cancel]').forEach(button => button.addEventListener('click', () => button.closest('details')?.removeAttribute('open')));
+const discardCorrection = document.querySelector('[data-discard-correction]');
+if (discardCorrection) {
+    const trigger = discardCorrection.querySelector('summary');
+    const cancel = discardCorrection.querySelector('[data-confirmation-cancel]');
+    discardCorrection.addEventListener('toggle', () => { if (discardCorrection.open) cancel.focus(); });
+    cancel.addEventListener('click', () => trigger.focus());
+    discardCorrection.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' || !discardCorrection.open) return;
+        event.preventDefault();
+        event.stopPropagation();
+        discardCorrection.open = false;
+        trigger.focus();
+    });
+}
+
 function isGenuineBackdropClick(dialog, event) {
     if (event.target !== dialog) return false;
     const rect = dialog.getBoundingClientRect?.();
@@ -460,9 +488,9 @@ let tileNameEdited = false; document.getElementById('tile-name')?.addEventListen
 function resetTileForm() { tileForm.reset(); tileForm.action = tileForm.dataset.createAction; document.getElementById('tile-id').value = ''; document.getElementById('tile-remove-image-row').hidden = true; document.getElementById('requirements').innerHTML = document.getElementById('requirement-template').innerHTML.replaceAll('Requirements[-1]', 'Requirements[0]').replaceAll('requirement--1', 'requirement-0').replaceAll('data-index="-1"', 'data-index="0"'); requirementIndex = 1; tileNameEdited = false; initializeRequirements(); }
 let requirementIndex = 1;
 function renumberObjectiveHeadings() { document.querySelectorAll('#requirements .requirement-editor').forEach((editor, index) => { const number = editor.querySelector('.objective-number'); if (number) number.textContent = String(index + 1); }); }
-function addRequirement(values = null) { const index = requirementIndex++; const html = document.getElementById('requirement-template').innerHTML.replaceAll('Requirements[-1]', `Requirements[${index}]`).replaceAll('requirement--1', `requirement-${index}`).replaceAll('data-index="-1"', `data-index="${index}"`); document.getElementById('requirements').insertAdjacentHTML('beforeend', html); initializeRequirements(); renumberObjectiveHeadings(); const editor = document.getElementById(`requirement-${index}`); if (values) populateRequirement(editor, values); return editor; }
+function addRequirement(values = null) { const index = requirementIndex++; const html = document.getElementById('requirement-template').innerHTML.replaceAll('Requirements[-1]', `Requirements[${index}]`).replaceAll('requirement--1', `requirement-${index}`).replaceAll('data-index="-1"', `data-index="${index}"`); document.getElementById('requirements').insertAdjacentHTML('beforeend', html); initializeRequirements(); renumberObjectiveHeadings(); const editor = document.getElementById(`requirement-${index}`); if (values) populateRequirement(editor, values); else { const kind = editor.querySelector('.requirement-kind'); kind.value = document.querySelector('#requirements .requirement-kind')?.value || 'drops'; kind.dispatchEvent(new Event('change')); } syncObjectiveKinds(); return editor; }
 document.getElementById('add-requirement')?.addEventListener('click', () => addRequirement());
-function populateRequirement(editor, values) { editor.querySelector('input[name$=".Target"]').value = values.target; editor.querySelector('.requirement-kind').value = values.kind; editor.querySelector('.requirement-kind').dispatchEvent(new Event('change')); editor.querySelector('.challenge-description').value = values.kind === 'challenge' ? values.description : ''; editor.querySelector('input[name$=".DuplicatesAllowed"]').checked = values.duplicatesAllowed; editor.querySelectorAll('.boss-checkbox').forEach(input => input.checked = values.bossIds.includes(input.value)); editor.querySelector('.boss-checkbox')?.dispatchEvent(new Event('change')); const hasWeights = Object.values(values.dropWeights || {}).some(weight => weight > 1); const weightsToggle = editor.querySelector('.individual-drop-weights-toggle'); if (weightsToggle) weightsToggle.checked = hasWeights; editor.querySelectorAll('.eligible-drop-checkbox').forEach(input => { input.checked = values.dropIds.includes(input.value); const weightInput = input.closest('.eligible-drop-option')?.querySelector('.drop-weight-field input'); if (weightInput) weightInput.value = values.dropWeights?.[input.value] || 1; }); weightsToggle?.dispatchEvent(new Event('change')); }
+function populateRequirement(editor, values) { editor.querySelector('input[name$=".RequirementId"]').value = values.requirementId; editor.querySelector('input[name$=".Target"]').value = values.target; editor.querySelector('.requirement-kind').value = values.kind; editor.querySelector('.requirement-kind').dispatchEvent(new Event('change')); editor.querySelector('.challenge-description').value = values.kind === 'challenge' ? values.description : ''; editor.querySelector('input[name$=".DuplicatesAllowed"]').checked = values.duplicatesAllowed; editor.querySelectorAll('.boss-checkbox').forEach(input => input.checked = values.bossIds.includes(input.value)); editor.querySelector('.boss-checkbox')?.dispatchEvent(new Event('change')); const hasWeights = Object.values(values.dropWeights || {}).some(weight => weight > 1); const weightsToggle = editor.querySelector('.individual-drop-weights-toggle'); if (weightsToggle) weightsToggle.checked = hasWeights; editor.querySelectorAll('.eligible-drop-checkbox').forEach(input => { input.checked = values.dropIds.includes(input.value); const weightInput = input.closest('.eligible-drop-option')?.querySelector('.drop-weight-field input'); if (weightInput) weightInput.value = values.dropWeights?.[input.value] || 1; }); weightsToggle?.dispatchEvent(new Event('change')); }
 function prepareCreateTileEditor(position) {
     activeTileId = null;
     activeCreatePosition = String(position ?? '');
@@ -533,14 +561,31 @@ document.getElementById('confirm-remove-objective')?.addEventListener('click', (
         cancelObjectiveRemoval();
         removed.remove();
         renumberObjectiveHeadings();
+        syncObjectiveKinds();
         document.getElementById('add-requirement')?.focus();
     }
     objectiveToRemove = null;
 });
+function syncObjectiveKinds() {
+    const kinds = [...document.querySelectorAll('#requirements .requirement-kind')];
+    const mixed = new Set(kinds.map(kind => kind.value)).size > 1;
+    kinds.forEach(kind => {
+        const others = kinds.filter(other => other !== kind);
+        kind.querySelectorAll('option').forEach(option => {
+            option.disabled = others.some(other => other.value !== option.value);
+        });
+        kind.setCustomValidity?.(mixed ? @Json.Serialize(T["Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind."].Value) : '');
+    });
+    const manual = kinds.length > 0 && kinds.every(kind => kind.value === 'challenge');
+    const input = document.getElementById('TileDraft_ManualEhb');
+    if (input) { input.disabled = !manual; input.required = manual; }
+    const section = document.querySelector('.manual-ehb-override');
+    if (section) section.hidden = !manual;
+}
 function initializeRequirements() {
         document.querySelectorAll('.requirement-editor:not([data-ready])').forEach(editor => {
         editor.dataset.ready = 'true'; const kind = editor.querySelector('.requirement-kind'); const dropFields = editor.querySelector('.drop-only-fields'); const challengeFields = editor.querySelector('.challenge-only-fields'); const challengeDescription = editor.querySelector('.challenge-description'); const bossChecks = [...editor.querySelectorAll('.boss-checkbox')]; const dropGroups = [...editor.querySelectorAll('.eligible-drop-group')]; const bossPickerLabel = editor.querySelector('.boss-picker-label'); const emptyDrops = editor.querySelector('.drop-picker-empty'); const dropActions = editor.querySelector('.eligible-drop-actions');
-        const updateKind = () => { const challenge = kind.value === 'challenge'; dropFields.hidden = challenge; challengeFields.hidden = !challenge; challengeDescription.required = challenge; }; kind.addEventListener('change', updateKind); updateKind();
+        const updateKind = () => { const challenge = kind.value === 'challenge'; dropFields.hidden = challenge; challengeFields.hidden = !challenge; challengeDescription.required = challenge; }; kind.addEventListener('change', () => { updateKind(); syncObjectiveKinds(); }); updateKind();
         const updateBosses = () => { const selected = bossChecks.filter(x => x.checked); const ids = selected.map(x => x.dataset.bossId); let visibleDrops = 0; dropGroups.forEach(group => { const visible = ids.includes(group.dataset.bossId); group.hidden = !visible; if (!visible) group.querySelectorAll('.eligible-drop-checkbox').forEach(input => input.checked = false); else visibleDrops += group.querySelectorAll('.eligible-drop-checkbox').length; }); const selectedLabel = selected.length === 0 ? 'Choose bosses or activities' : selected.length === 1 ? selected[0].dataset.bossName : `${selected.length} sources selected`; if (bossPickerLabel) bossPickerLabel.textContent = selectedLabel; emptyDrops.textContent = selected.length === 0 ? 'Choose a boss or activity first.' : visibleDrops === 0 ? 'No drops have been added to the selected bosses yet.' : ''; emptyDrops.hidden = visibleDrops > 0; if (dropActions) dropActions.hidden = visibleDrops === 0; if (editor.dataset.index === '0' && !tileNameEdited) document.getElementById('tile-name').value = selected.map(x => x.dataset.bossName).join(' + '); };
         bossChecks.forEach(checkbox => checkbox.addEventListener('change', updateBosses)); updateBosses();
         editor.querySelector('.select-all-drops')?.addEventListener('click', () => dropGroups.filter(group => !group.hidden).forEach(group => group.querySelectorAll('.eligible-drop-checkbox').forEach(input => input.checked = true)));
@@ -558,6 +603,7 @@ function initializeRequirements() {
         });
     });
     renumberObjectiveHeadings();
+    syncObjectiveKinds();
 }
 initializeRequirements();
 window.addEventListener('beforeunload', event => {

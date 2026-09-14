@@ -78,6 +78,8 @@ public sealed class EventReadinessEvaluator(ApplicationDbContext db, IConfigurat
             captain.Count != 1 || captain.SingleOrDefault() is not { Active: true, Type: SignupQuestionType.YesNo } ||
             questions.Select(x => x.Position).Distinct().Count() != questions.Count || invalidQuestion)
             blockers.Add(new("SIGNUP_QUESTIONS_INVALID", "One or more existing signup questions are incomplete or invalid."));
+        if (questions.Any(question => question.SystemField == SignupSystemField.None && question.Type == SignupQuestionType.Text && question.PublicOnSignupBoard))
+            warnings.Add(new("PUBLIC_FREE_TEXT", "Answers to text questions will be public on the signup table."));
         if (!item.WaitingListEnabled) warnings.Add(new("WAITING_LIST_DISABLED", "The waiting list is disabled."));
         if (mode == SignupOpeningMode.Reopen && await db.EventParticipants.AnyAsync(x => x.EventId == item.Id, ct)) warnings.Add(new("REOPENING_POPULATED_SIGNUP", "Reopening signup keeps the existing participant and signup history."));
         if (!await db.DraftSessions.AnyAsync(x => x.EventId == item.Id && x.State == Bingo.Domain.Teams.DraftState.Finalized, ct)) later.Add(new("DRAFT_NOT_FINALIZED", "Team draft finalization is a later readiness task."));
@@ -147,10 +149,10 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         catch (Exception ex) { if (logger is not null) LogScheduleFailure(logger, eventId, ex); await tx.RollbackAsync(ct); return new(false, "The schedule update could not be completed. Try again."); }
     }
 
-    public Task<SignupLifecycleResult> OpenAsync(Guid eventId, long version, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default)
-        => TransitionAsync(eventId, version, SignupOpeningMode.OpenNow, acknowledgeWarnings, acceptProposedClose, actor, ct);
-    public Task<SignupLifecycleResult> ReopenAsync(Guid eventId, long version, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default)
-        => TransitionAsync(eventId, version, SignupOpeningMode.Reopen, acknowledgeWarnings, acceptProposedClose, actor, ct);
+    public Task<SignupLifecycleResult> OpenAsync(Guid eventId, long version, IReadOnlyCollection<string> acknowledgedWarningCodes, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default)
+        => TransitionAsync(eventId, version, SignupOpeningMode.OpenNow, acknowledgedWarningCodes, acceptProposedClose, actor, ct);
+    public Task<SignupLifecycleResult> ReopenAsync(Guid eventId, long version, IReadOnlyCollection<string> acknowledgedWarningCodes, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default)
+        => TransitionAsync(eventId, version, SignupOpeningMode.Reopen, acknowledgedWarningCodes, acceptProposedClose, actor, ct);
 
     public async Task ProcessDueSignupAsync(CancellationToken ct = default)
     {
@@ -279,7 +281,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         catch (DbUpdateException) { await tx.RollbackAsync(ct); return new(false, "The signup lifecycle change could not be saved. Try again."); }
     }
 
-    private async Task<SignupLifecycleResult> TransitionAsync(Guid eventId, long version, SignupOpeningMode mode, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct)
+    private async Task<SignupLifecycleResult> TransitionAsync(Guid eventId, long version, SignupOpeningMode mode, IReadOnlyCollection<string> acknowledgedWarningCodes, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
@@ -289,7 +291,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             var now = time.GetUtcNow();
             var evaluated = await readiness.GetSignupReadinessAsync(eventId, mode, now, ct) ?? throw new InvalidOperationException("Event not found.");
             if (!evaluated.CanProceed) return new(false, string.Join(" ", evaluated.Blockers.Select(x => x.Description)));
-            if (evaluated.Warnings.Count > 0 && !acknowledgeWarnings) return new(false, "Acknowledge the active signup warnings before continuing.");
+            if (evaluated.Warnings.Any(warning => !acknowledgedWarningCodes.Contains(warning.Code, StringComparer.Ordinal))) return new(false, "Acknowledge the active signup warnings before continuing.");
             var boundaryConflict = await CurrentEventBoundaryConflictAsync(db, item, ct);
             if (boundaryConflict is not null) return new(false, boundaryConflict.Description);
             var closeDecision = evaluated.CloseDecision;

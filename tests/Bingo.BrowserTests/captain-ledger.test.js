@@ -42,6 +42,7 @@ class Node {
     if (selector === "tbody") return this.tagName === "TBODY";
     if (selector === "[data-captain-ledger-form]") return this.dataset.captainLedgerForm !== undefined;
     if (selector === "[data-captain-ledger-search]") return this.dataset.captainLedgerSearch !== undefined;
+    if (selector === "[data-captain-ledger-status]") return this.dataset.captainLedgerStatus !== undefined;
     if (selector === "[data-captain-ledger-player]") return this.dataset.captainLedgerPlayer !== undefined;
     if (selector === "[data-captain-ledger-clear]") return this.dataset.captainLedgerClear !== undefined;
     if (selector === "[data-captain-ledger-results]") return this.dataset.captainLedgerResults !== undefined;
@@ -113,6 +114,9 @@ form.search = search;
 form.clear = clear;
 form.player = player;
 documentNode.append(form);
+// The divider control is outside the filter form, associated through its form attribute.
+const status = new Node("select", { dataset: { captainLedgerStatus: "true" }, value: "Rejected" });
+documentNode.append(status);
 
 const initialResults = new Node("div", { dataset: { captainLedgerResults: "true" } });
 initialResults.append(table([row("Approved", "Drop B", "Tile B", "Player B", 2), row("Pending", "Drop A", "Tile A", "Player A", 1)]));
@@ -128,7 +132,7 @@ replacements[0].append(table([row("Rejected", "Drop D", "Tile D", "Player D", 4)
 replacements[1].append(table([row("Pending", "Drop F", "Tile F", "Player F", 6), row("Approved", "Drop E", "Tile E", "Player E", 5)]));
 replacements[2].append(table([row("Pending", "Drop H", "Tile H", "Player H", 8), row("Approved", "Drop G", "Tile G", "Player G", 7)]));
 replacements[3].append(table([row("Pending", "Drop J", "Tile J", "Player J", 10), row("Approved", "Drop I", "Tile I", "Player I", 9)]));
-const nextPage = new Node("a", { dataset: { captainLedgerPage: "true" }, href: "https://example.test/Submissions?eventId=event-1&teamId=team-1&search=ledger&player=player-1&ledgerPage=2" });
+const nextPage = new Node("a", { dataset: { captainLedgerPage: "true" }, href: "https://example.test/Submissions?eventId=event-1&teamId=team-1&search=ledger&player=player-1&status=Rejected&ledgerPage=2" });
 replacements[2].append(nextPage);
 
 const fetches = [];
@@ -211,5 +215,35 @@ initialize(documentNode, windowObject);
   assert.equal(fetches[3].url.searchParams.get("search"), "ledger");
   assert.equal(fetches[3].url.searchParams.get("player"), "player-1");
   assert.equal(historyUrls.length, 4);
+  for (let index = 0; index < 4; index++) {
+    assert.equal(fetches[index].url.searchParams.get("status"), "Rejected");
+    assert.equal(new URL(historyUrls[index], form.action).searchParams.get("status"), "Rejected");
+    assert.equal(new URL(historyUrls[index], form.action).searchParams.has("handler"), false);
+  }
+  replacements.push(new Node("div", { dataset: { captainLedgerResults: "true" } }));
+  status.value = "Approved";
+  search.value = "ledger";
+  status.dispatch("change");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(fetches[4].url.searchParams.get("ledgerPage"), "1");
+  assert.equal(fetches[4].url.searchParams.get("status"), "Approved");
+  assert.equal(fetches[4].url.searchParams.get("search"), "ledger");
+  assert.equal(fetches[4].url.searchParams.get("player"), "player-1");
+  replacements.push(new Node("div", { dataset: { captainLedgerResults: "true" } }));
+  status.value = "";
+  status.dispatch("change");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(fetches[5].url.searchParams.has("status"), false);
+  assert.equal(new URL(historyUrls[5], form.action).searchParams.has("status"), false);
   assert.equal(windowObject.location.assigned, undefined);
+  windowObject.fetch = async () => ({ ok: false });
+  status.value = "Replaced";
+  status.dispatch("change");
+  await new Promise(resolve => setImmediate(resolve));
+  const fallback = new URL(windowObject.location.assigned, form.action);
+  assert.equal(fallback.searchParams.get("status"), "Replaced");
+  assert.equal(fallback.searchParams.get("player"), "player-1");
+  assert.equal(fallback.searchParams.get("search"), "ledger");
+  assert.equal(fallback.searchParams.has("handler"), false);
+  console.log("captain-ledger: sorting, combined status/player/search, pagination, clear, URL persistence and failure fallback passed");
 })();

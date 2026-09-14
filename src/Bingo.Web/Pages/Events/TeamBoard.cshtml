@@ -3,6 +3,14 @@
 @using Bingo.Domain.Events
 @using Bingo.Web.Catalogue
 @inject OsrsWikiImageCache WikiImages
+@if (Model.Board.EventState == EventState.Cancelled)
+{
+    ViewData["Title"] = T["Event cancelled"];
+    ViewData["PublicEventCancelled"] = true;
+    ViewData["HideBreadcrumbs"] = true;
+    <partial name="_EventCancelled" model="Model.Board.EventName" />
+    return;
+}
 @{
     ViewData["Title"] = $"{Model.Team.TeamName} · {Model.Board.EventName}";
     var totalTiles = Model.Board.Rows * Model.Board.Columns;

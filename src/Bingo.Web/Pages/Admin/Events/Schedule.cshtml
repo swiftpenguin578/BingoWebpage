@@ -131,7 +131,7 @@
                             <div><h3 id="schedule-preview-heading">@T["Review schedule changes"]</h3><p>@T["Review these changes and warnings before saving the schedule."]</p></div>
                         </div>
                         @if (Model.ChangePreview.Count > 0) { <dl class="event-create-summary admin-field">@foreach (var value in Model.ChangePreview) { <div class="form-control"><span>@T[value.Label]</span><strong>@value.New</strong><small>@T["Previously: {0}", value.Current]</small></div> }</dl> }
-                        @if (hasSignupWarning) { <ul class="admin-signup-warning-list" aria-label="@T["Signup warnings"]">@foreach (var warning in Model.Readiness!.Warnings) { <li>@warning.Description</li> }</ul> }
+                        @if (hasSignupWarning) { <ul class="admin-signup-warning-list" aria-label="@T["Signup warnings"]">@foreach (var warning in Model.Readiness!.Warnings) { <li>@T[warning.Description]</li> }</ul> }
                         @if (Model.EventState == Bingo.Domain.Events.EventState.Live && Model.ChangePreview.Any(value => value.Label == "Event ends"))
                         {
                             <div class="admin-field"><label asp-for="Input.EventEndReason">@T["Reason for changing the Live event end"]</label><textarea asp-for="Input.EventEndReason" class="form-control" rows="3"></textarea><span asp-validation-for="Input.EventEndReason" class="field-error"></span></div>

@@ -1,0 +1,9 @@
+@model string
+<section class="status-editorial status-editorial--cancelled" data-event-cancelled aria-labelledby="status-heading">
+    <div class="status-editorial__copy">
+        <span class="editorial-kicker">@Model</span>
+        <h1 id="status-heading" class="editorial-display">@T["Event cancelled"]</h1>
+        <p>@T["This event will not take place."]</p>
+        <a class="editorial-button editorial-button--coral-outline" asp-page="/Index">@T["All events"] <span aria-hidden="true">→</span></a>
+    </div>
+</section>

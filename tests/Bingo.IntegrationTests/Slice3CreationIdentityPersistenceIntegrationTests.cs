@@ -1,6 +1,10 @@
+using System.Net;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 using Bingo.Application.Events;
 using Bingo.Application.Evidence;
+using Bingo.Application.Integrations.WiseOldMan;
+using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Auditing;
@@ -9,13 +13,20 @@ using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Security;
 using Bingo.Infrastructure.Signups;
 using Bingo.Web.Pages.Admin.Events;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Mvc.ViewFeatures.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
@@ -40,6 +51,204 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
+
+    [Fact]
+    public async Task CreationHttpRecoversInvalidSchedulesAndRetainsInputsWithoutResidue()
+    {
+        var admin = Account.CreateWebsite(Guid.NewGuid(), "create-admin", "CREATE-ADMIN", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "create-test-password"), false, now, incrementVersion: false);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.Accounts.Add(admin);
+            await setup.SaveChangesAsync();
+        }
+        var storage = new MemoryStorage();
+        var competition = new StubCompetitionClient(now.AddDays(2), now.AddDays(3));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Testing").UseSetting("ConnectionStrings:Database", database.GetConnectionString());
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IHostedService>();
+                services.AddSingleton<TimeProvider>(new FixedTimeProvider(now));
+                services.AddSingleton<IEvidenceStorage>(storage);
+                services.AddSingleton<IWiseOldManCompetitionClient>(competition);
+                services.AddDataProtection().UseEphemeralDataProtectionProvider();
+            });
+        });
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
+        var loginPage = await client.GetStringAsync("/Account/Login");
+        using var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = admin.LoginName,
+            ["Input.Password"] = "create-test-password",
+            ["__RequestVerificationToken"] = Token(loginPage)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
+        var createPage = await client.GetStringAsync("/Admin/Events/Create");
+        var token = Token(createPage);
+        var baseline = new Dictionary<string, string>
+        {
+            ["Input.Name"] = "Retained draft",
+            ["Input.Timezone"] = "UTC",
+            ["Input.Description"] = "Retained description",
+            ["Input.ParticipantCap"] = "20",
+            ["Input.WaitingListEnabled"] = "true",
+            ["Input.CustomQuestions[0].Label"] = "Retained question",
+            ["Input.CustomQuestions[0].Type"] = "Text"
+        };
+        foreach (var (field, message) in new[]
+        {
+            ("SignupOpensLocal", "Signup opening must be in the future."),
+            ("SignupClosesLocal", "Signup closing must be in the future."),
+            ("DraftLocal", "Draft time must be in the future."),
+            ("EventStartsLocal", "Event start must be in the future."),
+            ("EventEndsLocal", "Event end must be in the future.")
+        })
+        {
+            await InvalidAsync(new() { [$"Input.{field}"] = "2026-07-27T12:00" }, field, message);
+        }
+        await InvalidAsync(new() { ["Input.SignupClosesLocal"] = "2026-07-30T12:00", ["Input.EventStartsLocal"] = "2026-07-29T12:00" }, "SignupClosesLocal", "Signup closing must be no later than event start.");
+        await InvalidAsync(new() { ["Input.SignupOpensLocal"] = "2026-07-29T12:00", ["Input.SignupClosesLocal"] = "2026-07-29T12:00" }, "SignupClosesLocal", "Signup closing must be after signup opening.");
+        await InvalidAsync(new() { ["Input.EventStartsLocal"] = "2026-07-29T12:00", ["Input.EventEndsLocal"] = "2026-07-28T12:00" }, "EventEndsLocal", "Event end must be after event start.");
+        competition.Starts = now.AddDays(-1);
+        await InvalidAsync(new() { ["Input.CompetitionId"] = "123" }, "CompetitionId", "Event start must be in the future.");
+        competition.Starts = now.AddDays(2);
+        competition.Ends = now;
+        await InvalidAsync(new() { ["Input.CompetitionId"] = "123" }, "CompetitionId", "Event end must be in the future.");
+        competition.Ends = now.AddDays(1);
+        await InvalidAsync(new() { ["Input.CompetitionId"] = "123" }, "CompetitionId", "Event end must be after event start.");
+        competition.Ends = now.AddDays(3);
+        await InvalidAsync(new() { ["Input.CompetitionId"] = "123", ["Input.SignupClosesLocal"] = "2026-07-30T12:00" }, "SignupClosesLocal", "Signup closing must be no later than event start.");
+        Assert.Equal(0, storage.StoreCalls);
+
+        using (var minimal = await PostAsync(new() { ["Input.Name"] = "HTTP minimal", ["Input.Timezone"] = "UTC" }, banner: false))
+            Assert.Equal(HttpStatusCode.Redirect, minimal.StatusCode);
+        var valid = new Dictionary<string, string>(baseline)
+        {
+            ["Input.CompetitionId"] = "123",
+            ["Input.SignupOpensLocal"] = "2026-07-28T12:00",
+            ["Input.SignupClosesLocal"] = "2026-07-29T12:00",
+            ["Input.DraftLocal"] = "2026-07-29T12:00"
+        };
+        using (var created = await PostAsync(valid, banner: true)) Assert.Equal(HttpStatusCode.Redirect, created.StatusCode);
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(2, await verify.Events.CountAsync());
+        var saved = await verify.Events.SingleAsync(item => item.Name == baseline["Input.Name"]);
+        Assert.Equal(competition.Starts, saved.EventStartsAt);
+        Assert.Equal(competition.Ends, saved.EventEndsAt);
+        Assert.Equal(EventState.Draft, saved.State);
+        Assert.Equal(2, await verify.SignupForms.CountAsync());
+        Assert.Equal(7, await verify.SignupQuestions.CountAsync());
+        Assert.Equal(3, await verify.AuditEntries.CountAsync());
+        Assert.Single(await verify.EventCompetitionSynchronizations.ToListAsync());
+        Assert.Single(await verify.EventBannerAssets.ToListAsync());
+        Assert.Equal(1, storage.FileCount);
+
+        async Task InvalidAsync(Dictionary<string, string> values, string field, string message)
+        {
+            var posted = new Dictionary<string, string>(baseline);
+            foreach (var pair in values) posted[pair.Key] = pair.Value;
+            using var response = await PostAsync(posted, banner: true);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+            Assert.Contains(message, html);
+            Assert.Contains($"data-valmsg-for=\"Input.{field}\"", html);
+            Assert.Contains("Retained draft", html);
+            Assert.Contains("Retained description", html);
+            Assert.Contains("Retained question", html);
+            foreach (var value in values.Values) Assert.Contains(value, html);
+            await using var db = new ApplicationDbContext(options);
+            Assert.Empty(await db.Events.ToListAsync());
+            Assert.Empty(await db.SignupForms.ToListAsync());
+            Assert.Empty(await db.SignupQuestions.ToListAsync());
+            Assert.Empty(await db.AuditEntries.ToListAsync());
+            Assert.Empty(await db.EventCompetitionSynchronizations.ToListAsync());
+            Assert.Empty(await db.EventBannerAssets.ToListAsync());
+            Assert.Equal(0, storage.FileCount);
+        }
+        Task<HttpResponseMessage> PostAsync(Dictionary<string, string> values, bool banner)
+        {
+            var form = new MultipartFormDataContent();
+            foreach (var pair in values) form.Add(new StringContent(pair.Value), pair.Key);
+            form.Add(new StringContent(token), "__RequestVerificationToken");
+            if (banner) form.Add(new ByteArrayContent([1, 2, 3]), "Input.Banner", "test-banner.png");
+            return client.PostAsync("/Admin/Events/Create", form);
+        }
+        static string Token(string page) => Regex.Match(page, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
+    }
+
+    [Fact]
+    public async Task CreationAllocatesDistinctAutomaticSlugsAndPreservesExplicitConflicts()
+    {
+        await using var db = new ApplicationDbContext(options);
+        var actor = Guid.NewGuid();
+        foreach (var name in new[] { "Duplicate display name", "Duplicate display name", new string('a', 200), new string('a', 200) })
+        {
+            var page = Creation(db, new MemoryStorage(), actor, new() { Name = name, Timezone = "UTC" });
+            Assert.IsType<RedirectToPageResult>(await page.OnPostAsync(CancellationToken.None));
+        }
+        var before = await db.Events.AsNoTracking().OrderBy(item => item.Slug).Select(item => new { item.Id, item.Slug }).ToListAsync();
+        Assert.Equal(4, before.Select(item => item.Slug).Distinct().Count());
+        Assert.Contains(before, item => item.Slug == "duplicate-display-name");
+        Assert.Contains(before, item => item.Slug == "duplicate-display-name-2");
+        Assert.All(before, item => Assert.InRange(item.Slug.Length, 1, 120));
+        var explicitConflict = Creation(db, new MemoryStorage(), actor, new() { Name = "Another display name", Slug = "duplicate-display-name", Timezone = "UTC" });
+        Assert.IsType<PageResult>(await explicitConflict.OnPostAsync(CancellationToken.None));
+        Assert.Contains(explicitConflict.ModelState["Input.Slug"]!.Errors, error => error.ErrorMessage == "That event link is already in use.");
+        Assert.Equal(before, await db.Events.AsNoTracking().OrderBy(item => item.Slug).Select(item => new { item.Id, item.Slug }).ToListAsync());
+        Assert.Equal(4, await db.SignupForms.CountAsync());
+        Assert.Equal(12, await db.SignupQuestions.CountAsync());
+        Assert.Equal(4, await db.AuditEntries.CountAsync());
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public async Task CreationSlugRaceRollsBackUploadsAndRetriesOnlyAutomaticAllocation(bool automatic, bool exhaustRetries)
+    {
+        var actor = Guid.NewGuid();
+        var storage = new MemoryStorage
+        {
+            BeforeStore = async call =>
+            {
+                if (call > 1 && !exhaustRetries) return;
+                await using var rivalDb = new ApplicationDbContext(options);
+                var rival = Creation(rivalDb, new MemoryStorage(), actor, new()
+                {
+                    Name = "Concurrent winner",
+                    Timezone = "UTC",
+                    Slug = call == 1 ? "racing-draft" : $"racing-draft-{call}"
+                });
+                Assert.IsType<RedirectToPageResult>(await rival.OnPostAsync(CancellationToken.None));
+            }
+        };
+        await using var db = new ApplicationDbContext(options);
+        var page = Creation(db, storage, actor, new() { Name = "Racing draft", Slug = automatic ? null : "racing-draft", Timezone = "UTC", Banner = Upload("race.png") });
+        var result = await page.OnPostAsync(CancellationToken.None);
+        var succeeded = automatic && !exhaustRetries;
+        if (succeeded) Assert.IsType<RedirectToPageResult>(result);
+        else
+        {
+            Assert.IsType<PageResult>(result);
+            Assert.Contains(page.ModelState["Input.Slug"]!.Errors, error => error.ErrorMessage == (automatic
+                ? "An event link could not be allocated. Try creating the event again." : "That event link is already in use."));
+        }
+        await using var verify = new ApplicationDbContext(options);
+        var expectedCount = exhaustRetries ? 3 : succeeded ? 2 : 1;
+        Assert.Equal(expectedCount, await verify.Events.CountAsync());
+        Assert.Equal(expectedCount, await verify.SignupForms.CountAsync());
+        Assert.Equal(expectedCount * 3, await verify.SignupQuestions.CountAsync());
+        Assert.Equal(expectedCount, await verify.AuditEntries.CountAsync());
+        Assert.Equal(succeeded ? 1 : 0, await verify.EventBannerAssets.CountAsync());
+        Assert.Equal(succeeded ? 1 : 0, storage.FileCount);
+        Assert.Equal(exhaustRetries ? 3 : succeeded ? 2 : 1, storage.StoreCalls);
+        Assert.Equal(exhaustRetries ? 3 : 1, storage.DeleteCalls);
+        Assert.Equal("racing-draft", (await verify.Events.SingleAsync(item => item.Slug == "racing-draft")).Slug);
+        if (succeeded) Assert.Equal("racing-draft-2", (await verify.Events.SingleAsync(item => item.Name == "Racing draft")).Slug);
+    }
 
     [Fact]
     public async Task CreationHandlerCommitsMinimalDraftAndAuditAndRejectsPartialOptionalInput()
@@ -177,7 +386,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
         var beforeOpen = await readiness.GetSignupReadinessAsync(bingoEvent.Id, SignupOpeningMode.OpenNow, now);
         Assert.DoesNotContain(beforeOpen!.Blockers, blocker => blocker.Code == "SIGNUP_QUESTIONS_INVALID");
         var lifecycle = new EventSignupLifecycleService(db, readiness, new FixedTimeProvider(now));
-        var opened = await lifecycle.OpenAsync(bingoEvent.Id, bingoEvent.Version, acknowledgeWarnings: true, acceptProposedClose: true, actor: new LifecycleActor(actor, "admin"));
+        var opened = await lifecycle.OpenAsync(bingoEvent.Id, bingoEvent.Version, acknowledgedWarningCodes: beforeOpen.Warnings.Select(warning => warning.Code).ToArray(), acceptProposedClose: true, actor: new LifecycleActor(actor, "admin"));
         Assert.True(opened.Succeeded, opened.Error);
         Assert.Equal(EventState.SignupOpen, await db.Events.Where(item => item.Id == bingoEvent.Id).Select(item => item.State).SingleAsync());
 
@@ -589,14 +798,28 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
     {
         private readonly Dictionary<string, byte[]> files = [];
         public bool ReturnOversizedFilename { get; init; }
-        public Task<StoredEvidence> StoreAsync(Guid eventId, Guid submissionId, string originalFilename, Stream content, CancellationToken cancellationToken = default)
+        public Func<int, Task>? BeforeStore { get; init; }
+        public int FileCount => files.Count;
+        public int StoreCalls { get; private set; }
+        public int DeleteCalls { get; private set; }
+        public async Task<StoredEvidence> StoreAsync(Guid eventId, Guid submissionId, string originalFilename, Stream content, CancellationToken cancellationToken = default)
         {
+            StoreCalls++;
+            if (BeforeStore is not null) await BeforeStore(StoreCalls);
             var key = $"{eventId:N}/{submissionId:N}.png";
             files[key] = [1, 2, 3];
-            return Task.FromResult(new StoredEvidence(key, ReturnOversizedFilename ? new string('x', 300) : originalFilename, "image/png", 3, 1, 1, new string('a', 64)));
+            return new StoredEvidence(key, ReturnOversizedFilename ? new string('x', 300) : originalFilename, "image/png", 3, 1, 1, new string('a', 64));
         }
         public Task<Stream> OpenReadAsync(string storageKey, CancellationToken cancellationToken = default) => files.TryGetValue(storageKey, out var value) ? Task.FromResult<Stream>(new MemoryStream(value)) : throw new FileNotFoundException();
-        public Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default) { files.Remove(storageKey); return Task.CompletedTask; }
+        public Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default) { DeleteCalls++; files.Remove(storageKey); return Task.CompletedTask; }
+    }
+
+    private sealed class StubCompetitionClient(DateTimeOffset starts, DateTimeOffset ends) : IWiseOldManCompetitionClient
+    {
+        public DateTimeOffset Starts { get; set; } = starts;
+        public DateTimeOffset Ends { get; set; } = ends;
+        public Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, CancellationToken cancellationToken = default)
+            => Task.FromResult(new WiseOldManCompetitionResult(WiseOldManCompetitionStatus.Success, new(competitionId, "Fixture competition", Starts, Ends, null, [])));
     }
 
     private sealed class EmptyTempDataProvider : ITempDataProvider

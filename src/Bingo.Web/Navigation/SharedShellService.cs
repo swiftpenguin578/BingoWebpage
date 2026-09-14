@@ -4,6 +4,7 @@ using System.Text.Json;
 using Bingo.Application.Events;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
+using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web;
 using Bingo.Web.Security;
@@ -165,12 +166,20 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
         var vacancies = await (from membership in db.TeamMemberships.AsNoTracking()
                                join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
                                join ev in db.Events.AsNoTracking() on participant.EventId equals ev.Id
-                               where ev.HiddenAt == null && (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) && participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && !db.TeamMemberships.Any(replacement => replacement.ReplacesMembershipId == membership.Id)
+                               where ev.HiddenAt == null && (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview ||
+                                   ev.State == EventState.SignupClosed && ev.DraftLocked && ev.ActualStartedAt == null && ev.EventEndsAt > timeProvider.GetUtcNow() &&
+                                   db.DraftSessions.Any(draft => draft.EventId == ev.Id && draft.State == DraftState.Finalized &&
+                                       db.DraftPublicationCycles.Any(cycle => cycle.DraftSessionId == draft.Id && cycle.SupersededAt == null))) &&
+                                   membership.LeftAt != null && participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && !db.TeamMemberships.Any(replacement => replacement.ReplacesMembershipId == membership.Id)
                                select new { membership.Id, EventId = ev.Id, ParticipantId = participant.Id }).Take(6).ToListAsync(cancellationToken);
         var vacancyCount = await (from membership in db.TeamMemberships.AsNoTracking()
                                   join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
                                   join ev in db.Events.AsNoTracking() on participant.EventId equals ev.Id
-                                  where ev.HiddenAt == null && (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview) && participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && !db.TeamMemberships.Any(replacement => replacement.ReplacesMembershipId == membership.Id)
+                                  where ev.HiddenAt == null && (ev.State == EventState.Live || ev.State == EventState.AwaitingFinalReview ||
+                                   ev.State == EventState.SignupClosed && ev.DraftLocked && ev.ActualStartedAt == null && ev.EventEndsAt > timeProvider.GetUtcNow() &&
+                                   db.DraftSessions.Any(draft => draft.EventId == ev.Id && draft.State == DraftState.Finalized &&
+                                       db.DraftPublicationCycles.Any(cycle => cycle.DraftSessionId == draft.Id && cycle.SupersededAt == null))) &&
+                                   membership.LeftAt != null && participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && !db.TeamMemberships.Any(replacement => replacement.ReplacesMembershipId == membership.Id)
                                   select membership.Id).CountAsync(cancellationToken);
         items.AddRange(vacancies.Select(x => new ShellNotification(x.Id, "Open vacancy", $"{eventMap[x.EventId].Name} · Review the open team vacancy and choose whether to replace it.", $"/Admin/Events/Participant/{x.EventId}/Participants/{x.ParticipantId}")));
 
@@ -368,6 +377,8 @@ internal static class NotificationPresentation
         "participant.withdrawn" => text["Signup withdrawn"],
         "participant.restored" => text["Signup restored"],
         "participant.promoted" => text["Signup promoted to confirmed"],
+        "participant.prelive_withdrawn" => text["Participant withdrawn before event start"],
+        "participant.prelive_replaced" => text["Replacement confirmed before event start"],
         "participant.live_withdrawn" => text["Live participant withdrawn"],
         "participant.live_replaced" => text["Live replacement confirmed"],
         _ => type

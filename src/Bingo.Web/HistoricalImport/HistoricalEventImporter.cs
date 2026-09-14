@@ -336,10 +336,11 @@ public sealed class HistoricalEventImporter(ApplicationDbContext db, TimeProvide
             var resolvedTile = resolved.Tiles[tileIndex];
             var imageUrl = resolvedTile.Requirements.SelectMany(value => value.Bosses).Select(value => value.ImageUrl).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
                 ?? resolvedTile.Requirements.SelectMany(value => value.Drops).Select(value => value.ImageUrl).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+            var objectiveType = resolvedTile.Manifest.Requirements!.Any(value => value.Manual) ? ObjectiveType.Manual : ObjectiveType.DropRequirements;
             var template = new TileTemplate(StableGuid($"{board.Id:N}:template:{tileIndex}"), resolvedTile.Manifest.Name!,
                 string.Join("; ", resolvedTile.Manifest.Requirements!.Select(value => value.Description)),
-                resolvedTile.Manifest.Requirements!.Any(value => value.Manual) ? ObjectiveType.Manual : ObjectiveType.DropRequirements,
-                Disclosure, resolvedTile.Manifest.Ehb, imageUrl);
+                objectiveType, Disclosure, objectiveType == ObjectiveType.Manual ? resolvedTile.Manifest.Ehb : null, imageUrl);
+            // Historical weights belong to the imported snapshots, not standard template overrides.
             var tile = new BoardTile(StableGuid($"{board.Id:N}:tile:{tileIndex}"), board.Id, template.Id, tileIndex / 5, tileIndex % 5,
                 resolvedTile.Manifest.Name!, string.Join("; ", resolvedTile.Manifest.Requirements!.Select(value => value.Description)), Disclosure,
                 resolvedTile.Ehb, imageUrl);

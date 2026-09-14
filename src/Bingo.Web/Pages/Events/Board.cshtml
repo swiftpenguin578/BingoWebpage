@@ -2,6 +2,14 @@
 @model Bingo.Web.Pages.Events.BoardModel
 @using Bingo.Application.Boards
 @using Bingo.Domain.Events
+@if (Model.Board.EventState == EventState.Cancelled)
+{
+    ViewData["Title"] = T["Event cancelled"];
+    ViewData["PublicEventCancelled"] = true;
+    ViewData["HideBreadcrumbs"] = true;
+    <partial name="_EventCancelled" model="Model.Board.EventName" />
+    return;
+}
 @{
     ViewData["Title"] = T["{0} board", Model.Board.EventName];
     ViewData["HideBreadcrumbs"] = true;
@@ -661,7 +669,7 @@
                                     </table>
                                 </div>
                             </div>
-                    <section id="public-leaderboard-players" data-public-leaderboard-panel="players" aria-labelledby="public-leaderboard-players-heading" hidden="@(Model.ActiveRanking == "players" ? null : "hidden")">
+                    <section id="public-leaderboard-players" data-public-leaderboard-panel="players" aria-labelledby="public-leaderboard-players-link" hidden="@(Model.ActiveRanking == "players" ? null : "hidden")">
                         <div class="public-ui-section">
                             <table class="public-ui-table public-ui-table--players" data-public-leaderboard-table data-public-leaderboard-sort-table data-public-leaderboard-players-table aria-label="@T["Players leaderboard"]">
                                 <thead>

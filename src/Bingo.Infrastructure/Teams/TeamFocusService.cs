@@ -214,22 +214,27 @@ public sealed class TeamFocusService(
 
     private async Task<bool> ValidTargetAsync(Board board, TeamFocusMutationRequest request, CancellationToken cancellationToken)
     {
+        var approval = await db.BoardApprovalSnapshots.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == board.ActiveApprovalSnapshotId && x.BoardId == board.Id, cancellationToken);
+        if (approval is null) return false;
         return request.TargetKind switch
         {
             TeamFocusTargetKind.Tile => request.BoardTileId is { } tileId && request.RowIndex is null && request.ColumnIndex is null &&
-                await db.BoardTiles.AsNoTracking().AnyAsync(x => x.Id == tileId && x.BoardId == board.Id, cancellationToken),
-            TeamFocusTargetKind.Row => request.BoardTileId is null && request.RowIndex is >= 0 and var row && row < board.Rows && request.ColumnIndex is null,
-            TeamFocusTargetKind.Column => request.BoardTileId is null && request.RowIndex is null && request.ColumnIndex is >= 0 and var column && column < board.Columns,
+                await db.BoardApprovalTileSnapshots.AsNoTracking().AnyAsync(x => x.BoardTileId == tileId && x.ApprovalSnapshotId == board.ActiveApprovalSnapshotId, cancellationToken),
+            TeamFocusTargetKind.Row => request.BoardTileId is null && request.RowIndex is >= 0 and var row && row < approval.Rows && request.ColumnIndex is null,
+            TeamFocusTargetKind.Column => request.BoardTileId is null && request.RowIndex is null && request.ColumnIndex is >= 0 and var column && column < approval.Columns,
             _ => false
         };
     }
 
     private async Task<bool> IsTileCompleteAsync(Guid teamId, Guid boardTileId, CancellationToken cancellationToken)
     {
-        var requirements = await db.BoardRequirementSnapshots.AsNoTracking()
-            .Where(x => x.BoardTileId == boardTileId)
-            .Select(x => new { x.Id, x.TargetContribution })
-            .ToListAsync(cancellationToken);
+        var requirements = await (from team in db.Teams.AsNoTracking()
+                                  join board in db.Boards.AsNoTracking() on team.EventId equals board.EventId
+                                  join tile in db.BoardApprovalTileSnapshots.AsNoTracking() on board.ActiveApprovalSnapshotId equals tile.ApprovalSnapshotId
+                                  join requirement in db.BoardApprovalRequirementSnapshots.AsNoTracking() on tile.Id equals requirement.ApprovalTileSnapshotId
+                                  where team.Id == teamId && tile.BoardTileId == boardTileId && board.State == BoardState.Published
+                                  select new { Id = requirement.BoardRequirementSnapshotId, requirement.TargetContribution }).ToListAsync(cancellationToken);
         if (requirements.Count == 0) return false;
 
         var requirementIds = requirements.Select(x => x.Id).ToList();

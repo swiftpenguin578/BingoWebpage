@@ -43,7 +43,7 @@ public sealed class SettingsModel(
     {
         var account = await Verified(ct);
         if (account is null) return await Invalid(ct);
-        var purpose = DiscordLinked ? "replace" : "link";
+        var purpose = account.DiscordUserId is not null ? "replace" : "link";
         return RedirectToPage("DiscordLogin", new { purpose, accountId = account.Id, state = discordLinkState.Create(account.Id, purpose) });
     }
 

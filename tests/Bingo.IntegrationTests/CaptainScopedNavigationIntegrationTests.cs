@@ -16,7 +16,7 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
+public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_captain_scoped_navigation").WithUsername("bingo").WithPassword("bingo_test_password").Build();
     private DbContextOptions<ApplicationDbContext> options = null!;
@@ -346,7 +346,7 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         Assert.Contains("Second ledger player", html, StringComparison.Ordinal);
         Assert.Contains("Captain ledger drop", html, StringComparison.Ordinal);
         Assert.Contains("Search drops, players or tiles…", WebUtility.HtmlDecode(html), StringComparison.Ordinal);
-        Assert.DoesNotContain("name=\"status\"", html, StringComparison.Ordinal);
+        Assert.Contains("name=\"status\"", html, StringComparison.Ordinal);
         Assert.DoesNotContain("name=\"tile\"", html, StringComparison.Ordinal);
         Assert.Contains("ledgerPage=2", html, StringComparison.Ordinal);
 
@@ -818,6 +818,35 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, invalidResponse.StatusCode);
         Assert.Contains("data-event-id=\"\"", invalidHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("Selected review team", invalidHtml, StringComparison.Ordinal);
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var item = await db.Events.SingleAsync(value => value.Id == selected.Id);
+            item.Unfinalize("Inspect retained Pending evidence.");
+            await db.SaveChangesAsync();
+        }
+        var finalizeHtml = await client.GetStringAsync($"/Admin/Events/Finalize/{selected.Id}");
+        var pendingBlocker = Assert.Single(Regex.Matches(finalizeHtml, @"<article\b[\s\S]*?</article>"),
+            match => match.Value.Contains("Pending submissions", StringComparison.Ordinal));
+        var pendingLink = WebUtility.HtmlDecode(Regex.Match(pendingBlocker.Value, "href=\"([^\"]+)\"").Groups[1].Value);
+        Assert.Equal($"/Admin/Review?eventId={selected.Id}&status=Pending", pendingLink);
+        using var pendingResponse = await client.GetAsync(pendingLink);
+        Assert.Equal(HttpStatusCode.OK, pendingResponse.StatusCode);
+        var pendingHtml = await pendingResponse.Content.ReadAsStringAsync();
+        Assert.Contains($"data-event-id=\"{selected.Id}\"", pendingHtml, StringComparison.Ordinal);
+        Assert.Contains("<option value=\"Pending\" selected=\"selected\">", pendingHtml, StringComparison.Ordinal);
+        Assert.Contains($"/Admin/Review/Details/{selectedSubmission.Id}", pendingHtml, StringComparison.Ordinal);
+        Assert.Contains($"/Admin/Review/Details/{newerPending.Id}", pendingHtml, StringComparison.Ordinal);
+        var pendingQueueRows = string.Join("", Regex.Matches(pendingHtml, @"<tr data-admin-review-row\b[\s\S]*?</tr>").Select(match => match.Value));
+        Assert.DoesNotContain($"/Admin/Review/Details/{otherSubmission.Id}", pendingQueueRows, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-review-team=\"Other review team\"", pendingHtml, StringComparison.Ordinal);
+        var unscopedHtml = await client.GetStringAsync("/Admin/Review?status=Pending");
+        Assert.Contains("data-event-id=\"\"", unscopedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-admin-review-row", unscopedHtml, StringComparison.Ordinal);
+        using var anonymous = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var denied = await anonymous.GetAsync(pendingLink);
+        Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
+        Assert.Contains("/Account/Login", denied.Headers.Location!.OriginalString, StringComparison.Ordinal);
     }
 
     private static BingoEvent LiveEvent(Guid ownerId, string name, string slug, DateTimeOffset now)

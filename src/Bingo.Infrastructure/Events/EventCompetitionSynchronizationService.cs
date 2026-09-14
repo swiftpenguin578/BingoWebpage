@@ -68,8 +68,8 @@ public sealed class EventCompetitionSynchronizationService(
             if (item.State is EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived or EventState.Cancelled or EventState.Discarded)
                 return new(false, "Competition integration is read-only after live play.");
             var clearReason = competitionClearReason?.Trim();
-            if (item.State == EventState.Live && competitionId is null && (!confirmCompetitionClear || string.IsNullOrWhiteSpace(clearReason)))
-                return new(false, "Clearing a live event's competition requires explicit confirmation and a reason.");
+            if (item.State == EventState.Live && competitionId is null)
+                return new(false, "A live event's competition cannot be cleared. Link a validated replacement with a matching event window.");
             if (item.State == EventState.Live && synchronizeSchedule)
                 return new(false, "A live event cannot change its schedule through competition integration.");
             if (item.State == EventState.Live && competition is not null && !ScheduleMatches(item, competition))

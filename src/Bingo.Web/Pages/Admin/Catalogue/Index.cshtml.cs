@@ -97,12 +97,14 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
         }
         return await SaveAsync("catalogue.boss_updated", "boss_activity", entity.Id, entity.Name, before, State(entity), $"{entity.Name} updated.", ct);
     }
-    public async Task<IActionResult> OnPostUpdateDropAsync(Guid recordId, long expectedVersion, string itemName, string displayRate, string originalDisplayRate, decimal? numericProbability, decimal? originalNumericProbability, DropProbabilityScope probabilityScope, bool conditionalOnParent, decimal? parentProbability, int assumedParticipants, int rollsPerCompletion, string? rollGroup, string? dataSource, string? imageUrl, bool useExistingItem, CancellationToken ct)
+    public async Task<IActionResult> OnPostUpdateDropAsync(Guid recordId, long expectedVersion, long expectedItemVersion, string itemName, string displayRate, string originalDisplayRate, decimal? numericProbability, decimal? originalNumericProbability, DropProbabilityScope probabilityScope, bool conditionalOnParent, decimal? parentProbability, int assumedParticipants, int rollsPerCompletion, string? rollGroup, string? dataSource, string? imageUrl, bool useExistingItem, CancellationToken ct)
     {
         DropId = recordId;
         if (string.IsNullOrWhiteSpace(itemName) || string.IsNullOrWhiteSpace(displayRate) || numericProbability is <= 0 or > 1) return BadRequest();
         var entity = await dbContext.SourceDrops.SingleAsync(x => x.Id == recordId, ct);
-        if (entity.Version != expectedVersion) return Stale(); var before = State(entity); var item = await dbContext.CatalogueItems.SingleAsync(x => x.Id == entity.ItemId, ct);
+        if (entity.Version != expectedVersion) return Stale();
+        var item = await dbContext.CatalogueItems.SingleAsync(x => x.Id == entity.ItemId, ct);
+        if (item.Version != expectedItemVersion) return Stale();
         var cleanItemName = itemName.Trim();
         var normalizedItemName = cleanItemName.ToUpperInvariant();
         var matchingItem = await dbContext.CatalogueItems.SingleOrDefaultAsync(x => x.Id != item.Id && x.NormalizedName == normalizedItemName, ct);
@@ -116,6 +118,8 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
             SetStatus(Localize("This boss already has a drop named {0}.", cleanItemName), UiMessageType.Warning);
             return CataloguePage();
         }
+        var affectedItems = matchingItem is null ? new[] { item } : new[] { item, matchingItem };
+        var before = State(new { Drop = entity, Items = affectedItems });
         var cleanDisplayRate = displayRate.Trim();
         var displayRateChanged = !string.Equals(cleanDisplayRate, originalDisplayRate.Trim(), StringComparison.Ordinal);
         var numericProbabilityChanged = numericProbability != originalNumericProbability;
@@ -142,7 +146,13 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
             if (!string.IsNullOrWhiteSpace(imageUrl)) matchingItem.Update(matchingItem.Name, matchingItem.NormalizedName, matchingItem.ExternalIdentifier, matchingItem.Notes, OsrsWikiImageUrl.Normalize(imageUrl));
             if (!await dbContext.SourceDrops.AnyAsync(x => x.Id != entity.Id && x.ItemId == item.Id, ct)) dbContext.CatalogueItems.Remove(item);
         }
-        return await SaveAsync("catalogue.drop_updated", "source_drop", entity.Id, entity.DisplayRate, before, State(entity), "Drop details updated.", ct);
+        // Enlist even unchanged shared metadata in the optimistic write check. A
+        // concurrent item edit must also reject a form that only changes the drop.
+        foreach (var affectedItem in affectedItems.Where(x => dbContext.Entry(x).State != EntityState.Deleted))
+            dbContext.Entry(affectedItem).Property(x => x.Version).IsModified = true;
+        var retainedItems = affectedItems.Where(x => dbContext.Entry(x).State != EntityState.Deleted).ToArray();
+        return await SaveAsync("catalogue.drop_updated", "source_drop", entity.Id, entity.DisplayRate, before,
+            () => State(new { Drop = entity, Items = retainedItems }), "Drop details updated.", ct);
     }
     public async Task<IActionResult> OnPostDeleteAsync(string recordType, Guid recordId, long expectedVersion, string confirmation, CancellationToken ct)
     {
@@ -209,20 +219,22 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
         var bosses = await dbContext.BossActivities.AsNoTracking().OrderByDescending(x => x.Active).ThenBy(x => x.Name).Select(x => new BossRow(x.Id, x.Name, x.Category, x.EfficientCompletionsPerHour, x.Active, x.ImageUrl, x.DataSource, x.DataUpdatedAt, x.Version)).ToListAsync(ct);
         Bosses = bosses.Select(x => x with { ImageUrl = OsrsWikiImageUrl.Normalize(x.ImageUrl) }).ToList();
 
-        var drops = await (from d in dbContext.SourceDrops.AsNoTracking() join i in dbContext.CatalogueItems on d.ItemId equals i.Id select new DropRow(d.Id, d.BossActivityId, i.Name, d.DisplayRate, d.NumericProbability, d.DefaultEhbEstimate, d.ProbabilityScope, d.ConditionalOnParent, d.ParentProbability, d.AssumedParticipants, d.RollsPerCompletion, d.RollGroup, d.Active, d.DataSource, i.ImageUrl, d.DataUpdatedAt, d.Version)).ToListAsync(ct);
+        var drops = await (from d in dbContext.SourceDrops.AsNoTracking() join i in dbContext.CatalogueItems on d.ItemId equals i.Id select new DropRow(d.Id, d.BossActivityId, i.Name, d.DisplayRate, d.NumericProbability, d.DefaultEhbEstimate, d.ProbabilityScope, d.ConditionalOnParent, d.ParentProbability, d.AssumedParticipants, d.RollsPerCompletion, d.RollGroup, d.Active, d.DataSource, i.ImageUrl, d.DataUpdatedAt, d.Version, i.Version)).ToListAsync(ct);
         Drops = drops.Select(x => x with
         {
             ImageUrl = OsrsWikiImageUrl.Normalize(x.ImageUrl)
         }).ToList();
     }
     private async Task<string> UniqueSlug(string name, CancellationToken ct) { var root = EventSlugGenerator.Generate(name); var slug = root; for (var n = 2; await dbContext.BossActivities.AnyAsync(x => x.Slug == slug, ct); n++) slug = $"{root}-{n}"; return slug; }
-    private async Task<IActionResult> SaveAsync(string action, string type, Guid id, string details, string before, string after, string message, CancellationToken ct)
+    private Task<IActionResult> SaveAsync(string action, string type, Guid id, string details, string before, string after, string message, CancellationToken ct) =>
+        SaveAsync(action, type, id, details, before, () => after, message, ct);
+    private async Task<IActionResult> SaveAsync(string action, string type, Guid id, string details, string before, Func<string> after, string message, CancellationToken ct)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
             await dbContext.SaveChangesAsync(ct);
-            dbContext.AuditEntries.Add(CreateAudit(action, type, id, details, before, after));
+            dbContext.AuditEntries.Add(CreateAudit(action, type, id, details, before, after()));
             await dbContext.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             SetStatus(message, UiMessageType.Success);
@@ -245,7 +257,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
     public sealed class BossInput { [Required, StringLength(200)] public string Name { get; set; } = string.Empty; [Required] public string Category { get; set; } = "Boss"; [Range(0.0001, 100000), Display(Name = "Efficient completions per hour")] public decimal? EfficientRate { get; set; } [Display(Name = "Data source")] public string? DataSource { get; set; } [Url, Display(Name = "Image URL")] public string? ImageUrl { get; set; } public string? Notes { get; set; } }
     public sealed class BossDropInput { [Required] public Guid BossActivityId { get; set; } [Required, StringLength(200), Display(Name = "Item name")] public string ItemName { get; set; } = string.Empty; [Required, StringLength(200), Display(Name = "Displayed drop rate")] public string DisplayRate { get; set; } = string.Empty; [Range(0.000000000001, 1), Display(Name = "Numeric probability")] public decimal? NumericProbability { get; set; } public DropProbabilityScope ProbabilityScope { get; set; } = DropProbabilityScope.Participant; public bool ConditionalOnParent { get; set; } [Range(0.000000000001, 1)] public decimal? ParentProbability { get; set; } [Range(1, 100)] public int AssumedParticipants { get; set; } = 1; [Range(1, 100)] public int RollsPerCompletion { get; set; } = 1; [StringLength(120)] public string RollGroup { get; set; } = "default"; [StringLength(2000), Display(Name = "Condition or note")] public string? Condition { get; set; } [StringLength(300), Display(Name = "Data source")] public string? DataSource { get; set; } [Url, Display(Name = "Item image URL")] public string? ImageUrl { get; set; } }
     public sealed record BossRow(Guid Id, string Name, string Category, decimal? EfficientRate, bool Active, string? ImageUrl, string? DataSource, DateTimeOffset UpdatedAt, long Version);
-    public sealed record DropRow(Guid Id, Guid BossActivityId, string ItemName, string DisplayRate, decimal? Probability, decimal? DefaultEhb, DropProbabilityScope ProbabilityScope, bool ConditionalOnParent, decimal? ParentProbability, int AssumedParticipants, int RollsPerCompletion, string RollGroup, bool Active, string? DataSource, string? ImageUrl, DateTimeOffset UpdatedAt, long Version);
+    public sealed record DropRow(Guid Id, Guid BossActivityId, string ItemName, string DisplayRate, decimal? Probability, decimal? DefaultEhb, DropProbabilityScope ProbabilityScope, bool ConditionalOnParent, decimal? ParentProbability, int AssumedParticipants, int RollsPerCompletion, string RollGroup, bool Active, string? DataSource, string? ImageUrl, DateTimeOffset UpdatedAt, long Version, long ItemVersion);
     private enum DeletePreparationStatus { Ready, Stale, Referenced }
     private sealed record DeletePreparation(DeletePreparationStatus Status, DeleteCandidate? Candidate);
     private sealed record DeleteCandidate(string Action, string Type, Guid Id, string Details, string Before);

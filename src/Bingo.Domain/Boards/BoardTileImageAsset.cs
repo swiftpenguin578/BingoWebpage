@@ -7,6 +7,7 @@ public sealed class BoardTileImageAsset
     { Id = id; EventId = eventId; BoardTileId = boardTileId; StorageKey = storageKey; OriginalFilename = filename; MediaType = mediaType; ByteSize = byteSize; Width = width; Height = height; Checksum = checksum; UploadedByAccountId = uploadedByAccountId; UploadedAt = uploadedAt.ToUniversalTime(); }
     public Guid Id { get; private set; }
     public Guid EventId { get; private set; }
+    // Stable source identity; retained approval artwork can outlive the working tile row.
     public Guid BoardTileId { get; private set; }
     public string StorageKey { get; private set; } = string.Empty;
     public string OriginalFilename { get; private set; } = string.Empty;
@@ -19,4 +20,5 @@ public sealed class BoardTileImageAsset
     public DateTimeOffset UploadedAt { get; private set; }
     public DateTimeOffset? ReplacedAt { get; private set; }
     public void Replace(DateTimeOffset now) => ReplacedAt = now.ToUniversalTime();
+    public void Restore() => ReplacedAt = null;
 }

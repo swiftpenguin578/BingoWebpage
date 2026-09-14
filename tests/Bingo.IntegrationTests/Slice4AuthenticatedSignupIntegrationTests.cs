@@ -463,6 +463,96 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CorrectedSignupAnswerRestoresThroughRejoinAndAdminRestore(bool adminRestore)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var owner = Website($"corrected-restore-owner-{Guid.NewGuid():N}", now);
+        var admin = Website($"corrected-restore-admin-{Guid.NewGuid():N}", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var bingoEvent = Event(admin.Id, now);
+        var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+        var primary = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var original = new OsrsCharacter(Guid.NewGuid(), "Corrected restore original", $"CORRECTED RESTORE ORIGINAL {Guid.NewGuid():N}", now);
+        var correctedCharacter = new OsrsCharacter(Guid.NewGuid(), "Corrected restore name", "CORRECTED RESTORE NAME", now);
+        var link = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, original.Id, owner.Id, true, 0, "Main", 18m, now);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(owner, admin, bingoEvent, form, primary, original, correctedCharacter, link);
+            await setup.SaveChangesAsync();
+        }
+
+        Guid participantId;
+        await using (var signupDb = new ApplicationDbContext(options))
+        {
+            var signup = await new SignupService(signupDb, new SecretHasher(), new FixedSignupTimeProvider(now))
+                .SignUpAuthenticatedAsync(new(bingoEvent.Id, owner.Id,
+                    new Dictionary<Guid, AuthenticatedAccountAnswer> { [primary.Id] = new(original.Id, 18m) },
+                    new Dictionary<Guid, string>(), null));
+            Assert.True(signup.Succeeded, signup.Error);
+            participantId = signup.ParticipantId!.Value;
+        }
+
+        // Disposable retained-data probe: an account-answer/assignment mismatch is an unambiguous affected row.
+        await using (var retainedData = new ApplicationDbContext(options))
+        {
+            await retainedData.Database.ExecuteSqlInterpolatedAsync($"UPDATE signup_answers SET osrs_character_id = {correctedCharacter.Id} WHERE event_participant_id = {participantId} AND signup_question_id = {primary.Id}");
+            retainedData.ChangeTracker.Clear();
+            var mismatches = await (from answer in retainedData.SignupAnswers.AsNoTracking()
+                                    join assignment in retainedData.EventParticipantCharacters.AsNoTracking()
+                                        on new { answer.EventParticipantId, answer.SignupQuestionId } equals new { assignment.EventParticipantId, SignupQuestionId = assignment.SignupQuestionId!.Value }
+                                    where answer.OsrsCharacterId != null && assignment.ReleasedAt == null && answer.OsrsCharacterId != assignment.OsrsCharacterId
+                                    select new { answer.EventParticipantId, answer.SignupQuestionId, AnswerId = answer.OsrsCharacterId, AssignmentId = assignment.OsrsCharacterId }).ToListAsync();
+            var mismatch = Assert.Single(mismatches);
+            Assert.Equal(participantId, mismatch.EventParticipantId);
+            Assert.Equal(primary.Id, mismatch.SignupQuestionId);
+            Assert.Equal(correctedCharacter.Id, mismatch.AnswerId);
+            Assert.Equal(original.Id, mismatch.AssignmentId);
+            await retainedData.Database.ExecuteSqlInterpolatedAsync($"UPDATE signup_answers SET osrs_character_id = {original.Id} WHERE event_participant_id = {participantId} AND signup_question_id = {primary.Id}");
+        }
+
+        Guid correctedId;
+        await using (var accountsDb = new ApplicationDbContext(options))
+        {
+            var savedLink = await accountsDb.AccountOsrsCharacters.SingleAsync(item => item.Id == link.Id);
+            await new MyAccountsService(accountsDb, new FixedSignupTimeProvider(now))
+                .UpdateAsync(owner.Id, savedLink.Id, savedLink.Version, "Corrected restore name", savedLink.PersonalLabel, savedLink.SavedEhb, CancellationToken.None);
+            correctedId = await accountsDb.OsrsCharacters.Where(item => item.NormalizedName == "CORRECTED RESTORE NAME").Select(item => item.Id).SingleAsync();
+        }
+
+        await using (var corrected = new ApplicationDbContext(options))
+        {
+            Assert.Equal(correctedId, await corrected.AccountOsrsCharacters.Where(item => item.Id == link.Id).Select(item => item.OsrsCharacterId).SingleAsync());
+            Assert.Equal(correctedId, await corrected.EventParticipantCharacters.Where(item => item.EventParticipantId == participantId && item.ReleasedAt == null).Select(item => item.OsrsCharacterId).SingleAsync());
+            Assert.Equal(correctedId, await corrected.SignupAnswers.Where(item => item.EventParticipantId == participantId && item.SignupQuestionId == primary.Id).Select(item => item.OsrsCharacterId).SingleAsync());
+            Assert.Equal(2, await corrected.EventParticipants.Where(item => item.Id == participantId).Select(item => item.ResponseVersion).SingleAsync());
+        }
+
+        await using (var withdrawalDb = new ApplicationDbContext(options))
+        {
+            var withdrawn = await new SignupService(withdrawalDb, new SecretHasher(), new FixedSignupTimeProvider(now))
+                .WithdrawAsync(bingoEvent.Id, participantId, owner.Id, owner.LoginName, false);
+            Assert.True(withdrawn.Succeeded, withdrawn.Error);
+        }
+
+        await using (var restoreDb = new ApplicationDbContext(options))
+        {
+            var signup = new SignupService(restoreDb, new SecretHasher(), new FixedSignupTimeProvider(now));
+            var restored = adminRestore
+                ? await signup.RestoreAsync(bingoEvent.Id, participantId, admin.Id, admin.LoginName)
+                : await signup.RejoinAsync(bingoEvent.Id, participantId, owner.Id, owner.LoginName);
+            Assert.True(restored.Succeeded, restored.Error);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(SignupStatus.Confirmed, await verify.EventParticipants.Where(item => item.Id == participantId).Select(item => item.SignupStatus).SingleAsync());
+        Assert.Equal(correctedId, await verify.EventParticipantCharacters.Where(item => item.EventParticipantId == participantId && item.ReleasedAt == null).Select(item => item.OsrsCharacterId).SingleAsync());
+        Assert.Equal(correctedId, await verify.SignupAnswers.Where(item => item.EventParticipantId == participantId && item.SignupQuestionId == primary.Id).Select(item => item.OsrsCharacterId).SingleAsync());
+        Assert.Equal(2, await verify.EventParticipants.Where(item => item.Id == participantId).Select(item => item.ResponseVersion).SingleAsync());
+    }
+
+    [Theory]
     [InlineData("-1", "kept answer")]
     [InlineData("27.5", "")]
     public async Task UnlinkedRegisteredAccountSurvivesInvalidRenderedEdit(string invalidEhb, string invalidAnswer)
@@ -760,6 +850,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         {
             ["Fetch.LinkId"] = linkId.ToString(),
             ["Edit.LinkId"] = linkId.ToString(),
+            ["Edit.Version"] = EditVersion(myAccounts),
             ["Edit.CharacterName"] = "Route WoM Main",
             ["Edit.PersonalLabel"] = string.Empty,
             ["Edit.SavedEhb"] = "10",
@@ -773,12 +864,14 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         using var updatedMyAccount = await client.PostAsync("/Account/MyAccounts?handler=Update", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["Edit.LinkId"] = linkId.ToString(),
+            ["Edit.Version"] = EditVersion(fetchedDefaultPage),
             ["Edit.CharacterName"] = "Route WoM Main",
             ["Edit.PersonalLabel"] = string.Empty,
             ["Edit.SavedEhb"] = editSavedDisplay,
             ["__RequestVerificationToken"] = AntiforgeryToken(fetchedDefaultPage)
         }));
         Assert.Equal(HttpStatusCode.Redirect, updatedMyAccount.StatusCode);
+        static string EditVersion(string html) => Regex.Match(html, "<input(?=[^>]*name=\"Edit.Version\")[^>]*value=\"([^\"]*)\"").Groups[1].Value;
         await using (var verify = new ApplicationDbContext(options))
         {
             var currentLink = await verify.AccountOsrsCharacters
@@ -1712,6 +1805,132 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await using var final = new ApplicationDbContext(options);
         Assert.Equal(SignupStatus.Confirmed, await final.EventParticipants.Where(x => x.Id == waitingId).Select(x => x.SignupStatus).SingleAsync());
         Assert.Equal(eventId, await final.EventParticipants.Where(x => x.Id == participantId).Select(x => x.EventId).SingleAsync());
+    }
+
+    [Fact]
+    public async Task AdminLifecycleNotificationsUseOwnedConfirmationRoutesThroughAuthenticatedHttp()
+    {
+        var now = DateTimeOffset.UtcNow;
+        Guid eventId;
+        Guid ownerId;
+        Guid participantId;
+        string slug;
+        string ownerLogin;
+        string otherLogin;
+        string adminLogin;
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var owner = Website($"notification-owner-{Guid.NewGuid():N}", now);
+            owner.SetPassword(new PasswordHasher<Account>().HashPassword(owner, "notification-owner-password"), false, now, incrementVersion: false);
+            var other = Website($"notification-other-{Guid.NewGuid():N}", now);
+            other.SetPassword(new PasswordHasher<Account>().HashPassword(other, "notification-other-password"), false, now, incrementVersion: false);
+            var admin = Website($"notification-admin-{Guid.NewGuid():N}", now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            var bingoEvent = Event(admin.Id, now);
+            var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+            var primary = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+            var character = new OsrsCharacter(Guid.NewGuid(), "Notification Main", $"NOTIFICATION MAIN {Guid.NewGuid():N}", now);
+            var link = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, null, 18m, now);
+            setup.AddRange(owner, other, admin, bingoEvent, form, primary, character, link);
+            await setup.SaveChangesAsync();
+
+            await using var signupDb = new ApplicationDbContext(options);
+            var signedUp = await new SignupService(signupDb, new SecretHasher(), new FixedSignupTimeProvider(now))
+                .SignUpAuthenticatedAsync(new(bingoEvent.Id, owner.Id,
+                    new Dictionary<Guid, AuthenticatedAccountAnswer> { [primary.Id] = new(character.Id, 18m) },
+                    new Dictionary<Guid, string>(), null));
+            Assert.True(signedUp.Succeeded, signedUp.Error);
+            eventId = bingoEvent.Id;
+            ownerId = owner.Id;
+            participantId = signedUp.ParticipantId!.Value;
+            slug = bingoEvent.Slug;
+            ownerLogin = owner.LoginName;
+            otherLogin = other.LoginName;
+            adminLogin = admin.LoginName;
+        }
+
+        var malformedId = Guid.NewGuid();
+        await using (var retainedData = new ApplicationDbContext(options))
+        {
+            retainedData.Add(new PersonalNotification(malformedId, ownerId, "participant.withdrawn", "Legacy unread link.", $"/Events/{slug}/Signup/Confirmation", now, eventId));
+            await retainedData.SaveChangesAsync();
+        }
+
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        using var ownerClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var otherClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(ownerClient, ownerLogin, "notification-owner-password");
+        await LoginAsync(otherClient, otherLogin, "notification-other-password");
+
+        await using (var lifecycle = new ApplicationDbContext(options))
+        {
+            var withdrawn = await new SignupService(lifecycle, new SecretHasher(), new FixedSignupTimeProvider(now))
+                .WithdrawAsync(eventId, participantId, await lifecycle.Accounts.Where(x => x.LoginName == adminLogin).Select(x => x.Id).SingleAsync(), adminLogin, true);
+            Assert.True(withdrawn.Succeeded, withdrawn.Error);
+        }
+
+        string withdrawalRoute;
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            withdrawalRoute = await verify.PersonalNotifications.AsNoTracking()
+                .Where(x => x.EventId == eventId && x.RecipientAccountId == ownerId && x.Title == "participant.withdrawn" && x.Route.Contains("participantId="))
+                .Select(x => x.Route)
+                .SingleAsync();
+            Assert.Contains($"participantId={participantId}", withdrawalRoute, StringComparison.Ordinal);
+
+            var malformedCandidates = await (from notification in verify.PersonalNotifications.AsNoTracking()
+                                             from participant in verify.EventParticipants.AsNoTracking()
+                                             where notification.EventId == eventId && notification.RecipientAccountId == ownerId && notification.ReadAt == null
+                                                 && notification.Title == "participant.withdrawn" && !notification.Route.Contains("participantId=")
+                                                 && participant.EventId == notification.EventId && participant.AccountId == notification.RecipientAccountId
+                                             select new { notification.Id, ParticipantId = participant.Id }).ToListAsync();
+            var malformed = Assert.Single(malformedCandidates);
+            Assert.Equal(malformedId, malformed.Id);
+            Assert.Equal(participantId, malformed.ParticipantId);
+        }
+        await AssertOwnedRouteAsync(withdrawalRoute, "Withdrawn");
+
+        await using (var lifecycle = new ApplicationDbContext(options))
+        {
+            var adminId = await lifecycle.Accounts.Where(x => x.LoginName == adminLogin).Select(x => x.Id).SingleAsync();
+            var restored = await new SignupService(lifecycle, new SecretHasher(), new FixedSignupTimeProvider(now))
+                .RestoreAsync(eventId, participantId, adminId, adminLogin);
+            Assert.True(restored.Succeeded, restored.Error);
+        }
+
+        string restoreRoute;
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            restoreRoute = await verify.PersonalNotifications.AsNoTracking()
+                .Where(x => x.EventId == eventId && x.RecipientAccountId == ownerId && x.Title == "participant.restored" && x.Route.Contains("participantId="))
+                .Select(x => x.Route)
+                .SingleAsync();
+            Assert.Contains($"participantId={participantId}", restoreRoute, StringComparison.Ordinal);
+        }
+        await AssertOwnedRouteAsync(restoreRoute, "Withdraw from event");
+
+        async Task LoginAsync(HttpClient client, string loginName, string password)
+        {
+            var login = await client.GetStringAsync("/Account/Login");
+            using var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["Input.Username"] = loginName,
+                ["Input.Password"] = password,
+                ["__RequestVerificationToken"] = AntiforgeryToken(login)
+            }));
+            Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
+        }
+
+        async Task AssertOwnedRouteAsync(string route, string expectedContent)
+        {
+            using var ownerPage = await ownerClient.GetAsync(route);
+            Assert.Equal(HttpStatusCode.OK, ownerPage.StatusCode);
+            Assert.Contains(expectedContent, await ownerPage.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+            using var denied = await otherClient.GetAsync(route);
+            Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
+            Assert.Contains("AccessDenied", denied.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        }
     }
 
     [Fact]

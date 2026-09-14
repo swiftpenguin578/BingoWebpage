@@ -1,5 +1,6 @@
 using System.Net;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Bingo.Application.Teams;
 using Bingo.Domain.Access;
@@ -49,6 +50,172 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
+
+    [Fact]
+    public async Task AdminCreatedInternalParticipantsReachPoolPreassignmentPicksAndFinalRoster()
+    {
+        var setup = await SeedAsync();
+        Guid questionId;
+        Guid draftedTeamId;
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            questionId = await seed.SignupQuestions.Where(x => x.EventId == setup.EventId).Select(x => x.Id).SingleAsync();
+            draftedTeamId = await seed.Teams.Where(x => x.EventId == setup.EventId && x.Name == "First").Select(x => x.Id).SingleAsync();
+        }
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()).ConfigureServices(services =>
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton<TimeProvider>(new FixedTimeProvider(now));
+            }));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, await LoginNameAsync(setup.FirstAdminId));
+        var participantsPath = $"/Admin/Events/Participants/{setup.EventId}";
+        var draftPath = $"/Admin/Events/Draft/{setup.EventId}";
+        async Task Post(string path, string handler, Dictionary<string, string> fields)
+        {
+            var html = await client.GetStringAsync(path);
+            Assert.Contains($"handler={handler}", html, StringComparison.OrdinalIgnoreCase);
+            var response = await client.PostAsync($"{path}{(path.Contains('?') ? '&' : '?')}handler={handler}", Form(AntiforgeryToken(html), fields));
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        }
+        foreach (var name in new[] { "Internal Pre", "Internal Pick", "Internal Gone" })
+            await Post(participantsPath + "?addParticipant=1", "CreateInternalParticipant", new()
+            {
+                [$"InternalParticipant.AccountAnswers[{questionId}].CharacterName"] = name,
+                [$"InternalParticipant.AccountAnswers[{questionId}].Ehb"] = "8"
+            });
+        await Post(draftPath, "AddTeam", new() { ["name"] = "Genuine external", ["formationType"] = "Preformed" });
+        Guid externalTeamId;
+        Guid[] internalIds;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            internalIds = await db.EventParticipants.Where(x => x.EventId == setup.EventId && x.Source == SignupSource.AdminCreated).OrderBy(x => x.SignupSequence).Select(x => x.Id).ToArrayAsync();
+            Assert.Equal(3, internalIds.Length);
+            externalTeamId = await db.Teams.Where(x => x.EventId == setup.EventId && x.FormationType == TeamFormationType.Preformed).Select(x => x.Id).SingleAsync();
+        }
+        // Roster controls are rendered inside the selected team editor.
+        await Post(draftPath + $"?rosterTeamId={externalTeamId}", "AddExternalMember", new()
+        {
+            ["teamId"] = externalTeamId.ToString(),
+            ["name"] = "Actual External",
+            ["ehb"] = "5",
+            ["role"] = "Captain"
+        });
+        // The newly reachable row retains the ordinary setup-only removal action.
+        await Post(draftPath, "WithdrawParticipant", new() { ["participantId"] = internalIds[2].ToString() });
+        await using (var db = new ApplicationDbContext(options))
+        {
+            Assert.Equal(SignupStatus.Withdrawn, await db.EventParticipants.Where(x => x.Id == internalIds[2]).Select(x => x.SignupStatus).SingleAsync());
+            Assert.False(await db.EventParticipantCharacters.AnyAsync(x => x.EventParticipantId == internalIds[2] && x.ReleasedAt == null));
+        }
+        var pool = await client.GetStringAsync(draftPath);
+        var poolSectionStart = pool.IndexOf("data-draft-participant-section", StringComparison.Ordinal);
+        var poolSection = pool[poolSectionStart..pool.IndexOf("</table>", poolSectionStart, StringComparison.Ordinal)];
+        Assert.Contains("Internal Pre", poolSection);
+        Assert.Contains("Internal Pick", poolSection);
+        Assert.DoesNotContain("Actual External", poolSection);
+        DraftModel? loaded = null;
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, async page => { loaded = page; return await page.OnGetAsync(setup.EventId, null, CancellationToken.None); });
+        Assert.NotNull(loaded);
+        Assert.NotNull(loaded.Distribution);
+        Assert.Equal(6, loaded.ConfirmedCount);
+        Assert.Equal(6, loaded.Distribution.IncludedParticipants);
+        Assert.Equal(2, loaded.AssignedCount);
+        Assert.Equal(4, loaded.AvailableCount);
+        var editor = draftPath + $"?rosterTeamId={draftedTeamId}";
+        await Post(editor, "AddMember", new() { ["teamId"] = draftedTeamId.ToString(), ["participantId"] = internalIds[0].ToString() });
+        Guid internalMembershipId;
+        await using (var db = new ApplicationDbContext(options))
+            internalMembershipId = await db.TeamMemberships.Where(x => x.EventParticipantId == internalIds[0] && x.LeftAt == null).Select(x => x.Id).SingleAsync();
+        await Post(editor, "RemoveMember", new() { ["membershipId"] = internalMembershipId.ToString(), ["reason"] = "Return to pool" });
+        await using (var db = new ApplicationDbContext(options))
+        {
+            Assert.Equal(SignupStatus.Confirmed, await db.EventParticipants.Where(x => x.Id == internalIds[0]).Select(x => x.SignupStatus).SingleAsync());
+            Assert.True(await db.EventParticipantCharacters.AnyAsync(x => x.EventParticipantId == internalIds[0] && x.ReleasedAt == null));
+            Assert.NotNull(await db.TeamMemberships.Where(x => x.Id == internalMembershipId).Select(x => x.LeftAt).SingleAsync());
+        }
+        await Post(editor, "AddMember", new() { ["teamId"] = draftedTeamId.ToString(), ["participantId"] = internalIds[0].ToString() });
+        await Post(draftPath, "Start", new());
+        await Post(draftPath, "Scramble", new());
+        foreach (var playerId in setup.PlayerIds.Skip(2))
+            await Post(draftPath, "Pick", new() { ["participantId"] = playerId.ToString() });
+        // Forging finalization before the remaining internal pick must leave publication untouched.
+        var token = AntiforgeryToken(await client.GetStringAsync(draftPath));
+        await client.PostAsync(draftPath + "?handler=Finalize", Form(token, new() { ["confirmed"] = "true" }));
+        await using (var db = new ApplicationDbContext(options))
+        {
+            Assert.Equal(DraftState.Running, await db.DraftSessions.Where(x => x.EventId == setup.EventId).Select(x => x.State).SingleAsync());
+            Assert.Empty(await db.DraftPublicationCycles.ToListAsync());
+        }
+        await Post(draftPath, "Pick", new() { ["participantId"] = internalIds[1].ToString() });
+        await Post(draftPath, "Finalize", new() { ["confirmed"] = "true" });
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(DraftState.Finalized, await verify.DraftSessions.Where(x => x.EventId == setup.EventId).Select(x => x.State).SingleAsync());
+        var roster = await verify.DraftPublicationRosters.ToListAsync();
+        Assert.Equal(7, roster.Count);
+        Assert.Contains(roster, x => x.EventParticipantId == internalIds[0] && x.TeamId == draftedTeamId && x.EffectivePickNumber == null);
+        Assert.Contains(roster, x => x.EventParticipantId == internalIds[1] && x.EffectivePickNumber != null);
+        Assert.Single(roster, x => x.TeamId == externalTeamId);
+        Assert.All(await verify.Teams.Where(x => x.EventId == setup.EventId && x.FormationType == TeamFormationType.Drafted).ToListAsync(),
+            team => Assert.Equal(3, roster.Count(x => x.TeamId == team.Id)));
+        var publicationCount = roster.Count;
+        await client.PostAsync(draftPath + "?handler=Pick", Form(token, new() { ["participantId"] = internalIds[1].ToString() }));
+        Assert.Equal(publicationCount, await verify.DraftPublicationRosters.CountAsync());
+    }
+
+    [Fact]
+    public async Task FinalizedPreformedEditorPreservesSourceBasedRemovalControls()
+    {
+        var setup = await SeedAsync();
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()).ConfigureServices(services =>
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton<TimeProvider>(new FixedTimeProvider(now));
+            }));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, await LoginNameAsync(setup.FirstAdminId));
+        var draftPath = $"/Admin/Events/Draft/{setup.EventId}";
+        async Task Post(string path, string handler, Dictionary<string, string> fields)
+        {
+            var html = await client.GetStringAsync(path);
+            Assert.Contains($"handler={handler}", html, StringComparison.OrdinalIgnoreCase);
+            using var response = await client.PostAsync($"{path}{(path.Contains('?') ? '&' : '?')}handler={handler}", Form(AntiforgeryToken(html), fields));
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        }
+        await Post(draftPath, "AddTeam", new() { ["name"] = "Mixed preformed", ["formationType"] = "Preformed" });
+        Guid preformedTeamId;
+        await using (var db = new ApplicationDbContext(options))
+            preformedTeamId = await db.Teams.Where(x => x.EventId == setup.EventId && x.FormationType == TeamFormationType.Preformed).Select(x => x.Id).SingleAsync();
+        var editor = draftPath + $"?rosterTeamId={preformedTeamId}";
+        // The Setup advanced-correction form can assign a website signup to this team.
+        await Post(editor, "AddMember", new() { ["teamId"] = preformedTeamId.ToString(), ["participantId"] = setup.PlayerIds[2].ToString() });
+        await Post(editor, "AddExternalMember", new() { ["teamId"] = preformedTeamId.ToString(), ["name"] = "External Control", ["ehb"] = "5", ["role"] = "Captain" });
+        await Post(draftPath, "Start", new());
+        await Post(draftPath, "Scramble", new());
+        await Post(draftPath, "Pick", new() { ["participantId"] = setup.PlayerIds[3].ToString() });
+        await Post(draftPath, "Finalize", new() { ["confirmed"] = "true" });
+        Guid websiteMembershipId;
+        Guid externalMembershipId;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            Assert.Equal(DraftState.Finalized, await db.DraftSessions.Where(x => x.EventId == setup.EventId).Select(x => x.State).SingleAsync());
+            var members = await db.TeamMemberships.Where(x => x.TeamId == preformedTeamId && x.LeftAt == null).ToListAsync();
+            websiteMembershipId = Assert.Single(members, x => x.EventParticipantId == setup.PlayerIds[2]).Id;
+            externalMembershipId = Assert.Single(members, x => x.EventParticipantId != setup.PlayerIds[2]).Id;
+            Assert.Equal(SignupSource.Website, await db.EventParticipants.Where(x => x.Id == setup.PlayerIds[2]).Select(x => x.Source).SingleAsync());
+            Assert.Equal(5, await db.DraftPublicationRosters.CountAsync());
+            Assert.True(await db.DraftPublicationRosters.AnyAsync(x => x.EventParticipantId == setup.PlayerIds[2] && x.TeamId == preformedTeamId));
+        }
+        var finalizedEditor = await client.GetStringAsync(editor);
+        Assert.Contains($"name=\"membershipId\" value=\"{websiteMembershipId}\"", finalizedEditor, StringComparison.Ordinal);
+        Assert.Contains("External Control", finalizedEditor, StringComparison.Ordinal);
+        var removalForms = Regex.Matches(finalizedEditor, """<form\b[^>]*action="[^"]*handler=RemoveMember[^"]*"[^>]*>.*?</form>""", RegexOptions.Singleline | RegexOptions.IgnoreCase)
+            .Select(match => match.Value).ToArray();
+        Assert.DoesNotContain(removalForms, form => form.Contains(websiteMembershipId.ToString(), StringComparison.Ordinal));
+        Assert.Contains(removalForms, form => form.Contains(externalMembershipId.ToString(), StringComparison.Ordinal) && form.Contains("name=\"confirmed\" value=\"true\"", StringComparison.Ordinal));
+    }
 
     [Fact]
     public async Task ControllerLeaseSupportsAcquireConfirmedTakeoverReleaseAndRecovery()
@@ -515,6 +682,106 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         Assert.Single(await verify.AuditEntries.Where(x => x.Action == "draft.finalized").ToListAsync());
     }
 
+    [Theory]
+    [InlineData(true, true, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    public async Task CrossEventMoveRejectsSourceParticipantOrTargetWithoutMutation(bool foreignSource, bool foreignParticipant, bool foreignTarget)
+    {
+        var route = await SeedAsync();
+        var other = await SeedAsync();
+        var source = new Team(Guid.NewGuid(), foreignSource ? other.EventId : route.EventId, "Source", "source", TeamFormationType.Preformed, null, false);
+        var target = new Team(Guid.NewGuid(), foreignTarget ? other.EventId : route.EventId, "Target", "target", TeamFormationType.Preformed, null, false);
+        var participant = new EventParticipant(Guid.NewGuid(), foreignParticipant ? other.EventId : route.EventId, SignupStatus.Confirmed, 99, now, SignupSource.AdminCreated);
+        var character = new OsrsCharacter(Guid.NewGuid(), "External member", "EXTERNAL MEMBER", now);
+        var assignment = new EventParticipantCharacter(Guid.NewGuid(), participant.EventId, participant.Id, character.Id, 0, now, route.FirstAdminId, null, EventCharacterRole.Playing, 1, EhbSource.AdminCorrection, null);
+        var membership = new TeamMembership(Guid.NewGuid(), source.Id, participant.Id, TeamMembershipRole.Captain, now, null, "seed");
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.AddRange(source, target, participant, character, assignment, membership);
+            await seed.SaveChangesAsync();
+        }
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()).ConfigureServices(services =>
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton<TimeProvider>(new FixedTimeProvider(now));
+            }));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, await LoginNameAsync(route.FirstAdminId));
+        var draftPath = $"/Admin/Events/Draft/{route.EventId}";
+        var token = AntiforgeryToken(await client.GetStringAsync("/Admin/Events"));
+        var before = await RosterStateAsync();
+        var response = await client.PostAsync($"{draftPath}?handler=MoveMember", Form(token, new Dictionary<string, string>
+        {
+            ["membershipId"] = membership.Id.ToString(),
+            ["targetTeamId"] = target.Id.ToString(),
+            ["confirmed"] = "true"
+        }));
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(before, await RosterStateAsync());
+    }
+
+    [Fact]
+    public async Task FinalizationRechecksCaptainAndReturnsToRoleCorrectionWithoutPublicationResidue()
+    {
+        var setup = await SeedAsync();
+        await StartAndScrambleAsync(setup);
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostPickAsync(setup.EventId, setup.PlayerIds[2], CancellationToken.None));
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostPickAsync(setup.EventId, setup.PlayerIds[3], CancellationToken.None));
+        Guid membershipId;
+        Guid teamId;
+        await using (var lookup = new ApplicationDbContext(options))
+        {
+            var member = await lookup.TeamMemberships.SingleAsync(x => x.EventParticipantId == setup.PlayerIds[0] && x.LeftAt == null);
+            membershipId = member.Id;
+            teamId = member.TeamId;
+        }
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()).ConfigureServices(services =>
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton<TimeProvider>(new FixedTimeProvider(now));
+            }));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, await LoginNameAsync(setup.FirstAdminId));
+        var draftPath = $"/Admin/Events/Draft/{setup.EventId}";
+        var token = AntiforgeryToken(await client.GetStringAsync(draftPath));
+        async Task ChangeRoleAsync(TeamMembershipRole role)
+        {
+            await using var lookup = new ApplicationDbContext(options);
+            var version = await lookup.TeamMemberships.Where(x => x.Id == membershipId).Select(x => x.Version).SingleAsync();
+            var response = await client.PostAsync($"{draftPath}?handler=ChangeRole", Form(token, new Dictionary<string, string>
+            {
+                ["membershipId"] = membershipId.ToString(),
+                ["membershipVersion"] = version.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["role"] = role.ToString()
+            }));
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            Assert.Equal(role, await lookup.TeamMemberships.Where(x => x.Id == membershipId).Select(x => x.Role).SingleAsync());
+        }
+        await ChangeRoleAsync(TeamMembershipRole.CoCaptain);
+        var before = await RosterStateAsync();
+        var rejected = await client.PostAsync($"{draftPath}?handler=Finalize", Form(token, new Dictionary<string, string> { ["confirmed"] = "true" }));
+        Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
+        Assert.Equal($"{draftPath}?rosterTeamId={teamId}", rejected.Headers.Location?.OriginalString);
+        Assert.Equal(before, await RosterStateAsync());
+        var recovery = await client.GetStringAsync(rejected.Headers.Location);
+        Assert.Contains("Assign a current Captain to every drafted team before finalizing: First.", recovery);
+        Assert.Contains("handler=ChangeRole", recovery);
+        Assert.Contains($"value=\"{membershipId}\"", recovery);
+        await ChangeRoleAsync(TeamMembershipRole.Captain);
+        var finalized = await client.PostAsync($"{draftPath}?handler=Finalize", Form(token, new Dictionary<string, string> { ["confirmed"] = "true" }));
+        Assert.Equal(HttpStatusCode.Redirect, finalized.StatusCode);
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(DraftState.Finalized, await verify.DraftSessions.Where(x => x.EventId == setup.EventId).Select(x => x.State).SingleAsync());
+        Assert.True(await verify.Events.Where(x => x.Id == setup.EventId).Select(x => x.TeamRostersPublished && x.DraftResultsPublished).SingleAsync());
+        Assert.Single(await verify.DraftPublicationCycles.ToListAsync());
+        Assert.Equal(4, await verify.DraftPublicationRosters.CountAsync());
+        Assert.Single(await verify.AuditEntries.Where(x => x.Action == "draft.finalized").ToListAsync());
+        Assert.All(await verify.EventParticipants.ToListAsync(), x => Assert.Null(x.AccountId));
+    }
+
     [Fact]
     public async Task ConfirmedPreformedCorrectionSupersedesPublicationAndMoveKeepsReplacementHistory()
     {
@@ -548,7 +815,23 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
             Assert.Equal(2, await afterAdd.DraftPicks.CountAsync(x => x.DraftSessionId == draft.Id));
         }
 
-        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostMoveMemberAsync(setup.EventId, membershipId, secondExternalTeam, CancellationToken.None, true));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()).ConfigureServices(services =>
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton<TimeProvider>(new FixedTimeProvider(now));
+            }));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, await LoginNameAsync(setup.FirstAdminId));
+        var draftPath = $"/Admin/Events/Draft/{setup.EventId}";
+        var token = AntiforgeryToken(await client.GetStringAsync(draftPath));
+        var moved = await client.PostAsync($"{draftPath}?handler=MoveMember", Form(token, new Dictionary<string, string>
+        {
+            ["membershipId"] = membershipId.ToString(),
+            ["targetTeamId"] = secondExternalTeam.ToString(),
+            ["confirmed"] = "true"
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, moved.StatusCode);
         await using var verify = new ApplicationDbContext(options);
         var ended = await verify.TeamMemberships.SingleAsync(x => x.Id == membershipId);
         var replacement = await verify.TeamMemberships.SingleAsync(x => x.ReplacesMembershipId == membershipId);
@@ -817,6 +1100,27 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         var token = AntiforgeryToken(await client.GetStringAsync("/Account/Login"));
         var response = await client.PostAsync("/Account/Login", Form(token, new Dictionary<string, string> { ["Input.Username"] = username, ["Input.Password"] = "password" }));
         Assert.True(response.StatusCode == HttpStatusCode.Redirect, await response.Content.ReadAsStringAsync());
+    }
+
+    private async Task<string> RosterStateAsync()
+    {
+        await using var db = new ApplicationDbContext(options);
+        return JsonSerializer.Serialize(new
+        {
+            Events = await db.Events.OrderBy(x => x.Id).ToListAsync(),
+            Teams = await db.Teams.OrderBy(x => x.Id).ToListAsync(),
+            Participants = await db.EventParticipants.OrderBy(x => x.Id).ToListAsync(),
+            Memberships = await db.TeamMemberships.OrderBy(x => x.Id).ToListAsync(),
+            Roles = await db.TeamMembershipRoleTransitions.OrderBy(x => x.Id).ToListAsync(),
+            Access = await db.AccountEventAccesses.OrderBy(x => x.Id).ToListAsync(),
+            Characters = await db.EventParticipantCharacters.OrderBy(x => x.Id).ToListAsync(),
+            Drafts = await db.DraftSessions.OrderBy(x => x.Id).ToListAsync(),
+            Picks = await db.DraftPicks.OrderBy(x => x.Id).ToListAsync(),
+            Cycles = await db.DraftPublicationCycles.OrderBy(x => x.Id).ToListAsync(),
+            Rosters = await db.DraftPublicationRosters.OrderBy(x => x.Id).ToListAsync(),
+            Audit = await db.AuditEntries.OrderBy(x => x.Id).ToListAsync(),
+            Notifications = await db.PersonalNotifications.OrderBy(x => x.Id).ToListAsync()
+        });
     }
 
     private async Task<MutationSnapshot> MutationSnapshotAsync(Guid membershipId)

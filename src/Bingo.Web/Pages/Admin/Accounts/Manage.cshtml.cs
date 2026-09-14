@@ -17,6 +17,8 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
 {
     public AccountDetails? AccountView { get; private set; }
     [BindProperty, StringLength(500)] public string Reason { get; set; } = string.Empty;
+    [BindProperty] public long ExpectedAuthorizationVersion { get; set; }
+    public bool AccountChangeStale { get; private set; }
     [BindProperty] public bool Overlay { get; set; }
     public bool IsOverlay => Overlay || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
@@ -24,10 +26,10 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
         Overlay = string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
         return await Load(id, ct) ? Page() : NotFound();
     }
-    public Task<IActionResult> OnPostGrantAdminAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.GrantAdminAsync(User.GetAccountId()!.Value, id, x), Localize("Admin access granted."), ct); }
-    public Task<IActionResult> OnPostRevokeAdminAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.RevokeAdminAsync(User.GetAccountId()!.Value, id, x), Localize("Admin access revoked."), ct); }
-    public Task<IActionResult> OnPostDisableAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.DisableAsync(User.GetAccountId()!.Value, id, Reason, x), Localize("Account disabled."), ct); }
-    public Task<IActionResult> OnPostRestoreAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.RestoreAsync(User.GetAccountId()!.Value, id, x), Localize("Account restored."), ct); }
+    public Task<IActionResult> OnPostGrantAdminAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.GrantAdminAsync(User.GetAccountId()!.Value, id, ExpectedAuthorizationVersion, x), Localize("Admin access granted."), ct); }
+    public Task<IActionResult> OnPostRevokeAdminAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.RevokeAdminAsync(User.GetAccountId()!.Value, id, ExpectedAuthorizationVersion, x), Localize("Admin access revoked."), ct); }
+    public Task<IActionResult> OnPostDisableAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.DisableAsync(User.GetAccountId()!.Value, id, Reason, ExpectedAuthorizationVersion, x), Localize("Account disabled."), ct); }
+    public Task<IActionResult> OnPostRestoreAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.RestoreAsync(User.GetAccountId()!.Value, id, ExpectedAuthorizationVersion, x), Localize("Account restored."), ct); }
     public Task<IActionResult> OnPostEnableEmergencyAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.SetEmergencyEnabledAsync(User.GetAccountId()!.Value, id, true, x), Localize("Emergency credential enabled."), ct); }
     public Task<IActionResult> OnPostDisableEmergencyAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return Mutate(id, x => administration.SetEmergencyEnabledAsync(User.GetAccountId()!.Value, id, false, x), Localize("Emergency credential disabled."), ct); }
     public async Task<IActionResult> OnPostGenerateResetLinkAsync(Guid id, [FromForm] bool overlay, CancellationToken ct) { Overlay = ResolveSubmittedOverlay(overlay); return await GenerateLink(id, false, ct); }
@@ -70,6 +72,13 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
             }
             return RedirectToPage("Index");
         }
+        catch (Exception exception) when (exception is StaleAccountChangeException or DbUpdateConcurrencyException)
+        {
+            AccountChangeStale = true;
+            ModelState.AddModelError(string.Empty, Localize("This record was changed by another administrator. Current values are shown; review them before trying again."));
+            await Load(id, ct);
+            return Page();
+        }
         catch (InvalidOperationException)
         {
             ModelState.AddModelError(string.Empty, Localize("The account change could not be saved."));
@@ -107,7 +116,7 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
                                  select new { membership.EventParticipantId, TeamName = team.Name, membership.Role, membership.JoinedAt, membership.LeftAt }).ToListAsync(ct);
         var roles = participation.Select(p => new EventRoleView(p.EventName, p.EventTimezone, p.SignupStatus.ToString(), memberships.Where(m => m.EventParticipantId == p.Id).Select(m => new TeamRoleView(m.TeamName, m.Role, m.JoinedAt, m.LeftAt)).ToList())).ToList();
         var disableHistory = await db.AuditEntries.AsNoTracking().Where(x => x.TargetType == "account" && x.TargetId == id.ToString() && (x.Action == "account.disabled" || x.Action == "account.restored")).OrderByDescending(x => x.OccurredAt).Select(x => new DisableHistoryView(x.Action == "account.disabled" ? "Disabled" : "Restored", x.OccurredAt, x.ActorUsername)).ToListAsync(ct);
-        AccountView = new AccountDetails(account.Id, account.LoginName, account.AccountType, account.GlobalRole, account.Active, account.DiscordUserId is not null, account.DiscordDisplayName, account.LastLoginAt, account.DisabledAt, account.PasswordHash is not null, scope, characters, roles, disableHistory);
+        AccountView = new AccountDetails(account.Id, account.AuthorizationVersion, account.LoginName, account.AccountType, account.GlobalRole, account.Active, account.DiscordUserId is not null, account.DiscordDisplayName, account.LastLoginAt, account.DisabledAt, account.PasswordHash is not null, scope, characters, roles, disableHistory);
         return true;
     }
 
@@ -121,7 +130,7 @@ public sealed class ManageModel(ApplicationDbContext db, AccountAdministrationSe
 
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(System.Globalization.CultureInfo.CurrentCulture, key, arguments);
 
-    public sealed record AccountDetails(Guid Id, string Username, AccountType AccountType, GlobalRole? Role, bool Active, bool DiscordLinked, string? DiscordDisplayName, DateTimeOffset? LastLoginAt, DateTimeOffset? DisabledAt, bool HasPassword, EmergencyScope? Scope, IReadOnlyList<CharacterView> Characters, IReadOnlyList<EventRoleView> EventRoles, IReadOnlyList<DisableHistoryView> DisableHistory);
+    public sealed record AccountDetails(Guid Id, long AuthorizationVersion, string Username, AccountType AccountType, GlobalRole? Role, bool Active, bool DiscordLinked, string? DiscordDisplayName, DateTimeOffset? LastLoginAt, DateTimeOffset? DisabledAt, bool HasPassword, EmergencyScope? Scope, IReadOnlyList<CharacterView> Characters, IReadOnlyList<EventRoleView> EventRoles, IReadOnlyList<DisableHistoryView> DisableHistory);
     public sealed record EmergencyScope(string EventName, string TeamName, bool Enabled, bool CutoffDisabled);
     public sealed record CharacterView(string DisplayName, bool Active, bool Preferred) { public string NormalizedName => AccountAuthenticationService.NormalizeUsername(DisplayName); }
     public sealed record EventRoleView(string EventName, string Timezone, string ParticipationState, IReadOnlyList<TeamRoleView> TeamRoles);

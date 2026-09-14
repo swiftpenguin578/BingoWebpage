@@ -25,12 +25,39 @@ public sealed class PreformedRosterCsvImportIntegrationTests : IAsyncLifetime
     {
         var (actor, ev, team) = await SeedAsync();
         await using var db = new ApplicationDbContext(options); using var cache = new MemoryCache(new MemoryCacheOptions()); var service = new PreformedRosterCsvImportService(db, new EventParticipantCharacterService(db, TimeProvider.System), cache, TimeProvider.System);
-        await using var previewStream = new MemoryStream(Encoding.UTF8.GetBytes("Account,EHB,Account\r\nMain One,12.5,Shared Alt\r\nMain Two,0,\r\n"));
+        await using var previewStream = new MemoryStream(Encoding.UTF8.GetBytes("Account,EHB,Account,Account\r\nMain One,12.5,,Shared Alt\r\nMain Two,0,,\r\n"));
         var preview = await service.PreviewAsync(actor.Id, ev.Id, team.Id, previewStream, CancellationToken.None);
         Assert.True(preview.IsValid); Assert.Equal(0, await db.EventParticipants.CountAsync()); Assert.Equal(0, await db.OsrsCharacters.CountAsync());
         var applied = await service.ApplyAsync(actor.Id, actor.LoginName, ev.Id, team.Id, preview.Nonce!, CancellationToken.None);
         Assert.True(applied.Succeeded); Assert.Equal(2, await db.EventParticipants.CountAsync(x => x.AccountId == null)); Assert.Equal(3, await db.EventParticipantCharacters.CountAsync()); Assert.Equal(2, await db.TeamMemberships.CountAsync(x => x.Source == TeamMembershipSource.PreformedCsv && x.LeftAt == null)); Assert.Single(await db.AuditEntries.Where(x => x.Action == "team.preformed_roster_csv_imported").ToListAsync());
+        var assignments = await (from assignment in db.EventParticipantCharacters
+                                 join character in db.OsrsCharacters on assignment.OsrsCharacterId equals character.Id
+                                 select new { character.DisplayName, assignment.EventRole, assignment.EhbSnapshot }).ToListAsync();
+        Assert.Contains(assignments, x => x.DisplayName == "Main One" && x.EventRole == EventCharacterRole.Playing && x.EhbSnapshot == 12.5m);
+        Assert.Contains(assignments, x => x.DisplayName == "Main Two" && x.EventRole == EventCharacterRole.Playing && x.EhbSnapshot == 0m);
+        Assert.Contains(assignments, x => x.DisplayName == "Shared Alt" && x.EventRole == EventCharacterRole.Informational && x.EhbSnapshot == null);
         Assert.False((await service.ApplyAsync(actor.Id, actor.LoginName, ev.Id, team.Id, preview.Nonce!, CancellationToken.None)).Succeeded);
+    }
+
+    [Theory]
+    [InlineData("Account,EHB,Account\r\n,12.5,Secondary\r\n")]
+    [InlineData("Account;EHB;Account;Account\r\n  ;12,5;;Secondary\r\n")]
+    public async Task BlankPrimaryCannotPromoteAnOptionalAccount(string csv)
+    {
+        var (actor, ev, team) = await SeedAsync();
+        await using var db = new ApplicationDbContext(options);
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var service = new PreformedRosterCsvImportService(db, new EventParticipantCharacterService(db, TimeProvider.System), cache, TimeProvider.System);
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+        var preview = await service.PreviewAsync(actor.Id, ev.Id, team.Id, stream, CancellationToken.None);
+        Assert.False(preview.IsValid);
+        Assert.Null(preview.Nonce);
+        Assert.Contains(preview.Errors, error => error.Number == 2 && error.Message == "Primary Account is required.");
+        Assert.False((await service.ApplyAsync(actor.Id, actor.LoginName, ev.Id, team.Id, preview.Nonce ?? "", CancellationToken.None)).Succeeded);
+        Assert.Equal(0, await db.EventParticipants.CountAsync());
+        Assert.Equal(0, await db.OsrsCharacters.CountAsync());
+        Assert.Equal(0, await db.TeamMemberships.CountAsync());
+        Assert.Equal(0, await db.AuditEntries.CountAsync());
     }
 
     [Fact]

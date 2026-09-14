@@ -4,6 +4,7 @@
     let results = scope.querySelector?.("[data-captain-ledger-results]");
     const search = form?.querySelector?.("[data-captain-ledger-search]");
     const player = form?.querySelector?.("[data-captain-ledger-player]");
+    const status = scope.querySelector?.("[data-captain-ledger-status]");
     if (!form || !results || !search || !player || form.dataset.captainLedgerInitialized === "true") return;
 
     form.dataset.captainLedgerInitialized = "true";
@@ -74,7 +75,7 @@
         url.searchParams.set("eventId", form.elements.eventId.value);
         url.searchParams.set("teamId", form.elements.teamId.value);
         url.searchParams.set("ledgerPage", String(page));
-        for (const [name, value] of [["search", search.value.trim()], ["player", player.value]]) {
+        for (const [name, value] of [["search", search.value.trim()], ["player", player.value], ["status", status?.value ?? ""]]) {
           if (value) url.searchParams.set(name, value); else url.searchParams.delete(name);
         }
       }
@@ -123,6 +124,7 @@
       replace(1);
     });
     player.addEventListener("change", () => replace(1));
+    status?.addEventListener("change", () => { win.clearTimeout(debounceId); replace(1); });
     form.addEventListener("submit", event => { event.preventDefault(); win.clearTimeout(debounceId); replace(1); });
     search.addEventListener("input", syncClear);
     syncClear();

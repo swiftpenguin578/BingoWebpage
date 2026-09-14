@@ -1,3 +1,5 @@
+using Bingo.Domain.Teams;
+
 namespace Bingo.Domain.Events;
 
 public sealed class BingoEvent
@@ -124,6 +126,10 @@ public sealed class BingoEvent
 
     public bool AcceptsSignups(DateTimeOffset now) =>
         !IsHidden && State == EventState.SignupOpen && SignupClosesAt is { } closing && now.ToUniversalTime() < closing;
+
+    public bool CanCorrectFinalizedRoster(DraftState? draftState, DateTimeOffset now) =>
+        !IsHidden && State == EventState.SignupClosed && DraftLocked && ActualStartedAt is null
+        && draftState == DraftState.Finalized && EventEndsAt is { } end && now.ToUniversalTime() < end;
 
     public bool AcceptsNewSubmissions(DateTimeOffset now) =>
         !IsHidden && State is (EventState.Live or EventState.AwaitingFinalReview)
@@ -504,6 +510,10 @@ public sealed class BingoEvent
 
     private DateTimeOffset ActiveSubmissionCutoff()
     {
+        // Unfinalization retains FinalizedAt and clears the explicit reopen cutoff.
+        // A future ordinary cutoff must not reopen a previously finalized review cycle.
+        if (State == EventState.AwaitingFinalReview && FinalizedAt is not null && ReopenedSubmissionCutoffAt is null)
+            return DateTimeOffset.MinValue;
         var cutoff = ReopenedSubmissionCutoffAt is { } reopened && (SubmissionCutoffAt is null || reopened > SubmissionCutoffAt.Value) ? reopened : SubmissionCutoffAt;
         return cutoff ?? DateTimeOffset.MinValue;
     }

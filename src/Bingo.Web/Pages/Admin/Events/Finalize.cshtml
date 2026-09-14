@@ -75,6 +75,7 @@
                             {
                                 <form method="post" asp-page-handler="AcknowledgeCompletion" class="finalize-inline-form" onsubmit="return confirm('@T["Confirm that this completed team's completion time was inspected."]');">
                                     <input type="hidden" name="teamId" value="@blocker.TeamId" />
+                                    <input type="hidden" name="ExpectedInspectionKey" value="@blocker.Key" />
                                     <input type="hidden" name="ExpectedVersion" value="@Model.Readiness.EventVersion" />
                                     <input type="hidden" name="ExpectedReviewCycleId" value="@Model.Readiness.ReviewCycleId" />
                                     <button class="admin-button-secondary" type="submit">@T["Completion time inspected"]</button>

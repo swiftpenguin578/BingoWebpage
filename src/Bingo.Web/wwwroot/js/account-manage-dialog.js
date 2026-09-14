@@ -423,6 +423,13 @@
       if (!response.ok) throw new Error("Account request failed.");
       const html = await response.text();
       if (validationMessage(html)) {
+        const stale = new DOMParser().parseFromString(html, "text/html").querySelector('[data-account-change-stale="true"]');
+        if (stale && replaceContent(html)) {
+          finish();
+          closeConfirmation(false);
+          focusAccountContent("manage");
+          hideInlineValidation();
+        }
         guard.showFailure(validationMessage(html));
         return;
       }
@@ -469,6 +476,8 @@
     overlay.name = "overlay";
     overlay.value = hasOverlay() ? "1" : "0";
     form.append(overlay);
+    const freshness = trigger.closest("form")?.querySelector("input[name='ExpectedAuthorizationVersion']");
+    if (freshness instanceof HTMLInputElement) form.append(document.importNode(freshness, true));
     if (trigger.dataset.accountConfirmationReason === "true") {
       const field = document.createElement("div");
       field.className = "admin-field";

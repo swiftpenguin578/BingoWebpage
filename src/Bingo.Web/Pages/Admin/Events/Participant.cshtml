@@ -33,6 +33,11 @@
         </div>
     }
 
+    @if (!Model.CanEditParticipant && !ViewData.ModelState.IsValid)
+    {
+        <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+    }
+
     <div class="event-confirmation-box participant-editor-discard" data-participant-editor-discard role="alertdialog" aria-labelledby="participant-discard-title" hidden>
         <p><strong id="participant-discard-title">@T["Discard unsaved changes?"]</strong><br />@T["Continuing will discard unsaved changes in this editor."]</p>
         <div class="event-confirmation-actions"><button type="button" class="admin-button-secondary" data-participant-editor-keep>@T["Cancel"]</button><button type="button" class="admin-button-secondary action-danger-outline" data-participant-editor-discard-confirm>@T["Discard changes"]</button></div>
@@ -147,7 +152,7 @@
         {
             <section class="panel participant-edit-card participant-edit-component participant-read-only-details">
                 <header><div><h2>@T["Participant details"]</h2><p>@T["This participant is locked and can only be reviewed here."]</p></div></header>
-                <div class="information-callout participant-read-only-note"><strong>@T["Participant administration is read-only"]</strong><span>@T["Answers, roster details, and signup lifecycle changes are locked in this event. Private payment and Admin notes remain editable."]</span></div>
+                <div class="information-callout participant-read-only-note"><strong>@(Model.CanCorrectPreLiveRoster ? T["Signup details are locked"] : T["Participant administration is read-only"])</strong><span>@(Model.CanCorrectPreLiveRoster ? T["Answers and registered accounts remain locked. Use the participant actions below to record a departure or explicitly fill a vacancy."] : T["Answers, roster details, and signup lifecycle changes are locked in this event. Private payment and Admin notes remain editable."])</span></div>
                 <dl class="participant-detail-rows">
                     @foreach (var question in Model.Questions.Where(question => question.Active))
                     {
@@ -261,7 +266,7 @@
             }
             @if (Model.CanAdminWithdraw)
             {
-            <details class="admin-destructive-confirmation participant-confirmation-box">
+            <details class="admin-destructive-confirmation participant-confirmation-box" open="@Model.WithdrawalFailed">
                 <summary class="admin-button-secondary action-danger-outline">@T["Remove participant"]</summary>
                 <div class="event-confirmation-box" role="alertdialog" aria-labelledby="remove-participant-heading">
                     <p><strong id="remove-participant-heading">@T["Remove {0}?", Model.Name]</strong><br />@T["This withdraws the signup and keeps its history."]</p>
@@ -269,7 +274,11 @@
                         <input type="hidden" name="overlay" value="@overlayValue" />
                         <input asp-for="ExpectedMembershipVersion" type="hidden" />
                         <input type="hidden" name="ConfirmLifecycleAction" value="true" />
-                        <label asp-for="PrivateWithdrawalNote">@T["Private Admin note (optional)"]<textarea asp-for="PrivateWithdrawalNote" class="form-control"></textarea></label>
+                        <label asp-for="PrivateWithdrawalNote">@T["Private Admin note (optional)"]<textarea asp-for="PrivateWithdrawalNote" class="form-control" maxlength="@(Model.CanCorrectPreLiveRoster ? 2000 : 4000)"></textarea></label>
+                        @if (Model.CanCorrectPreLiveRoster)
+                        {
+                            <p>@T["A note is appended to existing private Admin notes, up to 2,000 characters in total. Leave blank to preserve them."]</p>
+                        }
                         <div class="event-confirmation-actions">
                             <button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button>
                             <button class="admin-button-secondary action-danger-outline" type="submit">@T["Remove participant"]</button>
