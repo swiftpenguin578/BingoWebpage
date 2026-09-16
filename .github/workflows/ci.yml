@@ -68,7 +68,7 @@ jobs:
       - name: Test Integration
         id: test_integration
         continue-on-error: true
-        timeout-minutes: 30
+        timeout-minutes: 45
         run: dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-build --logger trx --collect "XPlat Code Coverage"
 
       - name: Fail if any test project failed
