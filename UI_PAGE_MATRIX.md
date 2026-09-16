@@ -5,6 +5,17 @@ page-family, canonical-reference, exception, and approval record. A canonical
 reference demonstrates composition; it does not approve another page or the
 whole regression. Current status is explicit for every row.
 
+### Scoped visual corrections approved — 2026-09-16
+
+The user explicitly approved all four corrections after checking the restarted
+preview: Stats KEEPS ON DROPPING renders no artwork or reserved artwork space for
+empty/missing/broken images; Signup and Signups give the first stacked schedule
+block the same left divider/inset; event-overview cards retain a trailing vertical
+divider unless in the rightmost column; shared Stats navigation has the existing
+Drops NEW badge styling with literal WIP text. Both Stats review findings are closed.
+Technical source review: `/private/tmp/bingo-minor-ui-20260916/review.md`.
+This acceptance covers these four deltas and preserves unrelated page approval states.
+
 On detail/form pages, an information rail may appear on wide desktop. It is
 removed, not relocated, at constrained widths. Full-width/table pages never
 inherit the rail rule.

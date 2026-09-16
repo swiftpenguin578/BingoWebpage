@@ -3004,6 +3004,7 @@ html[data-public-theme="dark"] .login-sheet .identity-input:not([aria-invalid="t
 @media (max-width: 48rem) {
   .signup-sheet { padding: 1.5rem var(--public-page-gutter) 2.5rem; }
   .signup-sheet__masthead { grid-template-columns: 1fr; gap: 1.25rem; }
+  .signup-sheet__meta > div:first-child { padding-left: 1.35rem; border-left: 1px solid var(--signup-rule); }
   .signup-sheet__lifecycle { grid-column: auto; grid-template-columns: minmax(0, max-content) auto minmax(0, 1fr); align-items: center; }
   .signup-sheet__form, .signup-sheet__unavailable { grid-template-columns: 1fr; gap: 0; }
   .signup-sheet__row { grid-template-columns: 3rem minmax(0, 1fr); gap: 1rem; }
@@ -3238,7 +3239,7 @@ body.public-event-shell.public-ui-pass1 .mission-team-card { --mission-card-gap:
 body.public-event-shell.public-ui-pass1 .mission-team-card::before { position: absolute; z-index: 1; content: none; pointer-events: none; }
 body.public-event-shell.public-ui-pass1 .mission-grid--wide-rows .mission-team-card--wide-boundary::before { right: 0; bottom: 0; left: 0; height: 1px; background: var(--board-rule); content: ""; }
 body.public-event-shell.public-ui-pass1 .mission-grid--wide-rows .mission-team-card--wide-boundary:nth-child(3n + 1)::before { left: 0.85rem; }
-body.public-event-shell.public-ui-pass1 .mission-card-column-divider { position: absolute; z-index: 2; top: 0.65rem; bottom: 0.6rem; left: 0; display: none; width: 1px; background: var(--board-rule); content: ""; pointer-events: none; }
+body.public-event-shell.public-ui-pass1 .mission-card-column-divider { position: absolute; z-index: 2; top: 0.65rem; right: 0; bottom: 0.6rem; display: none; width: 1px; background: var(--board-rule); content: ""; pointer-events: none; }
 body.public-event-shell.public-ui-pass1 .mission-card-column-divider--wide { display: block; }
 body.public-event-shell.public-ui-pass1 .mission-team-card:hover { color: var(--board-ink); background: color-mix(in srgb, var(--board-blue) 4%, transparent); transform: none; }
 body.public-event-shell.public-ui-pass1 .mission-card-rank-column { position: relative; align-self: start; width: 2.75rem; min-width: 2.75rem; }

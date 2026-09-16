@@ -257,8 +257,8 @@
                     var completion = totalTiles == 0 ? 0 : team.Progress.CompletedTiles * 100 / totalTiles;
                     var wideRowBoundary = ((teamIndex / 3) + 1) * 3 < Model.Board.Teams.Count;
                     var constrainedRowBoundary = ((teamIndex / 2) + 1) * 2 < Model.Board.Teams.Count;
-                    var wideColumnDivider = teamIndex % 3 != 0;
-                    var constrainedColumnDivider = teamIndex % 2 != 0;
+                    var wideColumnDivider = teamIndex % 3 != 2;
+                    var constrainedColumnDivider = teamIndex % 2 != 1;
                     <a class="mission-team-card public-ui-surface public-ui-surface--charcoal @(team.ProvisionalWinner ? "provisional-winner" : null) @(wideRowBoundary ? "mission-team-card--wide-boundary" : null) @(constrainedRowBoundary ? "mission-team-card--constrained-boundary" : null)"
                        asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@team.TeamSlug">
                         <div class="mission-card-rank-column">
