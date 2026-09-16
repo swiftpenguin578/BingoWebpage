@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Bingo.Domain.Catalogue;
@@ -10,15 +11,18 @@ namespace Bingo.Web.Catalogue;
 
 public sealed class OsrsWikiCatalogueDryRunService(
     IHttpClientFactory httpClientFactory,
-    ApplicationDbContext db) : IDisposable
+    ApplicationDbContext db,
+    TimeProvider? time = null) : IDisposable
 {
     private const string WikiBaseUrl = "https://oldschool.runescape.wiki";
     private const int MaxWikiRequestAttempts = 6;
     private static readonly TimeSpan WikiRequestSpacing = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan MaximumInlineCooldown = TimeSpan.FromSeconds(5);
     private static readonly string[] CandidateSectionNames =
         ["unique", "tertiary", "pre-roll", "weapons and armour", "weapons and armor", "armour and weapons"];
-    private readonly SemaphoreSlim wikiRequestGate = new(1, 1);
-    private DateTimeOffset nextWikiRequestAt = DateTimeOffset.MinValue;
+    private readonly TimeProvider clock = time ?? TimeProvider.System;
+    private readonly WikiRequestState requestState = SharedRequestStates.GetValue(time ?? TimeProvider.System, static _ => new());
+    private static readonly ConditionalWeakTable<TimeProvider, WikiRequestState> SharedRequestStates = new();
     private static readonly Dictionary<string, WikiBossRule> WikiBossRules = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Abyssal Sire"] = new("Abyssal Sire", ["Pre-roll"], ["Unsired"]),
@@ -516,19 +520,33 @@ public sealed class OsrsWikiCatalogueDryRunService(
     {
         var query = string.Join("&", values.Select(x => $"{WebUtility.UrlEncode(x.Key)}={WebUtility.UrlEncode(x.Value)}"));
         var client = httpClientFactory.CreateClient("OsrsWiki");
-        await wikiRequestGate.WaitAsync(ct);
+        await requestState.Gate.WaitAsync(ct);
 
         try
         {
             for (var attempt = 0; attempt < MaxWikiRequestAttempts; attempt++)
             {
-                var spacingDelay = nextWikiRequestAt - DateTimeOffset.UtcNow;
-                if (spacingDelay > TimeSpan.Zero)
+                var now = clock.GetUtcNow();
+                DateTimeOffset requestAt;
+                lock (requestState.Sync)
                 {
-                    await Task.Delay(spacingDelay, ct);
+                    requestAt = requestState.NextRequestAt > requestState.CooldownUntil ? requestState.NextRequestAt : requestState.CooldownUntil;
                 }
 
-                nextWikiRequestAt = DateTimeOffset.UtcNow + WikiRequestSpacing;
+                var requestDelay = requestAt - now;
+                if (requestDelay > TimeSpan.Zero)
+                {
+                    if (requestDelay > MaximumInlineCooldown)
+                        throw new WikiRequestCooldownException(requestAt);
+                    await Task.Delay(requestDelay, ct);
+                    now = clock.GetUtcNow();
+                }
+
+                lock (requestState.Sync)
+                {
+                    var start = requestState.NextRequestAt > now ? requestState.NextRequestAt : now;
+                    requestState.NextRequestAt = start.Add(WikiRequestSpacing);
+                }
                 using var response = await client.GetAsync(
                     $"api.php?{query}",
                     HttpCompletionOption.ResponseHeadersRead,
@@ -536,6 +554,11 @@ public sealed class OsrsWikiCatalogueDryRunService(
 
                 if (response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable)
                 {
+                    var retryAt = GetRetryAt(response, attempt);
+                    lock (requestState.Sync)
+                    {
+                        if (retryAt > requestState.CooldownUntil) requestState.CooldownUntil = retryAt;
+                    }
                     if (attempt == MaxWikiRequestAttempts - 1)
                     {
                         throw new HttpRequestException(
@@ -544,44 +567,50 @@ public sealed class OsrsWikiCatalogueDryRunService(
                             response.StatusCode);
                     }
 
-                    await Task.Delay(GetRetryDelay(response, attempt), ct);
                     continue;
                 }
 
                 response.EnsureSuccessStatusCode();
                 await using var stream = await response.Content.ReadAsStreamAsync(ct);
-                return await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+                var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+                lock (requestState.Sync) requestState.CooldownUntil = DateTimeOffset.MinValue;
+                return document;
             }
         }
         finally
         {
-            wikiRequestGate.Release();
+            requestState.Gate.Release();
         }
 
         throw new InvalidOperationException("The OSRS Wiki request retry loop ended unexpectedly.");
     }
 
-    private static TimeSpan GetRetryDelay(HttpResponseMessage response, int attempt)
+    private DateTimeOffset GetRetryAt(HttpResponseMessage response, int attempt)
     {
+        var now = clock.GetUtcNow();
         var retryAfter = response.Headers.RetryAfter;
-        var requestedDelay = retryAfter?.Delta;
-        if (requestedDelay is null && retryAfter?.Date is { } retryDate)
-        {
-            requestedDelay = retryDate - DateTimeOffset.UtcNow;
-        }
-
-        var fallbackDelay = TimeSpan.FromSeconds(Math.Min(30, Math.Pow(2, attempt + 1)));
-        if (requestedDelay is null || requestedDelay <= TimeSpan.Zero)
-        {
-            return fallbackDelay;
-        }
-
-        return requestedDelay > TimeSpan.FromSeconds(30)
-            ? TimeSpan.FromSeconds(30)
-            : requestedDelay.Value;
+        if (retryAfter?.Delta is { } delta && delta > TimeSpan.Zero)
+            return SafeAdd(now, delta);
+        if (retryAfter?.Date is { } date && date > now)
+            return date;
+        return SafeAdd(now, TimeSpan.FromSeconds(Math.Min(30, Math.Pow(2, attempt + 1))));
     }
 
-    public void Dispose() => wikiRequestGate.Dispose();
+    private static DateTimeOffset SafeAdd(DateTimeOffset value, TimeSpan amount) =>
+        amount >= DateTimeOffset.MaxValue - value ? DateTimeOffset.MaxValue : value.Add(amount);
+
+    public void Dispose() { }
+
+    private sealed class WikiRequestState
+    {
+        public SemaphoreSlim Gate { get; } = new(1, 1);
+        public object Sync { get; } = new();
+        public DateTimeOffset NextRequestAt { get; set; } = DateTimeOffset.MinValue;
+        public DateTimeOffset CooldownUntil { get; set; } = DateTimeOffset.MinValue;
+    }
+
+    private sealed class WikiRequestCooldownException(DateTimeOffset retryAt)
+        : HttpRequestException($"The OSRS Wiki is temporarily limiting requests. Retry after {retryAt:O}.");
 
     public static IReadOnlyList<ParsedWikiDrop> ParseDropLines(string wikitext)
     {

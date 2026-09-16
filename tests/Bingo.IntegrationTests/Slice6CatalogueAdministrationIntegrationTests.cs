@@ -186,6 +186,38 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
     }
 
     [Fact]
+    public async Task FinalWikiRetryAfterIsRetainedAcrossManualImporterInstances()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var boss = new BossActivity(Guid.NewGuid(), "Abyssal Sire", $"abyssal-sire-{Guid.NewGuid():N}", "Boss", 10m, now);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            foreach (var existingBoss in await setup.BossActivities.ToListAsync()) existingBoss.SetActive(false);
+            setup.BossActivities.Add(boss);
+            await setup.SaveChangesAsync();
+        }
+
+        var clock = new WallClock();
+        var handler = new FinalAttemptRateLimitWikiHandler();
+        var factory = new RateLimitedWikiClientFactory(handler);
+        WikiCatalogueDryRunReport firstReport;
+        await using (var firstContext = new ApplicationDbContext(options))
+        {
+            var importer = new OsrsWikiCatalogueDryRunService(factory, firstContext, clock);
+            firstReport = await importer.RunAsync();
+        }
+
+        Assert.Equal(1, firstReport.UnmatchedCount);
+        Assert.Equal(6, handler.RequestCount);
+
+        await using var secondContext = new ApplicationDbContext(options);
+        var secondReport = await new OsrsWikiCatalogueDryRunService(factory, secondContext, clock).RunAsync();
+
+        Assert.Equal(1, secondReport.UnmatchedCount);
+        Assert.Equal(6, handler.RequestCount);
+    }
+
+    [Fact]
     public async Task DraftBoardUsesCurrentCatalogueRatesAndRejectsMismatchedManagedTileImages()
     {
         var now = DateTimeOffset.UtcNow;
@@ -1372,5 +1404,34 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
                 Content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json")
             });
         }
+    }
+
+    private sealed class RateLimitedWikiClientFactory(HttpMessageHandler handler) : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new(handler) { BaseAddress = new Uri("https://oldschool.runescape.wiki/") };
+    }
+
+    private sealed class FinalAttemptRateLimitWikiHandler : HttpMessageHandler
+    {
+        private int requestCount;
+        public int RequestCount => Volatile.Read(ref requestCount);
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var number = Interlocked.Increment(ref requestCount);
+            var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+            {
+                RequestMessage = request,
+                Content = new StringContent(string.Empty)
+            };
+            response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(
+                number == 6 ? TimeSpan.FromSeconds(60) : TimeSpan.FromMilliseconds(1));
+            return Task.FromResult(response);
+        }
+    }
+
+    private sealed class WallClock : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UtcNow;
     }
 }

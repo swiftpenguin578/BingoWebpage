@@ -260,7 +260,7 @@ Images populate on first use. A deployment can prewarm all reviewed catalogue an
 dotnet run --project src/Bingo.Web -- --sync-catalogue-images
 ```
 
-The synchronization command never changes catalogue records. It accepts only HTTPS OSRS Wiki image URLs, validates returned image types, limits individual files to 8 MB, and reports failed downloads. It waits 500 ms between sources by default and backs off before retrying Wiki rate-limit or temporary-service responses. Override the pacing with `CatalogueImageCache__SyncDelayMilliseconds` when necessary, but do not reduce it below the enforced 250 ms minimum. Cached binaries are operational data and must not be committed to Git.
+The synchronization command never changes catalogue records. It accepts only HTTPS OSRS Wiki image URLs, validates returned image types, limits individual files to 8 MB, and reports failed downloads. The on-demand cache coalesces identical misses, retains successful files across restarts, allows one Wiki image fetch at a time with at least 500 ms between provider starts, honors provider-directed pauses across cold image keys, applies bounded negative cooldowns, and leaves provider failures local so rendered clients can show their no-art state. The command waits 500 ms between sources by default and backs off before retrying Wiki rate-limit or temporary-service responses. Override the pacing with `CatalogueImageCache__SyncDelayMilliseconds` when necessary, but do not reduce it below the enforced 250 ms minimum. Cached binaries are operational data and must not be committed to Git.
 
 Delete the local database volume and start clean:
 

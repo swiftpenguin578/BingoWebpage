@@ -26,13 +26,21 @@ public sealed class WiseOldManClient(
     {
         var normalized = Normalize(characterName);
         if (string.IsNullOrWhiteSpace(normalized)) return new(WiseOldManLookupStatus.NotFound, Message: "An OSRS character name is required.");
-        var now = time.GetUtcNow();
-        if (cache.TryGetValue(normalized, out var cached) && now - cached.FetchedAt < CacheTtl)
+        if (TryGetCached(normalized, out var cached))
             return new(WiseOldManLookupStatus.Success, cached.Ehb, cached.FetchedAt);
 
         await using var admission = await limiter.AdmitAsync(cancellationToken);
         if (!admission.AllowedRequest)
             return new(WiseOldManLookupStatus.RateLimited, RetryAt: admission.RetryAt, Message: "Wise Old Man is temporarily busy. Try again in about 1 minute.");
+
+        // Another lookup for this player may have completed while this call
+        // waited for serialized limiter admission. Recheck before issuing HTTP;
+        // serving that result must not alter limiter health or consume budget.
+        if (TryGetCached(normalized, out cached))
+        {
+            await admission.CompleteCachedAsync();
+            return new(WiseOldManLookupStatus.Success, cached.Ehb, cached.FetchedAt);
+        }
 
         HttpResponseMessage? response = null;
         var validPayload = false;
@@ -181,6 +189,15 @@ public sealed class WiseOldManClient(
     }
 
     private static string Normalize(string value) => value.Trim().ToUpperInvariant();
+    private bool TryGetCached(string normalized, out CachedPlayer cached)
+    {
+        if (cache.TryGetValue(normalized, out cached!) && time.GetUtcNow() - cached.FetchedAt < CacheTtl)
+            return true;
+
+        cached = null!;
+        return false;
+    }
+
     private DateTimeOffset? NextRetryAt()
     {
         var status = limiter.GetStatus();

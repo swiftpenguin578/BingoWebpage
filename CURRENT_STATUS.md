@@ -1,6 +1,6 @@
 # Current project status
 
-## Active: Local packaging complete; publication awaiting authorization — 2026-09-16
+## Active: Package and push reviewed corrections for PR #9 CI — 2026-09-16
 
 Assignment checkout `/private/tmp/BingoWebpage-drop-announcements`, branch
 `drop-announcements`. Preserve all existing dirty/untracked work. The saved project
@@ -8,6 +8,180 @@ worktree is not this assignment checkout. Follow
 [lean execution and planner handoff](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
 
 ### Current user assignment — 2026-09-16
+
+The user authorized packaging, committing and pushing all pending accepted work
+to existing draft [PR #9](https://github.com/swiftpenguin578/BingoWebpage/pull/9)
+for CI. Packaging inventory is exact: all 37 pending paths are included, including
+the retained-catalogue test helper; 16 CI-fixture and 14 provider manifest hashes
+match the reviewed evidence. The remote branch matched starting `6acdff9` before
+packaging. CI fixtures are committed as `4a43f2c`; the four user-approved UI
+corrections and their approval record are committed as `28c7445`. The provider
+protections and associated documentation are packaged with this status update.
+No accepted production contents were changed during packaging. Scoped diff checks
+pass. Evidence: `/private/tmp/bingo-pr9-package-20260916/`.
+
+Reused verification: CI remediation full integration **886/886 in Debug** and
+original failing cases **21/21**; independent review PASS. UI source review PASS,
+with user acceptance owned by UI_PAGE_MATRIX.md. Provider final review PASS with
+no findings; image **8/8**, importer **1/1**, price/WOM **37/37**, affected Node
+**85 passed / 2 optional skips**, Web Release **0 warnings / 0 errors**. These do
+not establish a full Release CI pass. Implementation evidence remains under
+`/private/tmp/bingo-pr9-ci-remediation-20260916/`,
+`/private/tmp/bingo-minor-ui-20260916/`, and
+`/private/tmp/bingo-provider-load-20260916/`.
+
+The packager's remaining authorized publication step is a normal non-force push,
+remote-HEAD confirmation, and one bounded read of the new CI run, reported to the
+root callback. PR #9 stays draft. Full Release PR CI is the next acceptance gate;
+no automatic CI remediation, merge, deployment, app restart or database change is
+authorized. This current handoff supersedes earlier worker ownership and publication
+holds below; all implementation reviews are complete with no remaining findings.
+
+The user explicitly accepted all four minor UI corrections and authorized proceeding
+with the queued Wiki/API work. UI_PAGE_MATRIX.md records the scoped visual approval.
+`/root/provider_load_corrections` (Luna Max) now owns the observed image-cache bypass,
+failed-download retry/hotlink, Wiki price/importer cooldown and WOM duplicate-lookup
+corrections detailed below. Preserve all existing approved dirty UI/CI-remediation
+work. Evidence: `/private/tmp/bingo-provider-load-20260916/`. Mocked request-count /
+timing tests and affected Release build precede one fresh independent Sol High review.
+No browser inspection, real provider load tests, app restart, DB change or publication
+is authorized for this pass. Callbacks at handoffs/questions replace active polling.
+Provider implementation reached its stable handoff: Web Release build 0 warnings/errors,
+image-cache tests 4/4, price/WOM tests 37/37 and scoped format/diff passed. Initial
+Node lookup failed on PATH; root verified the existing bundled Node v24.19.0 at
+`/Users/christopher/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node`
+and the worker completed affected Node checks: 66+19 passed, 2 optional skips, 0 failed.
+This is a resolved runtime-location issue, not absent Node or an accepted test skip.
+Before dispatching review, root reconciled the handoff's image policy: four concurrent
+downloads / 100ms starts was more aggressive than the existing 500ms sync pace. The
+same worker now owns one bounded adjustment to one outbound image download in flight
+with at least 500ms between starts; warm disk-cache hits remain unblocked. Require a
+focused cross-key concurrency/pacing check and refreshed image evidence; reuse other
+passing checks. That bounded adjustment is now complete: image tests 5/5 passed,
+including single-flight/spacing, warm-hit bypass and canceled-waiter safety. Final
+Web Release build has zero warnings/errors and scoped format/diff checks pass; other
+provider/Node results were reused unchanged. Root dispatched one fresh Sol High
+`/root/provider_load_review` after implementation stopped. Review requires three named
+corrections, already routed to `/root/provider_load_corrections`: F1 image Retry-After
+is URL-local and different keys bypass the provider pause; F2 canceled sole/all waiters
+can retain completed download tasks and replay stale faults; F3 the importer's sixth
+429/503 throws before retaining that response's cooldown for subsequent instances.
+Price cooldown and WOM admission corrections passed source review against executable
+evidence. Server-side Stats/announcement URL mapping was source-reviewed; Node harnesses
+do not themselves execute that server mapping. Same implementer fixes these findings
+with focused tests, then the same reviewer rechecks only named corrections/direct
+consequences. Report: `/private/tmp/bingo-provider-load-20260916/review.md`.
+Latest bounded recheck: F2 and F3 passed. F1a identified that ordinary image failures
+without Retry-After also paused unrelated cold images. The same implementer has now
+restricted the global pause to valid positive provider Retry-After values; ordinary
+failures retain only their per-key negative cache. Image tests pass 8/8, Web Release
+build has 0 warnings/errors, and affected format/diff checks pass. The same reviewer
+completed the F1a-only recheck: PASS, no remaining findings. All 14 manifest hashes
+match. Accepted F2/F3, importer 1/1, price/WOM 37/37, and Node 85 passed plus 2
+optional skips are reused. Evidence and the final review are in the provider
+directory above. Provider corrections are implemented and independently reviewed;
+the next permitted action is planner delivery reconciliation. Packaging/publication
+and preview restart have not occurred; full Release CI has not been rerun.
+No publication or restart occurred.
+
+The user supplied the requested minor-change list; `/root/minor_ui_corrections`
+(Luna Max) now owns exactly four surgical changes:
+1. Stats KEEPS ON DROPPING has no image/placeholder/background-artwork box when
+   empty or lacking a usable item image; preserve valid artwork and text styling.
+2. On Signup and Signups, give the first stacked schedule block the same left
+   divider/inset as subsequent blocks; preserve existing desktop composition.
+3. Event overview: the last team card retains a trailing vertical divider unless
+   it occupies the rightmost grid column; preserve row separators and responsive
+   3/2/1-column behavior (user examples: 8 teams versus 3 teams at 3 columns).
+4. Add a literal WIP badge to the shared Stats navigation entry, identical in
+   styling/placement to the existing Drops NEW badge. Preserve Drops badge behavior.
+   This marks the unfinished Danish support; translation work is not in this pass.
+Current user screenshots define the corrections; browser inspection remains forbidden.
+Worker runs only applicable scoped CSS/markup/JS checks, then one fresh Sol High
+source review. User supplies visual acceptance. Evidence is assigned under
+`/private/tmp/bingo-minor-ui-20260916/`. Preserve the reviewed, uncommitted CI test
+fixes. Wiki image/API corrections remain queued after this small UI pass to avoid
+overlapping source changes. No packaging or PR update until these edits are settled.
+All four minor UI corrections are implemented. Evidence:
+`/private/tmp/bingo-minor-ui-20260916/evidence.md`. Owned files are Stats JS and its
+Node test, shared public CSS, Board Razor and shared layout Razor. Focused Node
+checks: 64 passed, 0 failed, 2 optional PostgreSQL skips; scoped source/cascade checks
+and diff check passed. Root dispatched fresh `/root/minor_ui_review` (Sol High)
+after implementation stopped because the implementer could not spawn it. Independent
+review found two Stats direct consequences and returned them to the same implementer:
+no-art states still reserve about 28% of text width, and `finishSettingsSave()` can
+re-enable Adjust artwork after a missing/broken image. Signup/Signups divider,
+mission-grid trailing divider and WIP badge passed source review. Luna owns these
+two named corrections; the same Sol reviewer rechecks. Report:
+`/private/tmp/bingo-minor-ui-20260916/review.md`. User visual acceptance remains
+pending. Both named corrections are now implemented: no-art text width is released
+and valid artwork restores the existing cascade; shared eligibility keeps Adjust
+artwork disabled for missing/broken images through guidance saves. Updated Node
+results: 65 passed, 0 failed, 2 optional skips (67 total); source/diff checks passed.
+The same Sol reviewer completed the two-finding recheck: TECHNICAL SOURCE PASS,
+with 2/2 independently rerun focused Node cases passing. All four corrections now
+have source acceptance; user visual acceptance remains pending. No UI worker remains
+assigned further work, and nothing has been committed/pushed. No browser inspection.
+The user explicitly authorized a preview restart:
+root built Bingo.Web Release (zero warnings/errors), replaced prior PID 39460 with
+PID 93198 on `http://127.0.0.1:5189` using the unchanged saved command.sh environment,
+and verified `/health/ready` returns HTTP 200. Runtime session 85846; logs:
+`/private/tmp/bingo-ui-preview-{build,runtime}-20260916.log`. No reset, seed or migration
+command was run. The subsequent Stats JS corrections and source recheck are complete.
+
+PR #9 is open as a draft: https://github.com/swiftpenguin578/BingoWebpage/pull/9.
+The user authorized push/PR creation; `drop-announcements` was pushed at
+`6acdff9e0eff0a2675a0504528e57c9b23dc1238`. Complete CI run `35125849800` failed:
+integration 865 passed / 21 failed / 886 total. Formatting, build, Domain 248/248,
+Application 89/89 and Browser 116/116 passed. The integration wrapper step says
+success because it records the exit code; the final test gate correctly failed.
+Full log and exact failure list: `/private/tmp/bingo-pr9-ci-35125849800/`.
+
+`/root/catalogue_migration` (Luna Max) owns the bounded correction: 19 historical
+migration cases hit the new catalogue identity guard; 2 late-introduction theory
+cases compare timestamps differing by 1–2 .NET ticks after PostgreSQL storage.
+Distinguish incomplete fixtures from a real retained-upgrade defect before changing
+the migration contract; preserve identity, rollback and historical test assertions.
+The user additionally requested checking tests for the same GitHub/PostgreSQL
+microsecond precision pattern. Limit that scan to vulnerable timestamp generation /
+database round-trip equality, with deterministic precision fixes rather than broad
+tolerances or application timing changes.
+
+Focused remediation exposed one historical fixture identity discrepancy: the July
+WOM seed names slug/key `nightmare` as `Nightmare`; both origin/main and the reviewed
+catalogue already use `The Nightmare`. Clean bootstrap applies that catalogue after
+migrations. Planner authorized only a fixture preparation correction for the exact
+legacy slug/name/key combination, preserving row identity/associations and all other
+fields. Production matching and historical seed migrations remain unchanged; arbitrary
+identity mismatches must still fail atomically. No production row was inspected.
+
+Worker must cover every reported failure and any confirmed precision corrections,
+then run the complete integration project once to completion. Evidence belongs in
+`/private/tmp/bingo-pr9-ci-remediation-20260916/`. The same independent Sol High
+reviewer `/root/catalogue_migration_review` reviews only the completed correction and
+direct consequences afterward. End-of-turn callbacks wake the planner; no polling.
+Latest user stop boundary: notify the user when the failed-test worker finishes,
+stating full integration results and whether independent review has passed. The user
+wants to discuss minor changes then. Hold the queued image/API pass and further
+packaging/PR updates for that discussion; continue the current test correction/review.
+The failed-test worker is now FINISHED: original 21/21 failures pass, the dedicated
+catalogue/pre-live class passes 5/5, and the complete integration project passes
+886/886 with final TRX and exit 0. Build has zero warnings/errors; scoped format and
+diff checks pass. Evidence: `checks.md`, `failure-to-fix-coverage.md`,
+`timestamp-scan-summary.md`, `complete-delta.md`, `hash-manifest.tsv`, and `full/complete.trx`
+under `/private/tmp/bingo-pr9-ci-remediation-20260916/`. The precision scan found no
+additional confirmed vulnerable cases beyond the corrected introducedAt fixture.
+Root notified the user; the same Sol reviewer has now PASSED the stable correction.
+Report: `/private/tmp/bingo-pr9-ci-remediation-20260916/review.md`. The reviewer checked
+all 16 worker-source hashes, the 18 prerequisite call sites covering 19 migration
+failures, the exact legacy Nightmare fixture repair and the two-case timestamp fix.
+No weakened target assertions or production guard/seed/runtime changes were found.
+The correction checks used default Debug configuration as recorded; these are local
+results, not a new Release PR CI result. No commit/push occurred for this correction.
+Current stop: await the user's minor-change discussion before queued image/API work
+or further packaging/PR updates. No worker remains assigned more remediation.
+No merge/deployment is authorized. Earlier PASS records below describe prior bounded
+reviews, not a claim that this newly exposed CI gap is resolved.
 
 **ACTIVE temporary workflow: Luna Max implementation/remediation and own focused
 checks, followed by one independent Sol High review after implementation is complete.
@@ -18,8 +192,8 @@ Applicable final release gates remain required. This policy does not restart tic
 
 User requested: a quick xK display for GP values below one million, resolving the
 known release-check blockers, and a full uncommitted diff review, especially API
-correctness. Publication is on hold: after the staging rejection, the user explicitly
-answered "Not yet" and asked how the production GP population will be handled.
+correctness. Publication was initially held while production GP population was
+resolved; later explicit authorization allowed the completed package push and PR.
 The user subsequently approved implementing and testing a bounded one-time catalogue
 GP data migration through the existing deployment path, including all 68 already
 verified WOM boss/mode mappings. Implementation by `/root/catalogue_migration`
@@ -57,16 +231,44 @@ to originating task `01a0a975-da3d-7cf0-a6dc-8b5a07b77688` through
 `send_message_to_thread`. Genuine questions/blockers also use that route. Handle
 informational updates briefly, then end the turn again; only reconcile completion
 after the independent reviewer passes. The workflow-document update is complete.
+Next bounded release correction requested by the user's Wiki-load concern: make
+Wiki image delivery consistently use the existing persistent same-origin cache.
+Known gaps: Stats/announcement item URLs can bypass it; image endpoint failures
+redirect clients to the Wiki; unsuccessful downloads have no shared cooldown.
+This pass is now dispatched after completed CI remediation and user-approved UI fixes.
+Preserve artwork/UI and original source URLs; use cached disk files, shared miss
+deduplication and bounded download pacing, failure cooldowns/Retry-After handling,
+and a truthful contact-bearing User-Agent. Remove direct-Wiki error fallback.
+Verify affected price/image clients have bounded calls/retries using mocked request
+counts, not live provider stress. Existing price client already uses bulk hourly
+responses, serialized access, 5-minute successful caching and 30-second failure
+caching; inspect only relevant rate-limit/retry gaps, not a broad integration rewrite.
+Production Compose already mounts the image cache as a persistent volume. No browser
+inspection, live scraping, production changes or wholesale image re-download is
+authorized. Use Luna implementation/focused checks then one Sol review for this pass.
+The user's follow-up requested checking other outbound APIs too. Bounded source
+inspection confirmed WOM's shared singleton limiter (one in-flight request, reserve
+of 3, provider rate headers, rate-limit pause, one-minute fail-closed pause), 5-minute
+player-success cache, 2-hour normal competition cycles with bounded retries and DB
+leases, and bundled KC/EHB metrics. Page projections use stored observations. Discord
+requests occur in the OAuth callback rather than a recurring polling loop.
+Named follow-ups for the queued provider-load pass: Wiki price retries ignore
+Retry-After (fixed 500ms transient retry, 30s failure cache); the manual Wiki importer
+caps requested Retry-After at 30s and its 250ms/six-attempt pacing is instance-scoped;
+concurrent WOM lookups can both miss the player cache before serialized admission
+because it is not rechecked after admission. Preserve existing WOM rate controls,
+avoid redundant identical lookups, and honor provider-requested cooldowns in supported
+header forms. Prove the corrections with mocked request counts/timing, not real calls.
 The user authorized packaging/local commits of ALL intended tracked and untracked
 changes, emphasizing that omissions could break integrated behavior. The broad
 application/runtime/test/prototype/reference group is committed as `a9c6413`
 (`Package reviewed application features and fixtures`), and the four-path bounded
 catalogue population group is committed as `eac54db` (`Add retained catalogue
 population migration`). The 13-path documentation group, including this status
-update, is the final local commit still being prepared. Inventory and content-hash
+update, was committed as `6acdff9`. Inventory and content-hash
 evidence are under `/private/tmp/bingo-complete-packaging-20260916/`; prototypes,
-reference assets and TICKETS are included. Push, PR creation, merge and production
-application remain on hold. Preserve prior UI approvals and leave the explicitly
+reference assets and TICKETS are included. Push and PR creation are complete; merge
+and production application remain prohibited. Preserve prior UI approvals and leave the explicitly
 deferred sticky Luck comparison gap alone. No browser inspection was performed.
 
 GP formatting now uses K below one million, retaining raw GP below 1,000. Focused
@@ -101,8 +303,8 @@ gate is enforced by PR CI against the committed candidate; the interrupted local
 is never a substitute. The refreshed 208-path candidate was staged in three exact
 groups, with no ignored build/test artifacts, secrets, environment files, logs or
 participant payloads included. The two tracked public-progress deletions are included.
-No push, PR, merge or deployment has occurred. Publication remains blocked pending
-the required release checks and explicit push/PR authorization.
+Push and draft PR creation subsequently completed under explicit authorization.
+Merge and deployment remain blocked on required release checks and authorization.
 
 Verification incident: the verifier applied the catalogue snapshot to a pre-existing
 isolated verifier database on port 55499 before establishing ownership. Further writes

@@ -1,5 +1,6 @@
 using Bingo.Application.Announcements;
 using Bingo.Application.Boards;
+using Bingo.Web.Catalogue;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.Antiforgery;
 
@@ -40,18 +41,18 @@ public static class DropAnnouncementEndpoints
         return feed is null ? Results.NotFound() : Results.Ok(feed);
     }
 
-    private static async Task<IResult> GetCurrentAsync(HttpContext context, IDropAnnouncementService announcements, int? limit, int? offset, long? snapshotSequence, CancellationToken cancellationToken)
+    private static async Task<IResult> GetCurrentAsync(HttpContext context, IDropAnnouncementService announcements, OsrsWikiImageCache wikiImages, int? limit, int? offset, long? snapshotSequence, CancellationToken cancellationToken)
     {
         if (!TryAccount(context, out var accountId)) return Results.Unauthorized();
         var snapshot = await announcements.GetCurrentAsync(accountId, limit ?? 25, offset ?? 0, snapshotSequence, cancellationToken);
-        return snapshot is null ? Results.NoContent() : Results.Ok(snapshot);
+        return snapshot is null ? Results.NoContent() : Results.Ok(MapWikiImages(snapshot, wikiImages));
     }
 
-    private static async Task<IResult> GetAsync(Guid eventId, HttpContext context, IDropAnnouncementService announcements, int? limit, int? offset, long? snapshotSequence, CancellationToken cancellationToken)
+    private static async Task<IResult> GetAsync(Guid eventId, HttpContext context, IDropAnnouncementService announcements, OsrsWikiImageCache wikiImages, int? limit, int? offset, long? snapshotSequence, CancellationToken cancellationToken)
     {
         if (!TryAccount(context, out var accountId)) return Results.Unauthorized();
         var snapshot = await announcements.GetAsync(accountId, eventId, limit ?? 25, offset ?? 0, snapshotSequence, cancellationToken);
-        return snapshot is null ? Results.NotFound() : Results.Ok(snapshot);
+        return snapshot is null ? Results.NotFound() : Results.Ok(MapWikiImages(snapshot, wikiImages));
     }
 
     private static async Task<IResult> ClaimAsync(HttpContext context, IDropAnnouncementService announcements, IAntiforgery antiforgery, EventRequest request, CancellationToken cancellationToken)
@@ -127,4 +128,14 @@ public static class DropAnnouncementEndpoints
     public sealed record EventRequest(Guid EventId, long? SnapshotSequence = null);
     public sealed record AnnouncementRequest(Guid EventId, int? Generation, long? SnapshotSequence, IReadOnlyCollection<Guid>? SubmissionIds);
     public sealed record SingleAnnouncementRequest(Guid EventId, Guid SubmissionId);
+
+    private static DropAnnouncementSnapshot MapWikiImages(DropAnnouncementSnapshot snapshot, OsrsWikiImageCache wikiImages) =>
+        snapshot with
+        {
+            Queue = snapshot.Queue.Select(entry => entry with
+            {
+                TileArtworkReference = wikiImages.GetPublicUrl(entry.TileArtworkReference),
+                ItemArtworkReference = wikiImages.GetPublicUrl(entry.ItemArtworkReference)
+            }).ToArray()
+        };
 }

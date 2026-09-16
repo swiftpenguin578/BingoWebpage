@@ -9,6 +9,7 @@ using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Web.Catalogue;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -18,7 +19,8 @@ using Npgsql;
 namespace Bingo.Web.Pages.Events;
 
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class StatsModel(IPublicStatsService stats, IPublicBoardService boards, ApplicationDbContext db, TimeProvider time) : PageModel
+public sealed class StatsModel(IPublicStatsService stats, IPublicBoardService boards, ApplicationDbContext db, TimeProvider time,
+    OsrsWikiImageCache? wikiImages = null) : PageModel
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -59,6 +61,7 @@ public sealed class StatsModel(IPublicStatsService stats, IPublicBoardService bo
 
     private async Task<object> PresentationAsync(PublicEventStats result, CancellationToken ct)
     {
+        result = MapWikiImages(result);
         var actor = User.Identity?.IsAuthenticated == true && User.GetAccountId() is Guid actorId
             ? await db.Accounts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == actorId && x.Active, ct) : null;
         CanSaveGuidance = actor is not null;
@@ -83,6 +86,49 @@ public sealed class StatsModel(IPublicStatsService stats, IPublicBoardService bo
             canEditArtwork = CanEditArtwork,
             artwork = items.Select(ArtworkState).ToArray()
         };
+    }
+
+    private PublicEventStats MapWikiImages(PublicEventStats result)
+    {
+        if (wikiImages is null) return result;
+
+        StatsItemDrop MapDrop(StatsItemDrop drop) => drop with { Item = MapItem(drop.Item) };
+        StatsRepeatedItem? MapRepeated(StatsRepeatedItem? repeated) => repeated is null ? null : repeated with { Item = MapItem(repeated.Item) };
+        StatsTeam MapTeam(StatsTeam team) => team with
+        {
+            MostValuableDrop = team.MostValuableDrop is { } valuable ? MapDrop(valuable) : null,
+            Players = team.Players.Select(player => player with
+            {
+                MostValuableDrop = player.MostValuableDrop is { } playerValuable ? MapDrop(playerValuable) : null,
+                RepeatedItem = MapRepeated(player.RepeatedItem)
+            }).ToArray(),
+            Milestones = team.Milestones.Select(milestone => milestone with
+            {
+                Drop = milestone.Drop is { } milestoneDrop ? MapDrop(milestoneDrop) : null
+            }).ToArray(),
+            RepeatedItem = MapRepeated(team.RepeatedItem)
+        };
+
+        var drops = result.Drops.Select(MapDrop).ToArray();
+        var luck = result.Luck with
+        {
+            Sources = result.Luck.Sources.Select(source => source with { Item = MapItem(source.Item) }).ToArray()
+        };
+        return result with
+        {
+            Drops = drops,
+            Teams = result.Teams.Select(MapTeam).ToArray(),
+            Luck = luck,
+            Milestones = result.Milestones.Select(milestone => milestone with
+            {
+                Drop = milestone.Drop is { } milestoneDrop ? MapDrop(milestoneDrop) : null
+            }).ToArray(),
+            RepeatedItem = MapRepeated(result.RepeatedItem),
+            MostValuableDrop = result.MostValuableDrop is { } mostValuable ? MapDrop(mostValuable) : null,
+            Tiles = result.Tiles?.Select(tile => tile with { ImageUrl = wikiImages.GetPublicUrl(tile.ImageUrl) }).ToArray()
+        };
+
+        StatsItemIdentity MapItem(StatsItemIdentity item) => item with { ImageUrl = wikiImages.GetPublicUrl(item.ImageUrl) };
     }
 
     // Razor Pages validates antiforgery for every POST. Actor/role are checked from current storage.

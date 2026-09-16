@@ -67,6 +67,55 @@ public sealed class CataloguePriceHttpTests
     }
 
     [Fact]
+    public async Task WikiRetryAfterCooldownIsSharedAcrossEndpointsAndHonorsLongSeconds()
+    {
+        var clock = new AdjustableTime(new DateTimeOffset(2026, 9, 16, 12, 0, 0, TimeSpan.Zero));
+        using var handler = new Handler(request => request.RequestUri!.AbsolutePath.EndsWith("mapping", StringComparison.Ordinal)
+            ? "[{\"id\":1,\"name\":\"A\",\"icon\":\"a.png\"}]" : "{\"timestamp\":1789470000,\"data\":{\"1\":{\"avgHighPrice\":1,\"avgLowPrice\":1}}}")
+        { Status = HttpStatusCode.TooManyRequests, RetryAfterSeconds = 120 };
+        using var factory = new Factory(handler);
+        using var limiter = new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance);
+        using var api = new CatalogueApiClient(factory, clock, limiter);
+
+        Assert.False((await api.GetItemsAsync(default)).Available);
+        Assert.False((await api.GetHourlyPricesAsync(default)).Available);
+        Assert.Equal(1, handler.Calls);
+
+        clock.Advance(TimeSpan.FromSeconds(119));
+        Assert.False((await api.GetItemsAsync(default)).Available);
+        Assert.Equal(1, handler.Calls);
+
+        clock.Advance(TimeSpan.FromSeconds(1));
+        handler.Status = HttpStatusCode.OK;
+        handler.RetryAfterSeconds = null;
+        Assert.Single((await api.GetItemsAsync(default)).Data!);
+        Assert.Equal(2, handler.Calls);
+    }
+
+    [Fact]
+    public async Task WikiRetryAfterHttpDateIsNotShortenedByFailureCache()
+    {
+        var now = new DateTimeOffset(2026, 9, 16, 12, 0, 0, TimeSpan.Zero);
+        var clock = new AdjustableTime(now);
+        using var handler = new Handler(request => request.RequestUri!.AbsolutePath.EndsWith("mapping", StringComparison.Ordinal)
+            ? "[{\"id\":1,\"name\":\"A\",\"icon\":\"a.png\"}]" : "{\"timestamp\":1789470000,\"data\":{\"1\":{\"avgHighPrice\":1,\"avgLowPrice\":1}}}")
+        { Status = HttpStatusCode.TooManyRequests, RetryAfterDate = now.AddMinutes(2) };
+        using var factory = new Factory(handler);
+        using var limiter = new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance);
+        using var api = new CatalogueApiClient(factory, clock, limiter);
+
+        Assert.False((await api.GetItemsAsync(default)).Available);
+        clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.False((await api.GetItemsAsync(default)).Available);
+        Assert.Equal(1, handler.Calls);
+        clock.Advance(TimeSpan.FromMinutes(1));
+        handler.Status = HttpStatusCode.OK;
+        handler.RetryAfterDate = null;
+        Assert.Single((await api.GetItemsAsync(default)).Data!);
+        Assert.Equal(2, handler.Calls);
+    }
+
+    [Fact]
     public async Task TimeoutIsUnavailableButCallerCancellationIsPropagated()
     {
         using var handler = new Handler(_ => throw new TaskCanceledException()); using var factory = new Factory(handler);
@@ -190,6 +239,12 @@ public sealed class CataloguePriceHttpTests
     {
         public override DateTimeOffset GetUtcNow() => new(2026, 9, 15, 13, 0, 0, TimeSpan.Zero);
     }
+    private sealed class AdjustableTime(DateTimeOffset now) : TimeProvider
+    {
+        private DateTimeOffset value = now;
+        public override DateTimeOffset GetUtcNow() => value;
+        public void Advance(TimeSpan amount) => value += amount;
+    }
     private sealed class Factory(Handler handler) : IHttpClientFactory, IDisposable
     {
         private readonly HttpClient client = Create(handler);
@@ -202,6 +257,8 @@ public sealed class CataloguePriceHttpTests
     {
         public int Calls { get; private set; }
         public HttpStatusCode Status { get; set; } = HttpStatusCode.OK;
+        public int? RetryAfterSeconds { get; set; }
+        public DateTimeOffset? RetryAfterDate { get; set; }
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Calls++;
@@ -212,6 +269,8 @@ public sealed class CataloguePriceHttpTests
                 response.Headers.Add("RateLimit-Limit", "100"); response.Headers.Add("RateLimit-Remaining", "99"); response.Headers.Add("RateLimit-Reset", "60");
                 if (Status == HttpStatusCode.TooManyRequests) response.Headers.Add("Retry-After", "30");
             }
+            if (RetryAfterSeconds is { } seconds) response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(seconds));
+            if (RetryAfterDate is { } date) response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(date);
             return Task.FromResult(response);
         }
     }

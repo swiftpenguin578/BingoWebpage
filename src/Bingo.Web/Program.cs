@@ -636,10 +636,9 @@ app.MapGet(OsrsWikiImageCache.EndpointPath, async (string source, HttpContext co
     }
     catch (HttpRequestException)
     {
-        var fallback = OsrsWikiImageUrl.Normalize(source);
-        return Uri.TryCreate(fallback, UriKind.Absolute, out var uri) && uri.Host == "oldschool.runescape.wiki"
-            ? Results.Redirect(fallback)
-            : Results.NotFound();
+        // A provider failure stays local so rendered clients can enter their no-art state.
+        // Never turn a failed cache request into a direct Wiki hotlink.
+        return Results.NotFound();
     }
 });
 app.MapRazorPages()
