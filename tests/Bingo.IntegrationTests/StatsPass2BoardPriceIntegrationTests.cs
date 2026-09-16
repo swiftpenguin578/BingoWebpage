@@ -112,6 +112,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         await CreatePriceBoardTileAsync(eventId, actor.Id, boss.Id, drops);
         await ApprovePriceBoardAsync(eventId, actor.Id); await PublishPriceBoardAsync(eventId, actor.Id); await StartPriceBoardAsync(eventId);
         var introducedAt = DateTimeOffset.UtcNow;
+        introducedAt = introducedAt.AddTicks(-(introducedAt.Ticks % TimeSpan.TicksPerMicrosecond));
         var lateDrop = new SourceDrop(Guid.NewGuid(), boss.Id, late.Id, "1/20", .05m, 2, introducedAt);
         await using (var catalogue = new ApplicationDbContext(options))
         {

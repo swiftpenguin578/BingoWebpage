@@ -44,6 +44,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
                 fixture.Clock.GetUtcNow(), fixture.Clock.GetUtcNow().AddMinutes(-5), "original", 10, 25));
             await old.SaveChangesAsync();
         }
+        await RetainedCatalogueMigrationTestSupport.PrepareAsync(migration);
         await migration.Database.MigrateAsync();
         await using var verify = new ApplicationDbContext(options);
         Assert.Empty(await verify.EventLuckOutcomeBases.ToListAsync()); Assert.Empty(await verify.EventCompetitionCharacterMetricActivities.ToListAsync());

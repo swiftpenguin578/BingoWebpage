@@ -193,6 +193,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 10));
         await using var db = new ApplicationDbContext(options);
         await db.GetService<IMigrator>().MigrateAsync("20260915183337_AddEventStatsLuckCheckpoint");
+        await RetainedCatalogueMigrationTestSupport.PrepareAsync(db);
         await db.Database.MigrateAsync();
         var ev = await db.Events.AsNoTracking().SingleAsync(); Assert.Equal(ev.StatsEvidenceRevision, ev.StatsLuckInvalidatedAtRevision);
         var before = await ReadStatsAsync(f);

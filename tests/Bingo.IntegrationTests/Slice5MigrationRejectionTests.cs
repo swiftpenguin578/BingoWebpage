@@ -56,6 +56,7 @@ public sealed class Slice5MigrationRejectionTests : IAsyncLifetime
         retained.AddRange(team, draft, participant, character, assignment, membership, cycle); await retained.SaveChangesAsync();
         await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO draft_publication_rosters (id, draft_publication_cycle_id, team_id, event_participant_id, role, effective_pick_number) VALUES ({Guid.NewGuid()}, {cycle.Id}, {team.Id}, {participant.Id}, {"Participant"}, {null})");
 
+        await RetainedCatalogueMigrationTestSupport.PrepareAsync(retained);
         await retained.GetService<IMigrator>().MigrateAsync();
         Assert.Equal("Publication name", await retained.DraftPublicationRosters.Select(x => x.PublicCharacterName).SingleAsync());
     }

@@ -162,6 +162,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests
         db.AddRange(archived, item); await db.SaveChangesAsync();
         var migrator = db.GetService<IMigrator>();
         await migrator.MigrateAsync("20260915142649_AddCatalogueApiMappingAndPrices");
+        await RetainedCatalogueMigrationTestSupport.PrepareAsync(db);
         await migrator.MigrateAsync();
         db.ChangeTracker.Clear();
         Assert.Empty(await db.EventItemPrices.ToListAsync());

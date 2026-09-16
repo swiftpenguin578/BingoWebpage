@@ -88,6 +88,7 @@ public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
                      {"Helper Alt"}, {legacyDiscord}, 123.45, FALSE, {"Unknown"}, {"Confirmed"}, 1, {created}, 1, {"CsvImport"});
                 """);
 
+            await RetainedCatalogueMigrationTestSupport.PrepareAsync(retained);
             await retained.GetService<IMigrator>().MigrateAsync();
         }
 
@@ -277,6 +278,7 @@ public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
                 ({informationalSecond}, {informationalOnlyEvent}, {"Second"}, {"SECOND"}, {"Info Shared"}, 60, FALSE, {"Unknown"}, {"Confirmed"}, 2, {now.AddMinutes(1)}, NULL, 1, {"Website"});
             """);
 
+        await RetainedCatalogueMigrationTestSupport.PrepareAsync(retained);
         await retained.GetService<IMigrator>().MigrateAsync();
 
         var assignments = retained.EventParticipantCharacters.AsNoTracking();

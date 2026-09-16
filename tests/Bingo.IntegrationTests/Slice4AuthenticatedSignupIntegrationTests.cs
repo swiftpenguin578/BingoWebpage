@@ -66,6 +66,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         // Rehearse the upgrade using current-model seeded data, then the historical schema.
         await db.GetService<IMigrator>().MigrateAsync("20260907185521_RepairDeletedSignupQuestions");
         db.ChangeTracker.Clear();
+        await RetainedCatalogueMigrationTestSupport.PrepareAsync(db);
         await db.GetService<IMigrator>().MigrateAsync();
         var co = await db.SignupQuestions.AsNoTracking().SingleAsync(x => x.SignupFormId == form.Id && x.SystemField == SignupSystemField.CoCaptainName);
         Assert.StartsWith($"{SignupQuestion.CoCaptainKey}_", co.Key, StringComparison.Ordinal);
@@ -119,6 +120,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var systemId = cases.Single(x => x.Question.SystemField == SignupSystemField.PrimaryRegularAccount).Question.Id;
         await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE signup_questions SET active = false, disabled_at = {now} WHERE id = {systemId}");
         db.ChangeTracker.Clear();
+        await RetainedCatalogueMigrationTestSupport.PrepareAsync(db);
         await db.GetService<IMigrator>().MigrateAsync();
         foreach (var item in cases)
         {

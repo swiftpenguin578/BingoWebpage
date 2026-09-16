@@ -93,7 +93,11 @@ public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
         // schema upgrade without using current EF entities against missing columns.
         await using (var previous = new ApplicationDbContext(options))
             await previous.GetService<IMigrator>().MigrateAsync(PreviousMigration);
-        await using (var migration = new ApplicationDbContext(options)) await migration.Database.MigrateAsync();
+        await using (var migration = new ApplicationDbContext(options))
+        {
+            await RetainedCatalogueMigrationTestSupport.PrepareAsync(migration);
+            await migration.Database.MigrateAsync();
+        }
         await CorrectAsync(fixture);
         await BoardPostAsync(fixture, "Remove", new() { ["tileId"] = fixture.TileId.ToString() });
         await AssertImageAsync(anonymous, originalUrl);

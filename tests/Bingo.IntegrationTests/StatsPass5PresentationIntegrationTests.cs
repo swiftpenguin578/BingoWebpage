@@ -202,6 +202,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         var f = await FullStatsFixtureAsync();
         await using var db = new ApplicationDbContext(options);
         await db.GetService<IMigrator>().MigrateAsync("20260915190625_RetainLuckAfterAdditiveApproval");
+        await RetainedCatalogueMigrationTestSupport.PrepareAsync(db);
         await db.Database.MigrateAsync();
         var account = await db.Accounts.SingleAsync(x => x.Id == f.Admin.Id);
         Assert.False(account.StatsGuidanceHidden);

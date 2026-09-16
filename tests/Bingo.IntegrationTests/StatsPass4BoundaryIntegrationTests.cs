@@ -145,6 +145,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         var prices = JsonSerializer.Serialize(await db.EventItemPrices.AsNoTracking().ToListAsync());
         var basis = JsonSerializer.Serialize(await db.EventLuckOutcomeBases.AsNoTracking().ToListAsync());
         await db.GetService<IMigrator>().MigrateAsync("20260915174600_CacheEventCompetitionBossActivity");
+        await RetainedCatalogueMigrationTestSupport.PrepareAsync(db);
         await db.Database.MigrateAsync();
         Assert.Empty(await db.EventStatsLuckCheckpoints.AsNoTracking().ToListAsync());
         Assert.Equal(0, (await db.Events.AsNoTracking().SingleAsync()).StatsEvidenceRevision);
