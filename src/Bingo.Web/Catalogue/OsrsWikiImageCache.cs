@@ -151,7 +151,11 @@ public sealed partial class OsrsWikiImageCache
 
     private async Task<CachedWikiImage> DownloadAsync(string key, Uri sourceUri)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, sourceUri);
+        using var request = new HttpRequestMessage(HttpMethod.Get, sourceUri)
+        {
+            Version = HttpVersion.Version20,
+            VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
+        };
         using var response = await httpClientFactory.CreateClient("OsrsWikiImages")
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, CancellationToken.None);
         if (!response.IsSuccessStatusCode)
