@@ -115,7 +115,7 @@ Use `Sommerbingo 2026` (`test-13-dkl-board`) to review live catalogue derivation
 
 The command prints every seeded captain username. All seeded captain accounts use the local-only password `SeedCaptain!1234`. Your existing administrator username and password are unchanged. It also creates or refreshes the development-only administrator `SeedAdminTwo` with password `SeedAdmin!1234`, the linked waiting-list account `SeedReplacement` with password `SeedReplacement!1234`, and the `Vinterbingo 2026` evidence accounts documented in `MANUAL_TEST_CHECKLIST.md`.
 
-For public-board testing, open `Vinterbingo 2026` directly. Approval, reversal, and evidence-visibility changes invalidate open public pages through SignalR; a 30-second refresh remains as a fallback.
+For public-board testing, open `Vinterbingo 2026` directly. Approval and reversal invalidate open public pages through SignalR. Eligible participants receive announcements and live Drops NEW updates; the board does not automatically reload. Reconnecting or navigating reconciles update state. See the drop-announcement checklist in `MANUAL_TEST_CHECKLIST.md` for the current acceptance setup and verification status.
 
 This operation is intentionally unavailable outside the Development environment.
 
@@ -173,6 +173,82 @@ dotnet run --project src/Bingo.Web -- --apply-catalogue-snapshot
 ```
 
 Applying the snapshot safely updates the catalogue created by older migrations and adds missing records; it does not delete catalogue records that historical boards may reference. The Wiki import remains a discovery/update workflow; it is not the authoritative deployment seed. Commit and review snapshot changes alongside the catalogue edits that produced them.
+
+### Catalogue API mapping and price reports
+
+Existing Admin Catalogue activity/drop editors have collapsed API sections. Suggestions
+use unique exact names only; check the matched item and its variant before validating.
+Ordinary page views, typing and saving without validation do not fetch provider data.
+New items need a fetched or manual GP value, including zero; explicitly untradeable
+items use zero. Adding an existing shared item retains its value. Manual/untradeable
+values survive bulk refresh. Selecting API hourly average and validating with an
+available price explicitly switches a fixed value back to API pricing.
+
+Read-only coverage report (no actor required):
+
+```sh
+dotnet run --project src/Bingo.Web -- --catalogue-price-report
+```
+
+After reviewing the report and authorizing changes for the intended database, explicitly
+apply exact matches, mapping checks and available prices as an active Super Admin:
+
+```sh
+dotnet run --project src/Bingo.Web -- --sync-catalogue-prices --actor-id <active-super-admin-account-guid>
+```
+
+Both commands use the configured `ConnectionStrings:Database` and return before normal
+startup migrations. Apply checks the actor and writes catalogue changes and audit records
+in one transaction. A provider failure produces an error without changes; retry the report.
+The report includes proposed item IDs/values and unresolved items/sources. It does not
+prove deployed coverage until run against that catalogue. Do not use a user-owned database
+for test applies. Re-run the report after correcting unresolved mappings in existing editors.
+
+Pricing requests use `https://prices.runescape.wiki/api/v1/osrs/` bulk `/mapping` and `/1h`,
+with this exact raw header on every request:
+`DKLegacy - Community bingo item pricing - Discord: @chrisschmidt`.
+Two-sided hourly prices use a midpoint rounded away from zero; one side uses that price.
+A missing item/price is not evidence of untradeability and keeps an existing fallback.
+Changed item IDs clear old verification and API-derived prices while retaining explicit
+manual/untradeable values. Successful provider responses cache for five minutes, failures
+for 30 seconds; Wiki requests time out after 15 seconds and retry transient 502/503/504 once.
+WOM validation reads boss keys from `/v2/efficiency/rates?type=main&metric=ehb` through the
+existing shared request limiter. It never imports numerical efficiency rates or proves
+competition metric/mode coverage (a later Stats pass).
+
+Later API candidates outside 0.5×–2× of a trusted positive catalogue value, or changes
+between zero and positive, are rejected. Exact ratio boundaries and zero→zero are accepted.
+The catalogue API section and operator report identify the rejected candidate; the trusted
+value remains usable. Review flagged changes and enter a checked manual value or retry a
+valid current API result. The initial population still needs operator checking, and this
+simple guard does not establish that a market price is authentic. It does not reprice an
+event: event-start values and values first introduced through a published correction freeze
+once. Existing frozen prices remain usable after catalogue edits.
+
+Catalogue snapshot exports use schema v2 and retain mapping/price metadata. Schema v1
+imports remain accepted; absent legacy IDs preserve existing metadata, while changing
+an explicit ID invalidates its old API association. The checked-in snapshot was populated
+on 2026-09-16 with 195 verified API item mappings/prices, 116 confirmed untradeables at
+0 GP and 68 verified WOM source mappings. Initial prices use 173 bulk-hour observations
+and the latest available completed hourly observation for 22 sparsely traded items;
+each retains its actual observation timestamp. This one-time population does not change
+runtime refresh policy: an absent hourly price retains the stored catalogue fallback.
+Clean bootstrap applies this snapshot through the deployment procedure. The retained
+`--migrate` path includes the one-time `20260916100000_PopulateRetainedCatalogue`
+migration, which carries this frozen approved payload inside the migration. It resolves
+each item by its exact name and normalized name and each boss by its exact name and slug,
+then fills only missing eligible mapping and pricing fields. It preserves configured or
+conflicting mappings, manual values, newer observations, metadata, extra records, drop
+rates and frozen event prices. Each changed row receives a version increment and a
+before/after audit entry under the `system/catalogue-migration` actor. Missing or
+ambiguous identities fail the migration transaction without partial changes, and the
+payload is never read from mutable Web JSON at runtime. On clean bootstrap, the migration
+recognizes the seed-only catalogue and defers to the following full snapshot import.
+The bulk price-refresh command alone cannot supply the approved untradeable classifications
+and historical-hour fallbacks. Never run the whole snapshot importer against retained
+production data.
+The default WOM User-Agent now identifies DKLegacy with the operator's Discord contact;
+environment overrides must retain a valid contact-bearing structured User-Agent.
 
 ### Cache OSRS Wiki catalogue images
 

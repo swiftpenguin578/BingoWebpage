@@ -118,8 +118,14 @@ For every deploy it:
    owner command that already succeeded is skipped only after the explicit
    active-owner check. On `completed` state, it runs the legacy migration
    preflight only when `BINGO_RETAINED_LEGACY_PREFLIGHT=required`, then
-   `--migrate` and `--production-preflight`. Never apply the catalogue snapshot
-   to completed/retained data. Before any catalogue/bootstrap mutation, a
+   `--migrate` and `--production-preflight`. On a completed/retained database,
+   `--migrate` executes the one-time `20260916100000_PopulateRetainedCatalogue`
+   operation when it is pending. That migration carries the reviewed payload,
+   resolves exact item normalized-name/name and boss slug/name identities, fills
+   only missing eligible mapping and pricing fields, preserves operator and frozen
+   event data, and writes system-actor before/after audits. It fails atomically on
+   missing or ambiguous identities. Never apply the full catalogue snapshot to
+   completed/retained data. Before any catalogue/bootstrap mutation, a
    `new` marker with non-empty migration history is rejected for operator
    reconciliation; the marker is not changed. Any failure before replacement
    leaves `web` stopped; changed or unknown migration history never permits old

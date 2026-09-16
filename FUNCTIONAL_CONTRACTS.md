@@ -339,7 +339,9 @@ unchanged.
 
 Manual team-roster additions allow Participant (default), Captain or Co-captain selection before saving; creation and role assignment succeed or fail together, preserving the existing role history, audit and linked-owner notification rules. Subsequent role editing remains available. Readiness feedback distinguishes the current Captain role required for draft start from usable website-account access or the existing emergency alternative required for event start. CSV role assignment is unchanged.
 
-**Entry and reachability:** Draft/Manage exposes participant withdrawal, waiting-list replacement, internal replacement, vacancy, and role controls. The action is route-backed and available during Live subject to lifecycle rules.
+**Entry and reachability:** Draft/Manage exposes participant withdrawal, waiting-list replacement, internal replacement, vacancy, and role controls. The action is route-backed and available during Live subject to lifecycle rules. Approved C11 scope (2026-09-14) also permits enabled Admins to record departures and explicitly fill vacancies after draft finalization but before the actual event start, while normal visibility/terminal/future-end restrictions permit correction. Running/Paused draft departures are deferred for a separate decision; self-withdrawal is not reopened.
+
+**Finalized pre-Live departure and replacement:** Withdrawal creates a visible vacancy and revokes the departed participant's current mutation authority without deleting picks, earlier memberships or registered-account reservations. Filling is optional and explicit, using existing validated waiting-list or internal-replacement rules. Publish an updated current roster while retaining prior publication snapshots and draft picks; do not reopen/rewrite the draft to erase history. Current membership changes are recorded prospectively at confirmation, with no submission eligibility before actual event start. Existing Live whole-minute boundaries remain unchanged. Preserve Captain/readiness warnings, current notification routing and privacy, no automatic promotion or Captain selection. Existing affected events are not bulk repaired.
 
 **Authoritative happy path:** After draft start, self-withdrawal is unavailable. Admin withdrawal revokes current website event/team mutation authority and preserves membership, account reservations, evidence, and contribution history. Replacement is selected explicitly from the available waiting list or created as a validated internal replacement. It joins the chosen team prospectively; the draft ledger is not rewritten.
 
@@ -375,6 +377,36 @@ Manual team-roster additions allow Participant (default), Captain or Co-captain 
 
 **Permissions and history:** Any enabled Admin may approve. Editing competitive content invalidates an unpublished approval and retains its history. Initial publication and publication of a corrected replacement both require server-enforced confirmation. Publication uses the active snapshot without recalculating from mutable catalogue data. Post-publication correction requires confirmation, a reason, a replacement snapshot, and preserved prior history; it is available only in SignupClosed, Live, or AwaitingFinalReview and is unavailable in terminal, Cancelled, Hidden, or Discarded states.
 
+**Objective identity and evidence protection (C20, user approved 2026-09-14):**
+Title/description corrections that do not change what players must accomplish preserve
+objective and drop identities, existing evidence links and earned progress. Once any
+submitted evidence references an objective, changing its substantive requirements or
+scoring rules, or removing it (including through tile removal), is blocked. This
+includes pending, approved, rejected, reversed and withdrawn evidence; an evidence
+state change does not unlock the historical objective. Objectives with no submitted
+evidence remain editable under existing lifecycle and approval/publication guards.
+Descriptive edits are not permission to change an objective's meaning. During private
+correction, ordinary users continue to read and submit against the active published
+snapshot. Replacement approval/publication must preserve these protections, including
+when evidence arrives after the private edit began; rejection must preserve the active
+publication and evidence without partial changes. Do not rewrite contributions or
+reconstruct broken historical references as part of this correction.
+
+**Discard private correction (C20 recovery, user approved 2026-09-14):** An enabled
+Admin may explicitly discard an open private correction from the existing Board editor.
+The confirmation must clearly warn that all unpublished board edits in that correction
+will be lost. On confirmed success, atomically restore the working board from its current
+active immutable published approval, preserving exact original objective/drop identities,
+and close the correction. The Admin may then start a fresh correction through the
+existing action. Preserve the published snapshot/pointer, all submissions, contributions,
+earned progress and historical snapshots; this action does not publish a replacement.
+Apply existing correction lifecycle/authorization and current-version safeguards, audit
+the explicit action through existing mechanisms, and fail without partial changes on
+stale, invalid, missing/ambiguous restoration data or persistence failure. This is bounded
+restoration of the current private copy, not reconstruction of lost historical associations,
+rollback to an older publication, or deletion of evidence. New confirmation/feedback states
+remain subject to user manual acceptance; general composition approval is preserved.
+
 **Failure and recovery:** Empty positions, invalid objectives, or missing automatic catalogue EHB block approval with diagnostics; manual override cannot repair a broken standard tile. Dismissing the post-draft publication prompt leaves rosters public and the board private. Stale approval/concurrency fails without publication residue.
 
 **Acceptance outcome:** Board approval and publication are separate, visible authority boundaries; incomplete or mutable data cannot become the competitive public snapshot by accident.
@@ -395,6 +427,43 @@ Manual team-roster additions allow Participant (default), Captain or Co-captain 
 
 ## 7. Live operation, evidence, and official results
 
+### `PUB-UPDATES-01` — Participant announcements and Drops NEW state
+
+**Approved 2026-09-12; planned, not yet implemented.** An authenticated participant
+receives one queue of approved progression for their current event throughout
+non-Admin pages. Offline approvals are collected; account/event acknowledgement and
+the two-minute expansion cooldown survive visits/devices. Navigation preserves state;
+Admin hides the banner without acknowledgement. No automatic board refresh or
+interruption of active submission/result state is permitted.
+
+Automatic expansion requires an expired cooldown and an outstanding approval newer
+than the account/event's persisted last automatic-expansion boundary. Navigation or
+returning later alone does not qualify. Automatic expansion selects the newest
+approval; manual expansion restores selection and already-expanded interaction keeps
+its selection when approvals arrive. The boundary covers only the claimed snapshot.
+
+Banner dismissal acknowledges only queued announcements. Successfully opening the
+specific approved-evidence popup through GO TO DROP or directly in Drops acknowledges
+both that announcement and its NEW mark. CLEAR ALL NEW acknowledges both states for
+all eligible approvals in its event snapshot; later approvals remain new. Visiting
+Drops or switching/compacting the banner acknowledges neither. The coral navigation
+NEW indicator follows outstanding Drops NEW state. Reversed approvals disappear;
+approval of a linked corrected attempt is a new update, without allowing direct
+reapproval of an immutable Reversed attempt.
+
+Announcements continue during AwaitingFinalReview after the event timer ends. Committed
+event finalization clears the entire event's banner queue, all Drops NEW marks and
+the navigation NEW badge for every account, including offline accounts. Connected
+and returning clients reconcile to that cleared state. Actual feed entries, approved
+evidence and competitive history remain available; clearing is not deletion. Stale
+clients or the existing Unfinalize flow must not resurrect acknowledged old updates.
+
+Live feed insertion preserves filters, reading position and open interactions. Actor
+eligibility and recipient state are server-authoritative. This is distinct from
+personal notifications. Full approved timing/queue/presentation behaviour, boundary
+cases, scope exclusions and delivery gates are in DELIVERY_PLAN's
+`Drop announcements and NEW tracking` contract; UI_SYSTEM owns the countdown rule.
+
 ### 7.1 `SYS-EVENT-START-01` — Scheduled start readiness
 
 **Actors and outcome:** The scheduler attempts start at the configured instant; an Admin clears blockers and uses Start event now when necessary.
@@ -410,6 +479,14 @@ Manual team-roster additions allow Participant (default), Captain or Co-captain 
 **Acceptance outcome:** A delayed or invalid deployment cannot silently start an unready event, and the Admin can identify and resolve every blocker.
 
 ### 7.2 `SUBMISSION-WORKSPACE-01` — Canonical Captain/participant submission workspace
+
+**Navigation (user decision, 2026-09-14):** Public main-header Current event is visible to
+everyone only for a public/non-hidden Live or Awaiting final review event with a published
+board, linking to that board (Live first, then latest event start). Captain/Submissions is
+an event context link after Teams rather than a main-header link. It preserves the existing
+role-appropriate authorized destination for the viewed event, including scoped emergency
+access, and the context row remains on authorized submissions overview/detail. Navigation
+must not expose private event context or redirect a viewed event's action to another team/event.
 
 **Actors and outcome:** Authenticated current team members use one canonical submission workspace to inspect the complete team submission history. Captains/co-captains and valid enabled EmergencyCaptain access additionally manage team focus, identify submission problems quickly, and edit eligible team submissions without gaining general Admin or review authority.
 
@@ -475,6 +552,20 @@ Manual team-roster additions allow Participant (default), Captain or Co-captain 
 
 **Permissions and history:** Pending submissions block finalization. Overrides require strong confirmation and written reason and do not mutate the blocker. Normal finalization needs confirmation but no reason. Unfinalize requires confirmation/reason, supersedes the official snapshot, and returns to a new final-review state without reopening submissions.
 
+**Competitive-input freshness (C33 planner contract, 2026-09-14):** Review mutations
+that change finalization blockers or authoritative competitive inputs must advance the
+existing event freshness version atomically with the mutation. Finalization and review
+forms must reject stale input without partial official results, audit or resolution writes.
+Completion inspection is tied to the current review cycle, team and exact relevant input
+revision; a team-only acknowledgment cannot cover changed completion facts. Preserve
+prior acknowledgments as history and require fresh inspection after relevant change,
+including complete -> incomplete -> complete returning to identical displayed totals.
+Inspection/acknowledgment itself must not create a new competitive-input revision or
+invalidate unrelated team inspections. A duplicate acknowledgment is reusable only for
+the same current input identity under existing authorized replay rules. Fresh inspection
+and finalization then proceed through the existing confirmed workflow. No silent rewrite
+or republication of previous official results or retained-data repair.
+
 **Failure and recovery:** Stale readiness, concurrent finalization, or a missing blocker resolution fails before official mutation. Captain website roles remain historical but cannot mutate closed/finalized events. Assignment of a Captain never auto-generates a password; emergency credentials are explicit fallbacks, disabled by default, and disabled at cutoff until explicitly re-enabled.
 
 **Acceptance outcome:** Official results have one explicit immutable version at a time, every unresolved competitive blocker is visible, and correction cannot silently rewrite evidence or reopen gameplay.
@@ -509,10 +600,16 @@ SuperAdmin Manage inspection surface reached from that area; it shows retained
 lifecycle information, hide/restore audit history, and Restore. No ordinary
 event workspace or mutation is reachable while hidden.
 
+**Audit scope clarification — 2026-09-14:** Hiding is intended to remove clutter
+from the front page and ordinary Admin Events table, not conceal details from Admin
+audit history. Admin audit is an exception to the hidden-event projection restriction;
+C36 requires no extra suppression or legacy cleanup. This does not reopen event
+workspaces or change existing hide/restore permissions, event routes or source filters.
+
 **Authoritative happy path:** Hide succeeds only for `AWAITING_FINAL_REVIEW`,
 `FINALIZED`, or `ARCHIVED`. It records hiding metadata and removes the event
 from every ordinary discovery, history, account, submission, evidence,
-notification, action, audit, and realtime projection. Restore clears only that
+notification, action, and realtime projection. Restore clears only that
 metadata and returns the unchanged lifecycle and event data.
 
 **Permissions and history:** Draft, SignupOpen, SignupClosed, Live, Cancelled,
@@ -576,31 +673,32 @@ fail-closed and the competitive record remains unchanged.
 
 **Acceptance outcome:** Global ownership remains unique and explicit; session authority changes immediately; global role does not bypass event/team privacy.
 
-### 9.2 `ADM-CATALOGUE-01` and `ADM-CATALOGUE-IMPORT-01` — Catalogue administration and import boundary
+### 9.2 `ADM-CATALOGUE-01` — Catalogue administration
 
-**Actors and outcome:** An enabled Admin maintains boss/activity and source-drop catalogue records; only Super Admin performs bulk import preview/apply and permanent deletion where dependencies permit.
+**Actors and outcome:** An enabled Admin maintains boss/activity and source-drop catalogue records; only Super Admin permanently deletes genuinely unused records where dependencies permit.
 
-**Entry and reachability:** Admin Catalogue exposes normal CRUD, activation, deactivation, and source-image cache operations. Import preview/apply has no ordinary Admin route, control, or callable handler.
+**Entry and reachability:** Admin Catalogue exposes normal CRUD, activation, deactivation, and source-image cache operations. The application catalogue-import preview/apply interface is excluded by user decision (D03, reaffirmed 2026-09-14); existing operator tooling is a separate scope, not permission to add an application route or handler.
 
-**Authoritative happy path:** Catalogue edits are optimistic-concurrency protected and audit before/after values. Referenced records deactivate rather than hard-delete. Super Admin import previews exact additions/changes and revalidates the preview hash/version before an atomic, confirmed apply.
+**Authoritative happy path:** Catalogue edits are optimistic-concurrency protected and audit before/after values. Referenced records deactivate rather than hard-delete.
 
-**Permissions and history:** Only genuinely unused records can be permanently deleted after a complete dependency check; blocked deletion lists references and offers deactivation. Catalogue source-image URLs are the sole external image exception. Import never deletes referenced history.
+**Permissions and history:** Only genuinely unused records can be permanently deleted after a complete dependency check; blocked deletion offers deactivation. Listing individual dependency references is not required (C26, reaffirmed 2026-09-14). Catalogue source-image URLs are the sole external image exception. Preserve referenced history.
 
-**Failure and recovery:** Stale edit/import aborts without overwriting newer values. Invalid/unresolved rows appear in preview and block apply. A board projection reloads after relevant catalogue change; approval remains the board snapshot boundary.
+**Failure and recovery:** Stale edits abort without overwriting newer values. A board projection reloads after relevant catalogue change; approval remains the board snapshot boundary.
 
-**Acceptance outcome:** Ordinary Admin catalogue work is safe and reversible; bulk import and destructive deletion are Super-Admin-only and dependency-safe.
+**Acceptance outcome:** Ordinary Admin catalogue work is safe and reversible; destructive deletion is Super-Admin-only and dependency-safe. Neither an application import UI nor a dependency-reference list is required.
 
 ### 9.3 `ADM-AUDIT-01` — Immutable audit history
 
 **Actors and outcome:** Any enabled Admin searches retained audit history; no actor edits, deletes, or exports it in version one.
 
-**Entry and reachability:** Admin Audit is a server-paginated, newest-first route with filters for event, actor, action, entity, identifier, and date.
+**Entry and reachability:** Admin Audit is a server-paginated, newest-first route with filters for event, actor, action, entity, and date. Target-identifier filtering (C40) is outside the current batch and requires a separately agreed Audit scope.
 
 **Authoritative happy path:** Filter changes return to page one; pagination retains filters; entry detail renders structured before/after labels and values. The retained history is independent of the display page size.
 
-**Permissions and history:** Audit entries are immutable. Event-linked audit
-records for hidden events are omitted from ordinary-Admin projections and are
-available only through the limited SuperAdmin quarantine inspection. Passwords,
+**Permissions and history:** Audit entries are immutable. Hiding an event is not
+an Admin-audit secrecy boundary (C36 closed by user clarification, 2026-09-14).
+No additional suppression or legacy association repair is required for this purpose;
+normal audit authorization and sensitive-data protections still apply. Passwords,
 hashes, tokens, OAuth secrets, evidence credentials, and unnecessary raw
 Discord IDs do not enter snapshots or request context. Security logs remain
 distinct where specified.
@@ -618,6 +716,19 @@ distinct where specified.
 **Authoritative happy path:** Website rows expose username, global role, active state, Discord link state, last login, event-role summary, linked characters, event history, and disable history. Emergency rows expose event/team scope, setup/enabled/cutoff state, last login, and permitted reset/enable/disable actions.
 
 **Permissions and history:** The overview never exposes passwords, OAuth data, setup/reset token values or hashes, or unnecessary Discord identifiers. Role, reset, disable, ownership-transfer, and event-participant transfer controls remain separately gated. No merge or permanent normal-account deletion exists.
+
+**Emergency pre-start enablement — approved 2026-09-14:** An enabled Admin may
+explicitly enable a fully set-up emergency credential after its event's draft is
+finalized and before the event actually starts, while the configured end remains
+future and ordinary visibility/terminal/team-scope restrictions hold. No automatic
+enablement follows creation or setup. Pre-start enablement records a real current
+grant time rather than retaining a scheduled-start lower bound that blocks an
+authorized early start. Submission mutations still require the actual event start
+and every current event/team/role/window gate; enabling alone never permits early
+submission. Scheduled, early manual and postponed manual start use the same usable-
+credential readiness rule. Existing Live/final-review cutoff, explicit reopen and
+separate emergency re-enable requirements remain. No bulk change to existing access
+or history is authorized.
 
 **Failure and recovery:** A stale row action reloads current state and refuses to apply to a changed role/credential. Lost-owner recovery remains operator-only.
 
@@ -686,3 +797,67 @@ The version-one functional foundation described here defines the following outco
 - Notifications resolve to valid destinations and remain supplementary to the underlying event, roster, evidence, account, or lifecycle record.
 - Development reset provides explicit, bounded manual-acceptance journeys; production does not inherit the fixture exemption.
 - F-06 is resolved by the implemented source-controlled How To guide. F-04 is resolved by retaining Live identity/timezone read-only behavior; F-05 is resolved by documentation reconciliation. Wise Old Man remains optional/supplementary, manual signup EHB remains authoritative, and no lifecycle action depends on it.
+
+
+## Stats Pass 1 catalogue mapping and price contract — authorized 2026-09-15
+
+Existing Admin Catalogue editors gain a collapsed API section. An Admin may suggest an
+exact item-name mapping, edit the Wiki item ID or WOM source metric, validate and save the
+mapping, or save unverified configuration during an outage. Validation shows the matched
+item name/icon; unsupported, unconfigured and temporarily unavailable are distinct. Manual
+value (including zero) and explicit untradeable classification remain available; a new
+catalogue item needs a value. Shared-item metadata is version-checked and audited. API
+refresh never replaces explicit manual values. Operator reporting is read-only by default;
+applying exact-name mappings/prices requires an explicit CLI switch and audited actor.
+No event prices or Stats display change in this pass. No API call occurs on ordinary page
+render, field typing or selection. Requested validation/suggestion/refresh operations alone
+fetch provider data, using bulk requests and the existing WOM limiter for WOM metadata.
+
+## Shared bounded Luck score — authorized 2026-09-16
+
+Stats and tile queries use the centralized probability-ranking score specified in
+PRODUCT_REQUIREMENTS.md, with both directions bounded by 100% and expected count
+neutral. The approved 502 KC at 1/251 example for 0 through 6 drops rounds to
+-87.5%, -50.1%, 0%, +49.2%, +78.8%, +92.5%, +97.7%. Fractional expected counts use
+linear interpolation of neighbouring mid-ranks. Aggregate count distributions,
+not percentages; preserve distinct tile/event eligibility and retained source rates.
+The user reconfirmed the catalogue own-name probability contract: pool modeled
+personal opportunities, with no additional team-size adjustment or encounter gate.
+Keep coherent retained checkpoint data/timestamps, missing-data semantics, routes,
+contributor filtering and approved styling. A formula change must not silently serve
+old-formula scores or cause stale compatible KC to disappear.
+
+## Tile KC/Luck sidebar contract — authorized 2026-09-16
+
+For a published team's selected tile, the initial nested TeamBoard route, enhanced
+Sidebar response use the same tile KC/Luck presentation. The existing standalone
+Tile scaffold is not a registered route; keep it inactive and preserve the shared
+DTO/partial consumer without adding routing.
+Apply PRODUCT_REQUIREMENTS.md section 15.1's tile-specific rule: received drops are
+credited to this tile only; distinct relevant boss/mode KC values remain separate.
+Reuse the current EHB/Drop EHB summary and expandable contributor composition, with
+Luck/name/KC contributor rows and labelled per-metric values where needed.
+
+The query uses approved publication data, frozen event outcome rates, cached full-event
+activity and playing-account attribution. Repeated item/requirement placement must not
+duplicate KC or expectation. Preserve missing/unranked/estimated/incomplete and stale
+snapshot behavior. Tile completion does not stop the activity interval. Reversal and
+corrected approvals update tile-derived results under existing evidence rules. Empty
+objectives remain usable; unavailable data is explained without false numeric results.
+No new external request, persistence table, route, permission or submission behavior is
+introduced. Historical imported Sommerbingo remains outside asserted Stats calculations.
+
+Tile contributor display refinement — user directed 2026-09-16: show only rows with
+known KC > 0 for their displayed boss/mode. Hide empty contributor groups/disclosure;
+do not filter the underlying team totals or Luck calculation, and retain team missing/
+incomplete/stale status. Existing section order and accepted EHB styling are unchanged.
+
+Stale tile-data correction — user directed 2026-09-16: stale activity must retain
+last-known compatible KC and contributors, with the stale timestamp. This also applies
+to legacy event checkpoints that lack tile projections. Reconstruct a tile Luck score
+from retained data only when evidence revision and the existing compatibility checks
+prove a coherent numerator/denominator; otherwise retain KC and explicitly mark tile
+Luck unavailable while awaiting a coherent update. Do not clear known KC simply because
+freshness expired. Preserve reversal/assignment/source/lifecycle invalidation, team and
+metric scoping, and read-only page access. No fixture/provider refresh is a substitute
+for this correction. No browser inspection; use focused executable functionality tests.

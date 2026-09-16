@@ -152,7 +152,25 @@ SignalR publishes small invalidation/update messages after:
 
 Clients then update the affected view or request fresh data. SignalR messages do not contain authoritative secret data and do not replace database transactions.
 
-At production scale, clients should refresh only the affected progress data. The existing full-page safety reload may remain as a recovery mechanism, but progress notifications must not cause every connected client to reload simultaneously. Use targeted fetches and/or randomized jitter, and verify the behavior with 100 connected clients before deployment.
+Participant announcements replace the public Board/TeamBoard manual refresh notice.
+Reuse the existing generic SignalR invalidation connection and retrieve personalized
+state through the authenticated announcement endpoint family. Responses enforce
+account/event membership; no acknowledgement, private evidence or recipient state
+is broadcast into public event groups. Mutations require anti-forgery validation.
+Approval and finalization invalidations are emitted after the owning transaction
+commits. Reconnect and navigation reconcile against PostgreSQL authority.
+
+Use bounded targeted queries and coalesce approval bursts; do not reload the full
+page or redraw an active board/submission workspace. The Drops feed refreshes its
+affected entries while preserving filters, scroll position and an open popup.
+The ten-second compaction countdown is entirely client-local. The server owns the
+atomic two-minute account/event expansion cooldown, last automatically announced
+approval boundary, and independent banner/NEW state. Claiming requires an outstanding
+approval beyond that persisted boundary; only the claimed snapshot advances it.
+No idle polling, recipient fan-out, additional realtime service or scheduled job is
+part of this feature. The user accepted the existing 100-viewer capacity evidence
+for this slice; DELIVERY_PLAN records the explicit waiver of an additional load-test
+gate and the decision to reassess from observed event performance.
 
 The site must remain usable if the realtime connection is temporarily unavailable. A normal refresh retrieves the authoritative state.
 
@@ -228,7 +246,7 @@ Board and draft administration use two complementary concurrency mechanisms:
 - Validated preview and publication read the active approval snapshot without recalculation. Explicit unapproval or a private competitive edit clears the active pointer, retains the superseded snapshot, returns the board to Draft, and resumes live catalogue derivation.
 - Preview board shares the public board renderer and responsive component rules. Draft preview supplies live derived catalogue data, validated preview supplies the active frozen snapshot, administrator-only EHB/edit controls are omitted, and preview has no command path that can approve or publish.
 - Catalogue/drop tiles must return a valid automatic EHB calculation to pass board validation. Missing mechanics are repaired in catalogue/requirement data rather than bypassed. Only custom/manual objectives accept an explicit manual EHB value.
-- Enabled Admins may create, edit, deactivate, and reactivate catalogue rows. Permanent deletion and bulk-import preview/apply require `RequireSuperAdmin`; deletion also runs a transactional dependency check and fails for any board, source-drop, snapshot, asset/cache, import-review, or historical reference. Bulk apply verifies the reviewed preview version/hash and aborts on stale catalogue state.
+- Enabled Admins may create, edit, deactivate, and reactivate catalogue rows. Permanent deletion requires `RequireSuperAdmin` and a transactional dependency check; it fails for any board, source-drop, snapshot, asset/cache, import-review, or historical reference. Application bulk-import preview/apply is excluded by D03 (user clarification 2026-09-14); existing operator tooling remains separate. C26 does not require a dependency-reference listing UI.
 - Tiles are event-board-owned aggregates. The application exposes move/swap operations but no duplicate, cross-event copy, import, or reusable-template command.
 - The permanent public Rules page reads a singleton, versioned global rules document. Updates pass through an administrator-authorized application command with validation, optimistic concurrency, and automatic audit history; they require no reason, send no participant notification, and have no event-lifecycle effect.
 - Public how-to pages are source-controlled Razor/content assets with stable anonymous routes and no runtime editor or persistence model.
@@ -365,7 +383,7 @@ predicate and exposes hidden rows only in its clearly separated SuperAdmin
 Hidden area. Its limited Manage inspection may show retained lifecycle data,
 hide/restore audit history, and Restore, but every ordinary event workspace,
 public route, account/history projection, submission/evidence route,
-notification/action/audit projection, and realtime subscription rejects a hidden
+notification/action projection, and realtime subscription rejects a hidden
 event with 404 or an absent projection, including for Super Admins. Queries
 must not depend on a global EF query filter: each event-scoped read and
 mutation applies the appropriate explicit predicate/guard.
@@ -393,8 +411,11 @@ The global Accounts area uses separate sanitized, server-paginated projections f
 
 Audit history is an immutable newest-first server query with a fixed page size of 25 and filters for event, actor, action, entity, and date range. Pagination preserves filters and can traverse the complete retained history; it is not a retention cap. Detail rendering converts structured before/after fields into human-readable values without mutating the stored event. Version one has no audit export. Routine successful website login updates `last_login_at` only; failed attempts and throttling use security logs. Emergency-credential success and security-sensitive password, Discord-link, role, disable/restore, ownership, and emergency-access mutations write durable audit events.
 
-Event-linked audit records for hidden events are omitted from ordinary-Admin
-projections and are shown only in the limited SuperAdmin quarantine inspection.
+Admin audit is not a hidden-event secrecy boundary (C36 closed by user clarification,
+2026-09-14). No new suppression or legacy event-association repair is required for
+hiding. Preserve audit authorization, immutability and sensitive-data exclusions.
+The scope decision does not itself remove existing filters or change event-workspace
+visibility; the limited SuperAdmin quarantine inspection remains available.
 
 Grant/revoke Admin and restore commands append a personal notification for the target. Disable keeps its written reason private to Admin/audit projections; a stale or attempted authenticated route returns neutral contact-an-admin guidance without disclosing the reason.
 
