@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Bingo.Application.Access;
 using Bingo.Application.Auditing;
@@ -43,6 +44,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     public Guid CurrentAccountId { get; private set; }
     public bool CanControlDraft { get; private set; }
     public bool CanChangeCaptainRoles { get; private set; }
+    public bool CanCorrectPreLiveRoster { get; private set; }
     public Guid? DraftControllerAccountId { get; private set; }
     public PreformedRosterCsvImportService.Preview? CsvPreview { get; private set; }
     public Guid? RosterTeamId { get; private set; }
@@ -96,7 +98,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         SetStatus(Localize("{0} created.", team.Name), UiMessageType.Success); return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostRemoveDraftTeamAsync(Guid id, Guid teamId, CancellationToken ct)
-    { var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct); if (draft is null) return NotFound(); if (draft.State != DraftState.Setup) { SetStatus(Localize("Drafted-team structure is locked while a private draft is active or published."), UiMessageType.Error); return RedirectToPage(new { id }); } var team = await db.Teams.SingleOrDefaultAsync(x => x.Id == teamId && x.EventId == id && x.FormationType == TeamFormationType.Drafted && x.Active, ct); if (team is null) return NotFound(); if (await db.TeamMemberships.AnyAsync(x => x.TeamId == teamId && x.LeftAt == null, ct)) { SetStatus(Localize("Remove the players from {0} before removing the team.", team.Name), UiMessageType.Error); return RedirectToPage(new { id }); } team.SetActive(false); team.SetDraftPosition(null); await db.SaveChangesAsync(ct); await Audit("draft.team_removed", "team", team.Id, "Removed from website draft setup", ct); SetStatus(Localize("{0} removed from the website draft.", team.Name), UiMessageType.Success); return RedirectToPage(new { id }); }
+    { var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct); if (draft is null) return NotFound(); if (draft.State != DraftState.Setup) { SetStatus(Localize("Drafted-team structure is locked while a private draft is active or published."), UiMessageType.Error); return RedirectToPage(new { id }); } var team = await db.Teams.SingleOrDefaultAsync(x => x.Id == teamId && x.EventId == id && x.FormationType == TeamFormationType.Drafted && x.Active, ct); if (team is null) return NotFound(); if (await db.TeamMemberships.AnyAsync(x => x.TeamId == teamId && x.LeftAt == null, ct)) { SetStatus(Localize("Remove the players from {0} before removing the team.", team.Name), UiMessageType.Error); return RedirectToPage(new { id }); } var before = TeamAuditState(team); team.SetActive(false); team.SetDraftPosition(null); await AuditMutation(id, "draft.team_removed", "team", team.Id, before, TeamAuditState(team), ct); SetStatus(Localize("{0} removed from the website draft.", team.Name), UiMessageType.Success); return RedirectToPage(new { id }); }
     public async Task<IActionResult> OnPostRemoveExternalTeamAsync(Guid id, Guid teamId, CancellationToken ct, bool confirmed = false)
     {
         await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
@@ -112,21 +114,22 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); SetStatus(Localize("External team {0} removed.", team.Name), UiMessageType.Success); return RedirectToPage(new { id });
     }
     public async Task<IActionResult> OnPostWithdrawParticipantAsync(Guid id, Guid participantId, CancellationToken ct)
-    { var draft = await db.DraftSessions.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == id, ct); if (draft?.State != DraftState.Setup) { SetStatus(Localize("Participants cannot be withdrawn after the draft starts."), UiMessageType.Error); return RedirectToPage(new { id }); } var participant = await db.EventParticipants.SingleOrDefaultAsync(x => x.Id == participantId && x.EventId == id && x.Source != SignupSource.AdminCreated, ct); if (participant is null) return NotFound(); if (await db.TeamMemberships.AnyAsync(x => x.EventParticipantId == participantId && x.LeftAt == null, ct)) { SetStatus(Localize("Remove this player from their roster before withdrawing them from the event."), UiMessageType.Error); return RedirectToPage(new { id }); } var result = await signupService.WithdrawAsync(id, participantId, AdminId, User.Identity?.Name ?? "Admin", true, cancellationToken: ct); SetStatus(result.Succeeded ? Localize("Participant withdrawn. The waiting list was promoted where a place became available.") : result.Error ?? Localize("The participant could not be withdrawn."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error); return RedirectToPage(new { id }); }
+    { var draft = await db.DraftSessions.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == id, ct); if (draft?.State != DraftState.Setup) { SetStatus(Localize("Participants cannot be withdrawn after the draft starts."), UiMessageType.Error); return RedirectToPage(new { id }); } var participant = await db.EventParticipants.SingleOrDefaultAsync(x => x.Id == participantId && x.EventId == id, ct); if (participant is null) return NotFound(); if (await db.TeamMemberships.AnyAsync(x => x.EventParticipantId == participantId && x.LeftAt == null, ct)) { SetStatus(Localize("Remove this player from their roster before withdrawing them from the event."), UiMessageType.Error); return RedirectToPage(new { id }); } var result = await signupService.WithdrawAsync(id, participantId, AdminId, User.Identity?.Name ?? "Admin", true, cancellationToken: ct); SetStatus(result.Succeeded ? Localize("Participant withdrawn. The waiting list was promoted where a place became available.") : result.Error ?? Localize("The participant could not be withdrawn."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error); return RedirectToPage(new { id }); }
     public async Task<IActionResult> OnPostUpdateTeamAsync(Guid id, Guid teamId, string name, string? affiliation, IFormFile? image, bool removeImage, long version, CancellationToken ct, Guid? rosterTeamId = null)
     {
         var team = await db.Teams.SingleOrDefaultAsync(x => x.Id == teamId && x.EventId == id, ct); if (team is null) return NotFound();
         var ev = await db.Events.AsNoTracking().SingleAsync(x => x.Id == id, ct);
         if (ev.ActualStartedAt is not null || team.Version != version || string.IsNullOrWhiteSpace(name)) { SetStatus(ev.ActualStartedAt is not null ? Localize("Team metadata is locked after event start.") : Localize("This team changed; reload and try again."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
+        var before = TeamAuditState(team);
         StoredEvidence? uploaded = null; await using var tx = await db.Database.BeginTransactionAsync(ct);
         try
         {
             var now = time.GetUtcNow(); if (removeImage && team.ActiveImageAssetId is { } old) { (await db.TeamImageAssets.SingleOrDefaultAsync(x => x.Id == old, ct))?.Replace(now); team.SetActiveImage(null); }
             if (image is { Length: > 0 }) { if (storage is null) throw new InvalidOperationException("Image storage is unavailable."); var assetId = Guid.NewGuid(); await using var content = image.OpenReadStream(); uploaded = await storage.StoreAsync(id, assetId, image.FileName, content, ct); if (team.ActiveImageAssetId is { } previous) (await db.TeamImageAssets.SingleOrDefaultAsync(x => x.Id == previous, ct))?.Replace(now); db.TeamImageAssets.Add(new TeamImageAsset(assetId, id, team.Id, uploaded.StorageKey, uploaded.OriginalFilename, uploaded.MediaType, uploaded.ByteSize, uploaded.Width, uploaded.Height, uploaded.Checksum, AdminId, now)); team.SetActiveImage(assetId); }
-            team.Update(name.Trim(), team.Slug, Clean(affiliation), null); await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+            team.Update(name.Trim(), team.Slug, Clean(affiliation), null); await AuditMutation(id, "team.updated", "team", team.Id, before, TeamAuditState(team), ct); await tx.CommitAsync(ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException) { await tx.RollbackAsync(ct); if (uploaded is not null && storage is not null) await storage.DeleteAsync(uploaded.StorageKey, ct); SetStatus(Localize("The team update could not be saved."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
-        await Audit("team.updated", "team", team.Id, name, ct); SetStatus(Localize("{0} updated.", team.Name), UiMessageType.Success); return RedirectToPage(new { id, rosterTeamId });
+        SetStatus(Localize("{0} updated.", team.Name), UiMessageType.Success); return RedirectToPage(new { id, rosterTeamId });
     }
     public async Task<IActionResult> OnPostAddMemberAsync(Guid id, Guid teamId, Guid? participantId, string? reason, CancellationToken ct, bool confirmed = false, Guid? rosterTeamId = null, TeamMembershipRole role = TeamMembershipRole.Participant)
     {
@@ -139,7 +142,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         if (!CanDirectPreEventRosterMutation(ev) || (team.FormationType != TeamFormationType.Preformed && !draftedSetupAssignment)) { SetStatus(Localize("Direct roster additions are available only for pre-formed teams before event start, or drafted teams before the first pick."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         if (draft?.State == DraftState.Finalized && team.FormationType == TeamFormationType.Preformed && !confirmed) { SetStatus(Localize("Confirm this published pre-formed correction."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         if (participantId is null) { SetStatus(Localize("Choose a participant."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
-        if (team.FormationType == TeamFormationType.Drafted && !await db.EventParticipants.AnyAsync(participant => participant.Id == participantId.Value && participant.EventId == id && participant.Source == SignupSource.Website && participant.SignupStatus == SignupStatus.Confirmed, ct)) { SetStatus(Localize("Only confirmed website-draft participants can be preassigned to a drafted team."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
+        if (team.FormationType == TeamFormationType.Drafted && !await db.EventParticipants.AnyAsync(participant => participant.Id == participantId.Value && participant.EventId == id && participant.SignupStatus == SignupStatus.Confirmed, ct)) { SetStatus(Localize("Only confirmed draft participants can be preassigned to a drafted team."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         var participantName = await db.PrimaryCharacters().Where(x => x.ParticipantId == participantId.Value && x.EventId == id).Select(x => x.Name).SingleOrDefaultAsync(ct); if (participantName is null) return NotFound();
         if (await db.TeamMemberships.AnyAsync(x => x.EventParticipantId == participantId.Value && x.LeftAt == null, ct)) { SetStatus(Localize("Participant is already assigned to a team."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         var assignmentReason = team.FormationType == TeamFormationType.Preformed ? "Pre-formed roster assignment" : reason?.Trim() ?? "Manual roster assignment";
@@ -252,7 +255,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         var correctionReason = team.FormationType == TeamFormationType.Preformed ? "Pre-formed roster correction" : reason?.Trim() ?? "Roster removal";
         var participant = await db.EventParticipants.SingleAsync(x => x.Id == membership.EventParticipantId, ct); var participantName = await PrimaryName(participant.Id, ct); var now = time.GetUtcNow(); var previous = membership.Role;
         membership.Leave(now, correctionReason); if (previous is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain) db.TeamMembershipRoleTransitions.Add(new TeamMembershipRoleTransition(Guid.NewGuid(), membership.Id, previous, TeamMembershipRole.Participant, AdminId, now));
-        if (participant.Source == SignupSource.AdminCreated) { participant.Withdraw(now, correctionReason, AdminId); await characterService.ReleaseAllAsync(participant.Id, AdminId, ct); }
+        if (team.FormationType == TeamFormationType.Preformed && participant.Source == SignupSource.AdminCreated) { participant.Withdraw(now, correctionReason, AdminId); await characterService.ReleaseAllAsync(participant.Id, AdminId, ct); }
         if (draft?.State == DraftState.Finalized) { await db.SaveChangesAsync(ct); await RepublishPreformedCorrectionAsync(ev, draft, "team.member_removed", membership.Id, ct); }
         else await audit.WriteAsync(AdminId, User.Identity?.Name ?? "Admin", "team.member_removed", "membership", membership.Id.ToString(), correctionReason, ct);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); SetStatus(Localize("{0} removed from {1}.", participantName, team.Name), UiMessageType.Success); return RedirectToPage(new { id, rosterTeamId });
@@ -265,7 +268,41 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
             SetStatus(Localize("This membership changed or the role form is stale. Reload before changing its role."), UiMessageType.Error);
             return RedirectToPage(new { id, rosterTeamId });
         }
-        var result = await captainAuthority.ChangeRoleAsync(new(id, membershipId, role, AdminId, User.Identity?.Name ?? "Admin", membershipVersion), ct);
+        TeamCaptainRoleChangeResult result;
+        var observedDraft = await db.DraftSessions.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == id, ct);
+        var observedEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (observedDraft?.State == DraftState.Finalized && observedEvent?.State == EventState.SignupClosed)
+        {
+            await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+            try
+            {
+                var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {id} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct);
+                if (item is not null) await db.Entry(item).ReloadAsync(ct);
+                var currentDraft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
+                if (currentDraft is not null) await db.Entry(currentDraft).ReloadAsync(ct);
+                var now = time.GetUtcNow();
+                if (item is null || !item.CanCorrectFinalizedRoster(currentDraft?.State, now) ||
+                    !await db.DraftPublicationCycles.AnyAsync(x => x.DraftSessionId == currentDraft!.Id && x.SupersededAt == null, ct))
+                    throw new InvalidOperationException("Roster corrections require a finalized draft before the event starts and a future event end.");
+                if (!await db.Accounts.AnyAsync(x => x.Id == AdminId && x.Active && x.AccountType == Bingo.Domain.Access.AccountType.WebsiteAccount &&
+                    (x.GlobalRole == Bingo.Domain.Access.GlobalRole.Admin || x.GlobalRole == Bingo.Domain.Access.GlobalRole.SuperAdmin), ct)) return Forbid();
+                result = await captainAuthority.ChangeRoleAsync(new(id, membershipId, role, AdminId, User.Identity?.Name ?? "Admin", membershipVersion), ct);
+                if (result.Succeeded)
+                {
+                    await RepublishPreformedCorrectionAsync(item, currentDraft!, "team.role_roster_published", membershipId, ct, "Pre-Live Captain role correction", item.Id);
+                    await db.SaveChangesAsync(ct);
+                    await tx.CommitAsync(ct);
+                }
+                else await tx.RollbackAsync(ct);
+            }
+            catch (Exception) when (!ct.IsCancellationRequested)
+            {
+                await tx.RollbackAsync(CancellationToken.None);
+                db.ChangeTracker.Clear();
+                result = new(false, Localize("The role correction could not be saved. No changes were applied. Reload and try again."));
+            }
+        }
+        else result = await captainAuthority.ChangeRoleAsync(new(id, membershipId, role, AdminId, User.Identity?.Name ?? "Admin", membershipVersion), ct);
         SetStatus(result.Succeeded ? Localize("{0} is now {1}.", result.ParticipantName ?? string.Empty, RoleLabel(role)) : result.Error ?? Localize("The role could not be changed."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToPage(new { id, rosterTeamId });
     }
@@ -274,7 +311,9 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         var ev = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct); var membership = await db.TeamMemberships.SingleOrDefaultAsync(x => x.Id == membershipId && x.LeftAt == null, ct);
         if (ev is null || membership is null) return NotFound();
-        var source = await db.Teams.SingleAsync(x => x.Id == membership.TeamId, ct); var target = await db.Teams.SingleOrDefaultAsync(x => x.Id == targetTeamId && x.EventId == id, ct);
+        var source = await db.Teams.SingleOrDefaultAsync(x => x.Id == membership.TeamId && x.EventId == id && x.Active, ct);
+        var target = await db.Teams.SingleOrDefaultAsync(x => x.Id == targetTeamId && x.EventId == id && x.Active, ct);
+        if (source is null || target is null || !await db.EventParticipants.AnyAsync(x => x.Id == membership.EventParticipantId && x.EventId == id, ct)) return NotFound();
         if (!CanDirectPreEventRosterMutation(ev) || source.FormationType != TeamFormationType.Preformed || target?.FormationType != TeamFormationType.Preformed) { SetStatus(Localize("Direct roster movement is available only for pre-formed teams before the configured event start."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct); if (draft?.State == DraftState.Finalized && !confirmed) { SetStatus(Localize("Confirm this published pre-formed correction."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         var participantName = await PrimaryName(membership.EventParticipantId, ct); var now = time.GetUtcNow(); var previous = membership.Role; const string correctionReason = "Pre-formed roster correction"; membership.Leave(now, correctionReason);
@@ -298,6 +337,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
 
         var teams = await db.Teams.Where(x => x.EventId == id && x.Active && x.IncludedInDraft).ToListAsync(ct);
         if (teams.Count < 2) { SetStatus(Localize("Add at least two drafted teams before scrambling the order."), UiMessageType.Error); return RedirectToPage(new { id }); }
+        var before = new { draft = DraftAuditState(draft), teams = TeamOrderAuditState(teams) };
         for (var i = teams.Count - 1; i > 0; i--)
         {
             var j = RandomNumberGenerator.GetInt32(i + 1);
@@ -305,8 +345,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         }
         for (var i = 0; i < teams.Count; i++) teams[i].SetDraftPosition(i + 1);
         draft.RenewControl(AdminId, time.GetUtcNow(), DraftControlLease.Duration);
-        await db.SaveChangesAsync(ct);
-        await Audit("draft.order_scrambled", "draft", draft.Id, string.Join(", ", teams.Select(x => x.Name)), ct);
+        await AuditMutation(id, "draft.order_scrambled", "draft", draft.Id, before, new { draft = DraftAuditState(draft), teams = TeamOrderAuditState(teams) }, ct);
         SetStatus(Localize("Team order scrambled."), UiMessageType.Success);
         await NotifyDraft(id, ct);
         return RedirectToPage(new { id });
@@ -345,21 +384,24 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         if (derived.Blockers.Count != 0) { SetStatus(string.Join(" ", derived.Blockers), UiMessageType.Error); return RedirectToPage(new { id }); }
         try
         {
+            var before = new { draft = DraftAuditState(draft), bingoEvent.DraftLocked, teams = TeamOrderAuditState(teams) };
             foreach (var team in teams) team.SetDraftPosition(null);
             if (draft.HasActiveController(now)) draft.RenewControl(AdminId, now, DraftControlLease.Duration);
             else draft.AcquireControl(AdminId, now, DraftControlLease.Duration);
-            draft.Start(now); bingoEvent.SetDraftLocked(true); await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+            draft.Start(now); bingoEvent.SetDraftLocked(true);
+            await AuditMutation(id, "draft.started", "draft", draft.Id, before, new { draft = DraftAuditState(draft), bingoEvent.DraftLocked, teams = TeamOrderAuditState(teams), derived.Distribution.IncludedParticipants }, ct);
+            await tx.CommitAsync(ct);
         }
         catch (Exception exception) when (IsDraftConflict(exception)) { return DraftConflict(id, exception); }
-        await Audit("draft.started", "draft", draft.Id, $"{teams.Count} teams; awaiting team-order draw; {derived.Distribution.IncludedParticipants} included participants", ct); SetStatus(Localize("Draft started. Scramble the teams to draw the order."), UiMessageType.Success); await NotifyDraft(id, ct); return RedirectToPage(new { id });
+        SetStatus(Localize("Draft started. Scramble the teams to draw the order."), UiMessageType.Success); await NotifyDraft(id, ct); return RedirectToPage(new { id });
     }
     public Task<IActionResult> OnPostConfigureAsync(Guid id, int teamCount, int targetSize, CancellationToken ct) => Task.FromResult<IActionResult>(BadRequest());
-    public async Task<IActionResult> OnPostPauseAsync(Guid id, CancellationToken ct) { var d = await db.DraftSessions.SingleAsync(x => x.EventId == id, ct); if (!RequireControl(d, id)) return RedirectToPage(new { id }); try { d.Pause(); d.RenewControl(AdminId, time.GetUtcNow(), DraftControlLease.Duration); await db.SaveChangesAsync(ct); } catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); } await Audit("draft.paused", "draft", d.Id, "Paused by admin", ct); SetStatus(Localize("Draft paused."), UiMessageType.Success); await NotifyDraft(id, ct); return RedirectToPage(new { id }); }
-    public async Task<IActionResult> OnPostResumeAsync(Guid id, CancellationToken ct) { var d = await db.DraftSessions.SingleAsync(x => x.EventId == id, ct); if (!RequireControl(d, id)) return RedirectToPage(new { id }); try { d.Resume(); d.RenewControl(AdminId, time.GetUtcNow(), DraftControlLease.Duration); await db.SaveChangesAsync(ct); } catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); } await Audit("draft.resumed", "draft", d.Id, "Resumed by admin", ct); SetStatus(Localize("Draft resumed."), UiMessageType.Success); await NotifyDraft(id, ct); return RedirectToPage(new { id }); }
+    public async Task<IActionResult> OnPostPauseAsync(Guid id, CancellationToken ct) { var d = await db.DraftSessions.SingleAsync(x => x.EventId == id, ct); if (!RequireControl(d, id)) return RedirectToPage(new { id }); try { var before = DraftAuditState(d); d.Pause(); d.RenewControl(AdminId, time.GetUtcNow(), DraftControlLease.Duration); await AuditMutation(id, "draft.paused", "draft", d.Id, before, DraftAuditState(d), ct); } catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); } SetStatus(Localize("Draft paused."), UiMessageType.Success); await NotifyDraft(id, ct); return RedirectToPage(new { id }); }
+    public async Task<IActionResult> OnPostResumeAsync(Guid id, CancellationToken ct) { var d = await db.DraftSessions.SingleAsync(x => x.EventId == id, ct); if (!RequireControl(d, id)) return RedirectToPage(new { id }); try { var before = DraftAuditState(d); d.Resume(); d.RenewControl(AdminId, time.GetUtcNow(), DraftControlLease.Duration); await AuditMutation(id, "draft.resumed", "draft", d.Id, before, DraftAuditState(d), ct); } catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); } SetStatus(Localize("Draft resumed."), UiMessageType.Success); await NotifyDraft(id, ct); return RedirectToPage(new { id }); }
     public async Task<IActionResult> OnPostPickAsync(Guid id, Guid participantId, CancellationToken ct)
-    { await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct); var draft = await db.DraftSessions.SingleAsync(x => x.EventId == id, ct); if (draft.State != DraftState.Running) return BadRequest(); if (!RequireControl(draft, id)) return RedirectToPage(new { id }); if (await db.TeamMemberships.AnyAsync(x => x.EventParticipantId == participantId && x.LeftAt == null, ct)) { SetStatus(Localize("That participant is already assigned to a team."), UiMessageType.Error); return RedirectToPage(new { id }); } var participant = await db.EventParticipants.SingleOrDefaultAsync(x => x.Id == participantId && x.EventId == id && x.Source != SignupSource.AdminCreated && x.SignupStatus == SignupStatus.Confirmed, ct); if (participant is null) { SetStatus(Localize("That participant is not available for this pick."), UiMessageType.Error); return RedirectToPage(new { id }); } var participantName = await PrimaryName(participantId, ct); var teams = await OrderedDraftTeams(id, ct); if (teams.Count < 2 || teams.Any(x => x.DraftPosition is null)) { SetStatus(Localize("Scramble the teams before making the first pick."), UiMessageType.Error); return RedirectToPage(new { id }); } var derived = await DeriveDraftState(id, teams, null, ct); if (derived.Blockers.Count != 0) { SetStatus(string.Join(" ", derived.Blockers), UiMessageType.Error); return RedirectToPage(new { id }); } var teamIds = teams.Select(x => x.Id).ToList(); var activePickTeams = await db.DraftPicks.Where(x => x.DraftSessionId == draft.Id && x.UndoneAt == null).OrderBy(x => x.PickNumber).Select(x => x.TeamId).ToListAsync(ct); var turn = SnakeDraftOrder.GetNextEligibleTurn(activePickTeams, teamIds, derived.RosterSizes, derived.Distribution); if (turn is null) { SetStatus(Localize("Every derived drafted-team place is filled."), UiMessageType.Error); return RedirectToPage(new { id }); } var pick = new DraftPick(Guid.NewGuid(), draft.Id, turn.TeamId, participantId, turn.PickNumber, turn.RoundNumber, time.GetUtcNow()); draft.RecordFirstPick(time.GetUtcNow()); db.DraftPicks.Add(pick); var membership = new TeamMembership(Guid.NewGuid(), turn.TeamId, participantId, TeamMembershipRole.Participant, time.GetUtcNow(), pick.Id, "Snake draft pick"); membership.SetSource(TeamMembershipSource.DraftPick); db.TeamMemberships.Add(membership); try { draft.RenewControl(AdminId, time.GetUtcNow(), DraftControlLease.Duration); await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); } catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); } await Audit("draft.pick_recorded", "pick", pick.Id, $"#{turn.PickNumber} {participantName}", ct); SetStatus(Localize("{0} picked for {1}.", participantName, turn.TeamId), UiMessageType.Success); await NotifyDraft(id, ct); return RedirectToPage(new { id }); }
+    { await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct); var draft = await db.DraftSessions.SingleAsync(x => x.EventId == id, ct); if (draft.State != DraftState.Running) return BadRequest(); if (!RequireControl(draft, id)) return RedirectToPage(new { id }); if (await db.TeamMemberships.AnyAsync(x => x.EventParticipantId == participantId && x.LeftAt == null, ct)) { SetStatus(Localize("That participant is already assigned to a team."), UiMessageType.Error); return RedirectToPage(new { id }); } var participant = await db.EventParticipants.SingleOrDefaultAsync(x => x.Id == participantId && x.EventId == id && x.SignupStatus == SignupStatus.Confirmed, ct); if (participant is null) { SetStatus(Localize("That participant is not available for this pick."), UiMessageType.Error); return RedirectToPage(new { id }); } var participantName = await PrimaryName(participantId, ct); var teams = await OrderedDraftTeams(id, ct); if (teams.Count < 2 || teams.Any(x => x.DraftPosition is null)) { SetStatus(Localize("Scramble the teams before making the first pick."), UiMessageType.Error); return RedirectToPage(new { id }); } var derived = await DeriveDraftState(id, teams, null, ct); if (derived.Blockers.Count != 0) { SetStatus(string.Join(" ", derived.Blockers), UiMessageType.Error); return RedirectToPage(new { id }); } var teamIds = teams.Select(x => x.Id).ToList(); var activePickTeams = await db.DraftPicks.Where(x => x.DraftSessionId == draft.Id && x.UndoneAt == null).OrderBy(x => x.PickNumber).Select(x => x.TeamId).ToListAsync(ct); var turn = SnakeDraftOrder.GetNextEligibleTurn(activePickTeams, teamIds, derived.RosterSizes, derived.Distribution); if (turn is null) { SetStatus(Localize("Every derived drafted-team place is filled."), UiMessageType.Error); return RedirectToPage(new { id }); } var before = new { draft = DraftAuditState(draft), pick = (object?)null, membership = (object?)null }; var pick = new DraftPick(Guid.NewGuid(), draft.Id, turn.TeamId, participantId, turn.PickNumber, turn.RoundNumber, time.GetUtcNow()); draft.RecordFirstPick(time.GetUtcNow()); db.DraftPicks.Add(pick); var membership = new TeamMembership(Guid.NewGuid(), turn.TeamId, participantId, TeamMembershipRole.Participant, time.GetUtcNow(), pick.Id, "Snake draft pick"); membership.SetSource(TeamMembershipSource.DraftPick); db.TeamMemberships.Add(membership); try { draft.RenewControl(AdminId, time.GetUtcNow(), DraftControlLease.Duration); await AuditMutation(id, "draft.pick_recorded", "pick", pick.Id, before, PickAuditState(draft, pick, membership), ct); await tx.CommitAsync(ct); } catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); } SetStatus(Localize("{0} picked for {1}.", participantName, turn.TeamId), UiMessageType.Success); await NotifyDraft(id, ct); return RedirectToPage(new { id }); }
     public async Task<IActionResult> OnPostUndoAsync(Guid id, CancellationToken ct)
-    { await using var tx = await db.Database.BeginTransactionAsync(ct); var draft = await db.DraftSessions.SingleAsync(x => x.EventId == id, ct); if (draft.State is not (DraftState.Running or DraftState.Paused)) return BadRequest(); if (!RequireControl(draft, id)) return RedirectToPage(new { id }); var pick = await db.DraftPicks.Where(x => x.DraftSessionId == draft.Id && x.UndoneAt == null).OrderByDescending(x => x.PickNumber).FirstOrDefaultAsync(ct); if (pick is null) { SetStatus(Localize("There is no active pick to undo."), UiMessageType.Error); return RedirectToPage(new { id }); } var membership = await db.TeamMemberships.SingleAsync(x => x.AssignedByDraftPickId == pick.Id && x.LeftAt == null, ct); pick.Undo(time.GetUtcNow()); membership.Leave(time.GetUtcNow(), "Draft pick undone"); try { draft.RenewControl(AdminId, time.GetUtcNow(), DraftControlLease.Duration); await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); } catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); } await Audit("draft.pick_undone", "pick", pick.Id, $"#{pick.PickNumber}", ct); SetStatus(Localize("Pick #{0} undone.", pick.PickNumber), UiMessageType.Success); await NotifyDraft(id, ct); return RedirectToPage(new { id }); }
+    { await using var tx = await db.Database.BeginTransactionAsync(ct); var draft = await db.DraftSessions.SingleAsync(x => x.EventId == id, ct); if (draft.State is not (DraftState.Running or DraftState.Paused)) return BadRequest(); if (!RequireControl(draft, id)) return RedirectToPage(new { id }); var pick = await db.DraftPicks.Where(x => x.DraftSessionId == draft.Id && x.UndoneAt == null).OrderByDescending(x => x.PickNumber).FirstOrDefaultAsync(ct); if (pick is null) { SetStatus(Localize("There is no active pick to undo."), UiMessageType.Error); return RedirectToPage(new { id }); } var membership = await db.TeamMemberships.SingleAsync(x => x.AssignedByDraftPickId == pick.Id && x.LeftAt == null, ct); var before = PickAuditState(draft, pick, membership); pick.Undo(time.GetUtcNow()); membership.Leave(time.GetUtcNow(), "Draft pick undone"); try { draft.RenewControl(AdminId, time.GetUtcNow(), DraftControlLease.Duration); await AuditMutation(id, "draft.pick_undone", "pick", pick.Id, before, PickAuditState(draft, pick, membership), ct); await tx.CommitAsync(ct); } catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); } SetStatus(Localize("Pick #{0} undone.", pick.PickNumber), UiMessageType.Success); await NotifyDraft(id, ct); return RedirectToPage(new { id }); }
     public async Task<IActionResult> OnPostCancelAsync(Guid id, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
@@ -405,6 +447,15 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (draft.State is not (DraftState.Running or DraftState.Paused)) throw new InvalidOperationException("This draft is already finalized or is not running.");
             draft.RequireControl(AdminId, now);
             var draftedTeams = await OrderedDraftTeams(id, ct);
+            var captainTeamIds = await db.TeamMemberships.AsNoTracking()
+                .Where(x => x.LeftAt == null && x.Role == TeamMembershipRole.Captain && draftedTeams.Select(team => team.Id).Contains(x.TeamId))
+                .Select(x => x.TeamId).Distinct().ToListAsync(ct);
+            var missingCaptains = draftedTeams.Where(team => !captainTeamIds.Contains(team.Id)).ToList();
+            if (missingCaptains.Count > 0)
+            {
+                SetStatus(Localize("Assign a current Captain to every drafted team before finalizing: {0}.", string.Join(", ", missingCaptains.Select(team => team.Name))), UiMessageType.Error);
+                return RedirectToPage(new { id, rosterTeamId = missingCaptains[0].Id });
+            }
             var derived = await DeriveDraftState(id, draftedTeams, null, ct);
             if (derived.Blockers.Count != 0) throw new InvalidOperationException(string.Join(" ", derived.Blockers));
             if (draftedTeams.Count < 2 || draftedTeams.Any(x => x.DraftPosition is null)) throw new InvalidOperationException("Scramble the drafted teams before finalizing.");
@@ -482,9 +533,9 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         if (draft is null) return NotFound();
         try
         {
-            var previous = draft.AcquireControl(AdminId, time.GetUtcNow(), DraftControlLease.Duration);
-            await db.SaveChangesAsync(ct);
-            await Audit("draft.control_acquired", "draft", draft.Id, $"Controller: {User.Identity!.Name}", ct);
+            var before = DraftAuditState(draft);
+            draft.AcquireControl(AdminId, time.GetUtcNow(), DraftControlLease.Duration);
+            await AuditMutation(id, "draft.control_acquired", "draft", draft.Id, before, DraftAuditState(draft), ct);
         }
         catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); }
         SetStatus(Localize("Draft control acquired."), UiMessageType.Success);
@@ -500,9 +551,10 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         if (draft is null) return NotFound();
         try
         {
-            var previous = draft.AcquireControl(AdminId, time.GetUtcNow(), DraftControlLease.Duration, force: true);
-            await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
-            await Audit("draft.control_taken_over", "draft", draft.Id, $"New controller: {User.Identity!.Name}; previous account: {previous}", ct);
+            var before = DraftAuditState(draft);
+            draft.AcquireControl(AdminId, time.GetUtcNow(), DraftControlLease.Duration, force: true);
+            await AuditMutation(id, "draft.control_taken_over", "draft", draft.Id, before, DraftAuditState(draft), ct);
+            await tx.CommitAsync(ct);
         }
         catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); }
         SetStatus(Localize("Draft control taken over."), UiMessageType.Success);
@@ -515,9 +567,8 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
         if (draft is null) return NotFound();
         if (!RequireControl(draft, id)) return RedirectToPage(new { id });
-        try { draft.ReleaseControl(AdminId, time.GetUtcNow()); await db.SaveChangesAsync(ct); }
+        try { var before = DraftAuditState(draft); draft.ReleaseControl(AdminId, time.GetUtcNow()); await AuditMutation(id, "draft.control_released", "draft", draft.Id, before, DraftAuditState(draft), ct); }
         catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); }
-        await Audit("draft.control_released", "draft", draft.Id, $"Released by {User.Identity!.Name}", ct);
         SetStatus(Localize("Draft control released."), UiMessageType.Success);
         await NotifyDraft(id, ct);
         return RedirectToPage(new { id });
@@ -540,7 +591,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         if (missing.Count > 0 || names.Values.Any(string.IsNullOrWhiteSpace)) throw new InvalidOperationException("Every published roster entry requires exactly one retained playing-character identity.");
         return names;
     }
-    private async Task RepublishPreformedCorrectionAsync(Bingo.Domain.Events.BingoEvent bingoEvent, DraftSession draft, string action, Guid targetId, CancellationToken ct)
+    private async Task RepublishPreformedCorrectionAsync(Bingo.Domain.Events.BingoEvent bingoEvent, DraftSession draft, string action, Guid targetId, CancellationToken ct, string correctionReason = "Pre-formed roster correction", Guid? publicationAuditEventId = null)
     {
         if (draft.State != DraftState.Finalized || !CanDirectPreEventRosterMutation(bingoEvent)) throw new InvalidOperationException("Published pre-formed corrections are unavailable after event start.");
         var now = time.GetUtcNow();
@@ -548,13 +599,13 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         var activeMembers = await db.TeamMemberships.Where(x => x.LeftAt == null && db.Teams.Any(t => t.Id == x.TeamId && t.EventId == bingoEvent.Id && t.Active)).ToListAsync(ct);
         var names = await FrozenPublicNamesAsync(bingoEvent.Id, activeMembers.Select(x => x.EventParticipantId), now, ct);
         var picks = await db.DraftPicks.Where(x => x.DraftSessionId == draft.Id && x.UndoneAt == null).ToDictionaryAsync(x => x.Id, x => x.PickNumber, ct);
-        const string correctionReason = "Pre-formed roster correction";
         activeCycle.Supersede(now, AdminId, correctionReason);
+        await db.SaveChangesAsync(ct);
         var nextCycle = (await db.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id).Select(x => (int?)x.CycleNumber).MaxAsync(ct) ?? 0) + 1;
         var replacement = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, nextCycle, now, AdminId); db.DraftPublicationCycles.Add(replacement);
         foreach (var member in activeMembers) db.DraftPublicationRosters.Add(new DraftPublicationRoster(Guid.NewGuid(), replacement.Id, member.TeamId, member.EventParticipantId, member.Role, member.AssignedByDraftPickId is { } pick && picks.TryGetValue(pick, out var number) ? number : null, names[member.EventParticipantId]));
         bingoEvent.SetDraftRosterPublication(true);
-        await audit.WriteAsync(AdminId, User.Identity?.Name ?? "Admin", action, "draft_publication", targetId.ToString(), $"Superseded publication cycle {activeCycle.CycleNumber} for pre-formed correction.", ct);
+        await audit.WriteAsync(AdminId, User.Identity?.Name ?? "Admin", action, "draft_publication", targetId.ToString(), $"Superseded publication cycle {activeCycle.CycleNumber}: {correctionReason}.", publicationAuditEventId, ct);
     }
     private async Task<List<Team>> OrderedDraftTeams(Guid id, CancellationToken ct) => await db.Teams.Where(x => x.EventId == id && x.Active && x.IncludedInDraft).OrderBy(x => x.DraftPosition).ThenBy(x => x.Name).ToListAsync(ct);
     private async Task<string> UniqueTeamSlug(Guid eventId, string name, CancellationToken ct) { var root = EventSlugGenerator.Generate(name); var slug = root; for (var n = 2; await db.Teams.AnyAsync(x => x.EventId == eventId && x.Slug == slug, ct); n++) slug = $"{root}-{n}"; return slug; }
@@ -570,7 +621,10 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
             || ev.State == EventState.AwaitingFinalReview && ev.AcceptsNewSubmissions(now);
         Sort = sort is "name" or "signup" or "status" ? sort : "ehb";
         var draft = await db.DraftSessions.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == id, ct);
-        if (draft is null) { ConfirmedCount = await db.EventParticipants.CountAsync(x => x.EventId == id && x.Source != SignupSource.AdminCreated && x.SignupStatus == SignupStatus.Confirmed, ct); Distribution = DraftRosterDistribution.Derive(ConfirmedCount, 0); return true; }
+        CanCorrectPreLiveRoster = ev.CanCorrectFinalizedRoster(draft?.State, now) &&
+            await db.DraftPublicationCycles.AnyAsync(x => x.DraftSessionId == draft!.Id && x.SupersededAt == null, ct);
+        if (draft?.State == DraftState.Finalized && ev.State == EventState.SignupClosed) CanChangeCaptainRoles = CanCorrectPreLiveRoster;
+        if (draft is null) { ConfirmedCount = await db.EventParticipants.CountAsync(x => x.EventId == id && x.SignupStatus == SignupStatus.Confirmed && !db.TeamMemberships.Any(m => m.EventParticipantId == x.Id && m.LeftAt == null && db.Teams.Any(t => t.Id == m.TeamId && t.EventId == id && t.Active && t.FormationType == TeamFormationType.Preformed)), ct); Distribution = DraftRosterDistribution.Derive(ConfirmedCount, 0); return true; }
 
         Draft = new(draft.Id, draft.State, draft.FirstPickRecordedAt is not null);
         var teams = await db.Teams.AsNoTracking().Where(x => x.EventId == id && x.Active).OrderBy(x => x.IncludedInDraft ? 0 : 1).ThenBy(x => x.DraftPosition).ThenBy(x => x.Name).ToListAsync(ct);
@@ -597,12 +651,15 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
                                           select membership.TeamId).Distinct().ToListAsync(ct);
         var emergencyTeamIds = await (from access in db.AccountEventAccesses.AsNoTracking()
                                       join account in db.Accounts.AsNoTracking() on access.AccountId equals account.Id
-                                      where access.EventId == id && access.Enabled && account.Active && account.AccountType == Bingo.Domain.Access.AccountType.EmergencyCaptain
+                                      where access.EventId == id && access.Enabled && account.Active && account.PasswordHash != null && !account.MustChangePassword && account.AccountType == Bingo.Domain.Access.AccountType.EmergencyCaptain
+                                          && (access.ActiveFrom == null || access.ActiveFrom <= now) && (access.ExpiresAt == null || access.ExpiresAt > now)
+                                          && teams.Select(team => team.Id).Contains(access.TeamId)
                                       select access.TeamId).Distinct().ToListAsync(ct);
-        var eligibleParticipants = participants.Where(x => x.Source != SignupSource.AdminCreated && x.SignupStatus == SignupStatus.Confirmed).ToList();
+        var preformedParticipantIds = memberships.Where(m => teams.Any(t => t.Id == m.TeamId && t.FormationType == TeamFormationType.Preformed)).Select(m => m.EventParticipantId).ToHashSet();
+        var eligibleParticipants = participants.Where(x => !preformedParticipantIds.Contains(x.Id) && x.SignupStatus == SignupStatus.Confirmed).ToList();
         var teamMap = teams.ToDictionary(x => x.Id);
         var membershipByParticipant = memberships.ToDictionary(x => x.EventParticipantId);
-        var internalParticipants = participants.Where(x => x.Source != SignupSource.AdminCreated);
+        var internalParticipants = participants.Where(x => !preformedParticipantIds.Contains(x.Id));
         IEnumerable<EventParticipant> ordered = Sort switch
         {
             "name" => internalParticipants.OrderBy(x => DisplayAuthority(x.Id).Name).ThenBy(x => x.SignedUpAt).ThenBy(x => x.SignupSequence).ThenBy(x => x.Id),
@@ -630,7 +687,17 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (turn is not null) CurrentTurn = new(turn.PickNumber, turn.RoundNumber, turn.TeamId, teamMap[turn.TeamId].Name);
         }
         var latest = activePicks.LastOrDefault();
-        if (latest is not null) LatestPick = new(latest.PickNumber, DisplayAuthority(latest.EventParticipantId).Name, teamMap[latest.TeamId].Name);
+        if (latest is not null)
+        {
+            var publishedName = await (from entry in db.DraftPublicationRosters.AsNoTracking()
+                                       join publication in db.DraftPublicationCycles.AsNoTracking() on entry.DraftPublicationCycleId equals publication.Id
+                                       where publication.DraftSessionId == draft.Id && publication.PublishedAt >= latest.PickedAt && entry.EffectivePickNumber == latest.PickNumber &&
+                                           entry.TeamId == latest.TeamId && entry.EventParticipantId == latest.EventParticipantId
+                                       orderby publication.CycleNumber
+                                       select entry.PublicCharacterName).FirstOrDefaultAsync(ct);
+            var wasPublished = publishedName is not null || await db.DraftPublicationCycles.AnyAsync(x => x.DraftSessionId == draft.Id, ct);
+            LatestPick = new(latest.PickNumber, wasPublished ? publishedName ?? Localize("Historical player unavailable") : DisplayAuthority(latest.EventParticipantId).Name, teamMap[latest.TeamId].Name);
+        }
         Teams = teams.Select(team => new TeamView(
             team.Id, team.Name, team.FormationType, team.AffiliationName, team.ActiveImageAssetId is null ? null : $"/Admin/Events/Draft/{id}?handler=TeamImage&teamId={team.Id}", team.DraftPosition, team.Version,
             CurrentTurn?.TeamId == team.Id, derived.ProjectedFinalSizes.GetValueOrDefault(team.Id, memberships.Count(membership => membership.TeamId == team.Id)),
@@ -642,13 +709,13 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
                     var participant = participants.Single(p => p.Id == m.EventParticipantId);
                     var authority = DisplayAuthority(m.EventParticipantId);
                     teamPickNumberByParticipant.TryGetValue(m.EventParticipantId, out var pickNumber);
-                    return new MemberView(m.Id, authority.Name, authority.Ehb, m.Role, m.Version, participant.Source == SignupSource.AdminCreated, pickNumber == 0 ? null : pickNumber);
+                    return new MemberView(m.Id, authority.Name, authority.Ehb, m.Role, m.Version, participant.Source == SignupSource.AdminCreated, pickNumber == 0 ? null : pickNumber, m.EventParticipantId);
                 }).ToList(), captainTeamIds.Contains(team.Id), usableCaptainTeamIds.Contains(team.Id), emergencyTeamIds.Contains(team.Id),
             team.FormationType == TeamFormationType.Drafted
                 ? memberships.Where(m => m.TeamId == team.Id).Sum(m => DisplayAuthority(m.EventParticipantId).Ehb)
                 : 0m)).ToList();
         ConfirmedCount = eligibleParticipants.Count;
-        AssignedCount = memberships.Count(m => participants.Single(p => p.Id == m.EventParticipantId).Source != SignupSource.AdminCreated);
+        AssignedCount = eligibleParticipants.Count(x => membershipByParticipant.ContainsKey(x.Id));
         AvailableCount = eligibleParticipants.Count(x => !membershipByParticipant.ContainsKey(x.Id));
         Distribution = derived.Distribution;
         Remainder = Distribution.LargerTeamCount;
@@ -663,7 +730,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         var formationByTeam = await db.Teams.AsNoTracking().Where(team => team.EventId == eventId && team.Active)
             .ToDictionaryAsync(team => team.Id, team => team.FormationType, ct);
         var includedParticipants = await db.EventParticipants.AsNoTracking()
-            .Where(participant => participant.EventId == eventId && participant.Source != SignupSource.AdminCreated && participant.SignupStatus == SignupStatus.Confirmed)
+            .Where(participant => participant.EventId == eventId && participant.SignupStatus == SignupStatus.Confirmed)
             .ToListAsync(ct);
         var included = includedParticipants.Where(participant => !allActiveMemberships.Any(membership =>
             membership.EventParticipantId == participant.Id &&
@@ -717,10 +784,30 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     private bool HasInvalidRoleBinding() => ModelState.TryGetValue("role", out var entry) && entry.Errors.Count > 0;
     private static bool IsRosterRole(TeamMembershipRole role) => role is TeamMembershipRole.Participant or TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain;
     private Task NotifyDraft(Guid eventId, CancellationToken ct) => collaboration.NotifyDraftChangedAsync(eventId, ct);
+    private Task AuditMutation(Guid eventId, string action, string target, Guid targetId, object? before, object? after, CancellationToken ct) =>
+        audit.WriteAsync(AdminId, User.Identity?.Name ?? "Admin", action, target, targetId.ToString(), JsonSerializer.Serialize(new { before, after }), eventId, ct);
+
+    private static object TeamAuditState(Team team) => new { team.Id, Name = AuditText(team.Name), AffiliationName = team.AffiliationName is null ? (JsonElement?)null : AuditText(team.AffiliationName), team.ActiveImageAssetId, team.Active, team.DraftPosition };
+    private static JsonElement TeamOrderAuditState(IEnumerable<Team> teams)
+    {
+        var positions = teams.OrderBy(team => team.Id).Select(team => new { team.Id, team.DraftPosition }).ToArray();
+        var json = JsonSerializer.Serialize(positions);
+        return json.Length <= 900 ? JsonSerializer.SerializeToElement(positions) : JsonSerializer.SerializeToElement(new { Count = positions.Length, ValuesOmitted = true, Sha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json))) });
+    }
+    private static JsonElement AuditText(string value) => JsonSerializer.Serialize(value).Length <= 200 ? JsonSerializer.SerializeToElement(value)
+        : JsonSerializer.SerializeToElement(new { Preview = value[..Math.Min(value.Length, 40)], value.Length, Truncated = true, Sha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))) });
+    private static object DraftAuditState(DraftSession draft) => new { State = draft.State.ToString(), draft.LockedAt, draft.FirstPickRecordedAt, draft.ControllerAccountId, draft.ControllerLeaseExpiresAt, draft.ControlVersion };
+    private static object PickAuditState(DraftSession draft, DraftPick pick, TeamMembership membership) => new
+    {
+        draft = DraftAuditState(draft),
+        pick = new { pick.Id, pick.TeamId, pick.EventParticipantId, pick.PickNumber, pick.RoundNumber, pick.PickedAt, pick.UndoneAt },
+        membership = new { membership.Id, membership.TeamId, membership.EventParticipantId, membership.AssignedByDraftPickId, membership.JoinedAt, membership.LeftAt }
+    };
+
     private Task Audit(string action, string target, Guid targetId, string details, CancellationToken ct) => audit.WriteAsync(User.GetAccountId(), User.Identity!.Name!, action, target, targetId.ToString(), details, ct); private static string RoleLabel(TeamMembershipRole role) => role == TeamMembershipRole.CoCaptain ? "co-captain" : role.ToString().ToLowerInvariant(); private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     private void StoreCredentials(IReadOnlyList<GeneratedCaptainCredential> credentials) { if (credentials.Count > 0) TempData["GeneratedCaptainCredentials"] = JsonSerializer.Serialize(credentials); }
     private sealed record DerivedDraftState(IReadOnlyList<Guid> IncludedParticipantIds, DraftRosterDistribution Distribution, IReadOnlyDictionary<Guid, int> RosterSizes, IReadOnlyDictionary<Guid, int> ProjectedFinalSizes, IReadOnlyList<string> Blockers);
-    public sealed record DraftView(Guid Id, DraftState State, bool FirstPickRecorded); public sealed record ParticipantView(Guid Id, string Name, decimal Ehb, DateTimeOffset SignedUpAt, bool CaptainVolunteer, Guid? TeamId, string? TeamName, SignupStatus SignupStatus); public sealed record TeamView(Guid Id, string Name, TeamFormationType FormationType, string? Affiliation, string? ImageUrl, int? DraftPosition, long Version, bool IsCurrent, int ProjectedFinalSize, IReadOnlyList<MemberView> Members, bool HasCurrentCaptain, bool HasUsableCaptain, bool HasEnabledEmergencyAccess, decimal TotalEhb); public sealed record MemberView(Guid MembershipId, string Name, decimal Ehb, TeamMembershipRole Role, long Version, bool External, int? PickNumber); public sealed record TurnView(int PickNumber, int RoundNumber, Guid TeamId, string TeamName); public sealed record PickView(int PickNumber, string PlayerName, string TeamName);
+    public sealed record DraftView(Guid Id, DraftState State, bool FirstPickRecorded); public sealed record ParticipantView(Guid Id, string Name, decimal Ehb, DateTimeOffset SignedUpAt, bool CaptainVolunteer, Guid? TeamId, string? TeamName, SignupStatus SignupStatus); public sealed record TeamView(Guid Id, string Name, TeamFormationType FormationType, string? Affiliation, string? ImageUrl, int? DraftPosition, long Version, bool IsCurrent, int ProjectedFinalSize, IReadOnlyList<MemberView> Members, bool HasCurrentCaptain, bool HasUsableCaptain, bool HasEnabledEmergencyAccess, decimal TotalEhb); public sealed record MemberView(Guid MembershipId, string Name, decimal Ehb, TeamMembershipRole Role, long Version, bool External, int? PickNumber, Guid ParticipantId = default); public sealed record TurnView(int PickNumber, int RoundNumber, Guid TeamId, string TeamName); public sealed record PickView(int PickNumber, string PlayerName, string TeamName);
 }

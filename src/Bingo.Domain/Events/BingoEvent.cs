@@ -1,3 +1,5 @@
+using Bingo.Domain.Teams;
+
 namespace Bingo.Domain.Events;
 
 public sealed class BingoEvent
@@ -18,6 +20,7 @@ public sealed class BingoEvent
         CreatedAt = createdAt.ToUniversalTime();
         State = EventState.Draft;
         WaitingListEnabled = true;
+        AnnouncementsTrackingStartedAt = CreatedAt;
     }
 
     public static BingoEvent CreateArchivedHistorical(
@@ -86,6 +89,13 @@ public sealed class BingoEvent
     public DateTimeOffset? ActualSignupOpenedAt { get; private set; }
     public DateTimeOffset? ActualSignupClosedAt { get; private set; }
     public DateTimeOffset? ActualStartedAt { get; private set; }
+    public DateTimeOffset? ItemPricesCapturedAt { get; private set; }
+
+    public void MarkItemPricesCaptured()
+    {
+        if (ActualStartedAt is null || State != EventState.Live) throw new InvalidOperationException("Event prices are captured at start.");
+        ItemPricesCapturedAt ??= ActualStartedAt;
+    }
     public DateTimeOffset? ActualEndedAt { get; private set; }
     public DateTimeOffset? SubmissionsClosedAt { get; private set; }
     public bool ScheduledSignupOpeningEnabled { get; private set; }
@@ -112,18 +122,33 @@ public sealed class BingoEvent
     public bool IsDevelopmentFixture { get; private set; }
     public bool EvidenceCodeEnabled { get; private set; }
     public DateTimeOffset? FinalizedAt { get; private set; }
+    public DateTimeOffset AnnouncementsTrackingStartedAt { get; private set; }
+    public int AnnouncementGeneration { get; private set; } = 1;
+    public long AnnouncementSequence { get; private set; }
     public DateTimeOffset? ArchivedAt { get; private set; }
     public DateTimeOffset? CancelledAt { get; private set; }
     public Guid? CancelledByAccountId { get; private set; }
     public string? CancellationReason { get; private set; }
     public DateTimeOffset? DiscardedAt { get; private set; }
     public Guid? DiscardedByAccountId { get; private set; }
+    public long StatsEvidenceRevision { get; private set; }
+    public long StatsLuckInvalidatedAtRevision { get; private set; }
+    public void AdvanceStatsEvidenceRevision(bool additiveApproval = false)
+    {
+        StatsEvidenceRevision = checked(StatsEvidenceRevision + 1);
+        if (!additiveApproval) StatsLuckInvalidatedAtRevision = StatsEvidenceRevision;
+    }
+
     public long Version { get; private set; } = 1;
     public Guid CreatedByAccountId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
     public bool AcceptsSignups(DateTimeOffset now) =>
         !IsHidden && State == EventState.SignupOpen && SignupClosesAt is { } closing && now.ToUniversalTime() < closing;
+
+    public bool CanCorrectFinalizedRoster(DraftState? draftState, DateTimeOffset now) =>
+        !IsHidden && State == EventState.SignupClosed && DraftLocked && ActualStartedAt is null
+        && draftState == DraftState.Finalized && EventEndsAt is { } end && now.ToUniversalTime() < end;
 
     public bool AcceptsNewSubmissions(DateTimeOffset now) =>
         !IsHidden && State is (EventState.Live or EventState.AwaitingFinalReview)
@@ -139,6 +164,14 @@ public sealed class BingoEvent
         && now.ToUniversalTime() < ActiveSubmissionCutoff();
 
     public void AdvanceVersion() => Version++;
+
+    /// <summary>Starts a new update epoch when official results are published.</summary>
+    public void ClearAnnouncements()
+    {
+        checked { AnnouncementGeneration++; }
+    }
+
+    public long ReserveAnnouncementOrdinal() => checked(++AnnouncementSequence);
 
     public void Hide(Guid actorId, DateTimeOffset hiddenAt, string confirmation, string reason)
     {
@@ -504,6 +537,10 @@ public sealed class BingoEvent
 
     private DateTimeOffset ActiveSubmissionCutoff()
     {
+        // Unfinalization retains FinalizedAt and clears the explicit reopen cutoff.
+        // A future ordinary cutoff must not reopen a previously finalized review cycle.
+        if (State == EventState.AwaitingFinalReview && FinalizedAt is not null && ReopenedSubmissionCutoffAt is null)
+            return DateTimeOffset.MinValue;
         var cutoff = ReopenedSubmissionCutoffAt is { } reopened && (SubmissionCutoffAt is null || reopened > SubmissionCutoffAt.Value) ? reopened : SubmissionCutoffAt;
         return cutoff ?? DateTimeOffset.MinValue;
     }

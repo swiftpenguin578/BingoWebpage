@@ -63,6 +63,7 @@ public sealed class Slice3LifecyclePersistenceIntegrationTests : IAsyncLifetime
                 INSERT INTO event_state_transitions (id, event_id, from_state, to_state, performed_by_account_id, performed_at, reason)
                 VALUES ({Guid.NewGuid()}, {retainedEndEventId}, {"Live"}, {"AwaitingFinalReview"}, {accountId}, {retainedTransitionPerformedAt}, {"retained scheduled end"});
                 """);
+            await RetainedCatalogueMigrationTestSupport.PrepareAsync(retained);
             await retained.GetService<IMigrator>().MigrateAsync();
         }
 

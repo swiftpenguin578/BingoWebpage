@@ -14,7 +14,20 @@ public sealed class BossActivity
     public bool Active { get; private set; }
     public long Version { get; private set; } = 1;
     public string? Notes { get; private set; }
-    public void Update(string name, string category, decimal? rate, string? externalId, string? source, string? notes, DateTimeOffset now, string? imageUrl = null) { Name = name; Category = category; EfficientCompletionsPerHour = rate; ExternalIdentifier = externalId; DataSource = source; Notes = notes; ImageUrl = imageUrl; DataUpdatedAt = now.ToUniversalTime(); }
+    public ApiMappingStatus MappingStatus { get; private set; }
+    public DateTimeOffset? MappingCheckedAt { get; private set; }
+    public void ConfigureApi(string? identifier)
+    {
+        identifier = string.IsNullOrWhiteSpace(identifier) ? null : identifier.Trim();
+        if (identifier == ExternalIdentifier) return;
+        ExternalIdentifier = identifier; MappingStatus = ApiMappingStatus.NotConfigured; MappingCheckedAt = null;
+    }
+    public void RecordMapping(ApiMappingStatus status, DateTimeOffset? checkedAt)
+    {
+        MappingStatus = ExternalIdentifier is null ? ApiMappingStatus.NotConfigured : status;
+        MappingCheckedAt = checkedAt?.ToUniversalTime();
+    }
+    public void Update(string name, string category, decimal? rate, string? externalId, string? source, string? notes, DateTimeOffset now, string? imageUrl = null) { Name = name; Category = category; EfficientCompletionsPerHour = rate; ConfigureApi(externalId); DataSource = source; Notes = notes; ImageUrl = imageUrl; DataUpdatedAt = now.ToUniversalTime(); }
     public void SetActive(bool active) => Active = active;
     public void AdvanceVersion() => Version++;
 }

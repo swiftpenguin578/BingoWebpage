@@ -286,7 +286,7 @@ is allowed only when the lifecycle state is `AWAITING_FINAL_REVIEW`,
 While hidden, an event cannot transition lifecycle or use any ordinary event
 workspace. It is absent from all public, participant, Captain/co-captain,
 emergency-authority, and ordinary-Admin discovery, history, account,
-submission, evidence, notification, action, audit, and realtime surfaces.
+submission, evidence, notification, action, and realtime surfaces.
 Guessed or
 direct event URLs return 404, including for Super Admins. The only exception is
 the separated Super Admin Events Control Hidden area and its limited Manage
@@ -297,6 +297,12 @@ history, assets, or storage. Hide and Restore emit no notification. Hidden is
 retention, never deletion, and because eligibility begins after Live, hidden
 events have no active-event scheduler, signup, singleton/window-collision, or
 active realtime processing.
+
+Hiding removes unwanted events from the front page and ordinary Admin Events table;
+concealing their details from Admin audit history is not a product requirement (C36,
+user clarification 2026-09-14). Admin audit is an exception to the projection restriction
+above; ordinary audit permissions and sensitive-data protections remain. This decision
+closes the additional audit-cleanup ticket without authorizing a new source change.
 
 This hidden-event slice adds no lifecycle enum value, deletion, global EF query
 filter, ordinary-Admin visibility, public Super Admin bypass, or full
@@ -471,7 +477,7 @@ EHB is used for board estimation, line balancing, player contribution statistics
 
 Any enabled Admin may create, edit, deactivate, or reactivate catalogue records. Routine changes are audited without requiring a written reason. Only the Super Admin may permanently delete a catalogue record, and only after strong confirmation and a complete dependency check proves that no source drop, board, asset/cache, import review, or historical record references it. Referenced records must be deactivated instead.
 
-Bulk catalogue preview and apply are Super-Admin-only. Apply requires a reviewed change preview and strong confirmation but no typed reason. A stale preview or unresolved conflict aborts the complete import.
+The application catalogue-import preview/apply interface is excluded by user decision (D03, reaffirmed 2026-09-14); existing operator tooling remains separate. Blocked catalogue deletion must protect dependencies and offer deactivation, but an individual dependency-reference list is not required (C26).
 
 ### 9.1 Boss or activity
 
@@ -517,6 +523,22 @@ Drop rate belongs to the connection between a boss/activity and an item, because
 
 Admins can add any drop to a boss, including low-value or intentionally humorous "troll" drops. A drop does not need to be part of a unique drop table.
 
+### 9.4 Expandable API mapping (agreed scope; implementation pending)
+
+Existing catalogue editing surfaces expose an expandable API mapping section:
+
+- Boss/activity: WOM metric identifier, using the existing external identifier field.
+- Item: OSRS item ID for the Wiki prices API, using the existing item external identifier
+  within boss/drop editing. This does not create a standalone item-management workflow.
+- Suggest a mapping when adding an entry, allow Admin correction, and provide an explicit
+  Validate mapping action with a clear result. Preserve shared item identity and normal
+  audit behavior when editing mappings.
+- Distinguish not configured, verified, unsupported and temporarily unavailable. An API
+  outage must not prevent saving. Missing boss mappings explain that Luck activity is
+  unavailable; missing pricing mappings explain use of the stored catalogue value.
+- A verified WOM mapping establishes metric support, not the availability of every
+  participant's activity. Validation must not claim otherwise.
+
 ## 10. Tile model
 
 ### 10.1 Tile fields
@@ -545,13 +567,28 @@ The normal admin flow is:
 5. Optionally change a drop's contribution value.
 6. Optionally configure a maximum contribution for a selected drop.
 
-Most tiles contain one requirement. A tile may contain multiple requirements when separate targets must all be met.
+Most tiles contain one requirement. A tile may contain multiple requirements when separate targets must all be met. All requirements within a tile must be of the same kind: either catalogue/drop objectives or custom/manual objectives. A tile must never combine both; use separate tiles instead. Enforce this in the editor and authoritative create/update/approval validation.
 
 Example:
 
 - Requirement A: Obtain 5 selected Barrows pieces.
 - Requirement B: Obtain 5 selected Moons of Peril pieces.
 - The tile completes only when both requirements are complete.
+
+Objective corrections preserve stable identity and evidence history (C20, approved
+2026-09-14). Wording-only title/description corrections remain allowed. After any
+submitted evidence exists for an objective, its substantive requirements/scoring and
+removal are locked, including when evidence is pending, rejected, reversed or withdrawn.
+Objectives without submitted evidence remain editable under the existing workflow.
+Private corrections leave the active published board usable until a valid replacement
+is published; newly arriving evidence must also be protected. See FUNCTIONAL_CONTRACTS
+6.2 for the correction boundary. This does not authorize historical evidence repair.
+
+An Admin may discard an open private board correction after confirming that all its
+unpublished board edits will be lost (C20 recovery approved 2026-09-14). This restores
+the working board from its current published version and closes the correction so a new
+one can begin. Published rules, submissions, progress and historical snapshots remain
+intact. This is not a rollback of published results or historical-data repair.
 
 ### 10.3 Duplicate behavior
 
@@ -797,6 +834,191 @@ Pending evidence does not count toward official progress or standings.
 
 When a team first reaches full-board completion, it is visibly marked as a finisher. The first finisher is marked as the provisional winner, but official placements remain subject to outstanding reviews and admin finalization.
 
+### 15.1 Stats data decisions (2026-09-15)
+
+The approved Stats prototype remains separate from production implementation. The
+following data rules are agreed; the Luck model still requires concrete validation and
+source-mechanics coverage before implementation:
+
+- Submission-derived Stats history uses submission time, never approval time. Only
+  approved, non-reversed evidence counts. If a later submission is approved before an
+  earlier submission, subsequently approving the earlier one recalculates affected
+  historical totals, completion times and milestone ordering using submission order.
+- Reversals recalculate affected Stats using the remaining valid approved evidence,
+  subject to the existing finalization and competitive-history rules.
+- Scoring lines follow existing rows and columns, without diagonals: a 5×5 board has
+  10 lines. The prototype's illustrative 12-row denominator is not a production rule.
+- Luck will not add a per-objective cutoff when a tile completes. The agreed assumption
+  is that teams move to unfinished objectives. This does not authorize accepting
+  submissions against completed tiles.
+
+#### Tile KC and Luck — approved 2026-09-16
+
+The team-specific tile sidebar adds a section matching the existing team EHB/Drop
+EHB sidebar. Its summary shows Team total, tile Luck and KC; an expandable
+Contributors list shows Luck, participant name and KC. When several bosses or modes
+are relevant, show separately labelled KC totals for each boss/mode in both the team
+summary and participant rows; do not combine different metrics into one KC number.
+Aggregate each participant's playing accounts and count each character/metric once,
+regardless of how many eligible items or requirements reuse it. Informational alts
+are excluded. Contributors display only participants with a known count greater than
+zero for the displayed boss/mode; omit zero/unknown rows, empty metric groups and an
+entirely empty Contributors disclosure. This presentation filter never removes accounts
+from team totals or Luck calculations. Preserve missing, estimated, incomplete and
+stale-data semantics in the underlying results and visible team status.
+
+Tile Luck counts only approved, non-reversed item submissions credited to the selected
+tile and team (one item per submission, independent of scoring weight). Its expected
+count uses the selected tile's distinct eligible item/source outcomes, their frozen
+first-approved event rates and corresponding full-event activity. Use the shared bounded probability-based Luck score below, including participant
+account aggregation; do not average percentages, add a completion cutoff or divide
+raid rates by team size again. Stats and tiles share the same score calculation;
+tile eligibility remains narrower. Existing tie selection remains unchanged.
+
+Reuse cached WOM activity and existing Luck rules; no provider call on tile access.
+Preserve coherent activity/evidence snapshots on failures, with accurate freshness and
+availability wording. Staleness retains compatible last-known KC and its contributors,
+including older saved event results without tile breakdowns. Recover tile Luck only
+when retained activity and the evidence revision are coherent; otherwise keep known KC
+visible and explain unavailable Luck. Age alone must not clear known activity. No-drop objectives remain valid and show an applicable empty
+state rather than an invented KC/Luck result. Preserve published-board visibility,
+privacy, history, evidence and submission controls across enhanced and direct routes.
+
+#### Drop value
+
+- Each approved item submission represents one actual item/drop. Scoring weight affects
+  board progress only, not item count or GP. Value the exact dropped variant.
+- Use OSRS Wiki real-time prices. Freeze event values at event start from the last
+  completed hour's buy/sell averages: their midpoint rounded to the nearest GP. Use
+  the available side if only one exists; otherwise use the stored catalogue value.
+- Populate values for existing catalogue items before deployment. New items require a
+  fetched or manually supplied value; 0 is valid and is distinct from missing.
+  API-backed catalogue prices can refresh, while explicit manual values remain manual.
+- The initial catalogue price population will be checked by the operators and serves
+  as the trusted baseline. Later API updates must detect suspicious changes against
+  the last trusted catalogue value; retain that value and flag the candidate for
+  checking instead of automatically accepting a suspected spike. Apply this protection
+  to event-start price selection as well as catalogue refresh. Recent price history
+  and trading volume may support the check; it is not a guarantee against manipulation.
+  Existing frozen event values remain immutable. Accepted guard: for a positive trusted
+  value, reject candidates strictly below 50% or strictly above 200% of that value;
+  exact boundaries are accepted. Flag any zero-to-positive or positive-to-zero change.
+  Without a trusted value, initial population still requires operator checking rather
+  than claiming this guard provides protection. Preserve explicit manual/untradeable
+  precedence. Use existing catalogue feedback/operator reporting with a persisted
+  rejected candidate/time flag, separate from mapping validity; no new event-price editor.
+  Rejected start candidates use trusted catalogue fallback with explicit rejection
+  provenance. Volume/history-based detection is deferred.
+- Reject adding a tile when any of its eligible drops lacks a stored catalogue GP
+  value. Objective tiles with no drops are exempt and remain valid; this rule never
+  requires a tile to have drops. An explicit 0 satisfies the price requirement;
+  null/Missing does not. Identify the
+  affected drop so its catalogue value can be supplied. Revalidate this prerequisite
+  when approving/publishing board changes to prevent later edits bypassing the gate.
+  This is catalogue completeness validation, not a live-provider availability check;
+  a provider outage alone must not prevent use of an existing stored value.
+- Untradeables default to 0 unless an admin changes their catalogue value. This includes
+  components such as vestiges and the Araxyte fang: do not automatically substitute the
+  sale value of an assembled tradeable item. An admin may explicitly assign a manual
+  catalogue value to represent that potential value (user confirmed 2026-09-16). Catalogue
+  updates affect future snapshots. No manual event-price editor or event-price correction
+  workflow is wanted; ongoing and past event snapshots remain frozen.
+
+- For any item introduced to an already-started event without an existing frozen event
+  value, require its stored catalogue value and freeze that value when introduced.
+  This covers newly created items and originally unused/unpriced catalogue items.
+  Zero is valid; a missing value blocks introduction. Do not fetch a historical price
+  to replace that introduction value. Record catalogue source and introduction time;
+  do not describe it as observed at event start. Existing event snapshots never change.
+- Retrospective Stats for the reconstructed Sommerbingo 2026 import are out of scope
+  for this implementation. Its existing archived board/history remains intact; aggregate
+  imported contribution units do not become asserted item drops, GP or Luck results.
+
+#### Bounded probability-based Luck — approved 2026-09-16
+
+The user replaced the former received/expected percentage with a custom probability-
+based score bounded from -100% to +100%, shared by Stats and tile Luck. Expected drop
+count remains neutral; the probability model controls how scores grow on either side.
+This is a normalized Luck score, not a literal excess-drop percentage, an unadjusted
+percentile, or a change to future drop probability.
+
+- Scope includes only board-eligible item/source outcomes and corresponding eligible
+  activity. Repeated placement on tiles must not duplicate drop chances or submissions.
+- Compare observed approved, non-reversed drops with expectation from eligible activity
+  and drop rates. One drop at a 1/100 rate is on rate after 100 eligible kills, ahead
+  after 50, and slightly behind after 101.
+- For each eligible item/source, calculate expected item count from eligible activity
+  and its loot mechanics. Sum those counts across items and sources. For a fixed
+  single-roll probability p over n eligible kills, expected count is n × p.
+  Multiple rolls must use expected item count, not probability of at least one item.
+- The first approved eligibility of an item/source outcome in the event establishes
+  its Luck probability and roll count. Duplicate placements and later board corrections
+  keep that first approved event rate; genuinely new outcomes capture their own first
+  approved rate. Catalogue edits must not silently change this event basis. An outcome
+  contributes one expected-count calculation regardless of how many tiles include it.
+- Received count is the number of qualifying approved, non-reversed item submissions:
+  one item per submission, regardless of progress weight or rarity. Two eligible items
+  from one kill yield two submissions and both count. No inverse-probability weighting.
+- For the modeled drop-count distribution X and observed count r, let
+  q(r) = P(X < r) + 0.5 × P(X = r). Let mu = E[X]. The neutral rank b is
+  q(mu) when mu is integral, otherwise linear interpolation of q(floor(mu))
+  and q(ceil(mu)). Score = 100 × (q(r) - b) / b below b, and
+  100 × (q(r) - b) / (1 - b) above b; equality gives zero. Both directions
+  stay within [-100,100]. Display rounding does not change ranking precision.
+- Build count distributions from frozen personal probabilities and recorded activity.
+  Outcomes in the same character/boss/mode/roll group are mutually exclusive;
+  sum eligible probabilities for that roll. Different groups and repeated rolls
+  are independent under the existing catalogue model. Combine independent count
+  distributions for aggregate results; never average scores. Known unsupported or
+  inconsistent mechanics give unavailable Luck, preserving known KC and counts.
+- User reconfirmed the catalogue personal-rate contract: use the saved probability
+  of receiving a drop in the player's own name at the configured team size. Pool
+  those modeled personal opportunities across accounts/players without a further
+  team-size correction or shared-encounter availability gate. This is a model using
+  personal opportunities, not a reconstruction of observed encounter membership.
+- Use a single replaceable domain calculation for the probability model and score.
+  Numerical tail truncation must have a bounded error, and excessive calculation
+  work must return unavailable rather than invent a score or block indefinitely.
+- Reuse the catalogue's personal probability per reward roll and configured rolls per
+  completion. The catalogue Team content callout already specifies own-name chance at
+  the team size used for the EHB rate. Raid points/scales use the existing configured
+  assumptions. Do not divide by team size again or reconstruct shared encounters for
+  this expected-count calculation. Team expectation is the sum of player expectations;
+  the former expected-count calculation alone did not require independence between
+  players; the bounded model pools personal opportunities as specified above.
+- Explain the measure as a custom probability-based Luck score: zero is on rate,
+  positive is lucky, negative is unlucky. Both ends are bounded by 100%; finite
+  results can round to an endpoint. +50% does not mean 50% more drops or the 50th
+  percentile. Current dry streaks remain distinct from overall event Luck;
+  competition totals do not identify kills since the player's last drop.
+- Compatible saved checkpoints are scored from their retained numerator, activity
+  and frozen source metadata using the shared formula, without refreshing their
+  original timestamps, rewriting historical evidence, or persisting on page reads.
+  Current approvals must not be mixed into an older retained calculation.
+- Valid zero eligible activity displays No eligible activity yet. Missing characters or
+  unavailable usable starting counts display Waiting for activity data. Approved drops
+  with no corresponding activity yet display Waiting for activity update, rather than
+  an invalid percentage. Missing data are never treated as zero kills or zero luck.
+- On a temporary WOM sync failure, retain the last successfully calculated result and
+  show its update time. Do not combine newly approved drops with a stale denominator
+  and present that as a freshly synchronized result.
+- A team with missing required player activity is explicitly incomplete; do not silently
+  omit those players and present the result as a complete team score.
+- Unranked hiscores values use these explicit rules, separately from missing/failed API
+  responses: both counts ranked use the reported gain; start -1 with ranked end assumes
+  a zero starting KC and marks the result estimated, because some kills may predate
+  the event. Both -1 with no approved drops for that source count as zero recorded
+  activity and do not alone make the team incomplete. Both -1 with an approved drop
+  display Waiting for activity data for that source, without inventing a denominator.
+  Ranked start with end -1 is unexpected; retain the last usable result and identify
+  the data issue. Zero recorded activity is an explicit approximation, not proof of
+  zero actual kills. Generic missing-start handling above excludes these agreed cases.
+- Concrete examples and correct mapping of WOM activity to catalogue sources must be
+  validated before implementation.
+- Mode counting confirmed by the user on 2026-09-16: CoX/CM, ToB/HM, ToA/Expert,
+  Gauntlet/Corrupted and Nightmare/Phosani have separate Hiscores KC totals. Use each
+  mapped mode's reported activity directly; do not subtract or combine the paired mode.
+
 ## 16. Player contribution leaderboard
 
 Because captains submit on behalf of players, every submission must credit the player who received the drop.
@@ -979,6 +1201,15 @@ Automatic waiting-list promotion normally stops once the draft is locked. After 
 
 Participant self-service withdrawal ends when the draft starts. An admin may still withdraw a drafted participant, including during a live event. This ends the current team membership and future eligibility while retaining the draft pick, former membership, registered accounts, evidence, and contributions as history. It creates a visible vacancy and never triggers automatic promotion.
 
+Approved 2026-09-14: the Admin departure/vacancy/explicit-replacement journey also
+applies after draft finalization and before actual Live start. It publishes the
+updated current roster while retaining prior publication snapshots and draft picks;
+account reservations and history remain. Pre-Live current membership changes are
+prospective from confirmation and confer no pre-start submission eligibility. Existing
+Live minute boundaries are unchanged. Running/Paused draft departures are explicitly
+deferred for a separate decision; there is no restored self-withdrawal, automatic
+promotion, draft-history erasure or bulk repair of old events.
+
 Admins contact waiting-list participants manually to confirm continued availability. The replacement picker shows original waiting-list order but allows the admin to select the person who is actually available. A normal replacement comes from the waiting list, already has frozen registered accounts/EHB, becomes confirmed, and joins the vacant team without rerunning or rewriting the draft. Post-draft accounts belonging to the departed participant remain reserved. Filling the vacancy is optional. If nobody on the waiting list is available, an admin may optionally create a new internal replacement with the same required participant/account/EHB validation and place them directly on the vacant team.
 
 A live withdrawal ends drop eligibility at the first full UTC minute after confirmation; the old participant remains eligible through the displayed request minute. A live replacement's primary account activates at the first full UTC minute after replacement confirmation. A later replacement therefore leaves an honest eligibility gap. Existing evidence from before withdrawal remains reviewable, and the replacement receives no retroactive eligibility.
@@ -1104,9 +1335,10 @@ Automatic audit history does not imply that the administrator must type a reason
 
 Historical audit data must not be casually deletable through the normal admin interface.
 
-Every enabled Admin may read the audit log, except event-linked records for a
-hidden event are omitted from ordinary-Admin audit projections. The limited
-SuperAdmin Manage inspection exposes that event's quarantine audit history. The
+Every enabled Admin may read the audit log under the normal audit permissions.
+Hiding is not an Admin-audit secrecy boundary (C36 closed, user clarification
+2026-09-14); no additional suppression or legacy association repair is required.
+The limited SuperAdmin Manage inspection still exposes quarantine audit history. The
 audit log is a newest-first, server-paginated table with 25 entries per page
 and filters for event, actor, action, entity, and date range. Pagination retains
 filters and reaches the complete retained history; the 25-row page size is not

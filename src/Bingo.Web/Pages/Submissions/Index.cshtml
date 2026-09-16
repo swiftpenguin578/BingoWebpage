@@ -145,11 +145,24 @@
     }
 
     <section class="captain-ledger" aria-labelledby="captain-ledger-heading">
-        <header class="public-pass2-ledger-heading">
+        <header class="public-pass2-ledger-heading captain-ledger-heading">
             <h2 id="captain-ledger-heading">@T["All team submissions"]</h2>
             <span aria-hidden="true"></span>
+            <div class="captain-ledger-status-filter">
+                <label for="submissions-ledger-status">@T["Status"]</label>
+                <div class="captain-ledger-select-wrap">
+                    <select id="submissions-ledger-status" class="public-ui-control-visual public-ui-control-visual--select" name="status" form="submissions-ledger-filters" data-captain-ledger-status>
+                        <option value="">@T["All statuses"]</option>
+                        @foreach (var status in Bingo.Web.Pages.Submissions.IndexModel.StatusOptions)
+                        {
+                            <option value="@status" selected="@(Model.StatusFilter == status ? "selected" : null)">@T[status]</option>
+                        }
+                    </select>
+                    <span class="public-ui-select-chevron" aria-hidden="true"></span>
+                </div>
+            </div>
         </header>
-        <form method="get" asp-page="/Submissions/Index" class="captain-ledger-filters" aria-label="@T["Search team submissions"]" data-captain-ledger-form data-captain-ledger-request-error="@T["Captain ledger request failed."]" data-captain-ledger-results-error="@T["Captain ledger results were missing from the response."]">
+        <form id="submissions-ledger-filters" method="get" asp-page="/Submissions/Index" class="captain-ledger-filters" aria-label="@T["Search team submissions"]" data-captain-ledger-form data-captain-ledger-request-error="@T["Captain ledger request failed."]" data-captain-ledger-results-error="@T["Captain ledger results were missing from the response."]">
             <input type="hidden" name="eventId" value="@Model.EventId" />
             <input type="hidden" name="teamId" value="@Model.TeamId" />
             <div class="public-pass2-field captain-ledger-search-field">

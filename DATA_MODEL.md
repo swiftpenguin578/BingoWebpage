@@ -930,6 +930,15 @@ Fields:
 
 An emergency captain account is an individual credential separately scoped to one event/team and disabled by default. Any enabled Admin may create multiple individual credentials for the same team. Its globally unique login username shares the normal login-identifier namespace. Initial password setup and later reset use the hashed 60-minute single-use token flow; the Admin never selects or sees the lasting password. Only an initialized credential may be explicitly enabled. Creation, setup/reset, enablement, use, and disablement are audited.
 
+Approved C38 policy (2026-09-14): finalized-draft pre-start emergency enablement is
+an explicit current grant. Its `active_from` must not retain a future scheduled-start
+floor that prevents usable access after an authorized early actual start; record the
+explicit enablement instant without retroactive eligibility. Actual event start and
+current lifecycle/role gates independently prohibit pre-start submission mutations.
+Do not bulk rewrite existing grants or disable/enable history. Cutoff disablement and
+explicit reopen/re-enable retain their established semantics.
+
+
 `expires_at` applies only to emergency or legacy password access, not to normal website-account captain/co-captain roles. Captain role history remains on `TeamMembershipRoleTransition`; lifecycle authorization determines whether that historical role can still mutate the event.
 
 Access role:
@@ -982,6 +991,39 @@ Required notifications are written with their surrounding accepted mutation. Ret
 Waiting-list promotion notifies the linked participant when present and enabled administrators, with the participant confirmation or Admin management destination and no private custom-answer, payment, note, OAuth-secret, or other unnecessary account data. Payment changes, private-note changes, and ordinary non-account answer corrections create no participant notification.
 
 Vacancy and replacement notifications target enabled administrators and the remaining or newly linked current Captain/co-Captain recipients as applicable. Evidence rejection targets the linked credited participant and current linked Captain/co-Captains, includes only the necessary event/tile/drop/reason detail, and does not target ordinary team members. When the credited participant is unlinked, the current Captain/co-Captain recipients cover the notification.
+
+### 8.4 Participant drop-announcement state
+
+Announcement acknowledgement and Drops NEW acknowledgement are independent of
+`PersonalNotification.ReadAt`. The active journey is `PUB-UPDATES-01` in
+FUNCTIONAL_CONTRACTS; DELIVERY_PLAN owns the approved implementation slice.
+
+- One unique account/event state stores the durable automatic-expansion cooldown
+  and last automatically announced approval ordinal. A claim requires an outstanding
+  eligible approval beyond that ordinal and atomically advances it only through
+  the claimed snapshot alongside the cooldown. No new tracking table is required.
+  Sparse unique account/submission records store banner and Drops acknowledgements;
+  bulk actions acknowledge the eligible rows under their ordinal snapshot boundary.
+  Approval does not fan out a record to every recipient.
+- Eligibility requires an enabled account, Confirmed participant and current
+  membership in an active team of the non-hidden Live/AwaitingFinalReview event.
+  This authorizes receiving every eligible approval in that event; it does not filter
+  approvals to the recipient's own credited player or team.
+  The later of the stable event tracking start and membership join boundary excludes
+  earlier history without losing approvals received while the account is offline.
+- Approval records immutable completion-at-that-approval metadata and an event-scoped
+  ordinal inside the existing serialized approval transaction. Queue snapshots use
+  the committed ordinal boundary so bulk dismissal and paging preserve later arrivals.
+  Competitive progress remains derived from approved evidence.
+- Dismissal clears the represented banner snapshot only. Successful evidence-popup
+  opening clears both states for that approval; CLEAR ALL NEW clears both across
+  the event's current action snapshot. Retries are idempotent and account-scoped.
+  Automatic expansion atomically claims a 120-second cooldown; dismissal starts it
+  again. Client navigation and another device cannot override it.
+- Reversal excludes that approval from current update eligibility. Finalization
+  advances the event tracking generation and clears all banner/NEW eligibility,
+  including offline accounts, while retaining actual approved feed/evidence history.
+  Unfinalizing cannot resurrect updates from the previous generation.
 
 ## 9. Global OSRS catalogue
 
@@ -1100,7 +1142,7 @@ DROP_REQUIREMENTS
 MANUAL
 ```
 
-`DROP_REQUIREMENTS` derives EHB from current catalogue/rate mechanics while the board is `DRAFT` and from its immutable approval snapshot once `VALIDATED`. It cannot store or use `manual_ehb`. `MANUAL` represents a custom objective and requires its explicitly configured manual EHB before board approval.
+`DROP_REQUIREMENTS` derives EHB from current catalogue/rate mechanics while the board is `DRAFT` and from its immutable approval snapshot once `VALIDATED`. It cannot store or use `manual_ehb`. `MANUAL` represents a custom objective and requires its explicitly configured manual EHB before board approval. Every requirement in a tile/template must match that single objective kind; mixed manual/drop requirements are invalid. Reject mixed create/update or new approval attempts without partial changes. Existing approved snapshots and historical competitive results are not rewritten; any retained invalid draft requires an explicit user correction into separate tiles.
 
 ### 10.3 BoardTile
 
@@ -1178,6 +1220,23 @@ tile_requirement_id, item_id_snapshot)`. A missing source-row maximum has effect
 value `1`; every alias for that item in the requirement must expose the same
 effective maximum or board approval fails. An explicit consistent maximum can
 override `1`. The same item in a sibling requirement is an independent objective.
+
+For C20 (planner-resolved implementation boundary, 2026-09-14), retain existing
+`BoardRequirementDropSnapshot` rows whose requirement is referenced by an immutable
+approval, even if private working requirements/tiles are removed. These retained rows
+provide immutable drop identity; authoritative rules/weights come from the appropriate
+approval tree, not mutable catalogue or the retained row's cached rule values. Resolve
+only within the authorized event/board/approval requirement using the exact retained
+`RequirementId + SourceDropId + ItemId` association. Missing or ambiguous associations
+fail closed; never guess, recreate lost IDs or choose the first match. Retention must
+not make removed private objectives current or visible across approval/event boundaries.
+Substantive no-evidence replacements must not reuse an approved identity for different
+rules or create duplicate identity candidates; wording-only edits retain identity.
+Protect evidence arriving during correction with consistent transaction/lock ordering
+across the directly affected mutation, submission and publication paths. This authorizes
+bounded retention using existing tables only, not migration, historical repair or source
+integration. Existing retained evidence/history remains readable through its authorized
+context; current ordinary submissions continue to use the active published contract.
 
 ### 10.7 Board resizing
 
@@ -1685,6 +1744,17 @@ An admin may use a one-click **Mark resolved anyway** override for an edge case 
 - Does not approve, reject, withdraw, or otherwise change the underlying submissions
 - Is recorded in the audit log and finalization snapshot
 
+C33 freshness uses the existing event version for stale final-review forms, advanced
+in the same transaction as relevant review mutations. An inspection's identity also
+includes the review cycle, team and a non-reusable revision of its relevant competitive
+inputs. Derive that bounded identity from existing immutable mutation identities and
+applicable publication/completion-correction facts; totals or timestamps alone cannot
+prove freshness after a change-and-return sequence. Keep prior resolutions as history
+and exclude stale identities from current readiness; do not delete them to simulate
+invalidation. Acknowledgment writes are not competitive-input changes. Use existing
+persistence by default; a demonstrated need for schema change requires planner resolution
+before code. Missing/ambiguous historical identity is not permission for reconstruction.
+
 ### 17.2 Finalization
 
 Finalization:
@@ -1895,3 +1965,149 @@ The data model is ready for architecture planning when it can represent and expl
 21. Pre-formed internal or external teams added before or after a draft without altering draft history.
 22. A partially built private board that remains editable while event signups are open.
 23. Orthogonal post-Live event quarantine metadata, retained relations, event-linked notification filtering, and fail-closed hide/restore access semantics.
+
+
+## Stats Pass 1 catalogue API metadata — authorized 2026-09-15
+
+CatalogueItem retains its existing external identifier for the exact Wiki item ID, nullable
+integer CatalogueValueGp, PriceSource (Missing/Api/Manual/Untradeable), PriceObservedAt,
+MappingStatus, MappingCheckedAt and matched name/icon. BossActivity retains its WOM metric
+identifier plus MappingStatus/MappingCheckedAt. Existing optimistic Version fields protect
+shared-item edits and background/operator writes. Missing legacy prices stay null; zero is
+valid. Identifier changes invalidate verification and API-derived values. Manual values
+survive automatic refresh. Untradeable zero requires explicit classification, never mere
+absence from a tradeable mapping/price response. Existing drop probabilities, rolls and
+all event snapshots remain unchanged. Catalogue snapshot version 2 round-trips new fields;
+version 1 input preserves existing API metadata where identity is unchanged. Explicit API
+validation and price writes participate in existing catalogue audit transactions.
+
+
+## Stats Pass 2 event item prices and candidate guard — authorized 2026-09-15
+
+`EventItemPrice` has the composite primary key `(EventId, ItemId)` and non-null integer
+`ValueGp`. `SelectedHour` is the original event's last completed UTC hour; `CapturedAt`
+is the actual start or successful published introduction time. `Source` distinguishes
+WikiHourly, CatalogueFallback and CatalogueIntroduction. `ApiItemId`, `PriceObservedAt`,
+`FallbackCatalogueSource` and `FallbackReason` preserve the exact mapping and provenance.
+The latter distinguishes missing mapping/trades, provider failure, prepared-hour mismatch
+and PriceMoveRejected. A catalogue fallback's observation time is never relabelled as the
+selected API hour. Nullable catalogue observation time means unknown, not event start.
+EF rejects changes to persisted price properties; a PostgreSQL trigger rejects UPDATE.
+Item foreign keys retain catalogue identities; event-owned cleanup may cascade its rows.
+
+`BingoEvent.ItemPricesCapturedAt` is set atomically with the first supported lifecycle
+start and its available catalogue-wide values. Unused unavailable identities receive no
+fabricated row; empty objective-only boards are valid. Migration leaves this marker null
+and prices absent on preexisting starts, including the excluded reconstructed import.
+Late publication never reconstructs history for those events. A new successful published
+correction for a captured event inserts any missing item values from the current catalogue,
+under the event row lock/version and item uniqueness constraint. Zero is valid; absent
+catalogue values reject introduction. Existing prices survive edits, retries and resume.
+
+`CatalogueItem.RejectedPriceGp` and `RejectedPriceObservedAt` retain a rejected candidate
+and its provider hour together, independently of mapping validity. The accepted guard
+rejects values outside 0.5×–2× of a positive trusted catalogue baseline and positive↔zero
+changes; exact boundaries and zero→zero pass. No baseline creates no invented comparison.
+Ordinary API refresh preserves explicit manual/untradeable values. Accepted API values or
+explicit manual corrections clear the flag. A real mapping identity change clears obsolete
+rejection metadata; unchanged-mapping missing/outage responses retain it. Rejected
+start candidates use the stored catalogue fallback, with flags/audit in the same start
+transaction. Catalogue snapshot v2 also round-trips these optional fields; v1 stays valid.
+
+## Stats Pass 3 retained Luck bases and raw activity — implemented 2026-09-15
+
+`event_luck_outcome_bases` has the unique key `(event_id, source_drop_id,
+item_id_snapshot)`. It retains the first approval/drop snapshot IDs, first approval time,
+boss identity, personal probability, rolls, probability scope, parent/participant assumptions,
+roll group and rate-condition provenance. Identical duplicate placements in one earliest
+approval share one basis. Tied earliest approvals, conflicting mechanics and missing source
+identity remain explicit unavailable states. The item/source keys are retained snapshot
+identities; missing mutable catalogue rows must not force a guessed identity or delete history.
+
+Successful board approval captures the basis in its existing transaction, including approval
+before event start. Publication and synchronization can initialize existing retained approvals
+only with the same unambiguous-earliest proof. The additive migration performs no historical
+backfill. A verified known WOM mapping may bind once; the basis stores its exact metric,
+validation/binding times, catalogue version and source revision (1 unbound, 2 bound).
+An immutable PostgreSQL UPDATE trigger permits only that first binding; subsequent catalogue
+mapping or rate edits cannot rewrite the event basis. Unverified mode semantics remain a
+separate availability gate even when the exact configured metric has been retained.
+
+`event_competition_character_metric_activity` is keyed by `(event_id, generation,
+osrs_character_id, metric)`. It stores competition and assignment identity, raw start/end/gain,
+coverage, latest issue/attempt time, and each usable observation's original fetch/upstream time,
+activity batch and source-request fingerprint. A failed or malformed observation retains the
+last usable raw values and their origin. If no usable observation exists, values/fetch time
+stay null and the request identity carries its missing/invalid status. The zero-recorded and
+estimated-baseline states preserve the agreed -1 approximations; approved-source-drop presence
+is evaluated separately and never invented from provider data.
+
+The existing synchronization row owns the source-request fingerprint, metric batch ID,
+latest raw metric completeness and last metric attempt, separately from existing EHB metadata.
+The fingerprint includes active approval/drop identities, deduplicated outcome bases/mechanics,
+bindings/revisions and unavailable required outcomes. Capture and commit recheck run under the
+event write boundary with competition/generation/lease/assignment checks. The raw-cache reader
+uses a consistent database snapshot and rejects incompatible source/assignment/competition
+rows, reports partial/stale state, and performs no HTTP request or Luck-score calculation.
+All regular Playing assignments contribute full competition deltas; informational and released
+assignments are excluded. The EHB table and its existing projection remain the EHB owners.
+
+
+## Stats Pass 4 evidence revisions and full Luck checkpoint — implemented 2026-09-15
+
+`events.stats_evidence_revision` advances in the existing event transaction for successful
+approval/reversal (including rebalanced contributions), board approval/publication changes,
+completion-time corrections and lifecycle changes affecting Stats. It is a concurrency token;
+the initial additive migration starts existing events at zero and invents no evidence or calculation.
+`stats_luck_invalidated_at_revision` records the last non-additive Stats revision. A purely
+additive submission approval advances the evidence revision without moving this boundary;
+reversal, correction and other Stats revision changes move both together in the same transaction.
+`20260915190625_RetainLuckAfterAdditiveApproval` initializes this boundary to each existing
+event's current evidence revision, without guessing whether earlier changes were additive.
+PostgreSQL constrains the boundary to the interval from zero through the current revision.
+
+`event_stats_luck_checkpoints` contains at most one row per event. Schema version 1 stores
+a bounded JSON object (maximum 8 MiB) containing only public player/team/source identities,
+received/expected values, result/availability states and their original times. It stores the
+evidence revision, competition/generation/activity-batch identity, assignment/public-roster
+fingerprint, source/basis fingerprint, lifecycle fingerprint, calculated time, fetch time and
+nullable upstream time. Oversized calculations remain readable without truncating identities
+or lists; they are not persisted as checkpoints. PostgreSQL enforces the schema version,
+object/size bound and restrictive event foreign key. The isolated Development reset's explicit
+dependency list includes the table.
+
+The existing evidence and synchronization owners capture checkpoints before committing their
+event transaction. Manual and scheduled end, final-review completion corrections, finalization,
+archive and unfinalization use the same capture boundary. A new calculation requires a successful compatible activity
+batch inside the existing two-hour freshness window. Partial current batches retain explicit
+per-player/source incompleteness; an already compatible complete checkpoint may instead retain
+its original full result and times with a stale label after a partial/failed observation.
+Purely additive approvals during an outage may retain that same full old calculation when its
+revision is at or after the event's invalidation boundary and every other compatibility key
+still matches. The Luck DTO retains its original evidence revision, numerator, activity,
+expectation and times; the newer approval appears in current GP/progress separately.
+The bounded-score change approved 2026-09-16 recomputes only the derived Luck score
+from those retained counts and frozen source mechanics in memory. It does not persist
+on reads, rewrite original evidence or refresh timestamps. No current numerator
+is combined with a retained denominator and called fresh.
+
+Reads use one Repeatable Read (or existing Serializable) snapshot for the whole Stats response.
+Checkpoint writes lock the event and still require the exact current evidence/activity/source/
+assignment/lifecycle key; compare-and-write also rejects older revisions/calculation times. A reversal or
+incompatible board, assignment, competition or lifecycle transition invalidates prior presentation.
+When no compatible calculation can replace it, Luck remains waiting/incomplete. Frozen item
+prices, first-approved rate identities and retained official placements survive those transitions.
+The query exposes official completion from existing snapshots and does not calculate an
+alternative official placement. Public query access requires the existing published-board
+boundary, public event state, and supported actual-evidence history; the reconstructed
+Sommerbingo import remains excluded. No Stats page, route, preference or artwork editor is
+introduced by Pass 4.
+
+### Stats presentation persistence (Pass 5)
+
+Existing `Account.StatsGuidanceHidden` defaults to false and uses the account version for
+owner-only saves. Existing `CatalogueItem` owns nullable artwork X/Y (0–100), width
+(5–150), height (5–200), scale (0.5–2.5), and rotation (−180–180). These are the approved
+editor's percentages/degrees. All six are null for the original responsive fit, or all
+are present and bounded. Super Admin saves/reset use the existing item version and
+audit transaction; Cancel does not write. No additional preferences/artwork table.

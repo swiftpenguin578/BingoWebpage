@@ -4946,6 +4946,12 @@ body.admin-shell-body {
 .admin-shell-body .admin-catalogue-page .catalogue-add-drop-fields,
 .admin-shell-body .admin-catalogue-page .catalogue-add-drop-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
 .admin-shell-body .admin-catalogue-page .catalogue-editor-wide { grid-column: 1 / -1; }
+.admin-shell-body .admin-catalogue-page .catalogue-api-section { margin-block: 0.75rem; min-width: 0; }
+.admin-shell-body .admin-catalogue-page .catalogue-api-section > summary { cursor: pointer; font-size: 0.8125rem; font-weight: 600; }
+.admin-shell-body .admin-catalogue-page .catalogue-api-section > form { margin-top: 0.75rem; }
+.admin-shell-body .admin-catalogue-page .catalogue-api-section p { margin: 0; color: var(--admin-muted); font-size: 0.75rem; overflow-wrap: anywhere; }
+.admin-shell-body .admin-catalogue-page .catalogue-api-section .catalogue-editor-actions { flex-wrap: wrap; }
+
 .admin-shell-body .admin-catalogue-page .catalogue-editor-actions,
 .admin-shell-body .admin-catalogue-page .catalogue-add-drop-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
 .admin-shell-body .admin-catalogue-page .catalogue-drop-section { display: grid; gap: 0.75rem; }

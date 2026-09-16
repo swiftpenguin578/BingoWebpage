@@ -97,6 +97,22 @@ public sealed class Board
         PublishedCorrectionInProgress = true;
         MarkChanged();
     }
+    public void DiscardPublishedCorrection(BoardApprovalSnapshot approval)
+    {
+        if (State != BoardState.Published || !PublishedCorrectionInProgress ||
+            approval.BoardId != Id || approval.Id != ActiveApprovalSnapshotId)
+            throw new InvalidOperationException("Only an open correction of the current published board can be discarded.");
+        Name = approval.Name;
+        Rows = approval.Rows;
+        Columns = approval.Columns;
+        TotalEhbEstimate = approval.TotalEhbEstimate;
+        CalculationVersion = approval.CalculationVersion;
+        PublishedCorrectionInProgress = false;
+        EditorAccountId = null;
+        EditorLeaseExpiresAt = null;
+        EditControlVersion++;
+        MarkChanged();
+    }
     private void EnsureEditable() { if (!IsEditable) throw new InvalidOperationException("Published boards cannot be edited normally."); }
     private static void ValidateDimensions(int rows, int columns) { ArgumentOutOfRangeException.ThrowIfLessThan(rows, 1); ArgumentOutOfRangeException.ThrowIfGreaterThan(rows, 8); ArgumentOutOfRangeException.ThrowIfLessThan(columns, 1); ArgumentOutOfRangeException.ThrowIfGreaterThan(columns, 8); }
 }

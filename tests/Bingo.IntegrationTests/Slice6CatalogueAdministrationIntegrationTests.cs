@@ -38,7 +38,7 @@ using CatalogueIndexModel = Bingo.Web.Pages.Admin.Catalogue.IndexModel;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifetime
+public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice6_catalogue_administration")
@@ -186,6 +186,38 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
     }
 
     [Fact]
+    public async Task FinalWikiRetryAfterIsRetainedAcrossManualImporterInstances()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var boss = new BossActivity(Guid.NewGuid(), "Abyssal Sire", $"abyssal-sire-{Guid.NewGuid():N}", "Boss", 10m, now);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            foreach (var existingBoss in await setup.BossActivities.ToListAsync()) existingBoss.SetActive(false);
+            setup.BossActivities.Add(boss);
+            await setup.SaveChangesAsync();
+        }
+
+        var clock = new WallClock();
+        var handler = new FinalAttemptRateLimitWikiHandler();
+        var factory = new RateLimitedWikiClientFactory(handler);
+        WikiCatalogueDryRunReport firstReport;
+        await using (var firstContext = new ApplicationDbContext(options))
+        {
+            var importer = new OsrsWikiCatalogueDryRunService(factory, firstContext, clock);
+            firstReport = await importer.RunAsync();
+        }
+
+        Assert.Equal(1, firstReport.UnmatchedCount);
+        Assert.Equal(6, handler.RequestCount);
+
+        await using var secondContext = new ApplicationDbContext(options);
+        var secondReport = await new OsrsWikiCatalogueDryRunService(factory, secondContext, clock).RunAsync();
+
+        Assert.Equal(1, secondReport.UnmatchedCount);
+        Assert.Equal(6, handler.RequestCount);
+    }
+
+    [Fact]
     public async Task DraftBoardUsesCurrentCatalogueRatesAndRejectsMismatchedManagedTileImages()
     {
         var now = DateTimeOffset.UtcNow;
@@ -194,6 +226,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         var secondEvent = new BingoEvent(Guid.NewGuid(), "Second board", $"second-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
         var boss = new BossActivity(Guid.NewGuid(), "Current boss", "current-boss", "Boss", 10m, now);
         var item = new CatalogueItem(Guid.NewGuid(), "Current item", "CURRENT ITEM");
+        item.SetPrice(0, CataloguePriceSource.Manual, now);
         var drop = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, "1/10", .1m, null, now);
         var template = new TileTemplate(Guid.NewGuid(), "Current tile", "", ObjectiveType.DropRequirements, string.Empty, null);
         var firstBoard = new Board(Guid.NewGuid(), firstEvent.Id, "Board", 1, 1);
@@ -234,6 +267,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         {
             var page = Page(approving, admin.Id);
             page.BoardVersion = 1;
+            page.ApprovalCatalogueFingerprint = (await LoadBoardAsync(firstEvent.Id, admin.Id)).ApprovalCatalogueFingerprint;
             Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(firstEvent.Id, false, CancellationToken.None));
         }
         await using (var approved = new ApplicationDbContext(options))
@@ -350,6 +384,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         {
             var page = Page(approving, admin.Id);
             page.BoardVersion = 1;
+            page.ApprovalCatalogueFingerprint = (await LoadBoardAsync(bingoEvent.Id, admin.Id)).ApprovalCatalogueFingerprint;
             Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, false, CancellationToken.None));
         }
         await using (var verify = new ApplicationDbContext(options))
@@ -383,6 +418,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         {
             var page = Page(reapproving, admin.Id);
             page.BoardVersion = 3;
+            page.ApprovalCatalogueFingerprint = (await LoadBoardAsync(bingoEvent.Id, admin.Id)).ApprovalCatalogueFingerprint;
             Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, false, CancellationToken.None));
         }
         await using (var editing = new ApplicationDbContext(options))
@@ -436,6 +472,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         await using (var approval = new ApplicationDbContext(options))
         {
             var page = Page(approval, admin.Id); page.BoardVersion = 1;
+            page.ApprovalCatalogueFingerprint = (await LoadBoardAsync(bingoEvent.Id, admin.Id)).ApprovalCatalogueFingerprint;
             await page.OnPostApproveAsync(bingoEvent.Id, false, CancellationToken.None);
         }
         await using (var release = new ApplicationDbContext(options))
@@ -564,6 +601,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
             var currentVersion = await missingReplacementConfirmation.Boards.Where(value => value.Id == board.Id).Select(value => value.Version).SingleAsync();
             var page = Page(missingReplacementConfirmation, admin.Id);
             page.BoardVersion = currentVersion;
+            page.ApprovalCatalogueFingerprint = (await LoadBoardAsync(bingoEvent.Id, admin.Id)).ApprovalCatalogueFingerprint;
             Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, false, CancellationToken.None));
         }
         await using (var staleReplacementConfirmation = new ApplicationDbContext(options))
@@ -571,6 +609,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
             var currentVersion = await staleReplacementConfirmation.Boards.Where(value => value.Id == board.Id).Select(value => value.Version).SingleAsync();
             var page = Page(staleReplacementConfirmation, admin.Id);
             page.BoardVersion = currentVersion - 1;
+            page.ApprovalCatalogueFingerprint = (await LoadBoardAsync(bingoEvent.Id, admin.Id)).ApprovalCatalogueFingerprint;
             Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, true, CancellationToken.None));
         }
         var failingReplacementOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(new ThrowOnAuditInsert()).Options;
@@ -579,6 +618,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
             var currentVersion = await failingReplacement.Boards.Where(value => value.Id == board.Id).Select(value => value.Version).SingleAsync();
             var page = Page(failingReplacement, admin.Id);
             page.BoardVersion = currentVersion;
+            page.ApprovalCatalogueFingerprint = (await LoadBoardAsync(bingoEvent.Id, admin.Id)).ApprovalCatalogueFingerprint;
             Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, true, CancellationToken.None));
         }
         await using (var afterReplacementFailures = new ApplicationDbContext(options))
@@ -599,6 +639,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
             var currentVersion = await replaceApproval.Boards.Where(value => value.Id == board.Id).Select(value => value.Version).SingleAsync();
             var page = Page(replaceApproval, admin.Id);
             page.BoardVersion = currentVersion;
+            page.ApprovalCatalogueFingerprint = (await LoadBoardAsync(bingoEvent.Id, admin.Id)).ApprovalCatalogueFingerprint;
             Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(bingoEvent.Id, true, CancellationToken.None));
         }
 
@@ -684,6 +725,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         {
             var page = Page(publishCorrection, admin.Id);
             page.BoardVersion = workspaceVersion;
+            page.ApprovalCatalogueFingerprint = (await LoadBoardAsync(eventId, admin.Id)).ApprovalCatalogueFingerprint;
             var result = await page.OnPostApproveAsync(eventId, true, CancellationToken.None);
             if (hidden)
                 Assert.IsType<NotFoundResult>(result);
@@ -837,6 +879,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         await using (var approval = new ApplicationDbContext(options))
         {
             var page = Page(approval, admin.Id); page.BoardVersion = 1;
+            page.ApprovalCatalogueFingerprint = (await LoadBoardAsync(bingoEvent.Id, admin.Id)).ApprovalCatalogueFingerprint;
             await page.OnPostApproveAsync(bingoEvent.Id, false, CancellationToken.None);
         }
         await using (var release = new ApplicationDbContext(options))
@@ -937,6 +980,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         await using var publicationContext = new ApplicationDbContext(publicationOptions);
         var publicationPage = Page(publicationContext, admin.Id);
         publicationPage.BoardVersion = boardVersion;
+        publicationPage.ApprovalCatalogueFingerprint = (await LoadBoardAsync(eventId, admin.Id)).ApprovalCatalogueFingerprint;
         var publication = publicationPage.OnPostApproveAsync(eventId, true, CancellationToken.None);
         Task observed;
         try
@@ -1158,11 +1202,13 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         await using (var incompleteAttempt = new ApplicationDbContext(options))
         {
             var page = Page(incompleteAttempt, admin.Id); page.BoardVersion = 1;
+            page.ApprovalCatalogueFingerprint = (await LoadBoardAsync(incompleteEvent.Id, admin.Id)).ApprovalCatalogueFingerprint;
             Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(incompleteEvent.Id, false, CancellationToken.None));
         }
         await using (var missingEhbAttempt = new ApplicationDbContext(options))
         {
             var page = Page(missingEhbAttempt, admin.Id); page.BoardVersion = 1;
+            page.ApprovalCatalogueFingerprint = (await LoadBoardAsync(missingEhbEvent.Id, admin.Id)).ApprovalCatalogueFingerprint;
             Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(missingEhbEvent.Id, false, CancellationToken.None));
         }
         await using var verify = new ApplicationDbContext(options);
@@ -1192,6 +1238,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         await using var secondContext = new ApplicationDbContext(options);
         var first = Page(firstContext, admin.Id); first.BoardVersion = 1;
         var second = Page(secondContext, admin.Id); second.BoardVersion = 1;
+        first.ApprovalCatalogueFingerprint = second.ApprovalCatalogueFingerprint = (await LoadBoardAsync(bingoEvent.Id, admin.Id)).ApprovalCatalogueFingerprint;
         await Task.WhenAll(first.OnPostApproveAsync(bingoEvent.Id, false, CancellationToken.None), second.OnPostApproveAsync(bingoEvent.Id, false, CancellationToken.None));
 
         await using var verify = new ApplicationDbContext(options);
@@ -1207,7 +1254,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
 
     private async Task<BoardModel> LoadBoardAsync(Guid eventId, Guid accountId)
     {
-        var db = new ApplicationDbContext(options);
+        await using var db = new ApplicationDbContext(options);
         var page = Page(db, accountId);
         Assert.IsType<PageResult>(await page.OnGetAsync(eventId, CancellationToken.None));
         return page;
@@ -1220,14 +1267,30 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
             User = new ClaimsPrincipal(new ClaimsIdentity(
                 [new Claim(ClaimTypes.NameIdentifier, accountId.ToString()), new Claim(ClaimTypes.Name, "admin")], "test"))
         };
+        var actionContext = new ActionContext(context, new RouteData(), new PageActionDescriptor());
+        actionContext.RouteData.Values["page"] = "/Admin/Events/Board";
+        actionContext.ActionDescriptor.RouteValues["page"] = "/Admin/Events/Board";
         return new BoardModel(db, TimeProvider.System, new AuditWriter(db, TimeProvider.System), new NullAdminCollaborationNotifier(), new TestStorage())
         {
-            PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
+            PageContext = new PageContext(actionContext),
+            Url = new ApprovalFixtureUrlHelper(actionContext),
             TempData = new TempDataDictionary(context, new TestTempDataProvider())
         };
     }
 
-    private static CatalogueIndexModel CataloguePage(ApplicationDbContext db, Guid accountId, bool superAdmin)
+    // Direct-handler tests only need a URL placeholder while loading the approval form.
+    // Rendered route and image behavior is exercised separately through HTTP.
+    private sealed class ApprovalFixtureUrlHelper(ActionContext actionContext) : IUrlHelper
+    {
+        public ActionContext ActionContext { get; } = actionContext;
+        public string? Action(Microsoft.AspNetCore.Mvc.Routing.UrlActionContext action) => null;
+        public string? Content(string? contentPath) => contentPath;
+        public bool IsLocalUrl(string? url) => url?.StartsWith('/') == true;
+        public string? Link(string? routeName, object? values) => null;
+        public string? RouteUrl(Microsoft.AspNetCore.Mvc.Routing.UrlRouteContext route) => "/fixture-tile-image";
+    }
+
+    private static CatalogueIndexModel CataloguePage(ApplicationDbContext db, Guid accountId, bool superAdmin, ICatalogueApiClient? api = null)
     {
         var claims = new List<Claim>
         {
@@ -1236,7 +1299,7 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
         };
         if (superAdmin) claims.Add(new Claim(ClaimTypes.Role, GlobalRole.SuperAdmin.ToString()));
         var context = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test")) };
-        return new CatalogueIndexModel(db, TimeProvider.System)
+        return new CatalogueIndexModel(db, TimeProvider.System, catalogueApi: api)
         {
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new TestTempDataProvider())
@@ -1341,5 +1404,34 @@ public sealed class Slice6CatalogueAdministrationIntegrationTests : IAsyncLifeti
                 Content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json")
             });
         }
+    }
+
+    private sealed class RateLimitedWikiClientFactory(HttpMessageHandler handler) : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new(handler) { BaseAddress = new Uri("https://oldschool.runescape.wiki/") };
+    }
+
+    private sealed class FinalAttemptRateLimitWikiHandler : HttpMessageHandler
+    {
+        private int requestCount;
+        public int RequestCount => Volatile.Read(ref requestCount);
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var number = Interlocked.Increment(ref requestCount);
+            var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+            {
+                RequestMessage = request,
+                Content = new StringContent(string.Empty)
+            };
+            response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(
+                number == 6 ? TimeSpan.FromSeconds(60) : TimeSpan.FromMilliseconds(1));
+            return Task.FromResult(response);
+        }
+    }
+
+    private sealed class WallClock : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UtcNow;
     }
 }

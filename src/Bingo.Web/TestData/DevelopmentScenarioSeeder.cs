@@ -1182,12 +1182,22 @@ public sealed class DevelopmentScenarioSeeder(
         var tile = db.BoardTiles.Local.Where(value => value.BoardId == board.Id).OrderBy(value => value.RowIndex).ThenBy(value => value.ColumnIndex).Skip(5).First();
         var requirement = db.BoardRequirementSnapshots.Local.First(value => value.BoardTileId == tile.Id);
         var drop = requirement.ManualObjective ? null : db.BoardRequirementDropSnapshots.Local.First(value => value.RequirementId == requirement.Id);
+        var da07Tile = db.BoardTiles.Local.Single(value => value.BoardId == board.Id && value.NameSnapshot == "Superior Slayer");
+        var da07Requirement = db.BoardRequirementSnapshots.Local.Single(value => value.BoardTileId == da07Tile.Id && value.ManualObjective);
 
-        async Task<Submission> AddStateAsync(SubmissionStatus status, string note, byte color)
+        async Task<Submission> AddStateAsync(SubmissionStatus status, string note, byte color, BoardTile? selectedTile = null, BoardRequirementSnapshot? selectedRequirement = null, string? selectedDropItem = null)
         {
             var submittedAt = now.AddMinutes(-20 - color);
             var credited = PrimaryCharacterSnapshot(participant);
-            var submission = new Submission(Guid.NewGuid(), eventId, team.Id, tile.Id, requirement.Id, drop?.Id, participant.Id, credited.Id, credited.Name, captain.Id, drop?.CreditedWeight ?? 1, submittedAt, note, null);
+            var targetTile = selectedTile ?? tile;
+            var targetRequirement = selectedRequirement ?? requirement;
+            var targetDrop = targetRequirement.ManualObjective
+                ? null
+                : selectedDropItem is null
+                    ? db.BoardRequirementDropSnapshots.Local.First(value => value.RequirementId == targetRequirement.Id)
+                    : db.BoardRequirementDropSnapshots.Local.Single(value => value.RequirementId == targetRequirement.Id && value.ItemName == selectedDropItem);
+            var claimedWeight = targetRequirement.ManualObjective ? targetRequirement.TargetContribution : targetDrop?.CreditedWeight ?? 1;
+            var submission = new Submission(Guid.NewGuid(), eventId, team.Id, targetTile.Id, targetRequirement.Id, targetDrop?.Id, participant.Id, credited.Id, credited.Name, captain.Id, claimedWeight, submittedAt, note, null);
             var stored = await StoreSeedImageAsync(eventId, submission.Id, $"review-{status}.png", color, cancellationToken);
             db.Submissions.Add(submission);
             db.EvidenceAssets.Add(SeedAsset(submission.Id, captain.Id, stored, EvidenceAssetRole.OriginalEvidence, submittedAt));
@@ -1214,7 +1224,29 @@ public sealed class DevelopmentScenarioSeeder(
             return submission;
         }
 
-        await AddStateAsync(SubmissionStatus.Pending, "Pending evidence for Admin review testing.", 21);
+        await AddStateAsync(SubmissionStatus.Pending, "DA-07 pending non-drop completion: Superior Slayer.", 21, da07Tile, da07Requirement);
+        var additionalPending = new[]
+        {
+            (Tile: "Vorkath", Item: "Dragonbone necklace", Note: "Seeded pending live review: Vorkath / Dragonbone necklace.", Color: (byte)26),
+            (Tile: "Phosani's Nightmare", Item: "Harmonised orb", Note: "Seeded pending partial progress: Phosani's Nightmare / Harmonised orb.", Color: (byte)27),
+            (Tile: "Yama", Item: "Oathplate chest", Note: "Seeded pending live review: Yama / Oathplate chest.", Color: (byte)28),
+            (Tile: "The Hueycoatl", Item: "Dragon hunter wand", Note: "Seeded pending live review: The Hueycoatl / Dragon hunter wand.", Color: (byte)29),
+            (Tile: "Sarachnis", Item: "Sarachnis cudgel", Note: "Seeded pending live review: Sarachnis / Sarachnis cudgel.", Color: (byte)30),
+            (Tile: "Grotesque Guardians", Item: "Granite hammer", Note: "Seeded pending live review: Grotesque Guardians / Granite hammer.", Color: (byte)31),
+            (Tile: "Theatre of Blood", Item: "Avernic defender hilt", Note: "Seeded pending live review: Theatre of Blood / Avernic defender hilt.", Color: (byte)32),
+            (Tile: "Corp", Item: "Spirit shield", Note: "Seeded pending live review: Corp / Spirit shield.", Color: (byte)33),
+            (Tile: "Maggot King", Item: "Crimson kisten", Note: "Seeded pending live review: Maggot King / Crimson kisten.", Color: (byte)34),
+            (Tile: "Alchemical Hydra", Item: "Hydra's claw", Note: "Seeded pending live review: Alchemical Hydra / Hydra's claw.", Color: (byte)35),
+            (Tile: "Zulrah", Item: "Magic fang", Note: "Seeded pending live review: Zulrah / Magic fang.", Color: (byte)36),
+            (Tile: "Doom", Item: "Avernic treads", Note: "Seeded pending live review: Doom / Avernic treads.", Color: (byte)37),
+            (Tile: "Fortis Colosseum", Item: "Sunfire fanatic helm", Note: "Seeded pending live review: Fortis Colosseum / Sunfire fanatic helm.", Color: (byte)38)
+        };
+        foreach (var pending in additionalPending)
+        {
+            var pendingTile = db.BoardTiles.Local.Single(value => value.BoardId == board.Id && value.NameSnapshot == pending.Tile);
+            var pendingRequirement = db.BoardRequirementSnapshots.Local.Single(value => value.BoardTileId == pendingTile.Id);
+            await AddStateAsync(SubmissionStatus.Pending, pending.Note, pending.Color, pendingTile, pendingRequirement, pending.Item);
+        }
         var rejected = await AddStateAsync(SubmissionStatus.Rejected, "Rejected evidence for linked-resubmission testing.", 22);
         await AddStateAsync(SubmissionStatus.Withdrawn, "Withdrawn evidence for retained-ledger testing.", 23);
         await AddStateAsync(SubmissionStatus.Reversed, "Reversed evidence for corrected-child testing.", 25);
@@ -2118,6 +2150,7 @@ public sealed class DevelopmentScenarioSeeder(
             TRUNCATE TABLE
                 team_focus_markers, event_participant_character_swaps,
                 official_placements, event_finalizations, final_review_resolutions, team_completion_corrections,
+                drop_announcement_acknowledgements, drop_announcement_account_states,
                 submission_contributions, review_actions, evidence_assets, submissions, evidence_codes,
                 draft_publication_rosters, draft_publication_cycles, team_membership_role_transitions,
                 team_legacy_image_references, team_image_assets,
@@ -2131,7 +2164,8 @@ public sealed class DevelopmentScenarioSeeder(
                 scheduled_signup_opening_attempts, scheduled_event_start_attempts, event_state_transitions, event_banner_cleanups, events, audit_entries, personal_notifications,
                 account_event_accesses, password_credential_tokens, account_discord_identity_transitions,
                 waiting_list_promotion_follow_ups,
-                event_competition_character_activity, event_competition_synchronizations
+                event_competition_character_activity, event_competition_character_metric_activity,
+                event_stats_luck_checkpoints, event_luck_outcome_bases, event_item_prices, event_competition_synchronizations
             RESTART IDENTITY;
             DELETE FROM accounts WHERE account_type = 'EmergencyCaptain';
             """,

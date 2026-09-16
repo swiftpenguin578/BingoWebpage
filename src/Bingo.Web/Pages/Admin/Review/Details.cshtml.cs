@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Bingo.Application.Evidence;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
+using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
@@ -9,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
+using Npgsql;
 
 namespace Bingo.Web.Pages.Admin.Review;
 
@@ -24,7 +26,25 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
     public Task<IActionResult> OnPostRejectAsync(Guid id, CancellationToken ct) => Execute(id, () => service.RejectAsync(id, User.GetAccountId()!.Value, Input.Reason ?? string.Empty, ct, Input.ExpectedVersion), ct, "Submission rejected.");
     public Task<IActionResult> OnPostReverseAsync(Guid id, CancellationToken ct) => Execute(id, () => service.ReverseAsync(id, User.GetAccountId()!.Value, Input.Reason ?? string.Empty, ct, Input.ExpectedVersion), ct, "Approval reversed and later contributions recalculated.");
     public Task<IActionResult> OnPostEditAsync(Guid id, CancellationToken ct) => Execute(id, () => service.EditMetadataAsync(new(id, User.GetAccountId()!.Value, Input.BoardTileId, Input.RequirementId, Input.DropSnapshotId, Input.CreditedOsrsCharacterId, Input.Reason ?? string.Empty, Input.ExpectedVersion), ct), ct, "Metadata corrected.");
-    private async Task<IActionResult> Execute(Guid id, Func<Task> action, CancellationToken ct, string? success = null) { try { await action(); if (success is not null) TempData["StatusMessage"] = success; } catch (Exception ex) when (ex is InvalidOperationException or ArgumentException) { TempData["StatusMessage"] = ex.Message; } var eventId = await db.Submissions.AsNoTracking().Where(x => x.Id == id).Select(x => (Guid?)x.EventId).SingleOrDefaultAsync(ct); return RedirectToPage(new { id, eventId, search = Search, status = Status }); }
+    private async Task<IActionResult> Execute(Guid id, Func<Task> action, CancellationToken ct, string? success = null)
+    {
+        try { await action(); if (success is not null) TempData["StatusMessage"] = success; }
+        catch (Exception ex) when (IsReviewPersistenceConflict(ex))
+        {
+            TempData["StatusMessage"] = "This review was not saved because the event or evidence changed in another request. Reload the submission, review the latest state, and try again.";
+            TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException) { TempData["StatusMessage"] = ex.Message; }
+        var eventId = await db.Submissions.AsNoTracking().Where(x => x.Id == id).Select(x => (Guid?)x.EventId).SingleOrDefaultAsync(ct);
+        return RedirectToPage(new { id, eventId, search = Search, status = Status });
+    }
+
+    private static bool IsReviewPersistenceConflict(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+            if (current is DbUpdateConcurrencyException or PostgresException { SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected }) return true;
+        return false;
+    }
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(System.Globalization.CultureInfo.CurrentCulture, key, arguments);
     private async Task<bool> Load(Guid id, CancellationToken ct)
     {
@@ -35,9 +55,13 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
         ReviewOpen = EventStatePolicy.Allows(eventItem.State, EventCapability.ReviewEvidence);
         EventTimezone = eventItem.Timezone;
         var team = await db.Teams.AsNoTracking().SingleAsync(x => x.Id == s.TeamId, ct);
-        var tile = await db.BoardTiles.AsNoTracking().SingleAsync(x => x.Id == s.BoardTileId, ct);
-        var req = await db.BoardRequirementSnapshots.AsNoTracking().SingleAsync(x => x.Id == s.RequirementId, ct);
-        var drop = s.DropSnapshotId is null ? null : await db.BoardRequirementDropSnapshots.AsNoTracking().SingleAsync(x => x.Id == s.DropSnapshotId, ct);
+        var publication = await db.PublishedObjectivesAsync(s.EventId, ct);
+        if (publication is null) return false;
+        var tile = publication.Tiles.SingleOrDefault(x => x.Id == s.BoardTileId);
+        var req = publication.Requirements.SingleOrDefault(x => x.Id == s.RequirementId && x.BoardTileId == s.BoardTileId);
+        if (tile is null || req is null) return false;
+        var drop = s.DropSnapshotId is null ? null : publication.Drops.SingleOrDefault(x => x.Id == s.DropSnapshotId && x.RequirementId == s.RequirementId);
+        if (s.DropSnapshotId is not null && drop is null) return false;
         var effectiveEnd = eventItem.ActualEndedAt ?? eventItem.EventEndsAt;
         var minutesAfterEnd = effectiveEnd is { } eventEnd && s.SubmittedAt > eventEnd ? (int?)Math.Ceiling((s.SubmittedAt - eventEnd).TotalMinutes) : null;
         var eligibilityGap = await FindEligibilityGapAsync(s.EventId, s.SubmittedAt, ct);
@@ -45,7 +69,7 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
         Assets = await db.EvidenceAssets.AsNoTracking().Where(x => x.SubmissionId == id).OrderByDescending(x => x.UploadedAt).Select(x => new AssetView(x.Id, x.OriginalFilename, x.MediaType, x.ByteSize, x.PixelWidth, x.PixelHeight, x.Checksum, x.UploadedAt, x.Role, x.Active)).ToListAsync(ct);
         var activeChecksum = Assets.FirstOrDefault(x => x.Active)?.Checksum; if (activeChecksum is not null) ChecksumMatches = await (from asset in db.EvidenceAssets.AsNoTracking() join other in db.Submissions on asset.SubmissionId equals other.Id join otherTile in db.BoardTiles on other.BoardTileId equals otherTile.Id where asset.Checksum == activeChecksum && asset.Active && other.EventId == s.EventId && other.Id != s.Id orderby other.SubmittedAt descending select new ChecksumMatch(other.Id, otherTile.NameSnapshot, other.SubmittedAt, other.Status)).ToListAsync(ct);
         History = await (from a in db.ReviewActions.AsNoTracking() join account in db.Accounts on a.PerformedByAccountId equals account.Id where a.SubmissionId == id orderby a.PerformedAt descending select new ActionView(a.Action, account.LoginName, a.PerformedAt, a.Note)).ToListAsync(ct); PriorApproved = await db.Submissions.AsNoTracking().Where(other => other.TeamId == s.TeamId && other.RequirementId == s.RequirementId && other.Status == SubmissionStatus.Approved && other.Id != s.Id).OrderByDescending(other => other.SubmittedAt).Select(other => new ContextView(other.Id, other.CreditedCharacterName, other.ApprovedContribution, other.SubmittedAt)).ToListAsync(ct);
-        Characters = await (from assignment in db.EventParticipantCharacters.AsNoTracking() join membership in db.TeamMemberships.AsNoTracking() on assignment.EventParticipantId equals membership.EventParticipantId join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id where assignment.EventId == s.EventId && membership.TeamId == s.TeamId && membership.LeftAt == null && assignment.EventRole == Bingo.Domain.Signups.EventCharacterRole.Playing && assignment.ReleasedAt == null orderby character.DisplayName select new Option(character.Id, character.DisplayName)).Distinct().ToListAsync(ct); var board = await db.Boards.AsNoTracking().SingleAsync(x => x.EventId == s.EventId, ct); var tiles = await db.BoardTiles.AsNoTracking().Where(x => x.BoardId == board.Id).ToListAsync(ct); var tileMap = tiles.ToDictionary(x => x.Id); var tileIds = tiles.Select(x => x.Id).ToList(); var requirements = await db.BoardRequirementSnapshots.AsNoTracking().Where(x => tileIds.Contains(x.BoardTileId)).OrderBy(x => x.Position).ToListAsync(ct); Requirements = requirements.Select(x => new RequirementOption(x.Id, x.BoardTileId, tileMap[x.BoardTileId].NameSnapshot, x.Description, x.ManualObjective, x.AllowHigherWeightings)).ToList(); var reqIds = requirements.Select(x => x.Id).ToList(); Drops = await db.BoardRequirementDropSnapshots.AsNoTracking().Where(x => reqIds.Contains(x.RequirementId)).OrderBy(x => x.BossName).ThenBy(x => x.ItemName).Select(x => new DropOption(x.Id, x.RequirementId, x.BossName, x.ItemName, x.DisplayRate)).ToListAsync(ct); return true;
+        Characters = await (from assignment in db.EventParticipantCharacters.AsNoTracking() join membership in db.TeamMemberships.AsNoTracking() on assignment.EventParticipantId equals membership.EventParticipantId join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id where assignment.EventId == s.EventId && membership.TeamId == s.TeamId && membership.LeftAt == null && assignment.EventRole == Bingo.Domain.Signups.EventCharacterRole.Playing && assignment.ReleasedAt == null orderby character.DisplayName select new Option(character.Id, character.DisplayName)).Distinct().ToListAsync(ct); var board = await db.Boards.AsNoTracking().SingleAsync(x => x.EventId == s.EventId, ct); var tiles = publication.Tiles; var tileMap = tiles.ToDictionary(x => x.Id); var tileIds = tiles.Select(x => x.Id).ToList(); var requirements = publication.Requirements.OrderBy(x => x.Position).ToList(); Requirements = requirements.Select(x => new RequirementOption(x.Id, x.BoardTileId, tileMap[x.BoardTileId].NameSnapshot, x.Description, x.ManualObjective, x.AllowHigherWeightings)).ToList(); var reqIds = requirements.Select(x => x.Id).ToList(); Drops = publication.Drops.OrderBy(x => x.BossName).ThenBy(x => x.ItemName).Select(x => new DropOption(x.Id, x.RequirementId, x.BossName, x.ItemName, x.DisplayRate)).ToList(); return true;
     }
     public sealed class ReviewInput { [StringLength(4000)] public string? Reason { get; set; } public Guid BoardTileId { get; set; } public Guid RequirementId { get; set; } public Guid? DropSnapshotId { get; set; } public Guid CreditedOsrsCharacterId { get; set; } public int? ExpectedVersion { get; set; } }
     private async Task<EligibilityGapView?> FindEligibilityGapAsync(Guid eventId, DateTimeOffset submittedAt, CancellationToken ct)

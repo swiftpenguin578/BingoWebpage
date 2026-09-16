@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
+using Npgsql;
 
 namespace Bingo.Web.Pages.Admin.Events;
 
@@ -42,10 +43,11 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
         var schedule = ParseSchedule(timezone, "Input");
         ValidateQuestions();
         ValidatePlanning();
-        var slug = NormalizeSlug(Input.Slug, Input.Name);
+        var automaticSlug = string.IsNullOrWhiteSpace(Input.Slug);
+        var slug = automaticSlug ? EventSlugGenerator.GenerateCandidate(Input.Name, 1) : NormalizeSlug(Input.Slug, Input.Name);
         if (string.IsNullOrWhiteSpace(slug)) ModelState.AddModelError("Input.Slug", Localize("Enter a valid event link."));
         else if (!string.IsNullOrWhiteSpace(Input.Slug) && !string.Equals(Input.Slug.Trim(), slug, StringComparison.Ordinal)) ModelState.AddModelError("Input.Slug", Localize("Use lowercase letters, numbers, and hyphens for the event link."));
-        if (!string.IsNullOrWhiteSpace(slug) && await db.Events.AnyAsync(item => item.Slug == slug, ct)) ModelState.AddModelError("Input.Slug", Localize("That event link is already in use."));
+        if (!automaticSlug && !string.IsNullOrWhiteSpace(slug) && await db.Events.AnyAsync(item => item.Slug == slug, ct)) ModelState.AddModelError("Input.Slug", Localize("That event link is already in use."));
         if (Input.RequireSignupCode && string.IsNullOrWhiteSpace(Input.SignupCode)) ModelState.AddModelError("Input.SignupCode", Localize("Enter an event code or turn this setting off."));
         if (!ModelState.IsValid) return Page();
 
@@ -63,67 +65,100 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
         var now = time.GetUtcNow();
         var item = new BingoEvent(Guid.NewGuid(), Input.Name.Trim(), slug!, Input.Timezone.Trim(), actorId, now);
         item.UpdateIdentity(Input.Name, slug, Input.Description, Input.Timezone);
-        item.ConfigureInitialSchedule(schedule.SignupOpens, schedule.SignupCloses, schedule.DraftAt, schedule.Starts, schedule.Ends, Input.ParticipantCap);
+        ValidateFutureSchedule(schedule, now, linkedCompetition is not null);
+        if (!ModelState.IsValid) return Page();
+        try
+        {
+            item.ConfigureInitialSchedule(schedule.SignupOpens, schedule.SignupCloses, schedule.DraftAt, schedule.Starts, schedule.Ends, Input.ParticipantCap);
+        }
+        catch (InvalidOperationException ex)
+        {
+            var field = ex.Message switch
+            {
+                "Event end must be after event start." => linkedCompetition is null ? "Input.EventEndsLocal" : "Input.CompetitionId",
+                _ => "Input.SignupClosesLocal"
+            };
+            ModelState.AddModelError(field, Localize(ex.Message));
+            return Page();
+        }
         if (schedule.SignupOpens is { } scheduledOpening && scheduledOpening > now)
             item.ConfigureScheduledSignupOpening(true, []);
         item.ConfigureSignup(Input.WaitingListEnabled, Input.RequireSignupCode, Input.RequireSignupCode ? hasher.Hash(Input.SignupCode!) : null);
         item.ConfigurePlanning(null, Input.BuyInDescription, null, null, null, Input.ExpectedBoardRows, Input.ExpectedBoardColumns);
 
-        StoredEvidence? uploaded = null;
-        EventBannerAsset? banner = null;
-        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-        try
+        var suffix = 1;
+        for (var attempt = 0; attempt < 3; attempt++)
         {
-            db.Events.Add(item);
-            if (linkedCompetition is not null)
+            if (automaticSlug)
             {
-                db.EventCompetitionSynchronizations.Add(new EventCompetitionSynchronization(Guid.NewGuid(), item.Id, 1, linkedCompetition.Id,
-                    linkedCompetition.Title, linkedCompetition.StartsAt, linkedCompetition.EndsAt,
-                    Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Array.Empty<byte>())).ToLowerInvariant(), now));
+                slug = EventSlugGenerator.GenerateCandidate(Input.Name, suffix);
+                while (await db.Events.AnyAsync(existing => existing.Slug == slug, ct))
+                    slug = EventSlugGenerator.GenerateCandidate(Input.Name, ++suffix);
+                item.UpdateIdentity(Input.Name, slug, Input.Description, Input.Timezone);
             }
-            var form = new SignupForm(Guid.NewGuid(), item.Id, now);
-            form.ConfigureSignupCode(Input.RequireSignupCode, Input.RequireSignupCode ? hasher.Hash(Input.SignupCode!) : null);
-            db.SignupForms.Add(form);
-            db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing));
-            db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer));
-            db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, SignupQuestion.CoCaptainKey, SignupQuestion.CoCaptainLabel, SignupQuestionType.Text, false, 2, null, SignupSystemField.CoCaptainName));
-            if (Input.Banner is { Length: > 0 })
+            StoredEvidence? uploaded = null;
+            EventBannerAsset? banner = null;
+            await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+            try
             {
-                banner = new EventBannerAsset(Guid.NewGuid(), item.Id, string.Empty, string.Empty, string.Empty, 0, 0, 0, string.Empty, actorId, now);
-                await using var content = Input.Banner.OpenReadStream();
-                uploaded = await storage.StoreAsync(item.Id, banner.Id, Input.Banner.FileName, content, ct);
-                banner = new EventBannerAsset(banner.Id, item.Id, uploaded.StorageKey, uploaded.OriginalFilename, uploaded.MediaType, uploaded.ByteSize, uploaded.Width, uploaded.Height, uploaded.Checksum, actorId, now);
-                db.EventBannerAssets.Add(banner);
-                item.SetBannerAsset(banner.Id);
+                db.Events.Add(item);
+                if (linkedCompetition is not null)
+                {
+                    db.EventCompetitionSynchronizations.Add(new EventCompetitionSynchronization(Guid.NewGuid(), item.Id, 1, linkedCompetition.Id,
+                        linkedCompetition.Title, linkedCompetition.StartsAt, linkedCompetition.EndsAt,
+                        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Array.Empty<byte>())).ToLowerInvariant(), now));
+                }
+                var form = new SignupForm(Guid.NewGuid(), item.Id, now);
+                form.ConfigureSignupCode(Input.RequireSignupCode, Input.RequireSignupCode ? hasher.Hash(Input.SignupCode!) : null);
+                db.SignupForms.Add(form);
+                db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing));
+                db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer));
+                db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, SignupQuestion.CoCaptainKey, SignupQuestion.CoCaptainLabel, SignupQuestionType.Text, false, 2, null, SignupSystemField.CoCaptainName));
+                if (Input.Banner is { Length: > 0 })
+                {
+                    banner = new EventBannerAsset(Guid.NewGuid(), item.Id, string.Empty, string.Empty, string.Empty, 0, 0, 0, string.Empty, actorId, now);
+                    await using var content = Input.Banner.OpenReadStream();
+                    uploaded = await storage.StoreAsync(item.Id, banner.Id, Input.Banner.FileName, content, ct);
+                    banner = new EventBannerAsset(banner.Id, item.Id, uploaded.StorageKey, uploaded.OriginalFilename, uploaded.MediaType, uploaded.ByteSize, uploaded.Width, uploaded.Height, uploaded.Checksum, actorId, now);
+                    db.EventBannerAssets.Add(banner);
+                    item.SetBannerAsset(banner.Id);
+                }
+                AddQuestions(item, form);
+                var after = JsonSerializer.Serialize(AuditState(item));
+                db.AuditEntries.Add(new Bingo.Domain.Auditing.AuditEntry(Guid.NewGuid(), now, actorId, User.Identity!.Name!, "event.created", "event", item.Id.ToString(), "Created as a private draft.", item.Id, null, after));
+                if (linkedCompetition is not null)
+                    db.AuditEntries.Add(new Bingo.Domain.Auditing.AuditEntry(Guid.NewGuid(), now, actorId, User.Identity!.Name!, "event.competition_linked", "event", item.Id.ToString(), $"Linked Wise Old Man competition {linkedCompetition.Id} ({linkedCompetition.Title}) during event creation.", item.Id));
+                await db.SaveChangesAsync(ct);
+                await transaction.CommitAsync(ct);
             }
-            AddQuestions(item, form);
-            var after = JsonSerializer.Serialize(AuditState(item));
-            db.AuditEntries.Add(new Bingo.Domain.Auditing.AuditEntry(Guid.NewGuid(), now, actorId, User.Identity!.Name!, "event.created", "event", item.Id.ToString(), "Created as a private draft.", item.Id, null, after));
-            if (linkedCompetition is not null)
-                db.AuditEntries.Add(new Bingo.Domain.Auditing.AuditEntry(Guid.NewGuid(), now, actorId, User.Identity!.Name!, "event.competition_linked", "event", item.Id.ToString(), $"Linked Wise Old Man competition {linkedCompetition.Id} ({linkedCompetition.Title}) during event creation.", item.Id));
-            await db.SaveChangesAsync(ct);
-            await transaction.CommitAsync(ct);
-        }
-        catch (DbUpdateException ex) when (IsSlugCollision(ex))
-        {
-            await transaction.RollbackAsync(ct);
-            await DeleteUploadedAsync(uploaded, ct);
-            db.ChangeTracker.Clear();
-            ModelState.AddModelError("Input.Slug", Localize("That event link is already in use."));
-            return Page();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            await transaction.RollbackAsync(ct);
-            await DeleteUploadedAsync(uploaded, ct);
-            db.ChangeTracker.Clear();
-            ModelState.AddModelError(string.Empty, Localize("The event could not be created. Try again."));
-            return Page();
-        }
+            catch (DbUpdateException ex) when (IsSlugCollision(ex))
+            {
+                await transaction.RollbackAsync(ct);
+                await DeleteUploadedAsync(uploaded, ct);
+                db.ChangeTracker.Clear();
+                if (automaticSlug)
+                {
+                    suffix++;
+                    continue;
+                }
+                ModelState.AddModelError("Input.Slug", Localize("That event link is already in use."));
+                return Page();
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                await transaction.RollbackAsync(ct);
+                await DeleteUploadedAsync(uploaded, ct);
+                db.ChangeTracker.Clear();
+                ModelState.AddModelError(string.Empty, Localize("The event could not be created. Try again."));
+                return Page();
+            }
 
-        TempData["StatusMessage"] = Localize("{0} was created as a private draft.", item.Name);
-        TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
-        return RedirectToPage("Manage", new { id = item.Id });
+            TempData["StatusMessage"] = Localize("{0} was created as a private draft.", item.Name);
+            TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString();
+            return RedirectToPage("Manage", new { id = item.Id });
+        }
+        ModelState.AddModelError("Input.Slug", Localize("An event link could not be allocated. Try creating the event again."));
+        return Page();
     }
 
     private Schedule ParseSchedule(TimeZoneInfo timezone, string prefix)
@@ -133,9 +168,21 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
         var draftAt = ParseOptional(Input.DraftLocal, timezone, $"{prefix}.DraftLocal", "Draft time");
         var starts = ParseOptional(Input.EventStartsLocal, timezone, $"{prefix}.EventStartsLocal", "Event start");
         var ends = ParseOptional(Input.EventEndsLocal, timezone, $"{prefix}.EventEndsLocal", "Event end");
-        if (signupOpens is not null && signupCloses is not null && signupCloses <= signupOpens) ModelState.AddModelError($"{prefix}.SignupClosesLocal", Localize("Signup closing must be after opening."));
-        if (starts is not null && ends is not null && ends <= starts) ModelState.AddModelError($"{prefix}.EventEndsLocal", Localize("Event end must be after event start."));
         return new(signupOpens, signupCloses, draftAt, starts, ends);
+    }
+
+    private void ValidateFutureSchedule(Schedule schedule, DateTimeOffset now, bool competitionLinked)
+    {
+        var boundaries = new[]
+        {
+            (schedule.SignupOpens, "Input.SignupOpensLocal", "Signup opening must be in the future."),
+            (schedule.SignupCloses, "Input.SignupClosesLocal", "Signup closing must be in the future."),
+            (schedule.DraftAt, "Input.DraftLocal", "Draft time must be in the future."),
+            (schedule.Starts, competitionLinked ? "Input.CompetitionId" : "Input.EventStartsLocal", "Event start must be in the future."),
+            (schedule.Ends, competitionLinked ? "Input.CompetitionId" : "Input.EventEndsLocal", "Event end must be in the future.")
+        };
+        foreach (var (value, field, message) in boundaries)
+            if (value <= now) ModelState.AddModelError(field, Localize(message));
     }
 
     private DateTimeOffset? ParseOptional(string? localText, TimeZoneInfo timezone, string field, string label)
@@ -192,7 +239,7 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
     private static object AuditState(BingoEvent item) => new { item.Name, item.Slug, Description = AuditDescription(item.Description), item.Timezone, item.BannerAssetId };
     private static string? AuditDescription(string? description) => description is null ? null : description.Length <= 500 ? description : $"{description[..500]}…";
     private static string? NormalizeSlug(string? value, string name) => EventSlugGenerator.Generate(string.IsNullOrWhiteSpace(value) ? name : value);
-    private static bool IsSlugCollision(DbUpdateException ex) => ex.InnerException?.Message.Contains("events_slug", StringComparison.OrdinalIgnoreCase) == true || ex.InnerException?.Message.Contains("slug", StringComparison.OrdinalIgnoreCase) == true;
+    private static bool IsSlugCollision(DbUpdateException ex) => ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_events_slug" };
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private static bool TryTimezone(string? timezoneId, out TimeZoneInfo timezone) { timezone = null!; return !string.IsNullOrWhiteSpace(timezoneId) && OptionsFor(timezoneId).Any(x => x.Id == timezoneId) && TryFind(timezoneId, out timezone); }
     private static bool TryFind(string timezoneId, out TimeZoneInfo timezone) { try { timezone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId); return true; } catch (TimeZoneNotFoundException) { timezone = null!; return false; } catch (InvalidTimeZoneException) { timezone = null!; return false; } }

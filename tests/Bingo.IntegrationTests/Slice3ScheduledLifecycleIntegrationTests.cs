@@ -26,7 +26,7 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
+public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice3_scheduled")
@@ -51,6 +51,38 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
+
+    [Fact]
+    public async Task ManualSignupConfirmationDoesNotReuseAcknowledgementForNewTextWarnings()
+    {
+        var admin = Account.CreateWebsite(Guid.NewGuid(), "warning-admin", "WARNING-ADMIN", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var eventId = Guid.NewGuid();
+        await using var db = new ApplicationDbContext(options);
+        var item = ReadyDraft(db, eventId, "warning-scope", now.AddHours(1), now.AddHours(2), now.AddDays(3));
+        item.ConfigureSchedule(item.SignupOpensAt, null, null, item.EventStartsAt, item.EventEndsAt, item.ParticipantCap);
+        item.ConfigureSignup(false, false, null);
+        db.AddRange(admin, item);
+        await db.SaveChangesAsync();
+        var page = Manage(db, admin, new MutableTimeProvider(now));
+        page.EventVersion = item.Version;
+        page.SignupWarningCodes = ["WAITING_LIST_DISABLED"];
+        page.Request.Form = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues> { ["AcknowledgeSignupWarnings"] = "true" });
+        Assert.IsType<RedirectToPageResult>(await page.OnPostConfirmSignupAsync(eventId, CancellationToken.None));
+        Assert.Equal("WAITING_LIST_DISABLED", page.TempData.Peek($"ManageSignupConfirmation:{eventId}:warnings"));
+        var form = await db.SignupForms.SingleAsync(form => form.EventId == eventId);
+        db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, eventId, "new_text", "New public question", SignupQuestionType.Text, false, 2, null));
+        await db.SaveChangesAsync();
+        page.Request.Form = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues> { ["AcceptProposedClose"] = "true" });
+        Assert.IsType<RedirectToPageResult>(await page.OnPostConfirmSignupAsync(eventId, CancellationToken.None));
+        Assert.Equal(EventState.Draft, (await db.Events.AsNoTracking().SingleAsync(item => item.Id == eventId)).State);
+        Assert.Empty(await db.EventStateTransitions.ToListAsync());
+        page.SignupWarningCodes = ["WAITING_LIST_DISABLED", "PUBLIC_FREE_TEXT"];
+        page.Request.Form = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues> { ["AcknowledgeSignupWarnings"] = "true" });
+        Assert.IsType<RedirectToPageResult>(await page.OnPostConfirmSignupAsync(eventId, CancellationToken.None));
+        Assert.Equal(EventState.SignupOpen, (await db.Events.AsNoTracking().SingleAsync(item => item.Id == eventId)).State);
+        Assert.Single(await db.EventStateTransitions.ToListAsync());
+    }
 
     [Fact]
     public async Task ScheduledOpeningAndClosingUseExactBoundariesAndAreIdempotent()
@@ -716,7 +748,7 @@ public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
     {
         await using var db = new ApplicationDbContext(options);
         var readiness = new EventReadinessEvaluator(db, configuration);
-        await new EventSignupLifecycleService(db, readiness, clock).OpenAsync(eventId, version, true, false, new LifecycleActor(Guid.NewGuid(), "manual-admin"));
+        await new EventSignupLifecycleService(db, readiness, clock).OpenAsync(eventId, version, [], false, new LifecycleActor(Guid.NewGuid(), "manual-admin"));
     }
 
     private async Task RunManualCloseInNewContext(Guid eventId, long version, TimeProvider clock)

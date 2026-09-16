@@ -40,6 +40,7 @@ public sealed class Slice8Pass81PersistenceIntegrationTests : IAsyncLifetime
 
         await using (var migrated = new ApplicationDbContext(options))
         {
+            await RetainedCatalogueMigrationTestSupport.PrepareAsync(migrated);
             await migrated.GetService<IMigrator>().MigrateAsync();
             var rows = await migrated.Submissions.AsNoTracking().Where(x => x.Id == swappedSubmissionId || x.Id == noSwapSubmissionId).ToDictionaryAsync(x => x.Id);
             Assert.Equal(seed.SwappedCharacterId, rows[swappedSubmissionId].CreditedOsrsCharacterId);
@@ -81,6 +82,7 @@ public sealed class Slice8Pass81PersistenceIntegrationTests : IAsyncLifetime
         await InsertLegacySubmissionAsync(submissionId, seed.EventId, seed.UniqueParticipantId, seed.AccountId, DateTimeOffset.UtcNow, "ChangesRequested");
 
         await using var migrated = new ApplicationDbContext(options);
+        await RetainedCatalogueMigrationTestSupport.PrepareAsync(migrated);
         await migrated.GetService<IMigrator>().MigrateAsync();
 
         var submission = await migrated.Submissions.AsNoTracking().SingleAsync(x => x.Id == submissionId);

@@ -205,12 +205,18 @@ public sealed class QuestionsModel(ApplicationDbContext dbContext, IAuditWriter 
                 SetStatus(Localize("Enter a new signup code or turn code protection off."), UiMessageType.Error);
                 return RedirectToQuestions(id, overlay);
             }
+            var before = new { form.RequireSignupCode, HasSignupCode = form.SignupCodeHash is not null, EventRequiresSignupCode = bingoEvent.RequireSignupCode, EventHasSignupCode = bingoEvent.SignupCodeHash is not null };
             var hash = !settings.RequireSignupCode ? null : string.IsNullOrWhiteSpace(settings.NewSignupCode) ? form.SignupCodeHash : hasher.Hash(settings.NewSignupCode);
             bingoEvent.ConfigureSignup(bingoEvent.WaitingListEnabled, settings.RequireSignupCode, hash);
             form.ConfigureSignupCode(settings.RequireSignupCode, hash);
             form.AdvanceVersion();
-            await dbContext.SaveChangesAsync(ct);
-            await auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, "event.signup_code_changed", "event", id.ToString(), "Signup-code protection changed.", ct);
+            await auditWriter.WriteAsync(User.GetAccountId(), User.Identity!.Name!, "event.signup_code_changed", "event", id.ToString(),
+                JsonSerializer.Serialize(new
+                {
+                    before,
+                    after = new { form.RequireSignupCode, HasSignupCode = form.SignupCodeHash is not null, EventRequiresSignupCode = bingoEvent.RequireSignupCode, EventHasSignupCode = bingoEvent.SignupCodeHash is not null },
+                    codeReplaced = settings.RequireSignupCode && !string.IsNullOrWhiteSpace(settings.NewSignupCode)
+                }), id, ct);
             SetStatus(Localize("Signup-code protection saved."), UiMessageType.Success);
         }
         catch (InvalidOperationException)

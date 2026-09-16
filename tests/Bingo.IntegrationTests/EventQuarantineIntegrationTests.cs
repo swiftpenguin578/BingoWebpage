@@ -466,6 +466,7 @@ public sealed class EventQuarantineIntegrationTests : IAsyncLifetime
             VALUES ({notificationId}, {Guid.NewGuid()}, {"Legacy submission"}, {"Retained"}, {$"/Captain/Submissions/{submissionId}"}, {now});
             """);
 
+        await RetainedCatalogueMigrationTestSupport.PrepareAsync(migrationDb);
         await migrationDb.GetService<IMigrator>().MigrateAsync();
         var associatedEventId = await migrationDb.Database.SqlQuery<Guid>($"SELECT event_id AS \"Value\" FROM personal_notifications WHERE \"Id\" = {notificationId}").SingleAsync();
         Assert.Equal(eventId, associatedEventId);

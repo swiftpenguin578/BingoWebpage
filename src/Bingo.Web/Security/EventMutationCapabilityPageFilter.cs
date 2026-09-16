@@ -47,7 +47,10 @@ public sealed class EventMutationCapabilityPageFilter(ApplicationDbContext db, I
         }
         if (!HttpMethods.IsPost(context.HttpContext.Request.Method))
         {
-            if (IsTerminalReadOnlyRoute(path, eventView.State))
+            var retainedArtworkRead = path.EndsWith("/Board.cshtml", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(context.HandlerMethod.Name, "TileImage", StringComparison.Ordinal) &&
+                context.HandlerArguments.TryGetValue("approvalId", out var approvalId) && approvalId is Guid;
+            if (IsTerminalReadOnlyRoute(path, eventView.State) && !retainedArtworkRead)
             {
                 context.Result = new RedirectResult($"/Admin/Events/Manage/{eventId}");
                 return;

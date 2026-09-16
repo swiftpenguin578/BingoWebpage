@@ -40,6 +40,9 @@ public sealed class Submission
     public string? CurrentReviewerNote { get; private set; }
     public Guid? ResubmissionOfSubmissionId { get; private set; }
     public DateTimeOffset? ReviewedAt { get; private set; }
+    public int? AnnouncementGeneration { get; private set; }
+    public long? AnnouncementOrdinal { get; private set; }
+    public bool? CompletedTileAtApproval { get; private set; }
 
     public void EditPending(Guid tileId, Guid requirementId, Guid? dropId, Guid participantId, int weight, string? note)
     {
@@ -65,7 +68,7 @@ public sealed class Submission
     }
     public void Withdraw(DateTimeOffset at) { if (Status != SubmissionStatus.Pending) throw new InvalidOperationException("Only pending submissions can be withdrawn."); Status = SubmissionStatus.Withdrawn; ReviewedAt = at.ToUniversalTime(); }
     public void Reject(string note, DateTimeOffset at) { if (Status != SubmissionStatus.Pending) throw new InvalidOperationException("Only pending submissions can be rejected."); CurrentReviewerNote = RequireNote(note); Status = SubmissionStatus.Rejected; ReviewedAt = at.ToUniversalTime(); }
-    public void Approve(int contribution, DateTimeOffset at) { if (Status != SubmissionStatus.Pending) throw new InvalidOperationException("Only pending submissions can be approved."); if (contribution < 1) throw new InvalidOperationException("Approved contribution must be positive."); ApprovedContribution = contribution; Status = SubmissionStatus.Approved; ReviewedAt = at.ToUniversalTime(); CurrentReviewerNote = null; }
+    public void Approve(int contribution, DateTimeOffset at, int? announcementGeneration = null, bool? completedTileAtApproval = null, long? announcementOrdinal = null) { if (Status != SubmissionStatus.Pending) throw new InvalidOperationException("Only pending submissions can be approved."); if (contribution < 1) throw new InvalidOperationException("Approved contribution must be positive."); ApprovedContribution = contribution; Status = SubmissionStatus.Approved; ReviewedAt = at.ToUniversalTime(); CurrentReviewerNote = null; AnnouncementGeneration = announcementGeneration; AnnouncementOrdinal = announcementOrdinal; CompletedTileAtApproval = completedTileAtApproval; }
     public void IncreaseApprovedContribution(int contribution) { if (Status != SubmissionStatus.Approved || contribution <= ApprovedContribution) throw new InvalidOperationException("Only an approved contribution can be increased."); ApprovedContribution = contribution; }
     public void Reverse(string reason, DateTimeOffset at) { if (Status != SubmissionStatus.Approved) throw new InvalidOperationException("Only approved submissions can be reversed."); CurrentReviewerNote = RequireNote(reason); Status = SubmissionStatus.Reversed; ReviewedAt = at.ToUniversalTime(); }
 

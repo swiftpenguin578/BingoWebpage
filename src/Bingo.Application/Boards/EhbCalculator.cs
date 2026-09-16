@@ -1,3 +1,5 @@
+using Bingo.Domain.Boards;
+
 namespace Bingo.Application.Boards;
 
 public static class EhbCalculator
@@ -172,6 +174,17 @@ public static class EhbCalculator
     {
         values.TryGetValue(key, out var existing);
         values[key] = existing + value;
+    }
+
+    public static decimal CalculateTileEstimate(ObjectiveType objectiveType,
+        IEnumerable<(bool Manual, decimal? Estimate)> requirements, decimal? manualEhb)
+    {
+        var values = requirements.ToList();
+        if (values.Count == 0) return 0;
+        if (objectiveType == ObjectiveType.Manual && values.All(x => x.Manual))
+            return manualEhb is > 0 ? manualEhb.Value : 0;
+        if (objectiveType != ObjectiveType.DropRequirements || values.Any(x => x.Manual)) return 0;
+        return SumRequirements(values.Select(x => x.Estimate));
     }
 
     public static decimal SumRequirements(IEnumerable<decimal?> requirementEstimates, decimal? manualOverride = null)

@@ -26,13 +26,21 @@ public sealed class WiseOldManClient(
     {
         var normalized = Normalize(characterName);
         if (string.IsNullOrWhiteSpace(normalized)) return new(WiseOldManLookupStatus.NotFound, Message: "An OSRS character name is required.");
-        var now = time.GetUtcNow();
-        if (cache.TryGetValue(normalized, out var cached) && now - cached.FetchedAt < CacheTtl)
+        if (TryGetCached(normalized, out var cached))
             return new(WiseOldManLookupStatus.Success, cached.Ehb, cached.FetchedAt);
 
         await using var admission = await limiter.AdmitAsync(cancellationToken);
         if (!admission.AllowedRequest)
             return new(WiseOldManLookupStatus.RateLimited, RetryAt: admission.RetryAt, Message: "Wise Old Man is temporarily busy. Try again in about 1 minute.");
+
+        // Another lookup for this player may have completed while this call
+        // waited for serialized limiter admission. Recheck before issuing HTTP;
+        // serving that result must not alter limiter health or consume budget.
+        if (TryGetCached(normalized, out cached))
+        {
+            await admission.CompleteCachedAsync();
+            return new(WiseOldManLookupStatus.Success, cached.Ehb, cached.FetchedAt);
+        }
 
         HttpResponseMessage? response = null;
         var validPayload = false;
@@ -93,7 +101,10 @@ public sealed class WiseOldManClient(
         finally { response?.Dispose(); }
     }
 
-    public async Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, CancellationToken cancellationToken = default)
+    public Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, CancellationToken cancellationToken = default) =>
+        GetCompetitionAsync(competitionId, [], cancellationToken);
+
+    public async Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, IReadOnlyCollection<string> metrics, CancellationToken cancellationToken = default)
     {
         if (competitionId <= 0) return new(WiseOldManCompetitionStatus.Invalid, Message: "A positive Wise Old Man competition ID is required.");
         await using var admission = await limiter.AdmitAsync(cancellationToken);
@@ -104,7 +115,9 @@ public sealed class WiseOldManClient(
         try
         {
             var client = httpClientFactory.CreateClient("WiseOldMan");
-            response = await client.GetAsync($"competitions/{competitionId}?metric=ehb", HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            var requested = metrics.Append("ehb").Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+            var query = string.Join('&', requested.Select(metric => $"metrics={Uri.EscapeDataString(metric)}"));
+            response = await client.GetAsync($"competitions/{competitionId}?{query}", HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
                 await admission.CompleteAsync(response, true, false, cancellationToken);
@@ -138,9 +151,12 @@ public sealed class WiseOldManClient(
                 .Where(item => !string.IsNullOrWhiteSpace(item.Player?.Username))
                 .Select(item =>
                 {
-                    var ehb = item.Deltas?.FirstOrDefault(delta => string.Equals(delta.Metric, "ehb", StringComparison.OrdinalIgnoreCase))?.Values;
+                    // Parse each metric independently: a malformed boss value must not erase valid EHB.
+                    // Neither heterogeneous totals nor deprecated progress fields are activity evidence.
+                    var deltas = ParseDeltas(item.Deltas, requested);
+                    var ehb = deltas.GetValueOrDefault("ehb");
                     return new WiseOldManCompetitionParticipant(
-                        item.Player!.Username!.Trim(), item.Player.Type, ehb?.Gained, ehb?.Start, ehb?.End);
+                        item.Player!.Username!.Trim(), item.Player.Type, ehb?.Gained, ehb?.Start, ehb?.End, deltas, item.Player.UpdatedAt?.ToUniversalTime());
                 })
                 .ToList();
             return new(WiseOldManCompetitionStatus.Success,
@@ -173,6 +189,15 @@ public sealed class WiseOldManClient(
     }
 
     private static string Normalize(string value) => value.Trim().ToUpperInvariant();
+    private bool TryGetCached(string normalized, out CachedPlayer cached)
+    {
+        if (cache.TryGetValue(normalized, out cached!) && time.GetUtcNow() - cached.FetchedAt < CacheTtl)
+            return true;
+
+        cached = null!;
+        return false;
+    }
+
     private DateTimeOffset? NextRetryAt()
     {
         var status = limiter.GetStatus();
@@ -188,8 +213,27 @@ public sealed class WiseOldManClient(
         DateTimeOffset? EndsAt,
         DateTimeOffset? UpdatedAt,
         List<CompetitionParticipationPayload>? Participations);
-    private sealed record CompetitionParticipationPayload(CompetitionPlayerPayload? Player, List<CompetitionDeltaPayload>? Deltas);
-    private sealed record CompetitionPlayerPayload(string? Username, string? Type);
-    private sealed record CompetitionDeltaPayload(string? Metric, CompetitionDeltaValuesPayload? Values);
-    private sealed record CompetitionDeltaValuesPayload(decimal? Gained, decimal? Start, decimal? End);
+    private sealed record CompetitionParticipationPayload(CompetitionPlayerPayload? Player, JsonElement Deltas);
+    private sealed record CompetitionPlayerPayload(string? Username, string? Type, DateTimeOffset? UpdatedAt);
+
+    private static Dictionary<string, WiseOldManMetricDelta> ParseDeltas(JsonElement payload, IReadOnlyCollection<string> requested)
+    {
+        var result = new Dictionary<string, WiseOldManMetricDelta>(StringComparer.Ordinal);
+        if (payload.ValueKind != JsonValueKind.Array) return result;
+        foreach (var entry in payload.EnumerateArray())
+        {
+            if (entry.ValueKind != JsonValueKind.Object || !entry.TryGetProperty("metric", out var name) || name.ValueKind != JsonValueKind.String ||
+                name.GetString() is not { } metric) continue;
+            if (string.Equals(metric, "ehb", StringComparison.OrdinalIgnoreCase)) metric = "ehb";
+            if (!requested.Contains(metric, StringComparer.Ordinal)) continue;
+            var delta = entry.TryGetProperty("values", out var values) ? ParseDelta(values) : new WiseOldManMetricDelta(null, null, null);
+            if (!result.TryAdd(metric, delta)) result[metric] = new(null, null, null);
+        }
+        return result;
+    }
+
+    private static WiseOldManMetricDelta ParseDelta(JsonElement values) => new(ReadNumber(values, "start"), ReadNumber(values, "end"), ReadNumber(values, "gained"));
+
+    private static decimal? ReadNumber(JsonElement values, string name) =>
+        values.ValueKind == JsonValueKind.Object && values.TryGetProperty(name, out var number) && number.ValueKind == JsonValueKind.Number && number.TryGetDecimal(out var value) ? value : null;
 }

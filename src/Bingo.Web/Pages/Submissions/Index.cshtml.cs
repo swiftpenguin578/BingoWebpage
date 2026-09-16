@@ -5,6 +5,7 @@ using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
 using Bingo.Domain.Teams;
+using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
@@ -25,6 +26,7 @@ public sealed class IndexModel(
     IStringLocalizer<SharedResource> text) : PageModel
 {
     public const int PageSize = 25;
+    public static IReadOnlyList<string> StatusOptions { get; } = ["Pending", "Approved", "Rejected", "Withdrawn", "Replaced", "Reversed"];
 
     public string EventName { get; private set; } = string.Empty;
     public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId;
@@ -49,13 +51,16 @@ public sealed class IndexModel(
     public int PageNumber { get; private set; }
     public int TotalPages { get; private set; }
     public int TotalSubmissionCount { get; private set; }
-    public SubmissionLedgerViewModel Ledger => new(EventId, TeamId, "/Submissions/Index", "/Submissions/Submission", Submissions, PageNumber, TotalPages, TotalSubmissionCount, Search, PlayerFilter, EventTimezone);
+    public SubmissionLedgerViewModel Ledger => new(EventId, TeamId, "/Submissions/Index", "/Submissions/Submission", Submissions, PageNumber, TotalPages, TotalSubmissionCount, Search, PlayerFilter, EventTimezone, StatusFilter);
 
     [BindProperty(SupportsGet = true, Name = "search")]
     public string? Search { get; set; }
 
     [BindProperty(SupportsGet = true, Name = "player")]
     public Guid? PlayerFilter { get; set; }
+
+    [BindProperty(SupportsGet = true, Name = "status")]
+    public string? StatusFilter { get; set; }
 
     [BindProperty(SupportsGet = true, Name = "ledgerPage")]
     public int RequestedLedgerPage { get; set; } = 1;
@@ -204,33 +209,27 @@ public sealed class IndexModel(
 
         var board = await db.Boards.AsNoTracking()
             .SingleOrDefaultAsync(value => value.EventId == scope.EventId && value.State == BoardState.Published, cancellationToken);
-        if (board is null) return false;
-        BoardRows = board.Rows;
-        BoardColumns = board.Columns;
+        if (board?.ActiveApprovalSnapshotId is not { } approvalId) return false;
+        var publication = await db.ApprovalObjectivesAsync(board.Id, approvalId, cancellationToken);
+        if (publication is null) return false;
+        BoardRows = publication.Approval.Rows;
+        BoardColumns = publication.Approval.Columns;
 
         if (IsCaptainWorkspace)
         {
             Focus = await teamFocus.GetContextAsync(scope.EventId, scope.TeamId, scope.ActorAccountId, false, cancellationToken)
                 ?? throw new InvalidOperationException("The team focus projection was not available for the authorized scope.");
-            await LoadFocusTargetsAsync(board, cancellationToken);
+            await LoadFocusTargetsAsync(publication, cancellationToken);
             await LoadSummaryAsync(scope, cancellationToken);
         }
         await LoadLedgerAsync(scope, board, includePlayerOptions: true, cancellationToken: cancellationToken);
         return true;
     }
 
-    private async Task LoadFocusTargetsAsync(Board board, CancellationToken cancellationToken)
+    private async Task LoadFocusTargetsAsync(PublishedBoardData publication, CancellationToken cancellationToken)
     {
-        var tiles = await db.BoardTiles.AsNoTracking()
-            .Where(value => value.BoardId == board.Id)
-            .OrderBy(value => value.RowIndex).ThenBy(value => value.ColumnIndex)
-            .Select(value => new { value.Id, value.RowIndex, value.ColumnIndex, value.NameSnapshot })
-            .ToListAsync(cancellationToken);
-        var tileIds = tiles.Select(value => value.Id).ToList();
-        var requirements = await db.BoardRequirementSnapshots.AsNoTracking()
-            .Where(value => tileIds.Contains(value.BoardTileId))
-            .Select(value => new { value.Id, value.BoardTileId, value.TargetContribution })
-            .ToListAsync(cancellationToken);
+        var tiles = publication.Tiles.OrderBy(x => x.RowIndex).ThenBy(x => x.ColumnIndex).ToList();
+        var requirements = publication.Requirements;
         var requirementIds = requirements.Select(value => value.Id).ToList();
         var contributions = await db.SubmissionContributions.AsNoTracking()
             .Where(value => value.TeamId == TeamId && requirementIds.Contains(value.RequirementId) && value.ReversedAt == null)
@@ -249,10 +248,10 @@ public sealed class IndexModel(
             return new TileView(tile.Id, tile.RowIndex, tile.ColumnIndex, tile.NameSnapshot, complete, progress, target, marker?.Focused == true, marker?.Version ?? 0);
         }).Where(value => !value.Complete).ToList();
 
-        FocusRows = Enumerable.Range(0, board.Rows)
+        FocusRows = Enumerable.Range(0, publication.Approval.Rows)
             .Select(row => LineView.ForRow(row, focusMarkers.SingleOrDefault(value => value.TargetKind == TeamFocusTargetKind.Row && value.RowIndex == row)))
             .ToList();
-        FocusColumns = Enumerable.Range(0, board.Columns)
+        FocusColumns = Enumerable.Range(0, publication.Approval.Columns)
             .Select(column => LineView.ForColumn(column, focusMarkers.SingleOrDefault(value => value.TargetKind == TeamFocusTargetKind.Column && value.ColumnIndex == column)))
             .ToList();
     }
@@ -271,6 +270,7 @@ public sealed class IndexModel(
 
     private async Task LoadLedgerAsync(EvidenceActorScope scope, Board board, bool includePlayerOptions, CancellationToken cancellationToken)
     {
+        StatusFilter = StatusOptions.FirstOrDefault(value => string.Equals(value, StatusFilter?.Trim(), StringComparison.OrdinalIgnoreCase));
         var replacedIds = db.Submissions.AsNoTracking()
             .Where(value => value.EventId == scope.EventId && value.TeamId == scope.TeamId && value.ResubmissionOfSubmissionId != null)
             .Select(value => value.ResubmissionOfSubmissionId!.Value);
@@ -279,17 +279,21 @@ public sealed class IndexModel(
         if (PlayerFilter is { } playerId) submissions = submissions.Where(value => value.CreditedParticipantId == playerId);
 
         var ledger = from submission in submissions
-                     join tile in db.BoardTiles.AsNoTracking() on submission.BoardTileId equals tile.Id
+                     join tile in db.BoardApprovalTileSnapshots.AsNoTracking() on submission.BoardTileId equals tile.BoardTileId
                      join drop in db.BoardRequirementDropSnapshots.AsNoTracking() on submission.DropSnapshotId equals drop.Id into dropGroup
                      from drop in dropGroup.DefaultIfEmpty()
-                     where tile.BoardId == board.Id
+                     where tile.ApprovalSnapshotId == board.ActiveApprovalSnapshotId
                      select new
                      {
                          Submission = submission,
-                         Tile = tile.NameSnapshot,
+                         Tile = tile.Name,
                          Drop = drop == null ? null : drop.ItemName,
                          IsReplaced = replacedIds.Contains(submission.Id)
                      };
+        if (StatusFilter == "Replaced")
+            ledger = ledger.Where(value => value.IsReplaced);
+        else if (Enum.TryParse<SubmissionStatus>(StatusFilter, out var status))
+            ledger = ledger.Where(value => !value.IsReplaced && value.Submission.Status == status);
         if (!string.IsNullOrWhiteSpace(Search))
         {
             var pattern = $"%{Search.Trim()}%";
@@ -334,6 +338,7 @@ public sealed class IndexModel(
         teamId,
         search = Search,
         player = PlayerFilter,
+        status = StatusFilter,
         ledgerPage = RequestedLedgerPage
     });
 

@@ -33,6 +33,10 @@ public sealed class EventCompetitionSynchronizationConfiguration : IEntityTypeCo
         builder.Property(x => x.RetryCount).HasColumnName("retry_count");
         builder.Property(x => x.LeaseOwner).HasColumnName("lease_owner").HasMaxLength(64);
         builder.Property(x => x.LeaseExpiresAt).HasColumnName("lease_expires_at");
+        builder.Property(x => x.SourceRequestFingerprint).HasColumnName("source_request_fingerprint").HasMaxLength(64);
+        builder.Property(x => x.MetricActivityBatchId).HasColumnName("metric_activity_batch_id");
+        builder.Property(x => x.LatestMetricsComplete).HasColumnName("latest_metrics_complete");
+        builder.Property(x => x.LastMetricAttemptAt).HasColumnName("last_metric_attempt_at");
         builder.HasIndex(x => x.EventId).IsUnique();
         builder.HasIndex(x => new { x.EventId, x.CompetitionId, x.NormalDueAt, x.RetryDueAt });
         builder.HasOne<BingoEvent>().WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);

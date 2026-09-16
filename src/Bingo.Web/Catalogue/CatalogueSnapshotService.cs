@@ -22,10 +22,10 @@ public sealed class CatalogueSnapshotService(ApplicationDbContext db, TimeProvid
         var items = await db.CatalogueItems.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
         var drops = await db.SourceDrops.AsNoTracking().OrderBy(x => x.BossActivityId).ThenBy(x => x.ItemId).ToListAsync(cancellationToken);
         var snapshot = new CatalogueSnapshot(
-            1,
-            DateTimeOffset.UtcNow,
-            bosses.Select(x => new BossRecord(x.Id, x.Name, x.Slug, x.Category, x.EfficientCompletionsPerHour, x.ExternalIdentifier, x.DataSource, x.ImageUrl, x.Active, x.Notes)).ToArray(),
-            items.Select(x => new ItemRecord(x.Id, x.Name, x.NormalizedName, x.ExternalIdentifier, x.ImageUrl, x.Active, x.Notes)).ToArray(),
+            2,
+            time.GetUtcNow(),
+            bosses.Select(x => new BossRecord(x.Id, x.Name, x.Slug, x.Category, x.EfficientCompletionsPerHour, x.ExternalIdentifier, x.DataSource, x.ImageUrl, x.Active, x.Notes, x.MappingStatus, x.MappingCheckedAt)).ToArray(),
+            items.Select(x => new ItemRecord(x.Id, x.Name, x.NormalizedName, x.ExternalIdentifier, x.ImageUrl, x.Active, x.Notes, x.CatalogueValueGp, x.PriceSource, x.PriceObservedAt, x.MappingStatus, x.MappingCheckedAt, x.MatchedApiName, x.MatchedApiIcon, x.RejectedPriceGp, x.RejectedPriceObservedAt)).ToArray(),
             drops.Select(x => new DropRecord(x.Id, x.BossActivityId, x.ItemId, x.DisplayRate, x.NumericProbability, x.RateConditionNote, x.DefaultEhbEstimate, x.ProbabilityScope, x.ConditionalOnParent, x.ParentProbability, x.AssumedParticipants, x.RollsPerCompletion, x.RollGroup, x.DataSource, x.Active)).ToArray());
 
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
@@ -37,7 +37,7 @@ public sealed class CatalogueSnapshotService(ApplicationDbContext db, TimeProvid
     {
         var snapshot = JsonSerializer.Deserialize<CatalogueSnapshot>(await File.ReadAllTextAsync(path, cancellationToken), JsonOptions)
             ?? throw new InvalidOperationException("The catalogue snapshot is empty or invalid.");
-        if (snapshot.SchemaVersion != 1) throw new InvalidOperationException($"Unsupported catalogue snapshot schema version {snapshot.SchemaVersion}.");
+        if (snapshot.SchemaVersion is not (1 or 2)) throw new InvalidOperationException($"Unsupported catalogue snapshot schema version {snapshot.SchemaVersion}.");
 
         var now = time.GetUtcNow();
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -54,7 +54,8 @@ public sealed class CatalogueSnapshotService(ApplicationDbContext db, TimeProvid
                 db.BossActivities.Add(boss);
                 bosses.Add(boss);
             }
-            boss.Update(record.Name, record.Category, record.EfficientCompletionsPerHour, record.ExternalIdentifier, record.DataSource, record.Notes, now, record.ImageUrl);
+            boss.Update(record.Name, record.Category, record.EfficientCompletionsPerHour, snapshot.SchemaVersion == 1 ? record.ExternalIdentifier ?? boss.ExternalIdentifier : record.ExternalIdentifier, record.DataSource, record.Notes, now, record.ImageUrl);
+            if (snapshot.SchemaVersion == 2) boss.RecordMapping(record.MappingStatus, record.MappingCheckedAt);
             boss.SetActive(record.Active);
             bossIds[record.Id] = boss.Id;
             appliedBossIds.Add(boss.Id);
@@ -74,7 +75,13 @@ public sealed class CatalogueSnapshotService(ApplicationDbContext db, TimeProvid
                 db.CatalogueItems.Add(item);
                 items.Add(item);
             }
-            item.Update(record.Name, record.NormalizedName, record.ExternalIdentifier, record.Notes, record.ImageUrl);
+            item.Update(record.Name, record.NormalizedName, snapshot.SchemaVersion == 1 ? record.ExternalIdentifier ?? item.ExternalIdentifier : record.ExternalIdentifier, record.Notes, record.ImageUrl);
+            if (snapshot.SchemaVersion == 2)
+            {
+                item.SetPrice(record.CatalogueValueGp, record.PriceSource, record.PriceObservedAt);
+                item.RecordMapping(record.MappingStatus, record.MappingCheckedAt, record.MatchedApiName, record.MatchedApiIcon);
+                item.RestorePriceRejection(record.RejectedPriceGp, record.RejectedPriceObservedAt);
+            }
             item.SetActive(record.Active);
             itemIds[record.Id] = item.Id;
             appliedItemIds.Add(item.Id);
@@ -114,7 +121,7 @@ public sealed class CatalogueSnapshotService(ApplicationDbContext db, TimeProvid
     {
         var snapshot = JsonSerializer.Deserialize<CatalogueSnapshot>(await File.ReadAllTextAsync(path, cancellationToken), JsonOptions)
             ?? throw new InvalidOperationException("The catalogue snapshot is empty or invalid.");
-        if (snapshot.SchemaVersion != 1 || snapshot.Bosses.Length == 0 || snapshot.Items.Length == 0 || snapshot.Drops.Length == 0)
+        if (snapshot.SchemaVersion is not (1 or 2) || snapshot.Bosses.Length == 0 || snapshot.Items.Length == 0 || snapshot.Drops.Length == 0)
             throw new InvalidOperationException("The catalogue baseline is invalid.");
 
         var bosses = await db.BossActivities.AsNoTracking().ToListAsync(cancellationToken);
@@ -149,8 +156,8 @@ public sealed class CatalogueSnapshotService(ApplicationDbContext db, TimeProvid
         public SnapshotCounts Counts => new(Bosses.Length, Items.Length, Drops.Length);
     }
 
-    public sealed record BossRecord(Guid Id, string Name, string Slug, string Category, decimal? EfficientCompletionsPerHour, string? ExternalIdentifier, string? DataSource, string? ImageUrl, bool Active, string? Notes);
-    public sealed record ItemRecord(Guid Id, string Name, string NormalizedName, string? ExternalIdentifier, string? ImageUrl, bool Active, string? Notes);
+    public sealed record BossRecord(Guid Id, string Name, string Slug, string Category, decimal? EfficientCompletionsPerHour, string? ExternalIdentifier, string? DataSource, string? ImageUrl, bool Active, string? Notes, ApiMappingStatus MappingStatus = ApiMappingStatus.NotConfigured, DateTimeOffset? MappingCheckedAt = null);
+    public sealed record ItemRecord(Guid Id, string Name, string NormalizedName, string? ExternalIdentifier, string? ImageUrl, bool Active, string? Notes, long? CatalogueValueGp = null, CataloguePriceSource PriceSource = CataloguePriceSource.Missing, DateTimeOffset? PriceObservedAt = null, ApiMappingStatus MappingStatus = ApiMappingStatus.NotConfigured, DateTimeOffset? MappingCheckedAt = null, string? MatchedApiName = null, string? MatchedApiIcon = null, long? RejectedPriceGp = null, DateTimeOffset? RejectedPriceObservedAt = null);
     public sealed record DropRecord(Guid Id, Guid BossActivityId, Guid ItemId, string DisplayRate, decimal? NumericProbability, string? RateConditionNote, decimal? DefaultEhbEstimate, DropProbabilityScope ProbabilityScope, bool ConditionalOnParent, decimal? ParentProbability, int AssumedParticipants, int RollsPerCompletion, string RollGroup, string? DataSource, bool Active);
     public sealed record SnapshotCounts(int Bosses, int Items, int Drops);
 }

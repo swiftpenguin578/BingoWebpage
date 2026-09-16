@@ -98,6 +98,42 @@ public sealed class Slice10Pass101WiseOldManTests
     }
 
     [Fact]
+    public async Task ConcurrentSamePlayerLookupsAreRecheckedAfterAdmissionWithoutExtraFetch()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var firstStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        var handler = new DelegateHandler(async (_, _) =>
+        {
+            if (Interlocked.Increment(ref calls) == 1)
+            {
+                firstStarted.SetResult();
+                await releaseFirst.Task;
+            }
+            return Response("{\"ehb\":7}", 19);
+        });
+        var limiter = new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance);
+        var client = new WiseOldManClient(
+            new SingleClientFactory(new HttpClient(handler) { BaseAddress = new Uri("https://fake.test/") }),
+            limiter, clock, NullLogger<WiseOldManClient>.Instance);
+
+        var first = client.LookupPlayerAsync("Same Player");
+        await firstStarted.Task;
+        var second = client.LookupPlayerAsync("same player");
+        await Task.Delay(30);
+        Assert.Equal(1, calls);
+        releaseFirst.SetResult();
+        var results = await Task.WhenAll(first, second);
+
+        Assert.All(results, result => Assert.True(result.Succeeded));
+        Assert.Equal(results[0].FetchedAt, results[1].FetchedAt);
+        Assert.Equal(1, calls);
+        Assert.Equal(19, limiter.GetStatus().ObservedRemaining);
+        Assert.Null(limiter.GetStatus().NextPermittedAt);
+    }
+
+    [Fact]
     public async Task UnexpectedTransportExceptionReleasesAdmissionAndFailsClosed()
     {
         var clock = new TestClock(DateTimeOffset.UtcNow);
@@ -161,7 +197,7 @@ public sealed class Slice10Pass101WiseOldManTests
         var clock = new TestClock(DateTimeOffset.UtcNow);
         var client = CreateClient(clock, request =>
         {
-            Assert.Equal("/competitions/42?metric=ehb", request.RequestUri!.PathAndQuery);
+            Assert.Equal("/competitions/42?metrics=ehb", request.RequestUri!.PathAndQuery);
             return Response("{\"id\":42,\"title\":\"Test competition\",\"startsAt\":\"2026-08-03T10:00:00Z\",\"endsAt\":\"2026-08-03T12:00:00Z\",\"updatedAt\":\"2026-08-03T12:01:00Z\",\"participations\":[{\"player\":{\"username\":\"Alice\",\"type\":\"REGULAR\"},\"deltas\":[{\"metric\":\"ehb\",\"values\":{\"gained\":12.5,\"start\":10,\"end\":22}}]}]}", 19);
         });
 

@@ -56,7 +56,7 @@ public sealed class DiscordCallbackModel(
             try
             {
                 await identities.SetDiscordAsync(account, discordId, result.Principal?.Identity?.Name, purpose == "replace" ? "replaced" : "linked", ct);
-                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, authentication.CreatePrincipal(account, "discord"));
+                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, authentication.CreatePrincipal(account, "password"));
                 TempData["StatusMessage"] = purpose == "replace" ? text["Your linked Discord account was replaced."].Value : text["Your Discord account is linked."].Value;
             }
             catch (InvalidOperationException exception)
@@ -70,6 +70,11 @@ public sealed class DiscordCallbackModel(
         var existing = await db.Accounts.SingleOrDefaultAsync(x => x.DiscordUserId == discordId, ct);
         if (existing is not null)
         {
+            if (!await authentication.RecordDiscordLoginAsync(existing, ct))
+            {
+                TempData["StatusMessage"] = text["Discord sign-in was cancelled or failed. Please try again."].Value;
+                return RedirectToPage("Login", new { ReturnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null });
+            }
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, authentication.CreatePrincipal(existing, "discord"));
             TempData["StatusMessage"] = text["Signed in with Discord."].Value;
             TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();

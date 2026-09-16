@@ -2,7 +2,14 @@
 @using Bingo.Web.UI
 @inject SharedShellService SharedShell
 @{
-    var shell = await SharedShell.GetAsync(User, ViewContext.RouteData.Values, Context.RequestAborted);
+    var submissionContext = Model switch
+    {
+        Bingo.Web.Pages.Submissions.IndexModel overview => (EventId: (Guid?)overview.EventId, TeamId: (Guid?)overview.TeamId, Slug: overview.EventSlug),
+        Bingo.Web.Pages.Submissions.SubmissionModel detail => (EventId: (Guid?)detail.EventId, TeamId: (Guid?)detail.TeamId, Slug: detail.EventSlug),
+        _ => (EventId: (Guid?)null, TeamId: (Guid?)null, Slug: (string?)null)
+    };
+    var shell = await SharedShell.GetAsync(User, ViewContext.RouteData.Values, Context.RequestAborted,
+        contextEventId: submissionContext.EventId, contextTeamId: submissionContext.TeamId);
     var captainNavigation = shell.CaptainNavigation;
     var submissionNavigation = shell.SubmissionNavigation;
     var currentPage = ViewContext.RouteData.Values["page"]?.ToString();
@@ -11,8 +18,6 @@
         || currentPage?.StartsWith("/Evidence", StringComparison.OrdinalIgnoreCase) == true;
     var isAccountPage = currentPage?.StartsWith("/Account/", StringComparison.OrdinalIgnoreCase) == true;
     var isSubmissionsPage = currentPage?.StartsWith("/Submissions", StringComparison.OrdinalIgnoreCase) == true;
-    var isCaptainPage = currentPage?.StartsWith("/Captain", StringComparison.OrdinalIgnoreCase) == true
-        || (isSubmissionsPage && captainNavigation is not null);
     var isAccountSubsectionPage = currentPage is "/Account/Settings" or "/Account/MyAccounts" or "/Account/MyEvents" or "/Account/ChangePassword";
     var isAccountSettingsPage = currentPage is "/Account/Settings" or "/Account/ChangePassword";
     var isHowToPage = string.Equals(currentPage, "/HowTo", StringComparison.OrdinalIgnoreCase);
@@ -24,16 +29,20 @@
         or "/Account/Onboarding"
         or "/Account/AccessDenied"
         or "/Error"
-        or "/Errors/StatusCode";
+        or "/Errors/StatusCode"
+        || ViewData["PublicEventCancelled"] as bool? == true;
     var isEventBoardPage = currentPage is "/Events/Board" or "/Events/TeamBoard";
+    var isStatsPage = currentPage == "/Events/Stats";
     var isTeamsPage = string.Equals(currentPage, "/Events/Teams", StringComparison.OrdinalIgnoreCase);
-    var eventSlug = ViewContext.RouteData.Values["slug"]?.ToString();
+    var eventSlug = submissionContext.Slug ?? ViewContext.RouteData.Values["slug"]?.ToString();
+    var isCurrentEventPage = shell.CurrentEvent is not null && string.Equals(eventSlug, shell.CurrentEvent.Slug, StringComparison.OrdinalIgnoreCase);
+    isPublicBoardsPage = isPublicBoardsPage && !isCurrentEventPage;
     var eventBoardView = Context.Request.Query["view"].ToString();
     var isRecentDropsView = string.Equals(currentPage, "/Events/Board", StringComparison.OrdinalIgnoreCase) && string.Equals(eventBoardView, "drops", StringComparison.OrdinalIgnoreCase);
     var isLeaderboardsView = string.Equals(currentPage, "/Events/Board", StringComparison.OrdinalIgnoreCase) && string.Equals(eventBoardView, "leaderboards", StringComparison.OrdinalIgnoreCase);
     var isViewBingo = isEventBoardPage && !isRecentDropsView && !isLeaderboardsView;
     var showPublishedTeamsNavigation = isTeamsPage && ViewData["PublicEventBoardPublished"] as bool? == true;
-    var hasEventContextNavigation = !string.IsNullOrWhiteSpace(eventSlug) && (isEventBoardPage || showPublishedTeamsNavigation);
+    var hasEventContextNavigation = ViewData["PublicEventCancelled"] as bool? != true && !string.IsNullOrWhiteSpace(eventSlug) && (isEventBoardPage || isStatsPage || showPublishedTeamsNavigation || isSubmissionsPage);
     var hasSecondaryNavigation = hasEventContextNavigation || isAccountSubsectionPage;
 }
 <!DOCTYPE html>
@@ -62,8 +71,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - DKLegacy</title>
+    <link rel="preload" href="/fonts/prototypes/geist/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
     <link rel="preload" href="/fonts/public/BarlowCondensed-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
     <link rel="preload" href="/fonts/public/BarlowCondensed-ExtraBold.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    @if (currentPage is "/Events/Signup")
+    {
+        <link rel="preload" href="/fonts/public/BarlowCondensed-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    }
     <link rel="icon" type="image/png" sizes="32x32" href="~/favicon-32x32.png" asp-append-version="true" />
     <link rel="icon" type="image/png" sizes="16x16" href="~/favicon-16x16.png" asp-append-version="true" />
     <link rel="shortcut icon" type="image/x-icon" href="~/favicon.ico" asp-append-version="true" />
@@ -100,13 +114,9 @@
                         {
                             <a class="landing-shell-link @(isAccountPage ? "is-current" : null)" aria-current="@(isAccountPage ? "page" : null)" asp-page="/Account/Settings">@T["Account"]</a>
                         }
-                        @if (captainNavigation is not null)
+                        @if (shell.CurrentEvent is not null)
                         {
-                            <a class="landing-shell-link @(isCaptainPage ? "is-current" : null)" aria-current="@(isCaptainPage ? "page" : null)" href="@captainNavigation.Url">@T["Captain"]</a>
-                        }
-                        @if (submissionNavigation is not null)
-                        {
-                            <a class="landing-shell-link @(isSubmissionsPage ? "is-current" : null)" aria-current="@(isSubmissionsPage ? "page" : null)" href="@submissionNavigation.Url">@T["submissions"]</a>
+                            <a class="landing-shell-link @(isCurrentEventPage ? "is-current" : null)" aria-current="@(isCurrentEventPage ? "page" : null)" asp-page="/Events/Board" asp-route-slug="@shell.CurrentEvent.Slug">@T["Current event"]</a>
                         }
                         <a class="landing-shell-link @(isHowToPage ? "is-current" : null)" aria-current="@(isHowToPage ? "page" : null)" asp-page="/HowTo">@T["How to"]</a>
                         @if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
@@ -125,13 +135,9 @@
                                 {
                                     <a class="landing-shell-link @(isAccountPage ? "is-current" : null)" aria-current="@(isAccountPage ? "page" : null)" asp-area="" asp-page="/Account/Settings">@T["Account"]</a>
                                 }
-                                @if (captainNavigation is not null)
+                                @if (shell.CurrentEvent is not null)
                                 {
-                                    <a class="landing-shell-link @(isCaptainPage ? "is-current" : null)" aria-current="@(isCaptainPage ? "page" : null)" href="@captainNavigation.Url">@T["Captain"]</a>
-                                }
-                                @if (submissionNavigation is not null)
-                                {
-                                    <a class="landing-shell-link @(isSubmissionsPage ? "is-current" : null)" aria-current="@(isSubmissionsPage ? "page" : null)" href="@submissionNavigation.Url">@T["submissions"]</a>
+                                    <a class="landing-shell-link @(isCurrentEventPage ? "is-current" : null)" aria-current="@(isCurrentEventPage ? "page" : null)" asp-page="/Events/Board" asp-route-slug="@shell.CurrentEvent.Slug">@T["Current event"]</a>
                                 }
                                 <a class="landing-shell-link @(isHowToPage ? "is-current" : null)" aria-current="@(isHowToPage ? "page" : null)" asp-area="" asp-page="/HowTo">@T["How to"]</a>
                                 @if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
@@ -240,9 +246,21 @@
             <a class="public-ui-header-context-link @(isViewBingo ? "is-current" : null)" aria-current="@(isViewBingo ? "page" : null)" asp-page="/Events/Board" asp-route-slug="@eventSlug">
                 @T["Boards"]
             </a>
-            <a class="public-ui-header-context-link @(isRecentDropsView ? "is-current" : null)" aria-current="@(isRecentDropsView ? "page" : null)" asp-page="/Events/Board" asp-route-slug="@eventSlug" asp-route-view="drops">@T["Drops"]</a>
+            <a class="public-ui-header-context-link @(isRecentDropsView ? "is-current" : null)" aria-current="@(isRecentDropsView ? "page" : null)" asp-page="/Events/Board" asp-route-slug="@eventSlug" asp-route-view="drops" data-drop-navigation data-drop-navigation-slug="@eventSlug">@T["Drops"]<span class="drop-navigation-new" data-drop-navigation-new hidden>@T["NEW"]</span></a>
             <a class="public-ui-header-context-link @(isLeaderboardsView ? "is-current" : null)" aria-current="@(isLeaderboardsView ? "page" : null)" asp-page="/Events/Board" asp-route-slug="@eventSlug" asp-route-view="leaderboards">@T["Leaderboards"]</a>
+            @if (eventSlug != "det-store-danske-sommerbingo-2026")
+            {
+                <a class="public-ui-header-context-link @(isStatsPage ? "is-current" : null)" aria-current="@(isStatsPage ? "page" : null)" asp-page="/Events/Stats" asp-route-slug="@eventSlug">@T["Stats"]<span class="drop-navigation-new">WIP</span></a>
+            }
             <a class="public-ui-header-context-link @(isTeamsPage ? "is-current" : null)" aria-current="@(isTeamsPage ? "page" : null)" asp-page="/Events/Teams" asp-route-slug="@eventSlug">@T["Teams"]</a>
+            @if (captainNavigation is not null)
+            {
+                <a class="public-ui-header-context-link @(isSubmissionsPage ? "is-current" : null)" aria-current="@(isSubmissionsPage ? "page" : null)" href="@captainNavigation.Url">@T["Captain"]</a>
+            }
+            else if (submissionNavigation is not null)
+            {
+                <a class="public-ui-header-context-link @(isSubmissionsPage ? "is-current" : null)" aria-current="@(isSubmissionsPage ? "page" : null)" href="@submissionNavigation.Url">@T["submissions"]</a>
+            }
         </nav>
     }
     @if (isAccountSubsectionPage)
@@ -289,6 +307,7 @@
             @RenderBody()
         </main>
     </div>
+    <partial name="_DropAnnouncement" />
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
@@ -297,6 +316,7 @@
     @if (User.Identity?.IsAuthenticated == true)
     {
         <script src="~/js/notification-inbox.js" asp-append-version="true"></script>
+        <script src="~/js/drop-announcement.js" asp-append-version="true"></script>
     }
     <script src="~/js/site.js" asp-append-version="true"></script>
 

@@ -70,10 +70,12 @@ public sealed class MyAccountsModel(
     {
         NormalizeReturnUrl();
         KeepValidationFor(nameof(Edit));
+        if (Edit.Version is null)
+            ModelState.AddModelError(string.Empty, text["Your My Accounts changes conflicted with another update. Please reload and try again."]);
         if (!ModelState.IsValid) return await ReloadAsync(ct);
         try
         {
-            await accounts.UpdateAsync(AccountId, Edit.LinkId, Edit.CharacterName, Edit.PersonalLabel, Edit.SavedEhb, ct);
+            await accounts.UpdateAsync(AccountId, Edit.LinkId, Edit.Version!.Value, Edit.CharacterName, Edit.PersonalLabel, Edit.SavedEhb, ct);
             return Success("My Accounts details saved.");
         }
         catch (MyAccountsCorrectionConflictException exception)
@@ -207,6 +209,7 @@ public sealed class MyAccountsModel(
     public sealed class EditInput
     {
         public Guid LinkId { get; set; }
+        public int? Version { get; set; }
         [Required(ErrorMessage = "An OSRS character name is required."), StringLength(100), Display(Name = "OSRS character")]
         public string CharacterName { get; set; } = string.Empty;
         [StringLength(100), Display(Name = "Personal label")]

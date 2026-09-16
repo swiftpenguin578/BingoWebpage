@@ -16,6 +16,7 @@ using Bingo.Domain.Events;
 using Bingo.Infrastructure;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.WiseOldMan;
+using Bingo.Web.Announcements;
 using Bingo.Web.Boards;
 using Bingo.Web.Catalogue;
 using Bingo.Web.Events;
@@ -132,6 +133,8 @@ builder.Services.AddSingleton<WiseOldManClient>();
 builder.Services.AddSingleton<IWiseOldManPlayerLookup>(serviceProvider => serviceProvider.GetRequiredService<WiseOldManClient>());
 builder.Services.AddSingleton<IWiseOldManCompetitionClient>(serviceProvider => serviceProvider.GetRequiredService<WiseOldManClient>());
 builder.Services.AddSingleton<IWiseOldManStatus>(serviceProvider => serviceProvider.GetRequiredService<WiseOldManClient>());
+builder.Services.AddHttpClient("OsrsWikiPrices", Bingo.Infrastructure.Catalogue.CatalogueApiClient.ConfigurePriceClient);
+builder.Services.AddSingleton<Bingo.Application.Catalogue.ICatalogueApiClient, Bingo.Infrastructure.Catalogue.CatalogueApiClient>();
 builder.Services.AddHttpClient("OsrsWiki", client =>
 {
     client.BaseAddress = new Uri("https://oldschool.runescape.wiki/");
@@ -146,6 +149,7 @@ builder.Services.AddHttpClient("OsrsWikiImages", client =>
 builder.Services.AddSingleton<OsrsWikiImageCache>();
 builder.Services.AddScoped<OsrsWikiCatalogueDryRunService>();
 builder.Services.AddScoped<CatalogueSnapshotService>();
+builder.Services.AddScoped<CataloguePriceSyncService>();
 builder.Services.AddScoped<ProductionPreflight>();
 builder.Services.AddScoped<DevelopmentScenarioSeeder>();
 builder.Services.AddScoped<HistoricalEventImporter>();
@@ -329,6 +333,18 @@ if (args.Contains("--legacy-image-rollback-preflight", StringComparer.Ordinal))
     await using var rollbackScope = app.Services.CreateAsyncScope();
     await rollbackScope.ServiceProvider.GetRequiredService<ProductionPreflight>().ValidateLegacyImageRollbackAsync(CancellationToken.None);
     Console.WriteLine("Legacy image rollback safety preflight passed.");
+    return;
+}
+
+if (args.Contains("--catalogue-price-report", StringComparer.Ordinal) || args.Contains("--sync-catalogue-prices", StringComparer.Ordinal))
+{
+    var apply = args.Contains("--sync-catalogue-prices", StringComparer.Ordinal);
+    var actorIndex = Array.IndexOf(args, "--actor-id");
+    Guid? actorId = actorIndex >= 0 && actorIndex + 1 < args.Length && Guid.TryParse(args[actorIndex + 1], out var parsedActor) ? parsedActor : null;
+    await using var priceScope = app.Services.CreateAsyncScope();
+    var report = await priceScope.ServiceProvider.GetRequiredService<CataloguePriceSyncService>().RunAsync(apply, actorId, CancellationToken.None);
+    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(report, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+    if (report.Error is not null) Environment.ExitCode = 1;
     return;
 }
 
@@ -620,10 +636,9 @@ app.MapGet(OsrsWikiImageCache.EndpointPath, async (string source, HttpContext co
     }
     catch (HttpRequestException)
     {
-        var fallback = OsrsWikiImageUrl.Normalize(source);
-        return Uri.TryCreate(fallback, UriKind.Absolute, out var uri) && uri.Host == "oldschool.runescape.wiki"
-            ? Results.Redirect(fallback)
-            : Results.NotFound();
+        // A provider failure stays local so rendered clients can enter their no-art state.
+        // Never turn a failed cache request into a direct Wiki hotlink.
+        return Results.NotFound();
     }
 });
 app.MapRazorPages()
@@ -631,6 +646,7 @@ app.MapRazorPages()
 app.MapHub<ProgressHub>("/hubs/progress");
 app.MapHub<AdminCollaborationHub>("/hubs/admin-collaboration");
 app.MapHub<TeamFocusHub>("/hubs/team-focus");
+app.MapDropAnnouncementEndpoints();
 
 app.Run();
 

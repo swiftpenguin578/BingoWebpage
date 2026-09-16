@@ -3,7 +3,10 @@ using Bingo.Domain.Events;
 namespace Bingo.Application.Events;
 
 public enum SignupOpeningMode { OpenNow, ScheduleOpening, ScheduledExecution, Reopen }
-public sealed record ReadinessItem(string Code, string Description, string? Route = null);
+public sealed record ReadinessItem(string Code, string Description, string? Route = null)
+{
+    public IReadOnlyList<string> DescriptionArguments { get; init; } = [];
+}
 public sealed record SignupCloseDecision(bool IsValid, DateTimeOffset? ProposedClose)
 {
     public bool RequiresAcceptance => !IsValid && ProposedClose is not null;
@@ -36,9 +39,9 @@ public interface IEventSignupLifecycleService
 {
     Task<SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, EventScheduleValues values, bool confirmChanges, LifecycleActor actor, CancellationToken ct = default);
     Task<SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, EventScheduleValues values, bool confirmChanges, LifecycleActor actor, string? reason, CancellationToken ct = default);
-    Task<SignupLifecycleResult> OpenAsync(Guid eventId, long version, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default);
+    Task<SignupLifecycleResult> OpenAsync(Guid eventId, long version, IReadOnlyCollection<string> acknowledgedWarningCodes, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default);
     Task<SignupLifecycleResult> CloseAsync(Guid eventId, long version, LifecycleActor actor, CancellationToken ct = default);
-    Task<SignupLifecycleResult> ReopenAsync(Guid eventId, long version, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default);
+    Task<SignupLifecycleResult> ReopenAsync(Guid eventId, long version, IReadOnlyCollection<string> acknowledgedWarningCodes, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default);
     Task ProcessDueSignupAsync(CancellationToken ct = default);
 }
 

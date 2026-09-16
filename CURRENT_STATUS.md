@@ -1,5 +1,3590 @@
 # Current project status
 
+## Active: Package and push reviewed corrections for PR #9 CI — 2026-09-16
+
+Assignment checkout `/private/tmp/BingoWebpage-drop-announcements`, branch
+`drop-announcements`. Preserve all existing dirty/untracked work. The saved project
+worktree is not this assignment checkout. Follow
+[lean execution and planner handoff](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+
+### Current user assignment — 2026-09-16
+
+The user authorized packaging, committing and pushing all pending accepted work
+to existing draft [PR #9](https://github.com/swiftpenguin578/BingoWebpage/pull/9)
+for CI. Packaging inventory is exact: all 37 pending paths are included, including
+the retained-catalogue test helper; 16 CI-fixture and 14 provider manifest hashes
+match the reviewed evidence. The remote branch matched starting `6acdff9` before
+packaging. CI fixtures are committed as `4a43f2c`; the four user-approved UI
+corrections and their approval record are committed as `28c7445`. The provider
+protections and associated documentation are packaged with this status update.
+No accepted production contents were changed during packaging. Scoped diff checks
+pass. Evidence: `/private/tmp/bingo-pr9-package-20260916/`.
+
+Reused verification: CI remediation full integration **886/886 in Debug** and
+original failing cases **21/21**; independent review PASS. UI source review PASS,
+with user acceptance owned by UI_PAGE_MATRIX.md. Provider final review PASS with
+no findings; image **8/8**, importer **1/1**, price/WOM **37/37**, affected Node
+**85 passed / 2 optional skips**, Web Release **0 warnings / 0 errors**. These do
+not establish a full Release CI pass. Implementation evidence remains under
+`/private/tmp/bingo-pr9-ci-remediation-20260916/`,
+`/private/tmp/bingo-minor-ui-20260916/`, and
+`/private/tmp/bingo-provider-load-20260916/`.
+
+The packager's remaining authorized publication step is a normal non-force push,
+remote-HEAD confirmation, and one bounded read of the new CI run, reported to the
+root callback. PR #9 stays draft. Full Release PR CI is the next acceptance gate;
+no automatic CI remediation, merge, deployment, app restart or database change is
+authorized. This current handoff supersedes earlier worker ownership and publication
+holds below; all implementation reviews are complete with no remaining findings.
+
+The user explicitly accepted all four minor UI corrections and authorized proceeding
+with the queued Wiki/API work. UI_PAGE_MATRIX.md records the scoped visual approval.
+`/root/provider_load_corrections` (Luna Max) now owns the observed image-cache bypass,
+failed-download retry/hotlink, Wiki price/importer cooldown and WOM duplicate-lookup
+corrections detailed below. Preserve all existing approved dirty UI/CI-remediation
+work. Evidence: `/private/tmp/bingo-provider-load-20260916/`. Mocked request-count /
+timing tests and affected Release build precede one fresh independent Sol High review.
+No browser inspection, real provider load tests, app restart, DB change or publication
+is authorized for this pass. Callbacks at handoffs/questions replace active polling.
+Provider implementation reached its stable handoff: Web Release build 0 warnings/errors,
+image-cache tests 4/4, price/WOM tests 37/37 and scoped format/diff passed. Initial
+Node lookup failed on PATH; root verified the existing bundled Node v24.19.0 at
+`/Users/christopher/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node`
+and the worker completed affected Node checks: 66+19 passed, 2 optional skips, 0 failed.
+This is a resolved runtime-location issue, not absent Node or an accepted test skip.
+Before dispatching review, root reconciled the handoff's image policy: four concurrent
+downloads / 100ms starts was more aggressive than the existing 500ms sync pace. The
+same worker now owns one bounded adjustment to one outbound image download in flight
+with at least 500ms between starts; warm disk-cache hits remain unblocked. Require a
+focused cross-key concurrency/pacing check and refreshed image evidence; reuse other
+passing checks. That bounded adjustment is now complete: image tests 5/5 passed,
+including single-flight/spacing, warm-hit bypass and canceled-waiter safety. Final
+Web Release build has zero warnings/errors and scoped format/diff checks pass; other
+provider/Node results were reused unchanged. Root dispatched one fresh Sol High
+`/root/provider_load_review` after implementation stopped. Review requires three named
+corrections, already routed to `/root/provider_load_corrections`: F1 image Retry-After
+is URL-local and different keys bypass the provider pause; F2 canceled sole/all waiters
+can retain completed download tasks and replay stale faults; F3 the importer's sixth
+429/503 throws before retaining that response's cooldown for subsequent instances.
+Price cooldown and WOM admission corrections passed source review against executable
+evidence. Server-side Stats/announcement URL mapping was source-reviewed; Node harnesses
+do not themselves execute that server mapping. Same implementer fixes these findings
+with focused tests, then the same reviewer rechecks only named corrections/direct
+consequences. Report: `/private/tmp/bingo-provider-load-20260916/review.md`.
+Latest bounded recheck: F2 and F3 passed. F1a identified that ordinary image failures
+without Retry-After also paused unrelated cold images. The same implementer has now
+restricted the global pause to valid positive provider Retry-After values; ordinary
+failures retain only their per-key negative cache. Image tests pass 8/8, Web Release
+build has 0 warnings/errors, and affected format/diff checks pass. The same reviewer
+completed the F1a-only recheck: PASS, no remaining findings. All 14 manifest hashes
+match. Accepted F2/F3, importer 1/1, price/WOM 37/37, and Node 85 passed plus 2
+optional skips are reused. Evidence and the final review are in the provider
+directory above. Provider corrections are implemented and independently reviewed;
+the next permitted action is planner delivery reconciliation. Packaging/publication
+and preview restart have not occurred; full Release CI has not been rerun.
+No publication or restart occurred.
+
+The user supplied the requested minor-change list; `/root/minor_ui_corrections`
+(Luna Max) now owns exactly four surgical changes:
+1. Stats KEEPS ON DROPPING has no image/placeholder/background-artwork box when
+   empty or lacking a usable item image; preserve valid artwork and text styling.
+2. On Signup and Signups, give the first stacked schedule block the same left
+   divider/inset as subsequent blocks; preserve existing desktop composition.
+3. Event overview: the last team card retains a trailing vertical divider unless
+   it occupies the rightmost grid column; preserve row separators and responsive
+   3/2/1-column behavior (user examples: 8 teams versus 3 teams at 3 columns).
+4. Add a literal WIP badge to the shared Stats navigation entry, identical in
+   styling/placement to the existing Drops NEW badge. Preserve Drops badge behavior.
+   This marks the unfinished Danish support; translation work is not in this pass.
+Current user screenshots define the corrections; browser inspection remains forbidden.
+Worker runs only applicable scoped CSS/markup/JS checks, then one fresh Sol High
+source review. User supplies visual acceptance. Evidence is assigned under
+`/private/tmp/bingo-minor-ui-20260916/`. Preserve the reviewed, uncommitted CI test
+fixes. Wiki image/API corrections remain queued after this small UI pass to avoid
+overlapping source changes. No packaging or PR update until these edits are settled.
+All four minor UI corrections are implemented. Evidence:
+`/private/tmp/bingo-minor-ui-20260916/evidence.md`. Owned files are Stats JS and its
+Node test, shared public CSS, Board Razor and shared layout Razor. Focused Node
+checks: 64 passed, 0 failed, 2 optional PostgreSQL skips; scoped source/cascade checks
+and diff check passed. Root dispatched fresh `/root/minor_ui_review` (Sol High)
+after implementation stopped because the implementer could not spawn it. Independent
+review found two Stats direct consequences and returned them to the same implementer:
+no-art states still reserve about 28% of text width, and `finishSettingsSave()` can
+re-enable Adjust artwork after a missing/broken image. Signup/Signups divider,
+mission-grid trailing divider and WIP badge passed source review. Luna owns these
+two named corrections; the same Sol reviewer rechecks. Report:
+`/private/tmp/bingo-minor-ui-20260916/review.md`. User visual acceptance remains
+pending. Both named corrections are now implemented: no-art text width is released
+and valid artwork restores the existing cascade; shared eligibility keeps Adjust
+artwork disabled for missing/broken images through guidance saves. Updated Node
+results: 65 passed, 0 failed, 2 optional skips (67 total); source/diff checks passed.
+The same Sol reviewer completed the two-finding recheck: TECHNICAL SOURCE PASS,
+with 2/2 independently rerun focused Node cases passing. All four corrections now
+have source acceptance; user visual acceptance remains pending. No UI worker remains
+assigned further work, and nothing has been committed/pushed. No browser inspection.
+The user explicitly authorized a preview restart:
+root built Bingo.Web Release (zero warnings/errors), replaced prior PID 39460 with
+PID 93198 on `http://127.0.0.1:5189` using the unchanged saved command.sh environment,
+and verified `/health/ready` returns HTTP 200. Runtime session 85846; logs:
+`/private/tmp/bingo-ui-preview-{build,runtime}-20260916.log`. No reset, seed or migration
+command was run. The subsequent Stats JS corrections and source recheck are complete.
+
+PR #9 is open as a draft: https://github.com/swiftpenguin578/BingoWebpage/pull/9.
+The user authorized push/PR creation; `drop-announcements` was pushed at
+`6acdff9e0eff0a2675a0504528e57c9b23dc1238`. Complete CI run `35125849800` failed:
+integration 865 passed / 21 failed / 886 total. Formatting, build, Domain 248/248,
+Application 89/89 and Browser 116/116 passed. The integration wrapper step says
+success because it records the exit code; the final test gate correctly failed.
+Full log and exact failure list: `/private/tmp/bingo-pr9-ci-35125849800/`.
+
+`/root/catalogue_migration` (Luna Max) owns the bounded correction: 19 historical
+migration cases hit the new catalogue identity guard; 2 late-introduction theory
+cases compare timestamps differing by 1–2 .NET ticks after PostgreSQL storage.
+Distinguish incomplete fixtures from a real retained-upgrade defect before changing
+the migration contract; preserve identity, rollback and historical test assertions.
+The user additionally requested checking tests for the same GitHub/PostgreSQL
+microsecond precision pattern. Limit that scan to vulnerable timestamp generation /
+database round-trip equality, with deterministic precision fixes rather than broad
+tolerances or application timing changes.
+
+Focused remediation exposed one historical fixture identity discrepancy: the July
+WOM seed names slug/key `nightmare` as `Nightmare`; both origin/main and the reviewed
+catalogue already use `The Nightmare`. Clean bootstrap applies that catalogue after
+migrations. Planner authorized only a fixture preparation correction for the exact
+legacy slug/name/key combination, preserving row identity/associations and all other
+fields. Production matching and historical seed migrations remain unchanged; arbitrary
+identity mismatches must still fail atomically. No production row was inspected.
+
+Worker must cover every reported failure and any confirmed precision corrections,
+then run the complete integration project once to completion. Evidence belongs in
+`/private/tmp/bingo-pr9-ci-remediation-20260916/`. The same independent Sol High
+reviewer `/root/catalogue_migration_review` reviews only the completed correction and
+direct consequences afterward. End-of-turn callbacks wake the planner; no polling.
+Latest user stop boundary: notify the user when the failed-test worker finishes,
+stating full integration results and whether independent review has passed. The user
+wants to discuss minor changes then. Hold the queued image/API pass and further
+packaging/PR updates for that discussion; continue the current test correction/review.
+The failed-test worker is now FINISHED: original 21/21 failures pass, the dedicated
+catalogue/pre-live class passes 5/5, and the complete integration project passes
+886/886 with final TRX and exit 0. Build has zero warnings/errors; scoped format and
+diff checks pass. Evidence: `checks.md`, `failure-to-fix-coverage.md`,
+`timestamp-scan-summary.md`, `complete-delta.md`, `hash-manifest.tsv`, and `full/complete.trx`
+under `/private/tmp/bingo-pr9-ci-remediation-20260916/`. The precision scan found no
+additional confirmed vulnerable cases beyond the corrected introducedAt fixture.
+Root notified the user; the same Sol reviewer has now PASSED the stable correction.
+Report: `/private/tmp/bingo-pr9-ci-remediation-20260916/review.md`. The reviewer checked
+all 16 worker-source hashes, the 18 prerequisite call sites covering 19 migration
+failures, the exact legacy Nightmare fixture repair and the two-case timestamp fix.
+No weakened target assertions or production guard/seed/runtime changes were found.
+The correction checks used default Debug configuration as recorded; these are local
+results, not a new Release PR CI result. No commit/push occurred for this correction.
+Current stop: await the user's minor-change discussion before queued image/API work
+or further packaging/PR updates. No worker remains assigned more remediation.
+No merge/deployment is authorized. Earlier PASS records below describe prior bounded
+reviews, not a claim that this newly exposed CI gap is resolved.
+
+**ACTIVE temporary workflow: Luna Max implementation/remediation and own focused
+checks, followed by one independent Sol High review after implementation is complete.
+Astra only for a concrete escalation. The previous Astra workflow and model defaults
+are CURRENTLY SUPERSEDED, retained in AGENTS.md and TICKETS.md for reference only.**
+No separate routine verifier; reuse passing evidence and recheck named corrections.
+Applicable final release gates remain required. This policy does not restart tickets.
+
+User requested: a quick xK display for GP values below one million, resolving the
+known release-check blockers, and a full uncommitted diff review, especially API
+correctness. Publication was initially held while production GP population was
+resolved; later explicit authorization allowed the completed package push and PR.
+The user subsequently approved implementing and testing a bounded one-time catalogue
+GP data migration through the existing deployment path, including all 68 already
+verified WOM boss/mode mappings. Implementation by `/root/catalogue_migration`
+(Luna Max) and independent review by `/root/catalogue_migration_review` (Sol High)
+are COMPLETE/PASS. Migration `20260916100000_PopulateRetainedCatalogue` freezes the
+195 API-priced items, 116 Untradeable-zero items and 68 WOM mappings in compiled
+payload data. It fills eligible missing fields with atomic system audits/version
+updates, preserving configured/manual/newer metadata, extra records, rates and frozen
+event/submission/Luck history. Clean bootstrap retains its existing snapshot path.
+
+Final evidence: 5/5 disposable PostgreSQL migration cases, 2/2 existing manual/scheduled
+outage start cases, zero-warning/error Release integration-project build, scoped
+format/diff checks and EF SQL generation passed. The one review finding was a test
+gap, now closed: a persisted pre-migration SignupClosed event with its owned signup,
+character, finalized draft and published board starts through the normal lifecycle
+after migration, preserving identities and capturing API fallback and untradeable
+zero prices. The reviewer rechecked that named correction and all six manifest hashes;
+no remaining findings. No broad suite or browser run was added.
+
+Evidence and final review: `/private/tmp/bingo-catalogue-migration-20260916/implementation-evidence.json`
+and `/private/tmp/bingo-catalogue-migration-20260916/review.md`. Final TRX files reside
+in the checkout's `tests/Bingo.IntegrationTests/TestResults/`; final logs give full paths.
+Root handled reviewer dispatch/recheck routing because worker tools were unavailable,
+not implementation or source review. Neither worker remains assigned further work.
+The earlier 203-path packaging inventory was refreshed after the catalogue migration.
+The complete candidate is 208 paths: 191 application/runtime/test/prototype/reference
+paths, 4 retained-catalogue population paths, and 13 authority/workflow documentation
+paths. The full integration release gate remains outstanding.
+Latest user workflow correction: collaboration subagents remain appropriate; the
+briefly proposed visible-task requirement is withdrawn. AGENTS.md, TICKETS.md and
+DELIVERY_PLAN.md now specify dispatch then end the turn, with no scheduled polling.
+Detailed findings/rechecks stay between implementer and reviewer. Latest refinement:
+every worker sends one brief end-of-turn update, including review/recheck handoffs,
+to originating task `01a0a975-da3d-7cf0-a6dc-8b5a07b77688` through
+`send_message_to_thread`. Genuine questions/blockers also use that route. Handle
+informational updates briefly, then end the turn again; only reconcile completion
+after the independent reviewer passes. The workflow-document update is complete.
+Next bounded release correction requested by the user's Wiki-load concern: make
+Wiki image delivery consistently use the existing persistent same-origin cache.
+Known gaps: Stats/announcement item URLs can bypass it; image endpoint failures
+redirect clients to the Wiki; unsuccessful downloads have no shared cooldown.
+This pass is now dispatched after completed CI remediation and user-approved UI fixes.
+Preserve artwork/UI and original source URLs; use cached disk files, shared miss
+deduplication and bounded download pacing, failure cooldowns/Retry-After handling,
+and a truthful contact-bearing User-Agent. Remove direct-Wiki error fallback.
+Verify affected price/image clients have bounded calls/retries using mocked request
+counts, not live provider stress. Existing price client already uses bulk hourly
+responses, serialized access, 5-minute successful caching and 30-second failure
+caching; inspect only relevant rate-limit/retry gaps, not a broad integration rewrite.
+Production Compose already mounts the image cache as a persistent volume. No browser
+inspection, live scraping, production changes or wholesale image re-download is
+authorized. Use Luna implementation/focused checks then one Sol review for this pass.
+The user's follow-up requested checking other outbound APIs too. Bounded source
+inspection confirmed WOM's shared singleton limiter (one in-flight request, reserve
+of 3, provider rate headers, rate-limit pause, one-minute fail-closed pause), 5-minute
+player-success cache, 2-hour normal competition cycles with bounded retries and DB
+leases, and bundled KC/EHB metrics. Page projections use stored observations. Discord
+requests occur in the OAuth callback rather than a recurring polling loop.
+Named follow-ups for the queued provider-load pass: Wiki price retries ignore
+Retry-After (fixed 500ms transient retry, 30s failure cache); the manual Wiki importer
+caps requested Retry-After at 30s and its 250ms/six-attempt pacing is instance-scoped;
+concurrent WOM lookups can both miss the player cache before serialized admission
+because it is not rechecked after admission. Preserve existing WOM rate controls,
+avoid redundant identical lookups, and honor provider-requested cooldowns in supported
+header forms. Prove the corrections with mocked request counts/timing, not real calls.
+The user authorized packaging/local commits of ALL intended tracked and untracked
+changes, emphasizing that omissions could break integrated behavior. The broad
+application/runtime/test/prototype/reference group is committed as `a9c6413`
+(`Package reviewed application features and fixtures`), and the four-path bounded
+catalogue population group is committed as `eac54db` (`Add retained catalogue
+population migration`). The 13-path documentation group, including this status
+update, was committed as `6acdff9`. Inventory and content-hash
+evidence are under `/private/tmp/bingo-complete-packaging-20260916/`; prototypes,
+reference assets and TICKETS are included. Push and PR creation are complete; merge
+and production application remain prohibited. Preserve prior UI approvals and leave the explicitly
+deferred sticky Luck comparison gap alone. No browser inspection was performed.
+
+GP formatting now uses K below one million, retaining raw GP below 1,000. Focused
+formatter checks and the corrected navigation fixture passed; the strict solution
+Release build passed with zero warnings/errors. The full independent review then
+covered all 189 tracked/untracked paths against a stable, hash-checked candidate.
+Reports: `/private/tmp/bingo-release-review-20260916/{api,data,web}-review.md`.
+API review found no runtime defect. Required corrections are announcement publication
+metadata, discard of empty approved events, Drops subscription/reconnect reconciliation,
+removal of reversed feed entries, and stale announcement response/claim fencing.
+
+Both bounded implementers have returned FINAL. Backend corrections include the two
+data findings and existing recovery translation for wrapped board conflicts and the
+newly earlier submission event-lock conflict. All 92 distinct focused PostgreSQL/HTTP
+cases have passing evidence (91 initial passes plus a four-case bounded recheck).
+Client corrections cover all three web findings, including queuing invalidations
+until pending mutation handlers settle. Its new public-validity HTTP case and both
+Admin shell checks passed. Final full Node gate: 104 passed, two optional
+PostgreSQL-DTO renderer cases skipped, zero failures. Domain 248/248 and Application
+89/89 passed; EF reports no pending model changes. Strict Release build is clean.
+Reports, exact implementation deltas and TRX files live under the review directory.
+
+Mechanical formatting, whole-solution format verification and strict Release build
+passed. Independent bounded rechecks closed every source finding after implementation
+finished. One additional historical-question fixture was corrected without changing
+assertions; its named PostgreSQL case passed 1/1. Final dispositions are in
+`data-recheck.md`, `web-recheck.md` and `api-recheck.md` in the review directory.
+No broader repeat review or browser inspection occurred.
+The initial full integration run was interrupted after recording named failures;
+it has no final TRX and is not a complete suite result. The full integration release
+gate is enforced by PR CI against the committed candidate; the interrupted local run
+is never a substitute. The refreshed 208-path candidate was staged in three exact
+groups, with no ignored build/test artifacts, secrets, environment files, logs or
+participant payloads included. The two tracked public-progress deletions are included.
+Push and draft PR creation subsequently completed under explicit authorization.
+Merge and deployment remain blocked on required release checks and authorization.
+
+Verification incident: the verifier applied the catalogue snapshot to a pre-existing
+isolated verifier database on port 55499 before establishing ownership. Further writes
+were stopped; do not reuse, restore or delete that database without authorization.
+Neither production nor the manual preview database on port 55519 was touched.
+
+Retained production deployment does not apply the catalogue JSON. Its existing
+`--migrate` step will run the now-reviewed bounded pricing/WOM migration when a
+release is authorized; no separate administrator login is needed for this operation.
+The full snapshot importer remains prohibited against retained production. README
+and the runbook describe both paths. No production write/deployment occurred and
+actual production population is not claimed. Local packaging is complete; publication
+remains on hold, with required release checks and push/PR authorization still applicable.
+
+### Packaging handoff — 2026-09-16
+
+Baseline HEAD was `5354a3454034ea72544563147cda9f63355ea1e5`; it remains preserved in
+the new local history. The final documentation commit will be the last commit shown
+in the packaging evidence and `git log`; its self-referential hash is intentionally
+not recorded here. Candidate paths and SHA-256 content hashes, staged inventories,
+deletion records, preservation comparison and final status are recorded under
+`/private/tmp/bingo-complete-packaging-20260916/`. Source checks reuse the previously
+passed focused Domain/Application/Node/PostgreSQL/HTTP/build/format evidence; no broad
+suite or browser run was added. Cached diff checks report only the preserved extra
+blank lines at EOF in the newly added `stats-base.css`, `stats-density.css` and
+`CataloguePopulationPayload.cs`. Next permitted action: obtain authorization for
+push/PR, then use PR CI for the full integration gate; merge and deployment remain
+unauthorized.
+
+### Simple Luck visual-check fixture — user requested 2026-09-16
+
+Created only the new isolated test event `stats-manual-luck-251-502`:
+http://127.0.0.1:5189/Events/stats-manual-luck-251-502/Stats
+One tile, one personal 1/251 drop rate, seven teams with one player each, all at
+502 KC and 0 through 6 approved drops. Served Stats response verified against
+-87.5%, -50.1%, 0%, +49.2%, +78.8%, +92.5%, +97.7% respectively.
+Evidence: `/private/tmp/bingo-luck-251-fixture-verified.json`. Add-only helper under
+`/private/tmp/bingo-stats-manual-20260915/luck-251-helper` refuses rerunning the
+existing event and guards the isolated database identity. No application-code,
+existing-fixture, runtime or browser changes. User visually accepted the reference
+fixture on 2026-09-16: "yeah it looks correct". No remaining work for this check.
+
+### Calculation change complete — user approved 2026-09-16
+
+User selected the custom probability-ranking Luck score bounded by +/-100%, with
+expected drops at zero and interpolated neutral rank for fractional expectation.
+PRODUCT_REQUIREMENTS.md and FUNCTIONAL_CONTRACTS.md own the exact formula/example.
+Use it for Stats and tile Luck, centralize it for later replacement, preserve UI,
+positive-KC filtering, tile attribution, stale retention and original timestamps.
+Workers `/root/bounded_luck_math` and `/root/bounded_luck_integration` completed
+their assigned implementation and checks (Astra xhigh). Independent read-only
+reviewer `/root/bounded_luck_review` (Astra high) ran after both FINAL handoffs
+and reported no material findings. No browser inspection.
+User reconfirmed personal own-name rates from Admin Catalogue's Team content callout;
+use the saved personal opportunity model, no further team-size division or shared-
+encounter gate. Integration may proceed; no pending user decision.
+Numerical implementation is complete: 27 focused Release domain tests passed;
+`/private/tmp/bingo-luck-score-domain-results/luck-score-domain.trx` records results.
+The shared calculator uses centered binomial recurrence/convolution with bounded
+omitted tail error, returning unavailable rather than exceeding its finite work limit.
+Integration completed: 71 focused PostgreSQL/HTTP cases passed, zero failures/skips;
+strict Web Release build passed with zero warnings/errors. Evidence:
+`/private/tmp/bingo-bounded-luck-results/bounded-luck-integration.trx`; report and
+exact delta `/private/tmp/bingo-bounded-luck-integration-report.md`,
+`/private/tmp/bingo-bounded-luck-integration.diff`. Required source review passed.
+Preview reloaded at http://127.0.0.1:5189, session73805, log
+`/private/tmp/bingo-bounded-luck-runtime.log`; only verified task-owned PID27680
+was stopped. All assigned implementation/checks are complete, no active workers.
+No UI changes or new visual acceptance gate; no packaging/deployment authorized.
+Next permitted action: user-directed work.
+No live database writes, fixture refresh, packaging or deployment authorized.
+
+### User request, verbatim
+
+> I have one more addition before we go live with this and a question.
+> There cant be 2 people or items in most versatile and keeps on dropping, right?
+>
+> The admins have requested that if you click a specific tile in a team we show the combined kc the team has and you can expand to show individual kc. Great timing since we just added collection of kcs for everyone. I also think we should add tile luck to that. So basically we have a section inside each tile that is almost identical to ehb/drop ehb in the team view. It shows team total - luck - kc. Then you can expand and it shows luck - player name - kc. It should visually look pretty much the same as the 2 i just mentioned and added a screenshot of.
+
+Reference screenshot:
+`/var/folders/w5/74mg_d917xg33ry8_4qc9g5w0000gn/T/codex-clipboard-8f0e7315-71ec-4cfa-a114-fb4efe6abf9b.png`.
+It shows the existing Drop EHB sidebar: section heading, supporting copy, team total,
+expandable Contributors, thin row separators, participant names and right-aligned values.
+Latest instruction: “Nevermind. Do a handoff to a new planner make sure it includes the message i just sent aswell”.
+This interrupts the old planner; do not interpret it as permission to discard the addition.
+
+### Standing verification direction — user, 2026-09-16
+
+**Do not browser inspect.** User explicitly stopped browser inspection. Use scoped
+source/build checks and automated functionality tests; user owns UI inspection and
+appearance approval. No further browser tools or walkthrough are authorized for this
+work. Prior browser evidence is historical execution, not permission to repeat it.
+
+### Stale retention and contributor filtering complete — 2026-09-16
+
+Known positive KC contributors are displayed; zero/unknown rows and empty groups
+are hidden. Three focused PostgreSQL/HTTP cases and Web Release build passed.
+Compatible retained KC and original timestamps now survive stale/failed refreshes;
+legacy tile Luck is reconstructed only from compatible evidence. Two focused
+PostgreSQL/HTTP stale cases passed; raw/additive cases were saved but not executed.
+Independent source review passed after the implementer finished, including the
+partial-batch guard. No browser inspection or fixture refresh was performed.
+Evidence: `/private/tmp/bingo-tile-positive-kc-report.md`,
+`/private/tmp/bingo-tile-stale-kc.diff`,
+`/private/tmp/bingo-tile-stale-kc-results/tile-stale-kc.trx`.
+
+### Stale notice correction complete — 2026-09-16
+
+User accepts the notice only when stale, but rejected UTC, oversized text and
+placement between rows. Authorized correction: compact muted notice below the
+section description; Europe/Copenhagen local date/time with no timezone label.
+Implemented only in the partial and scoped CSS. Strict Web Release build passed
+with zero warnings/errors; independent bounded source review passed after completion.
+Backend, row styling and positive-KC filter are preserved.
+Task preview: http://127.0.0.1:5189, runtime log
+`/private/tmp/bingo-tile-stale-kc-runtime.log`, session74302. Reloaded corrected build.
+No active workers or remaining implementation work; user owns appearance acceptance.
+No browser inspection, extra test matrix, packaging or database changes.
+
+### Final order correction complete — 2026-09-16
+
+User approved corrected styling ("Looks great") and requested only Eligible drops
+above KC & Luck. `_TileActivity` moved after eligible-drops conditional and before
+Approved submissions in `_TileSidebar.cshtml`; exact diff is
+`/private/tmp/bingo-tile-kc-order-correction.diff`. No styling/calculation changes.
+Scoped order/diff checks, focused independent source recheck and Web Release/Razor
+build passed (0 warnings/errors). CUA reload confirms Eligible drops → KC & Luck →
+Approved submissions. Existing style approval is recorded in UI_PAGE_MATRIX.md;
+no new visual redesign or broad gate was introduced. Worker/reviewer finished.
+
+Updated preview runs in exec session52550 with original environment/script and
+`--urls http://127.0.0.1:5189`; log `/private/tmp/bingo-tile-kc-order-runtime.log`.
+Only verified preview PID18459 was restarted. No fixture reset/reseed/refresh. Last
+order-verification load shows the existing fixture's activity waiting state, not the
+previous numeric result; no new activity data were fetched. Prior numeric render and
+calculation evidence remain recorded, without claiming freshly synchronized activity.
+Next permitted action: user-directed work only; no packaging, deployment or next pass.
+
+### Visual correction completed — awaiting user acceptance, 2026-09-16
+
+User rejected the initial custom rows and directed literal EHB/Drop EHB reuse.
+Fresh implementer `/root/tile_ehb_style` (Astra xhigh) changed only `_TileActivity.cshtml`
+and `site.public-ui.css`. Shared team-metric and contributor row/rank/name/value rules
+now apply directly; obsolete custom typography/metric rows were removed. Summary is
+TEAM TOTAL / signed Luck / green +count. Contributors are signed Luck in place of
+rank / player name / green +count. Zero is numeric and green; negative Luck remains
+coral. No visible KC suffix, Luck subcaption or single-metric boss labels. Multiple
+boss/mode totals retain group headings and separate simple rows. Calculations unchanged.
+
+Fresh reviewer `/root/tile_ehb_review` (Astra high) cleared the bounded source/cascade
+check and direct metric-order invariant; no findings. Web Release/Razor build passed
+with 0 warnings/errors; scoped diff/CSS checks and 13 .NET formatting cases passed.
+Prior 16 backend cases remain applicable and were not rerun. Workers are finished.
+Style baseline `/private/tmp/bingo-tile-kc-style-baseline-20260916`; exact diff
+`/private/tmp/bingo-tile-kc-style-correction.diff`; report/commands
+`/private/tmp/bingo-tile-kc-style-correction-report.md`.
+
+Planner restarted only verified task preview PID11078 after build. Updated preview
+runs in exec session21956 with the same script/--urls/environment on 127.0.0.1:5189,
+log `/private/tmp/bingo-tile-kc-style-runtime.log`. No fixture reset/reseed/refresh.
+Live CUA screenshot and AX show TEAM TOTAL / green0% / green+300, contributors
+coral-50% / Alice / green+200 and green+100% / Bob / green+100, no redundant row labels;
+click expands. Computed-style browser evaluation timed out, so no new computed-style
+measurement is claimed; exact shared rule parity passed source checks. User visual
+acceptance remains pending in UI_PAGE_MATRIX.md. Next: user checks corrected section;
+only named feedback/direct consequences are authorized, no packaging or next pass.
+
+### Approved decisions and delivered behavior
+
+The user explicitly chose **only drops credited to the selected tile** for tile Luck
+and **separate KC totals for each boss/mode**. Both are implemented under
+DELIVERY_PLAN.md section 18 and PRODUCT_REQUIREMENTS.md section 15.1. The tie question
+was answered: Most Versatile and Keeps on Dropping each display one winner; equal
+counts are possible and internal IDs break ties. No tie-display redesign was requested.
+
+The shared tile sidebar now renders KC & Luck in the existing team EHB/Drop EHB
+composition, with Team total/Luck/per-boss-or-mode KC and expandable
+Luck/player/KC contributors. Playing accounts aggregate by participant; character/metric
+KC and tile outcomes are deduplicated. Tile-only approved/non-reversed received counts
+use frozen first-approved event rates and full-event activity, without completion cutoff
+or another team-size division. Missing, unranked, estimated, incomplete, stale and no-drop
+states remain explicit. Event-wide Stats calculations and prior approved UI are preserved.
+
+Existing Luck checkpoint JSON optionally stores coherent tile/team snapshots. Legacy
+checkpoints lacking tile attribution calculate from a currently usable batch or wait
+during an outage; reads do not write. No new table, migration, service, job or provider
+call on tile access. Initial direct nested TeamBoard tile URL and enhanced sidebar share
+the presentation. Standalone Tile.cshtml is inactive with no registered route and remains so.
+
+### Verification, review and runtime
+
+Fresh implementer `/root/tile_kc_implement` (Astra xhigh) finished. Fresh independent
+reviewer `/root/tile_kc_review` (Astra high) completed one bounded source review, found
+one P2 CSS specificity conflict, then cleared the named correction. No remaining source
+findings. Neither worker owns further work; user visual acceptance is pending solely in
+UI_PAGE_MATRIX.md. No broad audit or completed Stats walkthrough was repeated.
+
+16 distinct focused PostgreSQL/HTTP cases passed across scoped runs: tile/team attribution,
+corrected tile/character approval, duplicate outcomes/requirements, playing accounts/alt
+exclusion, separate 13/7 modes, pooled Luck, frozen rates, no completion cutoff, no-drop,
+missing/unranked/estimated/incomplete, retained stale/additive/reversal/recovery and legacy
+checkpoints, plus actual nested/enhanced HTTP visibility and submission-control boundaries.
+Production Release compiled. Strict whole-solution build remains blocked by pre-existing
+CA1310 in CaptainScopedNavigationIntegrationTests.cs:560; that file matches baseline.
+Focused test compilation downgraded only CA1310. No strict whole-solution pass is claimed.
+
+Planner CUA checks passed direct route, click expansion, Enter collapse/Space reopening,
+enhanced tile switching and browser Back. Existing Pool A fixture: 300 KC/0% Luck,
+Alice 200/-50%, Bob 100/+100%; other eligible tile has 300 KC/-100% with zero credited
+drops. CSS correction verified through computed styles and desktop/mobile renders:
+6.4px gap, 40px Luck column, normal name wrapping and no mobile row overflow. This is
+bounded browser evidence, not user visual approval or a complete theme walkthrough.
+
+Evidence:
+- `/private/tmp/bingo-tile-kc-baseline-20260916` and `manifest.json`: pre-change source/test baseline.
+- `/private/tmp/bingo-tile-kc-addition.diff`: exact nine-file addition, excluding prior dirty work.
+- `/private/tmp/bingo-tile-kc-implementation-report.md`: exact commands/results/logs and changed files.
+- `/private/tmp/bingo-tile-kc-results/latest-outcomes.json` and original TRX files: 16 passed cases.
+- `/private/tmp/bingo-tile-kc-browser-evidence.md`: browser results and named correction evidence.
+
+Original addition preview ran in exec session 77427 (superseded by session21956 above) using
+`/private/tmp/bingo-stats-manual-20260915/command.sh --urls http://127.0.0.1:5189`;
+log `/private/tmp/bingo-tile-kc-runtime.log`. The script requires explicit --urls.
+Private app.env must never be printed. Existing isolated database is `bingo_stats_manual`
+on port 55519; no reset/reseed/fixture refresh. Development WOM fake remains enabled,
+automatic sync disabled. Existing unrelated running apps were left alone.
+
+### Next permitted action
+
+User visual acceptance of the new section at
+http://127.0.0.1:5189/Events/stats-step10-luck/Board/pool-a/Tiles/d0778154-995b-4828-a6c2-53a34a258c44
+(expand Contributors). Address only named feedback and direct consequences if provided.
+No staging, commit, push, deployment, another page family or release-gate completion is
+authorized. Preserve all prior Stats acceptance and known exceptions below (sticky Luck
+gap and tiny GP values rounded to M); historical Sommerbingo retrospective Stats remains
+excluded. All user links must use http://127.0.0.1:5189, not localhost.
+
+## Completed handoff: Stats 12-step acceptance walkthrough — 2026-09-16
+
+Checkout: `/private/tmp/BingoWebpage-drop-announcements`, branch `drop-announcements`.
+The user completed step 12 and confirmed selecting **14 September 2026 at 14:10
+Europe/Copenhagen**, rather than the walkthrough's suggested 15 September. This is
+within the fixture event window and matches the saved correction; no date-picker
+mismatch was established. The 12-step walkthrough is complete with the existing known
+UI exceptions retained below. This is not release-gate completion or deployment approval.
+
+Read-only verification of `stats-step12-finalization`
+(`99e25fb7-adb8-489e-a617-d5feaaebdf32`) in isolated `bingo_stats_manual` on port 55519:
+- Archived, official results published, submission window remains closed.
+- Version 1 retains Finishers' original 15 September 14:00 completion and reopening
+  reason; active version 2 retains the selected 14 September 14:10 completion.
+- Official Stats completion and board milestone agree with version 2. Raw tile/drop
+  history is unchanged, including the original final tile completion.
+- 125M GP / 5 drops / +25% overall Luck remain unchanged. Finishers: 100M / 4 drops,
+  4/4 tiles, +100% Luck; Chasers: 25M / 1 drop, 1/4 tiles, -50% Luck.
+- Frozen price records, first-approved rate/source bindings and metric records match
+  the baseline exactly. Provider fetch/upstream timestamps and activity batch are
+  unchanged. Calculation time advanced legitimately through the lifecycle operations.
+- Archived public Stats Data returned HTTP 200 with the same persisted results.
+
+Private evidence under `/private/tmp/bingo-stats-manual-20260915/`:
+`step12-inspection.json`, `step12-verification.json`, `step12-http-after.json`, and
+initial `step12-fixture.json` / `step12-http-baseline.json`. The helper was run only in
+read-only `inspect` mode after the user's actions. No production edits, build, restart,
+WOM refresh or database mutations occurred during post-action verification.
+Use **http://127.0.0.1:5189**, including login and Admin links; the user cannot log in
+through the localhost links. No authentication-code diagnosis or fix is claimed.
+
+Manual acceptance is complete for this walkthrough; unrelated broader checklist cases,
+whole-slice release checks and the documented navigation-test limitation are not newly
+passed by it. No staging, commit, push, deployment or further pass is authorized.
+
+### Step 11 completed
+
+Step 11 is complete in the checkout below. Live actual-client checks
+passed: Wiki mapping/hourly responses and WOM competition 145197 with 71 boss metrics
+plus EHB for all 93 participants. All 6,696 WOM metric triples and player-record timestamps
+matched the raw response; sentinel classification passed. Those player timestamps are
+record-update times, not separately identified competition-endpoint snapshot times.
+Private provider evidence stays in `/private/tmp/stats-step11-prices/` and
+`/private/tmp/stats-step11-wom/`; never commit the real participant response.
+
+The durable catalogue now contains 195 exact API prices and 116 primary-Wiki-confirmed
+untradeables at zero. For 22 absent bulk-hour prices, the initial population uses the
+latest available completed hourly observation, retaining its timestamp and the same
+midpoint rule. Runtime fallback policy is unchanged. All 68 boss mappings are verified
+against returned supported keys, including added `maggot_king` and `zalcano`. All 441
+drops, 479 legacy variants, existing identities/rates and non-pricing metadata remain
+unchanged. Both Nid entries remain separate untradeables, per explicit user clarification.
+The configured WOM User-Agent now identifies DKLegacy and the agreed Discord contact.
+
+The user confirmed independent Hiscores KC for CoX/CM, ToB/HM, ToA/Expert,
+Gauntlet/Corrupted and Nightmare/Phosani. This is operator confirmation, not an assertion
+that API documentation proves exclusivity. The temporary mode gate is removed;
+14 focused Release PostgreSQL checks passed, including distinct 13/7 mode totals,
+missing/unsupported mapping protection and normal scheduled refresh replacing an old
+gated checkpoint. Fresh independent reviewer `stats_step11_review` passed the bounded
+catalogue/config/mode delta and operational helper with no actionable findings.
+
+Initial population committed to the isolated `bingo_stats_manual` database on port 55519:
+311 items and 67 bosses, with 378 audit entries and version checks. Exact existing
+normalized-name/slug identity matching preserved the database's different internal IDs.
+Abyssal Sire's newer `TemporarilyUnavailable` validation result was preserved in full;
+its unchanged metric is present in the successful live provider response. Protected
+before/after hashes matched across 68 tables, including 13 fixture items, 4 fixture bosses,
+454 source drops and all 116 frozen event prices. Fresh committed readback passed.
+Evidence: `/private/tmp/stats-step11-catalogue/REPORT.md` and
+`/private/tmp/stats-step11-modes/REPORT.md`. The app restarted on the checked Release
+build, PID 3768, port 5189, with its existing environment/development fake unchanged;
+all four existing step-10 price fixture Data endpoints returned HTTP 200 afterward.
+No deployed database, UI, event prices, staging, commit or publication was changed.
+Step 12 completion and retained-history verification are recorded above.
+
+### Accepted steps 1–10 and prior implementation evidence
+
+Checkout: `/private/tmp/BingoWebpage-drop-announcements`, branch `drop-announcements`.
+User accepted sections 1–6 of the concise chat checklist, subject to later discoveries.
+UI_PAGE_MATRIX.md owns the UI approval and its scope. The user subsequently reported
+steps 1–9 of the numbered functional walkthrough passed: login, out-of-order approvals,
+reversal, new submissions, attribution, missing-data states, saved guidance, artwork
+persistence/permissions and conflicting artwork saves. MANUAL_TEST_CHECKLIST.md records
+that exact scope; these are manual reports, not new automated checks. The user subsequently
+reported “Everything passes” for step 10, noting that the small GP amounts display in M
+and are not readable. Steps 11 and 12 completion are recorded above. The user authorized step-10 preparation; dedicated fixtures
+are now materialized in the existing isolated database on port 55519, served on 5189.
+No production code, imported catalogue, existing test-event records or app configuration
+was changed by this preparation. No app restart, database reset or migration was needed.
+
+Step-10 evidence: `/private/tmp/bingo-stats-manual-20260915/STEP10.md` and
+`STEP10-PRICE-EDGES.md` contain exact URLs/actions; helpers and evidence stay in that private
+temporary directory. Actual board handlers rejected missing GP, accepted explicit zero and
+accepted a no-drop objective. Actual corrected approval introduced a late item at 2500 GP
+and retained the original .01 probability once despite a duplicate at .02. Controlled
+catalogue handler rejected a 3M candidate, retained trusted 1M and persisted its warning.
+Actual StartNowAsync calls froze 1.5M API and 1M outage-fallback prices at the last completed
+hour relative to actual start, with lifecycle/audit assertions. These provider inputs were
+controlled stubs, not live provider proof. Display submission rows were synthetic fixtures.
+
+Planner independently verified running HTTP Stats data: `stats-step10-luck` 4000 GP/4 drops,
+Alice -50%, Bob +100%, Pool A 0%, Cara/Pool B -75%; one retained .01 outcome after correction.
+`stats-step10-late` 2500 GP/1 drop despite catalogue 9000; `stats-step10-start-api` 1.5M/1 drop;
+`stats-step10-start-fallback` 1M/1 drop. Authenticated catalogue GET rendered guard trusted/rejected
+values. Evidence: `step10-independent-http.json`, `price-edge-helper/guard-rendered.html`,
+`step10-continued.log` and helper evidence JSON. Manual step 10 is accepted per user, with
+the display limitation recorded separately; exact small GP totals were independently
+verified over HTTP, not claimed visually confirmed by the user. Step 11 is complete as
+recorded above, as is step 12 acceptance. No packaging is authorized.
+
+Known unresolved issues: small GP amounts such as 4,000 are formatted in rounded millions
+and become unreadable; money() lacks a thousands branch. No display correction has been made.
+The user left the sticky Luck comparison top gap after unsuccessful
+corrections; current CSS uses margin-top:0/top:-1px and no cover pseudo-elements. Serving
+and scroll geometry were checked, but the user explicitly reported it still not working.
+The later step-1 sign-in flow passed per user; the earlier Safari/localhost cookie issue
+was not independently diagnosed, and no authentication code fix was made.
+
+Stats now uses hourCycle:h23 in both production time formatters. Focused afternoon/midnight
+format and syntax checks passed; port 5189 serves both exact updated scripts. No restart.
+
+The user's authorized Pass 5 implementation and focused checks are complete. All prior
+dirty work was preserved. No worker/reviewer/task creation, staging, commit, push,
+deployment, live catalogue population, user-database reset or running-app restart occurred.
+Independent reviewer `stats_pass5_review` (GPT-6 Astra high) completed the broad
+source review and found four P2 integration defects. The original implementer
+(GPT-6 Astra xhigh) completed only these corrections and focused regressions:
+
+- F1: preserve team/player composite identities and select the actual current team.
+- F2: Board progress must use official completion corrections while retaining raw tile history.
+- F3: invalidate chart drawing when timestamp domain/positions change.
+- F4: prevent in-flight refreshes from overwriting artwork drafts or newer artwork/guidance saves.
+
+The SAME reviewer passed the bounded F1–F4 recheck with no remaining defects in
+those corrections or their direct consequences. Planner reconciled the verdict on
+2026-09-15. All five Stats implementation passes and their required independent source
+reviews are complete; implementer and reviewer are stopped. The actual approved source
+was ported. Production UI acceptance is recorded in UI_PAGE_MATRIX.md; detailed
+functional acceptance and known exceptions remain as stated above.
+
+The 12-step acceptance walkthrough in MANUAL_TEST_CHECKLIST.md is complete.
+Provider/mode and initial catalogue work is complete as recorded above. Whole-slice release gates and the documented
+navigation-test limitation remain. No packaging, deployment or user-owned database
+mutation is authorized by this handoff.
+
+### Five-screenshot responsive content correction
+
+The original Astra xhigh implementer inspected all five supplied screenshots and completed
+only the four authorized content corrections. During implementation the user said valuable
+drops stacked too early; the final switch is **650px actual GP-card width**, replacing the
+initially proposed 760px. Three columns remain above 650px (subject to the existing mobile
+viewport rule); the 600px donut/GP stacking query is unchanged. UI_PAGE_MATRIX.md records
+this user decision and the bounded Luck spacing adaptation, with acceptance still pending.
+
+Production changes are limited to `stats-integration.css` and `stats-page.js`:
+
+- R1: measure numeric endpoint text in its real font, reserving intermediate count-up
+  decimal width, the existing 7px bar gap and 4px outer clearance on both sides. All
+  entries in the full view, including comparisons, share one available bar span with
+  the existing max(60, largest absolute score) denominator. Roomy tracks retain 40%;
+  narrow tracks use a common smaller span. Matching row/key track minima reserve label
+  space while names can ellipsize. Resize/font completion repaints the existing animation
+  progress; exact numeric strings, row heights, pinned clear and unavailable states stay.
+- R2: Board progress team names use one line, min-width:0 and ellipsis, with their entire
+  names in the DOM/title and existing marker accessible labels. Existing name-column
+  widths, horizontal scroll, row heights, counts, marker positions and inspection remain.
+- R3: fit the unchanged formatted total and caption to the actual inner circle of the
+  130px/150px ring using measured text bounds and 4px clearance. Keep the approved 34px
+  value/9px caption when they fit; reduce value typography as needed, using an 8px compact
+  caption if needed before shrinking the value below 24px. The exact GP string remains
+  visible, titled and labelled. Resize/font completion preserves donut nodes, mask/sweep
+  and geometry. No further abbreviation or data change.
+- R4: at <=650px card width, reuse stacked rows with artwork, two-line bounded name/byline
+  text and an unbroken separate GP slot. Full text remains in DOM and titles. Wider cards
+  retain three columns. Treasure/list flex bases use natural content height and cannot
+  shrink below it, including when the upper GP view holds its measured dimensions.
+  Existing `holdGpLayout`, artwork hover and absence of drop-change animation are retained.
+
+The approved prototype, base/density styles (including the previous container specificity
+fix), adapter and assets/fonts are unchanged. All 29 protected copied functions remain
+identical; UI1–UI3 and F1–F4 checks remain intact. Prior Luck name/unavailable truncation
+rules are preserved. Only the two production files, existing test harness/regressions,
+this status owner and the existing UI_PAGE_MATRIX correction/scale entries changed.
+
+Executed evidence:
+
+- `/private/tmp/stats-content-final.log`: **64/64 Node port/renderer checks pass**, including
+  all previous 50 and 14 new cases. New cases use the screenshot's long names, `55.45B`,
+  extreme signed percentages with decimals, 2/3/5/8/15 teams, 130px/150px supplied ring
+  geometry, narrow/wide supplied track measurements, resized/loaded-font measurements,
+  intermediate and reduced motion, working pinned clear, unavailable status, marker focus,
+  and actual tab-driven held Teams/Players/Everyone plus team drill-down.
+- The cascade probe includes narrow-card/wide-viewport cases, 650/651 boundary checks,
+  natural treasure/list height rules, text bounds and held upper-view constraints. The
+  previous complete nested selector-tree/container specificity regressions still pass.
+- `/private/tmp/stats-content-before.log`: **all 14 new cases fail** against saved pre-fix
+  renderer/integration CSS. R3 independently catches missing fitted geometry; R4 independently
+  catches three columns persisting at 650px, in addition to the combined content cases.
+- Scoped diff/whitespace and JavaScript syntax checks pass. Correction diff:
+  `/private/tmp/stats-content-corrections.diff`. The existing source-hash manifest now
+  records changes only to integration CSS, renderer and test file; original-to-production
+  renderer mapping updated at `/private/tmp/stats-pass5-renderer-port.diff`.
+- `/private/tmp/stats-content-served.json`: isolated port 5189 returns HTTP 200 and exact
+  workspace bytes for changed CSS/renderer and unchanged base/density styles. The served
+  CSS has the revised 650px query and no 760px query. No restart was needed.
+  Integration CSS SHA-256: `196c7e1934b0783cc7b1ff41713b1cc3e769ad71a7742f8d64de6b15d3a984e4`.
+  Renderer SHA-256: `01ab3d582bc124ded5cdaf4fa2db5e95babbc27a6a0bff99fb8f52da48ab7c3a`.
+
+Limits and next permitted action: screenshots establish the original visible defects.
+New checks execute production measurement/animation/DOM code with controlled text/box
+metrics and check scoped source cascade; they do not measure the browser's real font,
+container layout or final panel containment. No browser automation or visual acceptance
+is claimed. The two saved PostgreSQL DTO cases reused earlier files; no .NET/build/PG run,
+provider/fixture/data mutation, other-app change, worker/task creation or packaging occurred.
+Implementer is stopped, ready for the SAME independent fidelity reviewer's bounded R1–R4
+recheck and direct consequences, followed by the user's visual recheck. No unrelated
+endpoint-label overlap, page family, broader review or new implementation pass is authorized.
+
+### User-reported Drop value responsive mismatch
+
+User reports production Drop value does not stack like the approved prototype.
+Planner identified unscoped child selectors in `stats-density.css` @container blocks
+(600px card width), while ordinary selectors carry `.public-stats-page .stats-page`.
+This added two classes of specificity only to desktop rules: the unscoped narrow-card
+rules lost the cascade even when their container query matched. Prior declaration-only
+port checks missed the changed selectors and therefore missed the behavior difference.
+
+The original Astra xhigh implementer completed the bounded port correction:
+
+- Added only the missing `.public-stats-page .stats-page` scope to 12 selectors in all
+  five existing `@container(max-width:600px)` blocks. The additional share-list row-size
+  block at line 1122 had the same omission and is included. Corrected owners remain at
+  lines 455–461, 1122, 1224, 1234 and 1352–1355.
+- Exact declarations, order, query kind/conditions and the approved layout remain
+  intact: one-column stacked GP at <=600px card width, the 130px donut/list arrangement,
+  heading and share-content rules, and held chart/list bounds. Above 600px retains the
+  original side-by-side layout. No viewport substitute or new breakpoint was added.
+- Full base/density rule-tree comparison found no other missing selector scopes in
+  nested groups. Base CSS needed no edit. Approved prototype, renderer/UI1–UI3 fixes,
+  adapter, assets/fonts and preceding Luck overflow CSS remain unchanged.
+- Added two regressions to the existing `stats-production.test.js`: complete nested
+  selector/query/declaration trees against the approved prototype (with only the
+  established root/theme/asset mapping), and a focused GP cascade probe. The probe
+  checks winning selectors/declarations, query ancestry and uniform two-class scope
+  specificity at card widths 599/600/601, immediately below/at/above every existing
+  viewport width threshold, both ordinary and held layout states. It covers visuals,
+  share/heading/ring/list/content, trend/chart bounds and the GP legend.
+
+Executed evidence:
+
+- `/private/tmp/stats-responsive-before.log`: **both new regressions fail** against
+  saved pre-fix CSS. The cascade failure specifically observes desktop
+  `grid-template-columns:minmax(0,1fr) 215px` winning at a 599px card width.
+- `/private/tmp/stats-responsive-final.log`: **50/50 existing and new Node port/renderer
+  tests pass**, including unchanged baseline hashes, declarations/order, all 29 copied
+  interaction functions, UI1–UI3 and prior F1–F4 checks. The two saved PostgreSQL DTO
+  cases reuse earlier fixture files; no .NET/build/PostgreSQL execution or mutation.
+- Scoped correction diff and whitespace checks pass:
+  `/private/tmp/stats-responsive-correction.diff`. Of the 20 recorded production/test
+  source hashes, only `stats-density.css` and the test file changed; manifest updated
+  at `/private/tmp/stats-pass5-source-hashes.txt`. This status owner is the only other
+  repository file changed during this correction.
+- `/private/tmp/stats-responsive-served.json`: isolated port 5189 returns HTTP 200 and
+  exact workspace bytes for updated density CSS plus unchanged base CSS, integration
+  CSS and renderer. Density SHA-256:
+  `c1cdd80743ec238c4ae1e08e486b5cfdae94e6a44fee1886f8a1aac80f7a4094`.
+  No restart, fixture/provider/catalogue work, other-app/database changes or packaging.
+
+Limits and next permitted action: these are parsed source/query/specificity and
+explicit-declaration cascade checks, not a browser CSS engine, measured container
+sizes, resolved custom properties, or rendered proof. Browser automation was not used;
+user visual acceptance remains pending in UI_PAGE_MATRIX.md. The SAME independent
+fidelity reviewer passed the bounded missing-scope correction recheck with no residual
+findings. Reviewed the recorded 50/50 pass and both pre-fix failures; independently
+verified all 20 hashes and scoped whitespace. Tests were not rerun during review.
+Implementer and reviewer are stopped. Next is the user's responsive visual recheck.
+No broader review/redesign, new implementation pass or packaging is authorized.
+
+### User-authorized report-only UI comparison
+
+After the Luck overlap report, the user reported missing Drop value refresh animations
+and requested another approved-UI versus production-UI review. Explicit boundary:
+**report gaps only; do not fix them until the user chooses the next work.** The Luck CSS
+correction below finished before the pause and is already served; it remains in place.
+Original implementer is stopped. Fresh read-only reviewer `stats_ui_fidelity_review`
+(Astra high) completed the comparison of all six sections, markup/style integration,
+controls, responsive rules, artwork and animation triggers. No further fixes were made.
+
+Three source-supported P2 finding groups (browser timing/rendering not verified):
+
+1. Startup/theme/live-refresh callbacks interrupt entry motion. App site.js writes the
+   theme on DOMContentLoaded; Stats observer redraws the donut even for an unchanged
+   theme. WatchEvent immediately refreshes Live data; generatedAt changes cause full
+   rerender, shortening GP/Luck entry. Background refresh also replays Luck/Board progress
+   and drops Board progress inspection/focused markers. Milestones retain their unchanged
+   signature guard. Owners: stats-page.js theme957, renderRace663/742, refresh1041,
+   observer1075, WatchEvent1084; site.js141/149.
+2. GP morph uses changing-length timestamp paths. stats-adapter.js20 builds the current
+   timestamp set; approvals/reversals can change path command count, while stats-page.js
+   346/356 passes incompatible paths to the copied SVG interpolation. Tab/team switches
+   with the same timestamp set are not implicated. Prototype had fixed14positions.
+3. Theme callback updates GP chart/donut but not inline legend swatches. stats-page.js957
+   skips renderLegend383; old theme colors remain until another action rebuilds the legend.
+
+No additional concrete source deviations were found in the reviewed paths. This is not a
+rendered UI comparison or visual approval. Optional DOM harness was not executed because
+node was not on reviewer's PATH; no test failure is inferred. Recent Luck ellipsis source
+correction is narrow and preserves pinned controls, but awaits user visual recheck.
+Bottom valuable-drop change animation is intentionally absent per approved prototype.
+
+The user subsequently authorized fixing all three groups. Original implementer Astra
+xhigh has completed only UI1 startup/refresh lifecycle, UI2 compatible GP morph paths and
+UI3 theme legend synchronization, plus direct consequences and focused executable checks.
+The SAME fidelity reviewer passed the bounded UI1–UI3 recheck with no remaining
+actionable findings in the named corrections or direct consequences. The reviewer
+inspected all 12 new regressions and the recorded 48/48 passing suite, independently
+verified all 20 manifest hashes and correction whitespace; no renderer rerun or browser
+verification was performed. Implementer and reviewer are stopped.
+Production visual acceptance is still pending in UI_PAGE_MATRIX.md. No provider/catalogue/
+fixture mutations, other-app changes, packaging or further implementation are authorized.
+
+### UI1–UI3 implementation checkpoint and evidence
+
+Only `src/Bingo.Web/wwwroot/js/stats-page.js`, the existing
+`tests/Bingo.BrowserTests/stats-production.test.js` harness/regressions, and this status
+owner changed during this correction. The adapter, approved prototype files, scoped
+base/density styles, assets/fonts and prior Luck overflow CSS remain unchanged.
+
+- UI1: unchanged theme notifications return immediately. An initial clock-only GET
+  preserves entry nodes through the existing 1400 ms entrance window, then fetches
+  anew through the existing draft/save/revision fence. Refresh compares section inputs;
+  unchanged Luck and donut are retained, chart time-domain changes still redraw, and
+  background race updates render without replaying the 1200 ms entrance. Race controls
+  retain an absolute inspection time and a stable team/tile/timestamp marker key;
+  refresh restores inspection and focused markers when still valid. Race callbacks
+  retain their own data snapshot so an unrelated refresh cannot mix coordinate domains.
+- UI2: chart transitions resample old/new polylines onto compatible x coordinates,
+  retaining vertical segments from close timestamps. Only animation geometry is
+  resampled; the underlying final path and hover dates retain exact authoritative
+  points. Interrupted transitions start from the current 240 ms spline position,
+  captured before detaching the prior SVG. Reduced motion ends at the final data and
+  clears transition state. Approved entry durations and SVG interpolation remain intact.
+- UI3: real theme changes recolor chart paths/dots/end labels, donut segments/share
+  dots and GP legend dots in place, including generated team/player colors. Reveal
+  masks, focused controls, pinned comparisons and scroll positions remain intact.
+
+Executed checks:
+
+- `/private/tmp/stats-fidelity-final.log`: **48/48 Node renderer checks pass**, including
+  12 focused fidelity regressions and all 36 prior cases. The two PostgreSQL DTO cases
+  reuse the previously captured controlled fixtures in
+  `/private/tmp/stats-pass5-corrections-fixtures`; no PostgreSQL run/mutation occurred.
+- Actual observer, immediate WatchEvent GET, window focus, visibility and reconnect
+  callbacks are exercised. Checks cover clock-only deferral, actual data during entry,
+  unchanged section calls/nodes, race inspection/focus/scroll, fresh data after deferred
+  refresh/save fences, insertion/removal/domain changes, interrupted morphs, coincident
+  timestamp geometry, reduced-motion changes, and 5/15-team theme/pinned states.
+- `/private/tmp/stats-fidelity-before.log`: 11 of the 12 new fidelity regressions fail
+  against the saved pre-correction renderer; the extra coincident/reduced-motion case
+  already passed before. The prior baseline hashes, CSS declarations/order and all 29
+  copied interaction-function assertions remain intact and pass.
+- Scoped diff/whitespace checks pass. Of the 20 previously recorded production/test
+  source hashes, only the renderer and its test file changed. Updated manifest:
+  `/private/tmp/stats-pass5-source-hashes.txt`. Correction-only diff:
+  `/private/tmp/stats-fidelity-corrections.diff`. The existing original-to-production
+  renderer mapping diff was refreshed at `/private/tmp/stats-pass5-renderer-port.diff`.
+- `/private/tmp/stats-fidelity-served.json`: isolated port 5189 returned HTTP 200 and
+  exact workspace bytes for renderer, unchanged adapter and preserved Luck CSS.
+  Renderer SHA-256: `5753b31e85b707b949ad3cdbc89905e4dda58a797abb279fad53afe6f16f8cb4`.
+  No restart was necessary. Existing apps and databases were untouched.
+
+Limits and next permitted action: these are executable DOM/clock/geometry stand-ins,
+not browser timing/layout/SMIL painting or visual acceptance. No .NET/PG/build gate was
+rerun for this JavaScript-only correction; prior backend evidence is reused. The original
+implementer and SAME reviewer are stopped after the passing bounded recheck. Next is
+the user's production visual recheck (including the preceding Luck overflow correction).
+Do not reopen other page families,
+provider/catalogue work, packaging or broader review from this handoff.
+
+### User-reported visual defect — Luck row overflow
+
+The user's quick sweep screenshot showed long Luck names wrapping into following rows
+and unavailable status text escaping its available width. The bounded correction is
+implemented in `src/Bingo.Web/wwwroot/css/stats-integration.css` only:
+
+- Ordinary team-button and player-span names use `min-width:0`, one line, hidden
+  overflow and ellipsis inside the existing name column.
+- Pinned rows are excluded from wrapper clipping: their existing truncated text child,
+  flex gap and nonshrinking clear button remain intact, including its focus outline.
+- Unavailable labels are bounded by both edges of the existing track, with one-line
+  ellipsis. Existing full label `title`, full row/interaction accessible labels and
+  full player text remain in the actual renderer DOM; no name/status string was cut.
+- No panel/row height, grid, font, visible-row count, timing, prototype, renderer or
+  calculation changed. No fixture/activity refresh, provider call, database write or
+  app restart was performed. Production visual acceptance remains pending.
+
+Focused evidence:
+
+- Scoped cascade/load-order and diff/whitespace checks passed. Base/density CSS and the
+  other 19 reviewed production/test source hashes are unchanged. No new persistent
+  tests or .NET build were needed for this CSS-only change.
+- `/private/tmp/stats-luck-overflow-check.log`: **30 renderer cases pass** — 2/3/5/8/15
+  teams × 320/560/1150 harness widths × numeric/unavailable data, including long ordinary
+  button/span names, title/full accessible text and pinned name/operational clear.
+  `/private/tmp/stats-luck-overflow-check.cjs` reuses the existing actual-renderer harness.
+  These are DOM stand-ins and scoped source/cascade checks, not browser layout evidence.
+- The isolated app's `http://127.0.0.1:5189/css/stats-integration.css` returned 200 and
+  exactly matched workspace bytes without restart. Receipt:
+  `/private/tmp/stats-luck-overflow-served.json`; CSS SHA-256:
+  `c2f2641e2f5c7a128ac0d888b1a8c83ecefd8659965ccbdb01c5bd8e7a45d5b0`.
+- Scoped before/after diff: `/private/tmp/stats-luck-overflow.diff`.
+  `/private/tmp/stats-pass5-source-hashes.txt` now carries the new integration-CSS hash.
+
+This correction was included in the report-only fidelity review above and remains
+unchanged through UI1–UI3 remediation. User visual recheck of Luck remains pending.
+
+### Isolated manual-test setup ready — 2026-09-15
+
+The user subsequently authorized step 1 of acceptance: a NEW disposable PostgreSQL
+store and separate local app. This setup is complete; existing apps/databases were not
+reset, changed or restarted. Production implementation was not reopened. No agents,
+review pass, staging, commit, catalogue export or live provider request was made.
+
+- Main five-team page: `http://127.0.0.1:5189/Events/stats-manual-teams-5/Stats`.
+  The checklist's original six-team event is also available at
+  `http://127.0.0.1:5189/Events/test-15-dkl-live/Stats`.
+- Private local credentials, full URL table, provenance, logs and stop/restart commands:
+  `/private/tmp/bingo-stats-manual-20260915/SETUP.md` (mode 0600 in a 0700 directory).
+  Roles: StatsOwner (Super Admin), SeedAdminTwo (Admin), SeedEvidenceCaptain,
+  SeedEvidenceCoCaptain and SeedEvidenceParticipant. Passwords stay outside the repo.
+- Requested 2/3/4/5/8/15-team variants are reachable with 7 players per team, long names,
+  a complete frozen 5×5 board, varied approved progress and 57/81/102/120/177/324 item
+  drops respectively. Each populated variant also has pending evidence. Empty-evidence,
+  missing-GP/activity and waiting-activity pages are ready. Hidden/private/unpublished/
+  excluded/unknown routes return 404; the cancelled-public route renders cancellation.
+- All five role logins and Stats permissions passed HTTP checks for the five-team and
+  existing six-team pages. Only Super Admin receives artwork editing. Health ready is
+  Healthy. Served Stats JS/CSS, font and artwork matched checkout hashes. Evidence is in
+  `http-roles-five.log`, `http-roles-six.log`, `http-variants.log` and `fixture-results.json`
+  under the private setup directory. No browser automation or manual visual approval.
+- New container: `bingo-stats-manual-20260915`, ID
+  `ae9ef2b907925e8ecccbb3993dc94b9001b297ab063fc74faa653c04b5a012f1`;
+  PostgreSQL binds only `127.0.0.1:55519`, database `bingo_stats_manual`.
+  New app PID **85963**, URL `http://127.0.0.1:5189`; evidence/cache are inside the private
+  setup directory. Stop only this setup with `kill -TERM 85963` then
+  `docker stop bingo-stats-manual-20260915`; no automatic deletion is scheduled.
+- Setup used the existing migrations, saved catalogue apply, owner bootstrap and
+  development seeder. Additional fixture code is outside production in the private
+  `fixture-helper/` directory. Interrupted empty/spare setup records remain isolated and
+  are excluded from the walkthrough. No production behavior/source file changed.
+- Seven new **TEST** items carry arbitrary fixed GP values, and a TEST source supplies
+  controlled rates/metric responses. The imported 311-item catalogue is unchanged.
+  Development WOM fake is enabled, automatic synchronization disabled; controlled
+  observations are not provider validation. The original six-team workflow still needs
+  reviewed real catalogue prices before real Drop value acceptance.
+- Planner separately fetched live Wiki mapping/hourly candidates for `2026-09-15T18:00Z`:
+  189 exact items with current prices, 6 exact without current prices, 116 unmatched.
+  `/private/tmp/stats-initial-price-review/review.md` and `catalogue-price-proposals.json`
+  are **unapplied proposals**. No unmatched item was set to 0. Provider proof and reviewed
+  initial population must precede real Drop value acceptance.
+
+Next: planner/user perform the consolidated acceptance walkthrough against this isolated
+setup. Existing manual-start/private-board fixture `test-62-board-publication-setup` and
+other development workflow stages are present; scheduled-start/provider and finalization
+acceptance remain unexecuted. All manual checkboxes and production page approval remain
+pending. The setup worker is stopped; the separate app/container remain running.
+
+### F1–F4 correction handoff
+
+Only `Stats.cshtml.cs`, `stats-adapter.js`, `stats-page.js`, the existing Pass 5
+Node/PG test files, and this status owner changed in the correction pass.
+
+- **F1:** presentation keys now combine team and participant IDs for GP and Luck,
+  including search, preview, hide, pin, drop attribution and milestone lookup.
+  The route returns the authenticated account's current confirmed membership in a
+  public Stats team; historical contribution order cannot choose “My team.” A departed
+  participant retains evidence but has no current-membership shortcut.
+- **F2:** raw tile markers/count history remain unchanged. A published official
+  completion controls the finish marker. If its timestamp has no tile marker, a
+  separate “Official completion” marker uses that authoritative time and counts.
+  An official incomplete result suppresses the raw finish; unfinalization restores
+  the raw finish. The existing race renderer, geometry and sweep remain in use.
+- **F3:** chart invalidation includes timestamp coordinates and timezone; refresh
+  invalidation also includes the advancing live clock, current membership and saved
+  preference. Numeric GP arrays can stay identical while paths, date labels and
+  inspection move together after an end-time or submission-time correction.
+- **F4:** each GET captures a local edit/save revision. A response crossing an editor
+  session or settings mutation is discarded and refetched after editing/saving ends.
+  Saves sharing the account version cannot run concurrently. Draft cancellation,
+  save failure and a closed dialog during a pending save release the fence correctly;
+  focus remains usable and a later save error is visible outside the closed dialog.
+  A fresh preference response also synchronizes its checkbox.
+
+Executed correction evidence:
+
+- **3 PostgreSQL/HTTP tests passed**: the two new correction journeys (team move and
+  finalization → archive → unfinalization), plus the affected full Stats HTTP journey.
+  `/private/tmp/stats-pass5-corrections-postgres.log`. The fixture exports are controlled,
+  temporary data in `/private/tmp/stats-pass5-corrections-fixtures/`; no real participants
+  or user database were used.
+- **35 Node/DOM/source tests passed, none skipped**, including 15 new correction cases
+  and both real PostgreSQL DTOs through the actual production renderer.
+  `/private/tmp/stats-pass5-corrections-dom.log`. After the final F4 cancellation/focus/
+  error-state correction, **all 9 focused F4 cases passed** (including one additional
+  case), `/private/tmp/stats-pass5-corrections-refresh-final.log`. Thus 36 distinct
+  cases are covered across those two runs; no claim of a single 36-case run.
+- Before/after reproduction used a saved pre-correction copy of the actual JS:
+  all 13 then-existing synthetic correction regressions failed against that copy,
+  `/private/tmp/stats-pass5-corrections-before.log`, and subsequently passed with the
+  fixes. It did not restore or overwrite the working sources.
+- Web Release build: **0 warnings / 0 errors**,
+  `/private/tmp/stats-pass5-corrections-release.log`. Integration build succeeded with
+  only the established two protected-test CA1310 warnings,
+  `/private/tmp/stats-pass5-corrections-integration-build.log`.
+- All 20 owned source files passed scoped whitespace checks. Refreshed source hashes:
+  `/private/tmp/stats-pass5-source-hashes.txt`; focused correction diff:
+  `/private/tmp/stats-pass5-corrections.diff`; original/production renderer diff:
+  `/private/tmp/stats-pass5-renderer-port.diff`. Approved prototype/assets/CSS hashes
+  and the 29 unchanged interaction functions passed the port test.
+
+Reproduction order: build the integration tests using the established CA1310 exception;
+run the `StatsPass5Correction` and full Stats HTTP filters with
+`STATS_PASS5_FIXTURE_DIRECTORY=/private/tmp/stats-pass5-corrections-fixtures`; run the
+Node test file with the same variable. Without it, only the two exported-DTO Node
+cases are skipped. `STATS_PASS5_SCRIPT_ROOT` optionally selects the saved original
+scripts for failure reproduction.
+
+Unaffected prior PG, Pass 4, migration and model evidence below is retained. There
+were no schema, CSS, markup or provider changes during corrections. This is an
+implementer evidence, now independently source-reviewed; it is not manual acceptance.
+
+### Actual approved-source mapping (review the code/diff, not screenshots alone)
+
+All destinations below are relative to `src/Bingo.Web/` unless stated otherwise.
+
+| Approved input | Production destination and retained implementation |
+| --- | --- |
+| `prototypes/stats/outputs/stats-page-prototype.html`, `.gp-panel` | `Pages/Events/Stats.cshtml`: same section, title/help, tabs, divider/compact search, trend/share grid, pie list, comparison and valuable-drop DOM. Fixture placeholder rows are replaced by the existing renderer's real input. |
+| Same HTML, `.luck-panel` / `.repeat-drop-card` | Same Razor page: original title/back/help, tabs/search, ranking scroll host and repeat-item composition. Names/counts/item are populated from the DTO. |
+| Same HTML, `.timeline-panel` / `.versatile-card` / `.race-panel` | Same Razor page: original milestone filter/rail, blue card, race axis/scroll/tooltip/help. Real team choices and timestamps replace fixture options/dates. |
+| Same HTML, `#artwork-editor` | Same Razor page, Super Admin only: original dialog, drag/keyboard preview, size-view tabs, ranges and Save/Cancel/Reset controls. Shared persistence wording replaces browser-storage wording. |
+| Same HTML embedded `<style>` | `wwwroot/css/stats-base.css`: original declaration blocks and order, including Barlow/Geist, scoped to `.public-stats-page .stats-page`; only selector namespace/root theme and asset URLs change. |
+| `stats-density.css` | `wwwroot/css/stats-density.css`: every original declaration block/order and breakpoint retained; same namespace/asset-URL adaptation. |
+| `stats-prototype.js` | `wwwroot/js/stats-page.js`: original section renderers, event handlers and animation mechanisms. The executable port test compares 29 unchanged named interaction/motion functions literally against the baseline. Data-dependent date/index/count/identity code is adapted as described below. |
+| Linked fonts/item art/watermark | `wwwroot/stats/assets/`: byte-identical Barlow ExtraBold/SemiBold, Geist Variable, seven approved item images, and `branding/login-artwork-dark.svg`. Item image selection uses stable Wiki IDs when mapped; otherwise it uses the actual DTO image, or an honest missing-image state. No label-based identity guessing. |
+
+Original baseline hashes (rechecked unchanged):
+
+- HTML: `fcd542de6afb2c0889435423b15d461ec601566dee8bee755cc5ca7b9112ed26`
+- Density CSS: `88d4c40780c5c675600e736ec80c1e8f6975cb5a7c2ff83693e9f43f70eff95d`
+- JS: `50d6f6512117cd863c4c0a4f9e7a2d3a9d1dcbd2e13e365b3379b656cd598b24`
+
+### Bounded integration changes and owners
+
+- `Pages/Events/Stats.cshtml(.cs)` owns `/Events/{slug}/Stats`, safe JSON/bootstrap,
+  `?handler=Data` refresh, owner guidance POST and Super Admin artwork POST. The existing
+  public Stats service is the access/data authority. No preferred-event fallback or WOM
+  call per page visit. Cancelled published events use `_EventCancelled`.
+- `_Layout.cshtml` adds the Stats event-navigation link; `SharedShellService` explicitly
+  recognizes the route for Captain/submissions context. The masthead reuses the existing
+  Teams masthead markup/classes. Prototype header/masthead and footer/demo controls are
+  absent; section controls remain. Only Adjust artwork and the separately approved saved
+  guidance control appear below the sections.
+- Planner confirmed the fidelity-preserving wrapper resolution: app header/masthead stay
+  unchanged; the Stats root offsets the app main gutter and contains the original `.shell`
+  (max 1640px, 3.6% padding; 5% at ≤850px). The app's 88rem cap does not constrain it and
+  padding is applied once. `stats-integration.css` also neutralizes existing `.panel`
+  margin-top and Bootstrap `.toast` width/border/hidden defaults; otherwise they would
+  alter the original composition or hide its announcements. Other app pages are unaffected.
+- `stats-adapter.js` aligns authoritative GP snapshots to real timestamps, adapts stable
+  teams/players/item identities, server shares, complete Luck results, progress snapshots
+  and server-ordered milestones. `PublicEventStats.Tiles` now carries names/artwork from
+  the already queried approved public Board projection, so pending draft edits cannot leak
+  through labels. No competing GP/Luck/completion calculation is introduced in JavaScript.
+- Renderer changes replace fixture-only counts, roster/valuable-drop generation, dates,
+  sample completion arrays, milestone cutoffs and bootstrap. GP uses actual timestamp
+  positions; race uses the same normalized coordinate span and unchanged 1200ms sweep.
+  Missing prices show known-GP context, unavailable Luck shows concise status without a
+  false 0% bar, and stale Luck retains original result/times/revision. Existing chart,
+  search, comparison, help and interruption mechanisms remain.
+- User-approved Luck adaptation: one denominator is `max(60, largest absolute finite
+  score in the full current view, including comparison)`. Keep 40% half-track extent,
+  proportional bars, score labels and synchronized motion. Scrolling does not rescale.
+  UI_PAGE_MATRIX.md owns this decision.
+- Existing Account owns `StatsGuidanceHidden` (false by default); the current authenticated
+  account and its version govern saves. Existing CatalogueItem owns nullable bounded
+  X/Y/width/height/scale/rotation fields using the original editor's ranges. All six are
+  absent for the default fit or present/valid together. Save/reset validate the actual
+  displayed item, event visibility, active Super Admin, item/account concurrency and
+  antiforgery; settings and existing AuditEntry write commit/roll back together. Cancel
+  changes only the preview. Readers use the saved shared appearance. No new table/framework.
+- Migration `20260915192848_SaveStatsGuidanceAndArtwork`, designer and model snapshot
+  are complete. Existing rows/price data survive the isolated downgrade/upgrade rehearsal;
+  PostgreSQL enforces the all-or-none transform bounds. No reset FK-list change is needed.
+- Refresh uses the existing progress hub, the shell's connection where present, and the
+  Stats data handler. Focus/revisit also refreshes. Scope, comparison, searches, inspected
+  GP time and page/list scroll are retained; an open artwork draft defers refresh.
+- `MANUAL_TEST_CHECKLIST.md` now has the consolidated final Stats walkthrough: actual
+  entry points/roles/controlled fixtures, all Pass 1–2 catalogue/API/price/start feedback,
+  every Stats interaction, guidance/artwork persistence, deferred provider gates, and
+  finalization last. Every manual checkbox remains unexecuted.
+
+### Executed focused evidence
+
+- **20 new PostgreSQL/HTTP cases pass**, `/private/tmp/stats-pass5-postgres-final.log`:
+  actual Razor route/nav/direct refresh and JSON encoding; anonymous/ordinary/Super Admin
+  authorization and antiforgery; owner-only preference/session reload and stale token;
+  artwork save/read/reset/range validation/concurrent catalogue or actor-role change;
+  audit rollback; migration preservation; hidden/private/unpublished/unknown/excluded
+  access and cancelled presentation. The final full HTTP journey was rerun after the
+  wrapper and scoped role-link fixture additions: `/private/tmp/stats-pass5-http-final.log`.
+- **20 Node/DOM/source cases pass**, `/private/tmp/stats-pass5-dom-final.log`, in
+  `tests/Bingo.BrowserTests/stats-production.test.js`. Actual production bootstrap with
+  excluded elements absent; 0/2/3/4/5/8/15 teams, long/escaped labels, missing/stale states,
+  top-five/sixth comparison/search/no page jump, real time/count/marker focus, motion
+  interruption, guidance and artwork draft/save/reset, preserved refresh state, 320/560/
+  850/1150 harness widths, original CSS declaration/order and font/asset hashes, and
+  explicit app CSS collision/outer-width checks. These are controlled DOM stand-ins and
+  source/cascade checks, not browser rendering or user visual acceptance.
+- **14 affected Pass 4 regressions pass**, including complete query, weighted/later-before-
+  earlier approval, tied-time aggregate order, scheduled-end capture and additive stale
+  retention/reversal cases. `/private/tmp/stats-pass5-regressions.log` also records the
+  one older navigation test failure below; it is not an all-green regression run.
+- Web Release build: **0 warnings / 0 errors**, `/private/tmp/stats-pass5-release-final.log`.
+  EF reports no pending model changes, `/private/tmp/stats-pass5-model-check.log`.
+  Integration builds use only the previously established CA1310 exception for the two
+  warnings in protected `CaptainScopedNavigationIntegrationTests.cs:560`; no edits to it.
+- Scoped diff/owned-source whitespace checks pass. Source hashes are recorded in
+  `/private/tmp/stats-pass5-source-hashes.txt`. A direct original/production renderer diff
+  is `/private/tmp/stats-pass5-renderer-port.diff` (regenerate for final line positions).
+
+### Remaining limits and next permitted action
+
+- `CurrentEventHeaderAndEventScopedRoleNavigation` fails with a Board GET **404** at
+  lines 539/556, before navigation assertions. Source evidence: lines 526–530 publish
+  1×1 boards without tiles/requirements; `BoardApprovalFixture` defaults these to empty,
+  whereas `PublicBoardService` requires a complete frozen tree. Those owners and this
+  protected test were not changed in Pass 5. This indicates a fixture limitation; no
+  pre-Pass-5 comparison was executed, so it is not conclusively labelled preexisting.
+  The complete-fixture Stats HTTP journey separately exercises the modified event link,
+  direct refresh and current-event Participant/Captain/Co-captain submission links.
+- Independent source review found F1–F4 above. No browser automation, visual acceptance, live 69-metric
+  request, mode-pair verification or catalogue population occurred. Unverified provider
+  modes remain unavailable; the saved catalogue JSON's 311 missing IDs remain an operator
+  gate. Earlier provider deferrals are preserved, not waived.
+- Whole-slice release/format/acceptance gates remain required before release; this pass
+  executed only its affected gates and reused unaffected earlier evidence. Packaging,
+  publication, a user-owned database change or app restart is not authorized here.
+- **Next:** consolidated user acceptance and deferred provider/operator gates above.
+  F1–F4 implementation and same-reviewer recheck are complete. No new broad review,
+  implementation pass or packaging is required/authorized by this handoff.
+
+### Pass 4 completed implementation/review handoff
+The original Pass 4 implementer (GPT-6 Astra xhigh) completed the bounded remediation
+assigned by planner task `01a0a29f-5382-7120-96f5-69d422a832f1`. Prior dirty work is
+preserved. No new agent/task/reviewer, broad source review, Pass 5, staging, commit,
+push, deployment, user-owned database action or running-app change occurred.
+
+Fresh reviewer `stats_pass4_review` (GPT-6 Astra high) previously completed the one
+Pass 4 source review and reported F1–F3. Only those findings and their direct
+consequences were changed. The SAME reviewer passed the F1–F3 recheck with no remaining
+named or direct-consequence defects. The planner reconciled this verdict on 2026-09-15.
+Implementation and independent source review are complete; implementer and reviewer are
+stopped. Visual acceptance and provider checks remain deferred, not passed.
+
+Named corrections:
+
+- **F1 — cumulative aggregate order:** `PublicStatsService.Progress` carries each team's
+  existing history sequence into the merge. Equal timestamps sort by stable team ID and
+  that sequence, so cumulative snapshots cannot be reversed by submission-ID order.
+  Complete-query proof uses four identical timestamps with deliberately opposing
+  submission/contribution IDs; aggregate approved totals are 1,2,3,4, tile/line totals
+  stay monotonic, final totals agree with the team, and reached milestones retain stable order.
+- **F2 — automatic-end capture:** `EventLifecycleService.ExecuteScheduledEndAsync` now
+  captures the compatible checkpoint after the state save and before the existing
+  Serializable transaction commits, matching manual end. Actual scheduler proofs cover
+  fresh batch → scheduled end → beyond two-hour freshness (same full result and original
+  times, labelled stale), expired Live batch (no resurrection), and forced checkpoint-write
+  failure (end transition, revision/invalidation boundary and checkpoint roll back together).
+- **F3 — additive stale retention:** the existing event owns
+  `StatsLuckInvalidatedAtRevision`, recording its last non-additive Stats revision. Pure
+  approval advances only `StatsEvidenceRevision`; reversal, correction and other existing
+  Stats revision writes advance both. Reads may retain an older full Luck calculation only
+  from at/after that boundary, through the current revision, with all other compatibility
+  checks unchanged. An older retained result is always stale and preserves its old numerator,
+  denominator, nested results, evidence revision and original times. Writes STILL require
+  the exact current evidence revision. Tests cover outage then approval, reversal of either
+  the retained or newly added drop, no resurrection after another approval, completion
+  correction, and rejection of an older writer even with the same fresh activity batch.
+- Additive migration `20260915190625_RetainLuckAfterAdditiveApproval`, designer and model
+  snapshot add only that event field and its bounded-revision check. Existing events initialize
+  the boundary to their known current evidence revision; no older compatibility is guessed.
+  PostgreSQL rehearsals preserve a matching checkpoint and reject an older uncertain one.
+  DATA_MODEL.md describes this distinction and scheduled-end capture.
+
+Correction evidence (all passing; 23 distinct cases):
+
+- **10 correction PostgreSQL cases** plus **13 directly affected existing regressions**.
+  `/private/tmp/stats-pass4-review-corrections.log`: 9/9 initial cases.
+  `/private/tmp/stats-pass4-review-consequences.log`: 15/15, including the two migration
+  variants (one repeats the initial matching-checkpoint case) and the 13 regressions.
+  Existing checks cover source/assignment/team/competition fences, mid-query/fetch evidence,
+  stale writers, aggregate team milestones, checkpoint rollback, 5×5 finalization/archive/
+  unfinalization, and prior additive migrations. Unaffected original evidence below is reused.
+- Final Web Release: zero warnings/errors, `/private/tmp/stats-pass4-review-release.log`.
+  EF: no pending model changes, `/private/tmp/stats-pass4-review-model-check.log`.
+  Integration builds use only the established CA1310 exception for the two preexisting
+  CaptainScopedNavigationIntegrationTests.cs:560 warnings; that file remains untouched.
+- Scoped diff check passes. Correction source hashes:
+  `/private/tmp/stats-pass4-review-source-hashes.txt`. Approved HTML/CSS/JS prototype hashes
+  remain exactly the three values recorded below.
+
+The live provider/mode proofs and consolidated visual acceptance remain deferred under the
+existing user decision. Pass 5 and packaging remain unauthorized. The one broad review
+and bounded same-reviewer recheck are complete; no further review is needed without a
+relevant new change. Next implementation requires the user's Pass 5 authorization.
+
+Implemented owners:
+
+- `Bingo.Application/Stats/IPublicStatsService` and the focused Infrastructure
+  `PublicStatsService` projection: exact event access without preferred-event fallback;
+  one consistent database snapshot; approved/non-reversed submission-time GP and histories,
+  complete team/player/source lists, shares and valuable/repeated-item highlights using
+  retained exact item IDs/artwork and frozen prices. Missing historical prices remain null.
+- Luck deduplicates event outcome bases, counts actual submissions once, applies retained
+  personal probabilities/parent mechanics/rolls and pools expected/received counts. It uses
+  the existing regular Playing full-competition-delta approximation, excludes informational
+  accounts, preserves evidence-character attribution, and exposes source/player waiting,
+  incomplete, zero-recorded/estimated, stale and original timestamp states. A required public
+  roster member with an unavailable primary/activity assignment is not silently omitted.
+- Progress reuses `PublicProgressCalculator`, including caps and submission chronology.
+  DTOs include team and aggregate hover totals, real row/column dimensions, scoped milestones,
+  all-team thresholds and distinct contributed tiles. Official completion comes from existing
+  finalization snapshots; Stats introduces no alternative official placement calculation.
+- `BingoEvent.StatsEvidenceRevision`, `EventStatsLuckCheckpoint`, configuration and additive
+  migration `20260915183337_AddEventStatsLuckCheckpoint` with designer/model snapshot.
+  Existing evidence, synchronization and lifecycle/final-review owners transact revisions
+  and compatible checkpoint capture. Full public JSON calculations are versioned and bounded;
+  source/basis, activity batch/generation, competition, assignment/public-roster and lifecycle
+  keys are compared under the event lock before writing. Old writers cannot replace newer
+  revisions. The existing reset's explicit dependency list includes the new table.
+- A successful compatible activity batch must still be inside its two-hour freshness window
+  to create a replacement calculation. Outages/partial observations may retain only a
+  compatible prior full result with old times and a stale label. Reversal or incompatible
+  source/assignment/competition/lifecycle changes invalidate that presentation. When no usable
+  replacement exists, including an expired Live batch after finalization, Luck is waiting or
+  incomplete. Prices, first-approved mechanics and retained official history remain intact.
+
+Initial implementation evidence (55 unique PostgreSQL cases; reuse only where unaffected by F1–F3):
+
+- **35 new Pass 4 cases**: 28 scenarios observe 46 complete query DTO results, six query access
+  denials, and one additive-migration-only scenario. Coverage includes all three required
+  formula examples; later then earlier approval/reversal; weights/duplicate eligibility;
+  two distinct items at one completion time; regular accounts/informational alt/team pooling;
+  missing/zero/-1/mode-unverified states; retained price/artwork identity; complete and partial
+  checkpoints; mid-query evidence commits; evidence/board/new-objective/mapping changes during
+  fetch; stale writers; assignment/team/competition replacement; collective milestones and
+  ended unreached states; real 5×5 completion correction/finalization/archive/unfinalization;
+  schema/payload bounds and checkpoint-failure rollback of the approval/revision together.
+- **20 directly affected existing regressions**: EHB/lifecycle, lease/generation/source fences,
+  finalization-versus-review races, transaction rollback and the prior Pass 3 additive-migration
+  proof. The latter's fixture is now created before its intentional downgrade, so the current
+  event model does not attempt to insert its new column into an older schema.
+- `/private/tmp/stats-pass4-connected.log`: 52/52 (33 new + 19 regressions).
+  `/private/tmp/stats-pass4-checkpoint-final.log`: 3/3 (one new bound check plus two relevant
+  reruns after final serialization). `/private/tmp/stats-pass4-prior-migration.log`: 1/1.
+  `/private/tmp/stats-pass4-atomicity-final.log`: 2/2 (new atomicity proof + extended lifecycle).
+- Final Web Release: **zero warnings/errors**, `/private/tmp/stats-pass4-release-final.log`.
+  EF model consistency: no pending changes, `/private/tmp/stats-pass4-model-check.log`.
+  Integration builds retain only the established `-p:WarningsNotAsErrors=CA1310` exception
+  for the two preexisting CaptainScopedNavigationIntegrationTests.cs:560 warnings.
+  That unrelated file was not changed by this pass. Scoped `git diff --check` passes.
+  Scoped final source hashes: `/private/tmp/stats-pass4-source-hashes.txt`.
+- Approved prototype hashes still match HTML
+  `fcd542de6afb2c0889435423b15d461ec601566dee8bee755cc5ca7b9112ed26`, CSS
+  `88d4c40780c5c675600e736ec80c1e8f6975cb5a7c2ff83693e9f43f70eff95d`, and JS
+  `50d6f6512117cd863c4c0a4f9e7a2d3a9d1dcbd2e13e365b3379b656cd598b24`.
+
+Acceptance and next permitted action:
+
+- Initial implementation and bounded F1–F3 remediation/executable verification are complete.
+  The same reviewer's named recheck is pending. No passing recheck or visual acceptance
+  is claimed; do not start another broad review or Pass 5.
+- The user's explicit deferral of the live 69-metric WOM request and five mode-pair proofs
+  remains in effect until final acceptance. Affected modes remain unavailable even when raw
+  counts exist. Controlled provider fixtures are not real-provider sign-off. Existing deferred
+  gates remain in MANUAL_TEST_CHECKLIST.md; this pass did not retry the external gate.
+- All visual acceptance stays consolidated after all five passes under UI_PAGE_MATRIX.md.
+  Pass 5, packaging and deployment still require their own authorization. No user database or
+  running app action is a next step for this implementer.
+
+### Pass 3 implementation/checks handoff — 2026-09-15
+
+Implemented in `/private/tmp/BingoWebpage-drop-announcements`, branch `drop-announcements`.
+Existing dirty work is preserved. No subagents, staging, commit, push, deployment,
+user-owned database population/reset, app restart or later pass occurred. Implementation
+and focused behavior checks are complete; final Release Web build passes with zero warnings/errors.
+Independent source review passed. The remaining work is the named real-provider
+verification gate, separately from any later-pass authorization. No visual acceptance
+or full provider verification is claimed.
+
+Implemented owners:
+
+- Existing WOM client/interface: one repeated-plural `metrics` request for EHB and distinct
+  bound required boss metrics. Per-metric parsing ignores total/deprecated progress; malformed
+  or duplicate boss data cannot erase usable EHB. Existing case-insensitive EHB parsing and
+  the shared limiter remain intact. Missing provider timestamps remain missing.
+- `EventLuckOutcomeBasis` and `BoardPublicationQueries.Luck`: first approved outcome mechanics,
+  retained approval/drop/boss identities and time, one validated metric binding and source
+  revision. Duplicate placements share the first basis; later rate/mapping edits preserve it.
+  Missing identities/conflicting earliest approvals are explicitly unavailable. No guessed
+  historical backfill; existing rows initialize lazily only from proven retained approvals.
+  Approval/publication capture is atomic with the existing snapshot/audit transaction.
+- Existing board publication projection and public DTO now propagate the frozen roll/parent/
+  personal-mechanics fields. Actual public DTO execution confirms the propagation.
+- `EventCompetitionCharacterMetricActivity`: raw counts, coverage/estimate state, latest issue,
+  original fetch/upstream time, source fingerprint and batch. Bad/missing/failed observations
+  keep usable raw data with its actual origin. Initial invalid observations expose their issue
+  with null activity/fetch time. Approved-source-drop presence is an explicit availability input;
+  the agreed -1/zero cases do not invent kills or a Luck score.
+- Existing synchronization owner: event-lock and lease/expiry/generation/competition/assignment
+  fencing plus pre-fetch source fingerprint and commit recheck. Re-read tracked bases after
+  another transaction binds a mapping in flight. Complete EHB can coexist with incomplete
+  boss activity. Raw-cache reads use a consistent snapshot, recheck compatibility, and expose
+  incomplete/stale state without HTTP or score calculation.
+- Additive `20260915174600_CacheEventCompetitionBossActivity`, designer and model snapshot.
+  PostgreSQL keys/checks and an immutable-basis UPDATE trigger protect storage, permitting
+  only the first metric binding. Existing EHB storage remains unchanged.
+- Direct integration correction: Development reset's explicit transaction/table list includes
+  both Pass 3 tables and the previously omitted Pass 2 `event_item_prices` dependency. No CASCADE
+  or authorization change. Only isolated fixtures were reset for tests.
+
+Executed evidence (passing union; unaffected passing cases are reused):
+
+- **13 pure rules tests**: `/private/tmp/stats-pass3-domain.log`.
+- **7 synthetic HTTP tests**: `/private/tmp/stats-pass3-http-final.log`; full known metric request,
+  multiple/missing/malformed/duplicate metrics, heterogeneous-total exclusion and preserved EHB.
+- **28 new PostgreSQL cases** across the focused runs: 26 passed in
+  `/private/tmp/stats-pass3-postgres.log`, plus the mapping-binding-during-fetch and oversized
+  metric cases passed in `/private/tmp/stats-pass3-regressions.log`. These cover raw replacement/
+  retention, every agreed count case, multiple regular accounts/swaps/informational alts,
+  lease/generation/competition/assignment changes, board/new objective/mapping changes during
+  fetch, read fencing, actual approval rollback/first basis/duplicate outcomes/later rates,
+  ambiguous legacy history, unverified modes, and additive migration preserving existing EHB.
+- **34 existing EHB/approval regressions passed** across the 41-pass regression run and the
+  three corrected reset/render cases. `/private/tmp/stats-pass3-regressions.log` originally
+  had three explicit-reset FK failures; `/private/tmp/stats-pass3-final-corrections.log`
+  passes all three plus the extended real public DTO mechanics assertion (4/4).
+- Final Web Release build passes with **zero warnings/errors**: `/private/tmp/stats-pass3-release.log`.
+- Migration/model consistency passes: `/private/tmp/stats-pass3-model-check.log`. Scoped diff
+  checks pass. Integration builds use the established `-p:WarningsNotAsErrors=CA1310` for
+  the two preexisting warnings at CaptainScopedNavigationIntegrationTests.cs:560; that file
+  was not changed by this pass. No broad unchanged Pass 2 suite rerun was needed.
+- Stats prototype hashes still exactly match HTML `fcd542de6afb2c0889435423b15d461ec601566dee8bee755cc5ca7b9112ed26`,
+  CSS `88d4c40780c5c675600e736ec80c1e8f6975cb5a7c2ff83693e9f43f70eff95d`, and
+  JS `50d6f6512117cd863c4c0a4f9e7a2d3a9d1dcbd2e13e365b3379b656cd598b24`.
+
+Provider execution gate remains separate and unresolved:
+
+- [Official competition endpoint documentation](https://docs.wiseoldman.net/api/competitions/competition-endpoints)
+  documents repeated plural metrics. Current official provider source at
+  `adde6ac93b8a631e58f02384c28e8d98f0061812` verifies plural query validation, per-requested-metric
+  delta generation, direct named Jagex score mapping, and Maggot King/Zalcano candidates.
+  The rates list alone was not used as request/semantic proof.
+- The full 69-metric browser request (EHB plus 68 saved/candidate catalogue metrics) failed
+  with `net::ERR_BLOCKED_BY_CLIENT`; no competition participant payload was saved. Full live
+  request coverage is still unverified. Each actual batch checks every required character/
+  metric rather than treating a supported metric name as observed coverage.
+- CoX/CM, ToB/HM, ToA/Expert, Gauntlet/Corrupted and Nightmare/Phosani remain explicitly
+  `ModeSemanticsUnverified`. Focused primary searches and provider-owned hiscores fixtures
+  did not prove independence/overlap; the fixture mode counts were unranked. No subtraction,
+  invented split or permanent unsupported classification is implemented. Further primary
+  evidence is required before enabling those source pairs.
+
+Pass 4 evidence revisions, Luck calculations/checkpoints and Stats queries are now implemented;
+see the active Pass 4 handoff above for execution evidence and the pending independent review.
+All page visual acceptance remains deferred to the user's consolidated post-Pass-5 checklist,
+owned by UI_PAGE_MATRIX.md. This handoff does not authorize the next pass or packaging.
+
+### Pass 2 implementation and verification handoff — 2026-09-15
+
+Implemented directly in `/private/tmp/BingoWebpage-drop-announcements`, branch
+`drop-announcements`; prior dirty work is preserved. No subagents, staging, commit,
+push, deployment, user-database population, running-app change or later pass occurred.
+Implementation and focused execution are complete. Planner assigned one fresh read-only
+independent reviewer, `stats_pass2_review` (GPT-6 Astra high), for Pass 2 and its direct
+integration consequences. One broad review is complete with two bounded findings:
+F1 clear rejected-candidate metadata when the API mapping identity changes, preserving
+unchanged-mapping outage/missing flags; F2 localize the named missing-price start-readiness
+blocker at its actual presentation boundary. No other scoped defects were reported.
+The existing implementer completed both corrections and focused handler/presentation
+checks. The SAME reviewer passed the bounded F1/F2 recheck with no remaining named or
+direct-consequence findings. The planner reconciled the verdict on 2026-09-15.
+Implementation and independent source review are complete; prior unaffected passing
+evidence remains valid. No further broad review or subsequent pass has started.
+
+F1/F2 corrections accepted by the same reviewer:
+
+- F1: `CatalogueItem.ConfigureApi` clears rejection metadata only after a real normalized
+  identity change, including removal. Unchanged IDs (including equivalent leading-zero
+  formatting) preserve the flag through missing-price/outage responses. Existing
+  save/validate handlers persist the correction and its audit; accepted-value behavior
+  remains unchanged.
+- F2: the named DROP_PRICE_MISSING blocker carries its affected names as description
+  arguments. Manage localizes only that blocker at presentation, for readiness/overview
+  and failed-start feedback, using the existing Danish resource. Other blocker wording,
+  lifecycle rules and persisted attempt/audit semantics remain unchanged. No markup,
+  CSS, JS, provider, schema or migration change was needed for these corrections.
+- **12 focused PostgreSQL/HTTP checks passed**: 8 F1 mapping save/validate cases, an actual
+  Danish Manage GET plus failed-start POST/toast case, and 3 direct guard/start regressions.
+  Filter: StatsPass2Review; StatsPass2GuardRetainsTrustedValue;
+  StatsPass2GuardAuditFailure; StatsPass2MissingPriceAfterPublication.
+  Log: `/private/tmp/stats-pass2-review-corrections.log`. The Danish check asserts the
+  rendered named readiness text and the exact translated toast span, not merely a localizer.
+- Release Web build passes with **zero warnings/errors**
+  (`/private/tmp/stats-pass2-review-release.log`). Integration build retains the same two
+  preexisting CA1310 warnings under the established exception. Scoped diff checks pass;
+  the prior 75 integration/28 pure/migration/provider evidence is reused where unaffected.
+  The independent reviewer verified these logs/source checks and passed the named
+  recheck. No additional suite rerun or visual acceptance was claimed.
+
+
+Final approved behavior:
+
+- Starts capture available catalogue-wide values from the last completed UTC hour before
+  ActualStartedAt, using safe midpoint/one-side/zero handling and catalogue fallback.
+  Unused entries with neither value receive no invented row and do not block start.
+- Missing eligible-drop prices are rejected at tile add/edit, approval/publication and
+  start readiness. Stored zero and objective-only tiles with no drops are valid. Live
+  corrections accept the existing frozen item value even if the catalogue later changes.
+- Any first introduction without an existing event value requires and freezes its current
+  catalogue value at successful published correction approval. This covers new identities
+  and originally unused/unpriced identities. No late historical fetch or unpriced-ID set.
+- The user approved rejecting later API candidates strictly outside 0.5×–2× of a trusted
+  positive catalogue value and positive↔zero transitions. Exact boundaries and zero→zero
+  pass; a missing baseline supplies no comparison. Initial population still needs operator
+  checking. Frozen event values never reprice. Volume/history detection and scheduled
+  catalogue refresh were not authorized.
+
+Implemented owners:
+
+- Domain EventItemPrice has immutable integer value, original selected hour, actual capture
+  time, exact API identity and observed/catalogue fallback provenance. BingoEvent owns the
+  start-capture marker. CatalogueItem owns rejected candidate/observation-hour metadata,
+  separate from mapping validity, with safe ratio arithmetic and manual/untradeable
+  precedence. Accepted API/manual values clear the flag; missing/outage leaves it.
+- CatalogueApiClient uses explicit `/1h?timestamp=...`, verifies response hour, preserves
+  the exact User-Agent and bounds the client/hour cache. EventItemPriceService prepares
+  outside transactions and captures inside existing lifecycle/publication boundaries.
+  Manual/scheduled start uses the actual start clock after preparation; a changed bucket
+  falls back without mislabelling old API data. Event row locks/version and serializable
+  transactions preserve singleton/readiness/audit/activation rollback and uniqueness.
+- Board create/edit/approval/publication guards use real frozen item identities. Successful
+  published correction inserts first-use values under the event lock. No-op/retry/resume
+  preserves rows. Catalogue rebind retains an old item identity referenced by event prices.
+- Approved guard is applied to explicit catalogue API validation, operator report/apply and
+  start candidates. Start rejection uses PriceMoveRejected fallback; flag and audit writes
+  roll back with the start. Existing API panel/operator feedback explains retained values;
+  snapshot v2 round-trips the optional rejection metadata, with v1 compatibility retained.
+- Additive migrations `20260915165204_FreezeEventItemPrices` and
+  `20260915170124_GuardSuspiciousPriceCandidates`, designers and model snapshot are present.
+  Composite PK, nonnegative/zero/provenance constraints and immutable UPDATE trigger protect
+  price rows. No historical backfill: prior starts (including reconstructed Sommerbingo)
+  keep null capture marker and no asserted price history. Existing imported history remains.
+
+Executed checks:
+
+- **28 pure tests passed**: CataloguePricingTests, EventPriceHourTests, EventItemPriceTests;
+  UTC offsets/exact rollover, overflow-safe midpoint and ratio boundaries, one side, zero,
+  missing, provenance, fixed-value preservation and rejected-flag lifecycle.
+  `/private/tmp/stats-pass2-domain.log`.
+- **75 focused integration tests passed** in the final run: 28 new Pass 2 cases, all 26
+  CataloguePriceHttpTests, plus the selected existing lifecycle/board/catalogue regressions.
+  `/private/tmp/stats-pass2-final-integration.log`. Filter: StatsPass2; all
+  Slice3ScheduledLifecycleIntegrationTests; CataloguePriceHttpTests;
+  PrivateApprovalFreezesOneSnapshot; FinalizedRosterPublishesTheActiveApproval;
+  ConcurrentPublicationHasOneWinner; ConcurrentApprovalCreatesOneCoherentSnapshot;
+  DraftBoardUsesCurrentCatalogueRates; StatsPass1AdditiveMigrationKeepsLegacyValueMissing;
+  StatsPass1SharedItemSave; StatsPass1ConcurrentItemEdit.
+  This executes real disposable Testcontainers PostgreSQL for manual/late scheduled start,
+  HTTP-hour crossing, outage fallback, concurrent/repeated start, snapshot/audit rollback,
+  catalogue edits/resume, zero/no-drop objectives, later cleared prices, catalogue mutation
+  racing tile add, real late published introductions, missing/zero and concurrent/retry
+  corrections, candidate rejection/rollback/stale edit, operator report read-only behavior,
+  snapshot round-trip and additive migration/immutable constraints. Historical HTTP tests
+  use synthetic responses. Earlier 21-case core run and 25/26 guard run are superseded by
+  this final pass; the latter's only failure was an overbroad fixture report assertion.
+- Web Debug and Release builds pass with **zero warnings/errors**. Integration build uses
+  the established `-p:WarningsNotAsErrors=CA1310` only for two preexisting errors at
+  CaptainScopedNavigationIntegrationTests.cs:560; that unrelated file is untouched by
+  this pass. Commands use `/usr/local/share/dotnet/dotnet`, `--disable-build-servers -m:1`.
+  Logs: `/private/tmp/stats-pass2-web-build.log`, `/private/tmp/stats-pass2-release.log`,
+  `/private/tmp/stats-pass2-integration-build.log`.
+- EF reports **no pending model changes** (`/private/tmp/stats-pass2-model.log`). Scoped
+  diff/whitespace and resource XML checks pass. All three approved Stats HTML/CSS/JS hashes
+  match the assignment baseline. Saved catalogue still has **311 items / 311 missing IDs**;
+  no deployed coverage is claimed. Local test-runner sockets and Docker required successful
+  sandbox escalation; all persistence checks used disposable stores.
+
+Limitations/next permitted action:
+
+Independent review and planner reconciliation are complete. Implementer and reviewer
+are stopped. Pass 3 needs its own authorization; packaging and deployment are not
+included. The price guard is a simple approved sanity check, not
+proof of authentic market pricing. Initial catalogue population/operator review remains
+outstanding. Admin API-panel/outcome visual acceptance remains pending; the new candidate
+message is not manually accepted by prior panel composition approval. UI_PAGE_MATRIX.md
+owns approvals; approved Stats production UI remains untouched and no UI port is included.
+
+The user accepted the completed Stats prototype: "I think that just might be the UI
+completed". UI_PAGE_MATRIX.md owns final page approval. This includes all sections,
+exploration controls, guidance, animations, the final narrow header/milestone spacing
+corrections and "All teams completed the board" wording. The composition and interactions
+are now locked. This acceptance supersedes earlier pending visual/trial statuses below.
+
+Explicit user requirement: production must port the actual approved Stats markup,
+CSS and rendering/interaction/animation code, not recreate the page using it as a visual
+reference. UI_PAGE_MATRIX.md owns the Stats production port contract; DELIVERY_PLAN.md
+§17.1/Pass 5 now require it and source-to-production verification. Exclude the prototype
+header/masthead and bottom demo controls; use the existing app shell. Adjust artwork is
+the only existing bottom control retained, for Super Admins. In-section controls stay.
+The later explicit Pass 1 authorization below starts only catalogue implementation.
+
+The approved artifact remains the standalone prototype in this checkout:
+`prototypes/stats/outputs/stats-page-prototype.html` with its CSS/JS, previewed at
+http://127.0.0.1:8766/stats-page-prototype.html. Existing focused executable checks used
+DOM/animation stand-ins; user review supplies visual acceptance. Sample data remain
+illustrative, not calculation or persistence contracts.
+
+PRODUCT_REQUIREMENTS.md §15.1 records the agreed data/calculation decisions:
+submission-time history (including out-of-order approvals), reversal recalculation,
+rows/columns without diagonals and no post-completion cutoff for Luck.
+Drop value pricing rules are agreed in §15.1. The user superseded the probability-based
+Luck score with rate-based overall luck (ahead/on/behind rate), with plain-language
+guidance. The combined formula is agreed: sum expected eligible item counts and compare
+with approved item-submission count via (received / expected - 1) × 100. Two items from
+one kill count twice; progress weight and rarity do not multiply received count. Concrete
+math examples have been checked locally; source-mapping coverage remains a readiness item. Missing/zero
+activity handling is now user-agreed in §15.1: explicit no-activity/waiting states,
+last successful results with update time on sync failure, and incomplete team results
+when required player data are missing. The catalogue Team content information bar confirms rates already represent
+personal own-name probabilities under the configured team-size/raid assumptions; reuse
+those rates and roll counts without another team-size adjustment. The
+WOM documentation supports multi-metric competition deltas; our client currently only
+extracts EHB and uses singular metric=ehb, whose compatibility needs verification.
+The user also approved an expandable catalogue API mapping section (§9.4): existing
+boss WOM metric and item pricing ID fields, suggested/editable mappings, explicit validation,
+clear status and graceful fallback. The bounded catalogue API sections/backend are implemented in Pass 1; manual visual acceptance remains pending.
+Direct terminal requests are blocked by Cloudflare. The user supplied a successful browser
+JSON response for competition 145197 (Sommerbingo), requested with metrics=ehb,
+metrics=vorkath and metrics=zulrah. Verified 93/93 participants each have deltas for all
+three plus total. One Zulrah metric is -1/-1 with gained 0. User-approved unranked handling
+is recorded in §15.1: both ranked use gain; -1 start/ranked end assumes zero baseline
+and marks estimated; -1/-1 without source drops is zero recorded activity (not a team
+failure), with an approved drop waits for source activity; ranked/-1 retains last usable
+result and flags the issue. These are explicit approximations, not proof of zero kills. This validates the three-metric response shape, not all
+catalogue metrics or the existing singular parameter. No participant payload is committed.
+
+DELIVERY_PLAN.md §17 contains the five-pass plan and §17.6 now records the user-authorized
+readiness source inspection and concrete first-pass brief. Catalogue JSON has 311 items
+with no pricing IDs and 68 sources (66 mapped), so ID population is a real first-pass
+prerequisite. The user's price response has been parsed: 2,885 entries, 1,765 two-sided,
+1,120 one-sided, hourly timestamp 2026-09-15 11:00 UTC. This proves shape, not catalogue
+coverage. The price client must send the exact agreed User-Agent including @chrisschmidt.
+
+Account activity attribution is resolved by FUNCTIONAL_CONTRACTS.md §9.6: every regular
+PLAYING assignment may contribute its full competition delta; informational alts are
+excluded. Do not add per-swap WOM snapshots. Full requested-metric coverage and exact
+mode semantics remain Pass 3 contract checks; docs plus the successful three-metric
+response do not establish unlimited request size or all mode mappings.
+
+The user resolved the two product choices: retrospective Stats for the reconstructed
+Sommerbingo import are excluded; an entirely new catalogue identity introduced after start
+uses its original start-hour price if available, otherwise its catalogue value when added,
+frozen once with accurate provenance. Existing snapshots remain unchanged. These decisions
+are recorded in PRODUCT_REQUIREMENTS.md §15.1 and DELIVERY_PLAN.md §17.
+
+### Pass 1 implementation and verification handoff
+
+Checkout: `/private/tmp/BingoWebpage-drop-announcements`, branch `drop-announcements`.
+The existing dirty work is preserved. Implementer task:
+`01a0a573-d620-7133-9f6b-8ef59d96719b` (GPT-6 Astra xhigh), continuing the authorized
+catalogue mapping/pricing pass. No implementation subagents were used.
+
+Implemented:
+
+- Existing item/source identifiers with explicit exact suggestions/validation and mapping
+  status/time. Changed item IDs invalidate verification and old API values; manual and
+  untradeable values remain explicit. New items require a fetched/manual value or an
+  explicit untradeable zero; existing shared items retain their value.
+- Bulk cached Wiki mapping/hourly prices, exact raw User-Agent, safe midpoint/one-sided
+  fallback, bounded timeout/retry and malformed/outage handling. WOM reads boss metric
+  keys only through the existing limiter; numerical efficiency rates are untouched.
+- Collapsed API sections inside existing Admin Catalogue editors, exact matched identity,
+  Danish strings, shared image cache, explicit submitter actions and stale-item recovery.
+- Serializable audited operator report/apply service and documented commands. Report is
+  read-only; apply requires an active Super Admin. Snapshot v2 exports and v1-compatible
+  imports preserve appropriate metadata and personal rate/roll fields.
+- Additive `20260915142649_AddCatalogueApiMappingAndPrices` migration, designer and model
+  snapshot. Legacy GP stays nullable/Missing, with database price invariants. Existing
+  unrelated model-snapshot changes remain intact.
+
+Executed evidence (2026-09-15):
+
+- Focused Domain pricing tests: **9 passed** (safe rounding, one-sided/missing/zero,
+  mapping invalidation and fixed-price precedence).
+- Synthetic provider HTTP tests: **15 passed** (exact header, caching, malformed/partial
+  responses, failure retry, cancellation and WOM exact keys/shared limiter).
+- Isolated Testcontainers PostgreSQL: **11 focused persistence cases passed** for shared
+  item/rate preservation, stale edit and concurrent rebind rejection, editor/operator
+  audit rollback, report read-only behavior, actor authorization, snapshot v1/v2 and
+  additive migration/constraints. The later rendered HTTP fixture separately passes
+  authorization/antiforgery, no page-fetch behavior, primitive binding, suggestions,
+  unsupported modes, new-item values and shared-value preservation. The final named recheck
+  for malformed optional add-item numeric binding also passes. Total: **12 distinct
+  focused PostgreSQL/HTTP cases passed**, with applicable earlier evidence reused.
+- Web Debug and Release builds pass, zero warnings/errors. Integration build passes with
+  `-p:WarningsNotAsErrors=CA1310`; the ordinary solution build is blocked by **two existing
+  CA1310 errors at CaptainScopedNavigationIntegrationTests.cs:560**. That unrelated file
+  is unchanged by this pass. Logs: `/private/tmp/stats-pass1-build.log`,
+  `/private/tmp/stats-pass1-release.log`, `/private/tmp/stats-pass1-http-forms.log`.
+- Existing Catalogue Node checks pass in normal and direct-load-failure modes; expanded
+  tests execute explicit suggestion, late-result protection and submitter serialization.
+  A fresh headless Chrome run using synthetic form markup plus actual production scripts
+  passes collapsed-section interaction, no typing/render fetch, native numeric validation,
+  suggestion, antiforgery form value, submitter and informational-feedback checks.
+  Script: `/private/tmp/stats-pass1-browser-check.cjs`. This is behavior evidence, not
+  production visual acceptance. Bundled Chromium was absent; installed Chrome ran in a
+  fresh disposable profile without using the user's browser session.
+- EF reports no pending model changes. Added Razor string localization, resource XML,
+  scoped diff/whitespace checks pass. Approved Stats HTML/CSS/JS SHA-256 values remain
+  exactly those recorded by the task brief. Saved JSON still has 68 bosses, 311 items,
+  441 drops and **311 missing item IDs**; this is not deployed coverage evidence.
+
+Authorization/next boundary:
+
+The prior single read-only readiness reviewer passed its bounded plan recheck; do not
+repeat readiness. The user now explicitly authorizes one separate **GPT-6 Astra xhigh**
+independent code review after focused checks. Send findings/blockers only to the implementer
+above, remediate named findings and return to that SAME reviewer until pass. Send a passed
+verdict only to originating planner `01a0a29f-5382-7120-96f5-69d422a832f1`. These task-specific
+handoffs are authorized by the user's current instruction. Apply
+[the lean handoff procedure](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+The independent Astra xhigh reviewer is task `01a0a58b-0316-7ce0-962c-60db1c81e61c`.
+Its one broad source review returned **Requires remediation**, with three named findings:
+F1 bulk source matching used historical slug after a rename; F2 item-ID invalidation could
+claim the old API value was unchanged; F3 fetch-and-add hid failed provider attempts and
+manual fallback provenance. All three named corrections are implemented:
+
+- F1 uses a unique exact match against the current activity name when no explicit metric
+  exists; explicit configured metrics remain authoritative for validation.
+- F2 derives cleared/retained-value feedback from the actual before/after state, including
+  save-without-validation and missing/outage outcomes, with a manual-value/retry next step.
+- F3 retains the attempted mapping status/time for new items with an ID, reports mapping
+  outage/unsupported ID/no unique match/price outage/missing price distinctly, and explains
+  a saved fixed manual fallback or why no item was added. Plain Add/shared-item paths keep
+  their no-provider-fetch behavior. New outcome strings are Danish-localized.
+
+Focused remediation evidence: **21 distinct PostgreSQL/HTTP cases pass**: 2 renamed-source
+cases, 8 cleared/retained-value cases, 10 real HTTP fetch-and-add outcome cases, and the
+existing explicit-fetch/plain-Add/shared-item form regression. The initial run passed 19;
+its two F1 fixtures collided with the seeded Zulrah slug before exercising product code.
+Those fixtures now rename the existing controlled seed row, and the named two-case rerun
+passes. Logs: `/private/tmp/stats-pass1-remediation-tests.log` and
+`/private/tmp/stats-pass1-remediation-f1.log`. Final Web Release build passes, zero warnings
+or errors (`/private/tmp/stats-pass1-remediation-release.log`). Integration build passes
+with the same two preexisting CA1310 warnings under the established flag
+(`/private/tmp/stats-pass1-remediation-build.log`). Scoped diff/whitespace and resource XML
+checks pass. Prior provider/Domain/browser/migration evidence is reused where unaffected;
+no JS, Razor, CSS, Domain, migration, snapshot or approved Stats source changed in this
+remediation. Named six-file diff: `/private/tmp/stats-pass1-remediation.diff`, SHA-256
+`f932aa9f615d11ada65249613ea64354d1dba403cc3551c655a25b0ae1a85266`.
+
+The same reviewer passed the bounded F1–F3 recheck with no unresolved scoped findings.
+After the user explicitly approved the previously rejected handoff in the reviewer task,
+the completed verdict reached originating planner `01a0a29f-5382-7120-96f5-69d422a832f1`.
+The planner reconciled that passed verdict on 2026-09-15; the delivery blocker is resolved.
+Implementation and independent source review are complete. No second broad review is
+needed. Implementer and reviewer have stopped at the assigned Pass 1 boundary.
+User visual acceptance of the
+expanded API sections/outcomes remains pending; UI_PAGE_MATRIX.md owns approval. No
+Pass 2/Stats production UI, user DB apply, running-app change, staging, commit, push or
+deployment occurred. Stop after review/handoff; do not start another pass.
+
+### Prior trial evidence (superseded by final UI acceptance)
+
+- User clarified the narrow milestone issue was spacing between stops and approved
+  the incidental header alignment correction. At ≤850px, stops now size to their
+  headings with a 170px minimum rather than a fixed 250px desktop slot. Long headings
+  retain their single line; detail text truncates within that width. The final stop
+  still has no extra trailing slot. CSS-only; visual spacing awaits user review.
+
+- Narrow stacked header correction (≤560px): Drop value uses a left-aligned title
+  above tabs, with the compact search icon beside the tabs and no divider stub.
+  Event milestones keeps its selector directly beneath the title at the left;
+  the hint shares the control row when space permits. CSS-only; wide layout and
+  interaction scripts are unchanged. Scoped cascade/whitespace checks passed;
+  user visual acceptance is pending.
+
+- Board progress now reveals lines/markers along one shared 1200ms time sweep, with
+  tile/row totals advancing at their actual sample completions. Load and event-size
+  changes animate; hover/focus, scrolling and reduced motion finish the entrance before
+  exploration. Guidance starts open, dismisses/reopens like Luck, and adds no layout row.
+  All three info icons share Luck's font, muted closed color and accent open/hover color.
+- Focused executable DOM stand-in checks pass for sweep/count synchronization, completion,
+  interruption, hover/focus, reduced motion, help lifecycle and 2/3/4/5/8/15 teams.
+  Existing Drop value, Luck and milestones checks also pass. Syntax/source/cascade checks
+  passed; actual browser appearance and timing await user review. No browser automation.
+
+- User-requested pacing refinement: initial Drop value chart 1100ms and donut 1200ms
+  with gentler easing; initial Luck bars/counts 1000ms (later interactions retain 420ms).
+  Event milestones rail draws linearly from the first point over 1400ms on load/team
+  switch, filling dots as it reaches them and revealing the latest ring afterward.
+  Team-switch fade is 280ms. Focused timing, state, interruption and reduced-motion
+  harnesses pass; visual timing remains pending user review.
+
+- Renamed the visible section Event milestones and footer selector Milestone stage.
+  Added a 480ms initial completed-rail draw, 180ms team-switch fade, 280ms position
+  transitions, reached-dot fill and forward rail/ring transitions. Stage changes retain
+  scroll; scope changes return to the start. Identical renders do not replay motion,
+  newer renders cancel old animations and reduced motion applies final states.
+  Focused milestone geometry/motion and Luck/Drop value regressions, syntax and whitespace
+  checks pass with DOM/animation stand-ins. Visual timing remains awaiting user review.
+
+- Ended timelines now label unfinished milestones Not reached with a muted × inside
+  the circle; live-event milestones still say Upcoming. Focused tests cover both scopes,
+  ended/live transitions, accessible state text and no fabricated timestamps.
+- Timeline selector sizes to the selected content with a tighter 2px focus offset and
+  right-aligned mobile wrapper. Scoped CSS/cascade, timeline checks and whitespace pass;
+  user visual review pending.
+
+- Timeline refinement: submission drop artwork is now a 16px inline icon after the
+  player/team detail, with item-name hover/accessible text and no extra line. Team scope
+  says Board completed for both reached/pending states; event scope retains First board
+  completed. Focused syntax, timeline regression and CSS/diff checks pass; visual review pending.
+
+- Timeline edge/artwork correction: scroll-snap padding now matches the dot/ring gutter,
+  preserving the first marker at initial scroll. The last stop sizes to its content and
+  snaps at the end, removing the unused fixed-width tail. Removed the detached timestamp
+  item image. Scoped CSS/cascade, timeline executable checks and whitespace pass; user
+  visual review remains pending.
+
+- Latest timeline refinement checks pass: all four collective completion thresholds,
+  missing-team prevention, 11/7 slot counts, stage/scope sorting, latest-point marking,
+  Upcoming timestamp semantics and artwork above the rail. Protected script/CSS source
+  comparison and existing Drop value/Luck checks pass. Visual review remains pending.
+
+- Timeline trial implemented: eleven default milestone slots (seven per team), Start
+  fixed first, completed timestamps ordered chronologically, pending slots muted in
+  default order. The same-time tie order is stable; End can precede unreached slots.
+  Approved-submission firsts use sample players/artwork; tile/row/halfway/board sample
+  times align with the existing Board progress snapshots. Each detail is one truncated
+  line. Updated 250px stops fit collective titles; the 24px timestamp/artwork row and
+  52px copy area preserve the prior total strip height. Dot centers share the text anchor: solid
+  reached dots, outer ring on the latest, hollow upcoming dots, and muted future rail.
+  Four collective milestones cover approved submissions, tiles, rows and boards.
+  Footer Timeline stage options exercise start, early, first week, current and ended
+  states without changing the other charts. These remain illustrative sample states.
+- Checks: focused `/private/tmp/check-stats-timeline.cjs` covers all stages/scopes/team
+  counts, chronological/default/tie order, all-teams threshold, end-before-pending,
+  timestamp semantics and artwork. Existing Luck/Drop value regressions, syntax, protected
+  renderer comparisons and whitespace checks pass. DOM stand-ins only; visual review pending.
+
+- Luck now has ⓘ beside its heading with the user-approved Teams and Players copy.
+  The matching help overlay starts open, dismisses with ×/Escape and reopens with ⓘ.
+  Guidance opens on every page load; individual dismissals last for the current page
+  visit only. Old localStorage dismissal is ignored. View changes update text without
+  reopening it. The future shared Stats Hide tooltips preference remains deferred. Help/search dismiss each other to avoid overlapping overlays. Focused
+  syntax, Luck help/interaction and Drop value regression checks passed; visual review pending.
+
+- Removed the Luck search input’s focus outline at the user’s request. Existing field
+  border remains. Scoped CSS/cascade and whitespace checks passed.
+
+- Luck search now matches Drop value’s compact popover: 34px field, 11px type,
+  matching border/padding/focus, up to 320px wide and anchored below the heading.
+  Results appear in a separate matching popup; empty results create no blank panel.
+  Scoped CSS/cascade and whitespace checks passed; visual review pending.
+
+- Comparison removal now fades/collapses over 220ms, then removes the row while
+  preserving list scroll. Repeated clicks do not restart it; a replacement/view change
+  cancels stale removal callbacks. Reduced motion removes immediately. Focused syntax,
+  Luck interaction/motion and whitespace checks pass. User is considering a Luck info
+  popover, now implemented as described above. Latest removal motion awaits visual review.
+
+- Latest Luck motion trial: existing-result selection uses native smooth list scrolling
+  (instant for reduced motion), preserving the complete-row bottom target. Team heading
+  changes fade/slide over 180ms. New comparison rows expand/fade over 220ms within the
+  fixed viewport; replacement comparisons fade without expanding. Only the new comparison
+  bar/percentage count from zero. Focused syntax, Luck/Drop value motion and whitespace
+  checks passed using DOM stand-ins; user visual acceptance pending.
+
+- Luck search scroll correction: row offsets were already relative to the positioned
+  list; subtracting the list’s own offset mixed coordinate systems. Selection now
+  bottom-aligns the complete result row using list-local coordinates. Regression checks
+  cover a nonzero panel offset, compact viewport, early results and pinned selection.
+  Syntax, focused Luck harness and whitespace checks passed; visual review pending.
+
+- Luck comparison now stays sticky at the top of its scrolling rankings. Its opaque
+  surface matches the card (no tinted highlight) so rows scroll underneath cleanly.
+  Removal stays beside the name. Scoped CSS/cascade and Luck interaction checks pass;
+  user visual review pending.
+
+- User-requested Drop value correction: removed the pinned contributor row’s left
+  inset accent while preserving its background highlight. Scoped CSS/diff checks passed.
+
+- Luck refinement: search placeholder now says “Search players or teams…”; removed
+  duplicate guidance/count text (no-match feedback remains). The comparison row keeps
+  its separator without a background. Its × now sits in the name column using flex
+  centering and a fixed control width; long names truncate, keeping bars/values clear.
+  Focused Luck and Drop value interaction checks, syntax and whitespace pass; visual review pending.
+
+- Luck exploration implemented for visual review: team names/bars open the full eight-player
+  sample roster with back navigation; Players shows low/high five with a gap, plus one
+  replaceable/removable searched comparison. Search is a header popover beside Players,
+  with six results and focus-safe selection. Existing rows are highlighted and scrolled
+  within the card. Event-size changes clear team/pin state; visible height keeps the
+  existing three-to-six-row bounds. Bars and signed percentages grow/count together over
+  420ms from Expected. Reduced motion and interrupted animations settle immediately.
+- Checks: JS syntax, HTML IDs/assets, existing Drop value interaction/motion harnesses,
+  new `/private/tmp/check-stats-luck.cjs`, protected-section comparison and whitespace
+  checks passed. Luck harness executes drill-down/back, unique extremes/small rosters,
+  search/pin/replace/remove, internal scrolling, event-size resets, synchronized counts,
+  animation cancellation and reduced motion using DOM stand-ins. User visual review pending.
+
+- Others donut slice/list dot now use a dedicated lighter grey (#a8a9b3) in light
+  mode; dark mode retains its existing muted tone. Text colors are unaffected.
+  Scoped source, syntax, interaction harness and whitespace checks passed; now user-approved.
+
+- User rejected the Most valuable drops change animation and approved its hover.
+  Removed the staggered fade; the row now updates immediately on scope changes.
+  The 3px artwork hover lift remains. Syntax, focused motion/interaction checks and
+  whitespace checks passed. No section geometry or locked content changed.
+
+- User accepted the previous animation batch. Added a one-time 700ms clockwise donut
+  reveal on initial load; reduced motion and unavailable animation APIs show the final
+  ring immediately. Later scope morphs remain. Removed rectangular slice focus outlines;
+  mouse clicks retain existing highlighting and keyboard focus thickens the slice.
+  Focused executable checks cover reveal setup, completion cleanup and no replay, plus
+  existing interaction/motion regressions. These refinements are now user-approved.
+
+- Latest authorized trial: Drop value animations, preserving the approved search
+  animation and layout. Initial chart lines draw over 600ms once; scope changes morph
+  chart paths and donut segments over 240ms, with 200ms fades for team label, total,
+  contributor list. Valuable drops updates immediately. Donut hover/focus thickens/dims over 160ms.
+  Incoming comparison fades in over 180ms, outgoing line fades out over 150ms; pinning
+  pulses its legend entry once. Help opens over 180ms and dismisses over 140ms.
+- Redundant chart renders now reuse existing SVG so hover/initial ResizeObserver calls
+  do not replay animations. Donut paths use equal cubic structures for SVG interpolation.
+  Temporary exiting lines are noninteractive and removed after the fade. Motion uses
+  native SVG/Web Animations; unavailable animation APIs fall back to final state.
+  Reduced-motion users get immediate changes and no CSS entry/hover motion.
+- Checks: JS syntax, whitespace and focused motion harness passed at
+  `/private/tmp/check-stats-motion.cjs` (one-time intro, morph paths, preview/pin motion,
+  repeated hovers, exiting cleanup, rapid view changes, help lifecycle and reduced motion).
+  Existing `/private/tmp/check-stats-search-click.cjs` also passed, including persistent
+  sixth-player selection, focus/viewport preservation and search placement/scope.
+  These execute logic with DOM/animation stand-ins; the previous batch was user-approved.
+  Locked-section renderers/editor and approved search CSS remain unchanged.
+
+- Latest styling refinement: inline divider search has no underline; the magnifier
+  changes to theme ink on hover/open with no background. Narrow popover border and
+  keyboard focus indication remain. Scoped CSS/cascade and whitespace checks passed.
+
+- Latest correction: inline divider search had been forced into the popover whenever
+  the whole panel was <=900px, even with enough divider space. Removed that breakpoint.
+  The actual divider width now chooses inline expansion when it fits the 180px field
+  plus 28px icon; otherwise it uses the existing header popover. ResizeObserver keeps
+  this current as available width changes. Focus/scroll preservation and search scope
+  are unchanged. Syntax/whitespace and executable threshold/transition checks passed,
+  along with existing click/pin/scroll regressions; user visual review remains pending.
+
+- Latest user correction: search is available only in the event-wide Players tab.
+  Both the team overview and team detail views have no search action; programmatic
+  opening is guarded too. Its labels say Search players. The personal shortcut is
+  Show me because it highlights the current illustrative player rather than searching.
+- User clarified the reported jump occurs on CLICKING a player in SEARCH RESULTS,
+  not on hover or in the chart legend. The result click now captures the viewport,
+  pins the player, transfers focus to the search toggle with preventScroll while the
+  input/results are still enabled/visible, then closes search and restores that captured
+  viewport immediately. Escape likewise transfers focus before disabling input.
+  Hover preview behavior is unchanged. The earlier in-place legend/control retention
+  stays in place, but was not sufficient to resolve the user's reported search click.
+- Executable regression checks cover mouse/keyboard result activation from a scrolled
+  viewport, ordering of focus versus field disabling, retained sixth-player pin and
+  restoration after a simulated browser scroll jump. These passed with existing checks.
+  This is handler/DOM-stand-in evidence; actual browser confirmation remains with user.
+- Guidance is open by default on page load, with an × dismiss button and the header
+  info icon to reopen it. It overlays content and does not add a row or increase size.
+  Dismissal remains during view changes; opening search also closes guidance.
+- Search-result click correction: the old focusout handler closed results when input
+  blur supplied no new focus target, potentially before the result received click.
+  A focused DOM-stub regression reproduced that premature closure. Results now retain
+  input focus on mousedown, ignore ambiguous null-target focusout, and still close on
+  an outside pointerdown or explicit keyboard focus departure. Clicking a search result
+  sets the sixth pin, rather than toggling an already selected pin off. Hover remains
+  temporary. Escape and result selection return focus to the search toggle.
+- Executable checks passed in `/private/tmp/check-stats-search-click.cjs`: regression
+  sequence, persistent/repeated selection, mouse default prevention, keyboard departure,
+  guidance dismissal, updated search scope, and previous comparison/event-size checks.
+  Syntax, markup and scoped cascade/whitespace checks passed. User visual confirmation
+  remains pending; no browser automation/layout acceptance is claimed.
+- Divider field animation and narrow header popover remain. The separate controls row
+  stays removed; back arrow, info, personal shortcut and pin × use existing header,
+  context and legend positions. Held dimensions and bounded breakdown lists are unchanged.
+
+- Latest feedback rejected the larger fixed layout: the approved proportions must stay.
+  Removed the 350px chart preset, reserved toolbar/help rows, larger mobile rows and
+  valuable-drop minimum. Navigation now holds the dimensions already rendered in the
+  starting view (visual area, legend and narrow stacked chart/share rows), with longer
+  lists scrolling inside that space. Resizing/event-size changes release the hold so
+  existing responsive CSS can size the page. Help is a compact Info disclosure that
+  opens over the content. No larger preset or empty help rows. This correction awaits
+  visual feedback; JS syntax, scoped source/cascade and executable DOM-stub checks passed,
+  including retaining a captured height across navigation and releasing on size changes.
+  Follow-up: contributor-list overflow came from the share-content flex wrapper's
+  automatic minimum height. The held-layout wrapper now has min-height:0, matching
+  the list's existing shrink/scroll rules. No dimensions or row spacing changed.
+  Scoped cascade/whitespace checks passed; visual confirmation remains with the user.
+
+- Teams: click a donut segment or breakdown row to explore a team; smaller muted team
+  name beside DROP VALUE, All teams return, scoped donut/list, total, count and top drops.
+- Team view: top five contributors by final GP, all contributors in the bounded list.
+  Hover/focus previews one additional player; click/tap pins that sixth slot. Another
+  preview temporarily replaces the pin, then leaving restores it. Top-five hover highlights
+  existing lines. Totals and valuable drops stay scoped to the team during previews.
+- Players: event-wide top five, top-five + Others donut, team names beneath player names,
+  bounded name/team search (up to six matches) to preview/pin an additional player.
+  Others focuses search. My team / Find me use the illustrative signed-in Maya identity.
+- Compact Info disclosure content changes with the view. Player endpoint labels spread vertically
+  with connectors when clustered. Everyone retains the aggregate chart/team breakdown;
+  the valuable-drop strip uses the same event-wide illustrative drop pool as Teams.
+- Eight sample contributors per team partition team GP at each date. Only Drop value
+  consumes these fixtures; Luck keeps its original player fixtures. Event sizes remain
+  2/3/4/5/8/15. Theme changes keep scope/pin; event-size changes clear scope/comparison.
+- JS syntax and focused executable Node VM checks with DOM stand-ins passed. Checked all
+  sizes, contributor sums and cumulative curves, short rosters, top-five/one-comparison
+  transitions, pin replacement/restoration, scoped stable totals/drops, search bounds,
+  Others totals/highlighting, keyboard segment and list handlers, label spacing, theme
+  and size changes, markup IDs and assets. Harness: `/private/tmp/check-stats-exploration.cjs`.
+- Scoped source/cascade checks confirm locked markup/renderers/editor and prior CSS were
+  preserved. No browser automation, visual acceptance, .NET or production checks claimed.
+  Pre-trial source copies: `/private/tmp/stats-before-exploration/`.
+
+Next permitted action: user refreshes the existing preview and supplies Drop value trial
+feedback. Refine that trial as directed, then continue the remaining content discussion.
+
+### Checkout, files, preview and authority
+
+- Work exclusively in `/private/tmp/BingoWebpage-drop-announcements`, branch
+  `drop-announcements` (HEAD was 5354a34). Run `git status --short --branch` and preserve
+  every existing change. The saved project `/Users/christopher/Documents/BingoWebpage`
+  and old thread cwd `/Users/christopher/.codex/worktrees/aac0/BingoWebpage` are NOT the
+  assigned checkout. Use explicit working directories. No staging, commits or push.
+- Main artifact: `prototypes/stats/outputs/stats-page-prototype.html`.
+  Styling: `prototypes/stats/outputs/stats-density.css`.
+  Demo behavior/data: `prototypes/stats/outputs/stats-prototype.js`.
+  Local assets under `prototypes/stats/outputs/assets/`; README in `prototypes/stats/`.
+- Preview: http://localhost:8766/stats-page-prototype.html . Existing loopback Python
+  HTTP server serves `prototypes/stats/outputs` (original session 15484); leave it running.
+  If genuinely unavailable, serve that directory with `python3 -m http.server 8766
+  --bind 127.0.0.1 --directory /private/tmp/BingoWebpage-drop-announcements/prototypes/stats/outputs`.
+- HTML has original inline CSS followed by stats-density.css. That stylesheet contains
+  historical trial overrides; later rules win. Read targeted selectors near its end.
+  Do not perform an unsolicited cleanup. HTML sections are often single long lines.
+- UI_PAGE_MATRIX.md owns page approval and records the accepted refined prototype;
+  production implementation and acceptance remain deferred. Original chosen image `docs/references/public-ui/stats-reference.png` is
+  background inspiration; iterative user-approved HTML has evolved substantially.
+
+### Working agreement for THIS pass
+
+The planner makes these small standalone HTML/CSS refinements directly. The user
+explicitly requested that the next planner know this: do NOT spawn subagents for this
+pass. This is prototype refinement, not production code implementation. No independent
+reviewer, browser automation/screenshots, .NET build, broad tests, app restart, database
+work or API integration for CSS tweaks. Check affected source/cascade and edits only;
+user supplies visual feedback by refreshing the preview. Preserve demo controls.
+Start edits with one short commentary; final response should briefly describe the change
+and link the preview. Don't repeatedly ask permission once the user says to try a tweak.
+Do not create goals, automations or further tasks without a new explicit request.
+
+### Current composition (accepted overall)
+
+User said the page was great and moved to section-by-section refinement.
+Top: Drop value on the left (~70%); Luck above Keeps on dropping on the right (~30%).
+Keeps on dropping and GP panel bottom edges align. Full-width compact horizontal Event
+timeline separates top and bottom. Bottom: blue Most versatile card left (~30%), Board
+progress right (~70%), at the same width as the GP panel. Keep this arrangement.
+
+Typography is local Barlow Condensed (family Barlow, 600/800) for uppercase utility
+headings, navigation, names and prominent figures; Geist for body/data/metadata.
+Light mode cream canvas #fff9ec and surface #fffdf6, ink #111528, royal blue #293d91.
+Dark mode canvas #1b1a1d, surface #222124, cream ink, lavender blue, muted sage/gold/purple.
+User preferred dark mode but approved richer teal/gold/purple in light mode. Dark palette
+must stay as is. Thin borders and small corner radii. Avoid giant text/spacing, dark
+item backplates, more charts/filler, detached metrics, or gratuitous color changes.
+
+### Drop value: user accepted, including size/height refinements
+
+- Heading renamed from GP over time to DROP VALUE; thick blue divider extending from
+  heading to Teams/Players/Everyone tabs. Selected tab uses color, NO underline.
+- Cumulative GP chart plus team-share donut; GP BY TEAM uppercase Geist.
+  Total 3.84B within donut, 169 drops recorded above chart, team legend/values adjacent.
+- Most valuable drops is a compact strip inside same panel. Heading sits at left of
+  thin divider. Twisted bow 1.20B, Tumeken's shadow 980M, Torva platebody 310M.
+  Values vertically centered beside name plus contributor/team metadata. GP panel now
+  uses a flex column; treasure and its list fill remaining space, with align-content:center
+  centering the item row below its heading. User accepted the resulting full-page appearance.
+- Light artwork uses silhouette shadows only, accepted after dark rectangular backplates
+  were rejected. Effective filter: drop-shadow(0 1px 1.5px #11152880)
+  drop-shadow(0 2px 4px #11152840). Don't change dark artwork styling.
+
+Latest authorized Drop value trial: the existing fixed chart heights become minima
+(220px normally,230px at >=1550px,210px at <=560px). The trend is a flex column; its
+chart wrapper grows to fill the shared GP visuals row and the SVG fills that wrapper.
+Actual donut/list content can therefore make the chart taller. Removed the GP breakdown's
+reserved five-row minimum; retained the six-row scroll maximum. With fewer teams, the
+chart stays at its minimum and the valuable-drop heading follows the shorter upper row.
+Follow-up screenshot showed the chart legend labels slightly above the last breakdown
+row. Both legends now share a24px row minimum (26px for the stacked breakdown), removing
+unused space under the shorter chart-legend buttons and allowing the chart to fill it.
+Scroll content remains start-aligned so every entry remains reachable.
+Latest follow-up: GP BY TEAM stays anchored at the top; `.gp-share-content` groups
+the donut and team list and centers them vertically in the remaining column height.
+This responds to available space for any team count, without count-specific offsets.
+At <=600px container width, display:contents preserves the existing side-by-side
+mobile donut/list grid. Scoped HTML structure/cascade/whitespace checks passed. User
+approved the first section on 2026-09-15, including these refinements; UI_PAGE_MATRIX.md
+owns this manual prototype acceptance.
+Existing chart ResizeObserver handles redraws; no JS changes. Scoped source/cascade and
+whitespace checks passed. Preserve the accepted Drop value section while refining Luck.
+
+### Luck: user accepted, including two-team centering
+
+User approved Luck, including the two-team centering correction, on 2026-09-15.
+The section reserves three team rows, grows to six and scrolls beyond that; Keeps on
+dropping absorbs the remaining right-column height. Preserve the accepted sizing,
+heading, colors and bar treatment.
+
+Current trial: center the two rows vertically inside the existing three-row minimum,
+keeping the heading/axis and both right-column card heights unchanged. `.luck-rows`
+is now a flex column with non-shrinking rows and auto outer margins on its first/last
+rows. Spare space is shared above/below; overflowing lists retain start access and the
+six-row scroll maximum. Applies to Teams/Players. Scoped source/cascade/whitespace
+checks passed; user supplied manual acceptance. Drop value remains untouched.
+
+- Blue uppercase Barlow heading, Teams/Players with NO selected underline. No divider
+  extending from heading (tried and explicitly removed). Subtitle below header.
+- Unlucky / Expected / Lucky axis labels Geist600 11px. Expected centered on zero line.
+- Uppercase Barlow team names 15px (14 mobile), sufficient plot width; gold negative
+  and green positive bars. Sample values -32,-18,+8,+24,+46. Calculation not agreed.
+
+### Event timeline: accepted
+
+Heading uses var(--blue), matching Drop value and Luck. Native `#timeline-filter`
+retains all six options and JS behavior. Its borderless uppercase Barlow text is
+right-aligned close to the chevron. Wrapper `:after` uses a currentColor SVG mask,
+centered with inset-block:0 and margin-block:auto; no manual vertical offset.
+Existing hover/focus treatment remains. The selector and exploration hint sit in
+`.timeline-heading-actions`, a vertically centered, right-aligned wrapping flex group.
+The hint is immediately to the selector's right; removing its bottom row reduces height.
+User explicitly accepted this arrangement.
+
+Retain compact panel padding10px 20px 8px, milestone width180px, rail20px, horizontal
+scrolling, dates above the rail, uppercase titles and team/item below, plus first-DWH art.
+Scoped source/cascade and diff whitespace checks passed; user provided visual feedback.
+No automated browser/build checks were run.
+
+### Both highlight cards: accepted
+
+Most versatile is a royal-blue card with cream text, faint oversized clipped existing
+logo at right. MOST VERSATILE heading; MAYA with smaller uppercase THE AGENCY tucked
+below. Contributed to sits immediately above a single large 14 spanning two lines
+DIFFERENT / TILES. Metric means submissions across the most distinct tiles, NOT total
+submissions. User disliked earlier art/filler and approved this card.
+
+Keeps on dropping uses the same blue with heading top-left and a single large 18 next
+to stacked DRAGON WARHAMMER / DROPS. Item name only is softer #e1e5fb, count/drop label
+cream. Quiet cropped monotone item silhouette at right (NOT full-color artwork).
+Effective :after mask uses assets/items/dragon-warhammer-detail.png; width140px,
+height162px,right-8px,bottom-30px,background#a9b3e0,opacity.13. Actual img opacity0.
+User called this sizing/placement perfect. Gold/other backgrounds and full-color DWH
+were repeatedly rejected. Keep accepted text spacing and silhouette.
+DWH asset is the user-requested wiki detail image, already local:
+https://oldschool.runescape.wiki/images/Dragon_warhammer_detail.png?7f65a .
+All active DWH references updated; old small file remains unused, don't clean it up.
+
+### Board progress: user accepted and locked
+
+User approved Board progress as part of final Stats UI acceptance. The accepted layout
+reserves four
+rows, centers two/three-row lists within that space, and grows to six rows before
+scrolling vertically. This bounds Most versatile's height at larger event sizes. Rows
+remain non-shrinking. Latest correction centers the Current totals/date axis and team
+tracks together, using auto margins before the axis and after the tracks inside the
+original four-row space. This replaces row-only centering; the section heading stays
+fixed and the Most versatile logo is unchanged. The six-row cap remains on the tracks,
+with both axes of scrolling retained and the date axis outside vertical scrolling.
+Narrow panels retain a680px chart minimum. Scoped CSS/cascade/whitespace checks passed;
+user supplied final UI acceptance. All section refinements are complete.
+
+Heading uses var(--blue). The three top-right legend symbols (text glyphs wrapped in
+`.race-key-icon`) use var(--ink): ink in light mode, cream in dark mode. Label text
+retains its muted color.
+
+Horizontal thin colored team tracks, uppercase Barlow names, circles per tile, diamonds
+for completed rows with +2/+3 labels when appropriate, hollow ROUND marker for complete
+board (square was rejected). Compact right summary: large tile total, smaller rows
+beneath, e.g. 19/25 and 4/12 rows. Two equal big total columns were rejected.
+Timeline/hover cursor supports demo exploration; retain it. Team names must remain
+uppercase and readable; thick track lines were rejected. Current data includes 12-row
+mock denominators, but USER CLARIFIED DIAGONALS DO NOT COUNT. Correct production rules
+later; don't treat demo fixture denominators or old First bingo sample wording as
+contracts. Requested language is tile completed / rows completed / board completed.
+
+### Demo behavior, data and future boundary
+
+Working demo: GP Teams/Players/Everyone, legend toggles, date tooltip via pointer/tap/
+keyboard; Luck Teams/Players; timeline team filter; board completion hover; theme switch;
+responsive CSS. All data illustrative. Teams/GP: Agency1400M, Saeh1100M, Morytania640M,
+Xeno420M, Zalamikum280M. Counts and dates are mock. No real stats services exist here.
+User's intended process: decide content, design reference, HTML proof of concept, THEN
+functional implementation. Boss KC is input for luck calculation, not displayed content.
+Actual luck method, price API, valuation time, eligible submissions and ties deferred.
+Don't invent agreed formulas or new functionality during styling.
+
+### Artwork adjustment editor — user accepted
+
+User authorized an Adjust artwork editor: drag, zoom, rotate, Save/Cancel/Reset and
+per-item settings, with desktop/mobile previews. Footer Adjust artwork now opens a
+native dialog for the selected Drop preview item. It contains a cloned card, a pointer/
+keyboard drag surface, Horizontal/Vertical/Zoom/Rotation sliders and preview width tabs.
+Changes stay in a draft until Save. Cancel, close and native Escape discard the draft.
+Reset to default is also a draft change; Save removes only that item's override.
+
+Overrides use normalized x/y/width/height percentages plus scale/rotation, stored per
+sample item in browser localStorage key `bingo-stats-artwork-v1`. They apply across
+sample event sizes, themes and reloads. Original images are unchanged. Default fitting
+preserves the accepted original card; CSS default dimensions feed the editor's initial
+relative fit. Shared/production persistence and actual Superadmin authorization remain
+explicitly deferred; this is a local prototype control, not an implemented admin feature.
+
+Checks passed: JS syntax, scoped source/cascade/whitespace, HTML ID/label associations,
+and executable actual editor handlers with DOM/storage stubs covering proportional drag,
+keyboard movement, zoom/rotation, preview tabs, per-item isolation, save/reload, cancel,
+reset/cancel, reset/save, malformed storage and failed-save recovery. Harness:
+`/private/tmp/check-stats-artwork-editor.cjs`. Existing event/drop fixture harness passed
+again after the editor integration. No automated browser layout/focus/pointer checks,
+build, independent reviewer, app restart or DB work. User accepted the artwork editor
+on 2026-09-15 ("perfection."); UI_PAGE_MATRIX.md owns this manual prototype acceptance.
+
+### Prototype action row: event sizes and drop previews — user accepted
+
+Footer now groups theme control with Event size (2/3/4/5/8/15 teams) and Drop preview
+(Dragon warhammer18, Twisted bow3, Tumeken’s shadow7, Torva platebody12, Abyssal whip27,
+Bandos chestplate14, Berserker ring36). User expects 3–5 teams most often. Defaults remain
+five teams and the accepted warhammer card. Drop preview changes the card name, sample
+count and existing local silhouette asset independently of event size and theme.
+
+Deterministic sampleEvent(size) updates team/player comparison lists, GP totals/donut,
+Luck, timeline data/options and Board progress together. Everyone chart scales to the
+sample total. Returning to five restores the original team series and milestones.
+Extra team colors adapt to theme; all figures and fixture generation remain illustrative.
+Switching clears hidden-series/hover state, resets scrolling and retains only valid team
+filters. Race rerenders abort old shared event listeners. No production integration.
+
+Trial visible capacities: GP breakdown actual rows up to6; Luck3–6; Board progress4–6; chart
+legend1–2 lines. Excess rows scroll with headings outside; blue cards absorb available
+height and Board progress stretches alongside Most versatile. Existing mobile horizontal
+board scrolling remains. These sizing limits and controls are included in final UI acceptance.
+
+Checks: JS syntax, scoped source/cascade/whitespace and Node VM fixture/handler checks
+passed, including repeated 2/3/4/5/8/15 transitions, actual board-row generation with a DOM
+stub, totals/axis bounds, filter/scroll resets and all seven drop handlers/assets. Harness:
+`/private/tmp/check-stats-samples.cjs`. This is executable logic evidence, not automated
+browser or visual acceptance. No browser automation, build, app restart or DB changes.
+
+No tests needed for ordinary CSS. Prior JS syntax/local assets/server checks passed;
+rerun only if relevant. Node isn't on PATH; available executable:
+`/Users/christopher/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node`.
+Production banner/drops/navigation were previously accepted. Many production files are
+dirty and unrelated; preserve them and leave the user's running ASP.NET app alone.
+User accepted the refined full-page appearance on 2026-09-15; UI_PAGE_MATRIX.md records
+the acceptance. Latest user-provided dark-mode screenshot:
+`/var/folders/w5/74mg_d917xg33ry8_4qc9g5w0000gn/T/codex-clipboard-be092c91-9c05-4fb2-a94a-4df2c9ec9bed.png`.
+Responsive follow-up: user reported stacked mobile timeline controls and overcrowded
+Board progress markers. Implemented a shared filter/hint row at <=560px, plus a
+`.race-scroll` wrapper with a 680px minimum chart width and horizontal scrolling.
+Tooltip remains outside the scroll wrapper; scroll resets transient hover/cursor state.
+Scoped structure/cascade/whitespace checks and JS syntax passed; browser checks not run.
+Next action when the user resumes: discuss exactly what Drop value and Event timeline
+display BEFORE implementing either the page or functionality. All other sections are
+locked. Port the accepted prototype implementation under the current Stats production port contract; retain data/calculation
+uncertainties rather than inferring product decisions from sample fixtures. Nothing
+remains pending for this UI refinement pass. See UI_PAGE_MATRIX.md for final acceptance.
+
+## Current event navigation accepted — 2026-09-15
+
+User approves replacing public desktop/mobile header Captain/Submissions entries with
+Current event, visible to everyone (including anonymous spectators) only for a public,
+non-hidden event in Live or Awaiting final review. Reuse public event ordering: Live first,
+then latest scheduled start, and link to its published board. Move role-appropriate
+Captain/Submissions into the viewed event's navigation after Teams; keep event navigation
+on authorized submissions overview/detail and never link to a different event's team.
+Preserve routes/authorization, EN/DA, active indicators, responsive access and accepted
+banner/drops UI. Event-navigation implementer (Astra/medium) owns bounded shell/layout/
+context/localization changes and relevant executable navigation checks; no broad suite,
+browser review, app restart, database reset, packaging or deployment.
+Checkout /private/tmp/BingoWebpage-drop-announcements, branch drop-announcements.
+Implemented in SharedShellService.cs, _Layout.cshtml and Danish resources (Aktuelt event),
+with an updated focused integration case. Submissions context comes from authorized page
+models; role queries are scoped to the viewed event/team. Source/diff/localization checks
+passed. Executable navigation checks did not run: MSBuild named-pipe socket permission
+denied (log /private/tmp/event-navigation-check.log). No retry/broad suite/reviewer run.
+Hung test PID 92439 was stopped and confirmed exited by planner; user app left untouched.
+User's Release build exposed CA1068 on two new role-navigation method signatures.
+Implementer moved CancellationToken last and updated both call sites; scoped diff checks
+passed. User subsequently reports "Yeah looks and works great"; navigation is manually
+accepted. Automated checks remain unexecuted; no automated success claimed.
+
+## Banner and drops UI complete — user accepted, 2026-09-14
+
+User confirms: "Yep both are good now. That SHOULD be the banner and drops thing completed".
+Banner and drops work is complete for the agreed scope; no further visual acceptance,
+review, build or testing pass is pending. This supersedes earlier pending/active notes below.
+
+Accepted result: plain coral navigation NEW and label-width view underlines; drop-row NEW
+at 0.81rem using actual flex centering, without manual vertical offsets; Clear all NEW
+at 1rem within the first time-group divider, its padded container aligned to the statistics
+separator. Preserve 0.55rem side padding, opaque page-colored mask on interaction, ink
+normal/muted hover text in light mode, and existing dark-mode treatment. EN/DA and existing
+acknowledgment behavior are retained. User accepts dismissible banner placement and artwork
+handling. Small UI edits received scoped source/diff checks and user visual acceptance;
+no new independent review/build/test run was claimed.
+
+Changes remain uncommitted in /private/tmp/BingoWebpage-drop-announcements on
+`drop-announcements`. No commit/push/deployment or cleanup is authorized by this acceptance.
+
+## Announcement artwork handling accepted — 2026-09-14
+
+User accepts the handling, noting tiles should have artwork. Keep item-to-tile fallback
+and existing text-only guard; no further changes or testing requested. The user previously
+said the banner itself works as intended. Missing-artwork follow-up is complete and no
+additional visual/check/review pass is pending. Announcement work remains uncommitted;
+no new commit/push/deploy authority inferred from acceptance.
+
+
+## Announcement artwork fallback implemented — user observation pending
+
+Missing/broken image correction complete in drop-announcement.js and scoped CSS:
+distinct nonblank item/tile candidates, bounded image-error fallback, then slide-local
+text-only mode with no thumbnail/reserved column/gap at desktop and narrow widths.
+Existing banner dimensions/copy/controls/state unchanged. Evidence:
+`/private/tmp/announcement-artwork-fallback-evidence/`. JS syntax/scoped source/whitespace
+checks passed. No build/test/browser/reviewer/runtime restart/commit. User refreshes the
+running selected branch to observe fallback. All ticket manual acceptance remains complete
+(46 Done,5 Closed,2 Deferred); this small announcement fallback awaits user observation.
+
+
+## CSV accepted; announcement missing-artwork correction active
+
+User explicitly accepted skipped CSV ("Pass on CSV") and resumed announcement work.
+C13 is Done by manual-test waiver plus previously accepted executable/review evidence,
+not a claim CSV was manually exercised. Ledger:46 Done,5 Closed — no change,2 Deferred
+(C40/D05); no ticket remains Awaiting manual acceptance. Do not start new sweep tickets.
+
+User says banner itself works as intended; current pass is only missing artwork. Known
+client gap: buildSlide always renders empty thumb when no URL and doesn't handle failed
+image load. Agreed implementation direction: item artwork then distinct tile artwork;
+on missing/exhausted images use text-only slide, remove empty frame/reserved column, keep
+banner dimensions/typography/controls/countdown/navigation. No evidence screenshot or
+invented placeholder icon. Preserve frozen identity/service behavior. Same Luna/max
+implementer cancelled_ui now assigned JS+scoped CSS in selected drop-announcements;
+evidence /private/tmp/announcement-artwork-fallback-evidence. User waived extra UI review/
+build/browser checks; no runtime reset/restart or source commit. User observes final result.
+
+
+## Discord manual acceptance complete — 2026-09-14
+
+User reports Discord checks1–3 passed on selected branch using prepared DB/7131:
+linking, ordinary Discord sign-in to existing account and updated Last login. User lacks
+a second Discord account and explicitly requests all Discord checks marked pass. Replacement
+check4 accepted by explicit manual-test waiver using existing passing automated/review
+evidence; not claimed executed with a second identity. C06/C07 are Done. MR-03 accepted.
+No further provider testing, review or follow-up required for these tickets.
+Ledger:45 Done,1 Awaiting manual acceptance (C13 skipped CSV),5 Closed — no change,
+2 Deferred (C40/D05). This approval concerns Discord; it does not silently waive the
+separately skipped CSV check. Local commit5354a34 and preserved announcement overlay
+unchanged; no push/deploy or cleanup authorized by this acceptance.
+
+
+## Discord startup environment correction — 2026-09-14
+
+User ran supplied commands: Web build passed in13.2s. Compose attempted another postgres
+on occupied5432; migration against existing legacy DB stopped at20260905221344 because
+historical manual objectives retain drop snapshots. App then ran against incomplete schema
+and reported missing announcement_generation. Do not reinterpret as current code build
+failure or perform legacy repair/reset. Existing historical-data repair remains deferred.
+Prepared `/private/tmp/ticket-integration-evidence/manual/run-discord-check.sh` selects
+existing isolated bingo-ticket-manual-20260914 DB via private runtime.env, applies pending
+migrations with --no-build (stops on failure), and runs selected drop-announcements on7131
+for normal Discord callback. Existing secrets provide OAuth credentials; no secret config
+mutation. Test accounts/data retained, no reset. Launcher prepared only, not executed by
+planner; user stops their failed7131 process and runs it. No build/review/test rerun.
+
+
+## Ticket commit and drop-announcements integration complete — 2026-09-14
+
+Source branch `codex/ticket-integration-20260914` and selected working branch
+`drop-announcements` now point to commit `5354a3454034ea72544563147cda9f63355ea1e5`.
+Normal active checkout: `/private/tmp/BingoWebpage-drop-announcements`.
+Exactly125 accepted src/tests paths committed (original accepted inventory plus user-
+approved cancellation r2); three stale candidate authority snapshots excluded/preserved.
+Target fast-forwarded; all original54 dirty paths restored and non-overlap bytes preserved.
+Index empty, no unmerged paths; existing announcement/docs work remains uncommitted.
+Three textual conflicts resolved (FinalizationService, Board page model, Danish resources).
+Named overlap corrections preserve published metadata/targets in announcement feed and
+completion helper plus combine latest C21 migration designer with announcement snapshot.
+These overlap edits remain in target's uncommitted announcement overlay; prior isolated
+reviews do not claim to cover them. No new runtime/build/test/review was run for packaging;
+combined announcement overlay has not been runtime-verified. Git/hash/preservation checks
+passed. No push/deploy/cleanup or app/database changes.
+
+Recovery stash retained: `d224e3fc0cb08a3fe9b39ff67d464197664fc65b`.
+Report/backups: `/private/tmp/ticket-packaging-evidence/20260914-190056/packaging-report.md`.
+Saved Documents `feature/boss-artwork` working files and branch remain untouched.
+User-secrets lookup confirms DiscordAuthentication ClientId and ClientSecret are both
+present for shared UserSecretsId BingoWebpage-Slice1-Local-Configuration. Target https
+profile is https://localhost:7131 (HTTP5164), callback /Account/DiscordCallback. No secrets
+printed/changed, provider registration inspected or real sign-in performed; configured
+presence is not proof of a successful OAuth round trip.
+
+Ledger remains43 Done,3 Awaiting manual acceptance (C06/C07 Discord,C13 CSV),5 Closed,
+2 Deferred. Packaging/selected local merge objective complete. Next user-facing action:
+use selected working checkout and perform pending Discord sign-in when desired; paused
+announcement implementation/acceptance remains separate. No automatic new batch or review.
+
+
+## Ticket packaging and local merge authorized — 2026-09-14
+
+User explicitly authorized committing the assembled ticket changes and bringing them
+into the normal branch, then selected `drop-announcements` at
+`/private/tmp/BingoWebpage-drop-announcements`. Preserve its uncommitted announcement
+implementation, authority updates and local configuration. Saved Documents checkout
+`feature/boss-artwork` is outside scope and must stay untouched. No push, deployment,
+branch/worktree deletion, DB reset, app start/restart or extra UI review is authorized.
+
+Packager will freeze backups, commit only accepted integrated src/tests files (original
+128-file source inventory less three worker authority snapshots, plus accepted UI delta),
+then fast-forward target while safely preserving/reapplying its existing dirty overlay.
+Current central AGENTS/CURRENT_STATUS/TICKETS and other docs remain authoritative and
+must not be overwritten by stale candidate snapshots. Leave unrelated announcement/docs
+work uncommitted as before. Resolve only merge overlaps, preserving both implementations;
+no new feature/remediation scope. Keep recovery stash/backups until completion and do not
+remove original worktrees. Reuse prior evidence; no new scan/full-suite/UI review merely
+for packaging. Required Git integrity/overlap checks are packaging checks.
+
+Current accepted state: 43 Done, Discord C06/C07 and skipped CSV C13 pending manual
+acceptance; five Closed, two Deferred. Cancellation r2 user approved without added review.
+Planner checks OAuth configuration presence without exposing credentials or performing
+provider sign-in. Packager reports final commits/branch/status/conflicts/remaining limits.
+
+
+## Cancellation UI approved; ready for packaging decision
+
+User explicitly approved the final cancellation UI after running the app themselves.
+The final r2 changes use the existing error-page shell/spacing, remove the mark/divider
+and horizontally center the copy. Approval covers this requested visual correction;
+no additional source review/browser/build/test pass is required or authorized. Evidence
+of edits remains `/private/tmp/cancelled-event-ui-evidence/r2/`; do not reuse the earlier
+128-file manifest as if it included this subsequent delta. Assistant-started HTTPS7147
+process73695/session21530 was stopped on user request; user owns current runtime.
+
+Next phase is packaging the cumulative candidate into the intended normal branch/checkout
+while preserving separate paused announcement work and other existing changes. No staging,
+commit, merge, push, cleanup or deployment has yet been authorized by this UI approval.
+Ticket ledger remains 43 Done, 3 Awaiting manual acceptance (C06/C07 real Discord with
+configured provider; C13 skipped CSV), 5 Closed — no change, 2 Deferred (C40/D05).
+No new scan, ticket batch, speculative cleanup or UI review is pending. Discord can be
+checked later in the configured environment; CSV skipped acceptance is not silently waived.
+
+
+## Cancellation r2 — exact error-page shell/spacing
+
+User reiterates literal existing error-page structure/spacing with left column and
+divider removed, right copy horizontally centered. r2 removes custom cancellation section
+height/padding and uses existing public-ui-pass1 status shell via PublicEventCancelled.
+Existing 404 vertical spacing remains authority; no invented padding/vertical alignment.
+Same implementer makes direct bounded markup/CSS/layout correction and builds actual
+candidate. No independent review or browser/visual pass per explicit user instruction.
+Planner diagnosis of reported persistent X: host and candidate partial/compiled hashes
+match; current served7147 cancellation HTML already has no X. Fresh navigation after
+r2 will load current markup; do not claim old browser content is user's fault. EN/DA keys
+remain unchanged. All user fixture/data and existing noncancelled UI retained.
+
+
+## Small UI review explicitly waived by user
+
+User explicitly overrides workflow: "DONT DO A FUCKING REVIEW ON A SMALL UI CHANGE".
+No further independent review for this small UI change; user owns visual acceptance.
+Before instruction arrived, source reviewer had already identified residual mobile top
+border from existing <=42rem CSS. Implementer finishes only cancellation-specific all-
+border/separator-padding reset. CSS-only: no rebuild/test/review/browser pass. Stop after
+that edit and let user refresh. Do not impose repository review policy against this user
+override or open a new review/ticket chain for routine small visual corrections.
+
+
+## Cancellation r1 implemented, user visual review pending
+
+r1 implementation complete: X removed; existing localized copy/CTA retained. Scoped
+cancellation CSS centers the copy, removes divider/padding and extends container/main/
+status canvas across viewport with light/dark background. No _Layout or 404 changes.
+Evidence `/private/tmp/cancelled-event-ui-evidence/r1/` holds preimages/deltas/hashes.
+Web Release build zero warnings/errors, source/cascade/diff passed. Same reviewer named
+source recheck underway. Isolated7147 app restarted successfully through existing launcher
+(session21530), existing DB/storage retained;7131 untouched. Per explicit user instruction
+no browser/visual/language execution checks performed after correction. User refreshes
+existing cancellation page to judge full-page layout and English/Danish.
+
+
+## Cancellation correction visual checks delegated to user
+
+User explicitly says "No dont check it, i can do that." Stop further browser/visual/
+language execution checks. Complete scoped source correction, build and named source
+recheck; refresh isolated app only to serve the correction. User owns final EN/DA,
+full-viewport and no-X/divider observation. No screenshot or page inspection rerun.
+
+
+## Cancellation styling correction — active
+
+User rejected the first cancellation styling. Exact accepted correction direction:
+remove the X and divider; preserve the right-hand copy/typography/button as-is, center
+that group horizontally, and fill the entire viewport below the header with the page
+background rather than a constrained cream panel on black. Support English and Danish.
+Observed browser root cause: body only public-ui-page-canvas with black computed background;
+main.pb-3 and status section constrained to x84/width696 at viewport864. Existing Danish
+strings render correctly. Reuse same Luna/max implementer `cancelled_ui` for this named
+correction; minimal cancellation-only layout class/CSS is authorized. Preserve all route/
+privacy behavior, 404 pages and current fixtures. Scope recheck to this correction with
+same reviewer; planner verifies actual browser EN/DA after rebuilt isolated7147 app.
+First styling is NOT manually accepted. No broader UI pass or new ticket batch.
+
+
+## Cancelled-event status styling — PASS, visual approval pending
+
+Implemented and independently reviewed PASS: one shared `_EventCancelled.cshtml`
+markup change reuses status-editorial layout, existing typography/responsive behavior and
+coral-outline Home CTA. Decorative cancellation mark × is aria-hidden; localized message,
+encoded event name, accessible heading and data-event-cancelled marker retained. No CSS
+or product/route/privacy behavior change. Current partial SHA256 `dc3baad13eb845f261326f604b470867ddb81aacb9db9ce573953328d6a5bdfc`.
+Delta/preimages/review: `/private/tmp/cancelled-event-ui-evidence/`; reviewer
+`cancelled_ui_review` Astra/high found no required defects. Web Release Razor build
+passed zero warnings/errors; source/cascade/diff checks passed. Prior accepted integrated
+baseline remains evidence, with this explicitly recorded one-file delta on top.
+
+Prepared HTTPS7147 app restarted through its existing launcher, same isolated DB/storage
+and fixture state. Sandbox could not reach host process/Docker/network; approved escalated
+restart and single HTTP read succeeded. Served HTML contains new cancellation layout.
+Runtime session41010 is active. HTTPS7131 and user DB untouched. User should refresh
+https://localhost:7147/Events/ticket-review-cancelled/Board for visual acceptance.
+No full-suite/browser/manual reruns, staging, commits or additional scope. C37 function
+remains accepted; new visual delta awaits user's approval.
+
+
+## Cancelled-event status styling — active, 2026-09-14
+
+User requests a quick visual correction to cancelled public event destinations using
+the existing 404 status-page structure. Approved scope: shared `_EventCancelled.cshtml`
+composition/typography/return CTA and only necessary scoped CSS, reusing `status-editorial`
+from `Pages/Errors/StatusCode.cshtml`. Preserve localized cancellation meaning, public
+event name, data-event-cancelled marker, heading accessibility, Home link, privacy guards
+and existing HTTP/route behavior. Actual 404 pages and finalized/archived views unchanged.
+
+Implement directly on cumulative `/private/tmp/BingoWebpage-ticket-integration-20260914`,
+branch `codex/ticket-integration-20260914`; preserve prior accepted uncommitted candidate
+and all manual fixture state. Bounded implementer subagent `cancelled_ui`, Luna/max;
+planner handles authority documentation concurrently. Capture preimages/scoped delta in
+`/private/tmp/cancelled-event-ui-evidence`. Source/cascade/diff and Web/Razor Release build,
+then one independent Astra/high review of this small delta only; no full suite, repeated
+manual walkthrough or extra fixtures. Existing C37 functional acceptance stays accepted;
+new styling awaits user visual approval. No staging, commit, push, database reset or
+unrelated app restart. Next: scoped implementation/checks/review, then show user the
+same cancelled-event URL after the candidate is rebuilt/restarted through normal setup.
+
+
+## Steps 13–15 accepted by explicit waiver — 2026-09-14
+
+User explicitly approved closing chat steps 13, 14 and 15 (MR-12, MR-13 and
+MR-14) without further manual testing: "just pass 13 14 15" and "These are likely
+never gonna be used anyway". Record accepted manual-test waiver and reliance on existing
+passing executable/integration/review evidence, not a claim these manual actions ran.
+This clears C11/C17/C18/C19/C25/C38. No further fixture preparation or testing is needed
+for those checks. Ledger: 43 Done, 3 Awaiting manual acceptance (C06/C07 Discord;
+C13 CSV), 5 Closed — no change, 2 Deferred. All prior accepted observations and
+integration evidence remain unchanged; no publication/packaging authority is implied.
+
+
+## Manual results reconciled — 2026-09-14
+
+User checkpoint — 2026-09-14, second walkthrough response. Chat step 12/MR-11
+passed; steps 16–25/MR-15,16,17,19,20,21,22,23,24,25 passed; step 26/MR-26 accepted
+recorded internal evidence. Earlier nine passes remain recorded. Chat step 13/MR-12:
+user hit replacement instructions ambiguity and explicitly declined further manual effort.
+Existing signup should be selected from "Waiting-list participant (optional)", not added
+again through "Internal owner username"; no production failure established from this
+report. Chat step 14/MR-13: user reports other teams also need emergency credentials
+and declines setup; guide/fixture readiness was incomplete, not a passed manual scenario.
+Chat step 15/MR-14: "Manual approval example" was a requested new title, not a seeded
+item; planner clarified the misleading guide. This check remains unexecuted/unaccepted.
+Discord MR-03 remains pending later configuration; CSV MR-09 remains skipped. No
+additional manual effort on the declined checks, fixture expansion, remediation, workers,
+new tests or review is dispatched. Do not infer a passing manual result for skipped cases.
+C37 clarification: existing Board/Teams/team/tile routes were retained; ticket added a
+shared generic cancellation display/guards. Ticket-review event records are disposable
+fixture data created for this walkthrough, not new product pages.
+
+Current ledger: 37 Done (31 newly accepted plus the existing six), 9 Awaiting manual
+acceptance (C06/C07/C11/C13/C17/C18/C19/C25/C38), 5 Closed — no change, 2 Deferred.
+C17 retains its unobserved departure-notification portion despite passing MR-11.
+Skipped/unexecuted portions remain named acceptance limitations; no code failure is
+inferred. Page-specific observed acceptance is recorded in UI_PAGE_MATRIX. Integration
+candidate/frozen manifest remains unchanged. Packaging/publication is not authorized.
+
+
+## User manual acceptance underway — 2026-09-14
+
+User checkpoint — 2026-09-14, chat guide steps 1–11 (chat step order differs from MR IDs):
+steps 1, 2, 4, 5, 6, 7, 8, 9 and 10 passed, mapping respectively to MR-01, MR-02,
+MR-04, MR-18, MR-05, MR-06, MR-07, MR-08 and MR-10. User described step 4 as
+"a little funky UI but functionality works" and step 6 as "a bit weird UI"; record
+those observations without inventing a defect or authorizing UI redesign. Step 3/MR-03
+cannot currently run; user expects real Discord testing later with suitable configuration.
+Step 11/MR-09 CSV is optional for continuation and may be skipped; manual acceptance
+remains open, not waived. The original prepared preformed roster supports later checks
+without applying the CSV. Continue at chat step 12/MR-11. MR-26 remains unacknowledged;
+no group-wide or untested-state acceptance is inferred.
+
+
+## Integration PASS reconciled; user walkthrough ready — 2026-09-14
+
+Independent integration reviewer `01a0a090-00ce-74e1-9252-7342be4fc6a7` returned PASS
+with no blocking findings. Report:
+`/private/tmp/ticket-integration-evidence/integration-review/independent-review-result.md`.
+Accepted candidate `/private/tmp/BingoWebpage-ticket-integration-20260914`, branch
+`codex/ticket-integration-20260914`, HEAD/base `c165bbcb321547637d03b4e9dc3d2e206e5944b3`.
+The uncommitted candidate is pinned by all 128 file hashes in
+`/private/tmp/ticket-integration-evidence/final-review/manifest.json`, SHA256
+`ced7502b5deae58679b2a78cc530e948a9ed0894cf5c30f8deaee29f19afbaa8`;
+full patch SHA256 `209e94a7d8d4f23ed4f5c342801ebd73127dfe9a6d85685b8862b8c0a85757b7`.
+Reviewer verified actual inventory/hashes, source provenance, conflicts/direct joins,
+reverse-apply and diff checks; nothing staged. Prior ticket reviews reused.
+
+All 1,022 original .NET cases have passing evidence after named corrections/rechecks;
+19 initial failures were resolved, not represented as a clean second full-suite run.
+Release build zero warnings/errors, full format, 21 Node harnesses and applicable real
+PostgreSQL migration/concurrency/history/rollback evidence pass. Reviewer did not rerun
+manual/visual/runtime checks. T05 provenance and C41 isolated-capture limits retained.
+
+Prepared commands/accounts/scenarios are in
+`/private/tmp/ticket-integration-evidence/manual-handoff.md`; central checklist now
+identifies the integrated candidate. HTTPS URL https://localhost:7147. Use the supplied
+manual/run-candidate.sh launcher for its isolated DB/storage/WOM fixtures. No reset is
+needed; resetting would remove supplemental scenarios. Preflight app stopped, fixtures
+retained. Prepared dates expire 16 September 2026; later use needs only scoped fixture
+refresh. MR-03 real Discord provider acceptance remains pending setup/sign-in. No
+manual/page acceptance is claimed. Ledger remains 40 Awaiting manual acceptance,
+6 Done, 5 Closed — no change, 2 Deferred. No further worker batch or review is active
+under this completed assignment. Next action: user's step-by-step walkthrough and
+recording actual results; no new scan, speculative scope, packaging or publication.
+Earlier integration/preparation-pending entries below are historical checkpoints.
+
+
+## Older T05 source recovered for integration — 2026-09-14
+
+Combined Node gate exposed the Done T05 repair missing from the recent batch packages.
+Planner recovered the original reviewed diff from reviewer task
+`01a086ed-6df8-7c02-90c4-e39ab0e42454` and the exact named localization correction from
+implementer `01a0870b-ed27-7b80-9d0b-cef6bbb165e9`. Evidence directory:
+`/private/tmp/ticket-integration-evidence/t05-recovery/`. The pre-correction reviewed
+postimage matches its recorded Git blob; final source uses only the exact logged
+correction and matches the original 87 insertions/28 deletions. Final recovered blob
+`6719d5f51be13f110406bd8fefd42e955b2e2a11`, SHA256
+`ed3b47ae5218800e48dee6783c35c8f75014fab88c20887f58d202255b7d475a`.
+The base test matches c165bbc blob 84ae3433e7df32fb8d2dab3debb4c5387792c45b.
+Original final handoff and passing targeted-test output preserved. No independent final
+hash/recheck is invented; provenance distinguishes the initial review and its recorded
+one-line correction. Source supplied to integrator for the existing candidate and Node
+gates; site.js/product behavior unchanged for T05. No new review cycle or user decision.
+
+## Post-integration PASS user handoff request — 2026-09-14
+
+User will be away while integration runs. On receipt of the independent integration
+PASS, planner must reconcile the exact accepted candidate and rewrite the manual
+checklist directly in this chat as an unambiguous numbered do-this/do-that guide.
+Include exact initial cd, data reset only if needed, build and HTTPS run commands,
+verified against the actual accepted candidate and its supported setup. Specify scenario/
+account/starting page/expected result for each journey; do not leave fixture placeholders
+or require guessed routes. Integrator has been asked to provide this preparation data
+with its reviewer handoff. Distinguish tested commands from source-verified ones and
+preserve actual fixture state. A request for reset commands is not permission to reset
+the user's existing database or restart their running app. No extra review cycle or
+feature work is added. Await final PASS through existing exclusive reviewer routing.
+
+MR-03 preparation limitation: real Discord linking/replacement/login requires the user's
+real provider sign-in and a valid OAuth callback for the isolated candidate (worker
+currently identifies HTTPS port 7147; final URL must be verified in handoff). Planner
+retains that portion as pending manual acceptance. Existing controlled callback/session
+evidence and prepared local Settings/last-login inspection may be reused with their
+limits stated; they do not substitute for completed real-provider manual acceptance.
+No provider credential/callback change or real identity linking is authorized by this
+preparation. This prerequisite does not block integration review/PASS or delivery of the
+remaining walkthrough. Include exact entry/callback details and a skip/pending instruction
+if provider setup is unavailable; no additional user decision is needed now.
+
+## Ticket source integration authorized — 2026-09-14
+
+User approved gathering/reconstructing the reviewed work, combining it in one integration
+worktree, resolving overlaps and running combined checks before manual review. This
+supersedes earlier no-source-integration boundaries for this task only. Existing source
+folders and evidence remain untouched; no user DB/app restart, commit, PR, branch merge,
+push, deployment, deletion or new product work is authorized.
+
+Prepared clean integration worktree `/private/tmp/BingoWebpage-ticket-integration-20260914`,
+branch `codex/ticket-integration-20260914`, base `c165bbcb321547637d03b4e9dc3d2e206e5944b3`.
+Git metadata creation required filesystem escalation and succeeded under the user's
+explicit integration authorization. Reuse direct Astra xhigh implementer task
+`01a0a019-1abe-7bd2-ba0d-72f2acb39982` for integration; its prior C33 worktree is protected.
+Planner owns authority/status reconciliation and missing C05/C09 provenance lookup;
+implementer owns verified source assembly, conflict/integration fixes and combined checks.
+
+C05/C09 provenance lookup is COMPLETE. Their original source folder has only build
+artifacts remaining, but the original independent review session retained its complete
+four-file diff. Recovered exact output at
+`/private/tmp/ticket-integration-evidence/c05-c09-recovery/reviewer-original-diff-output.txt`;
+source session/tool-call evidence and original verdict are in that directory. All four
+preimages match original commit `86e7dc3f5910cd332123c5e951b1c0b4eb75c654`; reconstruction
+from exact Git blobs plus unchanged patch gives all four matching reviewed postimage
+blob prefixes. `reconstruction-manifest.json` records full reconstructed hashes. This
+is 246 insertions/7 deletions, not rewritten implementation. Recovered source supplied
+to the integrator, which must reconcile later c165bbc baseline changes. Original source/
+evidence remains unchanged; no user data or integration production was edited by planner.
+
+Account C06/C07/C08 provenance question resolved, 2026-09-14. Original independent
+reviewer is `01a09b85-6f91-7c90-823f-932a4f98c479`; the original report is
+`/Users/christopher/Documents/Codex/2026-09-13/account-ticket-batch-review/outputs/account-batch-independent-review.md`.
+Recovered intact original reviewer source/test diff outputs into
+`/private/tmp/ticket-integration-evidence/account-review-provenance/`. All six current
+production and three test files match reviewed postimage Git blob prefixes, and both
+current diffs against c165bbc match recovered reviewer diff bytes exactly. The comparison
+manifest pins current full hashes, original tool-call/session provenance and report hash.
+This adds comparison evidence, not a new review or runtime rerun. Historical report-delivery
+rejection remains recorded; current integration sharing is explicitly authorized. The
+integrator received this resolved source authority and may use its matching frozen copy.
+No known source-provenance question remains pending with planner at this checkpoint.
+
+Integrate only the 40 reviewed acceptance-pending tickets and required passing test
+repairs, including older C05/C09 (old-data cleanup explicitly deferred). C26/C27/C34/C36/
+D03 closed; C40/D05 deferred; WOM Stats and separate paused drop-announcement changes
+excluded. Central dirty production source must not be used as an integration baseline.
+Central current ticket scope/UI approval/manual checklist remains authority; do not
+replace it with stale worker document snapshots while applying code patches.
+
+Verify each source snapshot against final review manifests, including untracked files.
+Reconstruct the four missing folders from final saved complete patches in separate
+scratch trees without altering evidence. Keep snapshot/hash provenance for every applied
+batch and document manual conflict resolutions. Use one cumulative integration worktree
+and retain a recovery checkpoint/evidence patch after coherent integration steps; no
+new independent branch per added batch. Ordinary technical conflict resolutions are
+authorized; preserve all approved behavior, transaction/lock order, audit, privacy,
+immutable history and migrations. C20/C21 complete managed-artwork recovery must be
+proved; reconcile C20/C33/C31/C32/C35, roster/signup/auth and shared resources carefully.
+No silent feature loss, broad redesign, legacy repair or source decompilation.
+
+Use applicable existing focused tests to prove overlap resolutions, and the agreed
+combined build/test/format/PostgreSQL migration gates once after assembly. Do not rerun
+every isolated suite at every step or create new tests mirroring trivial merges. New
+failures get bounded direct fixes and affected rechecks. After one lookup, unresolved
+source provenance or consequential scope ambiguity goes to planner while independent
+assembly continues. No missing-source implementation should be silently recreated.
+One fresh independent Astra xhigh reviewer may review only integration-specific changes,
+conflict resolutions and evidence coverage after checks; reuse prior ticket reviews rather
+than re-audit all tickets. Exclusive routing stays implementer -> reviewer, findings ->
+implementer, final PASS -> planner. Standing user sharing approval covers necessary exact
+private paths/diffs/hashes/evidence. No subagents/reviewer chains or extra permission loop.
+Manual approval remains unclaimed. Stop at integrated candidate/verification handoff;
+manual fixture/runtime preparation can follow in the same candidate when permitted.
+
+## Integration source inventory observation — 2026-09-14
+
+User asked whether batches were stacked. Read-only check of the sixteen recent batch
+paths confirms all twelve still-present worktrees have HEAD c165bbcb321547637d03b4e9dc3d2e206e5944b3
+and their own uncommitted changes. They are independent, not a cumulative chain.
+Four recorded checkout folders are absent and no matching git worktree registration
+was returned: 0373 (C19/C23/C25), ffd6 (C04/C15/C22), 3ae0 (C28/C29/C30),
+0e93 (C31/C32/C35). Cause/time of absence is unknown; do not infer source loss or
+claim all sixteen folders remain present. Saved review artifacts still exist:
+
+- C19/C23/C25: /private/tmp/board-approval-batch-evidence/complete.diff
+- C04/C15/C22: /private/tmp/audit-batch-review/complete.diff
+- C28/C29/C30: /private/tmp/participant-evidence-batch-evidence/complete.diff
+- C31/C32/C35: /private/tmp/final-review-integrity-batch-evidence/full-base-to-current.patch
+
+Integration preparation must verify final reviewed artifacts, reconstruct missing batch
+sources against their recorded base and verify full file inventories/hashes before use,
+including untracked files. Artifact existence alone is not a reconstruction test. Include
+the older C05/C09 trial source/evidence in that inventory too. No patches were applied,
+worktrees reconstructed, staging/commit/merge performed, or production source modified
+by this read-only check. Existing evidence of completed review remains; runnable combined
+source is still pending, as stated in the manual checklist.
+
+## Grouped ticket acceptance checklist prepared — 2026-09-14
+
+User requested the manual review checklist. MANUAL_TEST_CHECKLIST now contains the
+current ticket walkthrough: 25 visible checks in seven journeys plus one evidence
+acknowledgment, with coverage of all 40 Awaiting manual acceptance tickets. All remain
+unchecked/unaccepted. Candidate URL/revision/accounts/fixtures and exact expected values
+are explicitly pending an authorized integration and bounded preflight. C20/C21 complete
+managed-artwork recovery must be proven there; isolated C20 safe refusal is not that proof.
+The user is not tasked with reproducing transaction/security races or fixing fixtures.
+Existing evidence is reused; older slice/announcement checklists are not automatically
+added. No source integration, runtime, data reset, new worker or manual approval occurred.
+
+## Ticket implementation and independent reviews complete — 2026-09-14
+
+C33 final independent PASS is reconciled. There are **no active implementation batches
+or remaining eligible tickets to dispatch** under the current scope. Current ledger:
+**51/53 handled = 40 Awaiting manual acceptance + 6 Done + 5 Closed — no change**;
+C40 and D05 remain Deferred/outside this batch. C05/C09 old-data inspection/repair is
+explicitly deferred under the user's delegated disposition; C26/D03/C36 are closed.
+The following earlier dispatch/policy checkpoints are history, not active instructions.
+
+Next phase requires separate source-integration authority: assemble the reviewed isolated
+changes, reconcile their named overlaps/dependencies, run the combined applicable gates
+once, then provide the grouped manual walkthrough. No integration, staging/commit/PR/
+push/merge/deployment, new feature (including WOM Stats), user-data cleanup or running-
+app restart is authorized by this review. Existing worktrees and central dirty source
+remain preserved. Do not start another batch or repeat passing review/tests merely to
+change status. Ticket manual acceptance and package integration/release remain distinct.
+
+### C33 accepted review checkpoint
+
+Sole reviewer `01a0a02a-05db-7380-b704-67522978e9c5` cleared P2 R1 in the same-reviewer
+bounded recheck; no required finding remains. [Final report](/private/tmp/c33-evidence/reviewer/recheck-pass.md),
+SHA256 `f66d9d677724abba4d283c111618a1e0ed48a01b653ab6257600cd32ee287324`.
+Implementer `01a0a019-1abe-7bd2-ba0d-72f2acb39982`, actual checkout
+`/Users/christopher/.codex/worktrees/6771/BingoWebpage`, branch
+`codex/finalization-freshness-c33`, HEAD/base `c165bbc`, unstaged/uncommitted/unintegrated.
+The accepted `/private/tmp/c33-evidence/r1/full.patch` SHA256 is
+`bf1d6079a31d6312957111250cc005c81743a03782c667d27f0dc9b7353baec6`;
+manifest SHA256 `cc400b799794e730a17b9ad2e008688a1e3b2b419436c9fdff0f245057f80401`.
+Reviewer verified 15 current repository files including both untracked files, five R1
+delta files, 32 R1 artifacts, 22 original artifacts and 14 preserved original snapshots;
+reconstructed full/source/delta patches byte-for-byte without changing repository files.
+
+C33 guards finalization freshness and immutable per-cycle/team inspection identity,
+current-input acknowledgment replay, retained resolutions, correction invalidation and
+atomic finalization. R1 makes losing review concurrency requests show an explicit unsaved/
+reload/latest-state/retry Error message through existing Review Details.Execute; existing
+authority/reasons/confirmation/routes/filters/lock order/composition remain protected.
+
+Evidence supports **36 distinct cases**, reusing original 29 passes plus seven R1 cases;
+not a fresh combined run. Four R1 cases exercise real migrated disposable PostgreSQL/
+authenticated-CSRF losing-review races and explicit fresh retries; three exercise exception
+shapes through HTTP. Original R1 6-pass/1-failed success-style assertion was corrected
+and its named rerun passed; the failed attempt remains recorded. Unchanged reversal
+success Information styling is an unrelated limitation, not a new task. Original solution
+Release and R1 Web/Razor Release builds have zero warnings/errors; applicable format/
+diff checks pass. No full suite, new browser walkthrough or manual visual pass claimed.
+Planner reuses the independent evidence without runtime/review reruns.
+
+UI_PAGE_MATRIX preserves page composition approvals and marks C33 Finalize freshness/
+reinspection/error and Review concurrent-error/retry states Awaiting manual acceptance.
+Historical correction ambiguity fails closed without reconstruction. No silent official
+result republication. Later authorized integration must reconcile C31/C35/C32/C20 and
+C04/C15/C22 overlaps; C20/C21 full managed-artwork recovery remains a named obligation.
+Sixteen recent reviewed batch worktrees remain isolated, in addition to the older C05/C09
+trial evidence; do not assume any source has been integrated. Final PASS delivered only
+to planner; no duplicate implementer handoff or new reviewer is needed.
+
+## C05/C09 old-data obligations deferred; review blockers cleared — 2026-09-14
+
+User explicitly delegated the C05/C09 decision to the planner, noting disproportionate
+time/usage on edge cases. Planner retains the existing independently reviewed fixes
+and defers old-data inspection/repair for both. C05 and C09 are **Awaiting manual
+acceptance**, not Blocked. Existing user records remain unchanged. No production scan,
+backfill, notification rewrite, worker/reviewer or additional test run is authorized or
+needed for this disposition. Only disposable synthetic mismatches were demonstrated;
+actual affected-user counts remain unknown. This does not assert there are zero affected
+records, that retained data is repaired, or that the isolated fixes are already integrated.
+Revisit a concrete reported failure if one occurs; no automatic cleanup follow-up.
+
+C05 preserves corrected character selection through subsequent rejoin/restoration;
+C09 fixes the owned-record destination in newly created lifecycle notifications. Their
+previous implementation/review evidence remains applicable and is reused. Manual
+acceptance and authorized integration remain separate. C36 is Closed — no change;
+C26/D03 are also closed, C40 remains outside this batch, D05 deferred. Current totals:
+**50/53 handled = 39 Awaiting manual acceptance + 6 Done + 5 Closed — no change**;
+only C33 In progress and C40/D05 Deferred remain outside those dispositions.
+
+## C36 scope resolved; C05/C09 choices remain — 2026-09-14
+
+User clarified hiding on 2026-09-14: its purpose is to keep unwanted/test/abandoned
+events off the front page and ordinary Admin Events table, not conceal their existence
+or details from Admin audit history. C36 is closed without implementation. No legacy
+audit-association cleanup is required for hiding, and hidden-event audit visibility is
+not an additional secrecy boundary. Preserve normal audit authorization, immutable
+history and sensitive-data exclusions, as well as the existing event-list/workspace
+visibility and hide/restore controls. This scope decision does not itself remove existing
+audit filters or authorize a visibility patch, source integration or historical-data repair.
+
+C05's reviewed fix prevents new mismatches once integrated; postponing old-data work
+would leave existing rows uninspected/unrepaired, not defer the code fix. No deferral
+or production scan has yet been approved. Planner recommends one bounded read-only
+check for C05. C09's reviewed new-notification fix remains; planner recommends leaving
+old malformed notification links unchanged because the limited navigation benefit does
+not justify cleanup. That recommendation is not yet an explicit user disposition.
+C33 continues independently. Current totals: 48/53 handled (37 Awaiting manual
+acceptance + 6 Done + 5 Closed), C33 In progress, C05/C09 Blocked, C40/D05 Deferred.
+
+## C33 next batch dispatch — 2026-09-14
+
+C20 final pass is reconciled below. C33 technical freshness/inspection invariants are
+frozen in FUNCTIONAL_CONTRACTS 7.6 / DATA_MODEL 17.1 and the active TICKETS brief.
+Next direct saved-project Astra xhigh implementation task is queued.
+C33 creation accepted on local host with queued client ID
+`client-new-thread:4efdf848-10cb-4f33-8262-e614e28d652f`; saved project
+`local-7212f354a970dffa7d8b5520bdec2dfc`, gpt-6-astra/xhigh. Actual runtime ID and
+checkout await setup; do not use the queued client ID for runtime tools. No reviewer yet.
+
+ C36 remains
+under relevance discussion; no legacy-data scan/repair is dispatched. Current totals:
+47/53 handled (37 Awaiting manual acceptance + 6 Done + 4 Closed — no change),
+C33 In progress, C36 Proposed, C05/C09 Blocked, C40/D05 Deferred. No integration,
+manual acceptance or release claimed. Standing exclusive routing remains authorized.
+
+## C20 final independent PASS — 2026-09-14
+
+C20 is **Awaiting manual acceptance** after the sole reviewer
+`01a09ffc-f686-7a01-a528-dbb393d4005e` cleared R1–R4 in the bounded recheck.
+[Final report](/private/tmp/c20-evidence/reviewer/recheck-pass.md), SHA256
+`29bb27ff3adced058e28522b4bfdf80674c5a30f6ab5890d03fbc1139206cbac`.
+Actual implementation `/Users/christopher/.codex/worktrees/51a1/BingoWebpage`, branch
+`codex/objective-identity-c20`, HEAD/base `c165bbc`, unstaged/uncommitted/unintegrated.
+Reviewer verified 28 source files and 99 evidence artifacts and the 10-file remediation
+delta. Full patch SHA256 `aed54b14c75b9fa008739751487e785fb608fc07f8b6b47d2b16e3657d9be6a8`;
+manifest `3490a275daba44f91245afbc47ef7d8bf6cf84aa8b9b0085a0cf93052ff2ee2b`.
+Evidence-lock/stable IDs, active published submission/progress and confirmed discard
+are source-reviewed. R1 protects shared scoring denominator/EHB; R2 uses active approval
+dimensions for completion/focus; R3 safely refuses expected artwork storage failures;
+R4 places unchanged recovery authority in FUNCTIONAL_CONTRACTS 6.2.
+
+Recorded 11/11 focused remediation and 17/17 affected passes overlap: not 28 unique
+cases. Applicable original 27/27 core, 17 unique recovery, 3/3 source contracts and
+Chrome binding/confirmation checks are reused. Release solution build zero warnings/
+errors, scoped format/verify and reviewer diff checks pass. No planner runtime rerun.
+C20 isolated PASS does NOT prove recovery after managed-artwork removal: missing,
+deleted, unreadable or ambiguous required artwork refuses discard atomically. C21
+retention/FK migration remains unmerged; later authorized integration must prove full
+artwork recovery. Inherited active-image FK cycle and duplicate-source corrupt-editor
+rendering limit remain recorded. No historical repair or combined release claim.
+UI_PAGE_MATRIX preserves composition approvals and marks new C20 states awaiting
+manual acceptance. Final PASS delivery succeeded; no duplicate implementer handoff.
+
+## Remaining-scope clarification — 2026-09-14
+
+User reaffirmed C26 dependency-reference lists and D03 application catalogue import
+are not to be built; both are Closed — no change, not unfinished future work. C40
+is explicitly outside the current batch sequence and remains Deferred. Owning
+catalogue contracts were reconciled to remove the stale feature requirements.
+C36 relevance is under discussion: it concerns ordinary Admin audit visibility of
+hidden-event details, not public participant access. Existing C04/C15/C22 writer fixes
+remain preserved; do not dispatch legacy scanning/repair from this relevance question.
+C20 continues its current implementation/review sequence without interruption.
+Totals: 46/53 handled = 36 Awaiting manual acceptance + 6 Done + 4 Closed — no change;
+remaining: C20 In progress, C33/C36 Proposed, C05/C09 Blocked, C40/D05 Deferred.
+
+## C20 recovery approved; implementation resumed — 2026-09-14
+
+User explicitly approved the explained Discard private correction action: warn and
+confirm loss of all unpublished board edits in the open correction, restore the working
+board from current publication using exact identities, and close the correction so a new
+one can begin. Published rules/evidence/progress/history remain intact. Central
+FUNCTIONAL_CONTRACTS 6.2 / PRODUCT_REQUIREMENTS 10.2 now own this bounded behavior.
+Existing implementer `01a09fbe-a7da-7d02-890f-559b0860920f` is authorized to complete
+it in `/Users/christopher/.codex/worktrees/51a1/BingoWebpage`, branch
+`codex/objective-identity-c20`, gpt-6-astra/xhigh. No policy wait remains for this action.
+
+**C20/C21 artwork dependency resolved — 2026-09-14:** C20's isolated baseline still
+removes managed artwork metadata/bytes with a privately removed tile. C21 already has
+independently reviewed retention and its required FK migration, but remains unmerged.
+The approved missing/ambiguous-restoration-data rule is C20's bounded stop boundary:
+discard must fail clearly and atomically if required artwork cannot be restored, retaining
+the open correction and all existing publication/evidence/progress/history. No success
+claim, silent missing-artwork substitution, source import, migration or reconstruction.
+Execute the missing-artwork rejection and unaffected recovery paths, then proceed to
+C20's one independent review. The report must name this known incomplete recovery
+case; passing this isolated scope is not proof of complete artwork recovery. Later
+explicitly authorized C20/C21 integration must reconcile the shared Board removal path
+and prove managed-artwork removal -> discard restoration. C21 manual acceptance and
+combined integration/release remain outstanding. No new user decision is required for
+the already-approved fail-closed boundary; this does not defer the dependency silently.
+
+Core pre-recovery checkpoint is worker-reported complete: 27 focused PostgreSQL/HTTP
+cases, three source checks, bounded browser checks, Release build and formatting pass.
+[Recorded checks](/private/tmp/c20-evidence/checks.md). This is not independent review
+or proof of the newly approved recovery action. Reuse unaffected evidence, execute
+focused confirmed/cancelled/stale/unauthorized recovery, exact restored identities,
+unchanged publication/evidence/progress, atomic failure and restart-correction checks.
+Then implementer creates exactly one fresh saved-project Astra xhigh read-only reviewer;
+review request ONLY to reviewer, required findings ONLY to implementer, final PASS ONLY
+to this planner. One bounded same-reviewer remediation/recheck. No extra review gate,
+source integration, schema/history repair, packaging or user-app/database changes.
+Manual acceptance remains deferred, including the new confirmation/feedback states.
+
+## C20 implementation active; persistence resolved — 2026-09-14
+
+User approved the explained evidence-lock rule: wording-only corrections remain allowed;
+any submitted evidence locks substantive requirements/scoring and removal, regardless
+of evidence status. Central FUNCTIONAL_CONTRACTS 6.2 / PRODUCT_REQUIREMENTS 10.2 and
+TICKETS active C20 contract are frozen. New isolated saved-project Astra xhigh direct
+implementer was queued for C20 only, followed by one fresh Astra xhigh reviewer.
+Implementer runtime `01a09fbe-a7da-7d02-890f-559b0860920f`, actual checkout
+`/Users/christopher/.codex/worktrees/51a1/BingoWebpage`, branch
+`codex/objective-identity-c20`, HEAD/base `c165bbc`; no reviewer yet. At this scope
+question, only AGENTS/TICKETS and approved policy clauses changed, no production edits.
+
+**C20 persistence resolution — 2026-09-14:** Planner authorizes the implementer's
+schema-free retention of original approved requirement-drop rows as immutable identity
+links. DATA_MODEL 10.6 owns the bounded contract. Exact scoped association only,
+missing/ambiguous fail closed, snapshot-authoritative rules and consistent transaction/
+lock ordering; no duplicate/reused identity for substantive replacement or historical
+reconstruction. Execute private no-evidence removal/replacement -> new active-publication
+submission -> blocked incompatible replacement publication, plus stable wording IDs and
+failure/concurrency proof. No new preliminary review or user decision is needed.
+
+Standing private handoff approval and implementer -> reviewer -> planner routing apply.
+Core checks are recorded above; recovery implementation and independent review remain. C33/C36 remain Proposed, C05/C09 Blocked and
+C40/D05 Deferred; C26/D03 closed without implementation. Current totals are in the scope clarification above.
+Manual acceptance, source integration, packaging and user-data repair remain separate.
+
+## C11 final review complete — 2026-09-14
+
+C11 is **Awaiting manual acceptance** after the same independent reviewer
+`01a09f79-5131-74e2-89f6-f07b219f22af` passed the bounded F01/F02 recheck.
+[Final report](/private/tmp/c11-evidence/final-code-recheck.md); implementer
+`01a09f71-ea16-7ad2-8620-ad5de1823736`, checkout
+`/Users/christopher/.codex/worktrees/c4b5/BingoWebpage`, branch
+`codex/finalized-prelive-roster-c11`, base/HEAD `c165bbc`. Work remains unstaged,
+uncommitted and unintegrated. Final PASS delivery to this planner succeeded.
+
+The finalized-pre-Live Admin departure, optional vacancy and explicit replacement
+journey updates current publication while preserving old picks, snapshots and
+reservations. Required readiness R1–R4 integrations are covered. F01 scopes the new
+Captain publication audit inside its transaction; F02 gives new pre-Live notices
+accurate EN/DA wording while preserving existing Live notices and routing.
+Reviewer verified all 17 repository files and 58 evidence artifacts, including the
+complete tracked/untracked patch SHA256
+`d26572cd64e72799f676c41c2761fd5c3b8de463b2d5f2ab2f2e41484a881c81`.
+
+Evidence supports **51 current distinct passing cases (42 C11 + 9 existing)**,
+reusing unaffected earlier results rather than claiming a fresh 51-case run.
+All 16 selected correction/regression cases now pass: 14 in the correction run,
+then two rerun after fixing an invalid hide fixture; original failures remain recorded.
+Final Web/Razor Release has zero warnings/errors; scoped format and reviewer diff
+checks pass. Planner reused the independent report without runtime or review reruns.
+UI_PAGE_MATRIX retains prior composition approvals and marks the new Participants,
+Teams/Draft and public Teams states awaiting manual acceptance. Running/Paused
+departures remain explicitly deferred; no all-U3-02 closure, retained-data repair,
+combined integration/release, user-app change or packaging is claimed.
+
+Total **44/53 handled**: 36 Awaiting manual acceptance, 6 Done, 2 closed without
+change; 3 Proposed, 2 Blocked, 4 Deferred. Fourteen reviewed checkouts remain isolated.
+C20 was subsequently approved; the active dispatch above supersedes the previous policy wait.
+Manual acceptance, source integration/publication and user-data repair remain separate.
+
+## C11 notification prerequisite resolved — 2026-09-14
+
+Planner verified C17's accepted destinations and baseline WithdrawLiveAsync's current
+Admin-only routing. Minimal recipient-role split is authorized ONLY for new finalized-
+pre-Live withdrawal: enabled Admin -> existing Admin participant context, ordinary
+remaining leadership -> existing published Teams page, using current role and existing
+recipient/notification mechanisms. Preserve atomicity/deduplication/privacy and active
+publication; follow actual links as each recipient type in focused proof. No old Live
+path change, C17 source import or retained-message rewrite. Central C11 contract updated.
+Include in the one readiness plan/review; no production edits before READY/go-ahead.
+
+## C41 review complete — 2026-09-14
+
+C41 is centrally **Awaiting manual acceptance** after [independent PASS](/private/tmp/c41-evidence/independent-review.md)
+from reviewer `01a09f67-594b-7830-ab56-9d005d9ef592`. Implementer
+`01a09f4f-0ecb-7383-8574-03121ed5416a`, actual checkout
+`/Users/christopher/.codex/worktrees/764b/BingoWebpage`, branch
+`codex/public-font-loading-c41`, base/HEAD `c165bbc`, unstaged/uncommitted. Reviewer
+verified 102 hashes/full/source diff and five-file boundary; original fonts/licenses/
+Admin and final typography preserved, Medium WOFF2 37,880 versus 103,360 bytes.
+40 actual-app captures/20 pairs cover cold/slowed/warm/blocked at two widths. Earlier
+font discovery and zero measured Signup CLS come with **340–552ms later slowed FCP**;
+ordinary timings vary. No successful duplicate requests/preload warnings; actual 304
+body revalidation and readable blocked controls. One local headless Chrome sample/
+condition and one locale/theme/reduced-motion setting; not production-cache, faster
+paint or universal no-swap proof. Web/Razor Release evidence zero warnings/errors
+reused; no planner runtime reruns/manual approval. Exact authorized pass delivery
+succeeded. Layout/CSS/C37 integration overlap remains for later authorized work.
+
+## C10/C38 review complete — 2026-09-14
+
+[Passed F01 recheck](/private/tmp/c10-c38-evidence/r1/independent-recheck.md) from reviewer
+`01a09f3d-c7ed-71b0-8aac-142630432b49` clears required findings. Implementer
+`01a09f2a-cc4a-7f60-aff3-4786ca721e65`, actual checkout
+`/Users/christopher/.codex/worktrees/c68a/BingoWebpage`, branch
+`codex/draft-start-readiness-c10-c38`, base/HEAD `c165bbc`, unstaged/uncommitted.
+Reviewer verified 12 hashes/full patch and original reviewed boundary. F01 restores
+source-based MemberView.External without changing actual-preformed-membership pool
+selection; no C11 departure/handler/publication policy. Pre-fix control regression
+failed; new and affected C10 cases pass 2/2. Total 23 distinct cases pass overall;
+unchanged C38 and original source/full-solution build evidence reused. Affected
+Web/Razor Release zero warnings/errors; scoped format/whitespace clear. No planner
+runtime rerun. C38 recording storage double is not binary processing or a new
+cross-transaction event/access race test. Exact pass delivery succeeded after the
+user's "send it" instruction; original rejected attempt is historical.
+
+Total **42/53 handled**: 34 Awaiting manual acceptance, 6 Done, 2 closed without
+change; C41 Ready, 4 Proposed, 2 Blocked, 4 Deferred. Twelve reviewed checkouts remain
+isolated/uncommitted/unintegrated. Later overlaps include Draft/C12, lifecycle/C15/
+C16/C18, Accounts/C39, evidence/C28/C32 and shared authorities. Continuous execution
+remains active; manual acceptance and integration/release/publication/data repair
+remain separate. Do not silently resolve remaining product/data decisions.
+
+## C21/C37 review complete — 2026-09-14
+
+C21/C37 are centrally **Awaiting manual acceptance**. [Passed R1 recheck](/private/tmp/published-content-c21-c37-evidence/r1/reviewer-recheck.md)
+from reviewer `01a09f18-1c57-7672-88e9-71c359f079b5` clears all required findings.
+Implementer `01a09f06-ecb1-7882-a95f-a12285d2f8cf`, actual checkout
+`/Users/christopher/.codex/worktrees/e588/BingoWebpage`, branch
+`codex/published-content-c21-c37`, base/HEAD `c165bbc`, unstaged/uncommitted.
+All 23 hashes/exact final full diff verified by reviewer. Seven distinct PostgreSQL/
+storage/real HTTP cases pass; R1's three reexecuted cases are a subset, not extra.
+R1's stronger nav assertion failed before fix; final cancellation/archived/finalized
+controls pass. Existing full-solution and affected Web/Razor Release evidence reused,
+zero warnings/errors, format/whitespace clear. No planner reruns/manual/cumulative claim.
+
+C21 retains approval-referenced assets, with scoped current/retained access, bounded
+unreferenced cleanup and necessary FK-removal migration/designer/snapshot. Local
+DATA_MODEL owns fail-closed rollback limitation after a retained image outlives its
+tile; no missing-asset repair, backup restore or that rollback is claimed. C37's R1
+removes cancellation context tabs and secondary-nav spacing using existing layout.
+Later authorized integration must reconcile C19/C22 Admin Board overlap; C20 is separate.
+Exact pass delivery succeeded after user payload/destination approval; no retry needed.
+
+Total **40/53 handled**: 32 Awaiting manual acceptance, 6 Done, 2 closed without
+change. Remaining 7 Proposed, 2 Blocked, 4 Deferred. Eleven reviewed implementation
+checkouts remain isolated/uncommitted/unintegrated. Standing continuous authorization
+remains active, manual acceptance deferred; no release/packaging/data-repair authority.
+
+C10/C38 is the next authorized batch; the user decision is settled. Current base
+creates emergency ActiveFrom at scheduled start and enables only when uploads are
+already open; the bounded approved policy resolves both without early submissions.
+No required unresolved C38 product decision remains at dispatch.
+
+## UI test-repair/F01 review complete — 2026-09-14
+
+[Passed independent recheck](/private/tmp/ui-test-repair-t01-t04-evidence/independent-recheck.md)
+from reviewer `01a09ee6-1aef-7eb1-80b9-51d015861ca3` clears all required findings.
+Implementer `01a09ed4-3378-7610-828a-12527278488c`, actual checkout
+`/Users/christopher/.codex/worktrees/0168/BingoWebpage`, branch
+`codex/ui-test-repair-t01-t04`, base/HEAD `c165bbc`. Eight hashes/exact final patch
+verified by reviewer; source remains unstaged/uncommitted. Three distinct C# cases
+and all five distinct Node files pass. User explicitly authorized F01 after initial
+review: the sole production edit points Players panel aria-labelledby to its existing
+unique localized view link. Unchanged reference safeguard passes; affected Web/Razor
+build zero warnings/errors (not Release solution build). Unaffected evidence/review
+reused, no planner reruns. No manual/browser/live-AT or cumulative release claim.
+Initial incomplete review remains historical. The zoom-authority wording discrepancy
+remains recorded and did not change the explicit accepted batch contract.
+
+Total **38/53 handled**: 30 Awaiting manual acceptance, 6 Done, 2 closed without
+change. C21/C37 Ready; 7 Proposed, 2 Blocked, 4 Deferred. Ten reviewed batch checkouts
+remain isolated/uncommitted/unintegrated. Continue after pass under standing workflow;
+manual acceptance, integration/release, publication and data repair remain separate.
+
+## T03 bounded test remainder clarification — 2026-09-14
+
+Implementer reported the corrected toggle passes expanded/collapsed interactions but
+exposes at least 11 old source assertions in the same leaderboard file. Planner
+confirmed stale markup/localization expectations and authorizes the bounded same-file
+remainder update against accepted production composition. The implementer corrected
+its initial inference: table markup remains in Board.cshtml with changed panel/header
+anatomy; no partial extraction is established. TICKETS T03 and
+active contract are updated; no production changes, weak assertions, extra reviewer
+or passing-result claim. Implementer continues its existing batch and full-file checks.
+T01 named fixes appear already present and await focused verification; do not force
+edits for already-correct tests. Central UI_SYSTEM's reported old zoom wording conflicts
+with D04's completion record; current explicit accepted T02 contract governs this
+batch, and the inconsistency remains recorded without a documentation audit.
+
+## C24/C39 review complete — paused for the night — 2026-09-13
+
+C24/C39 are **Awaiting manual acceptance**, reconciled from the passed independent
+[review report](/private/tmp/admin-stale-change-batch-evidence/independent-review.md).
+No required defects, scope deviations or missing focused proof remain. Reviewer
+`01a09cb1-c492-7860-aa2f-00eed3defab4` sent its pass only to this planner; delivery
+succeeded. Implementer `01a09c9f-16f7-78a0-af80-00252b943d7d` owns isolated checkout
+`/Users/christopher/.codex/worktrees/0a19/BingoWebpage`, branch
+`codex/admin-stale-change-ticket-batch`, base/HEAD `c165bbc`. All work remains
+unstaged/uncommitted. Reviewer verified all 13 hashes and exact full tracked/untracked
+patch against that checkout. [Implementation evidence](/private/tmp/admin-stale-change-batch-evidence/implementation-report.md).
+
+Applicable evidence reused: 18 distinct passing PostgreSQL/HTTP integration cases
+across focused commands; four Chrome confirmation cases; recorded silent Node/scoped
+format exits 0; Release solution build zero warnings/errors; whitespace clear.
+The initial 17/18 result retains its fixture-query failure; final affected C24 cases
+passed subsequently. Browser checks used shipped scripts/captured HTML and controlled
+transport, not a separate live browser-to-PostgreSQL session or manual acceptance.
+Snapshot/identity preservation was source-reviewed, not a recreated approved-board
+history fixture. No planner reruns, migration, retained-data repair or release claim.
+
+Total: **34/53 handled** (26 Awaiting manual acceptance, 6 Done, 2 closed without
+change); remaining 13 Proposed, 2 Blocked, 4 Deferred. All nine reviewed batch
+implementations remain isolated/uncommitted and unintegrated. Manual acceptance
+remains user-deferred; no combined release/integration or packaging/publication.
+
+**Latest user instruction overrides automatic continuation:** record this batch and
+stop for the night. This is now done. No batch is active. Do not dispatch, schedule
+or begin another batch until the user resumes tomorrow/later; elapsed time is not
+resume authorization. Standing handoff approval and exact routing remain: implementer
+review/recheck only to reviewer; reviewer pass only to planner, findings/incomplete
+only to implementer. Continuous batch workflow may resume on user instruction.
+
+## Final-review integrity review complete — 2026-09-13
+
+C31/C32/C35 are **Awaiting manual acceptance**, reconciled after the user directly
+provided the passed [independent review](/private/tmp/final-review-integrity-batch-evidence/independent-review.md).
+Reviewer `01a09c96-559d-7490-b652-efcfaa426c05` found no required findings, missing
+focused proof, scope deviation or established unresolved data obligation.
+Implementer `01a09c89-371d-75a1-979c-00f27f17e7da` worked in
+`/Users/christopher/.codex/worktrees/0e93/BingoWebpage`, branch
+`codex/final-review-integrity-ticket-batch`, base/HEAD `c165bbc`; source remains
+unstaged/uncommitted and isolated. Reviewer matched the full tracked/untracked
+diff and all eight file hashes against the actual checkout.
+
+Applicable evidence: 13 distinct passing cases across runs (8 PostgreSQL/HTTP,
+5 domain), zero-warning/error Release solution build and scoped format/whitespace.
+The review clarifies that C32's future ordinary-cutoff defect is proved by the two
+PostgreSQL actor cases; domain cases supply other lifecycle/cutoff controls. The
+PostgreSQL submission fixture uses EF-created disposable schema, not a retained-DB
+migration rehearsal; no migration is part of this batch. No planner reruns.
+
+Automatic approval review rejected the reviewer's one tool delivery to this exact
+planner for unverified destination trust despite standing authorization. No retry
+or successful tool delivery is claimed. The user then supplied the report directly
+in this planner task; receipt and central reconciliation are now complete. The
+report's pending-receipt/reconciliation note is historical; no further send needed.
+
+Total: **32/53 handled** (24 awaiting manual acceptance, 6 Done, 2 closed without
+change); remaining 15 Proposed, 2 Blocked, 4 Deferred. All eight reviewed batch
+implementations remain isolated/uncommitted. Manual acceptance is user-deferred;
+combined integration/release, packaging, real-data repair and deployment remain
+separate and unperformed. No batch is active; await next explicit assignment.
+Routing remains implementer review/recheck only to reviewer; reviewer pass only
+to planner, remediations/incomplete only to implementer. No checkpoint/dispatch
+notice from implementer to planner and no automatic next batch.
+
+## Participant-evidence review complete / standing handoffs — 2026-09-13
+
+C28/C29/C30 are **Awaiting manual acceptance**, reconciled centrally after the
+same reviewer's passed R1/R2 recheck. Implementation remains isolated, unstaged and
+uncommitted in `/Users/christopher/.codex/worktrees/3ae0/BingoWebpage`, branch
+`codex/participant-evidence-ticket-batch`, base `c165bbc`; implementer
+`01a09c59-5e5b-75d1-89ce-072b5d4477b5`, reviewer
+`01a09c68-a1fd-74a2-a253-c62a2b8c5dce`. [Passed recheck](/private/tmp/participant-evidence-batch-evidence/independent-recheck.md)
+and [remediation report](/private/tmp/participant-evidence-batch-evidence/remediation-report.md)
+own evidence: 14/14 R1 affected cases plus separate exact R2 pass (15 distinct),
+zero-warning/error Release build, scoped format/whitespace; unchanged C29/C30
+service/HTTP/Node evidence reused. No required findings remain; no planner reruns.
+Reviewer verified full tracked/untracked diff and 23 file hashes in the actual checkout.
+
+Passed delivery reached planner `01a09c57-1f38-7191-94de-e11647ffbcf1` after the
+explicitly approved retry; the report's prior delivery-block note is now historical.
+User further clarified standing authorization for batch-relevant implementer/reviewer/
+planner handoffs without repeated approval requests. AGENTS/TICKETS own that rule;
+future briefs must include it and exact routing IDs. Automatic rejection still stops
+that action; record/report it once without bypass, retries or renewed approval requests.
+
+Total: **29/53 handled** (21 awaiting manual acceptance, 6 Done, 2 closed without
+change); remaining 18 Proposed, 2 Blocked, 4 Deferred. Manual acceptance is user-deferred.
+All seven reviewed batch implementations remain isolated and uncommitted; no combined
+integration/release gates, packaging, data repair or deployment is claimed or authorized.
+No batch is active. Await next explicit assignment; do not auto-dispatch.
+
+## Planner handoff — 2026-09-13
+
+User requested a fresh planner for context compaction only. New project-associated
+“BingoWebpage ticket planner” task is queued; setup ID
+`client-new-thread:8780bf30-4e29-4c21-839b-02f896b37e33` (not a runtime task ID).
+It has the ledger, isolated batch locations, latest passed review and current
+workflow. This checkout remains the coordination ledger. No next batch or other
+execution was authorized. Future reviewers send passes to the new planner's actual
+runtime ID once known; findings still go only to their implementer.
+
+## Audit-atomicity review complete — 2026-09-13
+
+C04/C15/C22 are **Awaiting manual acceptance**, reconciled in TICKETS.md.
+Implementation: `/Users/christopher/.codex/worktrees/ffd6/BingoWebpage`, branch
+`fix/audit-atomicity-ticket-batch`, base `c165bbc`; implementer
+`01a09c30-c4eb-7892-a02c-d3253a7d4d89`. Astra xhigh reviewer
+`01a09c49-cfcc-7d42-8b9d-f6f2f07cc4aa` passed after its bounded C22 R1 recheck.
+The correction captures original board state before removal auto-unapproval/lease
+renewal. Its PostgreSQL case reproduced the defect then passed 1/1; initial 44/44
+focused results were reused for unaffected behavior, not rerun as a whole.
+Release compilation and scoped format/whitespace evidence are recorded in the
+[review report](/private/tmp/audit-batch-review/reviewer-report.md).
+No required findings remain. Manual acceptance is user-deferred; historical-data
+repair and combined release/package gates remain separate. Total: 26/53 handled
+(18 awaiting manual acceptance, 6 Done, 2 closed with no change).
+No next batch, additional checks or publication started. Older handoffs below are
+historical and their then-current counts/assignments do not supersede this result.
+
+## Board-approval review complete — 2026-09-13
+
+C19/C23/C25 are **Awaiting manual acceptance**, reconciled in this TICKETS ledger.
+Implementation is isolated in `/Users/christopher/.codex/worktrees/0373/BingoWebpage`,
+branch `fix/board-approval-ticket-batch`, base `c165bbc`; task
+`01a09c0b-f326-7ba0-9054-5f60de7bfdbb`. Reviewer
+`01a09c21-4907-71f3-8701-ec41e44350ac` cleared the batch after a bounded historical
+importer correction preserving the reviewed drop kind and snapshot EHB. Its focused
+PostgreSQL regression passed 1/1; initial 21 new/five consumer cases and applicable
+controls/build/format evidence were reused without reviewer reruns. [Passed recheck](/private/tmp/board-approval-batch-evidence/r1-recheck.md).
+No required review findings remain. User-deferred manual acceptance, retained-data
+policy/actions and combined release gates remain separate. Fifteen tickets now await
+manual acceptance, six are Done and two closed with no change: 23/53 handled.
+No further batch, check, remediation or publication was started. Future tasks stay
+under BingoWebpage; reviewer findings only to implementer and pass only to planner.
+
+## Participant-flow review complete — 2026-09-13
+
+C13/C14/C17 are **Awaiting manual acceptance**. Reviewer
+`01a09bf8-fde0-7803-9378-37f434a46a59` passed the batch after the bounded C17
+published-board/reopened-roster privacy correction; no required findings remain.
+[Final review](/Users/christopher/Documents/Codex/2026-09-13/participant-flow-ticket-batch/outputs/independent-recheck.md)
+reused 24 distinct initial passing cases across focused commands plus two affected
+ordinary-owner cases after correction (30 notice journeys), and the zero-warning
+Release build. Do not misstate this as one combined passing run or reviewer reruns.
+Retained unread notification URLs may still need separately authorized inspection
+or recovery if present; no affected user rows were established or rewritten.
+No historical CSV identity inference/repair. Manual walkthroughs remain deferred;
+combined package/release gates remain unrun. No new batch or other work authorized.
+
+Twelve tickets now await manual acceptance; 6 are Done and 2 closed with no change
+(20/53 handled). Other implementations and announcements remain isolated. Future
+implementer/reviewer tasks belong under the saved BingoWebpage project. Required
+review findings go only to the implementer; passed reviews only to this planner.
+No task was created or moved as part of recording this passed result.
+
+## Event-setup review complete — 2026-09-13
+
+Next-batch routing correction: reviewers return required findings only to the
+implementer; only passed independent reviews are sent to this planner. No dual
+delivery. AGENTS and TICKETS record the rule; future task briefs must include it.
+No new batch was dispatched by this routing update.
+
+C01/C02/C03 are **Awaiting manual acceptance**, reconciled into this checkout's
+TICKETS ledger from the implementation handoff and final review. C01/C02 cleared
+original review. C03 R1 stale-warning scope and R2 Danish rendering were remediated
+under separate user authorization and cleared by Astra xhigh recheck
+`01a09bd5-4658-7480-804c-c83fd5657781`. [Final recheck](/Users/christopher/Documents/Codex/2026-09-13/event-setup-ticket-batch/outputs/remediation-review.md)
+reused four original failures, 31 passing affected cases and the zero-warning
+Release build; no reviewer reruns. No required code/check/decision blocker remains
+in this scope. Nine tickets now await the user-deferred combined manual walkthrough.
+This supersedes older pending-review directions below; no new review, remediation,
+batch or packaging/deployment is authorized by receipt of this result.
+Implementation remains isolated on `fix/event-setup-ticket-batch` in
+`/private/tmp/BingoWebpage-event-setup-ticket-batch-20260913`.
+
+## Active event-setup batch handoff — 2026-09-13
+
+User authorized C01/C02/C03 under the same Astra xhigh workflow. Task
+`01a09bb1-0844-7d90-b284-bc079da778ef` owns direct implementation in
+`/private/tmp/BingoWebpage-event-setup-ticket-batch-20260913`, branch
+`fix/event-setup-ticket-batch`, base `c165bbc`. Its TICKETS contract and outcomes
+own execution until handoff. After focused checks, it creates one fresh visible
+Astra xhigh read-only reviewer in that checkout; the reviewer reports to the
+implementer and this planner. No implementation subagents, Ponytail, repeated
+reviews/checks by default, wait/poll loop or commit/push/PR/deployment.
+Clear review means Awaiting manual acceptance under the user's deferred walkthrough
+decision. Six earlier tickets already have that status; previous implementations
+remain isolated. Announcement work is paused. Older dispatch directions below are
+history, not authorization to rerun an earlier batch.
+
+## Manual acceptance deferred — 2026-09-13
+
+The user will perform the combined manual walkthrough after ticket implementation
+and review work finishes. C06/C07/C08 and C12/C16/C18 are **Awaiting manual acceptance**:
+implementation, focused checks and independent review passed; no required remediation.
+This supersedes earlier pending-review/dispatch directions below. See TICKETS for
+completed outcomes and the deferred-acceptance policy. Do not repeat passing checks
+or create another reviewer just to close the status. Keep actual blockers/data
+obligations explicit; C12's retained-data proposal/limitations and C05/C09 exclusions
+are unchanged. Combined release gates and packaging/deployment remain separate.
+No additional batch is authorized by this acceptance deferral alone.
+
+## Active roster batch handoff — 2026-09-13
+
+User authorized C12/C16/C18. Astra xhigh task
+`01a09b93-dc09-7a12-84bd-211b395aef11` owns direct implementation in
+`/private/tmp/BingoWebpage-roster-ticket-batch-20260913`, branch
+`fix/roster-ticket-batch`, base `c165bbc`. Its TICKETS batch contract owns scope.
+After focused checks it is explicitly authorized to create one fresh visible
+Astra xhigh read-only reviewer task and have it report to the implementer and
+this originating planner. No implementation subagents, Ponytail, default repeated
+checks, commit/push/PR/deployment or further tickets. The implementer reports its
+reviewer handoff without polling. Announcement work remains paused.
+C06/C07/C08 cleared independent review with no findings; the reviewer confirmed
+recorded 20/20 tests without rerunning them. Those tickets remain Review pending
+separate acceptance; their uncommitted implementation remains in its own checkout.
+
+## Ticket workflow handoff — 2026-09-13
+
+Announcement work is paused. The recovered
+[TICKETS.md](TICKETS.md#approved-ticket-workflow--2026-09-13) now holds the sweep
+ledger and approved Astra xhigh trial: direct implementation/checks/remediation,
+fresh Astra xhigh review at the completed ticket or coherent batch boundary,
+and no automatic worker/subagent delegation or model fallback. AGENTS records
+the matching override. User authorized C06/C07/C08; their source gaps were confirmed
+against fetched origin/main `c165bbc`. Astra xhigh task
+`01a09b77-fc1b-7892-b2b6-09e6cb25932c` owns direct implementation in
+`/private/tmp/BingoWebpage-account-ticket-batch-20260913`, branch
+`fix/account-ticket-batch`. Its local TICKETS ledger owns execution outcomes until
+handoff; reconcile them here afterward. The task must finish the batch and focused
+checks, report back, and leave it at Review for a later independent assignment.
+No subagents, commit, push, PR or deployment authorized. Ponytail was uninstalled
+at the user's request and must not be used. Other ticket outcomes retain their
+recorded 2026-09-09 evidence; reconcile selected tickets before future execution.
+
+## Active drop-announcement implementation — 2026-09-12
+
+2026-09-13 live-feed timestamp regression corrected: inserted Drops cards derive
+elapsed time from approval timestamps; existing cards retain their times. A fixed
+initial (ApprovedAt, SubmissionId) boundary excludes unloaded history, including
+same-time lower-ID rows, and overlapping invalidations queue without duplication.
+Empty feeds use the request-start time captured before the initial Board query.
+Luna `drop_live_timestamp_fix` and named finisher `drop_feed_boundary_finish` completed
+the correction; Terra `drop_live_timestamp_review` cleared the final tuple fix.
+Both announcement Node harnesses pass, including 25 visible vs 100 fetched/history,
+age/order/same-time/sequential/overlap cases. Web Release build zero warnings/errors
+passed before final JS-only fix; scoped diff checks pass. Broader
+`public-recent-drops.test.js` fails at its closed-masthead assertion (line173);
+scoped source comparison shows this correction does not alter asserted masthead
+markup, but the old baseline was not executed. Before copies:
+`/private/tmp/drop-announcements-before/`. User visual check pending; restart/refresh,
+no migration or reset. No preflight/commit/push. Separate pre-existing finding,
+outside this correction: notification-inbox reconnect subscribes without emitting
+the feed's progress browser event, so missed feed updates may wait for next approval.
+
+2026-09-13 quick label correction complete: progression kicker now includes existing
+ProgressAfter/Target (`New tile progression: 2 / 5`; user-corrected `Nyt tile fremskridt: 2 / 5`).
+Completed kicker remains green and counter-free. Shared partial/JS/DA resource only,
+plus existing harness EN/DA assertions. Both Node harnesses and Web Release build
+(zero warnings/errors) pass; scoped diff check passes. No backend/migration change.
+User will inspect English/Danish presentation next; manual approval remains pending.
+Follow-up direct corrections complete: Danish `Leaderboards` and its help reference
+retain that term. CLEAR ALL NEW uses the shared `showBingoToast` owner for localized
+success and failure feedback, preserving clearing semantics. Existing harness covers
+EN/DA success and failed requests without success toast; both Node harnesses, Web
+Release build (zero warnings/errors) and scoped diff checks pass. No integration
+rerun, preflight, reset, commit or push.
+
+2026-09-13 follow-up complete: persisted `LastAutomaticExpansionOrdinal` and additive migration
+`20260913121927_AddDropAnnouncementExpansionBoundary` implement newer-approval gating;
+automatic expansion selects newest and manual selection persists. Terra High
+`banner_expansion_review` clears boundary/selection and the named localization fixes:
+banner position plus live-added Drops card ARIA/relative-time text. Luna High
+`banner_localization_finish` reports both Node harnesses (including Danish output)
+pass, Web Release build zero warnings/errors, EF no pending model changes, and focused
+PostgreSQL persistence tests 7/7 under sanctioned socket-enabled execution. This
+supersedes the interrupted/permission-blocked initial test attempt. Domain suite was
+not rerun; no domain test changes in this follow-up. Scoped diff checks pass.
+Apply the additive migration to the user's Development DB before restarting; no reset
+is needed or performed. User manual acceptance remains pending. DELIVERY_PLAN owns
+scope; root owns docs. No ordinary browser preflight, packaging or deployment.
+NEW mark design/clearing review is the user's next pass (wording only was included).
+Before-pass tracked diff/status: `/private/tmp/drop-announcements-before-pass.*`;
+localization remediation copies: `/private/tmp/banner-localization-baseline.jnvUgm`.
+
+Latest manual correction — 2026-09-13: user accepts background and outlines on
+non-Board pages, including the neutral 1px top underlay beneath the coral countdown.
+The font-arrow alignment adjustment failed manual review; navigation now uses centred
+inline SVG chevrons. Remaining banner colours now use scoped tokens with Board-matched
+light/dark values across public pages. Accepted surfaces, outlines, control geometry,
+X hover and motion remain intact. Luna High scoped source/cascade and diff checks pass;
+user visual acceptance remains pending. Static partial changed: restart the app and
+refresh. No build/preflight, backend or runtime-data changes for this small correction.
+
+2026-09-13 visual rejection: the user reports the approved prototype animations and
+drop-switch controls were not preserved in the integrated banner. The exact prototype
+HTML named in DELIVERY_PLAN is explicitly reactivated for a direct comparison.
+Terra High `banner_prototype_comparison` completed read-only source/cascade comparison.
+Confirmed: missing staged entry/delayed exit and measured expanded/compact transition;
+prototype sequential 320ms switch stages replaced with concurrent 240ms motion;
+missing counter styling class; nav min-height makes controls taller than prototype;
+different X hover, mobile sizing, duplicated counter, shadow/rule/artwork treatments.
+Current countdown retains a static coral border beneath its shrinking stripe, which
+may dilute the draining effect. Runtime animation was not re-previewed. The
+differences were presented to the user. The user then authorized restoring every
+reported visual/motion difference to the prototype EXCEPT current X hover (blue icon,
+no background), while retaining agreed functional additions and header stacking.
+DELIVERY_PLAN's Approved prototype restoration section owns this bounded correction.
+Luna High `banner_prototype_restoration` completed the banner partial/CSS/JS port and
+focused client tests. Both runnable Node harnesses and JS syntax check pass; Web Release
+build has zero warnings/errors and scoped diff check passes. Terra High scoped
+comparison and fixes-only recheck are now clear: later-arrival claims animate an already
+visible compact banner through the measured transition, and dark shadow matches the
+prototype. Both Node harnesses/syntax/diff checks pass after these JS/CSS-only corrections.
+No worker remains active; only user visual acceptance is outstanding. Restart the user's
+app with the usual HTTPS run command to load changed Razor markup, then refresh.
+Before-pass copies are in
+`/private/tmp/bingo-banner-restoration-baseline-20260913`.
+Additional user finding included in this pass: background and TOP edge become transparent
+outside Board/views. Correct shared token scope for opaque surface/coral edge across
+non-Admin pages and both themes; the other outlines were not reported transparent.
+Root owns authority updates. Resolve only concrete findings from that comparison;
+leave ordinary browser preflight and visual acceptance to the user.
+Prior passing functional review/tests do not establish visual or animation acceptance.
+
+2026-09-13 banner correction: shared header stacking level 1100 obscured the banner
+at 20. Direct user-authorized CSS fix sets `.drop-announcement` to 1101; native dialog
+top-layer priority remains intact. Scoped cascade/diff checks pass; user visual recheck
+pending. No build, broader preflight or runtime data changes were needed.
+
+2026-09-13 follow-up complete: `test-15-dkl-live` now seeds 15 pending submissions.
+Focused PostgreSQL approval proof confirms whole-tile completion for Superior Slayer,
+linked Araxxor, Vorkath and Alchemical Hydra, with Phosani's Nightmare remaining partial.
+Existing retained review states and approved progress are preserved. Only the seeder,
+its existing focused test and corresponding plan/checklist changed. Focused test 1/1,
+Release integration build (zero warnings/errors), scoped format and diff check pass.
+Current runtime/manual data was not reset; new fixtures take effect on the next existing
+Development reset. No browser preflight or announcement behaviour changes; no active worker.
+
+Use `/private/tmp/BingoWebpage-drop-announcements`, branch `drop-announcements`,
+base `c165bbcb321547637d03b4e9dc3d2e206e5944b3` (PR #8 merge from fetched main).
+The co-captain/recovery checkout and packaging instructions below are historical.
+Preserve other checkouts and their unapproved sweep/artwork work.
+
+Approved behaviour and implementation contract are in DELIVERY_PLAN,
+`Drop announcements and NEW tracking`. The standalone prototype's design/animations
+are accepted; implementation is now authorized. Latest correction: the thin
+coral top border drains over 10 seconds, refills/holds on focus, and starts a fresh
+10 seconds on leaving interaction. It is separate from green `Tile completed` status
+and the persisted two-minute account/event automatic-expansion cooldown.
+
+Current authorization: complete the three implementation passes in the approved
+contract, focused review/remediation and acceptance preflight, then user visual review.
+No new load-test gate (existing 100-viewer production capacity evidence accepted).
+One Terra High read-only readiness review is complete; outcome recorded in the
+DELIVERY_PLAN contract. Technical corrections: stable tracking initialization,
+immutable approval-time completion fact, unique/concurrent independent acknowledgements,
+focused incremental query and new exact-drop parameter on the existing Drops route.
+Existing `test-15-dkl-live` seed is the acceptance basis with one controlled finishing
+contribution; checklist DA-01..09 is planned, not yet executable. Application and
+planning changes are uncommitted; manual reachability and visual acceptance remain.
+
+User resolved the lifecycle boundary: announcements continue through AwaitingFinalReview;
+finalization clears every account's banner queue, Drops NEW marks and navigation badge,
+including offline accounts, while preserving actual drop/evidence history. The contract,
+workflow authority and DA-09 acceptance step now include this requirement.
+
+Pass 1 handoff complete from Luna High `drop_backend_finish`: migration
+`20260912175815_AddDropAnnouncements` (designer/snapshot included), two tracking tables,
+tracking start/generation and immutable completion facts, eligibility, bounded query/
+paging/NEW lookup, atomic cooldown and independent acknowledgement/finalization rules.
+The initial worker's patch was retained; a fresh finisher corrected EF projection
+translation, active-team eligibility, a concurrent-claim loser and bounded API gaps.
+Focused `DropAnnouncementRulesTests`: 3/3 pass; PostgreSQL
+`DropAnnouncementPersistenceIntegrationTests`: 4/4 pass, including snapshot dismissal
+beyond 100 approvals while retaining later arrivals. Infrastructure/Web no-restore
+builds: zero warnings/errors; scoped diff check passes. Test-host socket restrictions
+were resolved through approved escalation. No independent implementation review yet.
+
+API source: `src/Bingo.Application/Announcements/IDropAnnouncementService.cs`.
+GetCurrentAsync/GetAsync expose queueLimit/queueOffset (bounded), queue/NEW totals and
+generation/cooldown; GetNewSubmissionIdsAsync checks up to 100 requested IDs. Entries
+include item/tile artwork references, identity, approved evidence metadata and completion.
+SnapshotSequence uses committed approval ordinals under the existing event lock;
+whole-queue dismissal preserves later approvals. Finalization emits the existing
+generic invalidation after commit. Migration application/model consistency passes.
+Pass-2 shared banner/transport is implemented; Web build and runnable fake DOM/clock
+Node checks passed for focus countdown, switching/bursts/cooldown/navigation.
+Pass 3 implementation is complete: exact popup links, NEW feed/nav controls, bounded
+live feed and deterministic Development evidence. Real HTTP login/CSRF/account-scope
+test passes (1/1); successful popup-load acknowledgement and feed hooks have Node/source
+checks, but actual browser interaction and rendered navigation remain unverified.
+`test-15-dkl-live` has pending non-drop evidence on `Superior Slayer`, target/claimed
+contribution 4, note `DA-07 pending non-drop completion: Superior Slayer.` Accounts:
+SeedEvidenceCaptain, SeedEvidenceCoCaptain and SeedEvidenceParticipant. Including the
+two new tables in the existing explicit reset list fixed the reset FK failure;
+`DevelopmentDklManualObjectiveHasNoEventOrApprovalDropSnapshots` passes (1/1).
+Web and integration-test project builds have no warnings/errors; diff check passes.
+All implementers released their files. Root owns planning/authority documentation.
+
+Legacy Refresh now cleanup is now complete after explicit informed user approval
+(`Approve removal`) resolved the automatic approval block. Old Board/TeamBoard blocks,
+script includes, `_PublicProgressScripts.cshtml`, `public-progress.js` and unused notice
+CSS were removed through the normal patch tool; independent notification-inbox live
+consumer remains. No workaround used. Scoped old-reference check/diff check and Web
+build pass. Pass-2 files released for pass 3: exact popup links, NEW feed/nav controls,
+bounded live feed and focused HTTP/interaction verification. No current approval blocker.
+Fresh Terra High full-diff review and fixes-only recheck are clear. The fresh Luna
+remediator fixed event-wide receipt (formerly self-only), stale rendered NEW labels
+after acknowledgement, and submission drawer/result protection including the async
+claim race. Focused PostgreSQL integration 6/6 and both runnable Node files
+(`drop-announcement.test.js`, `drop-announcement-reconciliation.test.js`) pass.
+Release Web build has no warnings/errors; scoped formatting and diff check pass.
+The final race correction was JS-only. No broader repeat review is required.
+DATA_MODEL's bulk-acknowledgement description was corrected to match snapshot-bound
+acknowledgement rows rather than fields on the cooldown entity.
+Luna High `drop_verification` completed initial gates/preparation: full solution Release
+build passed with zero warnings/errors after restore. Scoped format verification found
+migration whitespace/charset and imports in DI, BoardModel, Program and the announcement
+integration test; these exact corrections are included in `drop_remediation` ownership.
+Isolated Development runtime: `http://127.0.0.1:5169`, PostgreSQL container
+`bingo-drop-announcements-verifier-pg` on loopback port 55499. Migration, catalogue
+snapshot and Development reset succeeded; live/ready/login return 200 and browser login
+form is reachable. No user-owned database was reset. Keep this isolated runtime for
+the verifier continuation. User explicitly waived ordinary agent browser preflight:
+"Skip the preflight UNLESS its something i cant easily do myself". Keep the passing
+automated authorization/persistence/concurrency/race checks; leave ordinary browser
+and visual acceptance to the user. No screenshot artifacts were captured.
+Before stopping, the verifier followed real Admin -> Review -> Superior Slayer Details
+-> Approve successfully (4 contribution). That fixture is now approved in the isolated
+runtime. Its participant queue appeared empty because the restarted app loaded old
+Debug assemblies; root verified their paths/timestamps against the corrected Release
+build. Runtime correction is complete: PID 75881 was verified loading the corrected
+Release Web/Infrastructure DLLs on port 5169. The final authenticated queue reread was
+not performed: the sandbox refused curl and automatic approval review rejected the
+escalated recheck because the user had waived preflight. Do not retry it indirectly.
+The queue response on this running instance remains unverified for the user's own
+walkthrough; the corrected recipient query has passing PostgreSQL/HTTP evidence.
+No worker is active. Next action is user acceptance at `http://127.0.0.1:5169` using
+MANUAL_TEST_CHECKLIST DA-01..09; do not resume ordinary preflight. Evidence storage is
+`/private/tmp/bingo-drop-announcements-evidence-20260912`; keep the isolated runtime
+and database available. Follow DELIVERY_PLAN 4.2.1 when resuming.
+No commit, push, merge or deployment authorized.
+
+
 ## Active co-captain request — 2026-09-10
 
 For this task use `/private/tmp/BingoWebpage-admin-co-captain-20260910` on
@@ -2110,3 +5695,19 @@ display timezone as read-only. F-06 is resolved by the approved
 five-step `/HowTo` guide committed in `50077fd`; no future content replacement
 or Rules editor is a current gate. Production launch is recorded above; the
 production Admin test event remains the next operational stage and has not run.
+
+Stats highlight trial: replaced lower-left artwork with a royal-blue Most versatile card,
+cream typography and a faint existing logo watermark. Sample Maya / The Agency / 14
+different tiles represents breadth across distinct tiles, not total submission count.
+User also clarified that diagonal rows do not count; production rules must preserve that.
+Card is standalone prototype content and awaits visual acceptance.
+
+Stats repeat-drop highlight trial: added a compact muted-gold Keeps on dropping card
+beneath Luck, using existing Dragon warhammer artwork and an illustrative 18-drop count.
+It represents the most frequently recorded item, with no live data integration yet.
+
+Stats typography refinement trial: standardized main panel headings to uppercase Barlow,
+comparison tabs to one type scale, and chart labels/secondary text to consistent Geist
+sizes. Increased the smallest team/item metadata for readability and used tabular numerals
+for data. Accepted colors, section arrangement and both highlight-card compositions retained.
+CSS-only prototype pass; user supplies visual feedback. No app build or browser review.

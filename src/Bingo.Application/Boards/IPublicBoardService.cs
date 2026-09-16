@@ -10,6 +10,8 @@ public interface IPublicBoardService
     Task<PublicEventBoard?> GetEventBoardAsync(string eventSlug, int recentDropCount, string? dropSearch, string? dropTeam, CancellationToken cancellationToken = default)
         => GetEventBoardAsync(eventSlug, recentDropCount, cancellationToken);
     Task<PublicTileDetails?> GetTileAsync(string eventSlug, string teamSlug, Guid tileId, CancellationToken cancellationToken = default);
+    Task<PublicRecentDrop?> GetRecentDropAsync(string eventSlug, Guid submissionId, CancellationToken cancellationToken = default) => Task.FromResult<PublicRecentDrop?>(null);
+    Task<PublicRecentDropFeed?> GetRecentDropsAsync(string eventSlug, int limit = 25, string? dropSearch = null, string? dropTeam = null, IReadOnlyCollection<Guid>? loadedSubmissionIds = null, CancellationToken cancellationToken = default) => Task.FromResult<PublicRecentDropFeed?>(null);
 }
 
 public sealed record PublicEventBoard(
@@ -69,20 +71,27 @@ public sealed record PublicRecentDropSummary(
     string? HighestDropEhbTeamName, string? MostIndividualDropsTeamName,
     decimal? HighestDropEhbTeamValue = null, int? MostIndividualDropsTeamDropCount = null);
 
+public sealed record PublicRecentDropFeed(IReadOnlyList<PublicRecentDrop> Drops, int Total, IReadOnlyList<Guid>? ValidSubmissionIds = null);
+
 public sealed record PublicTileDetails(
     string EventName, string EventSlug, string TeamName, string TeamSlug,
     Guid TileId, string TileName, string Description, string EvidenceInstructions,
     int Approved, int Target, bool Complete, DateTimeOffset? CompletedAt,
     IReadOnlyList<PublicRequirementProgress> Requirements,
     IReadOnlyList<PublicApprovedEvidence> Evidence,
-    string Timezone = "Europe/Copenhagen");
+    string Timezone = "Europe/Copenhagen",
+    Bingo.Application.Stats.StatsTileActivity? Activity = null);
 
 public sealed record PublicRequirementProgress(
     Guid RequirementId, string Description, int Approved, int Target, bool Complete,
     IReadOnlyList<PublicEligibleDrop> EligibleDrops);
 
 public sealed record PublicEligibleDrop(
-    string BossName, string ItemName, string DisplayRate, int CreditedWeight);
+    string BossName, string ItemName, string DisplayRate, int CreditedWeight,
+    decimal? NumericProbability = null, int RollsPerCompletion = 1,
+    Bingo.Domain.Catalogue.DropProbabilityScope ProbabilityScope = Bingo.Domain.Catalogue.DropProbabilityScope.Participant,
+    bool ConditionalOnParent = false, decimal? ParentProbability = null, int AssumedParticipants = 1,
+    string RollGroup = "default", string? RateCondition = null);
 
 public sealed record PublicApprovedEvidence(
     Guid SubmissionId, string? PlayerName, string? BossName, string? DropName,

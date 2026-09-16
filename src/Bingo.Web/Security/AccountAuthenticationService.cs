@@ -56,6 +56,14 @@ public sealed class AccountAuthenticationService(
         return account;
     }
 
+    public async Task<bool> RecordDiscordLoginAsync(Account account, CancellationToken cancellationToken)
+    {
+        if (!account.Active || account.AccountType != AccountType.WebsiteAccount) return false;
+        account.RecordLogin(timeProvider.GetUtcNow());
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public ClaimsPrincipal CreatePrincipal(Account account, string authenticationMethod = "password", AccountEventAccess? emergencyAccess = null)
     {
         var claims = new List<Claim>

@@ -1,6 +1,14 @@
 @page "/Events/{slug}/Teams"
 @model Bingo.Web.Pages.Events.TeamsModel
 @using Bingo.Domain.Teams
+@if (Model.Cancelled)
+{
+    ViewData["Title"] = T["Event cancelled"];
+    ViewData["PublicEventCancelled"] = true;
+    ViewData["HideBreadcrumbs"] = true;
+    <partial name="_EventCancelled" model="Model.EventName" />
+    return;
+}
 @{ ViewData["Title"] = $"{Model.EventName} teams"; ViewData["BodyClass"] = "public-ui-pass1"; }
 <section class="public-ui-page-width--wide public-teams-directory" data-public-ui-no-ambient>
     <header class="public-teams-directory__masthead">
@@ -52,6 +60,10 @@
                             <div><h3>@team.Name</h3><p>@team.FormationType</p></div>
                         </header>
                         <ul>
+                            @if (team.Members.Count == 0)
+                            {
+                                <li>@T["Open vacancy"]</li>
+                            }
                             @foreach (var member in team.Members)
                             {
                                 <li class="@(member.Role switch { TeamMembershipRole.Captain => "is-captain", TeamMembershipRole.CoCaptain => "is-co-captain", _ => "is-member" })">

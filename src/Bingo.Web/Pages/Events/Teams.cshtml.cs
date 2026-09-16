@@ -1,4 +1,5 @@
 using Bingo.Application.Signups;
+using Bingo.Domain.Events;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
@@ -7,11 +8,13 @@ using Bingo.Web.UI;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Events;
 
-public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, IParticipantLiveService? live = null) : PageModel
+public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, IParticipantLiveService? live = null, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
+    public bool Cancelled { get; private set; }
     public string EventName { get; private set; } = string.Empty;
     public DateTimeOffset? EventStartsAt { get; private set; }
     public DateTimeOffset? EventEndsAt { get; private set; }
@@ -25,7 +28,14 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, IPart
     public async Task<IActionResult> OnGetAsync(string slug, Guid? participantId, CancellationToken ct)
     {
         var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug && x.HiddenAt == null, ct);
-        if (ev is null) return NotFound();
+        if (ev is null || ev.State == EventState.Discarded) return NotFound();
+        if (ev.State == EventState.Cancelled)
+        {
+            if (ev.FirstPublicAt is null) return NotFound();
+            EventName = ev.Name;
+            Cancelled = true;
+            return Page();
+        }
 
         var now = time.GetUtcNow();
         if (ev.EvidenceCodeEnabled)
@@ -45,7 +55,7 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, IPart
         var rosterEntries = await db.DraftPublicationRosters.AsNoTracking().Where(x => x.DraftPublicationCycleId == cycle.Id).ToListAsync(ct);
         var teamIds = rosterEntries.Select(x => x.TeamId).Distinct().ToList();
         var teams = await db.Teams.AsNoTracking()
-            .Where(x => teamIds.Contains(x.Id))
+            .Where(x => x.EventId == ev.Id && (teamIds.Contains(x.Id) || x.Active && x.FinalizedAt != null))
             .OrderBy(x => x.DraftPosition).ThenBy(x => x.Name).ToListAsync(ct);
         if (teams.Count == 0) return NotFound();
         var displayedTeamIds = teams.Select(x => x.Id).ToHashSet();
@@ -70,8 +80,19 @@ public sealed class TeamsModel(ApplicationDbContext db, TimeProvider time, IPart
             .ToList();
 
         var teamNames = teams.ToDictionary(x => x.Id, x => x.Name);
-        Picks = rosterEntries.Where(x => x.EffectivePickNumber is not null && teamNames.ContainsKey(x.TeamId))
-            .OrderBy(x => x.EffectivePickNumber).Select(x => new PickView(x.EffectivePickNumber!.Value, x.PublicCharacterName, teamNames[x.TeamId])).ToList();
+        var activePicks = await db.DraftPicks.AsNoTracking().Where(x => x.DraftSessionId == cycle.DraftSessionId && x.UndoneAt == null)
+            .OrderBy(x => x.PickNumber).ToListAsync(ct);
+        var publishedPicks = await (from entry in db.DraftPublicationRosters.AsNoTracking()
+                                    join publication in db.DraftPublicationCycles.AsNoTracking() on entry.DraftPublicationCycleId equals publication.Id
+                                    where publication.DraftSessionId == cycle.DraftSessionId && entry.EffectivePickNumber != null
+                                    orderby publication.CycleNumber
+                                    select new { Entry = entry, publication.PublishedAt }).ToListAsync(ct);
+        // The roster is current; a pick's name belongs to its first actual publication.
+        // A later correction must not erase a departed pick or rename its frozen identity.
+        Picks = activePicks.Where(pick => teamNames.ContainsKey(pick.TeamId)).Select(pick => new PickView(pick.PickNumber,
+            publishedPicks.FirstOrDefault(row => row.PublishedAt >= pick.PickedAt && row.Entry.EffectivePickNumber == pick.PickNumber && row.Entry.TeamId == pick.TeamId &&
+                row.Entry.EventParticipantId == pick.EventParticipantId)?.Entry.PublicCharacterName
+                ?? text?["Historical player unavailable"].Value ?? "Historical player unavailable", teamNames[pick.TeamId])).ToList();
 
         if (participantId is { } selectedParticipantId)
         {

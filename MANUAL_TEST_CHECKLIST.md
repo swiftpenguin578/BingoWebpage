@@ -1,12 +1,343 @@
 # Manual Test Checklist
 
-**Status:** Planning Pass 2 framework; exact routes, accounts, seed prerequisites, and expected values are completed with each implementation slice before handoff.
+**Status:** Integrated candidate independently passed review; prepared walkthrough is ready. Manual acceptance remains pending. Older slice checklists remain separate history.
 
-**Last updated:** 2026-08-01
+**Last updated:** 2026-09-14
 
 **Purpose:** Preserve the user's manual acceptance checks outside chat without adding testing controls to the application.
 
 **Authority boundary:** This file records manual verification journeys, observed results, and accepted evidence only. Product behavior and scope, workflow contracts, data invariants, technical architecture, and UI rules/approval are owned by the active authority documents linked from `README.md`; this checklist does not redefine them.
+
+## Ticket acceptance walkthrough — 2026-09-14
+
+**Status: integrated candidate PASS; manual acceptance pending.**
+Independent integration review found no blocking findings. All 128 changed/new files
+match the frozen manifest. Report: [integration PASS](/private/tmp/ticket-integration-evidence/integration-review/independent-review-result.md).
+Manifest SHA256: `ced7502b5deae58679b2a78cc530e948a9ed0894cf5c30f8deaee29f19afbaa8`.
+The candidate remains uncommitted. Managed-artwork removal-to-Discard recovery passed.
+Use only this ticket section; older slice sections below are separate history.
+Exact per-check links and prepared values: [manual handoff](/private/tmp/ticket-integration-evidence/manual-handoff.md).
+Run MR-18's exact initial row-count check before MR-17/MR-19 add submissions.
+Inspect MR-10's original pool before MR-09 applies its CSV. Results are recorded below as the user completes the walkthrough.
+
+### Start the prepared candidate
+
+Checkout `/private/tmp/BingoWebpage-ticket-integration-20260914`, branch `codex/ticket-integration-20260914`, base `c165bbcb321547637d03b4e9dc3d2e206e5944b3`. The exact uncommitted candidate is identified by `final-review/manifest.json` and its full patch. No commit/merge/push is implied.
+
+```bash
+cd /private/tmp/BingoWebpage-ticket-integration-20260914
+dotnet build Bingo.slnx --configuration Release --no-restore
+/private/tmp/ticket-integration-evidence/manual/run-candidate.sh
+```
+
+The launcher uses the existing `https` launch profile, overriding its URLs to **https://localhost:7147** and http://localhost:5177. It sources the private environment, starts only `bingo-ticket-manual-20260914`, starts the local synthetic WOM endpoint on 5187, and runs:
+
+```bash
+dotnet run --project src/Bingo.Web --configuration Release --no-build --launch-profile https -- --urls "https://localhost:7147;http://localhost:5177"
+```
+
+Use the launcher so the isolated database/storage and local WOM fixture are selected. Stop it with Ctrl-C. The preflight server is stopped before handoff; its isolated PostgreSQL container and storage are retained. The user’s existing HTTPS7131 app and database were untouched.
+
+**No reset is needed.** Tool restore, migrations, owner bootstrap, catalogue snapshot and the README reset/seed command already ran against the new disposable database only; supplements were then added. Running `--reset-test-data` again would remove these prepared examples. Do not use the README database-drop command for this walkthrough.
+
+Prerequisites actually used: .NET 10 SDK, Docker Desktop running, the existing trusted ASP.NET HTTPS development certificate (verified), Python 3 for the local synthetic WOM server. No certificate installation or provider registration was performed. Database port is 62600; database/user `bingo_ticket_manual`; storage is under this evidence folder. Private env/access files are mode 0600, outside Git and the review patch.
+
+Prepared Live/signup dates currently extend through **16 September 2026**; later execution needs the delivery worker to refresh only these isolated fixtures before dependent checks. Early-finalized former cutoff is also 16 September. Manual browser, viewport, language and theme are to be recorded by the user; HTTP preflight is not visual approval.
+
+### Accounts
+
+Open [local access instructions](/private/tmp/ticket-integration-evidence/manual/access.txt) for the synthetic passwords. Do not paste them into a review report. Log in at [Login](https://localhost:7147/Account/Login). Use separate browser profiles/private windows for independent sessions.
+
+| Account | Prepared role |
+| --- | --- |
+| TicketReviewAdmin | Owner/SuperAdmin, all manual administration |
+| TicketReviewAdminTwo | Independent Admin session |
+| TicketReviewPlayer | Ordinary participant in Live/final fixtures, signup owner; Captain only in the separate neutral-sibling fixture |
+| TicketReviewCaptain / TicketReviewCaptainB | Team A / Team B leadership |
+| TicketReviewWaiter1 / TicketReviewWaiter2 | Draft waiting positions 1 / 2; Waiter1 saved primary is **Review Replacement**, old signup character is **Review draft 5** |
+| TicketReviewEmergency | Password setup complete, initially disabled, scoped to External Clan Team in the prepared pre-Live event |
+
+### Prepared scenarios
+
+| Scenario | Exact pages | Initial facts |
+| --- | --- | --- |
+| signup | [Manage](https://localhost:7147/Admin/Events/Manage/95623327-a0aa-442b-8327-dd11f10b233f) · [Draft](https://localhost:7147/Admin/Events/Draft/95623327-a0aa-442b-8327-dd11f10b233f) · [Participants](https://localhost:7147/Admin/Events/Participants/95623327-a0aa-442b-8327-dd11f10b233f) | Public SignupOpen, ordinary owner Review Player, Primary/Captain/Co-captain/Public review note questions. |
+| draft | [Manage](https://localhost:7147/Admin/Events/Manage/d3411576-9b29-45f5-b518-6e31e8f716f0) · [Draft](https://localhost:7147/Admin/Events/Draft/d3411576-9b29-45f5-b518-6e31e8f716f0) · [Participants](https://localhost:7147/Admin/Events/Participants/d3411576-9b29-45f5-b518-6e31e8f716f0) | SignupClosed/Setup draft; Review Draft A/B plus Review Preformed; ordinary internal pool Review Player and Review draft 3; preformed Review draft 4/6 excluded; two interspersed waiters. |
+| live | [Manage](https://localhost:7147/Admin/Events/Manage/e1f91c6a-8746-49f6-99e0-8d2147947ebd) · [Board editor](https://localhost:7147/Admin/Events/Board/e1f91c6a-8746-49f6-99e0-8d2147947ebd) | 1×2 illustrated published board. Review trophies target 3, weight 2, Team A approved contributions 2+1=3. Illustrated practice runs target 5, EHB 5, no evidence initially. Team A ledger: 30 rows (27 Pending, 2 Approved, 1 Rejected). |
+| neutral | [Manage](https://localhost:7147/Admin/Events/Manage/a4b98f07-77ea-4c6b-bf41-1a0d5d7efb67) · [Board editor](https://localhost:7147/Admin/Events/Board/a4b98f07-77ea-4c6b-bf41-1a0d5d7efb67) | One manual tile, EHB 1; two target-5 objectives. First approved for 5; second has no evidence. Team A earned EHB 0.5. Changing only second objective Duplicates allowed is scoring-neutral. |
+| final | [Manage](https://localhost:7147/Admin/Events/Manage/5a1d34a1-ceac-44ec-8fb7-55a6e74fce2f) · [Board editor](https://localhost:7147/Admin/Events/Board/5a1d34a1-ceac-44ec-8fb7-55a6e74fce2f) | AwaitingFinalReview, both teams complete target 3 with approved 2+1; Team A has one Pending and one Rejected row. No acknowledgments performed. |
+| missing-art | [Manage](https://localhost:7147/Admin/Events/Manage/3765ddc7-09a6-4653-a953-919d39f14feb) · [Board editor](https://localhost:7147/Admin/Events/Board/3765ddc7-09a6-4653-a953-919d39f14feb) | Live with private correction already open; synthetic artwork for Illustrated practice runs is deliberately absent. Discard must report failure and stay open. |
+| cancelled | [Manage](https://localhost:7147/Admin/Events/Manage/e6abc54b-0b7d-42dc-b383-55d0ed844117) · [Board editor](https://localhost:7147/Admin/Events/Board/e6abc54b-0b7d-42dc-b383-55d0ed844117) | Separate previously published cancelled fixture. Private reason must not appear in public cancellation state. |
+| early-finalized | [Manage](https://localhost:7147/Admin/Events/Manage/a3683d36-9373-48b3-8cee-c2aed0cac26a) · [Board editor](https://localhost:7147/Admin/Events/Board/a3683d36-9373-48b3-8cee-c2aed0cac26a) | Official results already published through the real service; original cutoff remains in the future. Unfinalize must not reopen uploads. |
+| Prepared pre-Live | [Manage](https://localhost:7147/Admin/Events/Manage/65f80b22-9dec-4623-b039-30a116be397a) · [Draft](https://localhost:7147/Admin/Events/Draft/65f80b22-9dec-4623-b039-30a116be397a) · [Board](https://localhost:7147/Admin/Events/Board/65f80b22-9dec-4623-b039-30a116be397a) | Finalized draft; validated private board, three teams. Emergency setup complete but disabled; Waiter1 ready as replacement. Publish board/start through normal controls. |
+
+
+### How acceptance works
+
+There are **25 visible checks in seven journeys**, plus one short evidence-summary
+acknowledgment. Several tickets share a check. This is a walkthrough of changed behavior,
+not a repeat of every automated test or a whole-site redesign review.
+
+Check a box only after seeing its expected result on the recorded candidate. Report an
+issue by check ID and what happened; a short note is enough. A skipped or unavailable
+check stays unaccepted unless the user explicitly accepts its named limitation. Pause
+an affected journey when its setup or expected outcome is broken; the delivery worker
+handles the correction, rather than asking the user to investigate internals.
+
+Use the normal desktop viewport for the journeys. Check the changed filter, tile editor
+and new discard/error confirmations once at narrow width and with keyboard navigation;
+use a representative second-language/light-or-dark check for new wording. Do not repeat
+all journeys across every browser/theme/language combination. Preserve existing page
+composition. Fresh confirmation, error and recovery states need their own observed
+acceptance; a prior approval of the page layout does not automatically accept them.
+
+### 1. Accounts and signup — MR-01 to MR-04
+
+- [x] **MR-01 — Corrected character survives rejoin and restore (C05, C09).** In the
+  prepared ordinary signup, correct the linked character in My Accounts, withdraw and
+  rejoin. Also follow the prepared Admin withdrawal/restore variant. The selected
+  primary character stays correct. Newly created withdrawal/restore notifications open
+  that recipient's signup instead of unexpectedly sending them home. No old-data cleanup.
+- [x] **MR-02 — Account edits recover from an old tab (C08).** Open My Accounts in two
+  tabs, save a change in the first, then try to save the older second form. A clear
+  conflict/reload path appears, useful entered values are retained, and the first save
+  remains after reload. A fresh edit works.
+- [x] **MR-03 — Discord account feedback and last login (C06, C07).** Real-provider
+  linking/replacement/login remains pending the user's Discord sign-in and a valid OAuth
+  callback for the isolated HTTPS candidate. If that setup is unavailable, skip this
+  portion and leave it pending. When available, follow Settings link/replacement and
+  ordinary Discord login. Wording distinguishes linking from replacing; returning to
+  Settings shows the expected linked account. Admin Accounts shows the successful login
+  time. Prepared local Settings/last-login inspection and existing controlled callback/
+  session evidence remain separately identified; they do not establish that real-provider
+  manual acceptance passed. Password-session invalidation and rejected-callback behavior
+  use the existing executable evidence; no manual token work or provider setup changes
+  are included in preparation.
+- [x] **MR-04 — Stale Admin confirmation (C39).** Open a prepared account action, change
+  the target's state in the other authorized session, then confirm the old action. It
+  explains that the state changed and offers recovery; the newer state remains. Reload
+  and use the normal current action. Judge the new conflict wording and confirmation flow.
+
+### 2. Event setup and competition settings — MR-05 to MR-08
+
+- [x] **MR-05 — Invalid dates keep the form usable (C01).** Enter a passed date or signup
+  close after event start. Relevant validation appears without a generic error page or
+  losing other fields. Correct it and create the event successfully. Include the prepared
+  competition-derived-date example if it adds a different visible validation state.
+- [x] **MR-06 — Reused names have usable URLs (C02).** Create the prepared same-name
+  pair with automatic URLs: both open independently. An explicitly duplicated URL gives
+  a useful validation message and can be corrected. There is no need to race creations.
+- [x] **MR-07 — Public answers warning and signup code (C03, C04).** Open signups with
+  a public text question: the warning makes answer visibility clear and requires the
+  expected acknowledgment. The no-text-question example has no irrelevant warning.
+  Save the prepared signup-code setting and verify the normal signup prompt/behavior.
+  Scheduled-opening and audit-failure variants are covered by recorded checks.
+- [x] **MR-08 — Live WOM competition replacement (C29).** In the Live event's settings,
+  clearing the competition is unavailable. The prepared valid replacement follows the
+  existing confirmation/reason flow and displays the new association. Pre-Live settings
+  still use their normal flow. This does not add boss-KC Stats functionality.
+
+### 3. Draft, roster and start — MR-09 to MR-13
+
+- [x] **MR-09 — CSV errors preserve account roles (C13).** Preview the supplied blank-
+  primary and invalid-encoding files: useful errors appear and nothing is applied.
+  Preview the valid file: primary, secondary and informational columns stay in their
+  intended positions; optional blanks are accepted. Apply the valid disposable example.
+- [x] **MR-10 — Ordinary pool and waiting list (C10, C14).** Eligible internal signups
+  appear in the normal pool and can be assigned/picked. Actual preformed members stay
+  out of that pool. Interspersed preformed rows do not interrupt waiting positions 1, 2.
+  Existing website-versus-external removal controls still make sense.
+- [x] **MR-11 — Captain readiness, roster move and notifications (C12, C15, C16, C17).**
+  Make a valid same-event roster move and follow the resulting authorized context.
+  In the prepared draft, removing its last required Captain prevents finalization with
+  a useful correction destination; assigning a Captain permits it. Follow sample
+  leadership/Admin notifications before and after publication: each reaches a usable
+  page for that recipient. Forged cross-event moves and transaction faults stay automated.
+- [x] **MR-12 — Finalized pre-Live departure and replacement (C11, C17).** Record a
+  departure with the optional note, inspect the vacancy, and choose either waiting-list
+  or internal replacement from the prepared examples. Leaving a vacancy is possible.
+  The published roster, empty-team state, Captain recovery and notices tell a consistent
+  story; departed-owner and leadership notices lead to permitted destinations. A private
+  note stays out of public/member notices. Prior picks/history remain readable. This
+  does not require a Running/Paused departure workflow, which remains deferred.
+- [x] **MR-13 — Start readiness and the correct replacement character (C18, C38).**
+  Enable the set-up emergency fallback after draft finalization. It can satisfy start
+  readiness, but evidence submission remains closed until actual start. Start the prepared
+  event, then perform its Live replacement: the replacement's current saved primary is
+  active, not an older secondary. Judge the phase-specific controls and feedback; exact
+  time boundaries and authorized early-start behavior use the recorded tests.
+
+### 4. Catalogue and board editing — MR-14 to MR-17
+
+- [x] **MR-14 — Useful objective/approval validation (C19, C25).** A catalogue objective
+  uses derived EHB; a manual objective permits its legitimate explicit estimate. The
+  prepared incomplete position/source/estimate cases identify what needs fixing. Correct
+  the example and approve it. No manual override should hide a broken standard estimate.
+- [x] **MR-15 — Catalogue conflicts are recoverable (C23, C24).** With a board open,
+  change a relevant catalogue input in the other session. Old approval requires reload
+  and review of the new values. Also edit the same shared item through its two prepared
+  source forms: the old form refuses to overwrite the first save and gives clear recovery.
+- [x] **MR-16 — Wording correction preserves the published game (C20).** On a tile with
+  evidence, change only title/description privately. Players still see the currently
+  published version and can read/submit evidence. Publishing the wording change updates
+  the text while preserving recorded progress and readable prior submissions. Attempts
+  to change substantive rules or remove an evidenced objective explain why they are
+  blocked. The prepared scoring-neutral unevidenced sibling can still be changed.
+- [x] **MR-17 — Discard a private correction, including artwork (C20, C21).** Privately
+  change/remove the prepared unevidenced illustrated objective; the published artwork
+  and player view must remain usable. In a participant session, submit against the old
+  publication: incompatible replacement publication is then refused. Open Discard
+  private correction: its warning clearly says **all unpublished edits** will be lost.
+  Cancel/Escape preserves them. Confirm restores the published working board, original
+  objective identity and artwork, closes the correction, and permits a new correction.
+  Evidence/progress stay intact. Also view the prepared missing/unreadable-artwork refusal:
+  it reports failure and leaves the correction open. The delivery worker supplies this
+  controlled error state; the user must not delete storage files to manufacture it.
+
+### 5. Submissions, review and recorded changes — MR-18 to MR-20
+
+- [x] **MR-18 — Submission status filter (C30).** Combine status, player and search,
+  paginate and reload. The full matching authorized history is filtered, not merely the
+  current page. Clear filters and open a result; the filter is understandable and usable
+  at narrow width without disrupting the accepted ledger layout.
+- [x] **MR-19 — Changed authority and concurrent review feedback (C28, C33).** Use the
+  prepared stale Captain form after losing the relevant role: teammate submission is
+  refused; ordinary permitted self-submission remains available. View the prepared
+  concurrent-review losing request: it says the action was not saved, directs you to
+  reload current state and retry, and a fresh permitted action succeeds. Worker-run
+  tests supply the actual timing/race proof; judge visible wording and recovery here.
+- [x] **MR-20 — Reversal and ordinary audit entries are understandable (C04, C15, C22, C24, C35).**
+  Reverse the prepared capped-contribution example through normal Admin Review. Its
+  before/after progress and affected later contributions match the supplied expectations.
+  Inspect its audit explanation and representative signup-code, roster, board and shared-
+  item changes already made in this walkthrough. You can tell who changed what, in which
+  event, and what the result was. No hidden-event audit secrecy test, target-ID filter
+  or general Audit-page overhaul is required. Atomicity and exact audit invariants use
+  recorded automated evidence rather than manual database inspection.
+
+### 6. Final review and public lifecycle states — MR-21 to MR-23
+
+- [x] **MR-21 — Pending link and fresh completion inspection (C31, C33).** From Finalize,
+  follow Pending submissions: Review opens the correct event and Pending filter. Inspect
+  a completed team's time, then use the other Admin session to make the supplied review
+  change affecting completion/rank. The old finalization attempt is refused and affected
+  inspection needs repeating. Reload, inspect current facts and finalize successfully.
+  Previous official history stays readable. Complete/incomplete/complete, unaffected-team
+  and concurrency permutations are already covered by executable evidence.
+- [x] **MR-22 — Unfinalize does not reopen submissions (C32).** Unfinalize the prepared
+  early-finalized event whose former cutoff is still future. A new review cycle opens,
+  but uploads stay closed. Only the separate valid, explicit Reopen submissions action
+  restores eligibility. The screen and messages should make that distinction clear.
+- [x] **MR-23 — Cancelled-event destinations (C37).** Follow the supplied old Board,
+  Teams, team and tile links of the cancelled published event. They show the consistent
+  cancellation state without private reasons or actionable competitive controls. The
+  prepared finalized/archived comparison remains readable. Managed-image access details
+  and direct-route coverage are supplied by the recorded HTTP checks.
+
+### 7. Public presentation — MR-24 to MR-25
+
+- [x] **MR-24 — Font loading in normal use (C41).** Open landing and Signup with a cold
+  load, then revisit them warm. Judge whether noticeable font swapping is reduced and
+  the intended typography/layout remains intact. View the supplied blocked-font scenario:
+  text and controls remain readable. Some swap or slower paint under throttling is not
+  automatically a defect: the measured result did not promise universal faster rendering.
+- [x] **MR-25 — Existing public interactions remain familiar (T01, T02, T03, T04).**
+  During the same pass, check Board/team/tile navigation, evidence opening/zoom/closing,
+  Recent Drops, Leaderboards and a transient status message. The interactions should
+  retain the approved behavior and composition. These tickets repaired obsolete tests;
+  do not invent new controls or redesign expectations to satisfy an old test.
+
+### Evidence acknowledgment — MR-26
+
+- [x] **MR-26 — Accept the recorded internal checks for this candidate.** The delivery
+  worker provides a short applicable-evidence summary: authorization, transaction rollback,
+  concurrency, persistence/migrations, immutable IDs/history, session semantics and test
+  repairs. No unresolved required result may be hidden behind a passing test count. The
+  user accepts this evidence alongside the observed journeys; they do not rerun faults,
+  inspect SQL, write tests or approve implementation details line by line. Combined
+  integration gaps must already be resolved or explicitly accepted as named limitations.
+
+### Results and coverage
+
+User explicitly accepts skipped CSV MR-09 on2026-09-14; accepted manual-test waiver, not claimed executed. All ticket manual acceptance is now observed or explicitly waived.
+
+User reports Discord checks1–3 passed on selected branch using prepared DB/7131:
+linking, ordinary Discord sign-in to existing account and updated Last login. User lacks
+a second Discord account and explicitly requests all Discord checks marked pass. Replacement
+check4 accepted by explicit manual-test waiver using existing passing automated/review
+evidence; not claimed executed with a second identity. C06/C07 are Done. MR-03 accepted.
+No further provider testing, review or follow-up required for these tickets.
+Ledger:45 Done,1 Awaiting manual acceptance (C13 skipped CSV),5 Closed — no change,
+2 Deferred (C40/D05). This approval concerns Discord; it does not silently waive the
+separately skipped CSV check. Local commit5354a34 and preserved announcement overlay
+unchanged; no push/deploy or cleanup authorized by this acceptance.
+
+User explicitly approved closing chat steps 13, 14 and 15 (MR-12, MR-13 and
+MR-14) without further manual testing: "just pass 13 14 15" and "These are likely
+never gonna be used anyway". Record accepted manual-test waiver and reliance on existing
+passing executable/integration/review evidence, not a claim these manual actions ran.
+This clears C11/C17/C18/C19/C25/C38. No further fixture preparation or testing is needed
+for those checks. Ledger: 43 Done, 3 Awaiting manual acceptance (C06/C07 Discord;
+C13 CSV), 5 Closed — no change, 2 Deferred. All prior accepted observations and
+integration evidence remain unchanged; no publication/packaging authority is implied.
+
+User checkpoint — 2026-09-14, second walkthrough response. Chat step 12/MR-11
+passed; steps 16–25/MR-15,16,17,19,20,21,22,23,24,25 passed; step 26/MR-26 accepted
+recorded internal evidence. Earlier nine passes remain recorded. Chat step 13/MR-12:
+user hit replacement instructions ambiguity and explicitly declined further manual effort.
+Existing signup should be selected from "Waiting-list participant (optional)", not added
+again through "Internal owner username"; no production failure established from this
+report. Chat step 14/MR-13: user reports other teams also need emergency credentials
+and declines setup; guide/fixture readiness was incomplete, not a passed manual scenario.
+Chat step 15/MR-14: "Manual approval example" was a requested new title, not a seeded
+item; planner clarified the misleading guide. This check remains unexecuted/unaccepted.
+Discord MR-03 remains pending later configuration; CSV MR-09 remains skipped. No
+additional manual effort on the declined checks, fixture expansion, remediation, workers,
+new tests or review is dispatched. Do not infer a passing manual result for skipped cases.
+C37 clarification: existing Board/Teams/team/tile routes were retained; ticket added a
+shared generic cancellation display/guards. Ticket-review event records are disposable
+fixture data created for this walkthrough, not new product pages.
+
+Current ledger: 37 Done (31 newly accepted plus the existing six), 9 Awaiting manual
+acceptance (C06/C07/C11/C13/C17/C18/C19/C25/C38), 5 Closed — no change, 2 Deferred.
+C17 retains its unobserved departure-notification portion despite passing MR-11.
+Skipped/unexecuted portions remain named acceptance limitations; no code failure is
+inferred. Page-specific observed acceptance is recorded in UI_PAGE_MATRIX. Integration
+candidate/frozen manifest remains unchanged. Packaging/publication is not authorized.
+
+User checkpoint — 2026-09-14, chat guide steps 1–11 (chat step order differs from MR IDs):
+steps 1, 2, 4, 5, 6, 7, 8, 9 and 10 passed, mapping respectively to MR-01, MR-02,
+MR-04, MR-18, MR-05, MR-06, MR-07, MR-08 and MR-10. User described step 4 as
+"a little funky UI but functionality works" and step 6 as "a bit weird UI"; record
+those observations without inventing a defect or authorizing UI redesign. Step 3/MR-03
+cannot currently run; user expects real Discord testing later with suitable configuration.
+Step 11/MR-09 CSV is optional for continuation and may be skipped; manual acceptance
+remains open, not waived. The original prepared preformed roster supports later checks
+without applying the CSV. Continue at chat step 12/MR-11. MR-26 remains unacknowledged;
+no group-wide or untested-state acceptance is inferred.
+
+Record results against the exact candidate above; reported passes are checked. A group
+is accepted only when its applicable checks and named limitations are accepted; an
+unchecked/failed check is not silently waived. The planner records ticket outcomes and
+updates page-specific approvals in UI_PAGE_MATRIX only after actual user acceptance.
+This checklist itself grants no approval, integration, commit or deployment authority.
+
+| Group | Ticket coverage | User result / issue IDs |
+| --- | --- | --- |
+| Accounts/signup | C05, C06, C07, C08, C09, C39 | MR-01/02/04 passed; MR-03 accepted after real provider checks, replacement explicitly waived; UI observation on MR-04 |
+| Event setup | C01, C02, C03, C04, C29 | MR-05/06/07/08 passed; UI observation on MR-05 |
+| Draft/roster/start | C10, C11, C12, C13, C14, C15, C16, C17, C18, C38 | MR-10/11 passed; MR-09/12/13 accepted by explicit manual-test waiver |
+| Catalogue/board | C19, C20, C21, C23, C24, C25 | MR-15/16/17 passed; MR-14 accepted by explicit manual-test waiver |
+| Submission/review/audit | C04, C15, C22, C24, C28, C30, C33, C35 | MR-18/19/20 passed |
+| Final review/lifecycle | C31, C32, C33, C37 | MR-21/22/23 passed |
+| Public presentation/test repairs | C41, T01, T02, T03, T04 | MR-24/25 passed |
+| Internal checks and candidate integration evidence | Applicable evidence across all groups; MR-26 | MR-26 accepted |
+
+**Excluded:** C26/C27/C34/C36/D03 are closed without new implementation; C40/D05 are
+deferred outside this batch. D01/D02/D04/D06/D07/T05 are already Done. No C05/C09
+old-data scan/repair, Running/Paused C11 departure extension, WOM Stats feature or
+separate announcement acceptance is added here. Previously accepted behavior remains
+protected, but does not create another whole-site manual audit.
 
 ## How to use this checklist
 
@@ -27,6 +358,73 @@
 - Account/role:
 - Result: Not run / Passed / Failed / Blocked
 - Notes or defect links:
+
+## Drop announcements and NEW tracking — user walkthrough, 2026-09-12
+
+DELIVERY_PLAN `Drop announcements and NEW tracking` owns expected behaviour. The user
+waived the ordinary agent browser preflight on 2026-09-12 and will perform this
+walkthrough; retain automated checks for the harder authorization, persistence,
+concurrency and timing-race boundaries. Source review and automated checks are not
+visual approval. Unchecked items below remain unverified by the user.
+Do not run a production reset or add a separate load-test gate.
+
+Fixture basis: `test-15-dkl-live` (`Vinterbingo 2026`), first team `Touch kids, not grass`.
+After the 2026-09-13 seed update, a reset creates 15 pending submissions across varied
+tiles/items. Superior Slayer, the linked Araxxor resubmission, Vorkath (Dragonbone
+necklace) and Alchemical Hydra (Hydra's claw) each complete their tile when approved
+from the reset state. Phosani's Nightmare (Harmonised orb) adds partial progress.
+These completion/partial outcomes passed a focused real approval-service test.
+The running manual-test database is not automatically reset by this code change.
+Use `SeedEvidenceParticipant` for an ordinary participant, `SeedEvidenceCaptain` for
+submission and `SeedAdminTwo` for Review; Development-only credentials are defined in
+`DevelopmentScenarioSeeder` and the existing evidence checklist below. The reset creates
+one pending non-drop submission on `Superior Slayer`, target/claimed contribution 4,
+with note `DA-07 pending non-drop completion: Superior Slayer.` Its manual objective
+uses the Imbued heart/Eternal gem/Mist battlestaff/Dust battlestaff pool. This supplies
+the controlled completing/non-drop approval for DA-07. Executable reset fixture test
+passes. Before preflight was stopped, real Admin -> Review -> Superior Slayer Details
+-> Approve succeeded with contribution 4 in the isolated runtime; that runtime's
+controlled submission is therefore already approved. A fresh Development reset
+recreates it as pending. The remaining ordinary browser journeys are left to the user.
+
+- [ ] DA-01: From Events, enter the eligible Live event as a genuine participant.
+  Approve pending evidence through Admin Review in a separate session. Observe item
+  artwork/title and live NEW navigation badge without a board reload or focus theft.
+- [ ] DA-02: Observe the coral top line drain for ten seconds. Focus/click inside:
+  line resets and holds full; tab among controls: remains full; click/tab outside:
+  fresh ten seconds. Check hover, compact/expand, keyboard/touch and reduced motion.
+- [ ] DA-03: Approve several entries within two minutes; current selection and timer
+  stay stable. Switch manually; compact and manually expand to retain selection.
+  After cooldown automatic expansion for a newer approval selects the newest entry. Repeat
+  while interacting, with an active submission drawer and a visible submission result.
+- [ ] DA-04: Navigate Board, Drops, Teams, landing, Admin and back. Admin hides the
+  banner; navigation retains it. Close/reopen within cooldown: compact. After an
+  offline interval beyond cooldown, return without new approvals: no automatic
+  expansion. With outstanding approvals newer than the last automatic expansion,
+  return to one expanded queue with newest selected. Navigation uses the same rule.
+  A second device/session respects cooldown, announcement boundary and acknowledgements.
+- [ ] DA-05: Dismiss: queued announcements disappear but entry/nav NEW remains.
+  GO TO DROP on a later announcement from landing opens that exact existing popup,
+  including an entry outside the initial loaded/filter result. Only that view clears
+  both states; remaining queue compacts. Direct popup opening has the same effect.
+- [ ] DA-06: Use Drops filters and load-more, scroll into the feed and open a popup.
+  Further approvals update matching entries and unfiltered NEW without losing reading
+  position or popup. CLEAR ALL NEW clears both states across filters; later approvals
+  still appear. Simply visiting Drops never clears NEW.
+- [ ] DA-07: Approve non-drop progress and a completing contribution: tile title/art
+  for non-drop, green Tile completed only for the completing approval. Reverse it
+  through Review: update disappears; normal linked-correction approval is new.
+- [ ] DA-08: Repeat representative presentation in light/dark and desktop/narrow.
+  Switch English/Danish: announcement status, compact count, position counter,
+  actions and accessible labels use the chosen language, including related NEW/clear wording.
+  Verify anonymous/nonparticipant/Admin-only accounts receive no participant banner;
+  recover a brief disconnection without duplicate/lost updates. Failed popup opening
+  must not acknowledge viewing (automated failure-seam proof may supply this evidence).
+- [ ] DA-09: End the event with pending final reviews. Approve through Admin Review:
+  participants still receive updates. Finalize through the existing Admin workflow:
+  banner, all entry NEW marks and navigation NEW disappear for every account. An
+  offline/second session returns to the same cleared state. Existing drop entries and
+  evidence remain readable. Automated checks cover stale-update/finalization races.
 
 ## Board Create/Edit tile popup behavior — authorized 2026-09-08
 
@@ -667,3 +1065,204 @@ This section is the remaining final UI and whole-application regression gate aft
 - [ ] Verify `/Submissions` exposes the signed-in current team member's complete retained team ledger, including departed credited members, and normal authenticated navigation reaches it. From the team-specific Board main progress sidebar, all authorized current members use the canonical `Team history` button to `/Submissions`; Captains/co-captains additionally see the team-focus and team-submission-status sections. Pending/rejected mutations are owner-only for ordinary participants; eligible Captains/co-captains retain broader server-authorized editing; teammate-owned and all other states remain read-only for ordinary participants.
 - [ ] Open an evidence rejection notification as the credited participant and as an eligible Captain/co-captain recipient. Both must mark the notification read and resolve to the same canonical stored route `/Submissions/{id}`; relevant general submission navigation resolves to `/Submissions`, Admin review notifications remain `/Admin/Review/Details/{id}`, and no route exposes another team's private evidence.
 - [ ] Confirm no critical/high defect remains before the production-preparation milestone.
+
+
+## Stats production integration — consolidated user acceptance (2026-09-15)
+
+**Production UI accepted, 2026-09-16:** The user passed sections 1–6 of the concise chat
+checklist (appearance, Drop value, Luck, milestones, Board progress/highlights and guidance/
+artwork), subject to later discoveries and the known unresolved sticky Luck comparison gap.
+UI_PAGE_MATRIX.md owns that approval. This is not a pass of sections 1–6 below: detailed
+functional/provider scenarios remain unexecuted unless separately recorded.
+
+**Functional walkthrough steps 1–9 passed — user report, 2026-09-16:**
+“as far as i can tell 1-9 are fine”. This refers to the subsequent numbered action list:
+
+- [x] 1. Sign in, refresh and retain Admin access.
+- [x] 2. Approve later then earlier pending evidence; check live Stats and submission-time ordering.
+- [x] 3. Reverse approval; check live removal/recalculation and persistence after refresh.
+- [x] 4. Submit a new eligible drop; pending evidence excluded, approval counted once without weight multiplying GP/count.
+- [x] 5. Verify team/player attribution, event totals and submission-time progress/milestones.
+- [x] 6. Inspect empty, missing-price/activity and waiting-activity fixtures.
+- [x] 7. Verify Hide tooltips persists across sign-in and remains account-specific.
+- [x] 8. Verify artwork Cancel/Save/Reset persistence and editor permissions.
+- [x] 9. Verify a stale second artwork save cannot overwrite the first.
+
+These are user-reported manual passes, not new automated executions or approval of broader
+edge cases below. Sign-in is accepted for the tested flow; the earlier Safari/localhost
+cookie cause was not independently established. The known sticky comparison gap remains.
+The 12-step action-list walkthrough is complete, with the recorded UI exceptions.
+
+**Step 12 passed — user completion and persisted verification, 2026-09-16:** Dedicated
+event `stats-step12-finalization` (`99e25fb7-adb8-489e-a617-d5feaaebdf32`) is Archived.
+The user completed inspection, finalization, reopening, reasoned correction, reinspection,
+refinalization and archive. They confirmed choosing 14 September at 14:10 Copenhagen;
+the saved correction matches that selection, despite the example suggesting 15 September.
+Version 1 retains 15 September 14:00; active version 2 retains 14 September 14:10.
+Planner read-only checks confirmed both versions, official Stats/milestone consistency,
+unchanged raw drop/tile history, 125M GP / 5 drops / +25% Luck, exact frozen price/rate
+and metric records, and original provider timestamps/activity batch. Archived Stats
+returned HTTP 200. Evidence is under `/private/tmp/bingo-stats-manual-20260915/` in
+`step12-inspection.json`, `step12-verification.json` and `step12-http-after.json`.
+Use 127.0.0.1:5189 links; localhost login did not work for the user. No login fix claimed.
+
+**Step 11 completed — executed checks and independent review, 2026-09-16:**
+Actual clients successfully fetched Wiki prices and the complete WOM request (71 bosses
+plus EHB for all 93 participants). The user confirmed the five normal/alternate mode
+pairs have independent KC; the temporary gate was removed. Fourteen focused Release
+PostgreSQL checks passed, including separate mode totals and scheduled cache recovery.
+The durable catalogue contains 195 API prices and 116 confirmed untradeable zeroes;
+22 sparse items use their latest available completed hourly observation for initial
+population only. All original identities, rates, drops and legacy variants are preserved.
+The isolated manual database received all 311 item values and 67 source mappings, with
+audits/version checks. Abyssal Sire's newer temporary-unavailability check was preserved.
+All frozen event prices and fixtures were unchanged. Fresh independent review passed;
+the checked build was restarted on 5189 and four existing fixture endpoints returned 200.
+This is not deployment or a new visual-acceptance claim. CURRENT_STATUS.md links evidence.
+
+**Step 10 accepted — user report, 2026-09-16:** “Everything passes.” The user noted that
+the small frozen-GP test values display in M and cannot be read, while the repeat-drop
+count is visible. Record this as a display issue, not visual confirmation of exact small
+GP values; those values have independent HTTP verification. No formatting fix is claimed.
+
+**Step 10 preparation executed — 2026-09-16:** Dedicated
+`stats-step10-luck`, `stats-step10-late`, `stats-step10-board-gates`,
+`stats-step10-start-api` and `stats-step10-start-fallback` fixtures are available on the
+isolated port-5189 app. Controlled handlers/services and independent HTTP checks passed;
+this does not mark live-provider verification passed. Manual acceptance is recorded above. Exact click-through
+instructions and expected numbers are in `/private/tmp/bingo-stats-manual-20260915/STEP10.md`
+and `STEP10-PRICE-EDGES.md`. CURRENT_STATUS.md records execution scope/evidence.
+
+
+Prototype design approval remains authoritative;
+this walkthrough checks its production port and real behavior, including the earlier
+Pass 1–2 catalogue/start UI. It is not a request to redesign the approved Stats sections.
+UI_PAGE_MATRIX.md owns page approval. Source/automated evidence is in CURRENT_STATUS.md.
+
+Use an isolated controlled store with `Vinterbingo 2026` (`test-15-dkl-live`),
+SeedEvidenceCaptain, SeedEvidenceCoCaptain, SeedEvidenceParticipant, bootstrap Super Admin
+and SeedAdminTwo. Use the existing private published-board fixture
+`test-62-board-publication-setup` for manual start and a separate scheduled-start counterpart.
+Prepare hidden/private/unpublished/excluded-import, missing-price/activity and team-size
+variants in that isolated store. Do not reset/populate the user's running database; no
+live fixture preparation or app restart was performed by Pass 5. No browser automation.
+Keep the Live journeys intact until the finalization checks at the end.
+
+### 1. Catalogue mapping, pricing and action feedback — Admin / Super Admin
+
+- [ ] Open **Admin → Catalogue**, select a source, expand **API mapping**. Use **Suggest
+  exact activity mapping**, **Validate and save**, and **Save without validation**.
+  Reopen and check the exact metric and Last checked state; ordinary accounts cannot edit.
+- [ ] Expand a drop's **API mapping and price**. Check **Suggest exact item mapping**,
+  exact variant/ID, **API hourly average**, **Manual catalogue value**, **Untradeable
+  (0 GP)**, stored value/time, and both Save actions. Missing prices stay distinct from 0.
+- [ ] Exercise a unique match, ambiguous/no match, unsupported ID/metric and unavailable
+  API. Inspect each newly revealed warning/error/success message, recovery action and
+  modal visibility; no duplicate or hidden-behind-dialog feedback.
+- [ ] Use **Add drop** and **Fetch price and add drop**: required checked initial value,
+  explicit 0/untradeable, manual no-drop objective, optional exact item ID, successful
+  lookup and unavailable lookup. Reopening retains the intended identity/value/rates.
+- [ ] Open two editors for the same shared item. Save one, then attempt the stale second
+  save. It must reject the overwrite and provide a usable retry without losing personal
+  rates. Editing an API identity must not silently replace a different variant.
+- [ ] Exercise a candidate outside 0.5–2× the trusted value and positive↔zero candidates.
+  Mapping status remains separate from the price rejection. The trusted value stays;
+  rejected candidate/hour and the checked manual-value recovery are visible. Verify
+  explicit fixed values remain fixed during API refreshes.
+
+### 2. Start and price freezing — Super Admin / scheduled worker
+
+- [ ] In **Admin → Events → Manage** for the manual-start fixture, check the missing-GP
+  blocker names its drops and links the recovery to Admin Catalogue; explicit 0 is valid.
+  Complete the values and start; inspect the start success/fallback feedback.
+- [ ] Start the independent scheduled fixture. Check the same actual-start last-completed
+  hour, valid one-sided average/catalogue fallback and guarded unusual-price behavior.
+  Use controlled hourly responses for the hour-boundary/retry scenario.
+- [ ] Change catalogue prices afterward and introduce a new eligible item. Existing event
+  prices stay frozen; the late item uses its required catalogue value at introduction.
+  There is no event price editor or retroactive rewriting of approved history.
+
+### 3. Enter Stats and compare the exact approved UI — anonymous / all roles
+
+- [ ] From the event's **Boards / Drops / Leaderboards / Stats / Teams** navigation open
+  **Stats** at `/Events/test-15-dkl-live/Stats`. Refresh and deep-link to it. The same
+  event, current navigation and applicable Captain/submissions links remain selected.
+- [ ] Try hidden, private, unpublished, unknown and reconstructed Sommerbingo slugs.
+  They expose no Stats or preferred-event substitution. A cancelled public event uses
+  the existing cancelled-event page.
+- [ ] Compare the six Stats sections and artwork editor directly with the approved
+  `prototypes/stats/outputs/stats-page-prototype.html`, density CSS and JS. Confirm Barlow
+  headings, colors, spacing, sizes/caps, list overflow, hover/focus and animation timings.
+  The app header/masthead stay unchanged; the Stats content below keeps the prototype's
+  1640px maximum and 3.6% gutters, becoming 5% at ≤850px, without double padding.
+- [ ] Check both app themes, 2/3/4/5 teams, overflow with 8/15, long public names, narrow
+  stacked layouts and empty data. No sample dates, event-size/stage/drop-preview/theme
+  toolbar remains. Adjust artwork is visible only to Super Admins. No page initialization
+  error appears with the demo controls absent.
+
+### 4. Real evidence and all approved interactions — Captain → Admin → Stats
+
+- [ ] Submit two eligible items; approve the later submission first, then the earlier.
+  Stats refreshes on the existing progress notification (and on revisit/direct refresh).
+  GP, counts, histories and milestones follow submission time. Weighted progress does not
+  multiply item count. Reverse an approval and verify the refreshed values again.
+- [ ] **Drop value:** Teams drilldown/back, global Players top five, sixth hover/focus
+  preview and pinned comparison, approved player search scopes and Everyone. Check
+  divider/compact search, six-result selection without a page jump, bounded pie lists,
+  most valuable drops scoped to the selected team, and unchanged hover behavior. A refresh
+  preserves the current scope, comparison, searches and local/page scroll.
+- [ ] **Luck:** team roster/back, five lowest/highest, search by player/team, sticky
+  comparison add/remove/replacement, and synchronized bar/number motion. Scroll without
+  rescaling. Scores within ±60 retain the original scale; larger values expand one shared
+  full-view scale, including the comparison, with exact score labels and proportional bars.
+- [ ] Check unavailable/unranked/zero-recorded/estimated states and a stale prior checkpoint.
+  Missing activity is not 0% Luck; missing prices are not 0 GP. Stale results retain their
+  original calculation/provider times and evidence revision, including after additive
+  approval; reversal invalidates an incompatible checkpoint. First-approved rates survive
+  later duplicate/rate edits; team Luck pools expected/received counts.
+- [ ] **Event milestones:** team filter, reached chronological order, default order of
+  pending milestones, ended unreached states, both horizontal ends and narrow spacing.
+  **Board progress:** hover any time; focus/tap completion markers for actual tile,
+  timestamp, tile/row-column and contribution totals. Interrupt the entrance animation.
+  No extra diagonal scoring rows or independently calculated placements appear.
+- [ ] Check Keeps on dropping and Most versatile against the real retained item/player.
+  Missing artwork/empty highlights remain honest. Test reduced motion and rapid interrupted
+  scope changes, help dismissal, comparison replacement and timeline filtering.
+
+### 5. Saved guidance and shared artwork
+
+- [ ] As an ordinary account select **Hide tooltips**, navigate away, return, and sign in
+  in a new session. The preference belongs only to that account. Uncheck to restore
+  guidance. Each ⓘ still reopens help and ×/Escape dismisses it for the current visit.
+  A stale account save reports a conflict and a usable reload/retry.
+- [ ] As Super Admin use **Adjust artwork** for the actual displayed repeat item. Drag,
+  arrow/Shift-arrow, horizontal/vertical, zoom and rotation match the approved preview;
+  preview sizes remain usable. **Cancel** makes no write; **Save artwork** survives reload
+  and is visible to ordinary/anonymous readers. **Reset to default** is a draft until Save;
+  Cancel after Reset preserves the saved appearance.
+- [ ] Open two artwork editors, save one then the stale second. The second cannot overwrite
+  the first. Check validation/permission/conflict feedback inside the open editor and the
+  saved outcome after closing it. Ordinary/anonymous/disabled users cannot mutate artwork.
+
+### 6. Deferred external provider gates — before enabling affected real results
+
+- [x] Step 11: actual client verified the live request for 71 boss metrics plus EHB,
+  repeated plural parameters, all 93 participants, raw values, player-record timestamps
+  and observed −1 sentinel cases. Missing-response cases retain their prior controlled
+  test evidence; the live response omitted no requested metric.
+- [x] Step 11: the user confirmed independent KC for CoX/CM, ToB/HM, ToA/Expert,
+  Gauntlet/Corrupted and Nightmare/Phosani. The temporary gate was removed and paired
+  activity/cache recovery checks passed. This is explicit operator confirmation of
+  semantics, not a claim that API documentation states the inclusion rule.
+- [x] Step 11: populated the durable catalogue and isolated manual-test catalogue with
+  195 API prices and 116 confirmed untradeable zeroes. Source support and preserved
+  database validation exceptions are recorded in CURRENT_STATUS.md. No deployment.
+
+### 7. Finalization last
+
+- [x] Step 12: after all Live journeys, finalize/archive a supported fixture and exercise the
+  legitimate unfinalization/correction path. Official completion/results, frozen prices,
+  first-approved rates and original Luck checkpoint times retain their defined meaning.
+  Do not manufacture retrospective Stats for the excluded reconstructed Sommerbingo import.
+- [ ] Reconcile source review, applicable whole-slice release gates and this visual
+  walkthrough with the planner. No packaging, push or deployment follows automatically.

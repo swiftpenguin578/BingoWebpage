@@ -160,6 +160,16 @@ public sealed class WiseOldManRequestLimiter(TimeProvider time, ILogger<WiseOldM
             return owner.CompleteAsync(response, validPayload, transportFailure, ct);
         }
 
+        // A serialized admission can discover that another request filled the
+        // same cache while it waited. Release that admission without changing
+        // provider health or spending a rate-budget slot.
+        public Task CompleteCachedAsync()
+        {
+            if (Interlocked.Exchange(ref completed, 1) != 0) return Task.CompletedTask;
+            owner.gate.Release();
+            return Task.CompletedTask;
+        }
+
         public async ValueTask DisposeAsync()
         {
             if (Volatile.Read(ref completed) == 0)

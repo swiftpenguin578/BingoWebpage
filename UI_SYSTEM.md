@@ -193,6 +193,13 @@ computed-color contrast verification, and dark geometry must match light exactly
 Pages using `_Layout.cshtml` use the accepted Landing `landing-shell-*`
 header/navigation as their one shared public header owner. `_Layout.cshtml` must
 not branch to a second `public-live-header-*` composition for non-Landing pages.
+The public header's Current event shortcut is available to everyone, including anonymous
+visitors, only when a public, non-hidden Live or Awaiting final review event has a published
+board. It links to the current board, following the public listing's Live-first/latest-start
+ordering. It replaces the main-header Captain/Submissions entry on desktop and mobile.
+Captain/Submissions instead appears after Teams in the event context navigation, only for
+the user's eligible scope in that viewed event. Authorized submissions overview/detail
+retain the same event navigation and active indication. EN/DA labels are required.
 The shared owner retains the DK mark, dynamic navigation, notification/account
 and settings behavior, route behavior, mobile menu, focus treatment, and
 localization. Navigation between sibling views inside one
@@ -738,6 +745,20 @@ read transition and reach the authorized stored destination; personal evidence
 - SignalR and fetch updates are invalidations/notifications. They must not
   replace authoritative server state or interrupt an active submission or
   submission-result acknowledgement.
+
+### Planned participant announcement countdown — approved 2026-09-12
+
+For the drop-announcement contract in DELIVERY_PLAN, the container's thin coral top
+border is a visual ten-second compaction countdown, full initially and draining to
+empty. Focus/interaction resets it to full and holds it there; leaving focus starts
+a fresh ten seconds rather than resuming the previous remainder. Preserve pointer
+hover protection; the countdown runs only outside both hover and keyboard focus.
+Internal focus moves do not release it. No focus stealing on arrival; touch and
+keyboard interactions can keep it expanded. Reduced-motion treatment retains timer
+semantics without requiring animated movement. The top countdown is separate from
+green `Tile completed` status and from the server-saved two-minute expansion cooldown.
+Accepted prototype geometry/motion stays protected; new product behaviour must not
+copy its demo state or create a second global toast/dialog system.
 
 ## Replace, do not layer
 

@@ -82,8 +82,7 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
             var tile = new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Completed retained tile", "Description", "Evidence", 1);
             var requirement = new BoardRequirementSnapshot(requirementId, tileId, 0, 3, true, true, "Complete it", true);
             var team = new Team(teamId, eventId, "Retained focus team", $"retained-focus-team-{eventId:N}", TeamFormationType.Preformed, null, false);
-            retained.Add(owner);
-            await retained.SaveChangesAsync();
+            await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO accounts (id, password_hash, must_change_password, account_type, active, authorization_version, login_name, normalized_login_name, global_role, public_username, normalized_public_username, password_version, version, created_at) VALUES ({owner.Id}, {"hash"}, FALSE, {"WebsiteAccount"}, TRUE, 1, {owner.LoginName}, {owner.NormalizedLoginName}, {"None"}, {owner.LoginName}, {owner.NormalizedLoginName}, 1, 1, {now})");
             await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO events (id, name, slug, description, timezone, state, signup_opens_at, signup_closes_at, event_starts_at, event_ends_at, submission_cutoff_at, participant_cap, waiting_list_enabled, require_signup_code, participant_list_published, draft_results_published, team_rosters_published, board_published, results_published, draft_locked, created_by_account_id, created_at) VALUES ({eventItem.Id}, {eventItem.Name}, {eventItem.Slug}, {""}, {eventItem.Timezone}, {"Draft"}, {now}, {now}, {now}, {now.AddDays(1)}, {now.AddDays(1)}, {20}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {ownerId}, {now})");
             retained.AddRange(board, tile, requirement, team);
             await retained.SaveChangesAsync();
@@ -179,6 +178,13 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
             setup.BoardTiles.AddRange(
                 new BoardTile(firstTileId, board.Id, Guid.NewGuid(), 0, 0, "First focus tile", "Description", "Evidence", 1),
                 new BoardTile(secondTileId, board.Id, Guid.NewGuid(), 0, 1, "Second focus tile", "Description", "Evidence", 1));
+            // Focus uses the publication; include both tiles in the controlled approval.
+            var approval = await setup.BoardApprovalSnapshots.SingleAsync(x => x.Id == board.ActiveApprovalSnapshotId);
+            setup.Entry(board).Property(x => x.Columns).CurrentValue = 2;
+            setup.Entry(approval).Property(x => x.Columns).CurrentValue = 2;
+            foreach (var tile in setup.BoardTiles.Local.Where(x => x.BoardId == board.Id).ToList())
+                setup.BoardApprovalTileSnapshots.Add(new(Guid.NewGuid(), approval.Id, tile.Id, tile.TileTemplateId,
+                    tile.RowIndex, tile.ColumnIndex, tile.NameSnapshot, tile.DescriptionSnapshot, tile.EvidenceInstructionsSnapshot, tile.EstimatedEhbSnapshot, null));
             setup.AddRange(
                 Account.CreateWebsite(outsiderId, "Focus clear outsider", "FOCUS CLEAR OUTSIDER", now),
                 new Team(otherTeamId, fixture.EventId, "Other clear team", "other-clear-team", TeamFormationType.Preformed, null, false),
@@ -788,9 +794,9 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
     {
         public Task<Bingo.Application.Events.SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, Bingo.Application.Events.EventScheduleValues values, bool confirmChanges, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Bingo.Application.Events.SignupLifecycleResult> SaveScheduleAsync(Guid eventId, long version, Bingo.Application.Events.EventScheduleValues values, bool confirmChanges, LifecycleActor actor, string? reason, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<Bingo.Application.Events.SignupLifecycleResult> OpenAsync(Guid eventId, long version, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Bingo.Application.Events.SignupLifecycleResult> OpenAsync(Guid eventId, long version, IReadOnlyCollection<string> acknowledgedWarningCodes, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Bingo.Application.Events.SignupLifecycleResult> CloseAsync(Guid eventId, long version, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<Bingo.Application.Events.SignupLifecycleResult> ReopenAsync(Guid eventId, long version, bool acknowledgeWarnings, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Bingo.Application.Events.SignupLifecycleResult> ReopenAsync(Guid eventId, long version, IReadOnlyCollection<string> acknowledgedWarningCodes, bool acceptProposedClose, LifecycleActor actor, CancellationToken ct = default) => throw new NotSupportedException();
         public Task ProcessDueSignupAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
 

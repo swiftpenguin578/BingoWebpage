@@ -22,7 +22,10 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
     {
         var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(value => value.Slug == eventSlug && value.HiddenAt == null, cancellationToken);
         if (bingoEvent is null) return null;
-        if (bingoEvent.State == EventState.Discarded || bingoEvent.State == EventState.Cancelled && (bingoEvent.FirstPublicAt is null || !bingoEvent.BoardPublished)) return null;
+        if (bingoEvent.State == EventState.Discarded) return null;
+        if (bingoEvent.State == EventState.Cancelled)
+            return bingoEvent.FirstPublicAt is null ? null : new PublicEventBoard(
+                bingoEvent.Id, bingoEvent.Name, bingoEvent.Slug, EventState.Cancelled, 0, 0, 0, [], [], []);
         var board = await db.Boards.AsNoTracking().SingleOrDefaultAsync(value => value.EventId == bingoEvent.Id && value.State == BoardState.Published, cancellationToken);
         if (board is null) return null;
         var wiseOldManCompetitionId = await db.EventCompetitionSynchronizations.AsNoTracking()
@@ -33,6 +36,9 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
         if (board.ActiveApprovalSnapshotId is not { } approvalId) return null;
         var approval = await db.BoardApprovalSnapshots.AsNoTracking().SingleOrDefaultAsync(value => value.Id == approvalId && value.BoardId == board.Id, cancellationToken);
         if (approval is null) return null;
+        var publication = await db.ApprovalObjectivesAsync(board.Id, approvalId, cancellationToken);
+        if (publication is null) return null;
+        var publishedDrops = publication.Drops.ToDictionary(x => x.Id);
         var teams = await db.Teams.AsNoTracking().Where(value => value.EventId == bingoEvent.Id && value.Active && value.FinalizedAt != null).OrderBy(value => value.Name).ToListAsync(cancellationToken);
         if (teams.Count == 0) return null;
 
@@ -57,10 +63,11 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
             .ToDictionaryAsync(value => value.BoardRequirementSnapshotId, cancellationToken);
         if (frozenRequirements.Count == 0 || frozenRequirements.Values.Any(value => !frozenTilesByApprovalId.ContainsKey(value.ApprovalTileSnapshotId))) return null;
         var requirementIds = frozenRequirements.Keys.ToList();
-        var bossArtwork = await (from snapshot in db.BoardRequirementBossSnapshots.AsNoTracking()
+        var bossArtwork = await (from snapshot in db.BoardApprovalRequirementBossSnapshots.AsNoTracking()
+                                 join requirement in db.BoardApprovalRequirementSnapshots.AsNoTracking() on snapshot.ApprovalRequirementSnapshotId equals requirement.Id
                                  join boss in db.BossActivities.AsNoTracking() on snapshot.BossActivityId equals boss.Id
-                                 where requirementIds.Contains(snapshot.RequirementId) && boss.ImageUrl != null
-                                 select new { snapshot.RequirementId, BossName = boss.Name, boss.ImageUrl }).ToListAsync(cancellationToken);
+                                 where frozenRequirements.Values.Select(x => x.Id).ToList().Contains(requirement.Id) && boss.ImageUrl != null
+                                 select new { RequirementId = requirement.BoardRequirementSnapshotId, BossName = boss.Name, boss.ImageUrl }).ToListAsync(cancellationToken);
         var artworkByRequirement = bossArtwork
             .Select(value => new { value.RequirementId, value.BossName, ImageUrl = OsrsWikiImageUrl.Normalize(value.ImageUrl) })
             .Where(value => !string.IsNullOrWhiteSpace(value.ImageUrl))
@@ -101,20 +108,23 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
         var playingAccountNamesByParticipant = playingAccountRows
             .GroupBy(value => value.EventParticipantId)
             .ToDictionary(group => group.Key, group => (IReadOnlyList<string>)group.Select(value => value.DisplayName).ToList());
-        var contributionRows = await (from contribution in db.SubmissionContributions.AsNoTracking()
-                                      join submission in db.Submissions.AsNoTracking() on contribution.SubmissionId equals submission.Id
-                                      join drop in db.BoardRequirementDropSnapshots.AsNoTracking() on contribution.DropSnapshotId equals drop.Id into dropJoin
-                                      from drop in dropJoin.DefaultIfEmpty()
-                                      where teamIds.Contains(contribution.TeamId) && requirementIds.Contains(contribution.RequirementId) &&
-                                            contribution.ReversedAt == null && submission.Status == SubmissionStatus.Approved
-                                      select new
-                                      {
-                                          contribution,
-                                          submission,
-                                          ItemIdSnapshot = drop == null ? (Guid?)null : drop.ItemIdSnapshot,
-                                          SourceDropId = drop == null ? (Guid?)null : drop.SourceDropId,
-                                          MaximumContribution = drop == null ? (int?)null : drop.MaximumContribution
-                                      }).ToListAsync(cancellationToken);
+        var contributionRows = (await (from contribution in db.SubmissionContributions.AsNoTracking()
+                                       join submission in db.Submissions.AsNoTracking() on contribution.SubmissionId equals submission.Id
+                                       where teamIds.Contains(contribution.TeamId) && requirementIds.Contains(contribution.RequirementId) &&
+                                             contribution.ReversedAt == null && submission.Status == SubmissionStatus.Approved
+                                       select new { contribution, submission }).ToListAsync(cancellationToken))
+            .Select(row =>
+            {
+                var drop = row.contribution.DropSnapshotId is { } dropId ? publishedDrops.GetValueOrDefault(dropId) : null;
+                return new
+                {
+                    row.contribution,
+                    row.submission,
+                    ItemIdSnapshot = drop is null ? (Guid?)null : drop.ItemIdSnapshot,
+                    SourceDropId = drop is null ? (Guid?)null : drop.SourceDropId,
+                    drop?.MaximumContribution
+                };
+            }).ToList();
         var requirementTargetByTile = frozenRequirements.Values
             .GroupBy(value => frozenTilesByApprovalId[value.ApprovalTileSnapshotId].BoardTileId)
             .ToDictionary(group => group.Key, group => Math.Max(1, group.Sum(value => value.TargetContribution)));
@@ -170,7 +180,7 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                     effectiveAmount, row.submission.SubmittedAt,
                     estimatedAfter - estimatedBefore, row.ItemIdSnapshot, row.SourceDropId, row.MaximumContribution);
             }).ToList();
-            var progress = PublicProgressCalculator.Calculate(board.Rows, board.Columns, definitions, contributions);
+            var progress = PublicProgressCalculator.Calculate(approval.Rows, approval.Columns, definitions, contributions);
             var contributionByPlayer = progress.Players.ToDictionary(value => value.PlayerId);
             var players = rosterRows
                 .Where(value => value.TeamId == team.Id)
@@ -305,15 +315,14 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
         var frozenTileIds = frozenTiles.Keys.ToList();
         var approvedRows = await (from submission in db.Submissions.AsNoTracking()
                                   join team in db.Teams.AsNoTracking() on submission.TeamId equals team.Id
-                                  join tile in db.BoardTiles.AsNoTracking() on submission.BoardTileId equals tile.Id
-                                  where teamIds.Contains(submission.TeamId) && frozenTileIds.Contains(submission.BoardTileId) && submission.Status == SubmissionStatus.Approved
+                                  join tile in db.BoardApprovalTileSnapshots.AsNoTracking() on submission.BoardTileId equals tile.BoardTileId
+                                  where tile.ApprovalSnapshotId == approvalId && teamIds.Contains(submission.TeamId) && frozenTileIds.Contains(submission.BoardTileId) && submission.Status == SubmissionStatus.Approved
                                   orderby (submission.ReviewedAt ?? submission.SubmittedAt) descending, submission.Id descending
                                   select new { submission, team, tile })
             .ToListAsync(cancellationToken);
         var approvedDropIds = approvedRows.Where(value => value.submission.DropSnapshotId is not null)
             .Select(value => value.submission.DropSnapshotId!.Value).Distinct().ToList();
-        var approvedDropsById = await db.BoardRequirementDropSnapshots.AsNoTracking()
-            .Where(value => approvedDropIds.Contains(value.Id)).ToDictionaryAsync(value => value.Id, cancellationToken);
+        var approvedDropsById = publishedDrops;
         var approvedAt = approvedRows.Select(value => value.submission.ReviewedAt ?? value.submission.SubmittedAt).ToList();
         var teamDropCounts = approvedRows.GroupBy(value => value.submission.TeamId)
             .ToDictionary(group => group.Key, group => group.Count());
@@ -348,7 +357,7 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
             var teamMatches = normalizedTeam is null || string.Equals(value.team.Slug, normalizedTeam, StringComparison.OrdinalIgnoreCase);
             var searchMatches = searchTerms.Length == 0 || searchTerms.Any(term => new[]
             {
-                drop?.ItemName, drop?.BossName, frozenTiles[value.tile.Id].Name,
+                drop?.ItemName, drop?.BossName, frozenTiles[value.tile.BoardTileId].Name,
                 value.submission.CreditedCharacterName, value.team.Name
             }.Any(text => text?.Contains(term, StringComparison.OrdinalIgnoreCase) == true));
             return teamMatches && searchMatches;
@@ -364,7 +373,7 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
             var drop = value.submission.DropSnapshotId is Guid dropId ? approvedDropsById.GetValueOrDefault(dropId) : null;
             var progress = historicalProgressBySubmission.GetValueOrDefault(value.submission.Id);
             return new PublicRecentDrop(
-                value.submission.Id, value.tile.Id, frozenTiles[value.tile.Id].Name,
+                value.submission.Id, value.tile.BoardTileId, frozenTiles[value.tile.BoardTileId].Name,
                 value.team.Name, value.team.Slug, value.submission.CreditedCharacterName,
                 drop?.BossName, drop?.ItemName,
                 value.submission.ApprovedContribution, value.submission.ReviewedAt ?? value.submission.SubmittedAt,
@@ -375,6 +384,66 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
             approval.Rows, approval.Columns, approval.TotalEhbEstimate, publicTeams, playerLeaderboard, recentDrops,
             bingoEvent.EventStartsAt, bingoEvent.EventEndsAt, recentDropSummary, filteredRows.Count, eventResult, submissionsOpen,
             rankedDropEhbTeams, rosterPlayers, wiseOldManCompetitionId, bingoEvent.Timezone);
+    }
+
+    public async Task<PublicRecentDrop?> GetRecentDropAsync(string eventSlug, Guid submissionId, CancellationToken cancellationToken = default)
+    {
+        var feed = await GetRecentDropsCoreAsync(eventSlug, 1, null, null, submissionId, null, cancellationToken);
+        return feed is { Drops.Count: > 0 } ? feed.Drops[0] : null;
+    }
+
+    public Task<PublicRecentDropFeed?> GetRecentDropsAsync(string eventSlug, int limit = 25, string? dropSearch = null, string? dropTeam = null, IReadOnlyCollection<Guid>? loadedSubmissionIds = null, CancellationToken cancellationToken = default)
+        => GetRecentDropsCoreAsync(eventSlug, limit, dropSearch, dropTeam, null, loadedSubmissionIds, cancellationToken);
+
+    private async Task<PublicRecentDropFeed?> GetRecentDropsCoreAsync(string eventSlug, int limit, string? dropSearch, string? dropTeam, Guid? submissionId, IReadOnlyCollection<Guid>? loadedSubmissionIds, CancellationToken cancellationToken)
+    {
+        var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(value => value.Slug == eventSlug && value.HiddenAt == null, cancellationToken);
+        if (ev is null || ev.State is EventState.Cancelled or EventState.Discarded) return null;
+        var board = await db.Boards.AsNoTracking().SingleOrDefaultAsync(value => value.EventId == ev.Id && value.State == BoardState.Published, cancellationToken);
+        if (board?.ActiveApprovalSnapshotId is not { } approvalId) return null;
+        var publication = await db.ApprovalObjectivesAsync(board.Id, approvalId, cancellationToken);
+        if (publication is null) return null;
+        var publishedDrops = publication.Drops.ToDictionary(value => value.Id);
+        var tileNames = db.BoardApprovalTileSnapshots.AsNoTracking()
+            .Where(value => value.ApprovalSnapshotId == approvalId)
+            .Select(value => new { value.BoardTileId, NameSnapshot = value.Name });
+        var rows = from submission in db.Submissions.AsNoTracking()
+                   join team in db.Teams.AsNoTracking() on submission.TeamId equals team.Id
+                   join tile in tileNames on submission.BoardTileId equals tile.BoardTileId
+                   join asset in db.EvidenceAssets.AsNoTracking().Where(value => value.Active) on submission.Id equals asset.SubmissionId into assetJoin
+                   from asset in assetJoin.Select(value => (Guid?)value.Id).Take(1).DefaultIfEmpty()
+                   where submission.EventId == ev.Id && submission.Status == SubmissionStatus.Approved && submission.ReviewedAt != null
+                         && team.EventId == ev.Id && team.Active && team.FinalizedAt != null
+                         && (submissionId == null ? true : submission.Id == submissionId.Value)
+                   select new { submission, team, tile, EvidenceAssetId = asset };
+        // Validate only the requested loaded cards against the same public approval boundary,
+        // independently of the latest page and the reader's current search filters.
+        var loadedIds = loadedSubmissionIds?.Distinct().Take(100).ToArray() ?? [];
+        var validIds = loadedSubmissionIds is null ? null : await rows
+            .Where(value => loadedIds.Contains(value.submission.Id))
+            .Select(value => value.submission.Id).Distinct().ToListAsync(cancellationToken);
+        var normalizedSearch = string.IsNullOrWhiteSpace(dropSearch) ? null : dropSearch.Trim();
+        var searchTerms = normalizedSearch?.Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
+        var normalizedTeam = string.IsNullOrWhiteSpace(dropTeam) ? null : dropTeam.Trim();
+        if (normalizedTeam is not null) rows = rows.Where(value => value.team.Slug == normalizedTeam);
+        foreach (var term in searchTerms)
+        {
+            var matchingDropIds = publishedDrops.Values
+                .Where(value => value.ItemName?.Contains(term) == true || value.BossName?.Contains(term) == true)
+                .Select(value => value.Id).ToArray();
+            rows = rows.Where(value => (value.submission.DropSnapshotId != null && matchingDropIds.Contains(value.submission.DropSnapshotId.Value)) || value.tile.NameSnapshot.Contains(term) || value.submission.CreditedCharacterName.Contains(term) || value.team.Name.Contains(term));
+        }
+        var total = await rows.CountAsync(cancellationToken);
+        var recentRows = await rows.OrderByDescending(value => value.submission.ReviewedAt).ThenByDescending(value => value.submission.Id).Take(Math.Clamp(limit, 1, 100)).ToListAsync(cancellationToken);
+        var drops = recentRows.Select(value =>
+        {
+            var drop = value.submission.DropSnapshotId is Guid dropId ? publishedDrops.GetValueOrDefault(dropId) : null;
+            return new PublicRecentDrop(
+                value.submission.Id, value.tile.BoardTileId, value.tile.NameSnapshot, value.team.Name, value.team.Slug,
+                value.submission.CreditedCharacterName, drop?.BossName, drop?.ItemName,
+                value.submission.ApprovedContribution, value.submission.ReviewedAt!.Value, value.EvidenceAssetId, 0, 0);
+        }).ToList();
+        return new PublicRecentDropFeed(drops, total, validIds);
     }
 
     public async Task<PublicTileDetails?> GetTileAsync(string eventSlug, string teamSlug, Guid tileId, CancellationToken cancellationToken = default)
@@ -408,7 +477,9 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                                   orderby submission.SubmittedAt descending
                                   select submission).ToListAsync(cancellationToken);
         var dropIds = evidenceRows.Where(value => value.DropSnapshotId is not null).Select(value => value.DropSnapshotId!.Value).Distinct().ToList();
-        var drops = await db.BoardRequirementDropSnapshots.AsNoTracking().Where(value => dropIds.Contains(value.Id)).ToDictionaryAsync(value => value.Id, cancellationToken);
+        var publication = await db.ApprovalObjectivesAsync(publishedBoard.Id, approvalId, cancellationToken);
+        if (publication is null) return null;
+        var drops = publication.Drops.ToDictionary(x => x.Id);
         var submissionIds = evidenceRows.Select(value => value.Id).ToList();
         var assets = await db.EvidenceAssets.AsNoTracking().Where(value => submissionIds.Contains(value.SubmissionId) && value.Active).ToDictionaryAsync(value => value.SubmissionId, cancellationToken);
         var evidence = evidenceRows.Select(value =>
@@ -428,8 +499,9 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                 value.TargetContribution, contributionTotals.GetValueOrDefault(value.BoardRequirementSnapshotId) >= value.TargetContribution,
                 eligibleDrops.Where(drop => drop.ApprovalRequirementSnapshotId == value.Id)
                     .Select(drop => new PublicEligibleDrop(
-                        drop.BossName, drop.ItemName, drop.DisplayRate, drop.CreditedWeight))
+                        drop.BossName, drop.ItemName, drop.DisplayRate, drop.CreditedWeight, drop.NumericProbability, drop.RollsPerCompletion, drop.ProbabilityScope, drop.ConditionalOnParent, drop.ParentProbability, drop.AssumedParticipants, drop.RollGroup, drop.RateCondition))
                     .ToList())).ToList(),
-            evidence, boardView.Timezone);
+            evidence, boardView.Timezone,
+            await new Bingo.Infrastructure.Stats.PublicStatsService(db, time).GetTileAsync(eventSlug, team.TeamId, tileId, cancellationToken));
     }
 }

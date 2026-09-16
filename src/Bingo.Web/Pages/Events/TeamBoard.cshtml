@@ -3,6 +3,14 @@
 @using Bingo.Domain.Events
 @using Bingo.Web.Catalogue
 @inject OsrsWikiImageCache WikiImages
+@if (Model.Board.EventState == EventState.Cancelled)
+{
+    ViewData["Title"] = T["Event cancelled"];
+    ViewData["PublicEventCancelled"] = true;
+    ViewData["HideBreadcrumbs"] = true;
+    <partial name="_EventCancelled" model="Model.Board.EventName" />
+    return;
+}
 @{
     ViewData["Title"] = $"{Model.Team.TeamName} · {Model.Board.EventName}";
     var totalTiles = Model.Board.Rows * Model.Board.Columns;
@@ -51,8 +59,6 @@
             <p class="public-masthead-support"><span>@Model.Team.Affiliation · </span></p>
         }
     </header>
-
-    <div class="progress-update" data-progress-update hidden role="status"><span>@T["New progress is available."]</span> <button type="button" class="public-ui-action public-ui-action--text public-ui-action--forward" data-progress-refresh><span>@T["Refresh now"]</span></button></div>
 
     <div class="public-team-workspace">
         @if (Model.SelectedTile is { } selectedTile)
@@ -288,7 +294,6 @@
     </div>
 </dialog>
 @section Scripts {
-    <partial name="_PublicProgressScripts" model="Model.Board.EventId" />
     <script src="~/js/captain-evidence-input.js" asp-append-version="true"></script>
     <script src="~/js/team-board-drawer.js" asp-append-version="true"></script>
     <script src="~/js/public-evidence.js" asp-append-version="true"></script>

@@ -1,6 +1,7 @@
 @model Bingo.Web.Pages.Admin.Events.BoardRequirementEditorViewModel
 @{ var prefix = Model.Index < 0 ? "Requirements[-1]" : $"Requirements[{Model.Index}]"; var id = $"requirement-{Model.Index}"; }
 <fieldset class="requirement-editor" id="@id" data-index="@Model.Index">
+    <input type="hidden" name="@($"TileDraft.{prefix}.RequirementId")" value="" />
     <div class="objective-heading"><legend>@T["Objective"] <span class="objective-number">@(Model.Index < 0 ? string.Empty : Model.Index + 1)</span></legend>@if (Model.Index != 0) { <button type="button" class="objective-remove remove-requirement" aria-label="@T["Remove objective"]" title="@T["Remove objective"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button> }</div>
     <div class="objective-core-grid">
         <div class="admin-field"><label for="@id-kind"><span class="objective-field-label">@T["Objective type"]</span></label><div class="board-select-wrap"><select id="@id-kind" name="@($"TileDraft.{prefix}.Kind")" class="form-select requirement-kind"><option value="drops">@T["Collect drops"]</option><option value="challenge">@T["Complete an activity or challenge"]</option></select><svg class="board-dialog-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="m6 9 6 6 6-6" /></svg></div></div>

@@ -101,6 +101,7 @@ public sealed class EventDestructiveLifecycleService(ApplicationDbContext db, Ti
         var boardIds = db.Boards.Where(x => x.EventId == eventId).Select(x => x.Id);
         var tileIds = db.BoardTiles.Where(x => boardIds.Contains(x.BoardId)).Select(x => x.Id);
         var requirementIds = db.BoardRequirementSnapshots.Where(x => tileIds.Contains(x.BoardTileId)).Select(x => x.Id);
+        await db.EventLuckOutcomeBases.Where(x => x.EventId == eventId).ExecuteDeleteAsync(ct);
         await db.BoardRequirementBossSnapshots.Where(x => requirementIds.Contains(x.RequirementId)).ExecuteDeleteAsync(ct);
         await db.BoardRequirementDropSnapshots.Where(x => requirementIds.Contains(x.RequirementId)).ExecuteDeleteAsync(ct);
         await db.BoardRequirementSnapshots.Where(x => tileIds.Contains(x.BoardTileId)).ExecuteDeleteAsync(ct);

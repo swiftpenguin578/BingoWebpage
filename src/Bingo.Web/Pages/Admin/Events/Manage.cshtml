@@ -276,11 +276,15 @@ else
                                         <ul class="admin-signup-warning-list" aria-label="@T["Signup warnings"]">
                                             @foreach (var warning in Model.SignupReadiness!.Warnings)
                                             {
-                                                <li>@warning.Description</li>
+                                                <li>@T[warning.Description]</li>
                                             }
                                         </ul>
                                         <form method="post" asp-page-handler="ConfirmSignup" class="event-confirmation-form" data-update-targets="@partialUpdateTargets">
                                             <input asp-for="EventVersion" type="hidden" />
+                                            @foreach (var warning in Model.SignupReadiness!.Warnings)
+                                            {
+                                                <input type="hidden" name="SignupWarningCodes" value="@warning.Code" />
+                                            }
                                             <div class="event-confirmation-actions">
                                                 <a class="admin-button-secondary" href="@manageUrl#manage-signup-confirm-trigger">@T["Cancel"]</a>
                                                 <button class="admin-button-secondary" type="submit" name="AcknowledgeSignupWarnings" value="true">@T["Confirm warnings"]</button>
@@ -468,15 +472,10 @@ else
                             }
                             <button class="btn admin-button-secondary" type="submit">@T["Link competition"]</button>
                         </form>
-                        @if (integration?.Configured == true)
+                        @if (integration?.Configured == true && eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed)
                         {
                             <form method="post" asp-page-handler="ClearCompetition" class="form-stack">
                                 <input asp-for="EventVersion" type="hidden" />
-                                @if (eventView.State == EventState.Live)
-                                {
-                                    <div class="event-create-field"><label><input asp-for="ConfirmCompetitionClear" required /> @T["Confirm"] @T["Clear competition"]</label></div>
-                                    <div class="event-create-field"><label asp-for="CompetitionClearReason"><span>@T["Reason (required)"]</span></label><textarea asp-for="CompetitionClearReason" class="form-control" rows="3" required></textarea></div>
-                                }
                                 <button class="btn event-create-cancel" type="submit">@T["Clear competition"]</button>
                             </form>
                         }

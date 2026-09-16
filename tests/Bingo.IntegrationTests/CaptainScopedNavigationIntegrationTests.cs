@@ -16,7 +16,7 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
+public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_captain_scoped_navigation").WithUsername("bingo").WithPassword("bingo_test_password").Build();
     private DbContextOptions<ApplicationDbContext> options = null!;
@@ -346,7 +346,7 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         Assert.Contains("Second ledger player", html, StringComparison.Ordinal);
         Assert.Contains("Captain ledger drop", html, StringComparison.Ordinal);
         Assert.Contains("Search drops, players or tiles…", WebUtility.HtmlDecode(html), StringComparison.Ordinal);
-        Assert.DoesNotContain("name=\"status\"", html, StringComparison.Ordinal);
+        Assert.Contains("name=\"status\"", html, StringComparison.Ordinal);
         Assert.DoesNotContain("name=\"tile\"", html, StringComparison.Ordinal);
         Assert.Contains("ledgerPage=2", html, StringComparison.Ordinal);
 
@@ -423,7 +423,7 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task LiveCaptainHeaderNavigationIsScopedAndSharedByDesktopAndMobile()
+    public async Task CurrentEventHeaderAndEventScopedRoleNavigation()
     {
         var now = DateTimeOffset.UtcNow;
         var captain = Website("header-captain", now);
@@ -512,6 +512,9 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         draftParticipant.AssignOwner(draftCaptain);
         var draftMembership = new TeamMembership(Guid.NewGuid(), draftTeam.Id, draftParticipant.Id, TeamMembershipRole.Captain, now, null, "test");
 
+        foreach (var publishedTeam in new[] { liveTeam, awaitingTeam, finalizedTeam, archivedTeam, ambiguousTeamOne, ambiguousTeamTwo })
+            publishedTeam.Finalize(now);
+
         await using (var db = new ApplicationDbContext(options))
         {
             db.AddRange(captain, coCaptain, participant, admin, emergency, awaitingCaptain, awaitingParticipant, ambiguousParticipant, awaitingEmergency, draftCaptain,
@@ -523,60 +526,78 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
                 ambiguousLiveOne, ambiguousTeamOne, ambiguousParticipantOne, ambiguousMembershipOne, ambiguousLiveTwo, ambiguousTeamTwo, ambiguousParticipantTwo, ambiguousMembershipTwo,
                 draft, draftTeam, draftParticipant, draftMembership);
             await db.SaveChangesAsync();
+            foreach (var eventItem in new[] { live, awaiting, finalized, archived, ambiguousLiveOne, ambiguousLiveTwo })
+            {
+                var board = new Board(Guid.NewGuid(), eventItem.Id, "Navigation board", 1, 1);
+                var tile = new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 0, 0, "Navigation tile", "Description", "", 1m);
+                var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 0, 1, true, false, "Navigation requirement", true);
+                db.AddRange(board, tile, requirement);
+                await BoardApprovalFixture.PublishAsync(db, board, now, [tile], [requirement]);
+            }
         }
 
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
-        async Task<string> LoggedInHtml(Account account)
+        async Task<string> LoggedInHtml(Account account, string? slug = null)
         {
             using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await LoginAsync(client, account.LoginName);
-            return await client.GetStringAsync("/");
+            return await client.GetStringAsync($"/Events/{slug ?? live.Slug}/Board");
         }
+        static string ContextNavigation(string html) => Regex.Match(html,
+            @"<nav[^>]*aria-label=""Bingo views""[\s\S]*?</nav>").Value;
+
+        using var anonymous = factory.CreateClient();
+        var home = await anonymous.GetStringAsync("/");
+        Assert.Equal(2, Regex.Count(home, ">Current event</a>"));
+        Assert.DoesNotContain(">Captain</a>", home);
+        Assert.DoesNotContain(">submissions</a>", home);
+        var selectedLive = new[] { live, ambiguousLiveOne, ambiguousLiveTwo }.OrderBy(x => x.Id).First();
+        Assert.Equal(2, Regex.Matches(home, @"<a[^>]*>Current event</a>")
+            .Count(match => match.Value.Contains($"/Events/{selectedLive.Slug}/Board")));
 
         var expectedHref = $"/Submissions?eventId={live.Id}&amp;teamId={liveTeam.Id}";
-        foreach (var account in new[] { captain, coCaptain, emergency })
+        foreach (var account in new[] { captain, coCaptain, emergency, participant })
         {
             var html = await LoggedInHtml(account);
-            Assert.Equal(2, Regex.Count(html, Regex.Escape($"href=\"{expectedHref}\"")));
-            Assert.Equal(2, Regex.Count(html, Regex.Escape(">Captain</a>")));
-            Assert.Equal(0, Regex.Count(html, @">Submissions</a>", RegexOptions.IgnoreCase));
+            var nav = ContextNavigation(html);
+            Assert.Contains($"href=\"{expectedHref}\"", nav);
+            Assert.Contains(account == participant ? ">submissions</a>" : ">Captain</a>", nav);
+            Assert.True(nav.IndexOf(">Teams</a>", StringComparison.Ordinal) < nav.IndexOf(expectedHref, StringComparison.Ordinal));
+            Assert.Equal(2, Regex.Count(html, ">Current event</a>"));
+            var otherNav = ContextNavigation(await LoggedInHtml(account, awaiting.Slug));
+            Assert.DoesNotContain("/Submissions?", otherNav);
         }
-
-        var expectedSubmissionHref = $"/Submissions?eventId={live.Id}&amp;teamId={liveTeam.Id}";
-        var participantHtml = await LoggedInHtml(participant);
-        Assert.Equal(2, Regex.Count(participantHtml, Regex.Escape($"href=\"{expectedSubmissionHref}\"")));
-        Assert.Equal(2, Regex.Count(participantHtml, @">Submissions</a>", RegexOptions.IgnoreCase));
-        Assert.Equal(0, Regex.Count(participantHtml, Regex.Escape(">Captain</a>")));
-
-        var awaitingParticipantHtml = await LoggedInHtml(awaitingParticipant);
-        var expectedAwaitingHref = $"/Submissions?eventId={awaiting.Id}&amp;teamId={awaitingTeam.Id}";
-        Assert.Equal(2, Regex.Count(awaitingParticipantHtml, Regex.Escape($"href=\"{expectedAwaitingHref}\"")));
-        Assert.Equal(2, Regex.Count(awaitingParticipantHtml, @">Submissions</a>", RegexOptions.IgnoreCase));
-        Assert.Equal(0, Regex.Count(awaitingParticipantHtml, Regex.Escape(">Captain</a>")));
-
-        var awaitingCaptainHtml = await LoggedInHtml(awaitingCaptain);
-        Assert.Equal(2, Regex.Count(awaitingCaptainHtml, Regex.Escape($"href=\"{expectedAwaitingHref}\"")));
-        Assert.Equal(2, Regex.Count(awaitingCaptainHtml, Regex.Escape(">Captain</a>")));
-        Assert.Equal(0, Regex.Count(awaitingCaptainHtml, @">Submissions</a>", RegexOptions.IgnoreCase));
-
-        var awaitingEmergencyHtml = await LoggedInHtml(awaitingEmergency);
-        Assert.Equal(2, Regex.Count(awaitingEmergencyHtml, Regex.Escape($"href=\"{expectedAwaitingHref}\"")));
-        Assert.Equal(2, Regex.Count(awaitingEmergencyHtml, Regex.Escape(">Captain</a>")));
-        Assert.Equal(0, Regex.Count(awaitingEmergencyHtml, @">Submissions</a>", RegexOptions.IgnoreCase));
-
-        var ambiguousParticipantHtml = await LoggedInHtml(ambiguousParticipant);
-        Assert.DoesNotContain("href=\"/Submissions?eventId=", ambiguousParticipantHtml, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(0, Regex.Count(ambiguousParticipantHtml, @">Submissions</a>", RegexOptions.IgnoreCase));
-
-        foreach (var account in new[] { admin })
+        foreach (var account in new[] { awaitingCaptain, awaitingParticipant, awaitingEmergency })
         {
-            var html = await LoggedInHtml(account);
-            Assert.DoesNotContain($"href=\"{expectedHref}\"", html, StringComparison.Ordinal);
+            var nav = ContextNavigation(await LoggedInHtml(account, awaiting.Slug));
+            Assert.Contains($"/Submissions?eventId={awaiting.Id}&amp;teamId={awaitingTeam.Id}", nav);
+            Assert.Contains(account == awaitingParticipant ? ">submissions</a>" : ">Captain</a>", nav);
         }
+        var ambiguousNav = ContextNavigation(await LoggedInHtml(ambiguousParticipant, ambiguousLiveOne.Slug));
+        Assert.Contains($"/Submissions?eventId={ambiguousLiveOne.Id}&amp;teamId={ambiguousTeamOne.Id}", ambiguousNav);
+        Assert.DoesNotContain("/Submissions?", ContextNavigation(await LoggedInHtml(admin)));
+        Assert.DoesNotContain("/Submissions?", ContextNavigation(await LoggedInHtml(draftCaptain)));
+        Assert.DoesNotContain("/Submissions?", ContextNavigation(await LoggedInHtml(captain, finalized.Slug)));
+        Assert.DoesNotContain("/Submissions?", ContextNavigation(await LoggedInHtml(captain, archived.Slug)));
 
-        var draftHtml = await LoggedInHtml(draftCaptain);
-        Assert.DoesNotContain(">Captain</a>", draftHtml, StringComparison.Ordinal);
+        using var participantClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(participantClient, participant.LoginName);
+        var overview = await participantClient.GetStringAsync($"/Submissions?eventId={live.Id}&teamId={liveTeam.Id}");
+        Assert.Contains(expectedHref, ContextNavigation(overview));
+        Assert.Contains("aria-current=\"page\"", ContextNavigation(overview));
 
+        // With no public Live board, the final-review event is the public shortcut.
+        await using (var db = new ApplicationDbContext(options))
+        {
+            foreach (var id in new[] { live.Id, ambiguousLiveOne.Id, ambiguousLiveTwo.Id })
+                await db.Boards.Where(board => board.EventId == id).ExecuteUpdateAsync(update => update.SetProperty(board => board.State, BoardState.Draft));
+        }
+        home = await anonymous.GetStringAsync("/");
+        Assert.Equal(2, Regex.Matches(home, @"<a[^>]*>Current event</a>")
+            .Count(match => match.Value.Contains($"/Events/{awaiting.Slug}/Board")));
+        await using (var db = new ApplicationDbContext(options))
+            await db.Boards.Where(board => board.EventId == awaiting.Id).ExecuteUpdateAsync(update => update.SetProperty(board => board.State, BoardState.Draft));
+        Assert.DoesNotContain(">Current event</a>", await anonymous.GetStringAsync("/"));
     }
 
     [Fact]
@@ -818,6 +839,35 @@ public sealed class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, invalidResponse.StatusCode);
         Assert.Contains("data-event-id=\"\"", invalidHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("Selected review team", invalidHtml, StringComparison.Ordinal);
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var item = await db.Events.SingleAsync(value => value.Id == selected.Id);
+            item.Unfinalize("Inspect retained Pending evidence.");
+            await db.SaveChangesAsync();
+        }
+        var finalizeHtml = await client.GetStringAsync($"/Admin/Events/Finalize/{selected.Id}");
+        var pendingBlocker = Assert.Single(Regex.Matches(finalizeHtml, @"<article\b[\s\S]*?</article>"),
+            match => match.Value.Contains("Pending submissions", StringComparison.Ordinal));
+        var pendingLink = WebUtility.HtmlDecode(Regex.Match(pendingBlocker.Value, "href=\"([^\"]+)\"").Groups[1].Value);
+        Assert.Equal($"/Admin/Review?eventId={selected.Id}&status=Pending", pendingLink);
+        using var pendingResponse = await client.GetAsync(pendingLink);
+        Assert.Equal(HttpStatusCode.OK, pendingResponse.StatusCode);
+        var pendingHtml = await pendingResponse.Content.ReadAsStringAsync();
+        Assert.Contains($"data-event-id=\"{selected.Id}\"", pendingHtml, StringComparison.Ordinal);
+        Assert.Contains("<option value=\"Pending\" selected=\"selected\">", pendingHtml, StringComparison.Ordinal);
+        Assert.Contains($"/Admin/Review/Details/{selectedSubmission.Id}", pendingHtml, StringComparison.Ordinal);
+        Assert.Contains($"/Admin/Review/Details/{newerPending.Id}", pendingHtml, StringComparison.Ordinal);
+        var pendingQueueRows = string.Join("", Regex.Matches(pendingHtml, @"<tr data-admin-review-row\b[\s\S]*?</tr>").Select(match => match.Value));
+        Assert.DoesNotContain($"/Admin/Review/Details/{otherSubmission.Id}", pendingQueueRows, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-review-team=\"Other review team\"", pendingHtml, StringComparison.Ordinal);
+        var unscopedHtml = await client.GetStringAsync("/Admin/Review?status=Pending");
+        Assert.Contains("data-event-id=\"\"", unscopedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-admin-review-row", unscopedHtml, StringComparison.Ordinal);
+        using var anonymous = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var denied = await anonymous.GetAsync(pendingLink);
+        Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
+        Assert.Contains("/Account/Login", denied.Headers.Location!.OriginalString, StringComparison.Ordinal);
     }
 
     private static BingoEvent LiveEvent(Guid ownerId, string name, string slug, DateTimeOffset now)

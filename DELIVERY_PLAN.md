@@ -7,6 +7,397 @@ owned solely by [`UI_PAGE_MATRIX.md`](UI_PAGE_MATRIX.md).
 state, blockers, limitations, current work, and immediate ownership. Global UI
 rules and implementation ownership are defined by [`UI_SYSTEM.md`](UI_SYSTEM.md).
 
+## Drop announcements and NEW tracking — approved behaviour, 2026-09-12
+
+Status: implementation authorized by the user after the single independent readiness
+review and resolution of its named lifecycle decision. Execute the three bounded
+passes below, then focused independent review, remediation and acceptance preflight.
+Commit, push, merge and deployment are not authorized.
+Checkout: `/private/tmp/BingoWebpage-drop-announcements`, branch `drop-announcements`,
+base `c165bbcb321547637d03b4e9dc3d2e206e5944b3` from `origin/main`.
+This section owns scope, pass order, complexity limits and acceptance. The active
+journey is `PUB-UPDATES-01` in FUNCTIONAL_CONTRACTS; UI_SYSTEM owns countdown semantics.
+
+### Approved outcome and presentation
+
+Replace the generic public Board/TeamBoard progress-refresh notice with one live
+announcement queue. Approving a submission creates an eligible update; pending,
+rejected and reversed evidence never appears as current approved progress. Each
+approval produces one announcement, not a second completion announcement.
+
+- Only authenticated website accounts actually participating in the current event
+  receive announcements or personalized NEW state. Admin privilege alone does not
+  qualify. Eligibility is enforced server-side, not by hiding markup. Reuse existing
+  account/membership authority; the mapping is recorded in the readiness outcome below.
+  Delivery is event-wide: every eligible participant receives eligible approvals from
+  every team/player in that event, not only evidence credited to their own account.
+- Eligibility continues through Live and AwaitingFinalReview. Finalizing the event
+  clears the banner queue, all per-entry Drops NEW marks and the DROPS navigation
+  badge for every account, including offline accounts, and stops further announcements.
+  This clears update/NEW state, not the actual approved feed entries or evidence.
+  Connected pages reconcile immediately after committed finalization; returning or
+  reconnecting clients observe the same cleared state. Stale reads/actions must not
+  resurrect cleared updates, including if the existing Unfinalize workflow is used.
+- Display throughout non-Admin pages, including the landing/account pages. Admin
+  hides the banner without acknowledging it. Navigation preserves queue, selected
+  approval, expanded/compact state and remaining cooldown, without replaying entry.
+- There is at most one active scheduled event. Do not introduce multi-event queues
+  or event-selection UI. Preserve the existing non-overlap scheduling rules.
+- User-approved standalone visual/motion reference:
+  `/Users/christopher/Documents/Codex/2026-09-11/drop-announcement-prototype/outputs/drop-announcement-prototype.html`.
+  Reuse its accepted expanded/compact shapes, entrance/exit and directional switching;
+  integrate existing site fonts, tokens, themes, localization and accessibility.
+  Prototype demo controls, fake data and stand-in board are not production scope.
+- Main title/artwork: achieved item for a drop; frozen tile name and tile artwork
+  for a non-drop objective. Never use an evidence/submission screenshot in the banner.
+  Missing-artwork handling,2026-09-14: try item then distinct tile artwork; if absent
+  or failed, render text-only without an empty thumbnail frame/reserved column. Preserve
+  banner dimensions, copy styling and all interactions; no invented placeholder icon.
+- Kicker is `New tile progression: {progressAfter} / {target}` (localized English/Danish),
+  using the existing announcement progress/target values; `Tile completed` stays
+  counter-free when this approval completes
+  that team's tile. Completion has green status styling; progression is coral.
+  Completion must describe this approval's effect, not merely today's tile state.
+- The container's thin top border remains a separate coral countdown indicator.
+  It starts full and drains over ten seconds to compaction. Focus/interacting inside
+  resets it to full and holds it there; clicking/tabbing away starts a fresh ten
+  seconds. Moving between controls inside must not restart a running countdown.
+  Preserve hover protection from the prototype, using the same reset/hold rule;
+  countdown starts only when neither hover nor focus remains. No auto-focus on arrival.
+  Respect reduced motion and keep all actions keyboard/touch reachable. The local
+  countdown has no per-tick server writes and is distinct from the two-minute cooldown.
+- Compact label is `N NEW UPDATES` (localized singular/plural), with Expand and dismiss.
+  Previous/next is manual, updates artwork/title/player/team/action together, has
+  disabled endpoints and is omitted with the counter for a single entry.
+
+### Approved prototype restoration — 2026-09-13
+
+The user approved correcting every presentation/motion difference reported by the
+direct prototype comparison, with one exception: retain the integrated X hover
+(blue icon without the prototype's soft background). Use the exact prototype above
+as implementation source, reusing its markup, scoped CSS/keyframes and animation
+sequencing wherever possible; do not recreate an approximation.
+
+- Restore staged 320ms entrance, delayed animated dismissal for both shapes, measured
+  640ms expanded/compact height transitions with coordinated 320ms content phases,
+  sequential directional slide exit/entrance and original easing/cancellation handling.
+- Restore square switching controls, styled/centred non-wrapping counter and original
+  counter placement; remove the duplicate counter beside the kicker. Restore prototype
+  narrow breakpoint/spacing/control sizes, border contrast, shadow and artwork framing.
+  Preserve only the current X hover exception; other focus/geometry follows the reference.
+- Keep the approved coral ten-second focus/hover-held countdown, green completion
+  status, live queue/acknowledgements/NEW state, persisted cooldown, navigation and
+  submission protection. The expanded countdown must replace the static coral edge
+  rather than drain over an unchanged coral border. The user subsequently approved a
+  thin neutral top outline behind that countdown, matching the other outer edges, so
+  the normal outline remains visible as the coral retracts. Retain header stacking level 1101,
+  real Drops anchor destinations, localization, theme support and reduced-motion behavior.
+- User-reported shared-shell correction: outside Board/views, the banner background
+  and specifically its top edge are transparent. Resolve the colour-token scope so
+  the opaque surface and coral countdown/top edge render on all non-Admin pages in
+  both themes; do not depend on Board-only variables or create a new theme framework.
+  Follow-up manual correction: preserve the now-accepted surface/outline and extend
+  Board colour parity to all remaining banner text, controls and status colours.
+  Replace misaligned font-based navigation chevrons with centred inline SVGs while
+  preserving control sizes, accessibility and motion.
+- Scope is the shared banner partial, its CSS/JavaScript and focused client checks.
+  No backend, database, feed redesign, seed/reset, package or new framework changes.
+  Verify timing/interruption behavior with the existing focused runnable checks,
+  compile the Web project if Razor changes, then perform one scoped independent
+  prototype/behavior comparison. Ordinary browser preflight remains waived; visual
+  acceptance belongs to the user. No commit, push or deployment is authorized.
+
+### Queue, cooldown and delivery
+
+- First eligible arrival opens expanded when the conditions below allow it. New arrivals append without stealing the
+  current selection, resetting the ten-second countdown, or extending the cooldown.
+- Automatic expansion atomically starts a two-minute cooldown per account/event.
+  Dismissal starts that same cooldown again. Save it server-side so reopening,
+  refreshing, multiple tabs and other devices cannot bypass it. A simultaneous
+  expansion claim must not yield multiple automatic expansions for that account.
+- During cooldown, arrivals update the existing banner; if dismissed, new arrivals
+  show compact. Expiry alone causes no display change. The next approval after
+  expiry may expand showing the new approval; protect active interaction/submission
+  and submission-result states from interruption. Manual Expand remains available.
+- Automatic expansion requires both an expired cooldown and an outstanding eligible
+  approval newer than the account/event's last automatic-expansion approval boundary.
+  Atomically persist that boundary with the cooldown, covering only the claimed
+  snapshot so concurrent later approvals remain eligible. Navigation, refresh and
+  returning after a long absence use this same rule; elapsed time alone is insufficient.
+  Expiry itself has no timer-driven expansion. Offline approvals remain collected.
+- A successful automatic expansion selects the newest approval in its claimed queue.
+  Manual expansion restores the last available selection; arrivals while already
+  expanded never steal selection. Deterministic ordering uses approval chronology
+  and a stable tie-break. Acknowledged or reversed items cannot qualify for expansion.
+- Acknowledged announcements never return; this requires durable per-account/event
+  state. It must survive connection loss, out-of-order or duplicate invalidations,
+  stale tabs and action retries without losing later approvals.
+- Remove a reversed approval from banner and NEW eligibility. The existing immutable
+  submission rule remains: a reversed attempt cannot be directly reapproved. An
+  approved linked corrected attempt is a new eligible update with its own identity.
+- Do not change competitive progress, evidence history or approval/reversal semantics.
+  The current event is in signup; deployment must not mark future approvals as seen.
+  Do not add a historical backfill workflow. Readiness must establish a deterministic
+  initial tracking boundary for existing Development approvals and later participants.
+
+Readiness initialization proposal: establish a stable per-event tracking start at
+feature deployment for existing events and creation for later events, before any
+participant's first visit; combine with the current membership join boundary. Do not
+initialize at first login, which would lose offline approvals. Existing-event history
+before rollout stays outside tracking; the actual current event is in signup, so all
+its future eligible approvals are captured. Use a persisted boundary, not a mutable
+client timestamp. This additive initialization never changes competitive history.
+
+### Two acknowledgement states and Drops integration
+
+2026-09-13 manual live-feed regression: an approval invalidation must preserve
+existing timestamps and use actual approval age for newly inserted entries, matching
+normal Drops rendering. Historical unloaded entries must not be promoted into the
+newest group merely because an invalidation fetched them. Preserve filter/paging,
+chronology/groups, scroll, open popup and acknowledgement semantics. Scope is the
+existing live feed rendering and necessary timestamp transport plus a focused
+regression check; no redesign, new timer/service/dependency or approval-rule change.
+
+2026-09-13 direct manual correction: Danish progression wording is `Nyt tile fremskridt:
+{0} / {1}`; retain the English term `Leaderboards` in Danish UI and its help reference.
+After successful CLEAR ALL NEW, show a localized confirmation through the existing
+shared toast owner. A failed request must not show success; use existing error toast
+feedback. Preserve acknowledgement semantics, NEW presentation and all banner motion.
+
+2026-09-13 authorized follow-up scope: implement the automatic-expansion boundary
+and selection rules above, and complete English/Danish announcement wording,
+accessible labels, dynamic counters and related NEW/CLEAR ALL NEW text through the
+existing localization system. Preserve approved visuals, motion, ten-second timer,
+acknowledgements, eligibility and submission protection. Budget: one scalar on the
+existing account/event state plus a consistent additive migration; no new table,
+service, route, job or dependency. Use focused client/persistence/localization checks
+and independent scope review. NEW mark design and clearing-behavior review belongs
+to the user's next pass; do not change those behaviors now. Ordinary browser
+preflight remains waived; no reset, commit, push or deployment is authorized.
+
+| Action | Banner acknowledgement | Drops NEW acknowledgement |
+| --- | --- | --- |
+| Dismiss | All approvals in the displayed queue snapshot | None |
+| GO TO DROP, popup successfully opens | That approval | That approval |
+| Open that popup directly in Drops | That approval | That approval |
+| CLEAR ALL NEW | All approvals covered by that action | All current NEW approvals in this event |
+| Event finalization | Entire event queue for every account | All event NEW marks and navigation badge for every account |
+
+Merely navigating to Drops, compacting, waiting or switching banner entries does not
+acknowledge either state. Failed navigation/popup load must not acknowledge viewing.
+Opening the popup is the view boundary, not closing it or viewing every image pixel.
+GO TO DROP goes to the current approval's event Drops view and opens its existing
+evidence popup, even if the entry is outside the initial 25/filter result. On success,
+select the next queued item and compact, or hide the banner if the queue is empty.
+Never silently clear other entries when viewing one. CLEAR ALL NEW applies across
+filters/pagination; approvals after its server-defined snapshot remain new. Mutations
+must be authenticated, ownership-scoped, anti-forgery protected and idempotent.
+
+Add NEW to individual entries, CLEAR ALL NEW to the existing Drops view, and a small
+coral NEW beside DROPS in the event navigation whenever any eligible update is new.
+The navigation badge follows Drops NEW state, not banner dismissal. These states
+synchronize across visits/devices; no personal-notification read state is reused.
+
+Approvals update the visible banner and navigation badge live without navigation.
+When Drops is displayed, insert eligible entries into the current feed live, preserving
+scroll/reading position, filters and any open popup. Filter-excluded arrivals still
+update the banner and unfiltered NEW state. Reversal removes stale approved entries
+without destroying unrelated popup/submission state. No automatic full-page reload,
+board redraw/reset or interruption of tile/sidebar/captain interactions.
+
+### Technical boundaries and candidate complexity budget
+
+This is the proposal for readiness to validate, not permission to add infrastructure.
+Keep Web -> Application -> Domain/Infrastructure and PostgreSQL authoritative. Reuse
+SignalR as a non-authoritative invalidation channel; rejoin and reconcile on reconnect.
+Do not put recipient state/private evidence into anonymous event groups. Existing
+generic public subscriptions may remain where other protected behaviour needs them.
+
+- Zero new packages, jobs, brokers, Redis instances, replicas or general event-bus/
+  notification frameworks. Zero new rendered pages, global roles or policies.
+- Candidate upper bound: two small tables, account/event state (cooldown and bulk
+  boundaries) and sparse account/approval acknowledgements (independent banner/NEW
+  state). Prefer reusing compatible persistence when it preserves account ownership
+  and concurrent bulk/view semantics. Do not fan out one row per participant on every
+  approval. No new approval-history table unless readiness demonstrates necessity.
+- At most one focused application contract/infrastructure service for querying and
+  mutating update state; reuse board projection/membership/evidence code. Extend the
+  existing hub, shell and Drops handlers. Budget up to one focused authenticated
+  endpoint family for bounded updates/acknowledgement/cooldown claims and one explicit
+  submission deep-link parameter on the existing Drops route. No separate drop page.
+- Add only columns/indexes needed for deterministic incremental reads, completion
+  facts or acknowledgement concurrency. Readiness must identify any required approval
+  snapshot field and migration. Additive migrations must include designer/snapshot;
+  never rewrite retained competitive facts to initialize tracking. If a preflight can
+  fail closed, document exact operator diagnosis/correction/retry before implementation.
+- Readiness identified a required immutable completion-at-approval fact on Submission,
+  computed inside the owning approval transaction across all tile requirements. Budget
+  this small field plus an event tracking-start boundary within the additive migration.
+  Reuse existing frozen tile/item identifiers and public artwork routes; no new image
+  assets or artwork storage system. Do not infer completion from current/rebalanced
+  progress or mutate old submissions to pretend their completion fact was captured.
+- Account/event and account/approval acknowledgement keys must be unique and concurrency
+  protected. `(ReviewedAt, SubmissionId)` supplies deterministic display order, but is
+  not by itself proof against late transaction commits. Bounded reconciliation and
+  clear/dismiss snapshots must retain approvals that commit after a read/clear boundary.
+  Pass-2 support uses a stable committed approval ordinal within the existing event-
+  locked approval transaction, exposed as a queue snapshot boundary for paging/dismissal.
+  This fits the already budgeted cursor/concurrency columns and avoids storing a new
+  server snapshot on every read or sending the full queue as IDs. Dismissal covers the
+  represented queue across pages; later ordinal approvals remain eligible. Emit the
+  existing generic invalidation after committed finalization so connected pages clear.
+- Client: one shared announcement partial/module using native CSS/JS; extend current
+  feed/evidence scripts, shared navigation and existing stylesheet/localization.
+  No parallel dialog or toast framework. Remove the replaced generic refresh notice
+  and its obsolete client hooks/tests where no remaining consumer requires them.
+
+Verified starting inventory: `PublicRecentDrop` already has SubmissionId/ApprovedAt,
+tile/drop names, ProgressAfter/Target; `PublicBoardService` builds it through an expensive
+full-board projection. `ProgressHub.WatchEvent` currently allows anonymous subscriptions
+to non-hidden events; `SignalRProgressNotifier` sends generic `progressChanged` without
+drop data. `public-progress.js` reveals a manual-refresh notice. `public-recent-drops.js`
+fetches full-page HTML for filters/load-more. `public-evidence.js` opens a dialog from
+rendered trigger data. Extend these seams without assuming generic invalidation means
+new approval, or that a requested submission is in the rendered first page.
+
+Performance: use bounded small authoritative reads/updates, coalesce approval bursts
+and avoid full-board/page requests for each connected client per approval. Countdown
+animation is local. Do not query/write continuously while idle. The approved baseline
+in the production capacity sub-gate is 100 SignalR viewers and 400 successful public
+requests on 2-vCPU/4-GB; user explicitly waived an additional load-test gate for this
+slice. Reassess performance after the event using observed evidence if necessary.
+Focused correctness/security/recovery checks remain required.
+
+### Ordered passes and acceptance journeys
+
+Execution checkpoint: all three Luna High implementation passes are complete.
+Domain tests 3/3, PostgreSQL persistence tests 4/4 (including >100 queue snapshot),
+real HTTP login/CSRF/account-scope test 1/1 and Development reset/controlled non-drop
+fixture test 1/1 passed. Migration consistency, Web/Infrastructure builds and focused
+Node countdown/state checks pass. Full-diff Terra High review and named-fixes recheck
+are clear after correcting event-wide recipients, NEW-label removal and submission
+interaction protection (including a deferred claim-response race). Final focused
+PostgreSQL integration is 6/6; Release build and scoped formatting pass. Ordinary
+browser navigation/popup/feed checks and visual acceptance remain with the user under
+the verification change below.
+
+**User-directed verification change — 2026-09-12:** Skip the ordinary agent browser/
+manual-acceptance preflight unless a check is difficult for the user to reproduce.
+The user will perform ordinary navigation, popup, feed and visual checks. Retain the
+passing automated authorization, persistence, concurrency and deferred-response race
+proof; do not rerun it merely because the manual preflight is waived. A concrete
+technical blocker already observed may be diagnosed and corrected before handoff.
+This waives the ordinary preflight gate for this slice, not user visual acceptance.
+
+**Development seed extension approved — 2026-09-13:** The user requested 10–20
+pending submissions in the Live seed to test announcements, including submissions
+that complete tiles. Seed `test-15-dkl-live` with 15 total pending submissions across
+varied tiles, including at least three whole-tile finishing approvals and some partial
+progress. Retain the DA-07 non-drop finisher, existing approved progress and existing
+rejected/withdrawn/reversed/linked-correction cases. This expands only Development
+test data and its focused verification; announcement rules, UI and production data
+are unchanged. The existing reset command regenerates the batch; do not reset a
+user's in-progress manual-test database without authorization.
+
+One Terra High read-only readiness review covers the entire proposal before workers
+start. It must resolve source contradictions, concrete budget, minimum Development
+seed reachability, removed-behaviour consumers, order and independent deployability.
+No repeated planning review absent a newly discovered product contradiction. Proposed
+implementation passes (Luna High under the supplied current role instructions):
+
+1. Durable acknowledgement/cooldown/query contract and additive migration; approval
+   identity/completion, eligibility, finalization clearing and transaction/concurrency
+   protections. Reuse the existing finalization authority; no new lifecycle framework.
+2. Shared non-Admin banner, SignalR reconciliation, timer/motion and navigation state.
+3. Drops deep-link popup, NEW rows/nav badge, CLEAR ALL NEW and bounded live feed.
+   Final integration, focused independent review and manual-acceptance preflight.
+
+The passes are ordered for implementation, not individually approved releases. The
+user has authorized the complete contracted implementation; assign one concrete pass
+at a time, verify its handoff and continue in order. Stop for a real product/budget
+conflict or after integration/review/preflight for user visual acceptance. No worker
+may independently start the next pass or package/release the feature.
+
+| Journey / starting state and real entry | Required result | Pass / smallest proof |
+| --- | --- | --- |
+| Eligible seeded participant opens public event through Events; Admin approves a pending item in Review | Live banner/item art, Drops badge, no board reset; private/nonparticipant clients excluded | 1-2; authority + one approval-delivery scenario |
+| Same participant, five approvals across the 120-second boundary; click/keyboard focus inside then away | Stable selection during burst/interaction; top line refills/holds then drains over a fresh 10 seconds; eligible later arrival expands | 2; client fake-clock state-machine check + manual motion |
+| Navigate Board -> Drops/Teams -> landing -> Admin -> public; close/reopen and use second device/session | State retained/hidden appropriately; one account cooldown; offline backlog restored newest first | 1-2; shared-state concurrency/reconnect scenario + manual navigation |
+| Dismiss queue; approve another item; reopen site | Old banner entries absent; their Drops NEW persists; later approval eligible without bypassing cooldown | 1-3; snapshot acknowledgement/retry test |
+| GO TO DROP from landing for an item outside loaded/filter results; then open another item through Drops UI | Correct existing popup opens; only successful view clears both states; next banner item compact; failure preserves NEW | 3; authenticated rendered-navigation/popup test |
+| Open Drops, apply real filters/load-more, receive approval; CLEAR ALL NEW races with next approval | Stable reading/popup context; correct filtered insertion and unfiltered NEW; concurrent later approval remains new | 1/3; bounded feed + transactional clear test |
+| Admin approves non-drop progress and tile-completing evidence; then reverses through Review | Tile title/art, correct completion status; reversal removes current update; approved linked correction is new | 1-3; completion/reversal identity case + manual themes |
+| Event timer ends with final reviews outstanding; approve in Review, then finalize through Admin | Reviews still announce until finalization; finalization clears all banner/NEW/nav state online and on return, preserving the feed and evidence | 1-3; finalization/reconciliation race case + manual lifecycle |
+
+Development reset: reuse existing `DevelopmentScenarioSeeder`, seeded Admin and genuine
+participant/captain roles plus a Live event, item and non-item tiles, pending evidence,
+and an approval one contribution short of completion. Readiness must name exact existing
+fixtures/routes and the minimum missing data; no broad demo dataset or production reset.
+Carry final reachable steps into MANUAL_TEST_CHECKLIST after readiness corrections.
+Manual evidence covers desktop/narrow, light/dark, pointer/keyboard/touch and reduced
+motion. Automated proof concentrates on real authorization, persistence, concurrency,
+delivery/reconnect and popup success/failure seams; no redundant per-layer coverage.
+
+Non-goals: wider Drops redesign, browser-title personal-notification counts, scheduling
+changes, anonymous tracking, cross-event announcement UI, evidence/review policy changes,
+automatic board refresh, historical backfill project, sweep tickets/C05/C09 and artwork
+work in other checkouts. Stop and report before a material rule/budget change or unrelated
+fix. Optional readiness suggestions do not expand scope. No package/push/deploy authority.
+
+### Independent readiness outcome — 2026-09-12
+
+One Terra High read-only review completed against the complete contract and scoped
+source. No implementation or runtime tests were performed. No second planning review
+is required after recording the named decision/corrections below.
+
+**Resolved product decision — 2026-09-12:** User approved continuing announcements
+through final review and specified that finalization clears everything in both banner
+and Drops NEW state, including the navigation badge. `EventStatePolicy.ReviewEvidence`
+allows Live and AwaitingFinalReview. The completion boundary is committed finalization,
+not the scheduled end time, an Admin page visit, or a participant visiting Drops.
+`EventLifecycleService` already enforces one current non-hidden Live/review/finalized
+event during start/resume (Development fixtures excepted); preserve this instead of
+adding event-selection or multi-event announcement logic.
+
+**Recipient mapping:** reuse current website-account/participant/team membership
+relations, requiring an enabled WebsiteAccount, Confirmed participant, current team
+membership and active team in the non-hidden event. Waiting-list, withdrawn/former
+members, anonymous viewers and Admin-only authority do not qualify. This is a new
+recipient projection; do not change EvidenceAuthority's existing role behaviour.
+
+**Accepted technical corrections:** independent banner/NEW acknowledgement needs the
+two small tables already budgeted, uniqueness and concurrency protection; no recipient
+fan-out. Persist the two-minute cooldown atomically. Add a small completion-at-approval
+fact; resolve artwork through existing snapshot identities/routes. Readiness proposed
+the initialization boundary above; implementation must establish the exact safe
+additive migration/seed initialization without backfilling old competitive facts.
+
+GO TO DROP needs a NEW optional submission-id query parameter on the existing Board
+Drops route (already in budget); BoardModel currently has no such parameter. Resolve
+that one authorized entry separately from filters/initial 25 and reuse public-evidence
+dialog transport. Acknowledge only after actual successful popup opening, not merely
+fetching its payload. Full-board projection is not the live-update query.
+
+Replacement inventory: Board/TeamBoard `data-progress-update` markup and
+`public-progress.js` refresh hooks, affected browser tests, and HowTo's `Refresh now`
+copy/localization. Preserve `notification-inbox.js`'s independent generic
+`progressChanged` consumer. No domain enum/removal or approval-history rewrite.
+
+Seed/preflight basis: `DevelopmentScenarioSeeder`'s `test-15-dkl-live` has a published
+Live board, linked participant/captain/co-captain accounts, approved/partial progress,
+pending/reversed/corrected review cases, and a waiting-list negative-role fixture.
+Reuse Events -> that event -> Board -> Drops and Admin -> Review with that event.
+Add only one deterministic pending contribution that completes a known tile; pin a
+non-drop objective from existing fixtures or add only the missing single objective
+needed for DA-07. Test data must also initialize tracking deliberately so seeded
+historical approvals don't swamp the first-arrival journey. Exact participant handles
+and fixture ids belong in the implementation preflight, not guessed links here.
+
+Pass order stands. Backend/shell passes are additive implementation stages, but neither
+is a complete independently deployable feature; pass 3 is the first complete release
+candidate. Existing capacity evidence accepted; no new load-test gate. Manual steps
+DA-01..09 are recorded in MANUAL_TEST_CHECKLIST but are not yet runnable acceptance.
+
 ## 1. Documentation consolidation
 
 1. **UI authority pass — complete:** `UI_SYSTEM.md` holds active global UI
@@ -1180,6 +1571,19 @@ Clarifications with no behavioral effect need no separate paperwork. Remediation
 cannot silently revise the baseline or settle an unresolved product decision.
 
 #### 4.2.1 Lean execution and planner handoff
+
+**Current temporary model policy (2026-09-16): Luna Max implementation and focused
+checks, then one independent Sol High review; Astra only for a concrete escalation.
+The former Astra workflow is CURRENTLY SUPERSEDED, retained for reference only.**
+Follow [the active policy](AGENTS.md#active-temporary-solluna-workflow--2026-09-16)
+over historical assignments here. No separate routine verifier or repeated full
+suite per small correction; applicable final release gates still apply.
+Use subagents with the direct review/callback routing in AGENTS.md. Dispatchers end
+their turn; no periodic progress polling or waits. Every worker sends a brief
+end-of-turn callback, including review/recheck handoffs; questions/blockers and user
+input may also resume the planner. Handoff updates are informational, not review
+passes. After handling an update, end the turn again. Visible tasks are optional
+only when requested, not required for this workflow.
 
 This is the reusable coordination procedure. Read it before dispatching work or
 resuming as planner; apply the assigned pass's gates without creating extra stages.
@@ -2755,3 +3159,712 @@ request, excludes recovery-checkout C05/C09, sweep/T05 and untracked tickets, an
 the actual validation and limitations without claiming an unrun second full suite or JS
 suite. No merge/deployment, app HTTPS7131 restart, production DB scan/repair, live
 provider calls or other external messages are authorized.
+
+## Ticket manual acceptance deferral — approved 2026-09-13
+
+The user defers the combined manual walkthrough until all ticket implementation
+and independent review work is complete. Mark cleared tickets Awaiting manual
+acceptance, explicitly retaining any separate blocker or data obligation. TICKETS
+owns outcomes and the deferral policy; CURRENT_STATUS owns the current handoff.
+This does not waive combined release gates or authorize new batches/publication.
+
+
+## 17. Stats production integration — proposed implementation plan (2026-09-15)
+
+### 17.1 Authorization, outcome and protected scope
+
+This pass prepares the implementation plan only. The user has approved the standalone
+Stats UI and the data decisions in PRODUCT_REQUIREMENTS.md §15.1 and catalogue API
+mapping scope in §9.4. Production implementation, migrations against user databases,
+packaging and publication are not authorized by this planning pass. UI_PAGE_MATRIX.md
+owns prototype approval; integrating it into Razor still requires production acceptance.
+
+Work from `/private/tmp/BingoWebpage-drop-announcements`, branch `drop-announcements`.
+Preserve the existing dirty checkout. Port the actual approved implementation under
+`prototypes/stats/outputs/`: Stats section markup and embedded styles from
+`stats-page-prototype.html`, `stats-density.css`, the rendering/interaction/animation
+code in `stats-prototype.js`, and required assets. These are implementation inputs,
+not inspiration for a replacement. UI_PAGE_MATRIX.md's Stats production port contract
+owns this explicit user requirement. Preserve sizing, overflow, typography, drilldowns,
+animations/timing, responsive behavior and artwork composition.
+
+Exclude the prototype header and masthead; use the app's existing shell. Remove the demo
+footer strip, sample labels/dates, event-size, milestone-stage, drop-preview and standalone
+theme controls. Adjust artwork is the only existing bottom control that stays, authorized
+for Super Admins. Keep the approved controls inside the Stats sections. Do not redesign
+or independently reimplement the UI from reference screenshots.
+
+Outcome: an event Stats page showing Drop value, Luck, Event milestones, Board progress
+and the blue summary cards using authoritative event data, plus the agreed catalogue
+mapping controls, account-saved Stats guidance preference and Super Admin artwork edits.
+No percentile/dry-streak feature, event price editor, quantity workflow, catalogue import
+UI, scoring change, extra diagonal lines or post-completion Luck cutoff.
+
+### 17.2 Existing owners and verified evidence
+
+- `Submission` and `SubmissionContribution` retain credited identity, submission time,
+  approval/reversal and weighted progress. Count an eligible approved submission once
+  for drops/GP; do not count its contribution amount as item quantity.
+- `PublicBoardService` and `PublicProgressCalculator` already project approved progress,
+  cap allocation and derive tile/row/column/board completion in submission order. Reuse
+  that calculation rather than creating a competing completion algorithm. Preserve
+  retained approval identities and the existing finalization/correction boundaries.
+- `CatalogueItem.ExternalIdentifier` and `BossActivity.ExternalIdentifier` already exist.
+  Item prices and event price snapshots do not. Catalogue editing is in the existing
+  Admin Catalogue page; extend its editor and `CatalogueSnapshotService` round-trip.
+- `WiseOldManClient` requests singular `metric=ehb` and extracts EHB only. The existing
+  synchronization service owns provider throttling, leases, generations and assignment
+  fingerprints; extend it rather than adding a second competition synchronization job.
+- A user-supplied browser response from competition 145197 verified plural requests
+  for EHB, Vorkath and Zulrah: all 93 participants had all three deltas. It also verified
+  the -1 sentinel shape. This does not verify every catalogue metric, mode overlap,
+  request-size limits or the legacy singular parameter. Do not commit participant data;
+  use synthetic contract fixtures. Terminal access encountered Cloudflare restrictions.
+- The current activity projection aggregates current playing-character assignments and
+  memberships. FUNCTIONAL_CONTRACTS.md §9.6 explicitly allows full competition deltas
+  from every regular PLAYING assignment, excluding informational alts. Preserve this
+  supplemental-activity scope; evidence still uses its separately retained active-account
+  credit. Do not invent a per-swap WOM interval reconstruction requirement.
+- Both manual and scheduled starts live in `EventLifecycleService`; each writes within
+  a serializable transaction and records `ActualStartedAt`. Both need the same snapshot
+  integration, including rollback/retry behavior.
+
+### 17.3 Ordered implementation passes
+
+**Pass 1 — catalogue mappings and usable item prices.**
+
+Extend existing source/item editors with the approved expandable API section: suggested,
+editable WOM metric / exact Wiki item ID, explicit validation and distinct unconfigured,
+verified, unsupported and temporarily unavailable states. Editing an identifier invalidates
+its prior verification. A provider outage does not block an otherwise valid save.
+Show the matched item identity so variants can be checked. Preserve shared-item semantics,
+authorization, audit and personal drop-rate assumptions.
+
+Add catalogue GP value, source/manual provenance and observation timestamps; zero remains
+a real value. Refresh API-backed values through a bounded bulk Wiki operation with a
+descriptive User-Agent on every Wiki API request, including mapping/validation and price
+fetches: `DKLegacy - Community bingo item pricing - Discord: @chrisschmidt` (user-selected value and contact). Do not use the
+HTTP library's default agent. The Wiki requires the descriptive agent; contact information
+is optional and must only use an operator-provided public contact. Include a request-header
+assertion in the HTTP contract tests. Apply bounded timeout/retry behavior. Preserve
+explicit manual values; default untradeables to zero. Extend existing operator snapshot tooling without adding an import
+page. Produce a coverage report for existing items and sources; never mutate a user-owned
+catalogue simply to validate the plan. New items require a fetched or entered value.
+
+Proof: synthetic HTTP success/partial/outage/invalid-ID cases, exact variant matching,
+manual-versus-API precedence, shared-item editor persistence/audit and snapshot round-trip.
+Rehearse additive migrations on an isolated PostgreSQL fixture. No live catalogue edit
+or deployment is part of this pass's checks.
+
+**Pass 2 — freeze event prices at start.**
+
+Implementation authorized by the user on 2026-09-15. Assigned to a separate GPT-6 Astra
+xhigh implementer; Pass 1 API-panel visual approval remains pending independently.
+
+User clarification, 2026-09-15: catch missing catalogue prices earlier, when adding a
+tile with an unpriced eligible drop. Explicit zero is valid. Objective tiles with no
+drops remain valid and must not be blocked by this rule. Preserve this prerequisite
+through board approval/publication validation, with focused mutation-boundary tests.
+Do not interpret this decision as approval to freeze permanently unavailable values.
+
+Store one immutable item-value snapshot per event/item with amount, selected hour and
+fallback/source provenance. Use the last completed UTC hour before actual start, midpoint
+of its buy/sell averages rounded to GP, one side when only one is present, otherwise the
+stored catalogue value. Zero must never be treated as missing. Prepare/cache provider
+responses outside lifecycle transactions; commit the selected snapshot atomically with
+both manual and scheduled starts. API failure uses the agreed catalogue fallback and
+must not introduce a new provider-dependent event-start blocker.
+
+Additional user-approved price protection: operator-checked initial prices establish
+trusted catalogue values. Later suspicious API candidates retain the last trusted value
+and are flagged, including at start-time selection. User approved the 0.5×–2× guard:
+strictly outside that positive-baseline band is rejected, exact boundaries accepted;
+positive↔zero changes are flagged. Preserve manual/untradeable precedence. Record candidate
+and time on the existing catalogue item and report through existing feedback/operator
+paths, separate from mapping validation. Rejected start candidates use trusted fallback
+with explicit rejection provenance. Test boundaries, zero transitions, missing baseline,
+trusted-value preservation and flag lifecycle. No manual frozen-event correction flow;
+volume/history sophistication is deferred. Snapshot immutability remains unchanged.
+
+Capture available values across existing catalogue items at start so later board
+corrections can reuse those frozen values. Unused legacy items with neither a usable API
+price nor a catalogue value do not block start and receive no invented price row.
+User clarification: any item without a frozen value introduced after start must have a
+stored catalogue value; freeze that value at introduction, including explicit zero.
+This applies equally to new identities and previously unused/unpriced identities.
+Do not recover an original-hour price for late introduction or retain a separate set of
+originally unpriced IDs. Record accurate source/introduction time. Retrying/resuming or
+catalogue changes must never replace a snapshot. No historical backfill during migration.
+
+Proof: UTC hour boundaries, delayed scheduled start, manual early start, rounding, partial
+prices, fallback, concurrent/repeated starts, transaction rollback and preservation after
+catalogue changes/resume. Extend lifecycle PostgreSQL tests, not just calculator tests.
+
+**Pass 2 implementation/review checkpoint — 2026-09-15.** Implementation and one
+independent Astra High source review plus the same-reviewer F1/F2 recheck passed.
+The named corrections clear stale rejection metadata on mapping changes and localize
+the missing-price readiness/failed-start outcome. Executed evidence: 75 focused integration
+and 28 pure pricing cases, followed by 12 named correction checks; Web Debug/Release and
+EF consistency pass. CURRENT_STATUS.md records exact evidence and the existing integration
+CA1310 exception. Catalogue outcome visual acceptance and initial operator-checked price
+population remain outstanding. No frozen Stats UI change, user DB apply, deployment or
+Pass 3 is included in this completed implementation/review boundary.
+
+**User visual-acceptance timing, 2026-09-15:** Consolidate a single user-facing checklist
+once all five passes are implemented, including earlier catalogue controls and price/action
+outcomes alongside the production Stats page. Do not require intermediate visual sign-off
+to continue authorized implementation. UI_PAGE_MATRIX.md owns deferred approval, and the
+existing Stats section of MANUAL_TEST_CHECKLIST.md owns the final checklist; automated
+checks and independent source review remain required per pass.
+
+**Pass 3 — cached WOM boss activity.**
+
+Implementation authorized on 2026-09-15 after Pass 2 independent review passed.
+A separate GPT-6 Astra xhigh implementer owns this pass. Full requested-metric coverage
+and exact mode-overlap verification are its initial execution gate; unverified sources
+remain unavailable until supported by evidence. No renewed broad readiness review is needed.
+
+Request EHB plus the distinct mapped metrics required by approved event objectives, using
+plural `metrics` parameters. Preserve existing EHB behavior and synchronization fencing.
+Retain each character/metric's start, end and gained values, upstream/fetch times and
+coverage status; ignore the response's heterogeneous `total`. Missing boss metrics must
+not discard usable EHB. Read from persisted cache, never fetch WOM on each Stats visit.
+
+Validate source mappings against supported metrics. In particular, establish whether
+raid normal/mode counts overlap and map them without counting the same completions twice.
+The saved catalogue currently lacks identifiers for Maggot King and Zalcano; validate
+those candidates rather than treating missing configuration as unsupported content.
+Respect configured personal probabilities and rolls: no second team-size division.
+
+Implement §15.1's ranked/unranked, zero, missing, estimated and stale-result rules exactly.
+Aggregate each participant's regular PLAYING accounts under FUNCTIONAL_CONTRACTS.md
+§9.6, excluding informational alts; retain the current assignment fingerprint and team
+membership safeguards. Evidence remains credited through the existing active-account
+rules. Full competition deltas are the established supplemental activity approximation;
+do not introduce per-swap snapshot requests or change evidence eligibility. Cover multiple
+regular accounts, swaps and assignment replacement in the focused regression fixtures.
+
+Proof: synthetic multi-metric response fixtures, absent metrics, every agreed -1 case,
+partial/failing provider, stale lease/generation, changed assignments and EHB regression.
+Use PostgreSQL synchronization tests for cache replacement and concurrent fencing.
+
+**Pass 3 implementation/source-review checkpoint — 2026-09-15.** Cached boss activity,
+first-approved basis/binding, source/assignment/generation fences and direct integration
+corrections are implemented. One independent Astra High source review passed with no
+scoped findings. Evidence: 69 unique integration/HTTP cases across the focused passing
+runs, 13 pure rules tests, Release Web and EF consistency; CURRENT_STATUS.md records the
+run union, corrected fixture failures and existing CA1310 exception. Full live requested-
+metric coverage and semantics for CoX/CM, ToB/HM, ToA/Expert, Gauntlet/Corrupted and
+Nightmare/Phosani remain unverified. These mode sources remain unavailable; this checkpoint
+is not full provider sign-off, visual acceptance or authorization to start Pass 4.
+
+**Pass 4 — Stats read model and calculations.**
+
+Authorized 2026-09-15, assigned to a separate GPT-6 Astra xhigh implementer. The user
+accepts deferring the outstanding real WOM request/mode-semantic checks until final
+acceptance; these do not block implementing/testing this pass against controlled contracts.
+Keep unverified source results unavailable and actual-batch coverage checks enforced.
+Provider verification remains required before enabling affected real Luck results; do not
+mark the deferred gates passed or treat synthetic fixtures as provider proof.
+
+Add a focused application Stats query contract and infrastructure projection. Reuse
+existing public event access and progress calculation; keep business calculations out
+of Razor/JavaScript. Read a consistent evidence/data version per response.
+
+- Drop value: one frozen price per qualifying submission; cumulative submission-time
+  totals, team/player shares and scoped valuable drops. Repeated tile eligibility and
+  progress weights must not multiply GP or drop counts.
+- Luck: deduplicate eligible item/source outcomes, sum `activity × rolls × probability`,
+  and apply the shared bounded probability-ranking score in PRODUCT_REQUIREMENTS.md
+  (user replacement, 2026-09-16). Pool count distributions, not scores. Carry estimated,
+  incomplete, waiting and update-time information alongside the value. A temporary WOM
+  failure retains the last successful calculation with its evidence/activity revisions;
+  do not combine a new numerator with an old denominator and label it current. A retained
+  result invalidated by an evidence reversal must not masquerade as current authority.
+- Board progress: use approved contribution history and existing capped completion rules,
+  rows plus columns, correct board dimensions and real totals. Preserve hover-time totals.
+- Milestones: derive first submission/tile/line/board, halfway and collective team
+  thresholds from those same projections. Start stays first; reached milestones sort
+  by submission-derived time with stable ties, remaining milestones keep default order.
+  Ended unreached milestones display Not reached. Use actual lifecycle start/end times.
+- Blue cards: derive the most frequent eligible item and distinct tiles contributed by
+  a player from approved evidence; use deterministic ties and retained artwork identity.
+
+Do not publish Stats as an alternative official placement calculation. Read finalized
+history through existing finalization semantics. Resolve unavailable historical data
+explicitly rather than fabricating timestamps, rates or prices.
+
+Proof: out-of-order approvals, reversal, duplicate eligibility, weighted submissions,
+multiple drops from one completion, multiple personal reward rolls, pooled team results,
+zero/missing activity, retained item identity, corrections and finalized history.
+Concrete math cases: 100 kills at 1/100 and one drop = 0%; 200 kills with eligible rates
+1/100 and 1/200 and four drops = +33.333…%; 100 kills with two 1/100 rolls and two drops
+= 0%. Verify the complete query with isolated PostgreSQL evidence, not only pure maths.
+
+**Pass 4 implementation/review checkpoint — 2026-09-15.** Stats projections, evidence
+revisions and compatible full Luck checkpoints are implemented. One independent Astra High
+source review found three P2 issues; the original implementer corrected tied-timestamp
+aggregate ordering, scheduled-end checkpoint capture and additive-approval stale retention.
+The SAME reviewer passed their bounded recheck with no remaining findings. Initial evidence
+is 55 unique PostgreSQL cases; 23 focused correction/direct-regression cases passed, with
+unaffected evidence reused. Release Web, EF consistency, scoped hashes and diff checks pass;
+CURRENT_STATUS.md records exact logs and the existing CA1310 integration exception.
+Provider/mode verification and consolidated visual acceptance remain deferred. The approved
+prototype is unchanged. Pass 5 was subsequently authorized below; packaging and deployment remain unauthorized.
+
+**Pass 5 — connect the approved UI and persistence controls.**
+
+Authorized on 2026-09-15 after Pass 4 independent review and same-reviewer recheck passed.
+A separate GPT-6 Astra xhigh implementer must port the actual approved source under the
+strict UI_PAGE_MATRIX.md contract. Provider checks and consolidated manual acceptance
+remain deferred to the completed implementation; no publication is authorized.
+
+Add the event-scoped Stats Razor route and shared event-navigation entry, following the
+existing event route/access conventions. Integrate the actual approved markup/CSS/JS
+as specified in §17.1; replace fixture inputs with safe DTOs containing real stable IDs,
+labels, dates and states. Necessary Razor, localization, authorization and persistence
+adaptations must preserve the approved UI. Record and agree any necessary visible or
+interaction deviation before implementing it. Retain team drilldown/back, top-five-plus-comparison,
+player search, bounded lists, sticky Luck comparison, scoped valuable drops, milestone
+filtering and Board progress inspection. Translate approved guidance to explain the
+current bounded probability-based Luck model and honest missing-data states without adding bulky rows.
+
+Approved real-data adaptation: Luck's shared bar denominator may grow from its minimum
+60 to the largest absolute score in the full current view (including comparison), so real
+outliers remain within the approved half-track. Keep exact labels, proportional lengths,
+section/row geometry and animations; no scroll-position-dependent scaling. UI_PAGE_MATRIX.md
+records the user's explicit approval of this one integration change.
+
+Save the page-level Hide tooltips preference on the authenticated account. Persist the
+approved per-item artwork adjustments with Super Admin-only writes and shared rendering.
+Reuse existing account preferences/settings storage where suitable; add narrowly scoped
+persistence only where no existing owner fits. Keep prototype-only controls out of the
+production page. Preserve reduced motion, interruption handling, keyboard access, both
+themes and section geometry; do not reintroduce click outlines rejected in the prototype.
+
+Proof includes an explicit source-to-production mapping of ported markup, styles,
+renderers and interactions, with a bounded list of integration changes. Review the actual
+port for omissions and rewrites; a reference link or passing data tests alone is not UI
+acceptance. Also verify route/navigation/access, scoped queries and search, refresh after
+approval or reversal, saved guidance across sessions, Super Admin artwork authorization,
+concurrency and persistence. Verify 2/3/4/5 teams, overflow at 8/15, narrow stacked layouts,
+empty/waiting states and real long names. User supplies visual acceptance; the current
+no-browser-automation restriction remains in force until explicitly changed.
+
+**Pass 5 implementation/review checkpoint — 2026-09-15.** The actual approved
+markup/CSS/JS/assets are ported into the production Stats route, with account guidance
+and Super Admin artwork persistence. The independent Astra High reviewer confirmed the
+source port and found four P2 integration issues; the original implementer corrected
+team/player identity, authoritative board completion, time-coordinate cache invalidation
+and asynchronous refresh/save fencing. The SAME reviewer passed their bounded recheck
+with no remaining named or direct-consequence findings. CURRENT_STATUS.md records exact
+source mapping and evidence: initial 20 PG/HTTP and 20 DOM/source cases; corrections
+3 PG/HTTP and 36 distinct DOM/source cases across the recorded runs; clean Web Release.
+The selected older navigation test's Board 404 remains documented, not conclusively
+labelled preexisting. All five implementation/source-review passes are complete.
+Consolidated production visual acceptance, live provider/mode verification, catalogue
+population and whole-slice release gates remain pending. No deployment is implied.
+
+### 17.4 Complexity budget and delivery gates
+
+Persistence ownership is now concrete in §17.7: extend existing catalogue/account/event
+owners and add four narrowly scoped record sets for event prices, event Luck outcome
+bases, character metric cache and last-valid event Luck checkpoint. This replaces the
+previous candidate-only budget; it does not authorize a generic analytics framework. Extend existing sync/lifecycle/
+catalogue owners, add one focused Stats query boundary, and one Stats page. No new queue,
+third-party chart framework, generic analytics platform or per-player scraping pipeline.
+All schema changes include EF migration, designer and model snapshot.
+
+The user-authorized independent Astra High readiness review is complete. After one
+bounded recheck of the three named findings, the same reviewer approved planning readiness
+with no residual blocker on 2026-09-15. No further broad readiness review is required.
+Pass 1/2 are ready for separately authorized implementation; Pass 3 retains its full-metric/
+mode contract gates before enabling affected sources; Pass 4/5 depend on those results.
+Keep restrictions on delegation and environment use. Promote approved concrete schema/route
+contracts to their existing data/functional/UI owners before their production edits.
+
+Each pass receives a bounded brief and focused executable gates at its affected boundary,
+then independent source review under §4.4. Use existing README commands and filtered test
+projects during development; run the applicable full solution/release gates before slice
+completion. Reuse passing evidence unless relevant code changes. No database reset, seed,
+provider write, app restart, packaging or publication is implied. Final acceptance includes
+the connected production page and the new catalogue/preference/artwork controls, not just
+the earlier prototype approval.
+
+### 17.5 Outstanding boundaries and next permitted action
+
+- **Historical import — resolved:** the user excludes retrospective Stats for the
+  reconstructed Sommerbingo import. Preserve its existing archived board/history; do not
+  manufacture item identities or derive actual drop counts from its contribution units.
+- **Items without a frozen value added after start — resolved:** require and freeze
+  their catalogue value at introduction. Zero is valid; missing blocks addition. Record
+  source/time accurately and preserve every existing event price snapshot.
+- **Technical checks, not another general design round:** verify all required mode
+  mappings and a full requested-metric response before enabling those Luck sources.
+  Step 11 live verification on 2026-09-16 returned all 71 supported boss metrics plus
+  EHB for all 93 participants in competition 145197. The user separately confirmed
+  exclusive KC totals for all five normal/alternate-mode pairs: use their own raw
+  deltas directly, without subtraction or combining. This resolves the mode decision
+  through explicit operator confirmation, not a claim that the API documentation
+  specifies those semantics. Removing the temporary mode gate is authorized.
+  Active-account attribution is resolved by the existing full-PLAYING-account contract.
+  If an actual mapping/request limitation remains, present that concrete limitation and
+  the smallest viable options before implementing the dependent behavior.
+
+The user authorized the readiness check with "Go ahead". Source findings and the
+first-pass brief are recorded below. Independent planning readiness is approved after the bounded recheck; production
+implementation remains pending authorization. The pricing/history choices are resolved. Do not
+reopen the approved visual design or the final Luck formula.
+
+
+### 17.6 Planner readiness findings — 2026-09-15
+
+Status: bounded source/data inspection completed; this is not an independent review or
+an all-passes readiness approval. No subagents were dispatched under the current delegation
+restriction. No production code, prototype files or user-owned database were modified.
+
+**Resolved and verified locally**
+
+- The source-controlled catalogue contains 68 sources, 311 items and 441 source drops.
+  All 311 item external identifiers are empty; 66 source identifiers are populated.
+  Consequently none of its items can currently join the numeric price-response keys.
+  This is a mapping prerequisite, not evidence that the API lacks those item prices.
+  These counts describe the saved JSON, not a scan of the deployed database.
+- The supplied hourly price JSON parses successfully: timestamp 1789470000 identifies
+  2026-09-15 11:00 UTC, 2,885 entries, 1,765 two-sided and 1,120 one-sided prices. No
+  negative/invalid price was found. Both-side, single-side and missing-item handling
+  remain necessary. The response proves the hourly shape, not historical retention or
+  catalogue coverage. Test fixtures must be small synthetic examples, not a wholesale
+  copy of changing market data.
+- All 441 saved drop rates have Participant scope; multiple-roll records exist, including
+  seven-roll outcomes. Tests must use expected count `n × rolls × p`; existing probability
+  of at-least-one helpers cannot substitute for this calculation.
+- FUNCTIONAL_CONTRACTS.md §9.6 resolves the account question: full deltas for regular
+  playing accounts are already permitted. Preserve that boundary and informational-alt
+  exclusion. No new per-swap provider synchronization is needed by this plan.
+- Historical import limitations extend beyond GP: reconstructed counters do not identify
+  actual drops. Never label synthetic imported timestamps as newly verified milestones
+  or derive real item statistics from weighted historical units.
+- Existing named `OsrsWiki` HTTP client targets the article API host and has a catalogue
+  dry-run User-Agent; `OsrsWikiImages` owns images. Add a specifically named price API
+  client for `prices.runescape.wiki/api/v1/osrs/`, using the exact approved header
+  `DKLegacy - Community bingo item pricing - Discord: @chrisschmidt`. Keep unrelated
+  image/article requests unchanged unless a direct integration requires their modification.
+  Verify the raw header value in a request test; .NET structured User-Agent parsing must
+  not force changes to the user-selected contact string.
+
+**Provider evidence and remaining executable contract check**
+
+[WOM competition details documentation](https://docs.wiseoldman.net/api/competitions/competition-endpoints)
+specifies plural metric parameters and per-metric deltas. The supplied three-metric
+response independently supports that shape. A retrieved cached upstream source revision
+still showed the older singular parameter; it is not reliable evidence of the currently
+deployed implementation or a numeric request limit. Use the documented plural request,
+preserve EHB explicitly, and verify every requested metric/participant before accepting
+a complete cache. Do not infer unlimited request sizes or automatically split across
+responses with incompatible upstream versions.
+
+The catalogue has distinct CoX/CM, ToB/HM, ToA/Expert, Gauntlet/Corrupted and Nightmare/
+Phosani identifiers. The current inspection did not establish all providers' mode-count
+semantics. This remains a named Pass 3 contract check; do not apply speculative subtraction
+or mark all source mappings verified from their names alone. A verified unsupported
+source must use the agreed unavailable state, not zero expected drops.
+
+**Concrete first-pass brief, prepared for implementation authorization**
+
+- Outcome: existing Admin Catalogue source/drop editors can store and validate the correct
+  provider identifiers and a usable per-item catalogue value, with accurate outage states.
+- Owners: `CatalogueItem`, `BossActivity`, their EF configurations, existing Admin Catalogue
+  page/model, `CatalogueSnapshotService`, the new price-client registration and focused
+  application/infrastructure integration boundary. Extend these owners; no replacement
+  editor, catalogue import UI, separate item-management page or pricing correction page.
+- Storage: reuse existing ExternalIdentifier fields; add nullable catalogue GP value
+  during migration plus price provenance/time and mapping verification metadata. Preserve
+  missing legacy prices as missing until populated; never migrate them all to zero. Keep
+  explicit-manual and API-backed values distinguishable. Mapping changes invalidate the
+  verification and any API-derived price association tied to the old ID; a shared item
+  must not retain the wrong variant's value silently.
+- Population: use the bulk mapping endpoint to propose exact names/IDs, then price once
+  per bulk response. Require explicit handling of ambiguous names/variants; no fuzzy
+  automatic match. Identify tradeability before choosing zero. Provide operator-readable
+  unresolved records and a retry path. No user-owned data mutation without authorization.
+- Minimum controlled fixtures: known mapped tradeable item, both-side and one-side hour,
+  absent tradeable price with existing fallback, untradeable zero, explicit manual value,
+  missing legacy value, ambiguous variant, unsupported boss, temporary provider failure,
+  shared item used by two sources and stale concurrent editor request.
+- Proof: exact User-Agent, response and validation status tests; pure midpoint/fallback
+  cases; isolated PostgreSQL save/audit/concurrency tests; additive migration and JSON
+  snapshot round-trip; existing personal probability/roll fields remain unchanged.
+  Existing Admin Catalogue visual composition must survive the bounded API-panel addition.
+- Stop: complete this connected catalogue behavior and its assigned checks/review only.
+  Do not begin event-start snapshots, Stats markup integration, packaging or deployment.
+
+The user resolved both product questions during readiness: retrospective Stats for the
+reconstructed import are excluded; the later user clarification now requires catalogue
+value at introduction for any item without a frozen event value, frozen once.
+PRODUCT_REQUIREMENTS.md §15.1 now owns these decisions. Add historical-route exclusion
+and late item introduction (catalogue value, zero/missing, concurrent retry,
+preservation of existing snapshots) to the affected Pass 2/5 checks. Independent readiness
+was pending at this planner checkpoint; the subsequently authorized independent review
+and bounded recheck approved readiness as recorded in §17.4. These source findings alone
+are not an execution pass.
+
+
+**Pass 1 implementation/review checkpoint — 2026-09-15.** Catalogue mappings,
+pricing, existing-editor API controls, additive migration, snapshot compatibility and
+operator report/apply support are implemented. One independent Astra xhigh source review
+and the same-reviewer F1–F3 recheck passed; the originating planner received and reconciled
+the verdict. CURRENT_STATUS.md records focused executable evidence and the unrelated
+whole-solution CA1310 limitation. UI_PAGE_MATRIX.md retains pending manual acceptance of
+the new API panels/action outcomes. The 311 saved catalogue item IDs remain unpopulated;
+no user-owned database apply or deployed coverage is claimed. Pass 2 and publication have
+not started and are outside this completed implementation/review assignment.
+
+### 17.7 Named readiness corrections and connected acceptance contract
+
+The one independent Astra High reviewer found three readiness gaps: ambiguous retained
+source/rate selection, incomplete cache fencing/checkpoint ownership, and missing connected
+fixtures/schema contract. The user subsequently chose **Keep the first approved event
+rate**. The same reviewer rechecked this reconciliation and approved readiness with no
+residual blocker on 2026-09-15. This is planning approval, not executable/visual acceptance.
+
+**Canonical Luck basis and projected fields (Pass 3/4).**
+
+Persist `EventLuckOutcomeBasis` keyed uniquely by `(EventId, SourceDropId, ItemIdSnapshot)`.
+The catalogue already enforces one SourceDrop per boss/item. Retain boss identity, first
+approval/drop snapshot identity and timestamp, probability, rolls and other applicable
+personal mechanics from that first approved snapshot. Never take a later mutable catalogue
+rate or choose max/latest among conflicting copies. Every duplicate reference contributes
+one outcome; evidence is deduplicated by submission ID. First eligibility before start is
+still the first approval, as selected by the user. A newly eligible outcome captures its
+own first approval. Removed/retained outcomes must retain their basis even when no longer
+active; use the approved board eligibility for the requested view without rewriting history.
+
+Retain the validated WOM metric with the event basis, not only a pointer to mutable source
+configuration. If initially unmapped, keep the outcome unavailable until a mapping is
+validated, then bind its first usable metric and advance the source revision. A later
+catalogue mapping edit applies to future bindings/events and never silently rewrites an
+existing event binding. No event mapping editor is added by this scope. Preserve provenance
+for any exceptional existing correction authority. Pass the frozen roll/mechanics fields
+through `BoardPublicationQueries` and its application DTO, which currently omit some fields.
+
+Basis creation belongs in the successful approval/publication transaction alongside the
+retained approval snapshot. On migration, do not initialize from whichever active duplicate
+is encountered first. Only a uniquely established earliest retained approval can initialize
+an existing supported event; conflicting earliest snapshots or missing identity produce an
+explicit unavailable basis requiring diagnosis, not guessed rates or double-counting.
+
+**Storage and concurrency owners.**
+
+| Owner | Stored state and boundary |
+| --- | --- |
+| Existing CatalogueItem / BossActivity | Existing external IDs; add price/provenance/time and validation metadata. Reuse existing entity concurrency tokens. CatalogueItem also owns bounded artwork transforms and their version/audit; no separate artwork table. |
+| Existing Account | Stats guidance-hidden boolean, default false; owner-only persistence using current account concurrency. No general preferences service/table. |
+| EventItemPrice | Unique `(EventId, ItemId)` with integer GP, original hour, observed/fallback source/time; immutable after insertion. Both lifecycle starts and late-item introduction transact against the event boundary and uniqueness constraint. |
+| EventLuckOutcomeBasis | Unique event/source/item key described above; retained first approved mechanics, metric binding and provenance. Changes that legitimately initialize an unavailable mapping advance the source revision. |
+| EventCompetitionCharacterMetricActivity | Unique `(EventId, Generation, OsrsCharacterId, Metric)` with start/end/gain, coverage/estimate state, activity batch and source-set revision. Existing EHB row/table remains its owner; missing boss metrics must not destroy EHB. |
+| EventStatsLuckCheckpoint | One current checkpoint per EventId, bounded structured payload of player/team received/expected/results/statuses plus evidence revision, activity batch/generation, assignment fingerprint, source/basis fingerprint and calculated/upstream times. It preserves a complete prior calculation, not an old denominator alone. |
+| Existing BingoEvent / EventCompetitionSynchronization | Add a Stats evidence revision to the event and source-request fingerprint/batch metadata to synchronization. Retain existing competition, generation, lease and assignment fencing. No second WOM job. |
+
+Four new record sets are justified above; no additional record sets or generic abstraction
+are implied. Every migration includes designer/model snapshot and isolated PostgreSQL
+rehearsal. JSON checkpoint payload schema is versioned and contains only existing public
+Stats identities/results; provider missing-account diagnostics remain Admin-only.
+
+A source-request fingerprint covers the active approval/outcome set, retained metric
+bindings and mechanics, including unmapped required outcomes. Capture it before a fetch,
+then recheck it with competition/generation/lease/assignments when committing and when
+reading. A response for an older board must not become a complete newer-board result.
+A complete EHB result can coexist with incomplete Stats metrics. A full metric test may
+remain a Pass 3 gate; it cannot be replaced by assuming the three-metric sample is complete.
+
+Checkpoint creation occurs after a successful compatible activity batch, or after an evidence
+change while that batch is still current and usable. Advance Stats evidence revision
+transactionally on relevant approval/reversal/correction writes; update the checkpoint only
+if its entire evidence/activity/source/assignment key still matches under the event write
+boundary. Use one consistent read snapshot and compare-and-write, preventing an older
+calculation overwriting a newer revision. On provider failure retain the checkpoint and
+its original times; indicate that it is stale. Reversal, incompatible source/assignment/
+competition change or finalization transition invalidates authoritative presentation of an
+old checkpoint. Do not show a superseded result as current or as a new calculation. Use the
+agreed waiting/incomplete state until a compatible result exists; do not add stale numerators
+to current denominators. These checks extend existing mutation/sync owners, not a new queue.
+
+Named PostgreSQL proofs: board/new objective during fetch; mapping binding during fetch;
+complete EHB but missing boss metric; stale checkpoint writer; approval then earlier approval;
+reversal during outage; account/competition replacement; duplicate outcome with later rate;
+finalization/archive and legitimate unfinalization preserving official completion semantics.
+Pass 2 additionally tests crossing a UTC hour between HTTP preparation and start commit:
+select the actual-start bucket or its catalogue fallback, never the previous prepared bucket
+as if it were the required one.
+
+**Route, handler and approved-code ownership (Pass 5).**
+
+`Pages/Events/Stats.cshtml(.cs)` owns `/Events/{slug}/Stats`, its read model and authenticated
+preference/artwork POST handlers (anti-forgery, owner/Super Admin authorization). Add Stats
+to shared event context/navigation, including `SharedShellService`'s explicit event-route
+recognition, without changing approved header/masthead composition. Use the existing public
+published-event access predicate; hidden/private/unpublished/unknown and excluded imported
+event routes must not leak data or fall back to the preferred event. Reuse the existing
+cancelled-event presentation rather than exposing statistics for a cancelled event.
+
+The actual `.gp-panel`, `.luck-panel`, `.repeat-drop-card`, `.timeline-panel`,
+`.versatile-card`, `.race-panel` and `#artwork-editor` markup/styles/renderer logic are port
+inputs. Source-to-production mapping must identify their destinations. Remove fixture-only
+bootstrap and event listeners for omitted demo controls, not the approved section behaviors.
+Specifically replace artwork's reads of `#drop-preview` with the real displayed item's
+stable ID and move necessary accessible feedback off `#sample-size-status`; remove
+unconditional initialization of absent event-size/stage/theme/header controls. Verify the
+page and artwork editor initialize with all excluded controls absent. Keep app theme state
+as input to the existing Stats colors/geometry. Do not restyle or rewrite interactions.
+
+**Minimum coexisting controlled fixtures and connected journeys.**
+
+Reuse `Vinterbingo 2026` (`test-15-dkl-live`), its existing SeedEvidenceCaptain,
+SeedEvidenceCoCaptain and SeedEvidenceParticipant, the bootstrap Super Admin and SeedAdminTwo.
+Reuse the private published-board setup `test-62-board-publication-setup` for the manual-start
+journey. Add only an isolated scheduled-start counterpart, hidden/unpublished/excluded-import
+access fixtures and the synthetic catalogue/price/activity states needed below. Never use
+real historical participants or the user's running database. Prepare isolated test stores
+or the already authorized Development fixture mechanism; do not run its destructive reset
+without separate authorization. Manual and scheduled starts must not depend on resetting
+one another; keep terminal finalization checks last, after Live interactions.
+
+| Pass / actor / entry | Connected journey and expected result | Next step / proof |
+| --- | --- | --- |
+| 1 / Admin / existing Catalogue source/drop editor | Edit mapping → validate → save → reopen shows exact identity/value/provenance. Missing/manual/zero/API/outage cases remain distinct. | Change shared item from a stale second editor: concurrency rejection; retry without losing personal rates. HTTP + PostgreSQL, then manual panel acceptance. |
+| 2 / Super Admin / event Manage; scheduler / due-start worker | Manual start and separate scheduled start freeze the actual-start hour atomically; one-sided/missing prices use defined fallback. | Change catalogue prices and introduce a new item: existing values stay fixed; late item freezes its required catalogue value at introduction. Rollback/retry/concurrent start proofs in PostgreSQL. |
+| 5 / anonymous, ordinary account / existing event navigation and direct Stats URL | Published supported event shows the approved Stats UI; refresh/deep link resolves same event. Hidden/private/unpublished/unknown and excluded import reveal no Stats. | Anonymous mutation denied; signed-in preference changes affect only owner. Access integration plus user visual walkthrough. |
+| 3/4/5 / Captain submission flow → Admin Review → Stats | Submit two eligible items, approve later-time first then earlier-time: GP/progress/milestones use submission chronology; reverse and refresh consistently. Weighted progress does not multiply item count. | Inspect each scope, chart hover-time and valuable drops; compare retained progress calculator, then outage/retry states. PostgreSQL query and manual interaction checks. |
+| 3/4 / synthetic provider + Admin board correction | Pending fetch → add objective/rate-duplicate → old response cannot satisfy new source set. Outage retains only a compatible labelled checkpoint; reversal invalidates current presentation. | Retry complete batch: correct unranked/estimated/zero/missing state and pooled Luck. No API write or real participant fixture. |
+| 4/5 / Admin lifecycle → archived Stats | Correct approved evidence, finalize then archive in existing supported lifecycle; Stats completion agrees with retained official semantics. Legitimate unfinalization follows existing authority. | Old price/rate identities stay retained; invalidated results refresh without fabricating imported history. Integration test and final manual lifecycle step. |
+| 5 / ordinary account / page guidance | Hide guidance → leave/revisit/sign in again: preference retained. Another account is unaffected. | Reopen/show through approved in-section controls; default/missing preference shows guidance. Owner-write and manual persistence checks. |
+| 5 / Super Admin / Adjust artwork | Open actual displayed item, drag/scale/rotate; Cancel changes nothing, Save persists, Reset follows existing editor semantics. | Reload and another viewer see saved artwork; ordinary-user forged POST denied, stale saves controlled. PostgreSQL + user visual comparison. |
+
+Catalogue fixtures include one shared item/two sources, exact variant ambiguity, untradeable,
+manual/zero/missing values and one-/two-sided/absent prices. Stats fixtures include two regular
+accounts for a participant plus an informational alt, duplicate item/source across tiles,
+a later conflicting rate copy, two drops from one completion, weighted contribution,
+zero and -1 source activity, missing metric, late approval and reversal. Team-count and
+long-name visual variants use controlled inputs; do not add production density selectors.
+No production acceptance is marked passed by specifying these fixtures. The manual sequence
+is mirrored in MANUAL_TEST_CHECKLIST.md's Stats section and remains unexecuted.
+
+## 18. Tile KC/Luck sidebar addition — approved 2026-09-16
+
+### Outcome and boundaries
+
+Add one section to the existing team tile sidebar using TeamBoard's EHB/Drop EHB
+markup and scoped shared visual rules. Team summary: Team total, Luck, KC. Expandable
+Contributors: Luck, participant name, KC. Label separate boss/mode counts when a tile
+has multiple relevant metrics; do not add a combined heterogeneous KC total. The
+user chose only drops credited to the selected tile for Luck's received numerator.
+PRODUCT_REQUIREMENTS.md section 15.1 and the functional tile contract own calculations.
+
+Reuse existing cached metric/Luck owners in PublicStatsService and the public board
+publication projection. Cover initial and enhanced TeamBoard tile rendering plus the
+shared inactive Tile scaffold with one presentation. Direct tile URLs are owned by
+TeamBoard; Tile.cshtml has no registered route and must not gain one. Starting owners: Application Stats/Boards
+contracts, Infrastructure Stats/PublicBoardService/BoardPublicationQueries, Events
+TileSidebarView/_TileSidebar/TeamBoard/Tile and site.public-ui.css. Extend only directly
+required dependencies; no provider fetch on click, new tables/services/jobs, migrations,
+whole-site styling, Stats card tie redesign or unrelated fixes. Existing approved UI,
+authorization, event history, prices, snapshots and submission/evidence behavior remain
+protected. Current user-supplied AGENTS supersedes historical local ticket trial rules.
+
+Tile/team calculations may extend the existing Luck checkpoint JSON with optional
+results so retained tile received/expected/KC values stay from one coherent snapshot.
+Existing checkpoints without tile attribution use a currently usable activity batch
+or show waiting for activity data; never reconstruct a stale tile numerator from fresh
+evidence. This compatibility decision adds no table/migration and must preserve existing
+event Luck behavior and read-only page access.
+
+### Execution and checks
+
+One fresh Astra xhigh implementer owns the connected addition and focused executable
+checks. A separate fresh Astra high reviewer checks the exact addition against its
+pre-change snapshot, including direct consumers. Planner owns scope and reconciliation;
+no planner production edits or self-review. No readiness review or repeated walkthrough.
+
+Focused checks must distinguish tile-only received counts, multiple eligible outcomes
+sharing one metric, separate boss/mode counts, multiple playing accounts and excluded
+informational alts, pooled Luck, missing/unranked/estimated activity, stale evidence
+coherence, reversal/correction and no-drop objectives. Reuse existing tests where they
+cover unchanged rules. Exercise PostgreSQL-backed query behavior and real HTTP nested,
+and enhanced sidebar routes, including direct reload and public visibility. Execute contributor
+expansion/keyboard behavior in browser where available. Check scoped CSS/diff and Release
+build. Report environmental blockers accurately without repeating failed commands.
+
+User visual acceptance applies only to the new section, using the supplied screenshot
+and current EHB/Drop EHB composition; existing page approval remains intact. Stop at
+this addition's review/acceptance boundary. No staging, commit, push, deployment,
+fixture refresh or other pass. Runtime uses http://127.0.0.1:5189; preserve its private
+environment and controlled database. Coordinate any necessary application restart with
+the planner after checks, without resetting/reseeding data.
+
+### Section 18 implementation checkpoint — 2026-09-16
+
+The fresh Astra xhigh implementer completed the addition and 16 focused PostgreSQL/HTTP
+cases passed. Fresh Astra high source review found one scoped CSS specificity defect;
+the implementer corrected it and the same reviewer cleared the named recheck. Planner
+browser checks passed contributor click/Enter/Space, enhanced tile switching/Back and
+desktop/mobile computed spacing/rendering. UI_PAGE_MATRIX.md retains user visual acceptance
+as pending. Evidence/commands and runtime are recorded in CURRENT_STATUS.md's active handoff.
+Production Release compiled; strict solution build still hits pre-existing CA1310 in
+navigation tests, unchanged by this addition. Focused test builds downgraded only CA1310.
+No packaging, deployment or next pass was performed or authorized.
+
+### Tile KC/Luck visual correction — user directed 2026-09-16
+
+The initial new section's appearance was not accepted. Copy the existing Drop EHB/EHB
+row typography, spacing, dividers and number styling directly. Summary row is just
+TEAM TOTAL / signed Luck percentage / green numeric count; contributor rows replace
+01/02 rank with signed Luck percentage, then player name and green +count. No visible
+Luck label below the percentage, no KC suffix and no repeated boss name in single-metric
+rows. Zero and positive Luck are green; displayed negative values (-1% and below) keep
+the existing negative color. Keep a zero count numeric, not missing. Missing/estimated/
+stale status remains honest. Multiple boss/mode counts remain separate, with labels
+outside the numeric cells only where needed to distinguish the metrics. No calculation,
+query, checkpoint, route or account attribution changes. Reuse the existing team rail
+classes; only layout accommodation for wider percentage rank is permitted. Scoped
+source/cascade/diff verification and Razor build/affected HTTP render suffice; preserve
+previous backend evidence. User visual acceptance remains pending after this correction.
+
+The visual correction is implemented in the two scoped UI files. Fresh Astra xhigh
+implementation and fresh Astra high focused review completed; no remaining source
+findings. Web Release/Razor build, shared-style parity/diff checks and 13 .NET formatting
+cases passed. Planner reloaded the preview and confirmed the requested simple rows/colors
+and disclosure in a live render. User acceptance remains pending; backend evidence is
+retained without another broad pass. Evidence paths are in CURRENT_STATUS.md.
+
+User accepted corrected styling ("Looks great") and requested only section order:
+place Eligible drops immediately above KC & Luck without changing either section's
+styling. Move the existing `_TileActivity` partial after the eligible-drops block and
+before Approved submissions; preserve all other behavior. Scoped diff/order check and
+Razor build suffice; no new tests or renewed broad review.
+
+Section reorder completed with exactly one partial relocation. Focused source recheck,
+Web Release/Razor build and live route order check passed; styles and calculations are
+unchanged. User's preceding styling acceptance remains recorded in UI_PAGE_MATRIX.md.
+
+Tile contributor filtering — user directed 2026-09-16: only show contributors whose
+KC is known and > 0 in the displayed boss/mode group. No empty group headings or
+empty Contributors disclosure. Apply in presentation only; preserve summary totals,
+Luck, uncertainty semantics, accepted styling and section order. Use one focused
+executable render check for positive/zero/unknown and multi-metric filtering, Web
+Razor build, and bounded functionality/source review; no subjective UI review or broad
+backend rerun. User owns appearance acceptance.
+
+User verification direction (2026-09-16): **Do not browser inspect.** For this work,
+finish with code/build checks and automated functionality tests. User supplies UI
+inspection; no agent browser walkthrough or subjective visual review.
+
+Stale tile-data correction — user directed 2026-09-16: stale activity must retain
+last-known compatible KC and contributors, with the stale timestamp. This also applies
+to legacy event checkpoints that lack tile projections. Reconstruct a tile Luck score
+from retained data only when evidence revision and the existing compatibility checks
+prove a coherent numerator/denominator; otherwise retain KC and explicitly mark tile
+Luck unavailable while awaiting a coherent update. Do not clear known KC simply because
+freshness expired. Preserve reversal/assignment/source/lifecycle invalidation, team and
+metric scoping, and read-only page access. No fixture/provider refresh is a substitute
+for this correction. No browser inspection; use focused executable functionality tests.

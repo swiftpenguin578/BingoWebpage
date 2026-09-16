@@ -262,6 +262,142 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.IsType<RedirectToPageResult>(collisionResult);
         Assert.Equal("discord-new", await db.Accounts.AsNoTracking().Where(item => item.Id == account.Id).Select(item => item.DiscordUserId).SingleAsync());
         Assert.Equal("That Discord account is already linked.", collisionModel.TempData["StatusMessage"]?.ToString());
+        Assert.Null(collision.Authentication.LastSignedInPrincipal);
+        Assert.IsType<RedirectToPageResult>(await successModel.OnGetAsync(null, CancellationToken.None));
+        Assert.Equal("Your Discord linking session expired. Please try again.", successModel.TempData["StatusMessage"]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SettingsDiscordLinkAndReplaceKeepPasswordSessionSemantics(bool alreadyLinked)
+    {
+        Guid accountId;
+        ClaimsPrincipal priorSession;
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            var account = Website("settings-discord-purpose");
+            if (alreadyLinked) account.SetDiscordIdentity("previous-discord", "Previous");
+            seed.Accounts.Add(account);
+            await seed.SaveChangesAsync();
+            accountId = account.Id;
+            priorSession = new AccountAuthenticationService(seed, passwords, time).CreatePrincipal(account, "discord");
+        }
+
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
+            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .UseSetting("DiscordAuthentication:ClientId", "test-client")
+            .UseSetting("DiscordAuthentication:ClientSecret", "test-secret")
+            .ConfigureServices(services => services.PostConfigure<Microsoft.AspNetCore.Authentication.OAuth.OAuthOptions>("Discord", oauth => oauth.Backchannel = new HttpClient(new RecoveryDiscordBackchannel(false)))));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
+        var login = await client.GetStringAsync("/Account/Login");
+        using var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = "settings-discord-purpose",
+            ["Input.Password"] = "long-test-password",
+            ["__RequestVerificationToken"] = Token(login)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
+        var settings = await client.GetStringAsync("/Account/Settings");
+        using var denied = await client.PostAsync("/Account/Settings?handler=BeginLink", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["CurrentPassword"] = "wrong-password",
+            ["__RequestVerificationToken"] = Token(settings)
+        }));
+        Assert.Equal(HttpStatusCode.OK, denied.StatusCode);
+        Assert.Contains("The current password is incorrect.", await denied.Content.ReadAsStringAsync());
+        using var begin = await client.PostAsync("/Account/Settings?handler=BeginLink", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["CurrentPassword"] = "long-test-password",
+            ["__RequestVerificationToken"] = Token(settings)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, begin.StatusCode);
+        var purpose = alreadyLinked ? "replace" : "link";
+        Assert.Equal(purpose, Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(client.BaseAddress!, begin.Headers.Location!).Query)["purpose"]);
+        using var challenge = await client.GetAsync(begin.Headers.Location!);
+        var state = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(challenge.Headers.Location!.Query)["state"].ToString();
+        using var callback = await client.GetAsync($"/Account/DiscordCallback?code=test-code&state={Uri.EscapeDataString(state)}");
+        using var complete = await client.GetAsync(callback.Headers.Location!);
+        Assert.Equal("/Account/Settings", complete.Headers.Location?.OriginalString);
+        var cookie = complete.Headers.GetValues("Set-Cookie").Single(value => value.StartsWith("Bingo.Auth=", StringComparison.Ordinal)).Split(';')[0]["Bingo.Auth=".Length..];
+        var cookieOptions = factory.Services.GetRequiredService<Microsoft.Extensions.Options.IOptionsMonitor<CookieAuthenticationOptions>>().Get(CookieAuthenticationDefaults.AuthenticationScheme);
+        var ticket = cookieOptions.TicketDataFormat.Unprotect(cookie);
+        Assert.NotNull(ticket);
+        Assert.Equal("password", ticket.Principal.FindFirstValue(Bingo.Application.Access.AccountClaims.AuthenticationMethod));
+        Assert.NotNull(ticket.Principal.FindFirstValue(Bingo.Application.Access.AccountClaims.PasswordVersion));
+        Assert.Contains(alreadyLinked ? "Your linked Discord account was replaced." : "Your Discord account is linked.", await client.GetStringAsync("/Account/Settings"));
+
+        await using var verify = new ApplicationDbContext(options);
+        var saved = await verify.Accounts.SingleAsync(account => account.Id == accountId);
+        Assert.Equal("recovery-discord", saved.DiscordUserId);
+        var transition = Assert.Single(await verify.AccountDiscordIdentityTransitions.Where(item => item.AccountId == accountId).ToListAsync());
+        Assert.Equal(alreadyLinked ? "replaced" : "linked", transition.Action);
+        Assert.Equal(alreadyLinked ? "previous-discord" : null, transition.PreviousDiscordUserId);
+        Assert.Equal("recovery-discord", transition.NextDiscordUserId);
+        Assert.Equal($"account.discord_{transition.Action}", await verify.AuditEntries.Where(item => item.ActorAccountId == accountId).Select(item => item.Action).SingleAsync());
+        Assert.Null((await ValidateCookieAsync(verify, priorSession)).Principal);
+        Assert.NotNull((await ValidateCookieAsync(verify, ticket.Principal)).Principal);
+        var ordinaryDiscord = new AccountAuthenticationService(verify, passwords, time).CreatePrincipal(saved, "discord");
+        saved.SetPassword(passwords.HashPassword(saved, "replacement-password"), false, time.GetUtcNow());
+        await verify.SaveChangesAsync();
+        Assert.Null((await ValidateCookieAsync(verify, ticket.Principal)).Principal);
+        Assert.NotNull((await ValidateCookieAsync(verify, ordinaryDiscord)).Principal);
+
+        static string Token(string html) => Regex.Match(html, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
+    }
+
+    [Theory]
+    [InlineData("success", false)]
+    [InlineData("success", true)]
+    [InlineData("disabled", true)]
+    [InlineData("failed", true)]
+    public async Task DiscordLoginPersistsOnlyAcceptedLoginTimeAndAccountsProjection(string outcome, bool hasPreviousLogin)
+    {
+        var clock = new MutableTimeProvider(new DateTimeOffset(2026, 9, 13, 10, 0, 0, TimeSpan.Zero));
+        DateTimeOffset? previousLogin = hasPreviousLogin ? clock.GetUtcNow().AddDays(-1) : null;
+        Guid accountId;
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            var account = Website("discord-login-timestamp");
+            account.SetDiscordIdentity("timestamp-discord", "Timestamp");
+            if (previousLogin is { } previous) account.RecordLogin(previous);
+            if (outcome == "disabled") account.Disable(clock.GetUtcNow());
+            seed.Accounts.Add(account);
+            await seed.SaveChangesAsync();
+            accountId = account.Id;
+        }
+
+        var external = new RecordingAuthenticationService("timestamp-discord", null, Guid.Empty, null, outcome != "failed");
+        var context = new DefaultHttpContext
+        {
+            RequestServices = new ServiceCollection()
+            .AddSingleton<IAuthenticationService>(external).AddSingleton<IUrlHelperFactory, UrlHelperFactory>().BuildServiceProvider()
+        };
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        await using (var callbackDb = new ApplicationDbContext(options))
+        {
+            var callback = CallbackModel(callbackDb, new AccountAuthenticationService(callbackDb, passwords, clock), new AccountIdentityService(callbackDb, passwords, clock), context, new DiscordLinkStateService(cache, clock));
+            var result = await callback.OnGetAsync("/Account/MyEvents", CancellationToken.None);
+            if (outcome == "success")
+            {
+                Assert.Equal("/Account/MyEvents", Assert.IsType<LocalRedirectResult>(result).Url);
+                Assert.Equal("discord", external.LastSignedInPrincipal?.FindFirstValue(Bingo.Application.Access.AccountClaims.AuthenticationMethod));
+            }
+            else
+            {
+                Assert.Equal("Login", Assert.IsType<RedirectToPageResult>(result).PageName);
+                Assert.Null(external.LastSignedInPrincipal);
+                Assert.Equal("Discord sign-in was cancelled or failed. Please try again.", callback.TempData["StatusMessage"]);
+            }
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var expected = outcome == "success" ? clock.GetUtcNow() : previousLogin;
+        Assert.Equal(expected, await verify.Accounts.Where(account => account.Id == accountId).Select(account => account.LastLoginAt).SingleAsync());
+        var overview = new Bingo.Web.Pages.Admin.Accounts.IndexModel(verify) { WebsiteSearch = "discord-login-timestamp" };
+        await overview.OnGetAsync(CancellationToken.None);
+        Assert.Equal(expected, Assert.Single(overview.WebsiteAccounts).LastLoginAt);
+        Assert.Empty(await verify.AuditEntries.ToListAsync());
     }
 
     [Fact]
@@ -719,7 +855,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var eventId = emergencyEvent.Id;
         var teamId = Guid.NewGuid();
         var access = new AccountEventAccess(Guid.NewGuid(), emergency.Id, eventId, teamId, null, null, null, time.GetUtcNow().AddDays(1));
-        db.AddRange(admin, emergency, emergencyEvent);
+        db.AddRange(admin, emergency, emergencyEvent, new Team(teamId, eventId, "Emergency scope team", "emergency-scope-team", TeamFormationType.Drafted, null, true));
         db.AccountEventAccesses.Add(access);
         await db.SaveChangesAsync();
         var identities = new AccountIdentityService(db, passwords, time);
@@ -911,7 +1047,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         ev.EndEvent();
         var access = new AccountEventAccess(Guid.NewGuid(), emergency.Id, ev.Id, Guid.NewGuid(), null, ev.EventStartsAt, ev.SubmissionCutoffAt, null);
         access.Enable();
-        db.AddRange(admin, emergency, ev, access);
+        db.AddRange(admin, emergency, ev, access, new Team(access.TeamId, ev.Id, "Emergency lifecycle team", "emergency-lifecycle-team", TeamFormationType.Drafted, null, true));
         await db.SaveChangesAsync();
 
         var lifecycle = new EmergencyCredentialLifecycleService(db, clock);
@@ -1047,6 +1183,63 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Contains("Imbued heart", manual.Description, StringComparison.Ordinal);
         Assert.Empty(await db.BoardRequirementDropSnapshots.Where(item => item.RequirementId == manual.Id).ToListAsync());
 
+        var seededPending = await (from submission in db.Submissions
+                                   join tile in db.BoardTiles on submission.BoardTileId equals tile.Id
+                                   where submission.EventId == live.Id
+                                         && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending
+                                         && tile.NameSnapshot == "Superior Slayer"
+                                   select submission).SingleAsync();
+        Assert.Equal(manual.Id, seededPending.RequirementId);
+        Assert.Equal(4, seededPending.ClaimedWeight);
+        Assert.Equal("DA-07 pending non-drop completion: Superior Slayer.", seededPending.CaptainNote);
+
+        var pendingSubmissions = await db.Submissions
+            .Where(item => item.EventId == live.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending)
+            .ToListAsync();
+        Assert.Equal(15, pendingSubmissions.Count);
+        var validPendingScopes = await (from submission in db.Submissions
+                                        join tile in db.BoardTiles on submission.BoardTileId equals tile.Id
+                                        join board in db.Boards on tile.BoardId equals board.Id
+                                        join requirement in db.BoardRequirementSnapshots on submission.RequirementId equals requirement.Id
+                                        join team in db.Teams on submission.TeamId equals team.Id
+                                        join participant in db.EventParticipants on submission.CreditedParticipantId equals participant.Id
+                                        where submission.EventId == live.Id && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending
+                                              && board.EventId == live.Id && requirement.BoardTileId == tile.Id
+                                              && team.EventId == live.Id && participant.EventId == live.Id
+                                              && db.EvidenceAssets.Any(asset => asset.SubmissionId == submission.Id && asset.Active && asset.Role == Bingo.Domain.Evidence.EvidenceAssetRole.OriginalEvidence)
+                                              && (requirement.ManualObjective
+                                                  ? submission.DropSnapshotId == null
+                                                  : submission.DropSnapshotId != null && db.BoardRequirementDropSnapshots.Any(drop => drop.Id == submission.DropSnapshotId && drop.RequirementId == requirement.Id))
+                                        select submission.Id).Distinct().ToListAsync();
+        Assert.Equal(15, validPendingScopes.Count);
+
+        var firstTeam = await db.Teams.Where(team => team.EventId == live.Id).OrderBy(team => team.DraftPosition).FirstAsync();
+        var pendingByTile = await (from submission in db.Submissions
+                                   join tile in db.BoardTiles on submission.BoardTileId equals tile.Id
+                                   where submission.EventId == live.Id && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending
+                                   select new { submission, tile.NameSnapshot }).ToListAsync();
+        var da07 = pendingByTile.Single(item => item.NameSnapshot == "Superior Slayer").submission;
+        var linkedAraxxor = pendingByTile.Single(item => item.submission.ResubmissionOfSubmissionId != null).submission;
+        var vorkath = pendingByTile.Single(item => item.NameSnapshot == "Vorkath").submission;
+        var hydra = pendingByTile.Single(item => item.NameSnapshot == "Alchemical Hydra").submission;
+        var partial = pendingByTile.Single(item => item.NameSnapshot == "Phosani's Nightmare").submission;
+        Assert.All(new[] { da07, linkedAraxxor, vorkath, hydra }, submission => Assert.Equal(firstTeam.Id, submission.TeamId));
+
+        var admin = await db.Accounts
+            .Where(account => account.GlobalRole == GlobalRole.SuperAdmin && account.DisabledAt == null)
+            .OrderBy(account => account.CreatedAt)
+            .FirstAsync();
+        var submissionService = new Bingo.Infrastructure.Evidence.SubmissionService(db, new SeedEvidenceStorage(), clock);
+        foreach (var submission in new[] { da07, linkedAraxxor, vorkath, hydra, partial })
+            await submissionService.ApproveAsync(submission.Id, admin.Id);
+
+        db.ChangeTracker.Clear();
+        var approvedFixtures = await db.Submissions
+            .Where(submission => new[] { da07.Id, linkedAraxxor.Id, vorkath.Id, hydra.Id, partial.Id }.Contains(submission.Id))
+            .ToDictionaryAsync(submission => submission.Id);
+        Assert.All(new[] { da07.Id, linkedAraxxor.Id, vorkath.Id, hydra.Id }, id => Assert.True(approvedFixtures[id].CompletedTileAtApproval));
+        Assert.False(approvedFixtures[partial.Id].CompletedTileAtApproval);
+
         var approvalRequirementIds = await (from requirement in db.BoardApprovalRequirementSnapshots
                                             join tile in db.BoardApprovalTileSnapshots on requirement.ApprovalTileSnapshotId equals tile.Id
                                             join approval in db.BoardApprovalSnapshots on tile.ApprovalSnapshotId equals approval.Id
@@ -1174,7 +1367,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             Assert.Equal(EventState.AwaitingFinalReview, readiness.State);
             foreach (var teamId in readiness.Placements.Where(item => item.BoardComplete).Select(item => item.TeamId).ToList())
             {
-                await finalization.AcknowledgeCompletionTimeAsync(test84ForReopen.Id, teamId, admin.Id, readiness.EventVersion, readiness.ReviewCycleId);
+                await finalization.AcknowledgeCompletionTimeAsync(test84ForReopen.Id, teamId, admin.Id, readiness.EventVersion, readiness.ReviewCycleId, expectedInspectionKey: readiness.Blockers.Single(x => x.TeamId == teamId && x.IsCompletionTimeAcknowledgement).Key);
                 readiness = await finalization.GetReadinessAsync(test84ForReopen.Id) ?? throw new InvalidOperationException("TEST 84 readiness was not available after acknowledging completion.");
             }
             foreach (var tie in readiness.Blockers.Where(item => item.CanOverride && !item.IsCompletionTimeAcknowledgement).ToList())
@@ -1444,10 +1637,10 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         await db.SaveChangesAsync();
         var administration = new AccountAdministrationService(db, passwords, time);
 
-        await administration.GrantAdminAsync(owner.Id, target.Id, CancellationToken.None);
-        await administration.RevokeAdminAsync(owner.Id, target.Id, CancellationToken.None);
-        await administration.DisableAsync(owner.Id, target.Id, "test disable", CancellationToken.None);
-        await administration.RestoreAsync(owner.Id, target.Id, CancellationToken.None);
+        await administration.GrantAdminAsync(owner.Id, target.Id, target.AuthorizationVersion, CancellationToken.None);
+        await administration.RevokeAdminAsync(owner.Id, target.Id, target.AuthorizationVersion, CancellationToken.None);
+        await administration.DisableAsync(owner.Id, target.Id, "test disable", target.AuthorizationVersion, CancellationToken.None);
+        await administration.RestoreAsync(owner.Id, target.Id, target.AuthorizationVersion, CancellationToken.None);
 
         var notifications = await db.PersonalNotifications.Where(x => x.RecipientAccountId == target.Id).OrderBy(x => x.CreatedAt).ToListAsync();
         Assert.Equal(3, notifications.Count);
@@ -1677,11 +1870,11 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         }
 
         var beforeGrant = authentication.CreatePrincipal(target);
-        await administration.GrantAdminAsync(owner.Id, target.Id, CancellationToken.None);
+        await administration.GrantAdminAsync(owner.Id, target.Id, target.AuthorizationVersion, CancellationToken.None);
         await AssertStaleSessionGetsAccessChangedOutcome(beforeGrant);
 
         var beforeRevoke = authentication.CreatePrincipal(target);
-        await administration.RevokeAdminAsync(owner.Id, target.Id, CancellationToken.None);
+        await administration.RevokeAdminAsync(owner.Id, target.Id, target.AuthorizationVersion, CancellationToken.None);
         await AssertStaleSessionGetsAccessChangedOutcome(beforeRevoke);
 
         var ownerSession = authentication.CreatePrincipal(owner);
@@ -1699,7 +1892,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task FailedNotificationPersistenceRollsBackAdminMutation()
     {
-        async Task AssertRollback(GlobalRole initialRole, bool active, Func<AccountAdministrationService, Guid, Guid, Task> mutate)
+        async Task AssertRollback(GlobalRole initialRole, bool active, Func<AccountAdministrationService, Guid, Account, Task> mutate)
         {
             var failingOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(new ThrowOnNotificationInsert()).Options;
             await using var db = new ApplicationDbContext(failingOptions);
@@ -1713,15 +1906,15 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             var target = Website($"slice1-rollback-target-{Guid.NewGuid():N}", initialRole);
             if (!active) target.Disable(time.GetUtcNow());
             db.Add(target); await db.SaveChangesAsync();
-            await Assert.ThrowsAsync<InvalidOperationException>(() => mutate(new AccountAdministrationService(db, passwords, time), owner.Id, target.Id));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => mutate(new AccountAdministrationService(db, passwords, time), owner.Id, target));
             db.ChangeTracker.Clear();
             var unchanged = await db.Accounts.SingleAsync(x => x.Id == target.Id);
             Assert.Equal(initialRole, unchanged.GlobalRole); Assert.Equal(active, unchanged.Active);
             Assert.Empty(await db.PersonalNotifications.Where(x => x.RecipientAccountId == target.Id).ToListAsync());
         }
-        await AssertRollback(GlobalRole.User, true, (service, actor, target) => service.GrantAdminAsync(actor, target, CancellationToken.None));
-        await AssertRollback(GlobalRole.Admin, true, (service, actor, target) => service.RevokeAdminAsync(actor, target, CancellationToken.None));
-        await AssertRollback(GlobalRole.User, false, (service, actor, target) => service.RestoreAsync(actor, target, CancellationToken.None));
+        await AssertRollback(GlobalRole.User, true, (service, actor, target) => service.GrantAdminAsync(actor, target.Id, target.AuthorizationVersion, CancellationToken.None));
+        await AssertRollback(GlobalRole.Admin, true, (service, actor, target) => service.RevokeAdminAsync(actor, target.Id, target.AuthorizationVersion, CancellationToken.None));
+        await AssertRollback(GlobalRole.User, false, (service, actor, target) => service.RestoreAsync(actor, target.Id, target.AuthorizationVersion, CancellationToken.None));
     }
 
     [Fact]
@@ -2045,7 +2238,10 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal(DraftState.Finalized, draft.State);
         Assert.Equal(48, await db.DraftPicks.CountAsync(item => item.DraftSessionId == draft.Id && item.UndoneAt == null));
         Assert.Equal(1, await db.BoardApprovalSnapshots.CountAsync(item => item.BoardId == (db.Boards.Where(board => board.EventId == test15.Id).Select(board => board.Id).Single())));
-        Assert.Equal(2, await db.Submissions.CountAsync(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending));
+        var pendingSubmissions = await db.Submissions
+            .Where(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending)
+            .ToListAsync();
+        Assert.Equal(15, pendingSubmissions.Count);
         Assert.Equal(1, await db.Submissions.CountAsync(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Rejected));
         Assert.True(await db.Submissions.AnyAsync(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Approved));
         var approvedSubmissions = await db.Submissions
@@ -2061,7 +2257,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             var reviewedAt = Assert.IsType<DateTimeOffset>(submission.ReviewedAt);
             Assert.InRange(reviewedAt, submission.SubmittedAt, seededAt);
         });
-        Assert.Equal(2, await db.Submissions.CountAsync(submission => submission.EventId == test15.Id && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending && db.EvidenceAssets.Any(asset => asset.SubmissionId == submission.Id)));
+        Assert.Equal(15, await db.Submissions.CountAsync(submission => submission.EventId == test15.Id && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending && db.EvidenceAssets.Any(asset => asset.SubmissionId == submission.Id)));
     }
 
     private static async Task AssertSeedBoardRateSelectionsAsync(ApplicationDbContext db, Guid eventId, Guid approvalId)
@@ -2212,12 +2408,12 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
     {
         private readonly AuthenticateResult result;
 
-        public RecordingAuthenticationService(string discordId, string? purpose, Guid accountId, string? state)
+        public RecordingAuthenticationService(string discordId, string? purpose, Guid accountId, string? state, bool succeeded = true)
         {
             var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, discordId), new Claim(ClaimTypes.Name, "Discord display")], "Discord.External");
             var properties = new AuthenticationProperties();
             if (purpose is not null) { properties.Items["discord-purpose"] = purpose; properties.Items["discord-account-id"] = accountId.ToString(); properties.Items["discord-link-state"] = state!; }
-            result = AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), properties, "Discord.External"));
+            result = succeeded ? AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), properties, "Discord.External")) : AuthenticateResult.Fail("Controlled provider failure.");
         }
 
         public ClaimsPrincipal? LastSignedInPrincipal { get; private set; }

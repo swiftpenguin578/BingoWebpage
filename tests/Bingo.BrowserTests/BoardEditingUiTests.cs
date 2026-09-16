@@ -85,9 +85,10 @@ public sealed class BoardEditingUiTests
             "Events",
             "Board.cshtml"));
 
-        Assert.Equal(2, Regex.Count(boardMarkup, "class=\"admin-destructive-confirmation board-publication-confirmation\""));
-        Assert.Equal(2, Regex.Count(boardMarkup, "type=\"hidden\" name=\"confirmed\" value=\"true\""));
+        Assert.Equal(3, Regex.Count(boardMarkup, "class=\"admin-destructive-confirmation board-publication-confirmation\""));
+        Assert.Equal(3, Regex.Count(boardMarkup, "type=\"hidden\" name=\"confirmed\" value=\"true\""));
         Assert.Contains("asp-page-handler=\"Publish\"", boardMarkup);
+        Assert.Contains("asp-page-handler=\"DiscardCorrection\"", boardMarkup);
         Assert.Contains("asp-page-handler=\"Approve\"", boardMarkup);
         Assert.Contains("document.querySelectorAll('.board-publication-confirmation [data-confirmation-cancel]').forEach(button => button.addEventListener('click', () => button.closest('details')?.removeAttribute('open')));", boardMarkup);
     }

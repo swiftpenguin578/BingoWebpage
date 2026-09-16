@@ -585,10 +585,17 @@ public sealed class SignupService(
 
     public async Task<ParticipantLifecycleResult> WithdrawAsync(Guid eventId, Guid participantId, Guid? actorAccountId, string actorName, bool byAdmin, string? privateNote, long? expectedMembershipVersion, CancellationToken cancellationToken = default)
     {
-        if (byAdmin && actorAccountId is { } liveActor && await dbContext.Events.AsNoTracking().AnyAsync(x => x.Id == eventId && x.HiddenAt == null && x.State == Domain.Events.EventState.Live, cancellationToken))
+        if (byAdmin && actorAccountId is { } postDraftActor)
         {
-            var live = await WithdrawLiveAsync(new LiveWithdrawalRequest(eventId, participantId, liveActor, actorName, expectedMembershipVersion), cancellationToken);
-            return new(live.Succeeded, live.Error, SignupStatus.Withdrawn, null, live.Changed);
+            var phase = await dbContext.Events.AsNoTracking()
+                .Where(x => x.Id == eventId && x.HiddenAt == null)
+                .Select(x => new { x.State, x.DraftLocked }).SingleOrDefaultAsync(cancellationToken);
+            if (phase is { State: EventState.Live } || phase is { State: EventState.SignupClosed, DraftLocked: true })
+            {
+                var result = await WithdrawPostDraftAsync(new LiveWithdrawalRequest(eventId, participantId, postDraftActor, actorName, expectedMembershipVersion),
+                    phase.State != EventState.Live, privateNote, cancellationToken);
+                return new(result.Succeeded, result.Error, result.Succeeded ? SignupStatus.Withdrawn : null, null, result.Changed);
+            }
         }
         await using var tx = await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
         var bingoEvent = await LockEventAsync(eventId, cancellationToken);
@@ -605,7 +612,7 @@ public sealed class SignupService(
         foreach (var assignment in active) assignment.Release(actorAccountId, now);
         participant.Withdraw(now, byAdmin ? "Admin withdrawal" : "Participant withdrawal", byAdmin ? actorAccountId : null);
         AddAudit(actorAccountId, actorName, byAdmin ? "participant.admin_withdrawn" : "participant.withdrawn", participant, bingoEvent.Id, prior.ToString(), SignupStatus.Withdrawn.ToString());
-        if (byAdmin && participant.AccountId is { } owner) AddNotification(owner, "participant.withdrawn", "Your signup was withdrawn by an administrator.", Route(bingoEvent), now, bingoEvent.Id);
+        if (byAdmin && participant.AccountId is { } owner) AddNotification(owner, "participant.withdrawn", "Your signup was withdrawn by an administrator.", Route(bingoEvent, participant.Id), now, bingoEvent.Id);
         // The promotion count is a SQL query. Flush the withdrawal first while retaining the enclosing transaction,
         // otherwise PostgreSQL still counts this former confirmed participant as occupying the place.
         if (prior == SignupStatus.Confirmed)
@@ -617,7 +624,10 @@ public sealed class SignupService(
         return new(true, null, SignupStatus.Withdrawn, null, true);
     }
 
-    public async Task<LiveParticipantResult> WithdrawLiveAsync(LiveWithdrawalRequest request, CancellationToken cancellationToken = default)
+    public Task<LiveParticipantResult> WithdrawLiveAsync(LiveWithdrawalRequest request, CancellationToken cancellationToken = default)
+        => WithdrawPostDraftAsync(request, false, null, cancellationToken);
+
+    private async Task<LiveParticipantResult> WithdrawPostDraftAsync(LiveWithdrawalRequest request, bool preLive, string? privateNote, CancellationToken cancellationToken)
     {
         await using var tx = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         try
@@ -627,11 +637,20 @@ public sealed class SignupService(
             var admin = await AdminAsync(request.ActorAccountId, cancellationToken);
             if (bingoEvent is null) return new(false, "The event could not be found.");
             if (admin is null) return new(false, "Admin access is required.");
-            if (bingoEvent.State != Domain.Events.EventState.Live || !bingoEvent.DraftLocked)
-                return new(false, "Live withdrawal is available only while the event is live.");
+            if (preLive)
+            {
+                await dbContext.Entry(bingoEvent).ReloadAsync(cancellationToken);
+                now = timeProvider.GetUtcNow().ToUniversalTime();
+            }
+            var draft = preLive ? await FinalizedPreLiveDraftAsync(bingoEvent, now, cancellationToken) : null;
+            if (preLive ? draft is null : bingoEvent.State != EventState.Live || !bingoEvent.DraftLocked)
+                return new(false, preLive
+                    ? "Roster corrections require a finalized draft before the event starts and a future event end."
+                    : "Live withdrawal is available only while the event is live.");
 
             var participant = await dbContext.EventParticipants.SingleOrDefaultAsync(x => x.EventId == request.EventId && x.Id == request.ParticipantId, cancellationToken);
             if (participant is null) return new(false, "The participant could not be found.");
+            if (preLive) await dbContext.Entry(participant).ReloadAsync(cancellationToken);
             if (participant.SignupStatus == SignupStatus.Withdrawn)
             {
                 await tx.CommitAsync(cancellationToken);
@@ -648,7 +667,19 @@ public sealed class SignupService(
             var team = await dbContext.Teams.SingleOrDefaultAsync(x => x.Id == membership.TeamId && x.EventId == request.EventId && x.Active, cancellationToken);
             if (team is null) return new(false, "The participant's current team is no longer available.");
 
-            var eligibilityEndsAt = NextWholeUtcMinute(now);
+            if (preLive && Clean(privateNote) is { } addition)
+            {
+                var before = participant.AdminNotes;
+                var combined = string.IsNullOrEmpty(before) ? addition : before + "\n" + addition;
+                if (combined.Length > 2_000)
+                    return new(false, "The withdrawal note and existing Admin notes must total 2,000 characters or fewer. Shorten the note or withdraw without adding one.");
+                participant.SetAdminNotes(combined);
+                dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, request.ActorAccountId, request.ActorName,
+                    "participant.admin_note_updated", "participant", participant.Id.ToString(), "Private Admin note changed.", request.EventId,
+                    Json(new { present = before is not null }), Json(new { present = true })));
+            }
+
+            var eligibilityEndsAt = preLive ? now : NextWholeUtcMinute(now);
             var formerRole = membership.Role;
             participant.Withdraw(now, "Admin withdrawal", request.ActorAccountId, eligibilityEndsAt);
             if (formerRole is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain)
@@ -657,19 +688,32 @@ public sealed class SignupService(
                 dbContext.TeamMembershipRoleTransitions.Add(new TeamMembershipRoleTransition(
                     Guid.NewGuid(), membership.Id, formerRole, TeamMembershipRole.Participant, request.ActorAccountId, now));
             }
-            membership.Leave(now, "Live Admin withdrawal");
+            membership.Leave(now, preLive ? "Pre-Live Admin withdrawal" : "Live Admin withdrawal");
             dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, request.ActorAccountId, request.ActorName,
-                "participant.live_withdrawn", "participant", participant.Id.ToString(), null, request.EventId,
+                preLive ? "participant.admin_withdrawn" : "participant.live_withdrawn", "participant", participant.Id.ToString(), null, request.EventId,
                 Json(new { status = SignupStatus.Confirmed.ToString(), membershipId = membership.Id, role = formerRole.ToString() }),
                 Json(new { status = SignupStatus.Withdrawn.ToString(), eligibilityEndsAt, membershipEndedAt = now, vacancy = true })));
 
             var participantName = await dbContext.PrimaryCharacters().Where(x => x.ParticipantId == participant.Id).Select(x => x.Name).SingleOrDefaultAsync(cancellationToken) ?? "Participant";
             var recipients = await LiveLeadershipAndAdminRecipientsAsync(request.EventId, membership.TeamId, request.ParticipantId, cancellationToken);
             var detail = $"{bingoEvent.Name}: {participantName} withdrew from {team.Name}. The vacancy is open for Admin follow-up.";
+            var adminRecipients = await dbContext.Accounts.AsNoTracking()
+                .Where(account => recipients.Contains(account.Id) && account.Active && account.AccountType == AccountType.WebsiteAccount &&
+                                  (account.GlobalRole == GlobalRole.Admin || account.GlobalRole == GlobalRole.SuperAdmin))
+                .Select(account => account.Id).ToListAsync(cancellationToken);
             foreach (var recipient in recipients)
-                await AddNotificationOnceAsync("live-withdrawal", membership.Id, recipient, "participant.live_withdrawn", detail, $"/Admin/Events/Participant/{request.EventId}/Participants/{participant.Id}", now, request.EventId, cancellationToken);
+            {
+                var route = adminRecipients.Contains(recipient)
+                    ? $"/Admin/Events/Participant/{request.EventId}/Participants/{participant.Id}"
+                    : $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Teams";
+                await AddNotificationOnceAsync("live-withdrawal", membership.Id, recipient, preLive ? "participant.prelive_withdrawn" : "participant.live_withdrawn", detail, route, now, request.EventId, cancellationToken);
+            }
+            if (preLive && participant.AccountId is { } ownerId)
+                await AddNotificationOnceAsync("prelive-withdrawal-owner", membership.Id, ownerId, "participant.withdrawn",
+                    "Your signup was withdrawn by an administrator.", $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Teams", now, request.EventId, cancellationToken);
 
             await dbContext.SaveChangesAsync(cancellationToken);
+            if (preLive) await RepublishFinalizedRosterAsync(bingoEvent, draft!, request.ActorAccountId, now, "Pre-Live participant withdrawal", cancellationToken);
             await tx.CommitAsync(CancellationToken.None);
             return new(true, Changed: true, MembershipId: membership.Id, ParticipantId: participant.Id, EffectiveAtUtc: eligibilityEndsAt);
         }
@@ -679,6 +723,12 @@ public sealed class SignupService(
             dbContext.ChangeTracker.Clear();
             return new(false, "Another administrator changed this participant or vacancy first. Reload and try again.");
         }
+        catch (Exception) when (preLive && !cancellationToken.IsCancellationRequested)
+        {
+            await tx.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "The roster correction could not be saved. No changes were applied. Reload and try again.");
+        }
     }
 
     public async Task<LiveParticipantResult> ReplaceVacancyAsync(LiveReplacementRequest request, CancellationToken cancellationToken = default)
@@ -686,6 +736,7 @@ public sealed class SignupService(
         if ((request.WaitingParticipantId is null) == (request.InternalParticipant is null))
             return new(false, "Choose one available waiting-list participant or provide an internal replacement.");
         await using var tx = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        var preLive = false;
         try
         {
             var now = timeProvider.GetUtcNow().ToUniversalTime();
@@ -693,8 +744,15 @@ public sealed class SignupService(
             var admin = await AdminAsync(request.ActorAccountId, cancellationToken);
             if (bingoEvent is null) return new(false, "The event could not be found.");
             if (admin is null) return new(false, "Admin access is required.");
-            if (bingoEvent.State != Domain.Events.EventState.Live || !bingoEvent.DraftLocked)
-                return new(false, "Replacement is available only while the event is live.");
+            preLive = bingoEvent.State != EventState.Live;
+            if (preLive)
+            {
+                await dbContext.Entry(bingoEvent).ReloadAsync(cancellationToken);
+                now = timeProvider.GetUtcNow().ToUniversalTime();
+            }
+            var draft = preLive ? await FinalizedPreLiveDraftAsync(bingoEvent, now, cancellationToken) : null;
+            if (preLive ? draft is null : !bingoEvent.DraftLocked)
+                return new(false, "Replacement requires Live or a finalized draft before the event starts and a future event end.");
 
             var vacancy = await dbContext.TeamMemberships
                 .FromSqlInterpolated($"SELECT * FROM team_memberships WHERE id = {request.EndedMembershipId} FOR UPDATE")
@@ -729,20 +787,22 @@ public sealed class SignupService(
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
 
-            var primary = await dbContext.EventParticipantCharacters
-                .Where(x => x.EventParticipantId == replacement.Id && x.EventId == request.EventId && x.ReleasedAt == null && x.EventRole == EventCharacterRole.Playing)
-                .OrderBy(x => x.RegistrationOrder).FirstOrDefaultAsync(cancellationToken);
-            if (primary is null) return new(false, "The replacement needs an active Playing account.");
+            var primaryId = await dbContext.PrimaryCharacters()
+                .Where(x => x.ParticipantId == replacement.Id && x.EventId == request.EventId)
+                .Select(x => (Guid?)x.OsrsCharacterId).SingleOrDefaultAsync(cancellationToken);
+            if (primaryId is null) return new(false, "The replacement needs an active Playing account.");
             if (await dbContext.TeamMemberships.AnyAsync(x => x.EventParticipantId == replacement.Id && x.LeftAt == null, cancellationToken))
                 return new(false, "The selected replacement is already on a team.");
 
-            var membership = new TeamMembership(Guid.NewGuid(), team.Id, replacement.Id, TeamMembershipRole.Participant, now, null, "Live roster replacement");
+            var membership = new TeamMembership(Guid.NewGuid(), team.Id, replacement.Id, TeamMembershipRole.Participant, now, null,
+                preLive ? "Pre-Live roster replacement" : "Live roster replacement");
             membership.SetSource(TeamMembershipSource.Replacement, vacancy.Id);
             dbContext.TeamMemberships.Add(membership);
-            var effectiveAt = NextWholeUtcMinute(now);
-            dbContext.EventParticipantCharacterSwaps.Add(new EventParticipantCharacterSwap(
-                Guid.NewGuid(), request.EventId, replacement.Id, null, primary.OsrsCharacterId,
-                effectiveAt, now, request.ActorAccountId, "Live roster replacement activation"));
+            var effectiveAt = preLive ? now : NextWholeUtcMinute(now);
+            if (!preLive)
+                dbContext.EventParticipantCharacterSwaps.Add(new EventParticipantCharacterSwap(
+                    Guid.NewGuid(), request.EventId, replacement.Id, null, primaryId.Value,
+                    effectiveAt, now, request.ActorAccountId, "Live roster replacement activation"));
 
             WaitingListPromotionFollowUp? followUp = null;
             if (waitingReplacement)
@@ -754,7 +814,7 @@ public sealed class SignupService(
             var departedName = await dbContext.PrimaryCharacters().Where(x => x.ParticipantId == departed.Id).Select(x => x.Name).SingleOrDefaultAsync(cancellationToken) ?? "Participant";
             var replacementName = await dbContext.PrimaryCharacters().Where(x => x.ParticipantId == replacement.Id).Select(x => x.Name).SingleOrDefaultAsync(cancellationToken) ?? "Participant";
             dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, request.ActorAccountId, request.ActorName,
-                "participant.live_replaced", "membership", membership.Id.ToString(), null, request.EventId,
+                preLive ? "participant.prelive_replaced" : "participant.live_replaced", "membership", membership.Id.ToString(), null, request.EventId,
                 Json(new { vacancyMembershipId = vacancy.Id, departedParticipantId = departed.Id }),
                 Json(new { replacementParticipantId = replacement.Id, replacementName, effectiveAt, source = waitingReplacement ? "WaitingList" : "Internal" })));
 
@@ -762,9 +822,10 @@ public sealed class SignupService(
             if (replacement.AccountId is { } replacementAccount) recipients.Add(replacementAccount);
             var detail = $"{bingoEvent.Name}: {replacementName} joined {team.Name} as a replacement for {departedName}.";
             foreach (var recipient in recipients.Distinct())
-                await AddNotificationOnceAsync("live-replacement", membership.Id, recipient, "participant.live_replaced", detail, $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Teams", now, bingoEvent.Id, cancellationToken);
+                await AddNotificationOnceAsync("live-replacement", membership.Id, recipient, preLive ? "participant.prelive_replaced" : "participant.live_replaced", detail, $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Teams", now, bingoEvent.Id, cancellationToken);
 
             await dbContext.SaveChangesAsync(cancellationToken);
+            if (preLive) await RepublishFinalizedRosterAsync(bingoEvent, draft!, request.ActorAccountId, now, "Pre-Live vacancy replacement", cancellationToken);
             await tx.CommitAsync(CancellationToken.None);
             return new(true, Changed: true, MembershipId: membership.Id, ParticipantId: replacement.Id, EffectiveAtUtc: effectiveAt, FollowUpId: followUp?.Id);
         }
@@ -774,6 +835,12 @@ public sealed class SignupService(
             dbContext.ChangeTracker.Clear();
             return new(false, "Another administrator filled this vacancy or changed the replacement first. Reload and try again.");
         }
+        catch (Exception) when (preLive && !cancellationToken.IsCancellationRequested)
+        {
+            await tx.RollbackAsync(CancellationToken.None);
+            dbContext.ChangeTracker.Clear();
+            return new(false, "The roster correction could not be saved. No changes were applied. Reload and try again.");
+        }
     }
 
     public async Task<PromotionFollowUpResult> CompletePromotionFollowUpAsync(Guid eventId, Guid followUpId, Guid adminAccountId, string adminName, CancellationToken cancellationToken = default)
@@ -781,7 +848,8 @@ public sealed class SignupService(
         await using var tx = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         var bingoEvent = await LockEventAsync(eventId, cancellationToken);
         if (bingoEvent is null) return new(false, "The event could not be found.");
-        if (bingoEvent.State is not (EventState.Live or EventState.AwaitingFinalReview))
+        if (bingoEvent.State is not (EventState.Live or EventState.AwaitingFinalReview) &&
+            await FinalizedPreLiveDraftAsync(bingoEvent, timeProvider.GetUtcNow(), cancellationToken) is null)
             return new(false, "Promotion follow-up is unavailable in this event lifecycle state.");
         var admin = await AdminAsync(adminAccountId, cancellationToken);
         if (admin is null) return new(false, "Admin access is required.");
@@ -796,6 +864,41 @@ public sealed class SignupService(
         await dbContext.SaveChangesAsync(cancellationToken);
         await tx.CommitAsync(CancellationToken.None);
         return new(true, Changed: true);
+    }
+
+    private async Task<DraftSession?> FinalizedPreLiveDraftAsync(BingoEvent bingoEvent, DateTimeOffset now, CancellationToken ct)
+    {
+        var draft = await dbContext.DraftSessions.SingleOrDefaultAsync(x => x.EventId == bingoEvent.Id, ct);
+        if (draft is not null) await dbContext.Entry(draft).ReloadAsync(ct);
+        return bingoEvent.CanCorrectFinalizedRoster(draft?.State, now) &&
+            await dbContext.DraftPublicationCycles.AnyAsync(x => x.DraftSessionId == draft!.Id && x.SupersededAt == null, ct)
+                ? draft : null;
+    }
+
+    private async Task RepublishFinalizedRosterAsync(BingoEvent bingoEvent, DraftSession draft, Guid actorId, DateTimeOffset now, string reason, CancellationToken ct)
+    {
+        var current = await dbContext.DraftPublicationCycles.SingleAsync(x => x.DraftSessionId == draft.Id && x.SupersededAt == null, ct);
+        var members = await dbContext.TeamMemberships.Where(x => x.LeftAt == null &&
+            dbContext.Teams.Any(team => team.Id == x.TeamId && team.EventId == bingoEvent.Id && team.Active)).ToListAsync(ct);
+        var participantIds = members.Select(x => x.EventParticipantId).Distinct().ToList();
+        var names = await dbContext.PrimaryCharacters().Where(x => x.EventId == bingoEvent.Id && participantIds.Contains(x.ParticipantId))
+            .ToDictionaryAsync(x => x.ParticipantId, x => x.Name, ct);
+        if (participantIds.Any(id => !names.TryGetValue(id, out var name) || string.IsNullOrWhiteSpace(name)))
+            throw new InvalidOperationException("Every published roster entry requires an unambiguous Playing account.");
+        var picks = await dbContext.DraftPicks.Where(x => x.DraftSessionId == draft.Id && x.UndoneAt == null).ToDictionaryAsync(x => x.Id, x => x.PickNumber, ct);
+        var number = await dbContext.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id).MaxAsync(x => x.CycleNumber, ct) + 1;
+        current.Supersede(now, actorId, reason);
+        // The partial unique index permits only one active cycle. Retain the transaction
+        // while making supersession visible before inserting its replacement.
+        await dbContext.SaveChangesAsync(ct);
+        var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, number, now, actorId);
+        dbContext.DraftPublicationCycles.Add(cycle);
+        foreach (var member in members)
+            dbContext.DraftPublicationRosters.Add(new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, member.TeamId, member.EventParticipantId, member.Role,
+                member.AssignedByDraftPickId is { } pickId && picks.TryGetValue(pickId, out var pickNumber) ? pickNumber : null,
+                names[member.EventParticipantId]));
+        bingoEvent.SetDraftRosterPublication(true);
+        await dbContext.SaveChangesAsync(ct);
     }
 
     private async Task<string?> ValidateWaitingReplacementAsync(EventParticipant replacement, Guid eventId, Domain.Events.BingoEvent bingoEvent, CancellationToken ct)
@@ -964,7 +1067,7 @@ public sealed class SignupService(
         var next = (await dbContext.EventParticipants.Where(x => x.EventId == eventId).MaxAsync(x => (long?)x.SignupSequence, cancellationToken) ?? 0) + 1;
         participant.Rejoin(status, next, now);
         AddAudit(adminAccountId, adminName, "participant.admin_restored", participant, eventId, SignupStatus.Withdrawn.ToString(), status.ToString());
-        if (participant.AccountId is { } owner) AddNotification(owner, "participant.restored", "Your signup has been restored by an administrator.", Route(bingoEvent), now, bingoEvent.Id);
+        if (participant.AccountId is { } owner) AddNotification(owner, "participant.restored", "Your signup has been restored by an administrator.", Route(bingoEvent, participant.Id), now, bingoEvent.Id);
         await dbContext.SaveChangesAsync(cancellationToken); await tx.CommitAsync(cancellationToken);
         return new(true, null, status, status == SignupStatus.WaitingList ? await GetWaitingPositionAsync(participantId, eventId, cancellationToken) : null, true);
     }

@@ -8,17 +8,21 @@ using Bingo.Domain.Events;
 using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
+using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Signups;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Bingo.Infrastructure.Events;
 
 public sealed class EventLifecycleService(
     ApplicationDbContext db,
     IEventSignupLifecycleService signupLifecycle,
-    TimeProvider time) : IEventLifecycleService
+    TimeProvider time,
+    EventItemPriceService? itemPrices = null) : IEventLifecycleService
 {
+    private readonly EventItemPriceService prices = itemPrices ?? new(db, time);
     private static readonly EventState[] PreLiveStates = [EventState.Draft, EventState.SignupOpen, EventState.SignupClosed];
     private static readonly EventState[] CurrentStates = [EventState.Live, EventState.AwaitingFinalReview, EventState.Finalized];
 
@@ -58,18 +62,23 @@ public sealed class EventLifecycleService(
     public async Task<EventStartResult> StartNowAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, CancellationToken ct = default)
     {
         if (!confirmed) return new(false, "Confirm that you want to start the event.");
+        var prepared = await prices.PrepareStartAsync(ct);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
             await LockCurrentBoundaryAsync(ct);
-            var item = await EventAsync(eventId, version, ct);
+            var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE")
+                .SingleOrDefaultAsync(ct) ?? throw new InvalidOperationException("Event not found.");
+            if (item.Version != version) throw new DbUpdateConcurrencyException();
             var now = time.GetUtcNow();
             if (item.EventStartsAt is { } scheduledFor && now < scheduledFor && string.IsNullOrWhiteSpace(reason))
                 return new(false, "Enter a reason when starting the event before its configured start.");
             var blockers = await EvaluateStartAsync(item, ct);
             if (blockers.Count > 0) return new(false, string.Join(" ", blockers.Select(x => x.Description)), blockers);
             var from = item.State;
+            now = time.GetUtcNow();
             item.StartEvent(now);
+            await prices.CaptureStartAsync(item, prepared, ct, actor);
             await DeferInitialCompetitionRefreshAsync(item.Id, now, ct);
             await AppendInitialActivationsAsync(item.Id, item.ActualStartedAt!.Value, ct);
             var unresolved = await db.ScheduledEventStartAttempts.Where(x => x.EventId == eventId && x.ResolvedAt == null && !x.Started).ToListAsync(ct);
@@ -79,9 +88,10 @@ public sealed class EventLifecycleService(
             await tx.CommitAsync(ct);
             return new(true);
         }
-        catch (DbUpdateConcurrencyException) { await tx.RollbackAsync(ct); return new(false, "This event changed while it was being started. Review its current state and try again."); }
-        catch (InvalidOperationException ex) { await tx.RollbackAsync(ct); return new(false, ex.Message); }
-        catch (DbUpdateException) { await tx.RollbackAsync(ct); return new(false, "The event could not be started. Review its current state and try again."); }
+        catch (PostgresException ex) when (ex.SqlState is "40001" or "40P01") { await tx.RollbackAsync(ct); db.ChangeTracker.Clear(); return new(false, "This event changed while it was being started. Review its current state and try again."); }
+        catch (DbUpdateConcurrencyException) { await tx.RollbackAsync(ct); db.ChangeTracker.Clear(); return new(false, "This event changed while it was being started. Review its current state and try again."); }
+        catch (InvalidOperationException ex) { await tx.RollbackAsync(ct); db.ChangeTracker.Clear(); return new(false, ex.Message); }
+        catch (DbUpdateException) { await tx.RollbackAsync(ct); db.ChangeTracker.Clear(); return new(false, "The event could not be started. Review its current state and try again."); }
     }
 
     public async Task<EventStartResult> EndNowAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, CancellationToken ct = default)
@@ -100,6 +110,7 @@ public sealed class EventLifecycleService(
             item.CloseSubmissionsIfDue(now);
             AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.ended", reason, now, now);
             await db.SaveChangesAsync(ct);
+            await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
             await tx.CommitAsync(ct);
             return new(true);
         }
@@ -155,20 +166,23 @@ public sealed class EventLifecycleService(
 
     private async Task ExecuteScheduledStartAsync(Guid eventId, DateTimeOffset now, CancellationToken ct)
     {
+        var prepared = await prices.PrepareStartAsync(ct);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
             await LockCurrentBoundaryAsync(ct);
-            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
+            var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct);
             if (item is null || !PreLiveStates.Contains(item.State) || item.EventStartsAt is not { } scheduledFor || scheduledFor > now)
                 return;
             if (await db.ScheduledEventStartAttempts.AnyAsync(x => x.EventId == eventId && x.ScheduledFor == scheduledFor, ct))
                 return;
             var blockers = await EvaluateStartAsync(item, ct);
+            now = time.GetUtcNow();
             if (blockers.Count == 0)
             {
                 var from = item.State;
                 item.StartEvent(now);
+                await prices.CaptureStartAsync(item, prepared, ct);
                 await DeferInitialCompetitionRefreshAsync(item.Id, now, ct);
                 await AppendInitialActivationsAsync(item.Id, item.ActualStartedAt!.Value, ct);
                 db.ScheduledEventStartAttempts.Add(new(Guid.NewGuid(), eventId, scheduledFor, now, true, []));
@@ -204,6 +218,7 @@ public sealed class EventLifecycleService(
             item.CloseSubmissionsIfDue(now);
             AddTransitionAndAudit(item, from, null, "System", true, "event.ended_automatically", null, now, scheduledEnd);
             await db.SaveChangesAsync(ct);
+            await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
             await tx.CommitAsync(ct);
         }
         catch (Exception) when (!ct.IsCancellationRequested)
@@ -249,6 +264,17 @@ public sealed class EventLifecycleService(
             blockers.Add(new("DRAFT_NOT_FINALIZED", "Finalize the team draft before starting.", $"/Admin/Events/Draft/{item.Id}"));
         if (!await db.Boards.AsNoTracking().AnyAsync(x => x.EventId == item.Id && x.State == BoardState.Published, ct))
             blockers.Add(new("BOARD_NOT_PUBLISHED", "Publish the board before starting.", $"/Admin/Events/Board/{item.Id}"));
+        else
+        {
+            var publication = await db.PublishedObjectivesAsync(item.Id, ct);
+            if (publication is not null)
+            {
+                var missingPrices = await db.ItemsWithoutEventOrCataloguePriceAsync(item.Id, publication.Drops.Select(x => x.ItemIdSnapshot), ct);
+                if (missingPrices.Count > 0)
+                    blockers.Add(new("DROP_PRICE_MISSING", $"These drops have no catalogue GP value: {string.Join(", ", missingPrices)}. Set a value in Admin Catalogue, then try again. An explicit 0 is valid.", "/Admin/Catalogue")
+                    { DescriptionArguments = [string.Join(", ", missingPrices)] });
+            }
+        }
 
         var confirmedParticipantIds = await db.EventParticipants.AsNoTracking()
             .Where(x => x.EventId == item.Id && x.SignupStatus == SignupStatus.Confirmed)
@@ -271,7 +297,9 @@ public sealed class EventLifecycleService(
                                   select membership.TeamId).Distinct().ToListAsync(ct);
         var emergencyTeams = await (from access in db.AccountEventAccesses.AsNoTracking()
                                     join account in db.Accounts.AsNoTracking() on access.AccountId equals account.Id
-                                    where access.EventId == item.Id && access.Enabled && account.Active && account.AccountType == AccountType.EmergencyCaptain
+                                    where access.EventId == item.Id && access.Enabled && account.Active && account.PasswordHash != null && !account.MustChangePassword && account.AccountType == AccountType.EmergencyCaptain
+                                        && (access.ActiveFrom == null || access.ActiveFrom <= now) && (access.ExpiresAt == null || access.ExpiresAt > now)
+                                        && activeTeamIds.Contains(access.TeamId)
                                     select access.TeamId).Distinct().ToListAsync(ct);
         foreach (var team in activeTeams.Where(x => !captainTeams.Contains(x.Id) && !emergencyTeams.Contains(x.Id)))
             blockers.Add(new("TEAM_ACCESS_MISSING", $"{team.Name} needs a current Captain or enabled emergency credential.", $"/Admin/Events/Draft/{item.Id}"));

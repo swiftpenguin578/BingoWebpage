@@ -1,4 +1,5 @@
 using Bingo.Domain.Access;
+using Bingo.Domain.Announcements;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Catalogue;
@@ -40,7 +41,12 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         foreach (var entry in ChangeTracker.Entries<SignupQuestion>().Where(entry => entry.State == EntityState.Modified))
             entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<BingoEvent>().Where(entry => entry.State == EntityState.Modified))
+        {
+            if (entry.Property(x => x.State).IsModified || entry.Property(x => x.BoardPublished).IsModified ||
+                entry.Property(x => x.ActualStartedAt).IsModified || entry.Property(x => x.ActualEndedAt).IsModified)
+                entry.Entity.AdvanceStatsEvidenceRevision();
             if (!entry.Property(item => item.Version).IsModified) entry.Entity.AdvanceVersion();
+        }
         foreach (var entry in ChangeTracker.Entries<Team>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<TeamMembership>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
         foreach (var entry in ChangeTracker.Entries<DraftSession>().Where(entry => entry.State == EntityState.Modified)) entry.Entity.AdvanceVersion();
@@ -54,6 +60,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<AccountEventAccess> AccountEventAccesses => Set<AccountEventAccess>();
     public DbSet<PersonalNotification> PersonalNotifications => Set<PersonalNotification>();
+    public DbSet<DropAnnouncementAccountState> DropAnnouncementAccountStates => Set<DropAnnouncementAccountState>();
+    public DbSet<DropAnnouncementAcknowledgement> DropAnnouncementAcknowledgements => Set<DropAnnouncementAcknowledgement>();
     public DbSet<PasswordCredentialToken> PasswordCredentialTokens => Set<PasswordCredentialToken>();
     public DbSet<AccountDiscordIdentityTransition> AccountDiscordIdentityTransitions => Set<AccountDiscordIdentityTransition>();
     public DbSet<OsrsCharacter> OsrsCharacters => Set<OsrsCharacter>();
@@ -61,6 +69,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<BingoEvent> Events => Set<BingoEvent>();
+    public DbSet<EventStatsLuckCheckpoint> EventStatsLuckCheckpoints => Set<EventStatsLuckCheckpoint>();
+    public DbSet<EventItemPrice> EventItemPrices => Set<EventItemPrice>();
     public DbSet<EventStateTransition> EventStateTransitions => Set<EventStateTransition>();
     public DbSet<EventBannerAsset> EventBannerAssets => Set<EventBannerAsset>();
     public DbSet<EventBannerCleanup> EventBannerCleanups => Set<EventBannerCleanup>();
@@ -111,6 +121,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<WaitingListPromotionFollowUp> WaitingListPromotionFollowUps => Set<WaitingListPromotionFollowUp>();
     public DbSet<EventCompetitionSynchronization> EventCompetitionSynchronizations => Set<EventCompetitionSynchronization>();
     public DbSet<EventCompetitionCharacterActivity> EventCompetitionCharacterActivities => Set<EventCompetitionCharacterActivity>();
+    public DbSet<EventCompetitionCharacterMetricActivity> EventCompetitionCharacterMetricActivities => Set<EventCompetitionCharacterMetricActivity>();
+    public DbSet<EventLuckOutcomeBasis> EventLuckOutcomeBases => Set<EventLuckOutcomeBasis>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -156,6 +168,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(account => account.CreatedAt).HasColumnName("created_at");
             entity.Property(account => account.LastLoginAt).HasColumnName("last_login_at");
             entity.Property(account => account.MustChangePassword).HasColumnName("must_change_password");
+            entity.Property(account => account.StatsGuidanceHidden).HasColumnName("stats_guidance_hidden").HasDefaultValue(false);
             entity.Property(account => account.Version).HasColumnName("version").IsConcurrencyToken();
             entity.HasIndex(account => account.GlobalRole).IsUnique().HasFilter("global_role = 'SuperAdmin'");
             entity.ToTable(table => table.HasCheckConstraint("ck_accounts_type_role", "(account_type = 'WebsiteAccount' AND global_role IS NOT NULL) OR (account_type = 'EmergencyCaptain' AND global_role IS NULL)"));
@@ -163,6 +176,28 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
         modelBuilder.Entity<AccountEventAccess>(entity => { entity.ToTable("account_event_accesses"); entity.HasKey(x => x.Id); entity.HasIndex(x => x.AccountId); entity.HasIndex(x => new { x.EventId, x.TeamId }); entity.Property(x => x.ActiveFrom).HasColumnName("active_from"); entity.Property(x => x.CorrectionOnlyFrom).HasColumnName("correction_only_from"); entity.Property(x => x.ExpiresAt).HasColumnName("expires_at"); entity.Property(x => x.CutoffDisabled).HasColumnName("cutoff_disabled"); });
         modelBuilder.Entity<PersonalNotification>(entity => { entity.ToTable("personal_notifications"); entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.RecipientAccountId, x.ReadAt, x.CreatedAt }); entity.HasIndex(x => new { x.EventId, x.RecipientAccountId, x.CreatedAt }); entity.Property(x => x.Title).HasMaxLength(200); entity.Property(x => x.Detail).HasMaxLength(1_000); entity.Property(x => x.Route).HasMaxLength(500); entity.Property(x => x.EventId).HasColumnName("event_id"); entity.HasOne<BingoEvent>().WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<DropAnnouncementAccountState>(entity =>
+        {
+            entity.ToTable("drop_announcement_account_states"); entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id"); entity.Property(x => x.AccountId).HasColumnName("account_id");
+            entity.Property(x => x.EventId).HasColumnName("event_id"); entity.Property(x => x.ExpansionCooldownUntil).HasColumnName("expansion_cooldown_until"); entity.Property(x => x.LastAutomaticExpansionOrdinal).HasColumnName("last_automatic_expansion_ordinal");
+            entity.HasIndex(x => new { x.AccountId, x.EventId }).IsUnique();
+            entity.HasOne<Account>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<BingoEvent>().WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<DropAnnouncementAcknowledgement>(entity =>
+        {
+            entity.ToTable("drop_announcement_acknowledgements"); entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id"); entity.Property(x => x.AccountId).HasColumnName("account_id");
+            entity.Property(x => x.EventId).HasColumnName("event_id"); entity.Property(x => x.SubmissionId).HasColumnName("submission_id");
+            entity.Property(x => x.BannerAcknowledgedAt).HasColumnName("banner_acknowledged_at"); entity.Property(x => x.DropsAcknowledgedAt).HasColumnName("drops_acknowledged_at");
+            entity.HasIndex(x => new { x.AccountId, x.EventId, x.SubmissionId }).IsUnique();
+            entity.HasIndex(x => new { x.AccountId, x.EventId, x.BannerAcknowledgedAt });
+            entity.HasIndex(x => new { x.AccountId, x.EventId, x.DropsAcknowledgedAt });
+            entity.HasOne<Account>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<BingoEvent>().WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Submission>().WithMany().HasForeignKey(x => x.SubmissionId).OnDelete(DeleteBehavior.Restrict);
+        });
         modelBuilder.Entity<WaitingListPromotionFollowUp>(entity =>
         {
             entity.ToTable("waiting_list_promotion_follow_ups");

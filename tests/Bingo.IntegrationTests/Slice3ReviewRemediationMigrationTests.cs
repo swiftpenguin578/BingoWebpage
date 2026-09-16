@@ -40,6 +40,7 @@ public sealed class Slice3ReviewRemediationMigrationTests : IAsyncLifetime
                 INSERT INTO events (id, name, slug, description, timezone, state, signup_opens_at, signup_closes_at, event_starts_at, event_ends_at, submission_cutoff_at, participant_cap, waiting_list_enabled, allow_private_signup_editing, require_signup_code, participant_list_published, draft_results_published, team_rosters_published, board_published, results_published, draft_locked, created_by_account_id, created_at)
                 VALUES ({eventId}, {"retained-review-event"}, {"retained-review-event"}, {""}, {"UTC"}, {"Draft"}, {createdAt}, {createdAt}, {createdAt}, {createdAt.AddDays(1)}, {createdAt.AddDays(1)}, {19}, {true}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {Guid.NewGuid()}, {createdAt});
                 """);
+            await RetainedCatalogueMigrationTestSupport.PrepareAsync(retained);
             await retained.Database.MigrateAsync();
         }
         await using var verify = new ApplicationDbContext(options);

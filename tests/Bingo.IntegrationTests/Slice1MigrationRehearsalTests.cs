@@ -108,11 +108,14 @@ public sealed class Slice1MigrationRehearsalTests : IAsyncLifetime
                 legacy.Database.GetDbConnection(), mappingPath,
                 Convert.ToHexString(SHA256.HashData(mappingBytes)).ToLowerInvariant(), CancellationToken.None);
             Assert.True(await TempMappingExistsAsync(legacy));
-            await legacy.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>().MigrateAsync();
+            var migrator = legacy.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>();
+            await migrator.MigrateAsync(ImmutableItemMigration);
 
             Assert.Equal(seed.ItemId, await legacy.Database.SqlQuery<Guid>($"SELECT item_id_snapshot AS \"Value\" FROM board_requirement_drop_snapshots WHERE id = {seed.EventDropId}").SingleAsync());
             Assert.Equal(seed.ItemId, await legacy.Database.SqlQuery<Guid>($"SELECT item_id_snapshot AS \"Value\" FROM board_approval_requirement_drop_snapshots WHERE id = {seed.ApprovalDropId}").SingleAsync());
             Assert.False(await TempMappingExistsAsync(legacy));
+            await RetainedCatalogueMigrationTestSupport.PrepareAsync(legacy);
+            await migrator.MigrateAsync();
         }
         finally
         {
@@ -150,6 +153,7 @@ public sealed class Slice1MigrationRehearsalTests : IAsyncLifetime
             var report = await preflight.RunAsync("legacy-admin", CancellationToken.None);
             Assert.Contains(adminId.ToString(), report, StringComparison.Ordinal);
             Assert.Contains(captainId.ToString(), report, StringComparison.Ordinal);
+            await RetainedCatalogueMigrationTestSupport.PrepareAsync(legacy);
             await migrator.MigrateAsync();
         }
 

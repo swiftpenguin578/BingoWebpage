@@ -4,7 +4,7 @@
 <p class="captain-ledger-count">@T["Showing {0} of {1} retained submissions", Model.Submissions.Count, Model.TotalSubmissionCount]</p>
 @if (Model.Submissions.Count == 0)
 {
-    <div class="public-pass2-empty-state"><h3>@T["No submissions match this search"]</h3><p>@T["Try a different search or player. The complete retained history remains available above."]</p></div>
+    <div class="public-pass2-empty-state"><h3>@T["No submissions match these filters"]</h3><p>@T["Try a different status, search or player. The complete retained history remains available above."]</p></div>
 }
 else
 {
@@ -38,7 +38,7 @@ else
         <span class="public-ui-leaderboard-pagination-controls">
             @if (Model.PageNumber > 1)
             {
-                <a class="public-ui-leaderboard-pagination-control" data-captain-ledger-page href="@Url.Page(Model.LedgerPage, null, new { eventId = Model.EventId, teamId = Model.TeamId, search = Model.Search, player = Model.PlayerFilter, ledgerPage = Model.PageNumber - 1 })" aria-label="@T["Previous page"]"><svg class="public-ui-leaderboard-pagination-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m15 6-6 6 6 6" /></svg></a>
+                <a class="public-ui-leaderboard-pagination-control" data-captain-ledger-page href="@Url.Page(Model.LedgerPage, null, new { eventId = Model.EventId, teamId = Model.TeamId, search = Model.Search, player = Model.PlayerFilter, status = Model.StatusFilter, ledgerPage = Model.PageNumber - 1 })" aria-label="@T["Previous page"]"><svg class="public-ui-leaderboard-pagination-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m15 6-6 6 6 6" /></svg></a>
             }
             else
             {
@@ -46,7 +46,7 @@ else
             }
             @if (Model.PageNumber < Model.TotalPages)
             {
-                <a class="public-ui-leaderboard-pagination-control" data-captain-ledger-page href="@Url.Page(Model.LedgerPage, null, new { eventId = Model.EventId, teamId = Model.TeamId, search = Model.Search, player = Model.PlayerFilter, ledgerPage = Model.PageNumber + 1 })" aria-label="@T["Next page"]"><svg class="public-ui-leaderboard-pagination-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m9 6 6 6-6 6" /></svg></a>
+                <a class="public-ui-leaderboard-pagination-control" data-captain-ledger-page href="@Url.Page(Model.LedgerPage, null, new { eventId = Model.EventId, teamId = Model.TeamId, search = Model.Search, player = Model.PlayerFilter, status = Model.StatusFilter, ledgerPage = Model.PageNumber + 1 })" aria-label="@T["Next page"]"><svg class="public-ui-leaderboard-pagination-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m9 6 6 6-6 6" /></svg></a>
             }
             else
             {

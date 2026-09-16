@@ -131,6 +131,12 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("public_username");
 
+                    b.Property<bool>("StatsGuidanceHidden")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("stats_guidance_hidden");
+
                     b.Property<long>("Version")
                         .IsConcurrencyToken()
                         .HasColumnType("bigint")
@@ -428,6 +434,82 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.HasIndex("RecipientAccountId", "ReadAt", "CreatedAt");
 
                     b.ToTable("personal_notifications", (string)null);
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Announcements.DropAnnouncementAccountState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<DateTimeOffset?>("ExpansionCooldownUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expansion_cooldown_until");
+
+                    b.Property<long>("LastAutomaticExpansionOrdinal")
+                        .HasColumnType("bigint")
+                        .HasColumnName("last_automatic_expansion_ordinal");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("AccountId", "EventId")
+                        .IsUnique();
+
+                    b.ToTable("drop_announcement_account_states", (string)null);
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Announcements.DropAnnouncementAcknowledgement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateTimeOffset?>("BannerAcknowledgedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("banner_acknowledged_at");
+
+                    b.Property<DateTimeOffset?>("DropsAcknowledgedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("drops_acknowledged_at");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submission_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("SubmissionId");
+
+                    b.HasIndex("AccountId", "EventId", "BannerAcknowledgedAt");
+
+                    b.HasIndex("AccountId", "EventId", "DropsAcknowledgedAt");
+
+                    b.HasIndex("AccountId", "EventId", "SubmissionId")
+                        .IsUnique();
+
+                    b.ToTable("drop_announcement_acknowledgements", (string)null);
                 });
 
             modelBuilder.Entity("Bingo.Domain.Auditing.AuditEntry", b =>
@@ -1383,6 +1465,18 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("image_url");
 
+                    b.Property<DateTimeOffset?>("MappingCheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("mapping_checked_at");
+
+                    b.Property<string>("MappingStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("NotConfigured")
+                        .HasColumnName("mapping_status");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1424,6 +1518,34 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("active");
 
+                    b.Property<decimal?>("ArtworkHeight")
+                        .HasColumnType("numeric")
+                        .HasColumnName("artwork_height");
+
+                    b.Property<decimal?>("ArtworkRotation")
+                        .HasColumnType("numeric")
+                        .HasColumnName("artwork_rotation");
+
+                    b.Property<decimal?>("ArtworkScale")
+                        .HasColumnType("numeric")
+                        .HasColumnName("artwork_scale");
+
+                    b.Property<decimal?>("ArtworkWidth")
+                        .HasColumnType("numeric")
+                        .HasColumnName("artwork_width");
+
+                    b.Property<decimal?>("ArtworkX")
+                        .HasColumnType("numeric")
+                        .HasColumnName("artwork_x");
+
+                    b.Property<decimal?>("ArtworkY")
+                        .HasColumnType("numeric")
+                        .HasColumnName("artwork_y");
+
+                    b.Property<long?>("CatalogueValueGp")
+                        .HasColumnType("bigint")
+                        .HasColumnName("catalogue_value_gp");
+
                     b.Property<string>("ExternalIdentifier")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
@@ -1433,6 +1555,28 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("image_url");
+
+                    b.Property<DateTimeOffset?>("MappingCheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("mapping_checked_at");
+
+                    b.Property<string>("MappingStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("NotConfigured")
+                        .HasColumnName("mapping_status");
+
+                    b.Property<string>("MatchedApiIcon")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("matched_api_icon");
+
+                    b.Property<string>("MatchedApiName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("matched_api_name");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1451,6 +1595,26 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(4000)")
                         .HasColumnName("notes");
 
+                    b.Property<DateTimeOffset?>("PriceObservedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("price_observed_at");
+
+                    b.Property<string>("PriceSource")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasDefaultValue("Missing")
+                        .HasColumnName("price_source");
+
+                    b.Property<long?>("RejectedPriceGp")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rejected_price_gp");
+
+                    b.Property<DateTimeOffset?>("RejectedPriceObservedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rejected_price_observed_at");
+
                     b.Property<long>("Version")
                         .IsConcurrencyToken()
                         .HasColumnType("bigint")
@@ -1461,7 +1625,14 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.HasIndex("NormalizedName")
                         .IsUnique();
 
-                    b.ToTable("catalogue_items", (string)null);
+                    b.ToTable("catalogue_items", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_catalogue_item_artwork", "((artwork_x IS NULL AND artwork_y IS NULL AND artwork_width IS NULL AND artwork_height IS NULL AND artwork_scale IS NULL AND artwork_rotation IS NULL) OR (artwork_x IS NOT NULL AND artwork_y IS NOT NULL AND artwork_width IS NOT NULL AND artwork_height IS NOT NULL AND artwork_scale IS NOT NULL AND artwork_rotation IS NOT NULL AND artwork_x BETWEEN 0 AND 100 AND artwork_y BETWEEN 0 AND 100 AND artwork_width BETWEEN 5 AND 150 AND artwork_height BETWEEN 5 AND 200 AND artwork_scale BETWEEN 0.5 AND 2.5 AND artwork_rotation BETWEEN -180 AND 180))");
+
+                            t.HasCheckConstraint("ck_catalogue_item_price", "(catalogue_value_gp IS NULL AND price_source = 'Missing') OR (catalogue_value_gp IS NOT NULL AND catalogue_value_gp >= 0 AND price_source IN ('Api', 'Manual', 'Untradeable') AND (price_source <> 'Untradeable' OR catalogue_value_gp = 0))");
+
+                            t.HasCheckConstraint("ck_catalogue_price_rejection", "(rejected_price_gp IS NULL AND rejected_price_observed_at IS NULL) OR (rejected_price_gp IS NOT NULL AND rejected_price_gp >= 0 AND rejected_price_observed_at IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Bingo.Domain.Catalogue.SourceDrop", b =>
@@ -1586,6 +1757,18 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("actual_started_at");
 
+                    b.Property<int>("AnnouncementGeneration")
+                        .HasColumnType("integer")
+                        .HasColumnName("announcement_generation");
+
+                    b.Property<long>("AnnouncementSequence")
+                        .HasColumnType("bigint")
+                        .HasColumnName("announcement_sequence");
+
+                    b.Property<DateTimeOffset>("AnnouncementsTrackingStartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("announcements_tracking_started_at");
+
                     b.Property<DateTimeOffset?>("ArchivedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("archived_at");
@@ -1702,6 +1885,10 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_development_fixture");
 
+                    b.Property<DateTimeOffset?>("ItemPricesCapturedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("item_prices_captured_at");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1773,6 +1960,15 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(40)")
                         .HasColumnName("state");
 
+                    b.Property<long>("StatsEvidenceRevision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("stats_evidence_revision");
+
+                    b.Property<long>("StatsLuckInvalidatedAtRevision")
+                        .HasColumnType("bigint")
+                        .HasColumnName("stats_luck_invalidated_at_revision");
+
                     b.Property<DateTimeOffset?>("SubmissionCutoffAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("submission_cutoff_at");
@@ -1814,6 +2010,8 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.ToTable("events", null, t =>
                         {
                             t.HasCheckConstraint("ck_events_hidden_metadata", "(hidden_at IS NULL AND hidden_by_account_id IS NULL AND hidden_reason IS NULL) OR (hidden_at IS NOT NULL AND hidden_by_account_id IS NOT NULL AND hidden_reason IS NOT NULL AND btrim(hidden_reason) <> '')");
+
+                            t.HasCheckConstraint("ck_events_stats_luck_invalidation", "stats_luck_invalidated_at_revision >= 0 AND stats_luck_invalidated_at_revision <= stats_evidence_revision");
                         });
                 });
 
@@ -1990,6 +2188,177 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.ToTable("event_finalizations", (string)null);
                 });
 
+            modelBuilder.Entity("Bingo.Domain.Events.EventItemPrice", b =>
+                {
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<int?>("ApiItemId")
+                        .HasColumnType("integer")
+                        .HasColumnName("api_item_id");
+
+                    b.Property<DateTimeOffset>("CapturedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("captured_at");
+
+                    b.Property<string>("FallbackCatalogueSource")
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("fallback_catalogue_source");
+
+                    b.Property<string>("FallbackReason")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("fallback_reason");
+
+                    b.Property<DateTimeOffset?>("PriceObservedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("price_observed_at");
+
+                    b.Property<DateTimeOffset>("SelectedHour")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("selected_hour");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("source");
+
+                    b.Property<long>("ValueGp")
+                        .HasColumnType("bigint")
+                        .HasColumnName("value_gp");
+
+                    b.HasKey("EventId", "ItemId");
+
+                    b.HasIndex("ItemId");
+
+                    b.ToTable("event_item_prices", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_event_item_price_hour", "date_trunc('hour', selected_hour AT TIME ZONE 'UTC') = selected_hour AT TIME ZONE 'UTC' AND selected_hour + interval '1 hour' <= captured_at");
+
+                            t.HasCheckConstraint("ck_event_item_price_provenance", "(source = 'WikiHourly' AND api_item_id IS NOT NULL AND price_observed_at IS NOT NULL AND price_observed_at = selected_hour AND fallback_catalogue_source IS NULL AND fallback_reason IS NULL)\nOR (source IN ('CatalogueFallback', 'CatalogueIntroduction') AND fallback_catalogue_source IS NOT NULL\n    AND fallback_catalogue_source IN ('Api', 'Manual', 'Untradeable') AND (fallback_catalogue_source <> 'Untradeable' OR value_gp = 0)\n    AND ((source = 'CatalogueIntroduction' AND fallback_reason IS NULL)\n        OR (source = 'CatalogueFallback' AND fallback_reason IS NOT NULL AND fallback_reason IN ('NoMapping', 'NoHourlyPrice', 'ProviderUnavailable', 'PreparedHourChanged', 'PriceMoveRejected'))))");
+
+                            t.HasCheckConstraint("ck_event_item_price_value", "value_gp >= 0 AND (api_item_id IS NULL OR api_item_id > 0)");
+                        });
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Events.EventLuckOutcomeBasis", b =>
+                {
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid>("SourceDropId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_drop_id");
+
+                    b.Property<Guid>("ItemIdSnapshot")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id_snapshot");
+
+                    b.Property<int?>("AssumedParticipants")
+                        .HasColumnType("integer")
+                        .HasColumnName("assumed_participants");
+
+                    b.Property<Guid?>("BossActivityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("boss_activity_id");
+
+                    b.Property<bool?>("ConditionalOnParent")
+                        .HasColumnType("boolean")
+                        .HasColumnName("conditional_on_parent");
+
+                    b.Property<Guid?>("FirstApprovalDropSnapshotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("first_approval_drop_snapshot_id");
+
+                    b.Property<Guid?>("FirstApprovalSnapshotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("first_approval_snapshot_id");
+
+                    b.Property<DateTimeOffset?>("FirstApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_approved_at");
+
+                    b.Property<long?>("MappingCatalogueVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("mapping_catalogue_version");
+
+                    b.Property<DateTimeOffset?>("MappingValidatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("mapping_validated_at");
+
+                    b.Property<string>("Metric")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("metric");
+
+                    b.Property<DateTimeOffset?>("MetricBoundAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("metric_bound_at");
+
+                    b.Property<decimal?>("NumericProbability")
+                        .HasPrecision(18, 12)
+                        .HasColumnType("numeric(18,12)")
+                        .HasColumnName("numeric_probability");
+
+                    b.Property<decimal?>("ParentProbability")
+                        .HasPrecision(18, 12)
+                        .HasColumnType("numeric(18,12)")
+                        .HasColumnName("parent_probability");
+
+                    b.Property<string>("ProbabilityScope")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("probability_scope");
+
+                    b.Property<string>("RateCondition")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("rate_condition");
+
+                    b.Property<string>("RollGroup")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("roll_group");
+
+                    b.Property<int?>("RollsPerCompletion")
+                        .HasColumnType("integer")
+                        .HasColumnName("rolls_per_completion");
+
+                    b.Property<int>("SourceRevision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("source_revision");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.HasKey("EventId", "SourceDropId", "ItemIdSnapshot");
+
+                    b.HasIndex("BossActivityId");
+
+                    b.HasIndex("FirstApprovalDropSnapshotId");
+
+                    b.HasIndex("FirstApprovalSnapshotId");
+
+                    b.ToTable("event_luck_outcome_bases", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_luck_basis_binding", "(metric IS NULL AND metric_bound_at IS NULL AND mapping_validated_at IS NULL AND mapping_catalogue_version IS NULL AND source_revision = 1) OR (status = 'Retained' AND metric IS NOT NULL AND metric_bound_at IS NOT NULL AND mapping_validated_at IS NOT NULL AND mapping_catalogue_version IS NOT NULL AND source_revision = 2)");
+
+                            t.HasCheckConstraint("ck_luck_basis_mechanics", "status <> 'Retained' OR (boss_activity_id IS NOT NULL AND first_approval_snapshot_id IS NOT NULL AND first_approval_drop_snapshot_id IS NOT NULL AND first_approved_at IS NOT NULL AND numeric_probability IS NOT NULL AND rolls_per_completion IS NOT NULL AND numeric_probability > 0 AND numeric_probability <= 1 AND rolls_per_completion >= 1)");
+                        });
+                });
+
             modelBuilder.Entity("Bingo.Domain.Events.EventStateTransition", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2039,6 +2408,77 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.HasIndex("EventId", "PerformedAt");
 
                     b.ToTable("event_state_transitions", (string)null);
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Events.EventStatsLuckCheckpoint", b =>
+                {
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid>("ActivityBatchId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid")
+                        .HasColumnName("activity_batch_id");
+
+                    b.Property<string>("AssignmentFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("assignment_fingerprint");
+
+                    b.Property<DateTimeOffset>("CalculatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("calculated_at");
+
+                    b.Property<long>("CompetitionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("competition_id");
+
+                    b.Property<long>("EvidenceRevision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("evidence_revision");
+
+                    b.Property<DateTimeOffset?>("FetchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fetched_at");
+
+                    b.Property<int>("Generation")
+                        .HasColumnType("integer")
+                        .HasColumnName("generation");
+
+                    b.Property<string>("LifecycleFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("lifecycle_fingerprint");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload");
+
+                    b.Property<int>("SchemaVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("schema_version");
+
+                    b.Property<string>("SourceFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("source_fingerprint");
+
+                    b.Property<DateTimeOffset?>("UpstreamUpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("upstream_updated_at");
+
+                    b.HasKey("EventId");
+
+                    b.ToTable("event_stats_luck_checkpoints", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_stats_checkpoint_payload", "schema_version = 1 AND evidence_revision >= 0 AND octet_length(payload::text) <= 8388608 AND jsonb_typeof(payload) = 'object'");
+                        });
                 });
 
             modelBuilder.Entity("Bingo.Domain.Events.FinalReviewResolution", b =>
@@ -2530,6 +2970,14 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<int?>("AnnouncementGeneration")
+                        .HasColumnType("integer")
+                        .HasColumnName("announcement_generation");
+
+                    b.Property<long?>("AnnouncementOrdinal")
+                        .HasColumnType("bigint")
+                        .HasColumnName("announcement_ordinal");
+
                     b.Property<int>("ApprovedContribution")
                         .HasColumnType("integer")
                         .HasColumnName("approved_contribution");
@@ -2546,6 +2994,10 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.Property<int>("ClaimedWeight")
                         .HasColumnType("integer")
                         .HasColumnName("claimed_weight");
+
+                    b.Property<bool?>("CompletedTileAtApproval")
+                        .HasColumnType("boolean")
+                        .HasColumnName("completed_tile_at_approval");
 
                     b.Property<string>("CreditedCharacterName")
                         .IsRequired()
@@ -2627,6 +3079,8 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.HasIndex("TeamId", "SubmittedAt");
 
                     b.HasIndex("EventId", "Status", "SubmittedAt");
+
+                    b.HasIndex("EventId", "AnnouncementGeneration", "AnnouncementOrdinal", "ReviewedAt", "Id");
 
                     b.ToTable("submissions", (string)null);
                 });
@@ -2744,6 +3198,94 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.ToTable("event_competition_character_activity", (string)null);
                 });
 
+            modelBuilder.Entity("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionCharacterMetricActivity", b =>
+                {
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<int>("Generation")
+                        .HasColumnType("integer")
+                        .HasColumnName("generation");
+
+                    b.Property<Guid>("OsrsCharacterId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("osrs_character_id");
+
+                    b.Property<string>("Metric")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("metric");
+
+                    b.Property<Guid?>("ActivityBatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("activity_batch_id");
+
+                    b.Property<string>("AssignmentFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("assignment_fingerprint");
+
+                    b.Property<long>("CompetitionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("competition_id");
+
+                    b.Property<string>("Coverage")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("coverage");
+
+                    b.Property<decimal?>("End")
+                        .HasPrecision(20)
+                        .HasColumnType("numeric(20,0)")
+                        .HasColumnName("end");
+
+                    b.Property<DateTimeOffset?>("FetchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fetched_at");
+
+                    b.Property<decimal?>("Gained")
+                        .HasPrecision(20)
+                        .HasColumnType("numeric(20,0)")
+                        .HasColumnName("gained");
+
+                    b.Property<DateTimeOffset>("LastAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_attempt_at");
+
+                    b.Property<string>("LastIssue")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("last_issue");
+
+                    b.Property<string>("SourceRequestFingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("source_request_fingerprint");
+
+                    b.Property<decimal?>("Start")
+                        .HasPrecision(20)
+                        .HasColumnType("numeric(20,0)")
+                        .HasColumnName("start");
+
+                    b.Property<DateTimeOffset?>("UpstreamUpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("upstream_updated_at");
+
+                    b.HasKey("EventId", "Generation", "OsrsCharacterId", "Metric");
+
+                    b.HasIndex("OsrsCharacterId");
+
+                    b.ToTable("event_competition_character_metric_activity", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_metric_activity_origin", "(fetched_at IS NULL AND start IS NULL AND \"end\" IS NULL AND gained IS NULL AND activity_batch_id IS NOT NULL AND source_request_fingerprint IS NOT NULL AND coverage = 'Missing') OR (fetched_at IS NOT NULL AND start IS NOT NULL AND \"end\" IS NOT NULL AND gained IS NOT NULL AND activity_batch_id IS NOT NULL AND source_request_fingerprint IS NOT NULL AND coverage IN ('Ranked','EstimatedBaseline','ZeroRecorded'))");
+
+                            t.HasCheckConstraint("ck_metric_activity_values", "start >= -1 AND \"end\" >= -1 AND gained >= 0 AND trunc(start) = start AND trunc(\"end\") = \"end\" AND trunc(gained) = gained");
+                        });
+                });
+
             modelBuilder.Entity("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionSynchronization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2800,6 +3342,10 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(40)")
                         .HasColumnName("last_error_kind");
 
+                    b.Property<DateTimeOffset?>("LastMetricAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_metric_attempt_at");
+
                     b.Property<DateTimeOffset?>("LastSuccessfulAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_successful_at");
@@ -2812,6 +3358,10 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("latest_complete");
 
+                    b.Property<bool?>("LatestMetricsComplete")
+                        .HasColumnType("boolean")
+                        .HasColumnName("latest_metrics_complete");
+
                     b.Property<DateTimeOffset?>("LeaseExpiresAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("lease_expires_at");
@@ -2820,6 +3370,10 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("lease_owner");
+
+                    b.Property<Guid?>("MetricActivityBatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("metric_activity_batch_id");
 
                     b.Property<string>("MissingAccountsJson")
                         .HasMaxLength(8000)
@@ -2837,6 +3391,11 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("RetryDueAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("retry_due_at");
+
+                    b.Property<string>("SourceRequestFingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("source_request_fingerprint");
 
                     b.HasKey("Id");
 
@@ -3910,6 +4469,42 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("Bingo.Domain.Announcements.DropAnnouncementAccountState", b =>
+                {
+                    b.HasOne("Bingo.Domain.Access.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bingo.Domain.Events.BingoEvent", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Announcements.DropAnnouncementAcknowledgement", b =>
+                {
+                    b.HasOne("Bingo.Domain.Access.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bingo.Domain.Events.BingoEvent", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bingo.Domain.Evidence.Submission", null)
+                        .WithMany()
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Bingo.Domain.Boards.Board", b =>
                 {
                     b.HasOne("Bingo.Domain.Boards.BoardApprovalSnapshot", null)
@@ -3976,15 +4571,6 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
-            modelBuilder.Entity("Bingo.Domain.Boards.BoardTileImageAsset", b =>
-                {
-                    b.HasOne("Bingo.Domain.Boards.BoardTile", null)
-                        .WithMany()
-                        .HasForeignKey("BoardTileId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Bingo.Domain.Events.BingoEvent", b =>
                 {
                     b.HasOne("Bingo.Domain.Events.EventBannerAsset", null)
@@ -4013,6 +4599,54 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("EventId", "ReviewCycleId")
                         .HasPrincipalKey("EventId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Events.EventItemPrice", b =>
+                {
+                    b.HasOne("Bingo.Domain.Events.BingoEvent", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Bingo.Domain.Catalogue.CatalogueItem", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Events.EventLuckOutcomeBasis", b =>
+                {
+                    b.HasOne("Bingo.Domain.Catalogue.BossActivity", null)
+                        .WithMany()
+                        .HasForeignKey("BossActivityId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Bingo.Domain.Events.BingoEvent", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bingo.Domain.Boards.BoardApprovalRequirementDropSnapshot", null)
+                        .WithMany()
+                        .HasForeignKey("FirstApprovalDropSnapshotId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Bingo.Domain.Boards.BoardApprovalSnapshot", null)
+                        .WithMany()
+                        .HasForeignKey("FirstApprovalSnapshotId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Events.EventStatsLuckCheckpoint", b =>
+                {
+                    b.HasOne("Bingo.Domain.Events.BingoEvent", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
@@ -4143,6 +4777,21 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionCharacterActivity", b =>
+                {
+                    b.HasOne("Bingo.Domain.Events.BingoEvent", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bingo.Domain.Access.OsrsCharacter", null)
+                        .WithMany()
+                        .HasForeignKey("OsrsCharacterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionCharacterMetricActivity", b =>
                 {
                     b.HasOne("Bingo.Domain.Events.BingoEvent", null)
                         .WithMany()

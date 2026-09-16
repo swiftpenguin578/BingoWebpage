@@ -6,6 +6,7 @@
         const image = dialog.querySelector("[data-evidence-dialog-image]");
         const viewport = dialog.querySelector("[data-evidence-viewport]") || image.parentElement;
         let scale = 1, offsetX = 0, offsetY = 0;
+        let pendingOpenTrigger = null;
         const pointers = new Map();
         let pinchDistance = 0, pinchScale = 1, dragPoint = null, pointerMoved = false, gestureHadMultiplePointers = false;
         const bounds = () => ({
@@ -64,7 +65,11 @@
             image.src = trigger.dataset.evidenceImage;
             image.alt = trigger.dataset.evidenceAlt ?? dialog.dataset.enlargedEvidence ?? "";
             updateMetadata(trigger);
-            if (!dialog.open) dialog.showModal();
+            pendingOpenTrigger = trigger;
+            if (!dialog.open) {
+                try { dialog.showModal(); } catch { pendingOpenTrigger = null; return false; }
+            }
+            return true;
         };
         const distance = () => {
             const points = [...pointers.values()];
@@ -74,7 +79,13 @@
         if (dialog.open) dialog.close();
         dialog.querySelector("[data-evidence-close]")?.addEventListener("click", () => dialog.close());
         dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
-        image.addEventListener("load", applyTransform);
+        image.addEventListener("load", () => {
+            applyTransform();
+            const trigger = pendingOpenTrigger;
+            pendingOpenTrigger = null;
+            if (trigger) window.dispatchEvent(new CustomEvent("public-evidence-opened", { detail: { submissionId: trigger.dataset.evidenceSubmissionId, eventId: trigger.dataset.evidenceEventId } }));
+        });
+        image.addEventListener("error", () => { pendingOpenTrigger = null; });
         image.addEventListener("keydown", event => {
             if (event.key === "Enter" || event.key === " ") { toggleZoom(); event.preventDefault(); }
             else if (event.key === "+" || event.key === "=") { setScale(scale + 0.5); event.preventDefault(); }
@@ -124,6 +135,11 @@
         viewport.addEventListener("pointerup", endPointer);
         viewport.addEventListener("pointercancel", endPointer);
         return { open };
+    });
+    window.publicEvidence = { open: trigger => viewers[0]?.open(trigger) ?? false };
+    document.querySelectorAll("[data-evidence-open-on-load]").forEach(trigger => {
+        const viewer = viewers[0];
+        if (viewer) window.setTimeout(() => viewer.open(trigger), 0);
     });
     document.addEventListener("click", event => {
         const trigger = event.target.closest?.("[data-evidence-image]");

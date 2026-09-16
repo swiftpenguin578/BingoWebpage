@@ -1,0 +1,775 @@
+/* Compact composition trial. Numbers stay alongside the content they describe. */
+.header{height:74px}
+.brand img{width:47px;height:51px}
+.event-nav{padding-top:20px;padding-bottom:9px;font-size:19px;gap:35px}
+.masthead{padding:18px 0 22px;margin-bottom:20px}
+h1{font-size:clamp(38px,4vw,58px)}
+.kicker{font-size:15px}
+.event-status{font-size:17px}
+.dashboard-top{grid-template-columns:minmax(0,2.35fr) minmax(270px,1fr);gap:16px}
+.gp-panel{padding:18px 20px 12px}
+.gp-top{align-items:flex-start;flex-wrap:nowrap;gap:16px}
+.summary{gap:0}
+.gp-metrics{display:flex;align-items:center;gap:20px;margin:7px 0 3px}
+.total{font-size:49px;line-height:1;gap:7px}
+.total span{font-size:20px}
+.drop-count{display:flex;align-items:baseline;gap:6px;padding-left:20px;margin:0}
+.drop-count strong{font-size:25px}
+.drop-count span{font-size:11px}
+.label{font-size:10px;margin:6px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.gp-panel .tabs{padding-top:1px;gap:16px}
+.tabs button{font-size:15px}
+h2{font-size:18px}
+.chart-wrap{margin-top:8px}
+.gp-chart{height:242px}
+.legend{margin-top:3px;min-height:26px;gap:3px 16px}
+.legend button{padding:3px 0}
+.chart-hint{display:none}
+.treasure{padding:18px 20px 6px}
+.treasure h2{margin-bottom:4px}
+.treasure-list{gap:0}
+.treasure-item{padding:12px 0;min-height:0;gap:17px}
+.item-art{width:67px;height:78px}
+.item-details h3{font-size:13px;margin-bottom:4px}
+.item-value{font-size:29px}
+.item-byline{margin-top:4px;font-size:10px}
+.item-tag{margin-bottom:4px;font-size:9px}
+.dashboard-bottom{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:16px}
+.luck-panel,.timeline-panel,.objectives-panel{padding:18px 18px 14px}
+.panel-heading{gap:10px;align-items:flex-start;flex-wrap:nowrap}
+.panel-heading .tabs{gap:12px;flex:none}
+.subheading{font-size:10px;margin-top:4px}
+.luck-key{margin-top:15px}
+.luck-key,.luck-row{grid-template-columns:minmax(87px,.9fr) minmax(0,1.5fr)}
+.luck-row,.luck-track{min-height:0;height:37px}
+.luck-name{font-size:10px;padding-right:8px}
+.luck-axis-labels{font-size:9px;padding:0}
+.luck-rows{margin-top:8px}
+.luck-bar{height:16px;top:10px}
+.luck-value{height:16px;top:10px;line-height:16px;font-size:10px}
+.timeline-filter{padding:5px 17px 5px 7px;font-size:10px;max-width:125px}
+.timeline{margin-top:15px;max-height:221px;padding-right:5px}
+.milestone{grid-template-columns:48px 15px minmax(0,1fr);gap:8px;min-height:53px}
+.milestone time{font-size:9px}
+.milestone-copy{padding-bottom:13px;gap:8px}
+.milestone-copy h3{font-size:11px;margin-bottom:3px}
+.milestone-copy p{font-size:10px}
+.milestone-dot{width:11px;height:11px;margin-left:3px}
+.milestone-art{width:24px;height:28px}
+.objective-list{margin-top:13px;display:grid}
+.objective-row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--rule)}
+.objective-row:last-child{border-bottom:0}
+.objective-art{width:28px;height:28px;object-fit:contain}
+.objective-name{font-size:11px;font-weight:550;line-height:1.2;margin-bottom:5px}
+.objective-segments{display:flex;gap:4px}
+.objective-segment{height:5px;flex:1;max-width:23px;background:var(--soft);border:1px solid var(--rule);border-radius:1px}
+.objective-segment.complete{background:var(--accent);border-color:var(--accent)}
+.objective-count{font:600 21px/1 Barlow;color:var(--blue);text-align:right;align-self:center;min-width:30px}
+.objective-count span{font:400 9px/1.2 Geist;display:block;color:var(--muted);margin-top:4px}
+.objective-note{font-size:9px;color:var(--muted);margin:8px 0 0}
+.prototype-footer{padding:17px 0 22px}
+@media(min-width:1550px){.gp-chart{height:263px}.item-art{width:75px;height:84px}.luck-row,.luck-track{height:36px}.luck-name{font-size:11px}.luck-value{font-size:11px}.milestone-copy h3{font-size:12px}.objective-name{font-size:12px}.objective-row{padding:9px 0}}
+@media(max-width:1200px){.gp-top{flex-wrap:wrap;gap:7px}.gp-panel .tabs{padding:0}.gp-chart{height:222px}.panel-heading{flex-wrap:wrap;row-gap:8px}.objectives-panel .panel-heading{min-height:54px}.treasure{padding:18px 17px 6px}.treasure-item{gap:12px}.item-art{width:57px;height:76px}.luck-key,.luck-row{grid-template-columns:83px minmax(0,1fr)}.luck-name{font-size:10px}.timeline{max-height:240px}.milestone{grid-template-columns:43px 13px minmax(0,1fr);gap:6px}}
+@media(max-width:950px){.dashboard-bottom{grid-template-columns:repeat(2,minmax(0,1fr))}.objectives-panel{grid-column:1/-1}.objectives-panel .panel-heading{min-height:0;flex-wrap:nowrap}.objective-list{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:24px}.objective-list .objective-row{border-bottom:1px solid var(--rule)}.luck-panel .panel-heading,.timeline-panel .panel-heading{flex-wrap:nowrap}.luck-key,.luck-row{grid-template-columns:minmax(100px,1fr) minmax(0,1.7fr)}.luck-name{font-size:11px}.timeline{max-height:221px}}
+@media(max-width:850px){.dashboard-top{grid-template-columns:1fr}.gp-top{flex-wrap:nowrap}.treasure{padding:17px 20px 8px}.treasure-list{flex-direction:row;gap:18px}.treasure-item{flex-direction:row;align-items:center;gap:12px;padding:10px 16px 10px 0;border-right:1px solid var(--rule);border-bottom:0}.item-art{width:42px;height:68px}.item-value{font-size:25px}.item-details h3{font-size:11px}.item-byline{font-size:9px}.item-tag{display:none}.header{height:68px}.event-nav{padding-top:18px;font-size:18px;gap:29px}.masthead{padding:15px 0 18px}.gp-chart{height:240px}}
+@media(max-width:650px){.dashboard-bottom{grid-template-columns:1fr}.objectives-panel{grid-column:auto}.objective-list{grid-template-columns:1fr}.objective-list .objective-row:last-child{border-bottom:0}.gp-top{flex-wrap:wrap;gap:9px}.gp-metrics{gap:15px}.drop-count{padding-left:15px;gap:5px}.total{font-size:45px}.drop-count strong{font-size:23px}.gp-chart{height:215px}.treasure-list{flex-direction:column;gap:0}.treasure-item{flex-direction:row;padding:10px 0;border-right:0;border-bottom:1px solid var(--rule);gap:19px}.item-art{width:51px;height:60px}.item-details h3{font-size:12px}.item-value{font-size:27px}.item-byline{font-size:10px}.item-tag{display:none}.luck-key,.luck-row{grid-template-columns:minmax(108px,1fr) minmax(0,2fr)}.luck-row,.luck-track{height:34px}.luck-name{font-size:11px}.luck-value{font-size:11px}.milestone{grid-template-columns:53px 16px minmax(0,1fr);gap:9px}.milestone time{font-size:10px}.milestone-copy h3{font-size:12px}.milestone-copy p{font-size:11px}.objective-name{font-size:12px}.objective-row{padding:9px 0}.objective-segment{max-width:30px}.panel-heading{flex-wrap:nowrap}.timeline-filter{font-size:10px}.luck-panel,.timeline-panel,.objectives-panel{padding:17px}.legend{justify-content:flex-start}.chart-wrap{margin-top:5px}.masthead{gap:12px}.event-status{font-size:15px}.prototype-footer{padding-top:16px}}
+
+/* The two top sections follow the site's utility-heading and compact-row rhythm. */
+.gp-top{align-items:center;flex-wrap:nowrap;gap:16px}
+.stats-section-title,.treasure h2{font:600 23px/1.1 Barlow,Arial,sans-serif;letter-spacing:.025em;text-transform:uppercase;color:var(--blue);margin:0}
+.stats-heading-rule{height:1px;background:var(--rule);flex:1;min-width:10px}
+.gp-panel .tabs{padding:0;gap:16px;flex:none}
+.gp-context{display:flex;align-items:baseline;gap:8px;color:var(--muted);font-size:11px;margin:10px 0 8px;flex-wrap:wrap}
+.gp-context strong{font-weight:600;color:var(--ink)}
+.gp-context #gp-unit{margin-left:auto;font-size:10px}
+.context-separator{opacity:.6}
+.gp-chart{height:220px}
+.treasure{align-self:start;padding:18px 18px 6px}
+.treasure h2{margin-bottom:6px;font-size:22px}
+.treasure-list{display:flex;flex-direction:column;flex:none;gap:0}
+.treasure-item{display:grid;grid-template-columns:43px minmax(0,1fr);flex:none;min-height:0;padding:15px 0;gap:12px;border-right:0;border-bottom:1px solid var(--rule)}
+.treasure-item:last-child{padding-right:0}
+.item-art{width:43px;height:49px;align-self:center}
+.item-details{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:9px;align-items:center}
+.item-details h3{grid-column:1;grid-row:1;font-size:12px;line-height:1.3;margin:0}
+.item-value{grid-column:2;grid-row:1/3;font:600 20px/1.1 Barlow;color:var(--blue);text-align:right;align-self:center}
+.item-byline{grid-column:1;grid-row:2;font-size:10px;line-height:1.4;margin:4px 0 0}
+.item-tag{display:none}
+@media(min-width:1550px){.gp-chart{height:230px}.treasure-item{padding:17px 0}.item-details h3{font-size:13px}.item-art{height:51px}.item-value{font-size:22px}}
+@media(max-width:1100px){.gp-top{gap:11px}.gp-panel .tabs{gap:12px}.stats-section-title{font-size:21px}.treasure h2{font-size:20px}.item-details{column-gap:7px}.item-value{font-size:18px}.treasure-item{grid-template-columns:35px minmax(0,1fr);gap:9px}.item-art{width:35px;height:44px}.item-details h3{font-size:11px}.item-byline{font-size:9px}}
+@media(max-width:850px){.treasure-item{padding:12px 0;grid-template-columns:40px minmax(0,1fr);gap:15px}.item-details{grid-template-columns:minmax(0,1fr) auto}.item-details h3{font-size:12px}.item-byline{font-size:10px}.item-value{font-size:21px}.item-art{width:40px;height:43px}.treasure h2{font-size:22px}}
+@media(max-width:560px){.gp-top{flex-wrap:wrap;gap:7px 15px}.stats-heading-rule{display:none}.gp-panel .tabs{margin-left:auto;gap:13px}.gp-panel .tabs button{font-size:14px}.stats-section-title{font-size:21px}.gp-context{gap:6px;margin-top:8px;font-size:10px}.gp-context #gp-unit{flex-basis:100%;margin:0;font-size:9px}.gp-chart{height:210px}}
+
+/* Team share stays beside its related trend, within the same GP section. */
+.gp-panel{container-type:inline-size}
+.gp-visuals{display:grid;grid-template-columns:minmax(0,1fr) 215px;gap:20px;margin-top:12px}
+.gp-trend{min-width:0}
+.gp-context{margin-top:0}
+.gp-share{border-left:1px solid var(--rule);padding-left:18px;min-width:0}
+.gp-share h3{font:550 12px/1.4 Geist,Arial,sans-serif;margin:0;color:var(--ink)}
+.share-ring{width:150px;height:150px;position:relative;margin:6px auto 8px}
+.share-ring svg{width:100%;height:100%;overflow:visible}
+.share-segment{transition:opacity .15s;cursor:pointer}
+.share-total{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;pointer-events:none}
+.share-total strong{font:800 34px/1 Barlow,Arial,sans-serif;color:var(--blue)}
+.share-total span{font-size:9px;color:var(--muted);margin-top:5px}
+.share-legend{display:grid;gap:1px}
+.share-row{display:grid;grid-template-columns:6px minmax(0,1fr) auto auto;align-items:center;gap:6px;width:100%;padding:5px 2px;text-align:left;font:400 9px/1.35 Geist,Arial,sans-serif;border-radius:3px}
+.share-row.highlighted{background:var(--soft)}
+.share-dot{width:6px;height:6px;border-radius:50%}
+.share-name{min-width:0}
+.share-row strong{font-weight:600;font-variant-numeric:tabular-nums}
+.share-percent{color:var(--muted);min-width:31px;text-align:right;font-variant-numeric:tabular-nums}
+@container(max-width:600px){
+ .gp-visuals{grid-template-columns:1fr;gap:14px}
+ .gp-share{border-left:0;border-top:1px solid var(--rule);padding:12px 0 0;display:grid;grid-template-columns:130px minmax(0,1fr);column-gap:16px;align-items:center}
+ .gp-share h3{grid-column:1/-1;margin-bottom:4px}
+ .share-ring{width:130px;height:130px;margin:0}
+ .share-row{font-size:10px;padding:6px 2px}
+}
+
+/* Timeline rail and valuable-drop strip: related GP content stays together. */
+.dashboard-top{grid-template-columns:minmax(0,2.35fr) minmax(270px,1fr);grid-template-rows:auto;gap:16px}
+.dashboard-top>.gp-panel{grid-column:1;grid-row:1}
+.dashboard-top>.timeline-panel{grid-column:2;grid-row:1;align-self:stretch;padding:18px}
+.dashboard-top .timeline-panel .panel-heading{flex-wrap:wrap;align-items:center}
+.dashboard-top .timeline{max-height:440px;margin-top:20px}
+.dashboard-top .milestone{grid-template-columns:46px 15px minmax(0,1fr);gap:9px;min-height:57px}
+.dashboard-top .milestone-copy h3{font-size:12px}
+.dashboard-top .milestone-copy p{font-size:10px;line-height:1.5}
+.dashboard-top .treasure{background:none;border:0;border-top:1px solid var(--rule);border-radius:0;margin-top:14px;padding:10px 0 0;align-self:start}
+.dashboard-top .treasure h2{font-size:16px;margin:0 0 8px}
+.dashboard-top .treasure-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0}
+.dashboard-top .treasure-item{grid-template-columns:30px minmax(0,1fr);padding:0 12px;gap:9px;border:0;border-right:1px solid var(--rule);align-items:center}
+.dashboard-top .treasure-item:first-child{padding-left:0}
+.dashboard-top .treasure-item:last-child{padding-right:0;border-right:0}
+.dashboard-top .item-art{width:30px;height:38px}
+.dashboard-top .item-details{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:3px 7px;min-width:0}
+.dashboard-top .item-details h3{font:550 11px/1.3 Geist,Arial,sans-serif;margin:0}
+.dashboard-top .item-value{grid-column:2;grid-row:1;font:600 18px/1.1 Barlow,Arial,sans-serif;text-align:right;align-self:center;white-space:nowrap}
+.dashboard-top .item-byline{grid-column:1 / -1;grid-row:2;font-size:9px;line-height:1.4;margin:0;color:var(--muted)}
+.dashboard-bottom{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.dashboard-bottom>.objectives-panel{grid-column:auto}
+.dashboard-bottom .objective-list{grid-template-columns:1fr}
+.dashboard-bottom .objectives-panel .panel-heading{min-height:0}
+.dashboard-bottom .luck-key,.dashboard-bottom .luck-row{grid-template-columns:minmax(115px,1fr) minmax(0,2fr)}
+@media(max-width:1050px) and (min-width:851px){
+ .dashboard-top .treasure-item{grid-template-columns:28px minmax(0,1fr);gap:7px;padding:0 9px}
+ .dashboard-top .item-art{width:28px;height:36px}
+ .dashboard-top .item-value{font-size:17px}
+}
+@media(max-width:850px){
+ .dashboard-top{grid-template-columns:1fr;grid-template-rows:auto}
+ .dashboard-top>.gp-panel,.dashboard-top>.treasure,.dashboard-top>.timeline-panel{grid-column:1;grid-row:auto}
+ .dashboard-top .timeline{max-height:290px}
+ .dashboard-top .milestone{grid-template-columns:54px 15px minmax(0,1fr)}
+}
+@media(max-width:650px){.dashboard-bottom{grid-template-columns:1fr}}
+@media(max-width:480px){
+ .dashboard-top .treasure-list{grid-template-columns:1fr}
+ .dashboard-top .treasure-item{grid-template-columns:38px minmax(0,1fr);border-right:0;border-bottom:1px solid var(--rule);padding:11px 0;gap:14px}
+ .dashboard-top .treasure-item:last-child{border-bottom:0}
+ .dashboard-top .item-details{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;width:100%}
+ .dashboard-top .item-details h3{grid-column:1;grid-row:1;font-size:12px}
+ .dashboard-top .item-value{grid-column:2;grid-row:1 / 3;align-self:center;font-size:23px}
+ .dashboard-top .item-byline{grid-column:1;grid-row:2;font-size:10px}
+}
+
+/* Compact right column: timeline and luck, with natural panel heights. */
+.dashboard-top{align-items:start}
+.stats-side-column{grid-column:2;grid-row:1;display:grid;gap:16px;min-width:0;align-content:start}
+.stats-side-column .timeline-panel,.stats-side-column .luck-panel{padding:18px;min-width:0}
+.stats-side-column .timeline{max-height:232px;margin-top:15px}
+.stats-side-column .milestone{min-height:53px}
+.stats-side-column .panel-heading{flex-wrap:wrap;gap:8px;align-items:center}
+.stats-side-column .luck-key,.stats-side-column .luck-row{grid-template-columns:minmax(82px,.9fr) minmax(0,1.5fr)}
+.stats-side-column .luck-name{font-size:10px}
+.stats-side-column .luck-row,.stats-side-column .luck-track{height:34px}
+.stats-side-column .luck-bar,.stats-side-column .luck-value{top:9px}
+@media(max-width:850px){.stats-side-column{grid-column:1;grid-row:auto}}
+
+/* GP and luck above; board history and event milestones below. */
+.dashboard-top>.luck-panel{grid-column:2;grid-row:1;padding:18px;align-self:start}
+.dashboard-top>.race-panel{grid-column:1;grid-row:2;padding:18px 20px 12px;align-self:start}
+.dashboard-top>.timeline-panel{grid-column:2;grid-row:2;align-self:start}
+.dashboard-top>.luck-panel .panel-heading{flex-wrap:wrap;gap:8px;align-items:center}
+.dashboard-top>.luck-panel .luck-key,.dashboard-top>.luck-panel .luck-row{grid-template-columns:minmax(82px,.9fr) minmax(0,1.5fr)}
+.dashboard-top>.luck-panel .luck-name{font-size:10px}
+.dashboard-top .timeline{max-height:250px;margin-top:15px}
+.race-panel .panel-heading{align-items:center;flex-wrap:wrap}
+.race-key{display:flex;gap:14px;font-size:10px;color:var(--muted)}
+.race-axis,.race-row{display:grid;grid-template-columns:135px minmax(0,1fr) 46px;gap:16px;align-items:center}
+.race-axis{margin-top:20px;margin-bottom:6px;font-size:10px;color:var(--muted)}
+.race-axis>div{display:flex;justify-content:space-between}
+.race-axis>span:last-child{text-align:right}
+.race-row{min-height:42px}
+.race-team{font-size:11px;color:var(--ink);line-height:1.35}
+.race-track{position:relative;height:32px;background:linear-gradient(var(--rule),var(--rule)) center / 100% 1px no-repeat}
+.race-mark{position:absolute;top:2px;width:12px;height:28px;padding:0;transform:translateX(-50%);color:var(--team-color);z-index:1}
+.race-mark:before{content:'';position:absolute;left:5px;top:6px;height:16px;width:3px;background:currentColor;border-radius:1px}
+.race-mark.rows-completed:before{width:9px;height:9px;left:2px;top:9px;transform:rotate(45deg);border:1px solid var(--surface)}
+.race-mark.finished:before{width:9px;height:9px;left:2px;top:9px;border-radius:50%;outline:2px solid currentColor;outline-offset:2px}
+.race-mark:hover,.race-mark.selected,.race-mark:focus-visible{z-index:2;filter:brightness(1.15)}
+.race-mark.selected:after{content:'';position:absolute;bottom:-2px;left:4px;width:5px;height:3px;background:var(--ink)}
+.race-count{font:600 21px/1 Barlow,Arial,sans-serif;color:var(--team-color);text-align:right}
+.race-detail{border-top:1px solid var(--rule);margin:12px 0 0;padding-top:10px;min-height:37px;font-size:10px;line-height:1.5;color:var(--muted)}
+@media(max-width:1100px){.race-axis,.race-row{grid-template-columns:100px minmax(0,1fr) 37px;gap:10px}.race-team{font-size:10px}}
+@media(max-width:850px){.dashboard-top>.gp-panel,.dashboard-top>.luck-panel,.dashboard-top>.race-panel,.dashboard-top>.timeline-panel{grid-column:1;grid-row:auto}}
+@media(max-width:480px){.dashboard-top>.race-panel{padding:16px 12px 10px}.race-axis,.race-row{grid-template-columns:82px minmax(0,1fr) 32px;gap:8px}.race-count{font-size:18px}.race-axis{font-size:9px}.race-key{font-size:9px}}
+
+/* Completion markers with readable labels and a shared time cursor. */
+.race-panel{position:relative}
+.race-axis,.race-row{grid-template-columns:125px minmax(0,1fr) 44px;gap:12px}
+.race-team{font:600 16px/1.3 Barlow,Arial,sans-serif;text-transform:uppercase}
+.race-axis{margin-top:16px}
+.race-key{gap:12px;flex-wrap:wrap}
+.race-row{min-height:43px}
+.race-track{height:43px;background:none}
+.race-track:before{content:'';position:absolute;top:21px;left:0;right:0;height:1px;background:var(--rule)}
+.race-line{position:absolute;left:0;top:21px;height:1px;background:var(--team-color);border-radius:1px}
+.race-guide{position:absolute;top:0;bottom:0;border-left:1px dashed var(--rule);pointer-events:none}
+.race-mark{top:8px;width:12px;height:28px;filter:none}
+.race-mark:before{left:3px;top:10px;width:7px;height:7px;border-radius:50%;box-shadow:0 0 0 1.5px var(--surface)}
+.race-mark.rows-completed:before{width:10px;height:10px;left:1px;top:8px;border-radius:1px}
+.race-mark.finished:before{width:9px;height:9px;left:2px;top:9px}
+.race-mark.selected:after{display:none}
+.race-mark:hover,.race-mark.selected,.race-mark:focus-visible{filter:none}
+.race-mark.selected:before{box-shadow:0 0 0 2px var(--surface),0 0 0 3px currentColor}
+.race-cursor{position:absolute;top:0;bottom:0;left:var(--race-cursor);border-left:1px solid var(--ink);pointer-events:none;display:none;z-index:3}
+.race-tracks.exploring .race-cursor{display:block}
+.race-tooltip{position:absolute;z-index:10;display:flex;align-items:center;gap:10px;max-width:calc(100% - 16px);padding:11px 13px;background:var(--surface);color:var(--ink);border:1px solid var(--rule);border-radius:5px;box-shadow:0 5px 20px #0002;pointer-events:none;font-size:11px}
+.race-tooltip img{width:35px;height:38px;object-fit:contain}
+.race-tooltip strong,.race-tooltip span{display:block}
+.race-tooltip strong{font-size:12px;margin-bottom:3px}
+.race-tooltip span{font-size:10px;color:var(--muted);line-height:1.5}
+#race-date{font-size:9px;font-variant-numeric:tabular-nums}
+@media(max-width:480px){.race-axis,.race-row{grid-template-columns:96px minmax(0,1fr) 32px;gap:8px}.race-team{font-size:14px}.race-key{gap:9px}}
+
+/* Parallel tile and scoring-row totals follow the shared time cursor. */
+.race-axis,.race-row{grid-template-columns:125px minmax(0,1fr) 44px 44px;gap:12px}
+.race-axis>span:nth-last-child(-n+2){text-align:right}
+.race-count{font-variant-numeric:tabular-nums}
+.race-row-gain{position:absolute;left:50%;top:-7px;transform:translateX(-50%);font:600 9px/1 Geist,Arial,sans-serif;color:var(--team-color);white-space:nowrap}
+.race-mark.finished:before{transform:none;border-radius:50%;width:9px;height:9px;left:2px;top:9px}
+@media(max-width:480px){.race-axis,.race-row{grid-template-columns:86px minmax(0,1fr) 32px 32px;gap:7px}}
+
+/* Keep row totals secondary beneath each team's tile count. */
+.race-axis,.race-row{grid-template-columns:125px minmax(0,1fr) 58px;gap:12px}
+.race-totals{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.race-totals .race-rows-count{font:400 10px/1.2 Geist,Arial,sans-serif;color:var(--muted);white-space:nowrap}
+@media(max-width:480px){.race-axis,.race-row{grid-template-columns:86px minmax(0,1fr) 48px;gap:7px}.race-totals .race-rows-count{font-size:9px}}
+
+/* A horizontal milestone strip breaks up the two chart rows. */
+.stats-history-grid{display:grid;grid-template-columns:minmax(0,45fr) minmax(0,55fr);gap:16px;margin-top:16px;align-items:start}
+.stats-history-grid>.timeline-panel,.stats-history-grid>.race-panel{padding:18px 20px 14px;min-width:0}
+.stats-history-grid .timeline-panel .panel-heading{align-items:center;flex-wrap:wrap}
+.stats-history-grid .timeline{display:flex;gap:0;max-height:none;max-width:none;overflow-x:auto;overflow-y:hidden;margin:20px 0 0;padding:0 0 10px;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:var(--rule) transparent}
+.stats-history-grid .milestone{display:flex;flex-direction:column;flex:0 0 158px;min-height:180px;gap:0;scroll-snap-align:start}
+.stats-history-grid .milestone time{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;font-size:11px;padding:0 14px 0 0;min-height:22px}
+.stats-history-grid .milestone time span{font-weight:550;color:var(--ink)}
+.stats-history-grid .milestone-rail{height:30px;flex:none;width:100%}
+.stats-history-grid .milestone-rail:before{left:0;right:0;top:14px;bottom:auto;width:auto;height:1px}
+.stats-history-grid .milestone:last-child .milestone-rail:before{display:block;right:calc(100% - 8px)}
+.stats-history-grid .milestone-dot{position:absolute;left:0;top:8px;margin:0;width:13px;height:13px}
+.stats-history-grid .milestone-copy{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:8px 18px 10px 0}
+.stats-history-grid .milestone-copy h3{font:600 17px/1.2 Barlow,Arial,sans-serif;text-transform:uppercase;margin:0 0 6px;color:var(--ink)}
+.stats-history-grid .milestone-copy p{font-size:11px;line-height:1.5;margin:0;color:var(--muted)}
+.stats-history-grid .milestone-art{width:32px;height:32px;object-fit:contain}
+.timeline-scroll-hint{margin:8px 0 0;font-size:10px;color:var(--muted)}
+.stats-history-grid .race-panel .panel-heading{gap:10px;align-items:flex-start}
+.stats-history-grid .race-axis,.stats-history-grid .race-row{grid-template-columns:110px minmax(0,1fr) 52px;gap:10px}
+.stats-history-grid .race-key{font-size:9px;gap:9px}
+.stats-history-grid .race-team{font-size:15px}
+@media(max-width:850px){.stats-history-grid{grid-template-columns:1fr}.stats-history-grid .milestone{flex-basis:170px}}
+@media(max-width:480px){.stats-history-grid>.timeline-panel,.stats-history-grid>.race-panel{padding:16px 12px 12px}.stats-history-grid .race-axis,.stats-history-grid .race-row{grid-template-columns:86px minmax(0,1fr) 48px;gap:7px}.stats-history-grid .race-team{font-size:14px}}
+
+/* Full-width milestones separate the GP section from board progress. */
+.stats-history-grid{grid-template-columns:minmax(0,2.35fr) minmax(270px,1fr)}
+.stats-history-grid>.timeline-panel{grid-column:1 / -1;grid-row:1}
+.stats-history-grid>.race-panel{grid-column:1;grid-row:2}
+.stats-history-grid .race-axis,.stats-history-grid .race-row{grid-template-columns:125px minmax(0,1fr) 58px;gap:12px}
+.stats-history-grid .race-team{font-size:16px}
+.stats-history-grid .race-key{font-size:10px;gap:12px}
+@media(max-width:850px){.stats-history-grid{grid-template-columns:1fr}}
+@media(max-width:480px){.stats-history-grid .race-axis,.stats-history-grid .race-row{grid-template-columns:86px minmax(0,1fr) 48px;gap:7px}.stats-history-grid .race-team{font-size:14px}}
+
+.stats-history-grid>.race-panel{grid-column:1 / -1;justify-self:end;width:calc((100% - 16px) * 2.35 / 3.35)}
+@media(max-width:850px){.stats-history-grid>.race-panel{width:100%}}
+
+/* Compact full-width timeline strip. */
+.stats-history-grid>.timeline-panel{padding:10px 20px 8px}
+.stats-history-grid .timeline{margin-top:8px;padding-bottom:2px}
+.stats-history-grid .milestone{min-height:0;flex-basis:180px}
+.stats-history-grid .milestone time{min-height:18px}
+.stats-history-grid .milestone-rail{height:20px}
+.stats-history-grid .milestone-rail:before{top:10px}
+.stats-history-grid .milestone-dot{top:4px}
+.stats-history-grid .milestone-copy{flex-direction:row;align-items:flex-start;gap:8px;padding:3px 16px 2px 0}
+.stats-history-grid .milestone-copy h3{font-size:17px;margin-bottom:4px}
+.stats-history-grid .milestone-copy p{font-size:11px;line-height:1.35}
+.stats-history-grid .milestone-art{width:26px;height:30px;flex:none}
+.timeline-scroll-hint{margin:3px 0 0;font-size:9px}
+
+/* Existing brand artwork provides a quiet break beside board progress. */
+.stats-history-grid{grid-template-columns:minmax(0,1fr) minmax(0,2.35fr)}
+.stats-history-grid>.race-panel{grid-column:2;grid-row:2;width:100%;justify-self:stretch}
+.stats-brand-art{grid-column:1;grid-row:2;align-self:center;justify-self:center;width:85%;max-width:270px;pointer-events:none}
+.stats-brand-art img{width:100%;height:auto;max-height:270px;object-fit:contain}
+.stats-brand-dark{display:none}
+html[data-theme=dark] .stats-brand-light{display:none}
+html[data-theme=dark] .stats-brand-dark{display:block}
+@media(max-width:850px){.stats-history-grid{grid-template-columns:1fr}.stats-history-grid>.race-panel{grid-column:1}.stats-brand-art{display:none}}
+
+/* One simple event highlight gives the chart row a stronger color anchor. */
+.versatile-card{grid-column:1;grid-row:2;align-self:stretch;min-width:0;position:relative;overflow:hidden;background:#293d91;color:#fff9ec;border:1px solid #4356a5;border-radius:5px;padding:23px;display:flex;flex-direction:column;justify-content:space-between;gap:28px;isolation:isolate}
+.versatile-watermark{position:absolute;width:270px;max-width:none;right:-96px;top:34px;opacity:.085;z-index:-1;pointer-events:none}
+.versatile-card h2{font:600 19px/1.15 Barlow,Arial,sans-serif;text-transform:uppercase;letter-spacing:.045em;color:inherit;margin:0}
+.versatile-content h3{font:600 31px/1.1 Barlow,Arial,sans-serif;text-transform:uppercase;margin:0;color:inherit}
+.versatile-team{font:600 14px/1.2 Barlow,Arial,sans-serif;text-transform:uppercase;margin:2px 0 22px;color:#e1e5fb}
+.versatile-caption{font-size:12px;margin:0;color:#e1e5fb;transform:translateY(4px)}
+.versatile-stat{display:flex;align-items:center;gap:13px;margin:0}
+.versatile-stat strong{font:800 64px/.95 Barlow,Arial,sans-serif;letter-spacing:-.03em}
+.versatile-stat span{font:600 21px/1.05 Barlow,Arial,sans-serif;text-transform:uppercase}
+@media(max-width:850px){.versatile-card{grid-column:1;grid-row:2;min-height:245px}.stats-history-grid>.race-panel{grid-column:1;grid-row:3}}
+
+/* Artwork-led repeat-drop highlight aligned with the GP panel. */
+.dashboard-top>.gp-panel{align-self:stretch}
+.luck-stack{grid-column:2;grid-row:1;display:grid;grid-template-rows:auto minmax(144px,1fr);gap:16px;min-width:0;align-self:stretch}
+.luck-stack>.luck-panel{padding:18px}
+.luck-stack .panel-heading{flex-wrap:wrap;gap:8px;align-items:center}
+.luck-stack .luck-key,.luck-stack .luck-row{grid-template-columns:minmax(82px,.9fr) minmax(0,1.5fr)}
+.luck-stack .luck-name{font-size:10px}
+.repeat-drop-card{position:relative;overflow:hidden;background:#293d91;color:#fff9ec;border:1px solid #4356a5;border-radius:5px;padding:18px 20px;display:flex;flex-direction:column;justify-content:space-between;gap:13px}
+.repeat-drop-card h2{position:relative;z-index:1;font:600 16px/1.15 Barlow,Arial,sans-serif;text-transform:uppercase;letter-spacing:.045em;margin:0;color:inherit}
+.repeat-drop-content{display:block}
+.repeat-drop-content>div{position:relative;z-index:1;max-width:67%}
+.repeat-drop-content h3{font:600 20px/1.1 Barlow,Arial,sans-serif;text-transform:uppercase;margin:0 0 8px;color:#e1e5fb}
+.repeat-drop-content p{display:flex;align-items:baseline;gap:9px;margin:0}
+.repeat-drop-content strong{font:800 56px/.95 Barlow,Arial,sans-serif;letter-spacing:-.03em}
+.repeat-drop-content p span{font:600 21px/1.05 Barlow,Arial,sans-serif;text-transform:uppercase}
+.repeat-drop-content img{position:absolute;width:29%;height:104px;right:14px;bottom:13px;object-fit:contain;opacity:1;pointer-events:none}
+@media(max-width:850px){.luck-stack{grid-column:1;grid-row:auto}}
+
+/* One count spans the item name and drop label. */
+.repeat-drop-content>.repeat-drop-stat{display:flex;align-items:center;gap:12px;max-width:72%}
+.repeat-drop-stat>strong{font:800 64px/.95 Barlow,Arial,sans-serif;letter-spacing:-.03em;flex:none}
+.repeat-drop-label{min-width:0}
+.repeat-drop-label h3{font:600 19px/1.1 Barlow,Arial,sans-serif;color:#e1e5fb;margin:0 0 3px;text-transform:uppercase}
+.repeat-drop-label>span{font:600 19px/1.1 Barlow,Arial,sans-serif;text-transform:uppercase}
+.repeat-drop-card{justify-content:space-between;gap:20px}
+.repeat-drop-card h2{margin-bottom:0}
+.repeat-drop-content{margin:0}
+.repeat-drop-content img{width:24%;right:10px}
+
+/* Trial: use the item silhouette as a quiet watermark. */
+.repeat-drop-content img{opacity:0}
+.repeat-drop-card:after{content:'';position:absolute;width:var(--repeat-default-width);height:var(--repeat-default-height);right:var(--repeat-default-right);bottom:var(--repeat-default-bottom);background:#a9b3e0;opacity:.13;mask:var(--repeat-drop-art,url('assets/items/dragon-warhammer-detail.png')) center / contain no-repeat;-webkit-mask:var(--repeat-drop-art,url('assets/items/dragon-warhammer-detail.png')) center / contain no-repeat;pointer-events:none}
+
+/* Typography refinement: utility headings, readable data labels, quiet metadata. */
+#gp-heading,#luck-heading,#timeline-heading,#race-heading{
+ font:600 22px/1.15 Barlow,Arial,sans-serif;
+ text-transform:uppercase;letter-spacing:.025em;
+}
+.dashboard-top .treasure h2{font:600 16px/1.15 Barlow,Arial,sans-serif;letter-spacing:.025em}
+.gp-share h3{font:600 12px/1.3 Barlow,Arial,sans-serif}
+#gp-tabs button,#luck-tabs button{font:600 16px/1.2 Barlow,Arial,sans-serif;letter-spacing:.025em}
+.gp-context,.gp-context #gp-unit,.luck-panel .subheading,.race-panel .subheading{
+ font:400 11px/1.4 Geist,Arial,sans-serif;
+}
+.gp-context strong{font-weight:600}
+.legend button,.luck-stack .luck-name{font:400 11px/1.35 Geist,Arial,sans-serif}
+.share-row{font:400 10px/1.35 Geist,Arial,sans-serif}
+.share-row strong{font-weight:600}
+.luck-axis-labels,.race-axis,.stats-history-grid .race-key,#race-date{
+ font:400 10px/1.3 Geist,Arial,sans-serif;
+}
+.stats-history-grid .timeline-filter{font:400 11px/1.3 Geist,Arial,sans-serif}
+.stats-history-grid .milestone time{font:400 11px/1.35 Geist,Arial,sans-serif}
+.stats-history-grid .milestone time span{font-weight:600}
+.stats-history-grid .milestone-copy h3{font:600 17px/1.15 Barlow,Arial,sans-serif;letter-spacing:.01em}
+.stats-history-grid .milestone-copy p,.dashboard-top .item-byline{font:400 11px/1.35 Geist,Arial,sans-serif}
+.dashboard-top .item-details h3{font:600 12px/1.25 Geist,Arial,sans-serif}
+.timeline-scroll-hint{font:400 10px/1.3 Geist,Arial,sans-serif;text-align:right}
+.axis-text{font:400 10px Geist,Arial,sans-serif}
+.gp-chart .end-value{font-size:11px;font-weight:600}
+.share-percent,.share-row strong,.axis-text,.end-value,.luck-value,.race-count,.milestone time{font-variant-numeric:tabular-nums}
+@media(max-width:560px){
+ #gp-heading,#luck-heading,#timeline-heading,#race-heading{font-size:21px}
+ #gp-tabs button,#luck-tabs button{font-size:15px}
+ .gp-context,.gp-context #gp-unit{font-size:10px}
+ .share-row{font-size:10px}
+}
+
+/* Drop-value section refinement. */
+.gp-top .stats-heading-rule{height:3px;background:var(--blue)}
+#gp-tabs button[aria-pressed=true]:after{display:none}
+.dashboard-top .treasure{border-top:0;padding-top:0}
+.dashboard-top .treasure h2{display:flex;align-items:center;gap:12px}
+.dashboard-top .treasure h2:after{content:'';height:1px;flex:1;min-width:12px;background:var(--rule)}
+
+.gp-share h3{text-transform:uppercase}
+.dashboard-top .item-value{grid-column:2;grid-row:1 / 3;align-self:center}
+.dashboard-top .item-byline{grid-column:1;grid-row:2}
+
+/* Light-mode definition follows the artwork silhouette. */
+html:not([data-theme=dark]) .treasure .item-art{filter:drop-shadow(0 1px 1.5px #11152880) drop-shadow(0 2px 4px #11152840)}
+
+/* Luck refinement: shared heading treatment and an aligned zero label. */
+.luck-stack .luck-panel .panel-heading{flex-wrap:nowrap;align-items:center;gap:12px}
+#luck-heading{color:var(--blue);flex:none}
+.luck-heading-rule{height:3px;min-width:10px;flex:1;background:var(--blue)}
+#luck-tabs{flex:none;gap:12px}
+#luck-tabs button[aria-pressed=true]:after{display:none}
+.luck-stack .luck-key,.luck-stack .luck-row{grid-template-columns:minmax(80px,.8fr) minmax(0,1.6fr)}
+.luck-stack .luck-name{font:600 15px/1.2 Barlow,Arial,sans-serif;text-transform:uppercase;padding-right:7px}
+.luck-axis-labels{position:relative;display:block;height:15px;padding:0}
+.luck-axis-labels span{position:absolute;top:0;white-space:nowrap}
+.luck-axis-labels span:first-child{left:0}
+.luck-axis-labels span:nth-child(2){left:50%;transform:translateX(-50%)}
+.luck-axis-labels span:last-child{right:0}
+@media(max-width:480px){.luck-stack .luck-name{font-size:14px}}
+
+.luck-stack .luck-axis-labels{font:600 11px/1.3 Geist,Arial,sans-serif}
+
+/* Timeline filter follows the event masthead's text-and-chevron control. */
+.timeline-filter-control{position:relative;display:inline-flex;align-items:center;color:var(--blue)}
+.timeline-filter-control:after{content:'';position:absolute;right:1px;inset-block:0;margin-block:auto;width:10px;height:6px;background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1 5 5 9 1' fill='none' stroke='black' stroke-width='1.5'/%3E%3C/svg%3E") center/contain no-repeat;pointer-events:none}
+.stats-history-grid .timeline-filter{appearance:none;-webkit-appearance:none;font:600 16px/1.2 Barlow,Arial,sans-serif;text-transform:uppercase;letter-spacing:.045em;color:inherit;background:transparent;border:0;border-radius:2px;padding:5px 22px 5px 0;max-width:190px;text-align:right;text-align-last:right;cursor:pointer}
+.timeline-filter-control:hover{color:var(--muted)}
+.stats-history-grid .timeline-filter:focus-visible{outline:2px solid var(--blue);outline-offset:4px}
+.stats-history-grid .timeline-filter option{color:var(--ink);background:var(--surface)}
+
+#timeline-heading,#race-heading{color:var(--blue)}
+.race-key-icon{color:var(--ink)}
+
+/* Keep the exploration hint beside the filter so the timeline needs no footer row. */
+.timeline-heading-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px 18px;margin-left:auto;max-width:100%}
+.timeline-heading-actions .timeline-scroll-hint{margin:0;white-space:nowrap}
+
+/* Center valuable drops in the space remaining below their heading. */
+.dashboard-top>.gp-panel{display:flex;flex-direction:column}
+.dashboard-top .treasure{flex:1;align-self:stretch}
+.dashboard-top .treasure-list{flex:1;align-content:center}
+
+/* Preserve readable track spacing in narrow Board progress panels. */
+.race-scroll{max-width:100%;overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--rule) transparent;padding-bottom:3px}
+.race-scroll .race-axis,.race-scroll .race-tracks{min-width:680px}
+
+/* Keep the mobile timeline filter and hint on one shared row. */
+@media(max-width:560px){
+ .stats-history-grid .timeline-panel .panel-heading{row-gap:6px}
+ .timeline-heading-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;width:100%;gap:12px}
+ .timeline-heading-actions .timeline-filter-control{min-width:0;justify-self:stretch}
+ .stats-history-grid .timeline-filter{width:100%;min-width:0;max-width:100%;font-size:14px;padding-right:18px}
+ .timeline-heading-actions .timeline-scroll-hint{font-size:9px}
+}
+
+/* Sample-size controls and bounded lists for event-size comparison. */
+.footer-controls{flex-wrap:wrap;justify-content:flex-end}
+.event-size-control{display:flex;align-items:center;gap:8px}
+.event-size-control select{font:inherit;background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:7px 25px 7px 10px;cursor:pointer}
+.share-legend{--share-row-size:23px;grid-auto-rows:minmax(var(--share-row-size),max-content);align-content:start;min-height:0;max-height:calc(6 * var(--share-row-size) + 5px);overflow-y:auto}
+.luck-stack .luck-rows{min-height:calc(3 * 37px);max-height:calc(6 * 37px);overflow-y:auto}
+.race-tracks{min-height:calc(4 * 43px);max-height:calc(6 * 43px);overflow-y:auto}
+#gp-legend{max-height:53px;overflow-y:auto;align-content:flex-start}
+#gp-legend,#share-legend,#luck-rows,#race-tracks{scrollbar-width:thin;scrollbar-color:var(--rule) transparent}
+@media(min-width:1550px){.luck-stack .luck-rows{min-height:calc(3 * 36px);max-height:calc(6 * 36px)}}
+@media(max-width:650px){.luck-stack .luck-rows{min-height:calc(3 * 34px);max-height:calc(6 * 34px)}}
+@media(max-width:560px){.footer-controls{width:100%;justify-content:space-between;gap:10px}.footer-controls>span{flex-basis:100%}}
+
+.drop-preview-control{display:flex;align-items:center;gap:8px}
+.drop-preview-control select{max-width:190px;font:inherit;background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:7px 25px 7px 10px;cursor:pointer}
+
+@container(max-width:600px){.share-legend{--share-row-size:25px}}
+
+.stats-history-grid>.race-panel{align-self:stretch}
+
+/* Per-item artwork overrides remain separate from the original image. */
+.repeat-drop-card{--repeat-default-width:140px;--repeat-default-height:162px;--repeat-default-right:-8px;--repeat-default-bottom:-30px}
+.repeat-drop-card[data-artwork-custom=true]:after{left:var(--artwork-x);top:var(--artwork-y);right:auto;bottom:auto;width:var(--artwork-width);height:var(--artwork-height);transform:translate(-50%,-50%) rotate(var(--artwork-rotation)) scale(var(--artwork-scale));transform-origin:center}
+.artwork-editor{width:min(680px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:24px;border:1px solid var(--rule);border-radius:7px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.artwork-editor::backdrop{background:#0009}
+.artwork-editor-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.artwork-editor-heading h2{font:600 26px/1.1 Barlow,Arial,sans-serif;text-transform:uppercase;color:var(--blue)}
+.artwork-editor-heading p{margin:5px 0 0;font-size:13px;color:var(--muted)}
+.artwork-close{font:400 27px/1 Geist;padding:0 4px;color:var(--muted)}
+#artwork-editor-help{font-size:12px;color:var(--muted);margin:16px 0}
+.artwork-view-tabs{display:flex;justify-content:center;gap:4px;margin-bottom:12px}
+.artwork-view-tabs button{padding:6px 12px;border-radius:3px;font-size:12px;color:var(--muted)}
+.artwork-view-tabs button[aria-pressed=true]{background:var(--soft);color:var(--blue)}
+.artwork-preview{padding:14px;background:var(--canvas);border:1px solid var(--rule);border-radius:5px}
+.artwork-preview-frame{width:100%;max-width:420px;margin:auto}
+.artwork-preview[data-view=mobile] .artwork-preview-frame{max-width:300px}
+.artwork-preview-card{width:100%;height:190px;min-height:0;padding:18px 20px;cursor:grab;touch-action:none;user-select:none}
+.artwork-preview-card.dragging{cursor:grabbing}
+.artwork-preview-card>*{pointer-events:none}
+.artwork-preview-card:focus-visible{outline:2px solid var(--blue);outline-offset:4px}
+.artwork-controls{display:grid;grid-template-columns:1fr 1fr;gap:14px 24px;margin-top:20px}
+.artwork-controls label{display:flex;flex-direction:column;gap:8px;min-width:0;font-size:12px}
+.artwork-controls label>span{display:flex;justify-content:space-between;gap:8px}
+.artwork-controls output{color:var(--muted);font-variant-numeric:tabular-nums}
+.artwork-controls input{width:100%;margin:0;accent-color:var(--blue)}
+.artwork-storage-note{font-size:11px;color:var(--muted);margin:18px 0}
+.artwork-editor-error{font-size:12px;color:var(--coral)}
+.artwork-editor-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--rule);padding-top:16px}
+.artwork-editor-actions>div{display:flex;gap:8px}
+.artwork-editor-actions button{font-size:12px;border:1px solid var(--rule);border-radius:3px;padding:8px 12px}
+.artwork-editor-actions .artwork-save{background:var(--blue);color:var(--surface);border-color:var(--blue)}
+@media(max-width:480px){.artwork-editor{padding:16px}.artwork-preview{padding:8px}.artwork-controls{gap:14px}.artwork-editor-actions{flex-wrap:wrap}.artwork-editor-actions>div{margin-left:auto}}
+
+/* Let actual GP breakdown content set the upper row height; the chart fills it. */
+.gp-panel{--gp-chart-min-height:220px}
+.gp-trend{display:flex;flex-direction:column}
+.gp-trend>.gp-context,.gp-trend>.legend{flex:none}
+.gp-trend>.chart-wrap{flex:1;min-height:var(--gp-chart-min-height)}
+.gp-trend .gp-chart{position:absolute;inset:0;width:100%;height:100%}
+@media(min-width:1550px){.gp-panel{--gp-chart-min-height:230px}}
+@media(max-width:560px){.gp-panel{--gp-chart-min-height:210px}}
+
+/* Give both GP legends the same row geometry, with no unused space below labels. */
+.gp-panel{--gp-key-row-height:24px}
+#gp-legend{min-height:var(--gp-key-row-height);max-height:calc(2 * var(--gp-key-row-height) + 3px);align-content:flex-start}
+#gp-legend button,.share-row{min-height:var(--gp-key-row-height)}
+.share-legend{--share-row-size:var(--gp-key-row-height)}
+@container(max-width:600px){.gp-share{--gp-key-row-height:26px}}
+
+/* Keep the share heading anchored; center the donut and team list as one group. */
+.gp-share{display:flex;flex-direction:column}
+.gp-share>h3{flex:none}
+.gp-share-content{display:flex;flex-direction:column;justify-content:center;flex:1;min-width:0}
+.gp-share-content>.share-ring,.gp-share-content>.share-legend{flex:none}
+@container(max-width:600px){.gp-share{display:grid}.gp-share-content{display:contents}}
+
+/* Center short Luck lists; overflowing lists keep their first row reachable. */
+.luck-stack .luck-rows{display:flex;flex-direction:column}
+.luck-stack .luck-rows>.luck-row{flex:none}
+.luck-stack .luck-rows>.luck-row:first-child{margin-top:auto}
+.luck-stack .luck-rows>.luck-row:last-child{margin-bottom:auto}
+
+/* Center short board lists without shrinking rows or hiding overflow at the top. */
+.race-tracks{display:flex;flex-direction:column}
+.race-tracks>.race-row{flex:none}
+.race-tracks>.race-row:first-child{margin-top:auto}
+.race-tracks>.race-row:last-child{margin-bottom:auto}
+
+/* Center the date axis and tracks together within the original four-row allowance. */
+.race-scroll{display:flex;flex-direction:column;padding-top:16px;min-height:calc(4 * 43px + 13px + 6px + 16px + 3px)}
+.race-scroll>.race-axis{flex:none;margin-top:auto}
+.race-scroll>.race-tracks{flex:none;min-height:0;margin-bottom:auto}
+.race-tracks>.race-row:first-child{margin-top:0}
+.race-tracks>.race-row:last-child{margin-bottom:0}
+
+/* Drop value exploration trial: scope, compact guidance and bounded player lookup. */
+.gp-title-group{display:flex;align-items:center;gap:12px;min-width:0;flex-wrap:wrap}
+#gp-team-label{font-size:16px;line-height:1.15;color:var(--muted);overflow-wrap:anywhere}
+.gp-explore-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin-top:12px}
+.gp-explore-tools>button{font-size:11px;color:var(--blue);padding:5px 8px;border:1px solid var(--rule);border-radius:3px;white-space:nowrap}
+.gp-explore-tools>button:hover{border-color:var(--blue)}
+.gp-help{display:flex;align-items:flex-start;gap:7px;flex:1 1 260px;padding:6px 9px;border-left:2px solid var(--blue);background:color-mix(in srgb,var(--blue) 5%,transparent);color:var(--muted);font-size:10px;line-height:1.5}
+.gp-help>span{color:var(--blue);flex:none}.gp-help p{margin:0}
+.gp-search{position:relative;flex:0 1 200px;min-width:0}
+.gp-search input{width:100%;border:1px solid var(--rule);border-radius:3px;background:var(--surface);color:var(--ink);font:11px Geist,sans-serif;padding:6px 9px}
+.gp-search input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.gp-search-results{position:absolute;left:0;top:calc(100% + 6px);width:340px;max-width:min(340px,80vw);padding:6px;background:var(--surface);border:1px solid var(--rule);border-radius:4px;box-shadow:var(--shadow);z-index:8}
+.gp-search-note{margin:3px 6px 6px;color:var(--muted);font-size:10px}
+.gp-search-results button{display:block;width:100%;padding:9px 6px;text-align:left;font-size:11px;line-height:1.4;overflow-wrap:anywhere;border-radius:2px}
+.gp-search-results button:hover,.gp-search-results button:focus-visible{background:color-mix(in srgb,var(--blue) 12%,transparent)}
+.gp-panel[data-gp-view=players] .share-legend{--share-row-size:37px}
+.gp-panel[data-gp-view=players] .share-row{min-height:37px}
+.share-name small{display:block;font-size:9px;line-height:1.3;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.share-row.pinned{background:color-mix(in srgb,var(--blue) 8%,transparent)}
+.share-segment{cursor:pointer}.share-segment:focus-visible{outline:none;stroke-width:26}
+.gp-panel[data-gp-view=everyone] .gp-explore-tools{display:none}
+@media(max-width:650px){.gp-title-group{gap:6px 10px}#gp-team-label{font-size:15px}.gp-help{flex-basis:100%}.gp-search{flex-grow:1}.gp-search-results{width:100%;max-width:100%}}
+
+/* Keep the established overview dimensions while exploring; no larger size preset. */
+.gp-title-group{flex-wrap:nowrap}
+.gp-title-group>.stats-section-title{flex:none}
+#gp-team-label{min-width:0;max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gp-panel .gp-explore-tools{position:relative;display:flex;flex-wrap:nowrap;gap:8px;flex:none}
+.gp-explore-tools>.gp-search{flex:0 1 160px;min-width:80px}
+#gp-clear-comparison{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.gp-explore-tools>.gp-help{position:static;display:block;flex:none;margin-left:auto;padding:0;border:0;background:none;color:var(--blue);font-size:11px}
+.gp-help summary{cursor:pointer;list-style:none;padding:5px 8px;border:1px solid var(--rule);border-radius:3px;white-space:nowrap}
+.gp-help summary::-webkit-details-marker{display:none}
+.gp-help summary:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.gp-help[open]>p{position:absolute;right:0;top:calc(100% + 6px);z-index:9;box-sizing:border-box;width:340px;max-width:100%;padding:12px;border:1px solid var(--rule);border-radius:4px;background:var(--surface);box-shadow:var(--shadow);color:var(--ink);font-size:12px;line-height:1.5}
+.gp-panel[data-gp-view=everyone] .gp-explore-tools{display:flex}
+.gp-panel[data-gp-layout=held] .gp-visuals{height:var(--gp-resting-visual-height);flex:none;min-height:0}
+.gp-panel[data-gp-layout=held] .gp-trend,.gp-panel[data-gp-layout=held] .gp-share{min-height:0}
+.gp-panel[data-gp-layout=held] #gp-legend{height:var(--gp-resting-legend-height);min-height:0;max-height:var(--gp-resting-legend-height);overflow-y:auto}
+/* Both flex levels must shrink for the breakdown list to scroll inside the held height. */
+.gp-panel[data-gp-layout=held] .gp-share-content{min-height:0}
+.gp-panel[data-gp-layout=held] .gp-share-content>.share-legend{flex:0 1 auto;min-height:0;overflow-y:auto}
+@container(max-width:600px){
+ .gp-panel[data-gp-layout=held] .gp-visuals{grid-template-rows:var(--gp-resting-trend-height) var(--gp-resting-share-height)}
+ .gp-panel[data-gp-layout=held] .gp-share{grid-template-rows:auto minmax(0,1fr)}
+ .gp-panel[data-gp-layout=held] .share-legend{max-height:100%;min-height:0}
+}
+
+/* Search replaces a portion of the divider; its results and help stay out of flow. */
+.gp-top{position:relative}
+.gp-title-group{gap:9px}
+.gp-title-group>.gp-help{display:block;flex:none;margin:0;padding:0;border:0;background:none;color:var(--muted);font-size:14px}
+.gp-title-group>.gp-help summary{padding:2px;border:0;line-height:1}
+.gp-title-group>.gp-help[open]>p{left:0;right:auto}
+#gp-back{flex:none;color:var(--blue);padding:2px;font-size:16px;line-height:1}
+#gp-shortcut{padding:0;color:var(--blue);font-size:10px;white-space:nowrap}
+.gp-divider-search{position:relative;display:flex;align-items:center;flex:1 1 0;min-width:28px;height:28px;gap:0}
+.gp-divider-search>.stats-heading-rule{display:block;flex:1 1 0;min-width:0}
+#gp-search-toggle{display:grid;place-items:center;flex:none;width:28px;height:28px;padding:0;color:var(--blue);border-radius:3px}
+#gp-search-toggle:hover,#gp-search-toggle[aria-expanded=true]{background:transparent;color:var(--ink)}
+.gp-divider-search>.gp-search{flex:none;width:0;min-width:0;max-width:calc(100% - 28px);transition:width .2s ease}
+.gp-divider-search[data-open=true]>.gp-search{width:180px}
+.gp-search-input{overflow:hidden}
+.gp-divider-search .gp-search input{width:180px;height:28px;box-sizing:border-box;visibility:hidden;border:0;border-radius:0;padding:4px 6px;background:var(--surface)}
+.gp-divider-search[data-open=true] .gp-search input{visibility:visible}
+.gp-divider-search .gp-search-results{left:auto;right:0;max-width:min(340px,75vw)}
+#gp-legend>.gp-pinned-legend{display:inline-flex;align-items:center;gap:4px;flex:none}
+#gp-legend #gp-clear-comparison{flex:none;min-height:0;width:18px;height:18px;padding:0;display:grid;place-items:center;color:var(--muted);font-size:15px;line-height:1}
+/* Only fall back when the divider itself cannot fit the field and search icon. */
+.gp-divider-search[data-layout=popover]{position:static}
+.gp-divider-search[data-layout=popover]>.gp-search{position:absolute;right:0;top:calc(100% + 8px);z-index:8;max-width:100%;visibility:hidden;transition:none}
+.gp-divider-search[data-layout=popover][data-open=true]>.gp-search{width:min(320px,100%);visibility:visible}
+.gp-divider-search[data-layout=popover] .gp-search input{width:100%;height:34px;border:1px solid var(--rule);border-radius:3px;padding:6px 9px}
+.gp-divider-search[data-layout=popover] .gp-search-results{width:100%;max-width:100%}
+@media(prefers-reduced-motion:reduce){.gp-divider-search>.gp-search{transition:none}}
+
+.gp-context-actions{display:flex;align-items:baseline;gap:10px;margin-left:auto;min-width:0}
+.gp-context .gp-context-actions #gp-unit{margin:0;flex-basis:auto}
+@media(max-width:560px){.gp-context-actions{flex-basis:100%;margin-left:0;justify-content:space-between}}
+
+/* Guidance starts open, overlays the chart and can be dismissed without changing layout. */
+.gp-help-box{position:absolute;left:0;top:calc(100% + 6px);z-index:9;box-sizing:border-box;width:340px;max-width:100%;padding:12px 34px 12px 12px;border:1px solid var(--rule);border-radius:4px;background:var(--surface);box-shadow:var(--shadow);color:var(--ink);font:12px/1.5 Geist,Arial,sans-serif}
+.gp-help-box p{margin:0}
+#gp-help-close{position:absolute;top:6px;right:6px;width:24px;height:24px;display:grid;place-items:center;padding:0;color:var(--muted);font-size:19px;line-height:1}
+#gp-help-close:hover{color:var(--ink)}
+
+/* Drop value motion stays inside the approved geometry. */
+.gp-chart [data-series]{transition:opacity 160ms ease}
+.gp-exiting-line{pointer-events:none}
+.gp-share .share-segment{transition:opacity 160ms ease,stroke-width 160ms ease}
+.gp-share .share-segment.is-highlighted,.gp-share .share-segment:hover,.gp-share .share-segment:focus-visible{stroke-width:24}
+.gp-pinned-legend{transform-origin:center}
+.gp-help[open] .gp-help-box{animation:gp-help-appear 180ms ease-out}
+@keyframes gp-help-appear{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){
+ .gp-chart [data-series],.gp-share .share-segment{transition:none}
+ .gp-help[open] .gp-help-box{animation:none}
+}
+
+/* SVG focus follows the slice rather than its rectangular bounding box. */
+.gp-share .share-segment:focus{outline:none}
+.gp-share .share-segment:focus-visible{outline:none;stroke-width:26}
+
+/* A small artwork response keeps the valuable-drop text and values steady. */
+@media (hover:hover) and (prefers-reduced-motion:no-preference){
+ .gp-panel .treasure-item .item-art{transition:transform 180ms ease-out}
+ .gp-panel .treasure-item:hover .item-art{transform:translateY(-3px)}
+}
+
+/* Neutral chart fill has its own tone, separate from readable secondary text. */
+:root{--gp-others:#a8a9b3}
+:root[data-theme=dark]{--gp-others:var(--muted)}
+
+/* Luck exploration keeps the existing card height and divider-free heading. */
+.luck-title-group{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.luck-title-group h2{margin:0}
+#luck-back{padding:0;flex:none;font-size:18px;color:var(--blue)}
+#luck-team-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 13px/1.2 Barlow,Arial,sans-serif;color:var(--muted);text-transform:uppercase}
+.luck-heading-actions{display:flex;align-items:center;gap:8px;flex:none}
+.luck-panel{position:relative}
+#luck-search-toggle{display:grid;place-items:center;width:22px;height:24px;padding:0;color:var(--muted)}
+#luck-search-toggle:hover,#luck-search-toggle[aria-expanded=true]{color:var(--ink)}
+.luck-stack .luck-panel .panel-heading{position:relative}
+#luck-search-popover{position:absolute;top:calc(100% + 8px);right:0;width:min(320px,100%);z-index:8}
+#luck-player-search{width:100%;height:34px;min-width:0;box-sizing:border-box;border:1px solid var(--rule);border-radius:3px;padding:6px 9px;background:var(--surface);color:var(--ink);font:11px Geist,sans-serif}
+#luck-player-search:focus{outline:none}
+#luck-search-results{position:absolute;top:calc(100% + 6px);right:0;width:100%;max-height:220px;overflow-y:auto;padding:6px;background:var(--surface);border:1px solid var(--rule);border-radius:4px;box-shadow:var(--shadow)}
+#luck-search-results:empty{display:none}
+#luck-search-results p{font-size:10px;color:var(--muted);margin:3px 6px 6px}
+#luck-search-results button{display:block;width:100%;padding:9px 6px;text-align:left;font:11px/1.4 Geist,sans-serif;overflow-wrap:anywhere;border-radius:2px}
+#luck-search-results button:hover,#luck-search-results button:focus-visible{background:color-mix(in srgb,var(--blue) 12%,transparent)}
+.luck-stack .luck-rows{position:relative;height:calc(var(--luck-visible-rows,5) * 37px);min-height:0;max-height:none;overscroll-behavior:contain}
+.luck-stack .luck-row{position:relative}
+.luck-stack button.luck-name{text-align:left;background:none;border:0;padding-left:0;cursor:pointer}
+.luck-stack button.luck-name:hover{color:var(--blue)}
+.luck-row.is-highlighted:not(.luck-pinned-row){background:color-mix(in srgb,var(--blue) 9%,transparent);border-radius:3px}
+.luck-row.luck-group-start{margin-top:14px}
+.luck-stack .luck-row.luck-pinned-row{position:sticky;top:0;z-index:2;flex:none;margin-bottom:12px;border-bottom:1px solid var(--rule);background:var(--surface)}
+.luck-pinned-row .luck-name{display:flex;align-items:center;gap:6px;min-width:0}
+.luck-pinned-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.luck-clear-pin{display:grid;place-items:center;flex:none;width:20px;height:24px;font:15px/1 Geist,Arial,sans-serif;color:var(--muted);padding:0}
+.luck-clear-pin:hover{color:var(--ink)}
+@media(min-width:1550px){.luck-stack .luck-rows{height:calc(var(--luck-visible-rows,5) * 36px)}}
+@media(max-width:650px){.luck-stack .luck-rows{height:calc(var(--luck-visible-rows,5) * 34px)}}
+
+/* Contextual Luck guidance shares Drop value's compact overlay treatment. */
+.stats-info-toggle{flex:none;padding:2px;color:var(--muted);font:14px/1 Geist,Arial,sans-serif}
+.stats-info-toggle:hover,.stats-info-toggle[aria-expanded=true],.gp-help[open]>.stats-info-toggle{color:var(--blue)}
+#luck-help-close,#race-help-close{position:absolute;top:6px;right:6px;width:24px;height:24px;display:grid;place-items:center;padding:0;color:var(--muted);font-size:19px;line-height:1}
+#luck-help-close:hover,#race-help-close:hover{color:var(--ink)}
+.luck-help-box:not([hidden]),.race-help-box:not([hidden]){animation:gp-help-appear 180ms ease-out}
+@media(prefers-reduced-motion:reduce){.luck-help-box:not([hidden]),.race-help-box:not([hidden]){animation:none}}
+
+/* A shared marker anchor aligns timestamps and titles with the dot center. */
+.stats-history-grid .timeline{--milestone-dot-size:12px;--milestone-edge:calc(var(--milestone-dot-size) / 2 + 4px);padding-inline:var(--milestone-edge);scroll-padding-inline:var(--milestone-edge)}
+.stats-history-grid .milestone{flex-basis:250px}
+.stats-history-grid .milestone:last-child{flex:0 0 auto;width:max-content;max-width:250px;scroll-snap-align:end}
+.stats-history-grid .milestone:last-child .milestone-copy{padding-right:0}
+.stats-history-grid .milestone-meta{display:flex;align-items:center;gap:10px;height:24px;flex:none}
+.stats-history-grid .milestone-stamp{display:flex;align-items:baseline;gap:8px;min-height:18px;font:400 11px/1.35 Geist,Arial,sans-serif;color:var(--muted)}
+.stats-history-grid .milestone-copy{min-height:52px}
+.stats-history-grid .milestone-copy>div{min-width:0;flex:1}
+.stats-history-grid .milestone-copy h3{white-space:nowrap}
+.stats-history-grid .milestone-copy p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:15px}
+.stats-history-grid .milestone-rail{display:flex;align-items:center}
+.stats-history-grid .milestone-rail:before{top:50%;transform:translateY(-50%);background:var(--rule)}
+.stats-history-grid .milestone:last-child .milestone-rail:before{display:none}
+.stats-history-grid .milestone-dot{position:relative;inset:auto;flex:none;margin:0;width:var(--milestone-dot-size);height:var(--milestone-dot-size);transform:translateX(-50%);border:2px solid var(--blue);background:var(--blue);box-shadow:none}
+.stats-history-grid .milestone.current .milestone-dot{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--blue)}
+.stats-history-grid .milestone.pending .milestone-copy h3{color:var(--muted)}
+.stats-history-grid .milestone.pending .milestone-dot{border-color:var(--muted);background:var(--surface)}
+
+/* Keep the drop with its contributor, inside the existing single detail line. */
+.stats-history-grid .milestone-copy .milestone-drop-detail{display:flex;align-items:center;gap:6px}
+.stats-history-grid .milestone-drop-detail>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stats-history-grid .milestone-inline-drop{width:16px;height:16px;flex:none;object-fit:contain}
+
+.stats-history-grid .milestone.missed .milestone-dot{display:grid;place-items:center;color:var(--muted)}
+
+/* Fit the selector's focus treatment to its selected label and chevron. */
+.timeline-heading-actions .timeline-filter-control{justify-self:end;max-width:100%}
+.stats-history-grid .timeline-filter{field-sizing:content;width:auto;max-width:190px}
+.stats-history-grid .timeline-filter:focus-visible{outline-offset:2px}
+
+/* A separate completed rail can draw over the muted track without moving text. */
+.stats-history-grid .milestone-progress{position:absolute;left:0;right:0;top:50%;height:1px;background:var(--blue);transform:translateY(-50%);transform-origin:left center;pointer-events:none}
+.stats-history-grid .milestone-dot{z-index:1}
+
+/* Board guidance overlays the existing composition, like Luck. */
+.race-panel .panel-heading{position:relative}
+.race-title-group{display:flex;align-items:center;gap:9px}
+.race-count{font-variant-numeric:tabular-nums}
+
+/* Compact stacked headings: title first, controls directly beneath it. */
+@media(max-width:560px){
+ .gp-top{display:grid;grid-template-columns:minmax(0,1fr) 28px;gap:6px 10px;align-items:center}
+ .gp-top>.gp-title-group{grid-column:1/-1;justify-self:start;max-width:100%}
+ .gp-top>#gp-tabs{grid-column:1;grid-row:2;margin:0;padding:0;justify-content:flex-start}
+ .gp-top>.gp-divider-search{grid-column:2;grid-row:2;width:28px;min-width:0;height:28px}
+ .gp-divider-search>.stats-heading-rule{display:none}
+ .stats-history-grid .timeline-panel .panel-heading{gap:6px;align-items:flex-start}
+ .timeline-heading-actions{display:flex;justify-content:flex-start;align-items:center;gap:6px 12px;margin-left:0;width:100%}
+ .timeline-heading-actions .timeline-filter-control{flex:none;justify-self:start}
+ .stats-history-grid .timeline-filter{text-align:left;text-align-last:left}
+ .timeline-heading-actions .timeline-scroll-hint{margin-left:auto}
+}
+
+/* Narrow milestone stops fit their heading instead of reserving desktop spacing. */
+@media(max-width:850px){
+ .stats-history-grid .milestone{flex:0 0 auto;width:max-content;min-width:170px}
+ .stats-history-grid .milestone-copy>div{flex:none;width:max-content;min-width:0}
+ .stats-history-grid .milestone-copy p{width:0;min-width:100%}
+ .stats-history-grid .milestone:last-child{min-width:0;max-width:none}
+}

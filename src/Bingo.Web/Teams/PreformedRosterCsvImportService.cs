@@ -27,7 +27,9 @@ public sealed class PreformedRosterCsvImportService(ApplicationDbContext db, Eve
         using var memory = new MemoryStream();
         await content.CopyToAsync(memory, ct);
         if (memory.Length > MaxBytes) return Preview.Invalid("The CSV file is larger than 1 MB.");
-        var text = new UTF8Encoding(false, true).GetString(memory.ToArray()).TrimStart('\uFEFF');
+        string text;
+        try { text = new UTF8Encoding(false, true).GetString(memory.ToArray()).TrimStart('\uFEFF'); }
+        catch (DecoderFallbackException) { return Preview.Invalid("The CSV must use valid UTF-8 encoding. Save it as UTF-8 and upload it again."); }
         var parsed = Parse(text);
         if (parsed.Errors.Count > 0) return new Preview(null, [], parsed.Errors);
         if (parsed.Rows.Count > MaxRows) return Preview.Invalid($"The CSV has more than {MaxRows} roster rows.");
@@ -117,7 +119,7 @@ public sealed class PreformedRosterCsvImportService(ApplicationDbContext db, Eve
             var fields = records[i]; if (fields.All(string.IsNullOrWhiteSpace)) continue;
             if (fields.Count != headers.Count) { errors.Add(new RowError(i + 1, "The row does not match the header column count.")); continue; }
             if (!TryParseEhb(fields.ElementAtOrDefault(1), delimiter, out var ehb)) { errors.Add(new RowError(i + 1, delimiter == ';' ? "EHB must be a valid number using a decimal comma or decimal point." : "EHB must be a valid number using a decimal point.")); continue; }
-            rows.Add(new Row(i + 1, fields.Where((_, index) => index != 1).Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()).ToList(), ehb));
+            rows.Add(new Row(i + 1, fields.Where((value, index) => index == 0 || index > 1 && !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()).ToList(), ehb));
         }
         return new Parsed(headers, rows, errors);
     }

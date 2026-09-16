@@ -227,6 +227,17 @@ public sealed class HistoricalImportIntegrationTests : IAsyncLifetime
                 Assert.Equal(officialOrder, publicBoard!.Teams.Select(value => value.TeamName).ToList());
                 Assert.Equal([1, 2, 3, 4, 5, 6], publicBoard.Teams.Select(value => value.Rank).ToArray());
                 Assert.All(await db.Submissions.Where(value => value.EventId == historical.Id).ToListAsync(), value => Assert.Null(value.DropSnapshotId));
+                var araxxorTile = await db.BoardTiles.SingleAsync(value => value.NameSnapshot == "Araxxor");
+                var araxxorTemplate = await db.TileTemplates.SingleAsync(value => value.Id == araxxorTile.TileTemplateId);
+                Assert.Equal(ObjectiveType.DropRequirements, araxxorTemplate.ObjectiveType);
+                Assert.Null(araxxorTemplate.ManualEhbOverride);
+                Assert.Equal(25m, araxxorTile.EstimatedEhbSnapshot);
+                var araxxorRequirement = await db.BoardRequirementSnapshots.SingleAsync(value => value.BoardTileId == araxxorTile.Id);
+                Assert.False(araxxorRequirement.ManualObjective);
+                var araxxorApprovalTile = await db.BoardApprovalTileSnapshots.SingleAsync(value => value.BoardTileId == araxxorTile.Id);
+                Assert.Equal(25m, araxxorApprovalTile.EstimatedEhb);
+                var araxxorApprovalRequirement = await db.BoardApprovalRequirementSnapshots.SingleAsync(value => value.ApprovalTileSnapshotId == araxxorApprovalTile.Id);
+                Assert.False(araxxorApprovalRequirement.ManualObjective);
                 var slayerTile = await db.BoardTiles.SingleAsync(value => value.NameSnapshot == "Superior Slayer");
                 var slayerTemplate = await db.TileTemplates.SingleAsync(value => value.Id == slayerTile.TileTemplateId);
                 Assert.Equal(ObjectiveType.Manual, slayerTemplate.ObjectiveType);

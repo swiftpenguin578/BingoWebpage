@@ -19,7 +19,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
             join character in db.OsrsCharacters.AsNoTracking() on link.OsrsCharacterId equals character.Id
             where link.AccountId == accountId && link.Active
             orderby link.Position, link.LinkedAt, link.Id
-            select new MyAccountCharacter(link.Id, character.DisplayName, link.PersonalLabel, link.SavedEhb, link.Preferred, link.Position, false))
+            select new MyAccountCharacter(link.Id, character.DisplayName, link.PersonalLabel, link.SavedEhb, link.Preferred, link.Position, false, link.Version))
             .ToListAsync(ct);
 
         if (links.Count == 0) return links;
@@ -67,13 +67,15 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         await SaveAndCommitAsync(transaction, ct);
     }
 
-    public async Task UpdateAsync(Guid accountId, Guid linkId, string characterName, string? label, decimal? savedEhb, CancellationToken ct)
+    public async Task UpdateAsync(Guid accountId, Guid linkId, int expectedVersion, string characterName, string? label, decimal? savedEhb, CancellationToken ct)
     {
         var cleanName = RequireCharacterName(characterName);
         savedEhb = NormalizeEhb(savedEhb);
         await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
-        await LockCharacterAsync(cleanName, ct);
         var link = await ActiveLinkAsync(accountId, linkId, ct);
+        if (link.Version != expectedVersion)
+            throw new InvalidOperationException("Your My Accounts changes conflicted with another update. Please reload and try again.");
+        await LockCharacterAsync(cleanName, ct);
         var now = time.GetUtcNow();
         var corrected = await FindOrCreateCharacterAsync(cleanName, now, ct);
         await ApplyCharacterCorrectionAsync(accountId, link, corrected, now, ct);
@@ -157,7 +159,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
             where bingoEvent.HiddenAt == null && assignment.OsrsCharacterId == link.OsrsCharacterId && assignment.ReleasedAt == null &&
                   participant.AccountId == accountId && (participant.SignupStatus == SignupStatus.Confirmed || participant.SignupStatus == SignupStatus.WaitingList) &&
                   bingoEvent.State == EventState.SignupOpen && !bingoEvent.DraftLocked && now < bingoEvent.SignupClosesAt
-            select new EditableAssignment(assignment, participant.Id, bingoEvent.Id, bingoEvent.Name)).ToListAsync(ct);
+            select new EditableAssignment(assignment, participant, bingoEvent.Id, bingoEvent.Name)).ToListAsync(ct);
 
         var eventIds = editable.Select(item => item.EventId).Distinct().ToList();
         if (eventIds.Count > 0)
@@ -171,8 +173,23 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
             if (conflicts.Count > 0) throw new MyAccountsCorrectionConflictException(conflicts[0]);
         }
 
+        var participantIds = editable.Select(item => item.ParticipantId).Distinct().ToList();
+        var questionIds = editable.Select(item => item.Assignment.SignupQuestionId).OfType<Guid>().Distinct().ToList();
+        Dictionary<(Guid ParticipantId, Guid QuestionId), SignupAnswer> answers = [];
+        if (questionIds.Count > 0)
+            answers = await db.SignupAnswers
+                .Where(item => participantIds.Contains(item.EventParticipantId) && questionIds.Contains(item.SignupQuestionId))
+                .ToDictionaryAsync(item => (item.EventParticipantId, item.SignupQuestionId), ct);
+
         link.CorrectCharacter(corrected.Id, now);
-        foreach (var assignment in editable) assignment.Assignment.ReplaceCharacter(corrected.Id);
+        foreach (var item in editable)
+        {
+            item.Assignment.ReplaceCharacter(corrected.Id);
+            if (item.Assignment.SignupQuestionId is { } questionId && answers.TryGetValue((item.ParticipantId, questionId), out var answer))
+                answer.SetAccountCharacter(corrected.Id);
+        }
+        foreach (var participant in editable.GroupBy(item => item.ParticipantId).Select(group => group.First().Participant))
+            participant.AdvanceResponseVersion();
     }
 
     public async Task<bool> IsWebsiteAccountAsync(Guid accountId, CancellationToken ct) =>
@@ -286,10 +303,13 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         return savedEhb is { } value ? RoundEhb(value) : null;
     }
 
-    private sealed record EditableAssignment(EventParticipantCharacter Assignment, Guid ParticipantId, Guid EventId, string EventName);
+    private sealed record EditableAssignment(EventParticipantCharacter Assignment, EventParticipant Participant, Guid EventId, string EventName)
+    {
+        public Guid ParticipantId => Participant.Id;
+    }
 }
 
-public sealed record MyAccountCharacter(Guid Id, string CharacterName, string? PersonalLabel, decimal? SavedEhb, bool Preferred, int Position, bool HasUpcomingOrLiveRegistration);
+public sealed record MyAccountCharacter(Guid Id, string CharacterName, string? PersonalLabel, decimal? SavedEhb, bool Preferred, int Position, bool HasUpcomingOrLiveRegistration, int Version);
 public sealed class MyAccountsConfirmationRequiredException : InvalidOperationException;
 public sealed class MyAccountsCorrectionConflictException(string eventName) : InvalidOperationException
 {

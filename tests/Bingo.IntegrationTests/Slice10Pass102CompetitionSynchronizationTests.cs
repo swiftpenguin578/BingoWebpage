@@ -14,7 +14,7 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifetime
+public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice10_pass102")
@@ -351,7 +351,15 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
             var failed = await new EventCompetitionSynchronizationService(clearDb, fake, new FixedStatus(), clock)
                 .ConfigureAsync(eventItem.Id, currentVersion, null, false, actor);
             Assert.False(failed.Succeeded);
-            Assert.Contains("confirmation", failed.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("cannot be cleared", failed.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        await using (var confirmedClearDb = new ApplicationDbContext(options))
+        {
+            var failed = await new EventCompetitionSynchronizationService(confirmedClearDb, fake, new FixedStatus(), clock)
+                .ConfigureAsync(eventItem.Id, currentVersion, null, false, actor, false, true, "Previously accepted clear reason");
+            Assert.False(failed.Succeeded);
+            Assert.Contains("cannot be cleared", failed.Error, StringComparison.OrdinalIgnoreCase);
         }
 
         await using (var scheduleDb = new ApplicationDbContext(options))
@@ -373,6 +381,7 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         Assert.Equal(true, persistedState.LatestComplete);
         Assert.Equal(successfulAt, persistedState.LastSuccessfulAt);
         Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.EventId == eventItem.Id && x.Action == "event.competition_changed"));
+        Assert.False(await verify.AuditEntries.AnyAsync(x => x.EventId == eventItem.Id && x.Action == "event.competition_cleared"));
     }
 
     [Fact]
@@ -601,6 +610,17 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         Assert.Equal(competition.Id, state.CompetitionId);
         Assert.Equal(expectedStart, state.CompetitionStartsAt);
         Assert.Equal(expectedEnd, state.CompetitionEndsAt);
+
+        await using var clearDb = new ApplicationDbContext(options);
+        var cleared = await new EventCompetitionSynchronizationService(clearDb, fake, new FixedStatus(), clock)
+            .ConfigureAsync(eventItem.Id, saved.Version, null, false, actor);
+        Assert.True(cleared.Succeeded, cleared.Error);
+        var clearedState = await clearDb.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id);
+        Assert.Null(clearedState.CompetitionId);
+        Assert.Equal(2, clearedState.Generation);
+        var clearedEvent = await clearDb.Events.SingleAsync(x => x.Id == eventItem.Id);
+        Assert.Equal(expectedStart, clearedEvent.EventStartsAt);
+        Assert.Equal(expectedEnd, clearedEvent.EventEndsAt);
         Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.EventId == eventItem.Id && x.Action == "event.schedule_updated"));
         Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.EventId == eventItem.Id && x.Action == "event.competition_linked"));
     }
@@ -801,6 +821,17 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
         Assert.Equal(replacement.Id, state.CompetitionId);
         Assert.Equal(expectedStart, state.CompetitionStartsAt);
         Assert.Equal(expectedEnd, state.CompetitionEndsAt);
+
+        await using var clearDb = new ApplicationDbContext(options);
+        var cleared = await new EventCompetitionSynchronizationService(clearDb, fake, new FixedStatus(), clock)
+            .ConfigureAsync(eventItem.Id, saved.Version, null, false, actor);
+        Assert.True(cleared.Succeeded, cleared.Error);
+        var clearedState = await clearDb.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id);
+        Assert.Null(clearedState.CompetitionId);
+        Assert.Equal(3, clearedState.Generation);
+        var clearedEvent = await clearDb.Events.SingleAsync(x => x.Id == eventItem.Id);
+        Assert.Equal(expectedStart, clearedEvent.EventStartsAt);
+        Assert.Equal(expectedEnd, clearedEvent.EventEndsAt);
     }
 
     [Fact]
@@ -828,6 +859,8 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
 
     private sealed class FakeCompetitionClient(IReadOnlyList<WiseOldManCompetitionResult> results) : IWiseOldManCompetitionClient
     {
+        public Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, IReadOnlyCollection<string> metrics, CancellationToken cancellationToken = default) => GetCompetitionAsync(competitionId, cancellationToken);
+
         private int index;
         public int Calls => index;
         public Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, CancellationToken cancellationToken = default) => Task.FromResult(results[Math.Min(index++, results.Count - 1)]);

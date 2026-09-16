@@ -5,6 +5,14 @@ namespace Bingo.Web.Events;
 
 public static class EventSlugGenerator
 {
+    public static string GenerateCandidate(string eventName, int sequence)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(sequence, 1);
+        var suffix = sequence == 1 ? string.Empty : $"-{sequence.ToString(CultureInfo.InvariantCulture)}";
+        var stem = Generate(eventName);
+        return stem[..Math.Min(stem.Length, 120 - suffix.Length)].TrimEnd('-') + suffix;
+    }
+
     public static string Generate(string eventName)
     {
         var expanded = eventName.Trim().ToLowerInvariant()

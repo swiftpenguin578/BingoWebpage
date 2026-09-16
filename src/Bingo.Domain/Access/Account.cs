@@ -47,6 +47,9 @@ public sealed class Account
     public Guid? ProfileOsrsCharacterId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? LastLoginAt { get; private set; }
+    public bool StatsGuidanceHidden { get; private set; }
+    public void SetStatsGuidanceHidden(bool hidden) => StatsGuidanceHidden = hidden;
+
     public uint Version { get; private set; }
 
     public void AdvanceVersion() => Version++;

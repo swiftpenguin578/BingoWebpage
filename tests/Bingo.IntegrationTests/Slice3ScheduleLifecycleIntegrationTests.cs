@@ -34,8 +34,8 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
             Assert.Contains(initial!.Warnings, item => item.Code == "WAITING_LIST_DISABLED");
             var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
             var version = (await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId)).Version;
-            Assert.False((await service.OpenAsync(eventId, version, false, false, actor)).Succeeded);
-            Assert.True((await service.OpenAsync(eventId, version, true, false, actor)).Succeeded);
+            Assert.False((await service.OpenAsync(eventId, version, [], false, actor)).Succeeded);
+            Assert.True((await service.OpenAsync(eventId, version, initial!.Warnings.Select(warning => warning.Code).ToArray(), false, actor)).Succeeded);
         }
         await using (var db = new ApplicationDbContext(options))
         {
@@ -58,28 +58,104 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
             Assert.Contains(reopeningReadiness!.Warnings, item => item.Code == "WAITING_LIST_DISABLED");
             Assert.Contains(reopeningReadiness.Warnings, item => item.Code == "REOPENING_POPULATED_SIGNUP");
             var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
-            Assert.False((await service.ReopenAsync(eventId, closed.Version, false, false, actor)).Succeeded);
-            Assert.True((await service.ReopenAsync(eventId, closed.Version, true, false, actor)).Succeeded);
+            Assert.False((await service.ReopenAsync(eventId, closed.Version, [], false, actor)).Succeeded);
+            Assert.True((await service.ReopenAsync(eventId, closed.Version, reopeningReadiness.Warnings.Select(warning => warning.Code).ToArray(), false, actor)).Succeeded);
             Assert.Equal(3, await db.EventStateTransitions.CountAsync(x => x.EventId == eventId));
             Assert.Equal(3, await db.AuditEntries.CountAsync(x => x.EventId == eventId && x.Action.StartsWith("event.signup_")));
         }
     }
 
-    [Fact]
-    public async Task PublicFreeTextAnswersDoNotCreateAnOpeningWarningOrAcknowledgementGate()
+    [Theory]
+    [InlineData(false, "text")]
+    [InlineData(false, "none")]
+    [InlineData(false, "inactive")]
+    [InlineData(false, "private")]
+    [InlineData(true, "text")]
+    [InlineData(true, "none")]
+    [InlineData(true, "inactive")]
+    [InlineData(true, "private")]
+    public async Task PublicTextReadinessRequiresCurrentAcknowledgementForManualAndScheduledOpening(bool scheduled, string questionKind)
     {
         var actor = new LifecycleActor(Guid.NewGuid(), "schedule-admin");
-        var eventId = await SeedReadyDraftAsync("free-text", waitingList: true, publicTextQuestion: true);
+        var eventId = await SeedReadyDraftAsync("public-text", waitingList: true, publicTextQuestion: questionKind != "none");
+        await using var db = new ApplicationDbContext(options);
+        var form = await db.SignupForms.SingleAsync(item => item.EventId == eventId);
+        db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, eventId, SignupQuestion.CoCaptainKey, SignupQuestion.CoCaptainLabel,
+            SignupQuestionType.Text, false, 3, null, SignupSystemField.CoCaptainName));
+        if (questionKind is "inactive" or "private")
+        {
+            var question = await db.SignupQuestions.SingleAsync(item => item.EventId == eventId && item.SystemField == SignupSystemField.None);
+            if (questionKind == "inactive") question.Deactivate();
+            else db.Entry(question).Property(item => item.PublicOnSignupBoard).CurrentValue = false;
+        }
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        var evaluator = new EventReadinessEvaluator(db, configuration);
+        var readiness = await evaluator.GetSignupReadinessAsync(eventId, scheduled ? SignupOpeningMode.ScheduleOpening : SignupOpeningMode.OpenNow, now);
+        Assert.True(readiness!.CanProceed);
+        var hasPublicText = questionKind == "text";
+        Assert.Equal(hasPublicText, readiness.Warnings.Any(item => item.Code == "PUBLIC_FREE_TEXT"));
+        Assert.Equal(hasPublicText ? 1 : 0, readiness.Warnings.Count);
+        var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
+        var item = await db.Events.SingleAsync(item => item.Id == eventId);
+        var values = new EventScheduleValues(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ParticipantCap, scheduled);
+        var version = item.Version;
+        var first = scheduled
+            ? await service.SaveScheduleAsync(eventId, version, values, false, actor)
+            : await service.OpenAsync(eventId, version, [], false, actor);
+        Assert.Equal(!hasPublicText, first.Succeeded);
+        db.ChangeTracker.Clear();
+        if (hasPublicText)
+        {
+            var unchanged = await db.Events.AsNoTracking().SingleAsync(item => item.Id == eventId);
+            Assert.Equal(EventState.Draft, unchanged.State);
+            Assert.False(unchanged.ScheduledSignupOpeningEnabled);
+            Assert.Equal(version, unchanged.Version);
+            Assert.Empty(await db.AuditEntries.ToListAsync());
+            var confirmed = scheduled
+                ? await service.SaveScheduleAsync(eventId, version, values, true, actor)
+                : await service.OpenAsync(eventId, version, ["PUBLIC_FREE_TEXT"], false, actor);
+            Assert.True(confirmed.Succeeded, confirmed.Error);
+        }
+        if (scheduled)
+        {
+            db.ChangeTracker.Clear();
+            var saved = await db.Events.SingleAsync(item => item.Id == eventId);
+            Assert.Equal(hasPublicText ? "PUBLIC_FREE_TEXT" : string.Empty, saved.ScheduledSignupWarningCodes);
+            var due = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now.AddHours(1)));
+            await due.ProcessDueSignupAsync();
+            Assert.True((await db.ScheduledSignupOpeningAttempts.SingleAsync()).Opened);
+        }
+        db.ChangeTracker.Clear();
+        var opened = await db.Events.SingleAsync(item => item.Id == eventId);
+        Assert.Equal(EventState.SignupOpen, opened.State);
+        Assert.NotNull(opened.FirstPublicAt);
+        Assert.Single(await db.EventStateTransitions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task ScheduledOpeningRejectsNewPublicTextWarningAfterTheScheduleWasAcknowledged()
+    {
+        var eventId = await SeedReadyDraftAsync("new-text-warning", waitingList: false);
         await using var db = new ApplicationDbContext(options);
         var evaluator = new EventReadinessEvaluator(db, configuration);
-        var readiness = await evaluator.GetSignupReadinessAsync(eventId, SignupOpeningMode.OpenNow, now);
-        Assert.DoesNotContain(readiness!.Warnings, item => item.Code == "PUBLIC_FREE_TEXT");
-        Assert.Empty(readiness.Warnings);
-
-        var version = (await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId)).Version;
         var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
-        Assert.True((await service.OpenAsync(eventId, version, false, false, actor)).Succeeded);
-        Assert.Equal(EventState.SignupOpen, (await db.Events.SingleAsync(x => x.Id == eventId)).State);
+        var item = await db.Events.SingleAsync(item => item.Id == eventId);
+        var values = new EventScheduleValues(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, item.ParticipantCap, true);
+        Assert.True((await service.SaveScheduleAsync(eventId, item.Version, values, true, new(Guid.NewGuid(), "admin"))).Succeeded);
+        var form = await db.SignupForms.SingleAsync(item => item.EventId == eventId);
+        db.SignupQuestions.Add(new SignupQuestion(Guid.NewGuid(), form.Id, eventId, "new_text", "New public question", SignupQuestionType.Text, false, 2, null));
+        await db.SaveChangesAsync();
+        await new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now.AddHours(1))).ProcessDueSignupAsync();
+        db.ChangeTracker.Clear();
+        var blocked = await db.Events.SingleAsync(item => item.Id == eventId);
+        Assert.Equal(EventState.Draft, blocked.State);
+        Assert.Null(blocked.FirstPublicAt);
+        Assert.False(blocked.ScheduledSignupOpeningEnabled);
+        var attempt = await db.ScheduledSignupOpeningAttempts.SingleAsync();
+        Assert.False(attempt.Opened);
+        Assert.Contains("UNACKNOWLEDGED_PUBLIC_FREE_TEXT", attempt.BlockerCodes);
+        Assert.Empty(await db.EventStateTransitions.ToListAsync());
     }
 
     [Fact]
@@ -92,9 +168,9 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
         {
             var evaluator = new EventReadinessEvaluator(db, configuration); var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
             var firstVersion = (await db.Events.AsNoTracking().SingleAsync(x => x.Id == first)).Version;
-            Assert.True((await service.OpenAsync(first, firstVersion, true, false, actor)).Succeeded);
+            Assert.True((await service.OpenAsync(first, firstVersion, [], false, actor)).Succeeded);
             var secondVersion = (await db.Events.AsNoTracking().SingleAsync(x => x.Id == second)).Version;
-            var blocked = await service.OpenAsync(second, secondVersion, true, false, actor);
+            var blocked = await service.OpenAsync(second, secondVersion, [], false, actor);
             Assert.False(blocked.Succeeded); Assert.Contains("overlaps", blocked.Error);
         }
         await using (var db = new ApplicationDbContext(options))
@@ -128,10 +204,10 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
             Assert.True(readiness!.CloseDecision.RequiresAcceptance);
             Assert.Equal(now.AddDays(2), readiness.CloseDecision.ProposedClose);
             var version = (await db.Events.AsNoTracking().SingleAsync(x => x.Id == proposalEvent)).Version;
-            var proposal = await service.OpenAsync(proposalEvent, version, true, false, actor);
+            var proposal = await service.OpenAsync(proposalEvent, version, [], false, actor);
             Assert.False(proposal.Succeeded);
             Assert.Equal(now.AddDays(2), proposal.ProposedClose);
-            Assert.True((await service.OpenAsync(proposalEvent, version, true, true, actor)).Succeeded);
+            Assert.True((await service.OpenAsync(proposalEvent, version, [], true, actor)).Succeeded);
         }
 
         var validEvent = await SeedReadyDraftAsync("valid-close", waitingList: true, startDays: 20, endDays: 22);
@@ -142,7 +218,7 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
             var readiness = await evaluator.GetSignupReadinessAsync(validEvent, SignupOpeningMode.OpenNow, now);
             Assert.False(readiness!.CloseDecision.RequiresAcceptance);
             var version = (await db.Events.AsNoTracking().SingleAsync(x => x.Id == validEvent)).Version;
-            Assert.True((await service.OpenAsync(validEvent, version, true, false, actor)).Succeeded);
+            Assert.True((await service.OpenAsync(validEvent, version, [], false, actor)).Succeeded);
         }
 
         var publicEvent = await SeedReadyDraftAsync("public-schedule", waitingList: true);
@@ -183,7 +259,7 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
         {
             var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new FixedTimeProvider(now));
             var item = await db.Events.AsNoTracking().SingleAsync(x => x.Id == eventId);
-            var opened = await service.OpenAsync(eventId, item.Version, true, false, actor);
+            var opened = await service.OpenAsync(eventId, item.Version, [], false, actor);
             Assert.True(opened.Succeeded, opened.Error);
         }
 
@@ -232,9 +308,9 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
         {
             var evaluator = new EventReadinessEvaluator(db, configuration);
             var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
-            Assert.True((await service.OpenAsync(first, (await db.Events.AsNoTracking().SingleAsync(x => x.Id == first)).Version, true, false, actor)).Succeeded);
-            Assert.True((await service.OpenAsync(second, (await db.Events.AsNoTracking().SingleAsync(x => x.Id == second)).Version, true, false, actor)).Succeeded);
-            var blocked = await service.OpenAsync(overlap, (await db.Events.AsNoTracking().SingleAsync(x => x.Id == overlap)).Version, true, false, actor);
+            Assert.True((await service.OpenAsync(first, (await db.Events.AsNoTracking().SingleAsync(x => x.Id == first)).Version, [], false, actor)).Succeeded);
+            Assert.True((await service.OpenAsync(second, (await db.Events.AsNoTracking().SingleAsync(x => x.Id == second)).Version, [], false, actor)).Succeeded);
+            var blocked = await service.OpenAsync(overlap, (await db.Events.AsNoTracking().SingleAsync(x => x.Id == overlap)).Version, [], false, actor);
             Assert.False(blocked.Succeeded);
             Assert.Contains("overlaps", blocked.Error);
         }
@@ -249,10 +325,10 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
             await db.SaveChangesAsync();
             var evaluator = new EventReadinessEvaluator(db, configuration);
             var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
-            var proposal = await service.ReopenAsync(reopening, item.Version, true, false, actor);
+            var proposal = await service.ReopenAsync(reopening, item.Version, [], false, actor);
             Assert.False(proposal.Succeeded);
             Assert.Equal(item.EventStartsAt, proposal.ProposedClose);
-            Assert.True((await service.ReopenAsync(reopening, item.Version, true, true, actor)).Succeeded);
+            Assert.True((await service.ReopenAsync(reopening, item.Version, [], true, actor)).Succeeded);
         }
     }
 
@@ -364,8 +440,8 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         var evaluator = new EventReadinessEvaluator(db, configuration);
         var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
-        Assert.True((await service.OpenAsync(first, (await db.Events.SingleAsync(x => x.Id == first)).Version, true, false, actor)).Succeeded);
-        Assert.True((await service.OpenAsync(second, (await db.Events.SingleAsync(x => x.Id == second)).Version, true, false, actor)).Succeeded);
+        Assert.True((await service.OpenAsync(first, (await db.Events.SingleAsync(x => x.Id == first)).Version, [], false, actor)).Succeeded);
+        Assert.True((await service.OpenAsync(second, (await db.Events.SingleAsync(x => x.Id == second)).Version, [], false, actor)).Succeeded);
         var item = await db.Events.SingleAsync(x => x.Id == second);
         var overlapping = Values(item, now.AddDays(5)) with { SignupClosesAt = now.AddDays(3), EventStartsAt = now.AddDays(3).AddHours(12) };
         var rejected = await service.SaveScheduleAsync(second, item.Version, overlapping, true, actor);
@@ -390,9 +466,9 @@ public sealed class Slice3ScheduleLifecycleIntegrationTests : IAsyncLifetime
             var evaluator = new EventReadinessEvaluator(db, configuration);
             var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
             var futureVersion = (await db.Events.AsNoTracking().SingleAsync(x => x.Id == future)).Version;
-            Assert.True((await service.OpenAsync(future, futureVersion, true, false, actor)).Succeeded);
+            Assert.True((await service.OpenAsync(future, futureVersion, [], false, actor)).Succeeded);
             var overlapVersion = (await db.Events.AsNoTracking().SingleAsync(x => x.Id == overlapping)).Version;
-            var rejected = await service.OpenAsync(overlapping, overlapVersion, true, false, actor);
+            var rejected = await service.OpenAsync(overlapping, overlapVersion, [], false, actor);
             Assert.False(rejected.Succeeded);
             Assert.Contains(state.ToString(), rejected.Error);
             Assert.Equal(EventState.Draft, (await db.Events.AsNoTracking().SingleAsync(x => x.Id == overlapping)).State);
