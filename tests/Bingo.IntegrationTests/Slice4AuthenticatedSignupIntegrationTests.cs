@@ -50,7 +50,6 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     public async Task CoCaptainMigrationBackfillsExistingFormsWithoutTouchingRetainedAnswers()
     {
         await using var db = new ApplicationDbContext(options);
-        await db.GetService<IMigrator>().MigrateAsync("20260907185521_RepairDeletedSignupQuestions");
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"co-migration-{Guid.NewGuid():N}", now);
         var bingoEvent = new BingoEvent(Guid.NewGuid(), "Co-captain migration", $"co-captain-migration-{Guid.NewGuid():N}", "UTC", admin.Id, now);
@@ -64,7 +63,9 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         db.AddRange(admin, bingoEvent, form, regular, captain, retained, participant,
             new SignupAnswer(Guid.NewGuid(), participant.Id, retained.Id, retained.Label, "keep this answer"));
         await db.SaveChangesAsync();
-
+        // Rehearse the upgrade using current-model seeded data, then the historical schema.
+        await db.GetService<IMigrator>().MigrateAsync("20260907185521_RepairDeletedSignupQuestions");
+        db.ChangeTracker.Clear();
         await db.GetService<IMigrator>().MigrateAsync();
         var co = await db.SignupQuestions.AsNoTracking().SingleAsync(x => x.SignupFormId == form.Id && x.SystemField == SignupSystemField.CoCaptainName);
         Assert.StartsWith($"{SignupQuestion.CoCaptainKey}_", co.Key, StringComparison.Ordinal);
@@ -83,7 +84,6 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     public async Task DeleteQuestionMigrationRepairsOnlyPriorRemovalsInPreDraftEvents()
     {
         await using var db = new ApplicationDbContext(options);
-        await db.GetService<IMigrator>().MigrateAsync("20260905221344_AddImmutableCatalogueItemIdentity");
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"delete-migration-{Guid.NewGuid():N}", now);
         db.Add(admin);
@@ -114,6 +114,8 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             cases.Add((question, participant, assignment, link, kind is "draft" or "open" or "closed"));
         }
         await db.SaveChangesAsync();
+        // Seed current entities before returning to the historical repair boundary.
+        await db.GetService<IMigrator>().MigrateAsync("20260905221344_AddImmutableCatalogueItemIdentity");
         var systemId = cases.Single(x => x.Question.SystemField == SignupSystemField.PrimaryRegularAccount).Question.Id;
         await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE signup_questions SET active = false, disabled_at = {now} WHERE id = {systemId}");
         db.ChangeTracker.Clear();

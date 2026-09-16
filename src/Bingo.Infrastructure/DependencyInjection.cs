@@ -1,3 +1,4 @@
+using Bingo.Application.Announcements;
 using Bingo.Application.Auditing;
 using Bingo.Application.Boards;
 using Bingo.Application.Events;
@@ -6,6 +7,7 @@ using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Security;
 using Bingo.Application.Signups;
 using Bingo.Application.Teams;
+using Bingo.Infrastructure.Announcements;
 using Bingo.Infrastructure.Auditing;
 using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Events;
@@ -53,11 +55,14 @@ public static class DependencyInjection
         else
             services.AddSingleton<IEvidenceStorage, LocalEvidenceStorage>();
         services.AddScoped<ISubmissionService, SubmissionService>();
+        services.AddScoped<IDropAnnouncementService, DropAnnouncementService>();
         services.AddScoped<IEvidenceAuthority, EvidenceAuthority>();
         services.AddScoped<IPublicBoardService, PublicBoardService>();
+        services.AddScoped<Bingo.Application.Stats.IPublicStatsService, Bingo.Infrastructure.Stats.PublicStatsService>();
         services.AddScoped<IEventFinalizationService, EventFinalizationService>();
         services.AddScoped<IEventReadinessEvaluator, EventReadinessEvaluator>();
         services.AddScoped<IEventSignupLifecycleService, EventSignupLifecycleService>();
+        services.AddScoped<EventItemPriceService>();
         services.AddScoped<IEventLifecycleService, EventLifecycleService>();
         services.AddScoped<IEventQuarantineService, EventQuarantineService>();
         services.AddScoped<IEventDestructiveLifecycleService, EventDestructiveLifecycleService>();

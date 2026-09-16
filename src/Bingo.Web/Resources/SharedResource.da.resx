@@ -438,7 +438,7 @@
   <data name="Bingo" xml:space="preserve"><value>Bingo</value></data>
   <data name="Bingo views" xml:space="preserve"><value>Bingovisninger</value></data>
   <data name="Recent drops" xml:space="preserve"><value>Seneste drops</value></data>
-  <data name="Leaderboards" xml:space="preserve"><value>Resultatlister</value></data>
+  <data name="Leaderboards" xml:space="preserve"><value>Leaderboards</value></data>
   <data name="Estimated Drop EHB from approved contributions" xml:space="preserve"><value>Estimeret Drop-EHB fra godkendte bidrag</value></data>
   <data name="Drop EHB" xml:space="preserve"><value>Drop-EHB</value></data>
   <data name="Approved moments" xml:space="preserve"><value>Godkendte øjeblikke</value></data>
@@ -2571,7 +2571,8 @@
   <data name="On your own team's board, select a tile to open its details. When submissions are open and you are authorized, use Team history or Submit drop; an incomplete tile also offers Submit drop in its details." xml:space="preserve"><value>Vælg en tile på dit holds Board for at se detaljerne. Når der er åbent for indsendelser, og du har adgang, kan du bruge Holdhistorik eller Indsend drop. Du finder også Indsend drop i detaljerne for en tile, der ikke er færdig endnu.</value></data>
   <data name="Use another team's board to follow its published progress and approved evidence. Submissions are made from your own team's board." xml:space="preserve"><value>På andre holds Board kan du følge deres offentliggjorte fremgang og se godkendte beviser. Dine egne indsendelser laver du fra dit holds Board.</value></data>
   <data name="Drops shows recent approved activity. Select Refresh now when you want to check for new progress." xml:space="preserve"><value>Under Drops ser du de seneste godkendte indsendelser. Vælg Opdatér nu for at se, om der er kommet nyt.</value></data>
-  <data name="Leaderboards compare EHB, Drop EHB, and player results. Drop EHB is estimated credited objective effort, not actual playtime." xml:space="preserve"><value>Under Resultatlister kan du sammenligne EHB, Drop-EHB og spillernes resultater. Drop-EHB er et skøn over indsatsen bag de godkendte mål, ikke den tid spillerne faktisk har brugt.</value></data>
+  <data name="Drops shows recent approved activity. New approved updates appear automatically, and NEW marks highlight items you have not opened yet." xml:space="preserve"><value>Under Drops ser du de seneste godkendte indsendelser. Nye godkendte opdateringer vises automatisk, og NEW-markeringer fremhæver elementer, du endnu ikke har åbnet.</value></data>
+  <data name="Leaderboards compare EHB, Drop EHB, and player results. Drop EHB is estimated credited objective effort, not actual playtime." xml:space="preserve"><value>Under Leaderboards kan du sammenligne EHB, Drop-EHB og spillernes resultater. Drop-EHB er et skøn over indsatsen bag de godkendte mål, ikke den tid spillerne faktisk har brugt.</value></data>
   <data name="EHB activity depends on the configured and complete Wise Old Man competition cache. It is supplementary to the board's approved progress and standings." xml:space="preserve"><value>EHB-aktivitet kan kun vises, når eventet er knyttet til en konkurrence på Wise Old Man, og siden har hentet alle konkurrencedata. EHB supplerer Boardet; holdenes fremgang og placeringer bygger på godkendte indsendelser.</value></data>
   <data name="Pending evidence never changes public progress or standings." xml:space="preserve"><value>Indsendelser, der afventer godkendelse, tæller ikke med i holdenes offentlige fremgang eller placeringer.</value></data>
   <data name="Submit from your team board: choose a tile and the qualifying drop or manual completion, then send clear evidence for review." xml:space="preserve"><value>Start på dit holds Board. Vælg en tile og et drop, der tæller til den, eller en manuel fuldførelse. Vedhæft et tydeligt bevis, og send det til godkendelse.</value></data>
@@ -2748,4 +2749,91 @@
   <data name="This board changed after you opened it. Reload before discarding the correction." xml:space="preserve"><value>Pladen er ændret, siden du åbnede den. Genindlæs, før du kasserer rettelsen.</value></data>
   <data name="The private correction could not be discarded. No changes were saved. Reload and try again; if required published data or artwork is unavailable, contact an administrator." xml:space="preserve"><value>Den private rettelse kunne ikke kasseres. Ingen ændringer blev gemt. Genindlæs og prøv igen. Kontakt en administrator, hvis nødvendige offentliggjorte data eller billeder ikke er tilgængelige.</value></data>
   <data name="Private correction discarded. All unpublished board edits were removed and the working board was restored to the current publication." xml:space="preserve"><value>Den private rettelse er kasseret. Alle upublicerede ændringer af pladen blev fjernet, og arbejdskopien blev gendannet fra den aktuelle offentliggjorte plade.</value></data>
+  <data name="NEW" xml:space="preserve"><value>NYT</value></data>
+  <data name="{0} of {1}" xml:space="preserve"><value>{0} af {1}</value></data>
+  <data name="New tile progression" xml:space="preserve"><value>Nyt tile fremskridt</value></data>
+  <data name="New tile progression: {0} / {1}" xml:space="preserve"><value>Nyt tile fremskridt: {0} / {1}</value></data>
+  <data name="Tile completed" xml:space="preserve"><value>Tile fuldført</value></data>
+  <data name="Announcement navigation" xml:space="preserve"><value>Meddelelsesnavigation</value></data>
+  <data name="Previous update" xml:space="preserve"><value>Forrige opdatering</value></data>
+  <data name="Next update" xml:space="preserve"><value>Næste opdatering</value></data>
+  <data name="Go to drop" xml:space="preserve"><value>Gå til drop</value></data>
+  <data name="Dismiss announcements" xml:space="preserve"><value>Luk meddelelser</value></data>
+  <data name="{0} NEW UPDATE" xml:space="preserve"><value>{0} NY OPDATERING</value></data>
+  <data name="{0} NEW UPDATES" xml:space="preserve"><value>{0} NYE OPDATERINGER</value></data>
+  <data name="Clear all new" xml:space="preserve"><value>Ryd alle nye</value></data>
+  <data name="All new marks cleared." xml:space="preserve"><value>Alle ny-markeringer er ryddet.</value></data>
+  <data name="Current event" xml:space="preserve">
+    <value>Aktuelt event</value>
+  </data>
+  <data name="API hourly average" xml:space="preserve"><value>Timegennemsnit fra API</value></data>
+  <data name="API mapping" xml:space="preserve"><value>API-tilknytning</value></data>
+  <data name="API mapping and price" xml:space="preserve"><value>API-tilknytning og pris</value></data>
+  <data name="API settings saved. Validation can be retried without changing the stored value." xml:space="preserve"><value>API-indstillinger gemt. Validering kan prøves igen uden at ændre den gemte værdi.</value></data>
+  <data name="API settings saved: {0}. A verified metric does not guarantee activity data for every player." xml:space="preserve"><value>API-indstillinger gemt: {0}. En verificeret metrik garanterer ikke aktivitetsdata for alle spillere.</value></data>
+  <data name="Fetch price and add drop" xml:space="preserve"><value>Hent pris og tilføj drop</value></data>
+  <data name="Initial catalogue value (GP)" xml:space="preserve"><value>Første katalogværdi (GP)</value></data>
+  <data name="Last checked" xml:space="preserve"><value>Senest kontrolleret</value></data>
+  <data name="Leave blank to try an exact item-name match when fetching the price." xml:space="preserve"><value>Lad feltet være tomt for at søge efter det præcise genstandsnavn, når prisen hentes.</value></data>
+  <data name="Manual catalogue value" xml:space="preserve"><value>Manuel katalogværdi</value></data>
+  <data name="Manual value (GP)" xml:space="preserve"><value>Manuel værdi (GP)</value></data>
+  <data name="Manual values stay fixed during API refreshes. Missing prices are not zero. Changes apply to this shared catalogue item, not existing event prices." xml:space="preserve"><value>Manuelle værdier bevares ved API-opdateringer. Manglende priser er ikke nul. Ændringer gælder denne delte kataloggenstand, ikke eksisterende eventpriser.</value></data>
+  <data name="Mapping verified and hourly price saved." xml:space="preserve"><value>Tilknytning verificeret og timepris gemt.</value></data>
+  <data name="Mapping verified. No hourly price is available; the current catalogue value is unchanged." xml:space="preserve"><value>Tilknytning verificeret. Ingen timepris er tilgængelig; den aktuelle katalogværdi er uændret.</value></data>
+  <data name="Mapping verified. The price API is temporarily unavailable; the current catalogue value is unchanged. Retry later." xml:space="preserve"><value>Tilknytning verificeret. Pris-API'et er midlertidigt utilgængeligt; den aktuelle katalogværdi er uændret. Prøv igen senere.</value></data>
+  <data name="Mapping verified. Your selected catalogue value was kept." xml:space="preserve"><value>Tilknytning verificeret. Din valgte katalogværdi blev bevaret.</value></data>
+  <data name="Matched item" xml:space="preserve"><value>Tilknyttet genstand</value></data>
+  <data name="Missing" xml:space="preserve"><value>Mangler</value></data>
+  <data name="No exact activity match. Enter the metric for the correct activity or raid mode and validate it." xml:space="preserve"><value>Ingen præcis aktivitet fundet. Indtast metrikken for den korrekte aktivitet eller raidvariant, og valider den.</value></data>
+  <data name="No unique exact-name match. Enter the exact item ID, or classify an untradeable explicitly. No value was changed." xml:space="preserve"><value>Ingen entydig genstand med præcis samme navn fundet. Indtast det præcise genstands-ID, eller angiv udtrykkeligt, at genstanden ikke kan handles. Ingen værdi blev ændret.</value></data>
+  <data name="Not checked" xml:space="preserve"><value>Ikke kontrolleret</value></data>
+  <data name="Not priced" xml:space="preserve"><value>Ingen pris fastsat</value></data>
+  <data name="OSRS Wiki item ID" xml:space="preserve"><value>OSRS Wiki-genstands-ID</value></data>
+  <data name="OSRS Wiki item ID (optional)" xml:space="preserve"><value>OSRS Wiki-genstands-ID (valgfrit)</value></data>
+  <data name="Price source" xml:space="preserve"><value>Priskilde</value></data>
+  <data name="Required for a new item; zero is valid. Shared items retain their existing value." xml:space="preserve"><value>Påkrævet for en ny genstand; nul er gyldigt. Delte genstande beholder deres eksisterende værdi.</value></data>
+  <data name="Save without validation" xml:space="preserve"><value>Gem uden validering</value></data>
+  <data name="Settings saved. The API is temporarily unavailable; retry validation later." xml:space="preserve"><value>Indstillinger gemt. API'et er midlertidigt utilgængeligt; prøv at validere igen senere.</value></data>
+  <data name="Settings saved. This ID is not in the tradeable item mapping; review the exact variant or untradeable classification." xml:space="preserve"><value>Indstillinger gemt. Dette ID findes ikke blandt genstande, der kan handles; kontroller den præcise variant, eller om genstanden ikke kan handles.</value></data>
+  <data name="Stored value" xml:space="preserve"><value>Gemt værdi</value></data>
+  <data name="Suggest exact activity mapping" xml:space="preserve"><value>Foreslå præcis aktivitet</value></data>
+  <data name="Suggest exact item mapping" xml:space="preserve"><value>Foreslå præcis genstand</value></data>
+  <data name="Temporarily unavailable" xml:space="preserve"><value>Midlertidigt utilgængelig</value></data>
+  <data name="The API is temporarily unavailable." xml:space="preserve"><value>API'et er midlertidigt utilgængeligt.</value></data>
+  <data name="To switch a fixed value to API pricing, choose API hourly average and validate with an available price." xml:space="preserve"><value>For at skifte en fast værdi til API-priser skal du vælge timegennemsnit fra API og validere med en tilgængelig pris.</value></data>
+  <data name="Untradeable (0 GP)" xml:space="preserve"><value>Kan ikke handles (0 GP)</value></data>
+  <data name="Use the metric for this exact activity or raid mode. Validation does not guarantee data for every player." xml:space="preserve"><value>Brug metrikken for netop denne aktivitet eller raidvariant. Validering garanterer ikke data for alle spillere.</value></data>
+  <data name="Validate and save" xml:space="preserve"><value>Valider og gem</value></data>
+  <data name="Validate the metric in API mapping after saving." xml:space="preserve"><value>Valider metrikken under API-tilknytning efter at have gemt.</value></data>
+  <data name="Wise Old Man metric" xml:space="preserve"><value>Wise Old Man-metrik</value></data>
+  <data name="Wise Old Man metric (optional)" xml:space="preserve"><value>Wise Old Man-metrik (valgfrit)</value></data>
+  <data name="Enter a catalogue value for this new item. Zero is valid; untradeable items default to zero." xml:space="preserve"><value>Indtast en katalogværdi for denne nye genstand. Nul er gyldigt; genstande, der ikke kan handles, får værdien nul.</value></data>
+  <data name="Verified" xml:space="preserve"><value>Verificeret</value></data>
+  <data name="Unsupported" xml:space="preserve"><value>Ikke understøttet</value></data>
+  <data name="API settings saved." xml:space="preserve"><value>API-indstillinger gemt.</value></data>
+  <data name="Mapping verified. No hourly price is available." xml:space="preserve"><value>Tilknytning verificeret. Ingen timepris er tilgængelig.</value></data>
+  <data name="Mapping verified. The price API is temporarily unavailable; retry later." xml:space="preserve"><value>Tilknytning verificeret. Pris-API'et er midlertidigt utilgængeligt; prøv igen senere.</value></data>
+  <data name="Changing the item ID cleared its old API price. Enter a manual catalogue value or retry validation when a price is available." xml:space="preserve"><value>Ændringen af genstands-ID'et fjernede den gamle API-pris. Indtast en manuel katalogværdi, eller prøv at validere igen, når en pris er tilgængelig.</value></data>
+  <data name="The stored catalogue value was kept." xml:space="preserve"><value>Den gemte katalogværdi blev bevaret.</value></data>
+  <data name="No catalogue value is stored. Enter a manual value or retry validation when a price is available." xml:space="preserve"><value>Ingen katalogværdi er gemt. Indtast en manuel værdi, eller prøv at validere igen, når en pris er tilgængelig.</value></data>
+  <data name="The item mapping API is temporarily unavailable." xml:space="preserve"><value>API'et til genstandstilknytning er midlertidigt utilgængeligt.</value></data>
+  <data name="The item ID is not in the tradeable item mapping." xml:space="preserve"><value>Genstands-ID'et findes ikke blandt genstande, der kan handles.</value></data>
+  <data name="No unique exact-name item match was found." xml:space="preserve"><value>Ingen entydig genstand med præcis samme navn blev fundet.</value></data>
+  <data name="The price API is temporarily unavailable." xml:space="preserve"><value>Pris-API'et er midlertidigt utilgængeligt.</value></data>
+  <data name="No hourly price is available for the matched item." xml:space="preserve"><value>Ingen timepris er tilgængelig for den tilknyttede genstand.</value></data>
+  <data name="The drop was not added. Enter a manual catalogue value, review the exact item mapping, or retry the price fetch later." xml:space="preserve"><value>Droppet blev ikke tilføjet. Indtast en manuel katalogværdi, kontroller den præcise genstandstilknytning, eller prøv at hente prisen igen senere.</value></data>
+  <data name="Added {0} to {1}." xml:space="preserve"><value>Tilføjede {0} til {1}.</value></data>
+  <data name="The entered manual value ({0} GP) was used and stays fixed during bulk refreshes. Review the mapping and choose API hourly average, then validate again to use API pricing." xml:space="preserve"><value>Den indtastede manuelle værdi ({0} GP) blev brugt og bevares ved masseopdateringer. Kontroller tilknytningen, vælg timegennemsnit fra API, og valider igen for at bruge API-priser.</value></data>
+  <data name="These drops have no catalogue GP value: {0}. Set a value in Admin Catalogue, then try again. An explicit 0 is valid." xml:space="preserve">
+    <value>Disse drops mangler en GP-værdi i kataloget: {0}. Angiv en værdi i Admin Katalog, og prøv igen. En udtrykkelig værdi på 0 er gyldig.</value>
+  </data>
+  <data name="Mapping verified. The API price was rejected as an unusual change. The trusted catalogue value was kept. Review the candidate or enter a checked manual value." xml:space="preserve">
+    <value>Mappingen er bekræftet. API-prisen blev afvist som en usædvanlig ændring. Den betroede katalogværdi blev bevaret. Kontrollér kandidaten, eller indtast en kontrolleret manuel værdi.</value>
+  </data>
+  <data name="Rejected API candidate: {0} GP (hour {1}). Trusted value retained. Review the candidate or enter a checked manual value." xml:space="preserve">
+    <value>Afvist API-kandidat: {0} GP (time {1}). Den betroede værdi er bevaret. Kontrollér kandidaten, eller indtast en kontrolleret manuel værdi.</value>
+  </data>
+  <data name="The catalogue changed while the tile was being saved. No tile was added; reload and try again." xml:space="preserve">
+    <value>Kataloget blev ændret, mens feltet blev gemt. Intet felt blev tilføjet; genindlæs, og prøv igen.</value>
+  </data>
 </root>

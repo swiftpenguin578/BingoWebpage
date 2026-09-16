@@ -168,7 +168,7 @@
         event.stopPropagation();
         if (event.defaultPrevented) return;
         event.preventDefault();
-        guarded(() => submitEditor(form), form);
+        guarded(() => submitEditor(form, event.submitter), form);
       });
     });
     guard.initialize();
@@ -314,9 +314,10 @@
     } catch { parentRefreshFailed = true; return false; }
   }
 
-  async function submitEditor(form) {
+  async function submitEditor(form, submitter) {
     if (guard.pending || staleEditor || completedWithoutEditor) return;
     const data = new FormData(form);
+    if (submitter?.name) data.set(submitter.name, submitter.value);
     const finish = guard.begin(form);
     try {
       const response = await window.fetch(form.action || currentUrl().href, { method: "POST", body: data, credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } });
@@ -329,9 +330,10 @@
       const type = (result.dataset.catalogueStatusType || "").toLowerCase();
       if (type === "error" || type === "warning") {
         const recordId = data.get("recordId");
-        const submittedVersion = data.get("expectedVersion");
-        const currentForm = [...result.querySelectorAll("form")].find(candidate => candidate.querySelector("input[name='recordId']")?.value === recordId);
-        staleEditor = !!(submittedVersion && (!currentForm || currentForm.querySelector("input[name='expectedVersion']")?.value !== submittedVersion));
+        const versionName = data.get("expectedItemId") ? "expectedItemVersion" : "expectedVersion";
+        const submittedVersion = data.get(versionName);
+        const currentForm = [...result.querySelectorAll("form")].find(candidate => candidate.querySelector("input[name='recordId']")?.value === recordId && (!data.get("expectedItemId") || candidate.querySelector("input[name='expectedItemId']")?.value === data.get("expectedItemId")));
+        staleEditor = !!(submittedVersion && (!currentForm || currentForm.querySelector(`input[name='${versionName}']`)?.value !== submittedVersion));
         showFailure(staleEditor ? adminText("adminCatalogueStaleError") : message, type);
         if (staleEditor) currentEditor().querySelector("[data-catalogue-reload]").hidden = false;
         return;
@@ -342,7 +344,7 @@
         if (!nextEditor) {
           finish();
           guard.initialize();
-          if (message) sessionStorage.setItem("bingo:pending-toast", JSON.stringify({ message, type: "success" }));
+          if (message) sessionStorage.setItem("bingo:pending-toast", JSON.stringify({ message, type: type || "success" }));
           window.location.replace(baseUrl().href);
           return;
         }
@@ -352,7 +354,7 @@
         history.replaceState(history.state, "", response.url || currentUrl().href);
         if (page.querySelector("[data-catalogue-editor]")) bindEditor();
         else initializeWorkspace(page);
-        if (message) window.showBingoToast?.(message, "success");
+        if (message) window.showBingoToast?.(message, type || "success");
         return;
       }
       if (nextEditor) { replaceEditor(html); history.replaceState(history.state, "", response.url || currentUrl().href); }
@@ -364,7 +366,7 @@
         return;
       }
       if (!nextEditor) { history.replaceState({}, "", parentUrl || baseUrl().href); hide(); }
-      if (message) window.showBingoToast?.(message, "success");
+      if (message) window.showBingoToast?.(message, type || "success");
     } catch { showFailure(); }
     finally { finish(); }
   }
@@ -565,4 +567,24 @@
     prepareAndShow();
   } else if (hasOverlay()) sync();
   else if (editor instanceof HTMLElement) { directRoute = false; bindEditor(); }
+  document.addEventListener("click", async event => {
+    const button = event.target.closest?.("[data-catalogue-api-suggest]");
+    if (!button || button.disabled) return;
+    const form = button.closest("form");
+    const feedback = form.querySelector("[data-api-suggestion]");
+    const input = form.querySelector('[name="externalIdentifier"]');
+    const original = input.value;
+    const url = new URL(form.action); url.searchParams.set("handler", button.dataset.apiHandler || "SuggestItemApi");
+    const body = new FormData(form); body.set("itemName", button.dataset.catalogueApiSuggest);
+    button.disabled = true;
+    try {
+      const response = await window.fetch(url, { method: "POST", body, credentials: "same-origin" });
+      if (!response.ok) throw new Error();
+      const result = await response.json();
+      if (!button.isConnected || input.value !== original) return;
+      if (result.id) { input.value = String(result.id); input.dispatchEvent(new Event("input", { bubbles: true })); }
+      feedback.textContent = result.error || result.name;
+    } catch { feedback.textContent = feedback.dataset.unavailable; }
+    finally { button.disabled = false; }
+  });
 })();

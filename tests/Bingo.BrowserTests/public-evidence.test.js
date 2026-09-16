@@ -80,7 +80,7 @@ const document = {
   addEventListener(name, handler) { (this.listeners[name] ??= []).push(handler); },
   createTextNode: text => ({ textContent: text })
 };
-vm.runInNewContext(script, { document });
+vm.runInNewContext(script, { document, window: { dispatchEvent() {}, setTimeout }, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } } });
 assert.equal(dialog.open, false, "initialization closes a restored dialog");
 assert.equal(image.src, "", "reload recovery clears the restored image");
 document.listeners.click[0]({ target: trigger, preventDefault() {} });

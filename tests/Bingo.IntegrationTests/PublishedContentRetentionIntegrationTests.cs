@@ -1,13 +1,16 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text.RegularExpressions;
+using Bingo.Application.Announcements;
 using Bingo.Application.Boards;
 using Bingo.Application.Evidence;
 using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
+using Bingo.Domain.Evidence;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
@@ -79,8 +82,6 @@ public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task RetainedMigrationAndPrivateRemovalKeepPublishedArtworkAndBoundCleanup()
     {
-        await using (var previous = new ApplicationDbContext(options))
-            await previous.GetService<IMigrator>().MigrateAsync(PreviousMigration);
         var fixture = await SeedAsync();
         var other = await SeedAsync();
         await PublishAsync(fixture);
@@ -88,6 +89,10 @@ public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
         var originalUrl = await RenderedImageUrlAsync(fixture);
         await AssertImageAsync(anonymous, originalUrl);
         var unreferenced = await AddImageAsync(fixture);
+        // Materialize the fixture with the current model, then rehearse the historical
+        // schema upgrade without using current EF entities against missing columns.
+        await using (var previous = new ApplicationDbContext(options))
+            await previous.GetService<IMigrator>().MigrateAsync(PreviousMigration);
         await using (var migration = new ApplicationDbContext(options)) await migration.Database.MigrateAsync();
         await CorrectAsync(fixture);
         await BoardPostAsync(fixture, "Remove", new() { ["tileId"] = fixture.TileId.ToString() });
@@ -170,6 +175,80 @@ public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
         await BoardPostAsync(fixture, "Remove", new() { ["tileId"] = fixture.TileId.ToString() });
         await AssertImageAsync(admin, RetainedUrl(fixture, originalApproval));
         if (!removeImage) await AssertImageAsync(anonymous, originalUrl, ReplacementPng);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AnnouncementsKeepPublishedWordingAndArtworkUntilCorrectionApproval(bool approveReplacement)
+    {
+        var fixture = await SeedAsync();
+        await PublishAsync(fixture);
+        Guid requirementId;
+        Guid submissionId;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var now = DateTimeOffset.UtcNow;
+            var ev = await db.Events.SingleAsync(x => x.Id == fixture.EventId);
+            ev.StartEvent(now.AddMinutes(-1));
+            var participant = await db.EventParticipants.SingleAsync(x => x.EventId == ev.Id);
+            participant.AssignOwner(await db.Accounts.SingleAsync(x => x.Id == actor.Id));
+            var character = new OsrsCharacter(Guid.NewGuid(), "Announcement player", "ANNOUNCEMENT PLAYER", now);
+            db.Add(character);
+            db.Add(new TeamMembership(Guid.NewGuid(), fixture.TeamId, participant.Id, TeamMembershipRole.Captain, now.AddMinutes(-1), null, null));
+            requirementId = await db.BoardRequirementSnapshots.Where(x => x.BoardTileId == fixture.TileId).Select(x => x.Id).SingleAsync();
+            var submission = new Submission(Guid.NewGuid(), ev.Id, fixture.TeamId, fixture.TileId, requirementId, null,
+                participant.Id, character.Id, character.DisplayName, actor.Id, 1, now, null, null);
+            submission.Approve(1, now, ev.AnnouncementGeneration, true, ev.ReserveAnnouncementOrdinal());
+            db.Add(submission);
+            db.Add(new SubmissionContribution(Guid.NewGuid(), submission.Id, fixture.TeamId, requirementId, null, participant.Id, 1, now));
+            await db.SaveChangesAsync();
+            submissionId = submission.Id;
+        }
+        var baseline = await admin.GetFromJsonAsync<DropAnnouncementSnapshot>($"/api/drop-announcements/{fixture.EventId}");
+        Assert.NotNull(baseline);
+        var original = Assert.Single(baseline.Queue);
+        Assert.Equal(fixture.TileName, original.TileName);
+        Assert.Equal(ImageUrl(fixture), original.TileArtworkReference);
+        Assert.True(original.CompletedTileAtApproval);
+        await AssertImageAsync(anonymous, original.TileArtworkReference!);
+
+        await CorrectAsync(fixture);
+        await BoardPostAsync(fixture, "EditTile", new()
+        {
+            ["TileDraft.TileId"] = fixture.TileId.ToString(),
+            ["TileDraft.Name"] = "Private replacement title",
+            ["TileDraft.ManualEhb"] = "4",
+            ["TileDraft.Requirements[0].RequirementId"] = requirementId.ToString(),
+            ["TileDraft.Requirements[0].Kind"] = "challenge",
+            ["TileDraft.Requirements[0].Description"] = "Private replacement wording",
+            ["TileDraft.Requirements[0].Target"] = "1"
+        }, upload: true);
+        await using (var working = new ApplicationDbContext(options))
+        {
+            var tile = await working.BoardTiles.SingleAsync(x => x.Id == fixture.TileId);
+            Assert.Equal("Private replacement title", tile.NameSnapshot);
+            Assert.NotEqual(fixture.ImageId, tile.ActiveImageAssetId);
+        }
+        var during = await admin.GetFromJsonAsync<DropAnnouncementSnapshot>($"/api/drop-announcements/{fixture.EventId}");
+        Assert.NotNull(during);
+        Assert.Equal(original, Assert.Single(during.Queue));
+        Assert.Equal(baseline.Generation, during.Generation);
+        Assert.Equal(baseline.SnapshotSequence, during.SnapshotSequence);
+        await AssertImageAsync(anonymous, original.TileArtworkReference!);
+
+        await BoardPostAsync(fixture, approveReplacement ? "Approve" : "DiscardCorrection", new() { ["confirmed"] = "true" });
+        var after = await admin.GetFromJsonAsync<DropAnnouncementSnapshot>($"/api/drop-announcements/{fixture.EventId}");
+        Assert.NotNull(after);
+        var entry = Assert.Single(after.Queue);
+        Assert.Equal(approveReplacement ? "Private replacement title" : fixture.TileName, entry.TileName);
+        Assert.Equal(original with { TileName = entry.TileName }, entry);
+        Assert.Equal(baseline.Generation, after.Generation);
+        Assert.Equal(baseline.SnapshotSequence, after.SnapshotSequence);
+        Assert.Contains(submissionId, after.NewSubmissionIds);
+        await AssertImageAsync(anonymous, entry.TileArtworkReference!, approveReplacement ? ReplacementPng : Png);
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Empty(await verify.DropAnnouncementAcknowledgements.Where(x => x.EventId == fixture.EventId).ToListAsync());
     }
 
     [Fact]

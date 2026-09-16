@@ -1183,6 +1183,63 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Contains("Imbued heart", manual.Description, StringComparison.Ordinal);
         Assert.Empty(await db.BoardRequirementDropSnapshots.Where(item => item.RequirementId == manual.Id).ToListAsync());
 
+        var seededPending = await (from submission in db.Submissions
+                                   join tile in db.BoardTiles on submission.BoardTileId equals tile.Id
+                                   where submission.EventId == live.Id
+                                         && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending
+                                         && tile.NameSnapshot == "Superior Slayer"
+                                   select submission).SingleAsync();
+        Assert.Equal(manual.Id, seededPending.RequirementId);
+        Assert.Equal(4, seededPending.ClaimedWeight);
+        Assert.Equal("DA-07 pending non-drop completion: Superior Slayer.", seededPending.CaptainNote);
+
+        var pendingSubmissions = await db.Submissions
+            .Where(item => item.EventId == live.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending)
+            .ToListAsync();
+        Assert.Equal(15, pendingSubmissions.Count);
+        var validPendingScopes = await (from submission in db.Submissions
+                                        join tile in db.BoardTiles on submission.BoardTileId equals tile.Id
+                                        join board in db.Boards on tile.BoardId equals board.Id
+                                        join requirement in db.BoardRequirementSnapshots on submission.RequirementId equals requirement.Id
+                                        join team in db.Teams on submission.TeamId equals team.Id
+                                        join participant in db.EventParticipants on submission.CreditedParticipantId equals participant.Id
+                                        where submission.EventId == live.Id && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending
+                                              && board.EventId == live.Id && requirement.BoardTileId == tile.Id
+                                              && team.EventId == live.Id && participant.EventId == live.Id
+                                              && db.EvidenceAssets.Any(asset => asset.SubmissionId == submission.Id && asset.Active && asset.Role == Bingo.Domain.Evidence.EvidenceAssetRole.OriginalEvidence)
+                                              && (requirement.ManualObjective
+                                                  ? submission.DropSnapshotId == null
+                                                  : submission.DropSnapshotId != null && db.BoardRequirementDropSnapshots.Any(drop => drop.Id == submission.DropSnapshotId && drop.RequirementId == requirement.Id))
+                                        select submission.Id).Distinct().ToListAsync();
+        Assert.Equal(15, validPendingScopes.Count);
+
+        var firstTeam = await db.Teams.Where(team => team.EventId == live.Id).OrderBy(team => team.DraftPosition).FirstAsync();
+        var pendingByTile = await (from submission in db.Submissions
+                                   join tile in db.BoardTiles on submission.BoardTileId equals tile.Id
+                                   where submission.EventId == live.Id && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending
+                                   select new { submission, tile.NameSnapshot }).ToListAsync();
+        var da07 = pendingByTile.Single(item => item.NameSnapshot == "Superior Slayer").submission;
+        var linkedAraxxor = pendingByTile.Single(item => item.submission.ResubmissionOfSubmissionId != null).submission;
+        var vorkath = pendingByTile.Single(item => item.NameSnapshot == "Vorkath").submission;
+        var hydra = pendingByTile.Single(item => item.NameSnapshot == "Alchemical Hydra").submission;
+        var partial = pendingByTile.Single(item => item.NameSnapshot == "Phosani's Nightmare").submission;
+        Assert.All(new[] { da07, linkedAraxxor, vorkath, hydra }, submission => Assert.Equal(firstTeam.Id, submission.TeamId));
+
+        var admin = await db.Accounts
+            .Where(account => account.GlobalRole == GlobalRole.SuperAdmin && account.DisabledAt == null)
+            .OrderBy(account => account.CreatedAt)
+            .FirstAsync();
+        var submissionService = new Bingo.Infrastructure.Evidence.SubmissionService(db, new SeedEvidenceStorage(), clock);
+        foreach (var submission in new[] { da07, linkedAraxxor, vorkath, hydra, partial })
+            await submissionService.ApproveAsync(submission.Id, admin.Id);
+
+        db.ChangeTracker.Clear();
+        var approvedFixtures = await db.Submissions
+            .Where(submission => new[] { da07.Id, linkedAraxxor.Id, vorkath.Id, hydra.Id, partial.Id }.Contains(submission.Id))
+            .ToDictionaryAsync(submission => submission.Id);
+        Assert.All(new[] { da07.Id, linkedAraxxor.Id, vorkath.Id, hydra.Id }, id => Assert.True(approvedFixtures[id].CompletedTileAtApproval));
+        Assert.False(approvedFixtures[partial.Id].CompletedTileAtApproval);
+
         var approvalRequirementIds = await (from requirement in db.BoardApprovalRequirementSnapshots
                                             join tile in db.BoardApprovalTileSnapshots on requirement.ApprovalTileSnapshotId equals tile.Id
                                             join approval in db.BoardApprovalSnapshots on tile.ApprovalSnapshotId equals approval.Id
@@ -2181,7 +2238,10 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Equal(DraftState.Finalized, draft.State);
         Assert.Equal(48, await db.DraftPicks.CountAsync(item => item.DraftSessionId == draft.Id && item.UndoneAt == null));
         Assert.Equal(1, await db.BoardApprovalSnapshots.CountAsync(item => item.BoardId == (db.Boards.Where(board => board.EventId == test15.Id).Select(board => board.Id).Single())));
-        Assert.Equal(2, await db.Submissions.CountAsync(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending));
+        var pendingSubmissions = await db.Submissions
+            .Where(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending)
+            .ToListAsync();
+        Assert.Equal(15, pendingSubmissions.Count);
         Assert.Equal(1, await db.Submissions.CountAsync(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Rejected));
         Assert.True(await db.Submissions.AnyAsync(item => item.EventId == test15.Id && item.Status == Bingo.Domain.Evidence.SubmissionStatus.Approved));
         var approvedSubmissions = await db.Submissions
@@ -2197,7 +2257,7 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
             var reviewedAt = Assert.IsType<DateTimeOffset>(submission.ReviewedAt);
             Assert.InRange(reviewedAt, submission.SubmittedAt, seededAt);
         });
-        Assert.Equal(2, await db.Submissions.CountAsync(submission => submission.EventId == test15.Id && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending && db.EvidenceAssets.Any(asset => asset.SubmissionId == submission.Id)));
+        Assert.Equal(15, await db.Submissions.CountAsync(submission => submission.EventId == test15.Id && submission.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending && db.EvidenceAssets.Any(asset => asset.SubmissionId == submission.Id)));
     }
 
     private static async Task AssertSeedBoardRateSelectionsAsync(ApplicationDbContext db, Guid eventId, Guid approvalId)

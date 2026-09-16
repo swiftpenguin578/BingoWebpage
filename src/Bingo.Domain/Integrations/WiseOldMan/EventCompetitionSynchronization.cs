@@ -42,6 +42,27 @@ public sealed class EventCompetitionSynchronization
     public int RetryCount { get; private set; }
     public string? LeaseOwner { get; private set; }
     public DateTimeOffset? LeaseExpiresAt { get; private set; }
+    public string? SourceRequestFingerprint { get; private set; }
+    public Guid? MetricActivityBatchId { get; private set; }
+    public bool? LatestMetricsComplete { get; private set; }
+    public DateTimeOffset? LastMetricAttemptAt { get; private set; }
+
+    public void SetSourceRequest(string fingerprint)
+    {
+        if (SourceRequestFingerprint == fingerprint) return;
+        SourceRequestFingerprint = fingerprint;
+        LatestMetricsComplete = false;
+    }
+
+    public void MarkMetricBatch(Guid batchId, bool complete, DateTimeOffset attemptedAt)
+    {
+        MetricActivityBatchId = batchId; LatestMetricsComplete = complete; LastMetricAttemptAt = attemptedAt.ToUniversalTime();
+    }
+
+    public void MarkMetricFailure(DateTimeOffset attemptedAt)
+    {
+        LatestMetricsComplete = false; LastMetricAttemptAt = attemptedAt.ToUniversalTime();
+    }
 
     public void AcquireLease(string owner, DateTimeOffset expiresAt)
     {
@@ -63,6 +84,7 @@ public sealed class EventCompetitionSynchronization
         DateTimeOffset? competitionEndsAt, string assignmentFingerprint, DateTimeOffset now)
     {
         Generation++;
+        SourceRequestFingerprint = null; MetricActivityBatchId = null; LatestMetricsComplete = null; LastMetricAttemptAt = null;
         CompetitionId = competitionId;
         CompetitionTitle = title?.Trim();
         CompetitionStartsAt = competitionStartsAt?.ToUniversalTime();
@@ -86,6 +108,7 @@ public sealed class EventCompetitionSynchronization
     public void BeginReplacementGeneration(string assignmentFingerprint, DateTimeOffset now)
     {
         Generation++;
+        MetricActivityBatchId = null; LatestMetricsComplete = false;
         AssignmentFingerprint = assignmentFingerprint;
         LastAttemptAt = now.ToUniversalTime();
         LastSuccessfulAt = null;

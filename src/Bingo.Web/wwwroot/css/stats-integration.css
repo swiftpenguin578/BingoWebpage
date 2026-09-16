@@ -1,0 +1,100 @@
+/* Shell integration, honest data states and authorized content-fit corrections. */
+/* The app main owns its gutter. Undo it only for this root, then the original
+   .shell rule supplies the approved 1640px / 3.6% / <=850px 5% geometry once. */
+body.public-stats-page .stats-page {
+  width: calc(100% + 2 * var(--public-page-gutter));
+  max-width: none;
+  margin: 20px calc(-1 * var(--public-page-gutter)) 0;
+}
+.public-stats-page .stats-page [hidden] { display: none !important; }
+.public-stats-page .stats-page .stats-page-controls { display:flex; justify-content:flex-end; align-items:center; gap:15px; padding:24px 0 0; font-size:11px; }
+.public-stats-page .stats-page .stats-page-controls form { margin:0; }
+.public-stats-page .stats-page .stats-page-controls label { display:flex; align-items:center; gap:7px; }
+/* Keep text within the approved fixed-height Luck rows. Pinned names already
+   truncate their text child; leave that flex wrapper and clear button unclipped. */
+.public-stats-page .stats-page .luck-row:not(.luck-pinned-row) > .luck-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.public-stats-page .stats-page .luck-unavailable {
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-weight: 400;
+}
+.public-stats-page .stats-page .stats-empty { color:var(--muted); font-size:11px; }
+/* Neutralize the two existing app-class collisions absent in the standalone source. */
+.public-stats-page .stats-page .panel { margin-top: 0; }
+.public-stats-page .stats-page .toast { width: auto; border: 0; background-clip: border-box; }
+.public-stats-page .stats-page .toast:not([hidden]) { display: block; }
+
+/* Numeric endpoints share one measured label budget across the full Luck view.
+   Preserve the original column ratio; the track minimum only applies when needed. */
+.public-stats-page .stats-page .luck-stack .luck-panel .luck-key,
+.public-stats-page .stats-page .luck-stack .luck-panel .luck-row {
+  grid-template-columns: minmax(min(80px,25%),.8fr) minmax(calc(2 * var(--luck-label-reserve,48px) + 16px),1.6fr);
+}
+.public-stats-page .stats-page .luck-track { min-width: 0; }
+
+/* Team names stay within the existing row/column geometry and horizontal scroller. */
+.public-stats-page .stats-page .race-team {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Text is measured against the existing SVG hole; neither ring nor sweep changes. */
+.public-stats-page .stats-page .share-total strong {
+  font-size: var(--share-value-size,34px);
+  white-space: nowrap;
+}
+.public-stats-page .stats-page .share-total span {
+  font-size: var(--share-caption-size,9px);
+  white-space: nowrap;
+}
+
+/* Keep natural drop-row height even while the upper GP view holds its dimensions. */
+.public-stats-page .stats-page .dashboard-top .gp-panel .treasure,
+.public-stats-page .stats-page .dashboard-top .gp-panel .treasure-list {
+  flex: 1 0 auto;
+  min-height: min-content;
+}
+.public-stats-page .stats-page .gp-panel .treasure .item-details h3,
+.public-stats-page .stats-page .gp-panel .treasure .item-byline {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+/* Keep three columns while each has about 215px for artwork, copy and an unbroken GP value.
+   Reuse the approved stacked presentation when the GP card cannot supply that. */
+@container (max-width:650px) {
+  .public-stats-page .stats-page .gp-panel .treasure-list { grid-template-columns: 1fr; }
+  .public-stats-page .stats-page .gp-panel .treasure .treasure-item {
+    grid-template-columns: 38px minmax(0,1fr);
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+    padding: 11px 0;
+    gap: 14px;
+  }
+  .public-stats-page .stats-page .gp-panel .treasure .treasure-item:last-child { border-bottom: 0; }
+  .public-stats-page .stats-page .gp-panel .treasure .item-details {
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 4px 10px;
+    width: 100%;
+  }
+  .public-stats-page .stats-page .gp-panel .treasure .item-details h3 { grid-column: 1; grid-row: 1; font-size: 12px; }
+  .public-stats-page .stats-page .gp-panel .treasure .item-value { grid-column: 2; grid-row: 1 / 3; align-self: center; font-size: 23px; }
+  .public-stats-page .stats-page .gp-panel .treasure .item-byline { grid-column: 1; grid-row: 2; font-size: 10px; }
+}
+
+/* Overlap the fractional scrollport edge instead of leaving a scroll-under seam. */
+.public-stats-page .stats-page .luck-stack .luck-rows > .luck-row.luck-pinned-row { margin-top: 0; top: -1px; }

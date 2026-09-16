@@ -10,13 +10,14 @@ using Bingo.Domain.Events;
 using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
+using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
 namespace Bingo.Infrastructure.Events;
 
-public sealed class EventCompetitionSynchronizationService(
+public sealed partial class EventCompetitionSynchronizationService(
     ApplicationDbContext db,
     IWiseOldManCompetitionClient competitionClient,
     IWiseOldManStatus womStatus,
@@ -187,7 +188,7 @@ public sealed class EventCompetitionSynchronizationService(
         if (lease is null) return new(false, true, manual ? "The cached competition result is still within its refresh window." : null);
 
         WiseOldManCompetitionResult result;
-        try { result = await competitionClient.GetCompetitionAsync(lease.CompetitionId, cancellationToken); }
+        try { result = await competitionClient.GetCompetitionAsync(lease.CompetitionId, lease.SourceRequest.Metrics, cancellationToken); }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             result = new(WiseOldManCompetitionStatus.Unavailable, Message: "Wise Old Man timed out.");
@@ -200,11 +201,13 @@ public sealed class EventCompetitionSynchronizationService(
     {
         var now = time.GetUtcNow();
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, cancellationToken);
+        var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(cancellationToken);
+        if (item is not null) await db.Entry(item).ReloadAsync(cancellationToken);
         if (item is null || item.State != EventState.Live) return null;
         var state = await db.EventCompetitionSynchronizations
             .FromSqlInterpolated($"SELECT * FROM event_competition_synchronizations WHERE event_id = {eventId} FOR UPDATE")
             .SingleOrDefaultAsync(cancellationToken);
+        if (state is not null) await db.Entry(state).ReloadAsync(cancellationToken);
         if (state?.CompetitionId is not { } competitionId) return null;
         if (state.LeaseExpiresAt is { } leaseExpiry && leaseExpiry > now) return null;
         var fingerprint = await AssignmentFingerprintAsync(eventId, cancellationToken);
@@ -225,21 +228,27 @@ public sealed class EventCompetitionSynchronizationService(
         if (state.RetryDueAt is null && state.NormalDueAt is { } normalDueAt && normalDueAt <= now)
             state.BeginNormalCycle(now);
 
+        await db.RetainLuckOutcomeBasesAsync(eventId, now, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+        var sources = await db.LuckSourceRequestAsync(eventId, cancellationToken);
+        state.SetSourceRequest(sources.Fingerprint);
         var expected = await CurrentPlayingAssignmentsAsync(eventId, cancellationToken);
         var owner = Guid.NewGuid().ToString("N");
         state.AcquireLease(owner, now.Add(LeaseDuration));
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return new SyncLease(eventId, state.Id, state.Generation, competitionId, owner, fingerprint, expected);
+        return new SyncLease(eventId, state.Id, state.Generation, competitionId, owner, fingerprint, expected, sources);
     }
 
     private async Task FinalizeLeaseAsync(SyncLease lease, WiseOldManCompetitionResult result, CancellationToken cancellationToken)
     {
         var now = time.GetUtcNow();
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        var item = await db.Events.SingleOrDefaultAsync(x => x.Id == lease.EventId && x.HiddenAt == null, cancellationToken);
-        var state = await db.EventCompetitionSynchronizations.SingleOrDefaultAsync(x => x.Id == lease.StateId, cancellationToken);
-        if (item is null || state is null || item.State != EventState.Live || state.Generation != lease.Generation || state.CompetitionId != lease.CompetitionId || state.LeaseOwner != lease.Owner || state.AssignmentFingerprint != lease.AssignmentFingerprint)
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {lease.EventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(cancellationToken);
+        if (item is not null) await db.Entry(item).ReloadAsync(cancellationToken);
+        var state = await db.EventCompetitionSynchronizations.FromSqlInterpolated($"SELECT * FROM event_competition_synchronizations WHERE id = {lease.StateId} FOR UPDATE").SingleOrDefaultAsync(cancellationToken);
+        if (state is not null) await db.Entry(state).ReloadAsync(cancellationToken);
+        if (item is null || state is null || item.State != EventState.Live || state.Generation != lease.Generation || state.CompetitionId != lease.CompetitionId || state.LeaseOwner != lease.Owner || state.LeaseExpiresAt <= now || state.AssignmentFingerprint != lease.AssignmentFingerprint)
         {
             if (state?.LeaseOwner == lease.Owner) state.ReleaseLease(lease.Owner);
             await db.SaveChangesAsync(cancellationToken);
@@ -251,10 +260,19 @@ public sealed class EventCompetitionSynchronizationService(
         if (!string.Equals(currentFingerprint, lease.AssignmentFingerprint, StringComparison.Ordinal))
         {
             state.BeginReplacementGeneration(currentFingerprint, now);
+            state.ReleaseLease(lease.Owner);
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return;
         }
+
+        await db.RetainLuckOutcomeBasesAsync(lease.EventId, now, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+        var sources = await db.LuckSourceRequestAsync(lease.EventId, cancellationToken);
+        var compatibleSources = sources.Fingerprint == lease.SourceRequest.Fingerprint && state.SourceRequestFingerprint == lease.SourceRequest.Fingerprint;
+        state.SetSourceRequest(sources.Fingerprint);
+        var cachedMetrics = await db.EventCompetitionCharacterMetricActivities
+            .Where(x => x.EventId == lease.EventId && x.Generation == lease.Generation).ToListAsync(cancellationToken);
 
         if (result.Succeeded && result.Competition!.Id == lease.CompetitionId)
         {
@@ -269,6 +287,31 @@ public sealed class EventCompetitionSynchronizationService(
                     lease.AssignmentFingerprint, byName[expected.NormalizedName].StartEhb, byName[expected.NormalizedName].EndEhb)).ToList();
             await db.EventCompetitionCharacterActivities.Where(x => x.EventId == lease.EventId && x.Generation == lease.Generation).ExecuteDeleteAsync(cancellationToken);
             db.EventCompetitionCharacterActivities.AddRange(rows);
+            if (compatibleSources)
+            {
+                var batchId = Guid.NewGuid();
+                var complete = sources.SourcesAvailable;
+                foreach (var expected in lease.Expected)
+                {
+                    // Duplicate normalized provider names are ambiguous for boss activity.
+                    var matches = result.Competition.Participants.Where(x => Normalize(x.Username) == expected.NormalizedName).ToArray();
+                    var participant = matches.Length == 1 ? matches[0] : null;
+                    foreach (var metric in sources.Metrics)
+                    {
+                        var cached = cachedMetrics.SingleOrDefault(x => x.OsrsCharacterId == expected.CharacterId && x.Metric == metric);
+                        if (cached is null)
+                        {
+                            cached = new(lease.EventId, lease.Generation, lease.CompetitionId, expected.CharacterId, metric, lease.AssignmentFingerprint);
+                            db.EventCompetitionCharacterMetricActivities.Add(cached); cachedMetrics.Add(cached);
+                        }
+                        var delta = participant?.Metrics?.GetValueOrDefault(metric);
+                        cached.Observe(delta?.Start, delta?.End, delta?.Gained, now, participant?.UpstreamUpdatedAt, batchId, sources.Fingerprint);
+                        complete &= cached.LastIssue is null && cached.ActivityBatchId == batchId;
+                    }
+                }
+                state.MarkMetricBatch(batchId, complete, now);
+            }
+            else state.MarkMetricFailure(now);
             state.MarkSuccess(now, result.Competition.LastUpdatedAt, missing.Count == 0, JsonSerializer.Serialize(missing), missing.Count == 0 ? null : "The competition response is missing one or more current Playing accounts.");
         }
         else if (result.Status is WiseOldManCompetitionStatus.NotFound or WiseOldManCompetitionStatus.Invalid)
@@ -281,8 +324,14 @@ public sealed class EventCompetitionSynchronizationService(
             var fallback = now.AddMinutes(retryNumber switch { 0 => 1, 1 => 2, _ => 4 });
             state.MarkFailure(now, result.Status.ToString(), result.Message ?? "Wise Old Man could not refresh the competition.", result.RetryAt ?? fallback);
         }
+        if (!result.Succeeded || result.Competition!.Id != lease.CompetitionId)
+        {
+            foreach (var cached in cachedMetrics) cached.RecordFailure(now);
+            state.MarkMetricFailure(now);
+        }
         state.ReleaseLease(lease.Owner);
         await db.SaveChangesAsync(cancellationToken);
+        await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, lease.EventId, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
@@ -303,7 +352,10 @@ public sealed class EventCompetitionSynchronizationService(
         return rows.Select(x => new ExpectedAssignment(x.OsrsCharacterId, x.DisplayName, Normalize(x.NormalizedName))).ToList();
     }
 
-    private async Task<string> AssignmentFingerprintAsync(Guid eventId, CancellationToken cancellationToken)
+    private Task<string> AssignmentFingerprintAsync(Guid eventId, CancellationToken cancellationToken)
+        => StatsAssignmentFingerprintAsync(db, eventId, cancellationToken);
+
+    internal static async Task<string> StatsAssignmentFingerprintAsync(ApplicationDbContext db, Guid eventId, CancellationToken cancellationToken)
     {
         var values = await db.EventParticipantCharacters.AsNoTracking()
             .Where(x => x.EventId == eventId && x.EventRole == EventCharacterRole.Playing && x.ReleasedAt == null &&
@@ -328,5 +380,5 @@ public sealed class EventCompetitionSynchronizationService(
 
     private static string Normalize(string value) => value.Trim().Replace('_', ' ').ToUpperInvariant();
     private sealed record ExpectedAssignment(Guid CharacterId, string DisplayName, string NormalizedName);
-    private sealed record SyncLease(Guid EventId, Guid StateId, int Generation, long CompetitionId, string Owner, string AssignmentFingerprint, IReadOnlyList<ExpectedAssignment> Expected);
+    private sealed record SyncLease(Guid EventId, Guid StateId, int Generation, long CompetitionId, string Owner, string AssignmentFingerprint, IReadOnlyList<ExpectedAssignment> Expected, LuckSourceRequest SourceRequest);
 }

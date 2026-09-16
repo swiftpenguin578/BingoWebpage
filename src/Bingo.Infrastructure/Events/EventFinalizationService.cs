@@ -14,7 +14,7 @@ using Npgsql;
 
 namespace Bingo.Infrastructure.Events;
 
-public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoardService publicBoards, TimeProvider time) : IEventFinalizationService
+public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoardService publicBoards, TimeProvider time, IProgressNotifier? progressNotifier = null) : IEventFinalizationService
 {
     public async Task<FinalReviewReadiness?> GetReadinessAsync(Guid eventId, CancellationToken ct = default)
     {
@@ -150,8 +150,10 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
             if (row is not null && row.CorrectedCompletedAt == correctedAt.ToUniversalTime() && string.Equals(row.Reason, reason.Trim(), StringComparison.Ordinal)) { await tx.CommitAsync(ct); return; }
             if (row is null) db.TeamCompletionCorrections.Add(new TeamCompletionCorrection(Guid.NewGuid(), ev.Id, readiness.ReviewCycleId, teamId, correctedAt, reason, adminId, now)); else row.Update(correctedAt, reason, adminId, now);
             AddReviewAudit(ev, adminId, actorName, now, "event.completion_time_corrected", JsonSerializer.Serialize(new { teamId, correctedAt = correctedAt.ToUniversalTime(), reason = reason.Trim(), reviewCycleId = readiness.ReviewCycleId }));
+            ev.AdvanceStatsEvidenceRevision();
             ev.AdvanceVersion();
             await db.SaveChangesAsync(ct);
+            await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
             await tx.CommitAsync(CancellationToken.None);
         }
         catch (Exception ex) when (IsReviewPersistenceConflict(ex)) { throw StaleReviewMutation(); }
@@ -185,14 +187,17 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
             db.EventFinalizations.Add(snapshot);
             foreach (var row in readiness.Placements) db.OfficialPlacements.Add(new OfficialPlacementSnapshot(Guid.NewGuid(), snapshot.Id, eventId, row.TeamId, row.TeamName, row.Placement, row.BoardComplete, row.CorrectedCompletedAt ?? row.CalculatedCompletedAt, row.CompletedLines, row.CompletedTiles, row.EhbTiebreak));
             var from = ev.State;
+            ev.ClearAnnouncements();
             ev.FinalizeResults(now);
             foreach (var access in await db.AccountEventAccesses.Where(x => x.EventId == eventId).ToListAsync(ct)) access.Disable();
             AddLifecycleHistory(ev, from, actor, "event.finalized", "Official placements snapshotted and published", now);
             await AddResultNotificationsAsync(ev, now, ct);
             await db.SaveChangesAsync(ct);
+            await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
             await tx.CommitAsync(ct);
         }
         catch (Exception ex) when (IsReviewPersistenceConflict(ex)) { throw new InvalidOperationException("This event changed in another session. Reload before finalizing."); }
+        await NotifyProgressAsync(eventId, ct);
     }
 
     private async Task<(BingoEvent Event, FinalReviewReadiness Readiness, DateTimeOffset Now, string ActorName, bool VersionStale)> LockReviewMutationAsync(Guid eventId, Guid adminId, long? expectedVersion, Guid? expectedReviewCycleId, CancellationToken ct)
@@ -245,6 +250,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         ev.Unfinalize(reason);
         AddLifecycleHistory(ev, from, actor, "event.unfinalized", reason.Trim(), now);
         await db.SaveChangesAsync(ct);
+        await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
         await tx.CommitAsync(ct);
     }
 
@@ -261,6 +267,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         ev.Archive(now);
         AddLifecycleHistory(ev, from, actor, "event.archived", "Official event archived", now);
         await db.SaveChangesAsync(ct);
+        await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
         await tx.CommitAsync(ct);
     }
 
@@ -335,4 +342,12 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         });
     }
     private static string BlockerKey(string prefix, IEnumerable<Guid> ids) { var value = string.Join(',', ids.OrderBy(x => x)); var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)))[..16]; return $"{prefix}-{hash}"; }
+
+    private async Task NotifyProgressAsync(Guid eventId, CancellationToken ct)
+    {
+        if (progressNotifier is null) return;
+        try { await progressNotifier.NotifyProgressChangedAsync(eventId, ct); }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch { /* Finalization remains committed if connected clients disconnect. */ }
+    }
 }

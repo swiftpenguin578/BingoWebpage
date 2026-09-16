@@ -816,6 +816,8 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
 
     private sealed class StubCompetitionClient(DateTimeOffset starts, DateTimeOffset ends) : IWiseOldManCompetitionClient
     {
+        public Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, IReadOnlyCollection<string> metrics, CancellationToken cancellationToken = default) => GetCompetitionAsync(competitionId, cancellationToken);
+
         public DateTimeOffset Starts { get; set; } = starts;
         public DateTimeOffset Ends { get; set; } = ends;
         public Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, CancellationToken cancellationToken = default)

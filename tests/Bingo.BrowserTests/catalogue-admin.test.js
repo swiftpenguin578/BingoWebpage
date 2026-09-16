@@ -26,6 +26,8 @@ class Node {
   replaceChildren(...children) { this.children = []; this.append(...children); }
   replaceWith(next) { const parent = this.parentElement; const index = parent.children.indexOf(this); parent.children[index] = next; next.parentElement = parent; this.parentElement = null; }
   scrollIntoView(options) { this.scrollOptions = options; }
+  get isConnected() { return body.contains(this); }
+  dispatchEvent(event) { return this.dispatch(event.type, { bubbles: event.bubbles }); }
   get form() { for (let node = this.parentElement; node; node = node.parentElement) if (node.tagName === "FORM") return node; return null; }
   requestSubmit() { this.dispatch("submit"); }
   reset() { this.querySelectorAll("input").forEach(input => { input.value = input.defaultValue || ""; }); }
@@ -36,6 +38,7 @@ class Node {
   setAttribute(name, value) { this.attributes[name] = String(value); if (name === "id") this.id = String(value); if (name === "class") this.className = String(value); if (name.startsWith("data-")) this.dataset[name.slice(5).replace(/-([a-z])/g, (_m, c) => c.toUpperCase())] = String(value); }
   getAttribute(name) { if (name === "name") return this.name || null; if (name === "id") return this.id ?? null; if (name === "class") return this.className || null; if (name.startsWith("data-")) return this.dataset[name.slice(5).replace(/-([a-z])/g, (_m, c) => c.toUpperCase())] ?? null; return this.attributes[name] ?? null; }
   focus() { this.focused = true; }
+  closest(selector) { for (let node = this; node; node = node.parentElement) if (node.matches(selector)) return node; return null; }
   contains(node) { return this === node || this.children.some(child => child.contains(node)); }
   querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
   querySelectorAll(selector) { const result = []; const visit = node => { node.children.forEach(child => { if (child.matches(selector)) result.push(child); visit(child); }); }; visit(this); return result; }
@@ -149,6 +152,7 @@ global.HTMLSelectElement = Node;
 global.HTMLFormElement = Node;
 global.FormData = class {
   constructor(form) { this.entries = form.querySelectorAll("input, select, textarea").filter(item => item.name && !item.disabled).map(item => [item.name, item.value]); }
+  set(name, value) { this.entries = this.entries.filter(entry => entry[0] !== name); this.entries.push([name, value]); }
   get(name) { return this.entries.find(entry => entry[0] === name)?.[1] ?? null; }
   *[Symbol.iterator]() { yield* this.entries; }
 };
@@ -199,8 +203,10 @@ require("../../src/Bingo.Web/wwwroot/js/catalogue-admin.js");
   const search = main.querySelector("#boss-search");
   const filter = main.querySelector("[data-catalogue-category-filter]");
   const clear = main.querySelector("[data-admin-search-clear]");
+  const callsBeforeTyping = requestedUrls.length;
   search.value = "fang";
   search.dispatch("input");
+  assert.equal(requestedUrls.length, callsBeforeTyping, "typing does not request providers");
   filter.value = "Minigame";
   filter.dispatch("change");
   assert.equal(main.querySelector("[data-catalogue-record]").hidden, true, "category select drives client-side filtering");
@@ -218,6 +224,33 @@ require("../../src/Bingo.Web/wwwroot/js/catalogue-admin.js");
   const dialog = document.querySelector("dialog#catalogue-editor-dialog[open]");
   assert.ok(dialog, "direct desktop entry opens a connected editor dialog");
   assert.ok(dialog.querySelector(".admin-catalogue-page"), "desktop-loaded editor retains the Catalogue scoped wrapper");
+  const suggestionForm = new Node("form"); suggestionForm.action = "https://example.test/Admin/Catalogue?handler=ItemApi";
+  const suggestionInput = new Node("input"); suggestionInput.name = "externalIdentifier"; suggestionInput.value = "";
+  const suggestionButton = new Node("button", { dataset: { catalogueApiSuggest: "Exact item", apiHandler: "SuggestItemApi" } });
+  const suggestionFeedback = new Node("p", { dataset: { apiSuggestion: "", unavailable: "Provider unavailable" } });
+  suggestionForm.append(suggestionInput, suggestionButton, suggestionFeedback); dialog.append(suggestionForm);
+  const beforeSuggestionFetch = window.fetch;
+  let suggestionRequest;
+  window.fetch = async (url, options) => { suggestionRequest = { url, options }; return { ok: true, json: async () => ({ id: 4151, name: "Exact item" }) }; };
+  document.dispatchEvent({ type: "click", target: suggestionButton });
+  for (let index = 0; index < 5; index++) await Promise.resolve();
+  assert.equal(new URL(suggestionRequest.url).searchParams.get("handler"), "SuggestItemApi");
+  assert.equal(suggestionRequest.options.body.get("itemName"), "Exact item");
+  assert.equal(suggestionInput.value, "4151", "explicit suggestion fills the editable exact ID");
+  assert.equal(suggestionFeedback.textContent, "Exact item");
+  let deliverSuggestion;
+  window.fetch = () => new Promise(resolve => { deliverSuggestion = resolve; });
+  document.dispatchEvent({ type: "click", target: suggestionButton });
+  suggestionInput.value = "999";
+  deliverSuggestion({ ok: true, json: async () => ({ id: 6, name: "Late item" }) });
+  for (let index = 0; index < 5; index++) await Promise.resolve();
+  assert.equal(suggestionInput.value, "999", "a late suggestion cannot replace a manually edited ID");
+  window.fetch = async () => ({ ok: false });
+  document.dispatchEvent({ type: "click", target: suggestionButton });
+  for (let index = 0; index < 5; index++) await Promise.resolve();
+  assert.equal(suggestionFeedback.textContent, "Provider unavailable", "suggestion failures use localized durable feedback");
+  assert.equal(suggestionButton.disabled, false, "failed suggestions can be retried");
+  window.fetch = beforeSuggestionFetch; suggestionForm.remove();
   const rateCategory = dialog.querySelector("[data-catalogue-rate-category]");
   const rateLabel = dialog.querySelector("[data-catalogue-rate-label]");
   assert.equal(rateLabel.textContent, "Kills per hour", "AddBoss defaults to kill wording");
@@ -291,9 +324,11 @@ require("../../src/Bingo.Web/wwwroot/js/catalogue-admin.js");
   assert.equal(name.value, "Unsaved activity");
   let settle;
   let posts = 0;
+  let submittedBody;
   const normalFetch = window.fetch;
-  window.fetch = () => { posts++; return new Promise(resolve => { settle = resolve; }); };
-  dirtyForm.dispatch("submit"); dirtyForm.dispatch("submit");
+  window.fetch = (_url, options) => { submittedBody = options.body; posts++; return new Promise(resolve => { settle = resolve; }); };
+  dirtyForm.dispatch("submit", { submitter: { name: "operation", value: "validate" } }); dirtyForm.dispatch("submit");
+  assert.equal(submittedBody.get("operation"), "validate", "explicit validation submitter survives FormData serialization");
   currentDialog.querySelector("[data-catalogue-close]").dispatch("click");
   assert.equal(posts, 1, "pending saves cannot submit twice");
   assert.equal(currentDialog.open, true, "pending Close retains editor");
@@ -305,8 +340,9 @@ require("../../src/Bingo.Web/wwwroot/js/catalogue-admin.js");
   currentDialog.querySelector("[data-catalogue-close]").dispatch("click");
   assert.equal(currentDialog.querySelector("[data-catalogue-editor-discard]").hidden, false);
   currentDialog.querySelector("[data-catalogue-editor-keep]").dispatch("click");
-  window.fetch = normalFetch;
-  dirtyForm.dispatch("submit");
+  window.fetch = (url, options) => { if (options?.method === "POST") submittedBody = options.body; return normalFetch(url, options); };
+  dirtyForm.dispatch("submit", { submitter: { name: "BossDrop.FetchPrice", value: "true" } });
+  assert.equal(submittedBody.get("BossDrop.FetchPrice"), "true", "explicit fetch-and-add submitter survives FormData serialization");
   for (let index = 0; index < 25; index++) await Promise.resolve();
   assert.equal(currentDialog.open, true, "successful save preserves connected editor dialog");
   assert.equal(body.contains(currentDialog), true);

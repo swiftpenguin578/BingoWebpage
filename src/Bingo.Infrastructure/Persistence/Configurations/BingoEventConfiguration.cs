@@ -38,6 +38,7 @@ public sealed class BingoEventConfiguration : IEntityTypeConfiguration<BingoEven
         entity.Property(item => item.ActualSignupOpenedAt).HasColumnName("actual_signup_opened_at");
         entity.Property(item => item.ActualSignupClosedAt).HasColumnName("actual_signup_closed_at");
         entity.Property(item => item.ActualStartedAt).HasColumnName("actual_started_at");
+        entity.Property(item => item.ItemPricesCapturedAt).HasColumnName("item_prices_captured_at");
         entity.Property(item => item.ActualEndedAt).HasColumnName("actual_ended_at");
         entity.Property(item => item.SubmissionsClosedAt).HasColumnName("submissions_closed_at");
         entity.Property(item => item.ScheduledSignupOpeningEnabled).HasColumnName("scheduled_signup_opening_enabled");
@@ -63,12 +64,18 @@ public sealed class BingoEventConfiguration : IEntityTypeConfiguration<BingoEven
         entity.Property(item => item.IsDevelopmentFixture).HasColumnName("is_development_fixture");
         entity.Property(item => item.EvidenceCodeEnabled).HasColumnName("evidence_code_enabled");
         entity.Property(item => item.FinalizedAt).HasColumnName("finalized_at");
+        entity.Property(item => item.AnnouncementsTrackingStartedAt).HasColumnName("announcements_tracking_started_at");
+        entity.Property(item => item.AnnouncementGeneration).HasColumnName("announcement_generation");
+        entity.Property(item => item.AnnouncementSequence).HasColumnName("announcement_sequence");
         entity.Property(item => item.ArchivedAt).HasColumnName("archived_at");
         entity.Property(item => item.CancelledAt).HasColumnName("cancelled_at");
         entity.Property(item => item.CancelledByAccountId).HasColumnName("cancelled_by_account_id");
         entity.Property(item => item.CancellationReason).HasColumnName("cancellation_reason").HasMaxLength(2_000);
         entity.Property(item => item.DiscardedAt).HasColumnName("discarded_at");
         entity.Property(item => item.DiscardedByAccountId).HasColumnName("discarded_by_account_id");
+        entity.Property(item => item.StatsEvidenceRevision).HasColumnName("stats_evidence_revision").IsConcurrencyToken();
+        entity.Property(item => item.StatsLuckInvalidatedAtRevision).HasColumnName("stats_luck_invalidated_at_revision");
+        entity.ToTable(table => table.HasCheckConstraint("ck_events_stats_luck_invalidation", "stats_luck_invalidated_at_revision >= 0 AND stats_luck_invalidated_at_revision <= stats_evidence_revision"));
         entity.Property(item => item.Version).HasColumnName("version").IsConcurrencyToken();
         entity.Property(item => item.CreatedByAccountId).HasColumnName("created_by_account_id");
         entity.Property(item => item.CreatedAt).HasColumnName("created_at");

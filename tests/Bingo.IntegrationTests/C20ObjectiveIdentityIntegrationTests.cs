@@ -196,6 +196,7 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now.AddDays(-1), null, "fixture");
         var boss = new BossActivity(Guid.NewGuid(), "C20 boss " + suffix, "boss-" + suffix, "Boss", 10m, now);
         var item = new CatalogueItem(Guid.NewGuid(), "C20 drop " + suffix, "DROP " + suffix.ToUpperInvariant());
+        item.SetPrice(0, CataloguePriceSource.Manual, now);
         var source = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, "1/10", .1m, 1m, now);
         var template = new TileTemplate(Guid.NewGuid(), "Original title", "Original description", manual ? ObjectiveType.Manual : ObjectiveType.DropRequirements, "", manual ? 5m : null);
         var templateRequirement = new TileTemplateRequirement(Guid.NewGuid(), template.Id, 1, 5, true, false, manual ? "Complete five runs" : "Collect 5 eligible drops", manual);

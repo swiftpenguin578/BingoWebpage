@@ -240,11 +240,6 @@
         </header>
     </div>
 
-    <div class="progress-update" data-progress-update hidden role="status">
-        <span>@T["New progress is available."]</span>
-        <button type="button" class="public-ui-action public-ui-action--text public-ui-action--forward" data-progress-refresh><span>@T["Refresh now"]</span></button>
-    </div>
-
     @if (isMission)
     {
         <section class="public-dashboard-view mission-control-view" aria-label="@T["Team bingo boards"]">
@@ -364,6 +359,16 @@
                     : visibleRecentDropCount;
                 var visibleRecentDropGroups = recentDropGroups.Where(group => group.Drops.Count > 0).ToList();
             }
+            @if (Model.SelectedDrop is { } selectedDrop)
+            {
+                var selectedTitle = selectedDrop.DropName ?? selectedDrop.TileName;
+                var selectedHeading = string.IsNullOrWhiteSpace(selectedDrop.BossName) ? selectedTitle : $"{selectedTitle} · {selectedDrop.BossName}";
+                var selectedPlayer = string.IsNullOrWhiteSpace(selectedDrop.PlayerName) ? T["Participant"] : selectedDrop.PlayerName;
+                @if (selectedDrop.EvidenceAssetId is Guid selectedAssetId)
+                {
+                    <a class="visually-hidden" data-evidence-image="/Evidence/@selectedAssetId" data-evidence-alt="@T["Approved evidence from {0}", selectedPlayer]" data-evidence-drop="@selectedHeading" data-evidence-player="@selectedPlayer" data-evidence-team="@selectedDrop.TeamName" data-evidence-source="@T["Recent drops"]" data-evidence-submission-id="@selectedDrop.SubmissionId" data-evidence-event-id="@Model.Board.EventId" data-evidence-open-on-load="true" href="/Evidence/@selectedAssetId">@T["Open approved evidence"]</a>
+                }
+            }
             <div class="public-ui-recent-drops-layout">
                 @if (visibleRecentDropGroups.Count > 0)
                 {
@@ -374,8 +379,12 @@
                 {
                     <h3 id="live-recent-drops-empty-heading" class="public-ui-recent-drop-divider public-ui-recent-drops-shared-divider"><span>@T["Drops"]</span></h3>
                 }
+                @if (Model.NewDropCount > 0 && User.Identity?.IsAuthenticated == true)
+                {
+                    <button type="button" class="public-ui-action public-ui-action--text public-ui-action--compact public-ui-recent-drops-clear-new" data-drop-clear-all data-drop-event-id="@Model.Board.EventId">@T["Clear all new"]</button>
+                }
                 <div class="public-ui-recent-drops-main">
-                <div id="recent-drops-latest" class="public-ui-recent-drop-region" data-public-recent-drops aria-live="polite" tabindex="-1">
+                <div id="recent-drops-latest" class="public-ui-recent-drop-region" data-public-recent-drops data-public-recent-drops-since="@Model.RecentDropsReconcileSince.ToUniversalTime().ToString("O")" data-new-label="@T["NEW"]" data-participant-label="@T["Participant"]" data-evidence-alt-template="@T["Approved evidence from {0}"]" data-just-now-label="@T["Just now"]" aria-live="polite" tabindex="-1">
                     @if (visibleRecentDropGroups.Count == 0)
                     {
                         @if (hasDropFilters && totalRecentDrops > 0)
@@ -404,11 +413,11 @@
                                 var dropTitle = drop.DropName ?? drop.TileName;
                                 var dropHeading = string.IsNullOrWhiteSpace(drop.BossName) ? dropTitle : $"{dropTitle} · {drop.BossName}";
                                 var dropContext = !string.IsNullOrWhiteSpace(drop.BossName) ? drop.BossName : (drop.DropName is not null ? drop.TileName : null);
-                                var playerName = string.IsNullOrWhiteSpace(drop.PlayerName) ? "Participant" : drop.PlayerName;
-                                <article class="public-ui-surface public-ui-surface--charcoal public-ui-recent-drop-card">
+                                var playerName = string.IsNullOrWhiteSpace(drop.PlayerName) ? T["Participant"].Value : drop.PlayerName;
+                                <article class="public-ui-surface public-ui-surface--charcoal public-ui-recent-drop-card" data-public-recent-drop-id="@drop.SubmissionId" data-public-recent-drop-approved-at="@drop.ApprovedAt.ToUniversalTime().ToString("O")">
                                     @if (drop.EvidenceAssetId is Guid assetId)
                                     {
-                                        <a href="/Evidence/@assetId" class="public-ui-recent-drop-thumbnail" data-evidence-image="/Evidence/@assetId" data-evidence-alt="@T["Approved evidence from {0}", playerName]" data-evidence-drop="@dropHeading" data-evidence-player="@playerName" data-evidence-team="@drop.TeamName" data-evidence-source="@T["Recent drops"]">
+                                        <a href="/Evidence/@assetId" class="public-ui-recent-drop-thumbnail" data-evidence-image="/Evidence/@assetId" data-evidence-alt="@T["Approved evidence from {0}", playerName]" data-evidence-drop="@dropHeading" data-evidence-player="@playerName" data-evidence-team="@drop.TeamName" data-evidence-source="@T["Recent drops"]" data-evidence-submission-id="@drop.SubmissionId" data-evidence-event-id="@Model.Board.EventId">
                                             <img src="/Evidence/@assetId" alt="@T["Approved evidence from {0}", playerName]" loading="lazy" />
                                         </a>
                                     }
@@ -417,7 +426,7 @@
                                         <div class="public-ui-recent-drop-thumbnail public-ui-recent-drop-placeholder" aria-hidden="true">◆</div>
                                     }
                                     <div class="public-ui-recent-drop-row-content">
-                                        <strong class="public-ui-component-title public-ui-recent-drop-title">@dropTitle</strong>
+                                        <strong class="public-ui-component-title public-ui-recent-drop-title">@dropTitle @if (Model.NewSubmissionIds.Contains(drop.SubmissionId)) { <span class="public-drop-new">@T["NEW"]</span> }</strong>
                                         @if (!string.IsNullOrWhiteSpace(dropContext))
                                         {
                                             <span class="public-ui-supporting-text public-ui-recent-drop-activity">@dropContext</span>
@@ -805,7 +814,6 @@
     {
         <script src="~/js/public-countdown.js" asp-append-version="true"></script>
     }
-    <partial name="_PublicProgressScripts" model="Model.Board.EventId" />
     @if (isMission || isDrops)
     {
         <script src="~/js/public-evidence.js" asp-append-version="true"></script>

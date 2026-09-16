@@ -15,6 +15,7 @@ using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Boards;
+using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
@@ -28,7 +29,7 @@ using Npgsql;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, IEvidenceStorage storage, IStringLocalizer<SharedResource>? text = null) : PageModel
+public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, IEvidenceStorage storage, IStringLocalizer<SharedResource>? text = null, EventItemPriceService? itemPrices = null) : PageModel
 {
     public string EventName { get; private set; } = string.Empty;
     public BoardDetails? BoardView { get; private set; }
@@ -137,6 +138,16 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         if (!ModelState.IsValid) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Warning); return RedirectToPage(new { id }); }
 
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
+        try
+        {
+            if (!await TryEnsureSelectedDropPricesAsync(id, ct)) return RedirectToPage(new { id });
+        }
+        catch (Exception exception) when (IsApprovalConflict(exception))
+        {
+            db.ChangeTracker.Clear();
+            SetStatus(Localize("The catalogue changed while the tile was being saved. No tile was added; reload and try again."), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
         var before = new { board = BoardAuditState(board), tile = (object?)null };
         if (!PrepareCompetitiveEdit(board)) return RedirectToPage(new { id });
         if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
@@ -242,6 +253,8 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                 oldDrops.Where(x => x.RequirementId == old.Id).All(x => x.CreditedWeight == input.WeightFor(x.SourceDropId));
             var retained = TileDraft.Requirements.Where(x => template.ManualEhbOverride == TileDraft.ManualEhb && x.RequirementId is { } requirementId && SameRules(x, oldSnapshots.Single(y => y.Id == requirementId)))
                 .Select(x => x.RequirementId!.Value).ToHashSet();
+            if (!await TryEnsureSelectedDropPricesAsync(id, ct, retained,
+                oldDrops.Where(x => retained.Contains(x.RequirementId)).Select(x => x.ItemIdSnapshot))) return RedirectToPage(new { id });
             var evidenced = await db.EvidencedObjectiveIdsAsync(id, ct);
             if (oldSnapshotIds.Any(x => evidenced.Contains(x) && !retained.Contains(x)) ||
                 oldSnapshotIds.Any(evidenced.Contains) && template.ManualEhbOverride != TileDraft.ManualEhb)
@@ -413,7 +426,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         try
         {
             var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct);
-            var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
+            var bingoEvent = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {id} FOR UPDATE").SingleOrDefaultAsync(ct);
             var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
             if (board is null || bingoEvent is null || draft is null) return NotFound();
             if (board.Version != BoardVersion) throw new DbUpdateConcurrencyException();
@@ -421,8 +434,12 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                 throw new InvalidOperationException("Finalize the team draft before publishing the board.");
             if (bingoEvent.ActualStartedAt is not null || bingoEvent.EventEndsAt is not { } endsAt || time.GetUtcNow() >= endsAt)
                 throw new InvalidOperationException("The board must be published before the event has started and while its configured end remains in the future.");
+            var publication = board.ActiveApprovalSnapshotId is { } approvalId ? await db.ApprovalObjectivesAsync(board.Id, approvalId, ct) : null;
+            if (publication is null) throw new InvalidOperationException("The approved board is unavailable.");
+            if (!await TryEnsureItemPricesAsync(id, publication.Drops.Select(x => x.ItemIdSnapshot), ct)) return RedirectToPage(new { id });
             board.Publish(time.GetUtcNow());
             bingoEvent.SetBoardPublication(true, time.GetUtcNow());
+            await db.RetainLuckOutcomeBasesAsync(id, time.GetUtcNow(), ct);
             AddBoardAudit("board.published", board, "Validated", $"Published approval snapshot {board.ActiveApprovalSnapshotId}",
                 $"{{\"state\":\"Validated\",\"activeApprovalSnapshotId\":\"{board.ActiveApprovalSnapshotId}\"}}",
                 $"{{\"state\":\"Published\",\"activeApprovalSnapshotId\":\"{board.ActiveApprovalSnapshotId}\"}}");
@@ -677,9 +694,18 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             }
             var snapshot = await CreateApprovalSnapshotAsync(board, ct, publishingCorrection);
             if (publishingCorrection)
+            {
+                var newTileIds = db.BoardApprovalTileSnapshots.Local.Where(x => x.ApprovalSnapshotId == snapshot.Id).Select(x => x.Id).ToHashSet();
+                var newRequirementIds = db.BoardApprovalRequirementSnapshots.Local.Where(x => newTileIds.Contains(x.ApprovalTileSnapshotId)).Select(x => x.Id).ToHashSet();
+                var introducedItems = db.BoardApprovalRequirementDropSnapshots.Local
+                    .Where(x => newRequirementIds.Contains(x.ApprovalRequirementSnapshotId)).Select(x => x.ItemIdSnapshot);
+                await (itemPrices ?? new EventItemPriceService(db, time)).IntroduceAsync(bingoEvent, introducedItems, ct);
+            }
+            if (publishingCorrection)
                 board.ReplacePublishedApproval(snapshot.Id);
             else
                 board.Approve(snapshot.Id);
+            bingoEvent.AdvanceStatsEvidenceRevision();
             db.BoardApprovalSnapshots.Add(snapshot);
             AddBoardAudit(publishingCorrection ? "board.published_corrected" : "board.approved", board,
                 publishingCorrection ? "Published correction" : "Draft", $"Approved snapshot {snapshot.Version}",
@@ -689,6 +715,8 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                 publishingCorrection
                     ? $"{{\"state\":\"Published\",\"activeApprovalSnapshotId\":\"{snapshot.Id}\",\"approvalVersion\":{snapshot.Version}}}"
                     : $"{{\"state\":\"Validated\",\"activeApprovalSnapshotId\":\"{snapshot.Id}\",\"approvalVersion\":{snapshot.Version}}}");
+            await db.SaveChangesAsync(ct);
+            await db.RetainLuckOutcomeBasesAsync(id, time.GetUtcNow(), ct);
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             approved = true;
@@ -790,6 +818,8 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         var requirementIds = requirements.Select(x => x.Id).ToList();
         var requirementBosses = await db.BoardRequirementBossSnapshots.Where(x => requirementIds.Contains(x.RequirementId)).ToListAsync(ct);
         var requirementDrops = await db.BoardRequirementDropSnapshots.Where(x => requirementIds.Contains(x.RequirementId)).ToListAsync(ct);
+        var missingPrices = await db.ItemsWithoutEventOrCataloguePriceAsync(board.EventId, requirementDrops.Select(x => x.ItemIdSnapshot), ct);
+        if (missingPrices.Count > 0) throw new BoardApprovalValidationException(MissingPriceMessage, string.Join(", ", missingPrices));
         var evidenced = await db.EvidencedObjectiveIdsAsync(board.EventId, ct);
         var prior = allowPublished && board.ActiveApprovalSnapshotId is { } activeId
             ? await db.ApprovalObjectivesAsync(board.Id, activeId, ct) : null;
@@ -954,6 +984,24 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         return approval;
     }
 
+    private const string MissingPriceMessage = "These drops have no catalogue GP value: {0}. Set a value in Admin Catalogue, then try again. An explicit 0 is valid.";
+
+    private async Task<bool> TryEnsureSelectedDropPricesAsync(Guid eventId, CancellationToken ct, HashSet<Guid>? retainedRequirements = null, IEnumerable<Guid>? retainedItems = null)
+    {
+        var dropIds = TileDraft.Requirements.Where(x => x.RequirementId is not { } id || retainedRequirements?.Contains(id) != true).SelectMany(x => x.DropIds).Distinct().ToArray();
+        var itemIds = await db.SourceDrops.FromSqlInterpolated($"SELECT * FROM source_drops WHERE id = ANY({dropIds}) ORDER BY id FOR SHARE")
+            .AsNoTracking().Select(x => x.ItemId).ToListAsync(ct);
+        return await TryEnsureItemPricesAsync(eventId, itemIds.Concat(retainedItems ?? []), ct);
+    }
+
+    private async Task<bool> TryEnsureItemPricesAsync(Guid eventId, IEnumerable<Guid> itemIds, CancellationToken ct)
+    {
+        var missing = await db.ItemsWithoutEventOrCataloguePriceAsync(eventId, itemIds, ct);
+        if (missing.Count == 0) return true;
+        SetStatus(Localize(MissingPriceMessage, string.Join(", ", missing)), UiMessageType.Warning);
+        return false;
+    }
+
     private bool PrepareCompetitiveEdit(Board board, bool reportStatus = true)
     {
         if (board.State == BoardState.Draft || board.State == BoardState.Published && board.PublishedCorrectionInProgress) return true;
@@ -987,7 +1035,9 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
     private void AddBoardAudit(string action, Board board, string details, string description, string? beforeState, string? afterState) =>
         db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), time.GetUtcNow(), AdminId, User.Identity?.Name ?? "Admin", action, "board", board.Id.ToString(), description, board.EventId, beforeState, afterState));
 
-    private static bool IsApprovalConflict(Exception exception) => exception is DbUpdateConcurrencyException or PostgresException { SqlState: "40001" or "40P01" } or DbUpdateException { InnerException: PostgresException { SqlState: "40001" or "40P01" } };
+    private static bool IsApprovalConflict(Exception exception)
+        => exception is DbUpdateConcurrencyException or PostgresException { SqlState: "40001" or "40P01" }
+            || exception.InnerException is { } inner && IsApprovalConflict(inner);
 
     public async Task<IActionResult> OnGetTileImageAsync(Guid id, Guid tileId, CancellationToken ct, Guid? approvalId = null)
     {

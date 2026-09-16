@@ -7,8 +7,23 @@ namespace Bingo.Infrastructure.Boards;
 
 // Detached projections of one immutable approval. Retained working drop rows supply
 // identity only; their cached rules and wording never override published values.
-public static class BoardPublicationQueries
+public static partial class BoardPublicationQueries
 {
+    public static async Task<IReadOnlyList<string>> ItemsWithoutEventOrCataloguePriceAsync(this ApplicationDbContext db,
+        Guid eventId, IEnumerable<Guid> itemIds, CancellationToken ct = default)
+    {
+        var ids = itemIds.Distinct().ToArray();
+        if (ids.Length == 0) return [];
+        var frozen = await db.EventItemPrices.Where(x => x.EventId == eventId && ids.Contains(x.ItemId)).Select(x => x.ItemId).ToListAsync(ct);
+        ids = ids.Except(frozen).ToArray();
+        if (ids.Length == 0) return [];
+        var items = await db.CatalogueItems.FromSqlInterpolated($"SELECT * FROM catalogue_items WHERE id = ANY({ids}) ORDER BY id FOR SHARE")
+            .AsNoTracking().ToListAsync(ct);
+        return items.Where(x => x.CatalogueValueGp is null).Select(x => x.Name)
+            .Concat(ids.Except(items.Select(x => x.Id)).Select(x => x.ToString()))
+            .Order(StringComparer.Ordinal).ToArray();
+    }
+
     public static async Task<PublishedBoardData?> PublishedObjectivesAsync(this ApplicationDbContext db, Guid eventId, CancellationToken ct = default)
     {
         var board = await db.Boards.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == eventId && x.State == BoardState.Published, ct);
@@ -36,7 +51,7 @@ public static class BoardPublicationQueries
             var matches = identities.Where(x => x.RequirementId == requirementId && x.SourceDropId == drop.SourceDropId && x.ItemIdSnapshot == drop.ItemIdSnapshot).ToList();
             if (matches.Count != 1) return null;
             projectedDrops.Add(new(matches[0].Id, requirementId, drop.SourceDropId, drop.ItemIdSnapshot, drop.BossName, drop.ItemName,
-                drop.DisplayRate, drop.NumericProbability, drop.MaximumContribution, drop.EhbPerContribution, drop.CreditedWeight));
+                drop.DisplayRate, drop.NumericProbability, drop.MaximumContribution, drop.EhbPerContribution, drop.CreditedWeight, drop.ProbabilityScope, drop.ConditionalOnParent, drop.ParentProbability, drop.AssumedParticipants, drop.RollsPerCompletion, drop.RollGroup, drop.RateCondition));
         }
         if (projectedDrops.Select(x => x.Id).Distinct().Count() != projectedDrops.Count) return null;
         return new(approval,

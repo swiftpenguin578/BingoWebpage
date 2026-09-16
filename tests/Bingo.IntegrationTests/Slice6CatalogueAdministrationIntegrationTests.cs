@@ -194,6 +194,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         var secondEvent = new BingoEvent(Guid.NewGuid(), "Second board", $"second-board-{Guid.NewGuid():N}", "UTC", admin.Id, now);
         var boss = new BossActivity(Guid.NewGuid(), "Current boss", "current-boss", "Boss", 10m, now);
         var item = new CatalogueItem(Guid.NewGuid(), "Current item", "CURRENT ITEM");
+        item.SetPrice(0, CataloguePriceSource.Manual, now);
         var drop = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, "1/10", .1m, null, now);
         var template = new TileTemplate(Guid.NewGuid(), "Current tile", "", ObjectiveType.DropRequirements, string.Empty, null);
         var firstBoard = new Board(Guid.NewGuid(), firstEvent.Id, "Board", 1, 1);
@@ -1257,7 +1258,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         public string? RouteUrl(Microsoft.AspNetCore.Mvc.Routing.UrlRouteContext route) => "/fixture-tile-image";
     }
 
-    private static CatalogueIndexModel CataloguePage(ApplicationDbContext db, Guid accountId, bool superAdmin)
+    private static CatalogueIndexModel CataloguePage(ApplicationDbContext db, Guid accountId, bool superAdmin, ICatalogueApiClient? api = null)
     {
         var claims = new List<Claim>
         {
@@ -1266,7 +1267,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests : IAsy
         };
         if (superAdmin) claims.Add(new Claim(ClaimTypes.Role, GlobalRole.SuperAdmin.ToString()));
         var context = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test")) };
-        return new CatalogueIndexModel(db, TimeProvider.System)
+        return new CatalogueIndexModel(db, TimeProvider.System, catalogueApi: api)
         {
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new TestTempDataProvider())

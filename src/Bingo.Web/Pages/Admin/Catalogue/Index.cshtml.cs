@@ -20,7 +20,7 @@ using Npgsql;
 namespace Bingo.Web.Pages.Admin.Catalogue;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider timeProvider, IStringLocalizer<SharedResource>? text = null) : PageModel
+public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvider timeProvider, IStringLocalizer<SharedResource>? text = null, ICatalogueApiClient? catalogueApi = null) : PageModel
 {
     [BindProperty] public BossInput Boss { get; set; } = new(); [BindProperty] public BossDropInput BossDrop { get; set; } = new();
     [BindProperty(SupportsGet = true)] public Guid? BossId { get; set; }
@@ -56,7 +56,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
 
         var slug = await UniqueSlug(name, ct);
         var entity = new BossActivity(Guid.NewGuid(), name, slug, Boss.Category, Boss.EfficientRate, timeProvider.GetUtcNow());
-        entity.Update(name, Boss.Category, Boss.EfficientRate, null, Clean(Boss.DataSource), Clean(Boss.Notes), timeProvider.GetUtcNow(), OsrsWikiImageUrl.Normalize(Boss.ImageUrl));
+        entity.Update(name, Boss.Category, Boss.EfficientRate, Clean(Boss.ExternalIdentifier), Clean(Boss.DataSource), Clean(Boss.Notes), timeProvider.GetUtcNow(), OsrsWikiImageUrl.Normalize(Boss.ImageUrl));
         dbContext.BossActivities.Add(entity);
         BossId = entity.Id;
         AddBoss = false;
@@ -64,11 +64,60 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
     }
     public async Task<IActionResult> OnPostBossDropAsync(CancellationToken ct)
     {
+        // Preserve binding failures for the optional numeric API inputs before validating this form.
+        if ((ModelState.TryGetValue("BossDrop.InitialWikiItemId", out var idState) && idState.Errors.Count > 0)
+            || (ModelState.TryGetValue("BossDrop.InitialValueGp", out var valueState) && valueState.Errors.Count > 0)) return BadRequest();
         ModelState.Clear();
         if (!TryValidateModel(BossDrop, nameof(BossDrop))) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Error); return CataloguePage(); }
         var boss = await dbContext.BossActivities.SingleOrDefaultAsync(x => x.Id == BossDrop.BossActivityId, ct); if (boss is null) return NotFound();
         var itemName = BossDrop.ItemName.Trim(); var normalizedName = itemName.ToUpperInvariant(); var item = await dbContext.CatalogueItems.SingleOrDefaultAsync(x => x.NormalizedName == normalizedName, ct);
-        if (item is null) { item = new CatalogueItem(Guid.NewGuid(), itemName, normalizedName); item.Update(itemName, normalizedName, null, null, OsrsWikiImageUrl.Normalize(BossDrop.ImageUrl)); dbContext.CatalogueItems.Add(item); }
+        ApiItem? fetchedItem = null;
+        ApiHourlyPrices? initialPrices = null;
+        var initialMappingStatus = ApiMappingStatus.NotConfigured;
+        DateTimeOffset? initialMappingCheckedAt = null;
+        string? fetchFailure = null;
+        if (item is null && BossDrop.FetchPrice && !BossDrop.Untradeable)
+        {
+            var mapping = catalogueApi is null ? new CatalogueApiResult<IReadOnlyList<ApiItem>>(null) : await catalogueApi.GetItemsAsync(ct);
+            initialMappingCheckedAt = timeProvider.GetUtcNow();
+            var matches = mapping.Data?.Where(x => BossDrop.InitialWikiItemId is { } wikiId ? x.Id == wikiId : string.Equals(x.Name, itemName, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+            fetchedItem = matches?.Length == 1 ? matches[0] : null;
+            initialMappingStatus = !mapping.Available ? ApiMappingStatus.TemporarilyUnavailable
+                : fetchedItem is null ? ApiMappingStatus.Unsupported : ApiMappingStatus.Verified;
+            if (!mapping.Available) fetchFailure = "The item mapping API is temporarily unavailable.";
+            else if (fetchedItem is null) fetchFailure = BossDrop.InitialWikiItemId is not null
+                ? "The item ID is not in the tradeable item mapping."
+                : "No unique exact-name item match was found.";
+            else
+            {
+                var prices = await catalogueApi!.GetHourlyPricesAsync(ct);
+                initialPrices = prices.Data;
+                if (!prices.Available) fetchFailure = "The price API is temporarily unavailable.";
+                else if (initialPrices!.Values.GetValueOrDefault(fetchedItem.Id) is null)
+                    fetchFailure = "No hourly price is available for the matched item.";
+            }
+        }
+        var initialApiValue = fetchedItem is null ? null : initialPrices?.Values.GetValueOrDefault(fetchedItem.Id);
+        if (item is null && initialApiValue is null && BossDrop.InitialValueGp is null && !BossDrop.Untradeable)
+        {
+            var feedback = Localize("Enter a catalogue value for this new item. Zero is valid; untradeable items default to zero.");
+            if (fetchFailure is not null)
+                feedback = Localize(fetchFailure) + " " + Localize("The drop was not added. Enter a manual catalogue value, review the exact item mapping, or retry the price fetch later.");
+            SetStatus(feedback, UiMessageType.Error);
+            return CataloguePage();
+        }
+        if (item is null)
+        {
+            item = new CatalogueItem(Guid.NewGuid(), itemName, normalizedName);
+            item.Update(itemName, normalizedName, null, null, OsrsWikiImageUrl.Normalize(BossDrop.ImageUrl));
+            item.ConfigureApi((fetchedItem?.Id ?? BossDrop.InitialWikiItemId)?.ToString(CultureInfo.InvariantCulture));
+            item.SetPrice(BossDrop.Untradeable ? 0 : initialApiValue ?? BossDrop.InitialValueGp,
+                BossDrop.Untradeable ? CataloguePriceSource.Untradeable : initialApiValue is not null ? CataloguePriceSource.Api : CataloguePriceSource.Manual,
+                initialApiValue is not null ? initialPrices!.Hour : timeProvider.GetUtcNow());
+            if (initialMappingCheckedAt is not null && item.ExternalIdentifier is not null)
+                item.RecordMapping(initialMappingStatus, initialMappingCheckedAt, fetchedItem?.Name, fetchedItem?.Icon);
+            dbContext.CatalogueItems.Add(item);
+        }
         else { item.SetActive(true); if (!string.IsNullOrWhiteSpace(BossDrop.ImageUrl)) item.Update(item.Name, item.NormalizedName, item.ExternalIdentifier, item.Notes, OsrsWikiImageUrl.Normalize(BossDrop.ImageUrl)); }
         var existing = await dbContext.SourceDrops.SingleOrDefaultAsync(x => x.BossActivityId == boss.Id && x.ItemId == item.Id, ct);
         if (existing?.Active == true) { SetStatus(Localize("{0} is already listed for {1}.", item.Name, boss.Name), UiMessageType.Warning); return CataloguePage(); }
@@ -77,7 +126,11 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
         existing.Update(BossDrop.DisplayRate.Trim(), probability, Clean(BossDrop.Condition), calculatedEhb, Clean(BossDrop.DataSource), now); existing.SetActive(true);
         existing.SetRateMechanics(DropProbabilityScope.Participant, false, null, 1, rolls, BossDrop.RollGroup);
         BossId = boss.Id;
-        return await SaveAsync("catalogue.drop_created", "source_drop", existing.Id, $"{boss.Name}: {item.Name}", "{}", State(existing), $"Added {item.Name} to {boss.Name}.", ct);
+        var message = Localize("Added {0} to {1}.", item.Name, boss.Name);
+        if (fetchFailure is not null)
+            message += " " + Localize(fetchFailure) + " " + Localize("The entered manual value ({0} GP) was used and stays fixed during bulk refreshes. Review the mapping and choose API hourly average, then validate again to use API pricing.", item.CatalogueValueGp!);
+        return await SaveAsync("catalogue.drop_created", "source_drop", existing.Id, $"{boss.Name}: {item.Name}", "{}", () => State(new { Drop = existing, Item = item }), message, ct,
+            fetchFailure is null ? UiMessageType.Success : UiMessageType.Information);
     }
     public async Task<IActionResult> OnPostToggleBossAsync(Guid recordId, long expectedVersion, CancellationToken ct) { var entity = await dbContext.BossActivities.SingleAsync(x => x.Id == recordId, ct); if (entity.Version != expectedVersion) return Stale(); var before = State(entity); entity.SetActive(!entity.Active); return await SaveAsync("catalogue.boss_toggled", "boss_activity", entity.Id, entity.Name, before, State(entity), $"{entity.Name} {(entity.Active ? "reactivated" : "deactivated")}.", ct); }
     public async Task<IActionResult> OnPostToggleDropAsync(Guid recordId, long expectedVersion, CancellationToken ct) { DropId = recordId; var entity = await dbContext.SourceDrops.SingleAsync(x => x.Id == recordId, ct); if (entity.Version != expectedVersion) return Stale(); var itemName = await dbContext.CatalogueItems.Where(x => x.Id == entity.ItemId).Select(x => x.Name).SingleAsync(ct); var before = State(entity); entity.SetActive(!entity.Active); return await SaveAsync("catalogue.drop_toggled", "source_drop", entity.Id, itemName, before, State(entity), $"{itemName} {(entity.Active ? "reactivated" : "deactivated")}.", ct); }
@@ -144,7 +197,8 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
             entity.ChangeItem(matchingItem.Id);
             matchingItem.SetActive(true);
             if (!string.IsNullOrWhiteSpace(imageUrl)) matchingItem.Update(matchingItem.Name, matchingItem.NormalizedName, matchingItem.ExternalIdentifier, matchingItem.Notes, OsrsWikiImageUrl.Normalize(imageUrl));
-            if (!await dbContext.SourceDrops.AnyAsync(x => x.Id != entity.Id && x.ItemId == item.Id, ct)) dbContext.CatalogueItems.Remove(item);
+            if (!await dbContext.SourceDrops.AnyAsync(x => x.Id != entity.Id && x.ItemId == item.Id, ct)
+                && !await dbContext.EventItemPrices.AnyAsync(x => x.ItemId == item.Id, ct)) dbContext.CatalogueItems.Remove(item);
         }
         // Enlist even unchanged shared metadata in the optimistic write check. A
         // concurrent item edit must also reject a form that only changes the drop.
@@ -216,10 +270,12 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
     }
     private async Task LoadAsync(CancellationToken ct)
     {
+        ApiItems = await dbContext.CatalogueItems.AsNoTracking().ToDictionaryAsync(x => x.Id, ct);
+        ApiBosses = await dbContext.BossActivities.AsNoTracking().ToDictionaryAsync(x => x.Id, ct);
         var bosses = await dbContext.BossActivities.AsNoTracking().OrderByDescending(x => x.Active).ThenBy(x => x.Name).Select(x => new BossRow(x.Id, x.Name, x.Category, x.EfficientCompletionsPerHour, x.Active, x.ImageUrl, x.DataSource, x.DataUpdatedAt, x.Version)).ToListAsync(ct);
         Bosses = bosses.Select(x => x with { ImageUrl = OsrsWikiImageUrl.Normalize(x.ImageUrl) }).ToList();
 
-        var drops = await (from d in dbContext.SourceDrops.AsNoTracking() join i in dbContext.CatalogueItems on d.ItemId equals i.Id select new DropRow(d.Id, d.BossActivityId, i.Name, d.DisplayRate, d.NumericProbability, d.DefaultEhbEstimate, d.ProbabilityScope, d.ConditionalOnParent, d.ParentProbability, d.AssumedParticipants, d.RollsPerCompletion, d.RollGroup, d.Active, d.DataSource, i.ImageUrl, d.DataUpdatedAt, d.Version, i.Version)).ToListAsync(ct);
+        var drops = await (from d in dbContext.SourceDrops.AsNoTracking() join i in dbContext.CatalogueItems on d.ItemId equals i.Id select new DropRow(d.Id, d.BossActivityId, i.Name, d.DisplayRate, d.NumericProbability, d.DefaultEhbEstimate, d.ProbabilityScope, d.ConditionalOnParent, d.ParentProbability, d.AssumedParticipants, d.RollsPerCompletion, d.RollGroup, d.Active, d.DataSource, i.ImageUrl, d.DataUpdatedAt, d.Version, i.Version, i.Id)).ToListAsync(ct);
         Drops = drops.Select(x => x with
         {
             ImageUrl = OsrsWikiImageUrl.Normalize(x.ImageUrl)
@@ -228,7 +284,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
     private async Task<string> UniqueSlug(string name, CancellationToken ct) { var root = EventSlugGenerator.Generate(name); var slug = root; for (var n = 2; await dbContext.BossActivities.AnyAsync(x => x.Slug == slug, ct); n++) slug = $"{root}-{n}"; return slug; }
     private Task<IActionResult> SaveAsync(string action, string type, Guid id, string details, string before, string after, string message, CancellationToken ct) =>
         SaveAsync(action, type, id, details, before, () => after, message, ct);
-    private async Task<IActionResult> SaveAsync(string action, string type, Guid id, string details, string before, Func<string> after, string message, CancellationToken ct)
+    private async Task<IActionResult> SaveAsync(string action, string type, Guid id, string details, string before, Func<string> after, string message, CancellationToken ct, UiMessageType messageType = UiMessageType.Success)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
@@ -237,7 +293,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
             dbContext.AuditEntries.Add(CreateAudit(action, type, id, details, before, after()));
             await dbContext.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
-            SetStatus(message, UiMessageType.Success);
+            SetStatus(message, messageType);
             return CataloguePage();
         }
         catch (Exception exception) when (IsExpectedCatalogueRace(exception))
@@ -254,10 +310,10 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider time
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
-    public sealed class BossInput { [Required, StringLength(200)] public string Name { get; set; } = string.Empty; [Required] public string Category { get; set; } = "Boss"; [Range(0.0001, 100000), Display(Name = "Efficient completions per hour")] public decimal? EfficientRate { get; set; } [Display(Name = "Data source")] public string? DataSource { get; set; } [Url, Display(Name = "Image URL")] public string? ImageUrl { get; set; } public string? Notes { get; set; } }
-    public sealed class BossDropInput { [Required] public Guid BossActivityId { get; set; } [Required, StringLength(200), Display(Name = "Item name")] public string ItemName { get; set; } = string.Empty; [Required, StringLength(200), Display(Name = "Displayed drop rate")] public string DisplayRate { get; set; } = string.Empty; [Range(0.000000000001, 1), Display(Name = "Numeric probability")] public decimal? NumericProbability { get; set; } public DropProbabilityScope ProbabilityScope { get; set; } = DropProbabilityScope.Participant; public bool ConditionalOnParent { get; set; } [Range(0.000000000001, 1)] public decimal? ParentProbability { get; set; } [Range(1, 100)] public int AssumedParticipants { get; set; } = 1; [Range(1, 100)] public int RollsPerCompletion { get; set; } = 1; [StringLength(120)] public string RollGroup { get; set; } = "default"; [StringLength(2000), Display(Name = "Condition or note")] public string? Condition { get; set; } [StringLength(300), Display(Name = "Data source")] public string? DataSource { get; set; } [Url, Display(Name = "Item image URL")] public string? ImageUrl { get; set; } }
+    public sealed class BossInput { [StringLength(200)] public string? ExternalIdentifier { get; set; } [Required, StringLength(200)] public string Name { get; set; } = string.Empty; [Required] public string Category { get; set; } = "Boss"; [Range(0.0001, 100000), Display(Name = "Efficient completions per hour")] public decimal? EfficientRate { get; set; } [Display(Name = "Data source")] public string? DataSource { get; set; } [Url, Display(Name = "Image URL")] public string? ImageUrl { get; set; } public string? Notes { get; set; } }
+    public sealed class BossDropInput { public bool FetchPrice { get; set; } [Range(1, int.MaxValue)] public int? InitialWikiItemId { get; set; } [Range(typeof(long), "0", "9223372036854775807")] public long? InitialValueGp { get; set; } public bool Untradeable { get; set; } [Required] public Guid BossActivityId { get; set; } [Required, StringLength(200), Display(Name = "Item name")] public string ItemName { get; set; } = string.Empty; [Required, StringLength(200), Display(Name = "Displayed drop rate")] public string DisplayRate { get; set; } = string.Empty; [Range(0.000000000001, 1), Display(Name = "Numeric probability")] public decimal? NumericProbability { get; set; } public DropProbabilityScope ProbabilityScope { get; set; } = DropProbabilityScope.Participant; public bool ConditionalOnParent { get; set; } [Range(0.000000000001, 1)] public decimal? ParentProbability { get; set; } [Range(1, 100)] public int AssumedParticipants { get; set; } = 1; [Range(1, 100)] public int RollsPerCompletion { get; set; } = 1; [StringLength(120)] public string RollGroup { get; set; } = "default"; [StringLength(2000), Display(Name = "Condition or note")] public string? Condition { get; set; } [StringLength(300), Display(Name = "Data source")] public string? DataSource { get; set; } [Url, Display(Name = "Item image URL")] public string? ImageUrl { get; set; } }
     public sealed record BossRow(Guid Id, string Name, string Category, decimal? EfficientRate, bool Active, string? ImageUrl, string? DataSource, DateTimeOffset UpdatedAt, long Version);
-    public sealed record DropRow(Guid Id, Guid BossActivityId, string ItemName, string DisplayRate, decimal? Probability, decimal? DefaultEhb, DropProbabilityScope ProbabilityScope, bool ConditionalOnParent, decimal? ParentProbability, int AssumedParticipants, int RollsPerCompletion, string RollGroup, bool Active, string? DataSource, string? ImageUrl, DateTimeOffset UpdatedAt, long Version, long ItemVersion);
+    public sealed record DropRow(Guid Id, Guid BossActivityId, string ItemName, string DisplayRate, decimal? Probability, decimal? DefaultEhb, DropProbabilityScope ProbabilityScope, bool ConditionalOnParent, decimal? ParentProbability, int AssumedParticipants, int RollsPerCompletion, string RollGroup, bool Active, string? DataSource, string? ImageUrl, DateTimeOffset UpdatedAt, long Version, long ItemVersion, Guid ItemId = default);
     private enum DeletePreparationStatus { Ready, Stale, Referenced }
     private sealed record DeletePreparation(DeletePreparationStatus Status, DeleteCandidate? Candidate);
     private sealed record DeleteCandidate(string Action, string Type, Guid Id, string Details, string Before);

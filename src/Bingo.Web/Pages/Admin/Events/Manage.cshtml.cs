@@ -154,7 +154,9 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     {
         var result = await eventLifecycle.StartNowAsync(id, EventVersion, ConfirmStartEvent, StartReason, Actor, ct);
         if (!result.Succeeded)
-            return await LifecycleFailureAsync(id, "start", result.Error ?? Localize("The event could not be started."), ct);
+            return await LifecycleFailureAsync(id, "start", result.Blockers is { Count: > 0 }
+                ? string.Join(" ", result.Blockers.Select(blocker => LocalizeStartBlocker(blocker).Description))
+                : result.Error ?? Localize("The event could not be started."), ct);
         SetStatus(Localize("Event started."), UiMessageType.Success);
         return RedirectToPage(new { id });
     }
@@ -427,6 +429,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var canStartEvent = board?.State == BoardState.Published && draftReady;
         var postponed = await dbContext.ScheduledEventStartAttempts.AsNoTracking().Where(x => x.EventId == id && x.ScheduledFor <= timeProvider.GetUtcNow() && !x.Started && x.ResolvedAt == null).OrderByDescending(x => x.AttemptedAt).FirstOrDefaultAsync(ct);
         StartReadiness = await eventLifecycle.GetStartReadinessAsync(id, ct);
+        if (StartReadiness is not null) StartReadiness = new(StartReadiness.Blockers.Select(LocalizeStartBlocker).ToArray());
         EvidenceCodes = await dbContext.EvidenceCodes.AsNoTracking().Where(x => x.EventId == id).OrderByDescending(x => x.ActivatesAt).Select(x => new EvidenceCodeRow(x.Id, x.Code, x.ActivatesAt, x.RetiresAt, x.Note)).ToListAsync(ct);
         SubmissionCount = await dbContext.Submissions.CountAsync(x => x.EventId == id, ct);
         PendingReviewCount = await dbContext.Submissions.CountAsync(x => x.EventId == id && x.Status == SubmissionStatus.Pending, ct);
@@ -513,6 +516,11 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         ConfirmationAction = "signup";
         return Page();
     }
+    private ReadinessItem LocalizeStartBlocker(ReadinessItem blocker) =>
+        blocker.Code == "DROP_PRICE_MISSING" && blocker.DescriptionArguments is [var itemNames]
+            ? blocker with { Description = Localize("These drops have no catalogue GP value: {0}. Set a value in Admin Catalogue, then try again. An explicit 0 is valid.", itemNames) }
+            : blocker;
+
     private async Task<IActionResult> LifecycleFailureAsync(Guid id, string confirmationAction, string message, CancellationToken ct)
     {
         var postedVersion = EventVersion;

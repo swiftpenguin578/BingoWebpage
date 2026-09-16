@@ -26,7 +26,7 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
+public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice3_scheduled")

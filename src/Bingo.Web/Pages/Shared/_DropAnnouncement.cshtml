@@ -1,0 +1,33 @@
+@using Bingo.Web.Security
+@inject Microsoft.Extensions.Localization.IStringLocalizer<Bingo.Web.SharedResource> T
+@{
+    var accountId = User.GetAccountId();
+    var admin = User.IsInRole("Admin") || User.IsInRole("SuperAdmin");
+}
+@if (User.Identity?.IsAuthenticated == true && accountId is not null && !admin)
+{
+    <aside class="drop-announcement" data-drop-announcement hidden data-account-id="@accountId"
+           data-progression-label="@T["New tile progression"]" data-progression-template="@T["New tile progression: {0} / {1}"]" data-completed-label="@T["Tile completed"]" data-clear-success="@T["All new marks cleared."]"
+           data-position-template="@T["{0} of {1}"]"
+           data-participant-label="@T["Participant"]" data-new-label="@T["NEW"]" data-new-singular="@T["{0} NEW UPDATE"]" data-new-plural="@T["{0} NEW UPDATES"]"
+           role="status" aria-live="polite" aria-atomic="true" aria-hidden="true">
+        @Html.AntiForgeryToken()
+        <div class="drop-announcement__main" data-drop-announcement-main></div>
+        <div class="drop-announcement__footer">
+            <nav class="drop-announcement__nav" data-drop-announcement-nav aria-label="@T["Announcement navigation"]" hidden>
+                <button type="button" data-drop-announcement-previous aria-label="@T["Previous update"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m14 5-7 7 7 7" /></svg></button>
+                <span class="drop-announcement__position" data-drop-announcement-position aria-live="polite"></span>
+                <button type="button" data-drop-announcement-next aria-label="@T["Next update"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m10 5 7 7-7 7" /></svg></button>
+            </nav>
+            <a class="drop-announcement__link" data-drop-announcement-link href="#">@T["Go to drop"] <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="drop-announcement__compact" data-drop-announcement-compact>
+            <span class="drop-announcement__signal" aria-hidden="true"></span>
+            <strong data-drop-announcement-count></strong>
+            <button class="drop-announcement__expand" type="button" data-drop-announcement-expand>@T["Expand"]</button>
+        </div>
+        <button class="drop-announcement__dismiss" type="button" data-drop-announcement-dismiss aria-label="@T["Dismiss announcements"]" title="@T["Dismiss announcements"]">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+    </aside>
+}

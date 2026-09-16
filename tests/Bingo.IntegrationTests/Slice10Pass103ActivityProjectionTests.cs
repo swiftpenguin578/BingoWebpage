@@ -559,6 +559,8 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
 
     private sealed class CountingCompetitionClient(WiseOldManCompetitionResult? configuredResult = null) : IWiseOldManCompetitionClient
     {
+        public Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, IReadOnlyCollection<string> metrics, CancellationToken cancellationToken = default) => GetCompetitionAsync(competitionId, cancellationToken);
+
         public int Calls { get; private set; }
         public Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, CancellationToken cancellationToken = default)
         {

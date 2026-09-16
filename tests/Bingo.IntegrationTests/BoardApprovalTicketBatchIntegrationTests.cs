@@ -139,7 +139,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             if (failure == "source") edit.BoardRequirementDropSnapshots.RemoveRange(await edit.BoardRequirementDropSnapshots.Where(x => x.RequirementId == fixture.Requirement.Id).ToListAsync());
             if (failure == "identity")
             {
-                var item = new CatalogueItem(Guid.NewGuid(), "New identity", "NEW IDENTITY"); edit.CatalogueItems.Add(item);
+                var item = new CatalogueItem(Guid.NewGuid(), "New identity", "NEW IDENTITY"); item.SetPrice(0, CataloguePriceSource.Manual, DateTimeOffset.UtcNow); edit.CatalogueItems.Add(item);
                 edit.Entry(await edit.SourceDrops.SingleAsync(x => x.Id == fixture.Drop.Id)).Property(x => x.ItemId).CurrentValue = item.Id;
             }
             if (failure == "mixed") edit.BoardRequirementSnapshots.Add(new BoardRequirementSnapshot(Guid.NewGuid(), fixture.Tile.Id, 2, 1, true, false, "Manual challenge", true));
@@ -312,6 +312,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 1, 1, true, false, "Batch objective", manual);
         var boss = new BossActivity(Guid.NewGuid(), "Batch boss", "batch-boss", "Boss", missingEstimate ? null : 10m, now);
         var item = new CatalogueItem(Guid.NewGuid(), "Batch item", "BATCH ITEM");
+        item.SetPrice(0, CataloguePriceSource.Manual, now);
         var drop = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, "1/10", .1m, null, now);
         var source = new BoardRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, drop.Id, item.Id, boss.Name, item.Name, "1/10", .1m, null, null);
         await using var setup = new ApplicationDbContext(options);

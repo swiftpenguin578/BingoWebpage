@@ -1,0 +1,114 @@
+@page "/Events/{slug}/Stats"
+@model Bingo.Web.Pages.Events.StatsModel
+@if (Model.CancelledEventName is { } cancelledName)
+{
+    ViewData["Title"] = T["Event cancelled"];
+    ViewData["PublicEventCancelled"] = true;
+    ViewData["HideBreadcrumbs"] = true;
+    <partial name="_EventCancelled" model="cancelledName" />
+    return;
+}
+@{
+    ViewData["Title"] = T["{0} stats", Model.Stats.Name];
+    ViewData["HideBreadcrumbs"] = true;
+    ViewData["BodyClass"] = "public-ui-pass1 public-stats-page";
+}
+@section Head {
+    <link rel="stylesheet" href="~/css/stats-base.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/stats-density.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/stats-integration.css" asp-append-version="true" />
+}
+<section class="public-ui-page-width--wide public-teams-directory" data-public-ui-no-ambient>
+    <header class="public-teams-directory__masthead">
+        <div class="public-teams-directory__intro">
+            <div class="public-masthead-copy">
+                <span class="public-teams-directory__kicker public-masthead-kicker">@T["Stats"]</span>
+                <h1 class="public-teams-directory__title public-masthead-title">@Model.Stats.Name</h1>
+            </div>
+            <a class="public-teams-directory__back" asp-page="/Index">← @T["All events"]</a>
+            <dl class="public-teams-directory__meta">
+                <div><dt>@T["Event starts"]</dt><dd>@(Model.Stats.StartedAt is { } start ? DateTimePresentation.Format(start, "dd/MM/yyyy", Model.Stats.Timezone) : T["Not started"])</dd></div>
+                <div><dt>@T["Event ends"]</dt><dd>@(Model.Stats.EndedAt is { } end ? DateTimePresentation.Format(end, "dd/MM/yyyy", Model.Stats.Timezone) : T["Not ended"])</dd></div>
+                <div><dt>@T["players"]</dt><dd>@Model.Stats.Teams.Sum(team => team.Players.Count)</dd></div>
+            </dl>
+        </div>
+        <div class="landing-hero__art public-teams-directory__art" aria-hidden="true">
+            <div class="landing-hero__background"></div>
+            <img class="landing-hero__mark landing-hero__mark--light" src="~/images/branding/login-artwork.svg" asp-append-version="true" alt="" />
+            <img class="landing-hero__mark landing-hero__mark--dark" src="~/images/branding/login-artwork-dark.svg" asp-append-version="true" alt="" />
+        </div>
+    </header>
+</section>
+<div class="stats-page" data-stats-event="@Model.Stats.EventId" data-refresh-url="@Url.Page("/Events/Stats", "Data", new { slug = Model.Stats.Slug })">
+<div class="shell">
+<div id="stats" class="dashboard-top">
+<section class="panel gp-panel" aria-labelledby="gp-heading"><div class="gp-top">
+<div class="gp-title-group"><h2 id="gp-heading" class="stats-section-title">Drop value</h2><details id="gp-help" class="gp-help" open><summary class="stats-info-toggle" aria-label="How to explore drop value">ⓘ</summary><div class="gp-help-box"><p id="gp-help-text">Click a team in the donut or list to explore its players and most valuable drops.</p><button id="gp-help-close" type="button" aria-label="Hide guidance">×</button></div></details><button id="gp-back" type="button" aria-label="Back to all teams" title="All teams" hidden>←</button><span id="gp-team-label" class="utility" hidden></span></div>
+<div class="gp-divider-search" id="gp-divider-search" data-open="false"><span class="stats-heading-rule" aria-hidden="true"></span><div id="gp-search-wrap" class="gp-search"><label class="sr-only" for="gp-player-search">Search players by name or team</label><div class="gp-search-input"><input id="gp-player-search" type="search" placeholder="Search players…" autocomplete="off" aria-controls="gp-search-results" disabled></div><div id="gp-search-results" class="gp-search-results" hidden></div></div><button id="gp-search-toggle" type="button" aria-label="Search players" aria-expanded="false" aria-controls="gp-search-wrap" title="Search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg></button></div>
+<div class="tabs" id="gp-tabs" aria-label="Compare GP by"><button type="button" data-mode="teams" aria-pressed="true">Teams</button><button type="button" data-mode="players" aria-pressed="false">Players</button><button type="button" data-mode="everyone" aria-pressed="false">Everyone</button></div></div><div class="gp-visuals"><div class="gp-trend"><div class="gp-context"><span><strong id="stats-drop-count">—</strong> drops recorded</span><span class="gp-context-actions"><span id="gp-unit">Cumulative · all teams</span><button id="gp-shortcut" type="button">My team</button></span></div><div class="chart-wrap" id="chart-wrap"><svg id="gp-chart" class="gp-chart" role="img" tabindex="0" aria-label="Cumulative GP over time. Use left and right arrow keys to explore dates."></svg><div id="chart-tip" class="chart-tip" hidden></div></div><div class="legend" id="gp-legend" aria-label="Show or hide chart series"></div><button id="gp-clear-comparison" type="button" hidden></button><p class="chart-hint" id="chart-hint">Select a name to show or hide its line · hover or tap to explore</p><p class="sr-only" id="chart-announcement" aria-live="polite"></p></div>
+<aside class="gp-share" aria-labelledby="gp-share-heading">
+<h3 id="gp-share-heading">GP by team</h3>
+<div class="gp-share-content">
+<div class="share-ring"><svg id="gp-donut" viewBox="0 0 180 180" role="img" aria-label="Each team's share of total event GP"></svg><div class="share-total"><strong id="share-total-value">—</strong><span>Total GP earned</span></div></div>
+<div id="share-legend" class="share-legend" aria-label="Team GP shares"></div>
+</div>
+</aside></div>
+<aside class="treasure" aria-labelledby="treasure-heading"><h2 id="treasure-heading">Most valuable drops</h2><div class="treasure-list"></div></aside></section>
+<div class="luck-stack"><section class="panel luck-panel" aria-labelledby="luck-heading"><div class="panel-heading"><div class="luck-title-group"><button type="button" id="luck-back" aria-label="Back to all teams" hidden>←</button><h2 id="luck-heading">Luck</h2><button type="button" id="luck-help-toggle" class="stats-info-toggle" aria-label="How to explore luck" aria-expanded="true" aria-controls="luck-help-box">ⓘ</button><span id="luck-team-label" hidden></span></div><div class="luck-heading-actions"><div class="tabs" id="luck-tabs" aria-label="Compare luck by"><button type="button" data-mode="teams" aria-pressed="true">Teams</button><button type="button" data-mode="players" aria-pressed="false">Players</button></div><div id="luck-search" class="luck-search"><button type="button" id="luck-search-toggle" aria-label="Search players" aria-expanded="false" aria-controls="luck-search-popover" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button><div id="luck-search-popover" hidden><label class="sr-only" for="luck-player-search">Search players by name or team</label><input type="search" id="luck-player-search" placeholder="Search players or teams…" autocomplete="off"><div id="luck-search-results"></div></div></div></div><div id="luck-help-box" class="gp-help-box luck-help-box"><p id="luck-help-text">Click a team to explore its players. Use the back arrow to return to all teams.</p><button type="button" id="luck-help-close" aria-label="Hide luck guidance">×</button></div></div><p class="subheading">Compared with expected drops</p><div class="luck-key"><span></span><div class="luck-axis-labels"><span>Unlucky</span><span>Expected</span><span>Lucky</span></div></div><div class="luck-rows" id="luck-rows" tabindex="0" aria-label="Luck rankings"></div><span id="luck-status" class="sr-only" role="status" aria-live="polite"></span></section><section class="repeat-drop-card" aria-labelledby="repeat-drop-heading"><h2 id="repeat-drop-heading">Keeps on dropping</h2><div class="repeat-drop-content"><img hidden alt=""><div class="repeat-drop-stat"><strong>—</strong><div class="repeat-drop-label"><h3>No approved drops yet</h3><span>Drops</span></div></div></div></section></div>
+</div>
+<div class="stats-history-grid">
+<section class="panel timeline-panel" aria-labelledby="timeline-heading"><div class="panel-heading"><h2 id="timeline-heading">Event milestones</h2><div class="timeline-heading-actions"><span class="timeline-filter-control"><select id="timeline-filter" class="timeline-filter" aria-label="Filter timeline by team"><option value="all">All teams</option></select></span><p class="timeline-scroll-hint">Scroll to explore milestones →</p></div></div><ol id="timeline" class="timeline" tabindex="0" aria-label="Event milestones, scroll horizontally to explore"></ol></section>
+<section class="versatile-card" aria-labelledby="versatile-heading">
+<img class="versatile-watermark" src="/stats/assets/branding/login-artwork-dark.svg" alt="" aria-hidden="true">
+<h2 id="versatile-heading">Most versatile</h2>
+<div class="versatile-content"><h3>No contributions yet</h3><p class="versatile-team"></p><p class="versatile-caption">Contributed to</p><p class="versatile-stat"><strong>—</strong><span>different<br>tiles</span></p></div>
+</section>
+<section class="panel race-panel" aria-labelledby="race-heading">
+<div class="panel-heading"><div><div class="race-title-group"><h2 id="race-heading">Board progress</h2><button type="button" id="race-help-toggle" class="stats-info-toggle" aria-label="How to explore board progress" aria-expanded="true" aria-controls="race-help-box">ⓘ</button></div><p class="subheading">Every completed tile, from the first to the finish</p></div><div class="race-key"><span><span class="race-key-icon" aria-hidden="true">●</span> Tile completed</span><span><span class="race-key-icon" aria-hidden="true">◆</span> Rows completed</span><span><span class="race-key-icon" aria-hidden="true">◎</span> Board completed</span></div><div id="race-help-box" class="gp-help-box race-help-box"><p>Hover over the chart to see every team’s totals at that time. Hover over or focus a completion marker for its tile and row details.</p><button type="button" id="race-help-close" aria-label="Hide board progress guidance">×</button></div></div>
+<div class="race-scroll" tabindex="0" role="region" aria-label="Board progress timeline, scroll horizontally to explore">
+<div class="race-axis" aria-hidden="true"><span id="race-date">Current totals</span><div><span></span><span></span><span></span></div><span>Tiles / Rows</span></div>
+<div id="race-tracks" class="race-tracks"></div>
+</div>
+<div id="race-tooltip" class="race-tooltip" role="status" hidden></div><p id="race-detail" class="sr-only" aria-live="polite"></p>
+</section>
+</div>
+
+<div class="stats-page-controls">
+@if (Model.CanSaveGuidance)
+{
+    <form id="stats-guidance-form" method="post" asp-page-handler="Guidance" asp-route-slug="@Model.Stats.Slug">
+        <label><input id="stats-hide-guidance" type="checkbox" checked="@Model.GuidanceHidden" /> @T["Hide tooltips"]</label>
+    </form>
+}
+@if (Model.CanEditArtwork)
+{
+    <button id="adjust-artwork" class="theme-switch" type="button">Adjust artwork</button>
+}
+</div>
+<p id="stats-feedback" class="subheading" role="status" aria-live="polite"></p>
+<div id="toast" class="toast" role="status" hidden></div>
+@if (Model.CanEditArtwork)
+{
+    <form id="stats-artwork-form" method="post" asp-page-handler="Artwork" asp-route-slug="@Model.Stats.Slug">@Html.AntiForgeryToken()</form>
+<dialog id="artwork-editor" class="artwork-editor" aria-labelledby="artwork-editor-title" aria-describedby="artwork-editor-help">
+  <header class="artwork-editor-heading"><div><h2 id="artwork-editor-title">Adjust artwork</h2><p id="artwork-editor-item"></p></div><button id="artwork-close" class="artwork-close" type="button" aria-label="Cancel artwork changes">×</button></header>
+  <p id="artwork-editor-help">Drag the preview to move the artwork. Use the sliders or arrow keys for finer adjustments.</p>
+  <div class="artwork-view-tabs" role="group" aria-label="Preview size"><button type="button" data-artwork-view="desktop" aria-pressed="true">Desktop</button><button type="button" data-artwork-view="mobile" aria-pressed="false">Mobile</button></div>
+  <div id="artwork-preview" class="artwork-preview" data-view="desktop"><div id="artwork-preview-frame" class="artwork-preview-frame"></div></div>
+  <div class="artwork-controls">
+    <label for="artwork-x"><span>Horizontal <output id="artwork-x-value" for="artwork-x"></output></span><input id="artwork-x" type="range" min="0" max="100" step="0.5"></label>
+    <label for="artwork-y"><span>Vertical <output id="artwork-y-value" for="artwork-y"></output></span><input id="artwork-y" type="range" min="0" max="100" step="0.5"></label>
+    <label for="artwork-scale"><span>Zoom <output id="artwork-scale-value" for="artwork-scale"></output></span><input id="artwork-scale" type="range" min="50" max="250" step="1"></label>
+    <label for="artwork-rotation"><span>Rotation <output id="artwork-rotation-value" for="artwork-rotation"></output></span><input id="artwork-rotation" type="range" min="-180" max="180" step="1"></label>
+  </div>
+  <p class="artwork-storage-note">Saved artwork is shared by everyone. Cancel keeps the previously saved appearance.</p><p id="artwork-editor-error" class="artwork-editor-error" role="alert" hidden></p>
+  <footer class="artwork-editor-actions"><button id="artwork-reset" type="button">Reset to default</button><div><button id="artwork-cancel" type="button">Cancel</button><button id="artwork-save" class="artwork-save" type="button">Save artwork</button></div></footer>
+</dialog>
+
+}
+<script id="stats-data" type="application/json">@Html.Raw(Model.BootstrapJson)</script>
+</div></div>
+@section Scripts {
+    <script src="~/js/stats-adapter.js" asp-append-version="true"></script>
+    <script src="~/js/stats-page.js" asp-append-version="true"></script>
+}

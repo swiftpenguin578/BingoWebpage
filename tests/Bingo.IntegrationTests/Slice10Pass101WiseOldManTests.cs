@@ -161,7 +161,7 @@ public sealed class Slice10Pass101WiseOldManTests
         var clock = new TestClock(DateTimeOffset.UtcNow);
         var client = CreateClient(clock, request =>
         {
-            Assert.Equal("/competitions/42?metric=ehb", request.RequestUri!.PathAndQuery);
+            Assert.Equal("/competitions/42?metrics=ehb", request.RequestUri!.PathAndQuery);
             return Response("{\"id\":42,\"title\":\"Test competition\",\"startsAt\":\"2026-08-03T10:00:00Z\",\"endsAt\":\"2026-08-03T12:00:00Z\",\"updatedAt\":\"2026-08-03T12:01:00Z\",\"participations\":[{\"player\":{\"username\":\"Alice\",\"type\":\"REGULAR\"},\"deltas\":[{\"metric\":\"ehb\",\"values\":{\"gained\":12.5,\"start\":10,\"end\":22}}]}]}", 19);
         });
 

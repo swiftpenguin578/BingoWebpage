@@ -296,7 +296,24 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests
         var tileIds = publication.Tiles.Select(x => x.Id).ToList();
         Assert.Equal(JsonSerializer.Serialize(publication.Requirements.OrderBy(x => x.Id)), JsonSerializer.Serialize(await db.BoardRequirementSnapshots.AsNoTracking().Where(x => tileIds.Contains(x.BoardTileId)).OrderBy(x => x.Id).ToListAsync()));
         var ids = publication.Drops.Select(x => x.Id).ToList();
-        Assert.Equal(JsonSerializer.Serialize(publication.Drops.OrderBy(x => x.Id)), JsonSerializer.Serialize(await db.BoardRequirementDropSnapshots.AsNoTracking().Where(x => ids.Contains(x.Id)).OrderBy(x => x.Id).ToListAsync()));
+        // Rate mechanics are intentionally approval-only, unmapped projection values.
+        // Compare every persisted working-drop value; published history is checked separately.
+        static object WorkingDropState(BoardRequirementDropSnapshot drop) => new
+        {
+            drop.Id,
+            drop.RequirementId,
+            drop.SourceDropId,
+            drop.ItemIdSnapshot,
+            drop.BossName,
+            drop.ItemName,
+            drop.DisplayRate,
+            drop.NumericProbability,
+            drop.MaximumContribution,
+            drop.EhbPerContribution,
+            drop.CreditedWeight
+        };
+        Assert.Equal(JsonSerializer.Serialize(publication.Drops.OrderBy(x => x.Id).Select(WorkingDropState)),
+            JsonSerializer.Serialize((await db.BoardRequirementDropSnapshots.AsNoTracking().Where(x => ids.Contains(x.Id)).OrderBy(x => x.Id).ToListAsync()).Select(WorkingDropState)));
     }
 
     private async Task<string> RecoveryIntegrityAsync(Fixture f)

@@ -204,12 +204,14 @@ public sealed class SubmissionService(
             allowed = Math.Min(allowed, Math.Max(0, maximum - dropUsed));
         }
         var amount = Math.Min(remaining, allowed); if (amount < 1) throw new InvalidOperationException("This requirement has no remaining eligible contribution. Mark the submission as a duplicate or reject it.");
-        var now = time.GetUtcNow(); var before = Snapshot(s); s.Approve(amount, now); var after = Snapshot(s); db.SubmissionContributions.Add(new SubmissionContribution(Guid.NewGuid(), s.Id, s.TeamId, s.RequirementId, s.DropSnapshotId, s.CreditedParticipantId, amount, now)); db.ReviewActions.Add(Action(s.Id, ReviewActionType.Approve, adminAccountId, now, $"Approved contribution: {amount}", before, after)); AddAudit(s, adminAccountId, adminName, "submission.approved", $"Approved contribution: {amount}.", before, after, now); await db.SaveChangesAsync(cancellationToken); var focusCleared = focus is not null && await focus.ClearCompletedTileFocusAsync(s.EventId, s.TeamId, s.BoardTileId, cancellationToken); if (focusCleared) await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(CancellationToken.None); await Notify(s.EventId, cancellationToken); await NotifyFocus(s.EventId, s.TeamId, focusCleared, cancellationToken); return amount;
+        var ev = await db.Events.SingleAsync(x => x.Id == s.EventId, cancellationToken);
+        var completesTile = await CompletesTileAtApprovalAsync(s, amount, cancellationToken);
+        var now = time.GetUtcNow(); var before = Snapshot(s); ev.AdvanceStatsEvidenceRevision(additiveApproval: true); var announcementOrdinal = ev.ReserveAnnouncementOrdinal(); s.Approve(amount, now, ev.AnnouncementGeneration, completesTile, announcementOrdinal); var after = Snapshot(s); db.SubmissionContributions.Add(new SubmissionContribution(Guid.NewGuid(), s.Id, s.TeamId, s.RequirementId, s.DropSnapshotId, s.CreditedParticipantId, amount, now)); db.ReviewActions.Add(Action(s.Id, ReviewActionType.Approve, adminAccountId, now, $"Approved contribution: {amount}", before, after)); AddAudit(s, adminAccountId, adminName, "submission.approved", $"Approved contribution: {amount}.", before, after, now); await db.SaveChangesAsync(cancellationToken); var focusCleared = focus is not null && await focus.ClearCompletedTileFocusAsync(s.EventId, s.TeamId, s.BoardTileId, cancellationToken); if (focusCleared) await db.SaveChangesAsync(cancellationToken); await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, s.EventId, cancellationToken); await tx.CommitAsync(CancellationToken.None); await Notify(s.EventId, cancellationToken); await NotifyFocus(s.EventId, s.TeamId, focusCleared, cancellationToken); return amount;
     }
 
     public async Task ReverseAsync(Guid submissionId, Guid adminAccountId, string reason, CancellationToken cancellationToken = default, int? expectedVersion = null)
     {
-        var adminName = await EnsureAdmin(adminAccountId, cancellationToken); await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken); var s = await LockedAdminReviewSubmissionAsync(submissionId, cancellationToken); EnsureExpectedVersion(s, expectedVersion); if (s.Status != SubmissionStatus.Approved) throw new InvalidOperationException("Only an approved submission can be reversed."); var contribution = await db.SubmissionContributions.SingleAsync(x => x.SubmissionId == submissionId && x.ReversedAt == null, cancellationToken); var now = time.GetUtcNow(); var before = Snapshot(s); s.Reverse(reason, now); contribution.Reverse(now); var after = Snapshot(s); db.ReviewActions.Add(Action(s.Id, ReviewActionType.ReverseApproval, adminAccountId, now, reason, before, after)); AddAudit(s, adminAccountId, adminName, "submission.reversed", reason.Trim(), before, after, now); await RebalanceLaterContributions(s, contribution, adminAccountId, adminName, now, cancellationToken); await db.SaveChangesAsync(cancellationToken); var focusCleared = focus is not null && await focus.ClearCompletedTileFocusAsync(s.EventId, s.TeamId, s.BoardTileId, cancellationToken); if (focusCleared) await db.SaveChangesAsync(cancellationToken); await tx.CommitAsync(CancellationToken.None); await Notify(s.EventId, cancellationToken); await NotifyFocus(s.EventId, s.TeamId, focusCleared, cancellationToken);
+        var adminName = await EnsureAdmin(adminAccountId, cancellationToken); await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken); var s = await LockedAdminReviewSubmissionAsync(submissionId, cancellationToken); EnsureExpectedVersion(s, expectedVersion); if (s.Status != SubmissionStatus.Approved) throw new InvalidOperationException("Only an approved submission can be reversed."); var contribution = await db.SubmissionContributions.SingleAsync(x => x.SubmissionId == submissionId && x.ReversedAt == null, cancellationToken); var now = time.GetUtcNow(); var before = Snapshot(s); s.Reverse(reason, now); contribution.Reverse(now); var after = Snapshot(s); db.ReviewActions.Add(Action(s.Id, ReviewActionType.ReverseApproval, adminAccountId, now, reason, before, after)); AddAudit(s, adminAccountId, adminName, "submission.reversed", reason.Trim(), before, after, now); await RebalanceLaterContributions(s, contribution, adminAccountId, adminName, now, cancellationToken); (await db.Events.SingleAsync(x => x.Id == s.EventId, cancellationToken)).AdvanceStatsEvidenceRevision(); await db.SaveChangesAsync(cancellationToken); var focusCleared = focus is not null && await focus.ClearCompletedTileFocusAsync(s.EventId, s.TeamId, s.BoardTileId, cancellationToken); if (focusCleared) await db.SaveChangesAsync(cancellationToken); await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, s.EventId, cancellationToken); await tx.CommitAsync(CancellationToken.None); await Notify(s.EventId, cancellationToken); await NotifyFocus(s.EventId, s.TeamId, focusCleared, cancellationToken);
     }
 
     public async Task EditMetadataAsync(EditSubmissionMetadataCommand command, CancellationToken cancellationToken = default)
@@ -272,8 +274,15 @@ public sealed class SubmissionService(
 
     private async Task<BingoEvent> LockedVisibleEventAsync(Guid eventId, CancellationToken cancellationToken)
     {
-        return await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(cancellationToken)
-            ?? throw new InvalidOperationException("Event not found.");
+        try
+        {
+            return await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(cancellationToken)
+                ?? throw new InvalidOperationException("Event not found.");
+        }
+        catch (Exception exception) when (exception is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure } or InvalidOperationException { InnerException: PostgresException { SqlState: PostgresErrorCodes.SerializationFailure } })
+        {
+            throw new InvalidOperationException("The published board changed while this submission was being prepared. Reload and try again.", exception);
+        }
     }
 
     private async Task<BingoEvent> LockedAdminReviewEventAsync(Guid eventId, CancellationToken cancellationToken)
@@ -397,6 +406,24 @@ public sealed class SubmissionService(
                       where membership.TeamId == teamId && membership.EventParticipantId == participantId && membership.LeftAt != null &&
                             participant.SignupStatus == Bingo.Domain.Signups.SignupStatus.Withdrawn && participant.WithdrawnAt != null && submittedAt.ToUniversalTime() <= participant.WithdrawnAt.Value
                       select participant.Id).AnyAsync(cancellationToken);
+    }
+
+    private async Task<bool> CompletesTileAtApprovalAsync(Submission submission, int amount, CancellationToken cancellationToken)
+    {
+        var publication = await db.PublishedObjectivesAsync(submission.EventId, cancellationToken);
+        if (publication is null) return false;
+        var requirementIds = publication.Requirements
+            .Where(x => x.BoardTileId == submission.BoardTileId)
+            .Select(x => new { x.Id, x.TargetContribution })
+            .ToList();
+        if (requirementIds.Count == 0) return false;
+        var totals = await db.SubmissionContributions.AsNoTracking()
+            .Where(x => x.TeamId == submission.TeamId && x.ReversedAt == null && requirementIds.Select(r => r.Id).Contains(x.RequirementId))
+            .GroupBy(x => x.RequirementId)
+            .Select(x => new { RequirementId = x.Key, Amount = x.Sum(item => item.Amount) })
+            .ToDictionaryAsync(x => x.RequirementId, x => x.Amount, cancellationToken);
+        totals[submission.RequirementId] = totals.GetValueOrDefault(submission.RequirementId) + amount;
+        return requirementIds.All(x => totals.GetValueOrDefault(x.Id) >= x.TargetContribution);
     }
     private IEvidenceAuthority Authority => authority ??= new EvidenceAuthority(db);
     private static void EnsureExpectedVersion(Submission submission, int? expectedVersion)

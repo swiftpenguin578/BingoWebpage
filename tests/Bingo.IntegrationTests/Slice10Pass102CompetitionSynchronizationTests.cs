@@ -14,7 +14,7 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifetime
+public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice10_pass102")
@@ -859,6 +859,8 @@ public sealed class Slice10Pass102CompetitionSynchronizationTests : IAsyncLifeti
 
     private sealed class FakeCompetitionClient(IReadOnlyList<WiseOldManCompetitionResult> results) : IWiseOldManCompetitionClient
     {
+        public Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, IReadOnlyCollection<string> metrics, CancellationToken cancellationToken = default) => GetCompetitionAsync(competitionId, cancellationToken);
+
         private int index;
         public int Calls => index;
         public Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, CancellationToken cancellationToken = default) => Task.FromResult(results[Math.Min(index++, results.Count - 1)]);

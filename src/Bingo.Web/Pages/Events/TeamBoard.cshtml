@@ -60,8 +60,6 @@
         }
     </header>
 
-    <div class="progress-update" data-progress-update hidden role="status"><span>@T["New progress is available."]</span> <button type="button" class="public-ui-action public-ui-action--text public-ui-action--forward" data-progress-refresh><span>@T["Refresh now"]</span></button></div>
-
     <div class="public-team-workspace">
         @if (Model.SelectedTile is { } selectedTile)
         {
@@ -296,7 +294,6 @@
     </div>
 </dialog>
 @section Scripts {
-    <partial name="_PublicProgressScripts" model="Model.Board.EventId" />
     <script src="~/js/captain-evidence-input.js" asp-append-version="true"></script>
     <script src="~/js/team-board-drawer.js" asp-append-version="true"></script>
     <script src="~/js/public-evidence.js" asp-append-version="true"></script>

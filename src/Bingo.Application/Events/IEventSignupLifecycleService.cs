@@ -3,7 +3,10 @@ using Bingo.Domain.Events;
 namespace Bingo.Application.Events;
 
 public enum SignupOpeningMode { OpenNow, ScheduleOpening, ScheduledExecution, Reopen }
-public sealed record ReadinessItem(string Code, string Description, string? Route = null);
+public sealed record ReadinessItem(string Code, string Description, string? Route = null)
+{
+    public IReadOnlyList<string> DescriptionArguments { get; init; } = [];
+}
 public sealed record SignupCloseDecision(bool IsValid, DateTimeOffset? ProposedClose)
 {
     public bool RequiresAcceptance => !IsValid && ProposedClose is not null;

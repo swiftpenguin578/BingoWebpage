@@ -8,6 +8,7 @@ public interface IWiseOldManPlayerLookup
 public interface IWiseOldManCompetitionClient
 {
     Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, CancellationToken cancellationToken = default);
+    Task<WiseOldManCompetitionResult> GetCompetitionAsync(long competitionId, IReadOnlyCollection<string> metrics, CancellationToken cancellationToken = default);
 }
 
 public interface IWiseOldManStatus
@@ -57,7 +58,11 @@ public sealed record WiseOldManCompetitionParticipant(
     string? Type,
     decimal? EhbDelta,
     decimal? StartEhb = null,
-    decimal? EndEhb = null);
+    decimal? EndEhb = null,
+    IReadOnlyDictionary<string, WiseOldManMetricDelta>? Metrics = null,
+    DateTimeOffset? UpstreamUpdatedAt = null);
+
+public sealed record WiseOldManMetricDelta(decimal? Start, decimal? End, decimal? Gained);
 
 public sealed record WiseOldManCompetition(
     long Id,

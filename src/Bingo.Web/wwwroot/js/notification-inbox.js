@@ -46,11 +46,14 @@
 
     if (!window.signalR) return;
     const connection = new signalR.HubConnectionBuilder().withUrl('/hubs/progress').withAutomaticReconnect().build();
+    window.bingoProgressConnection = connection;
     const watchCurrentEvents = async () => {
         const eventIds = (inbox.dataset.eventIds || '').split(',').filter(Boolean);
         await Promise.all(eventIds.map(eventId => connection.invoke('WatchEvent', eventId)));
     };
     connection.on('progressChanged', refresh);
+    connection.on('progressChanged', () => window.dispatchEvent(new CustomEvent('bingo-progress-changed')));
     connection.onreconnected(watchCurrentEvents);
-    connection.start().then(watchCurrentEvents).catch(() => {});
+    window.bingoProgressReady = connection.start();
+    window.bingoProgressReady.then(watchCurrentEvents).catch(() => {});
 })();

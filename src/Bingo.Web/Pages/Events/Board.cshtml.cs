@@ -1,3 +1,4 @@
+using Bingo.Application.Announcements;
 using Bingo.Application.Boards;
 using Bingo.Application.Evidence;
 using Bingo.Application.Integrations.WiseOldMan;
@@ -12,6 +13,7 @@ public sealed class BoardModel(
     IPublicBoardService boards,
     IEventCompetitionActivityProjection activity,
     IEvidenceAuthority evidenceAuthority,
+    IDropAnnouncementService dropAnnouncements,
     TimeProvider time) : PageModel
 {
     public const int DefaultRecentDropCount = 25;
@@ -28,6 +30,11 @@ public sealed class BoardModel(
     public string? DropSearch { get; private set; }
     public string? DropTeam { get; private set; }
     public string? SubmissionTeamSlug { get; private set; }
+    public DateTimeOffset RecentDropsReconcileSince { get; private set; }
+    public Guid? SubmissionId { get; private set; }
+    public PublicRecentDrop? SelectedDrop { get; private set; }
+    public IReadOnlySet<Guid> NewSubmissionIds { get; private set; } = new HashSet<Guid>();
+    public int NewDropCount { get; private set; }
 
     public static string FormatElapsed(DateTimeOffset approvedAt, DateTimeOffset now)
     {
@@ -65,8 +72,9 @@ public sealed class BoardModel(
 
     private static string JoinUnits(string first, string? second) => second is null ? first : $"{first} {second}";
 
-    public async Task<IActionResult> OnGetAsync(string slug, string? view, string? ranking, int? dropCount, string? dropSearch, string? dropTeam, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnGetAsync(string slug, string? view, string? ranking, int? dropCount, string? dropSearch, string? dropTeam, Guid? submissionId, CancellationToken cancellationToken)
     {
+        RecentDropsReconcileSince = time.GetUtcNow();
         var requestedDropCount = Math.Max(DefaultRecentDropCount, dropCount ?? DefaultRecentDropCount);
         DropSearch = string.IsNullOrWhiteSpace(dropSearch) ? null : dropSearch.Trim();
         DropTeam = string.IsNullOrWhiteSpace(dropTeam) ? null : dropTeam.Trim();
@@ -74,7 +82,18 @@ public sealed class BoardModel(
         if (board is null) return NotFound();
         Board = board;
         if (board.EventState == EventState.Cancelled) return Page();
+        SubmissionId = submissionId;
+        if (submissionId is Guid selectedSubmissionId)
+            SelectedDrop = await boards.GetRecentDropAsync(board.EventSlug, selectedSubmissionId, cancellationToken);
         var accountId = User.GetAccountId();
+        if (accountId is Guid currentAccountId)
+        {
+            var announcementSnapshot = await dropAnnouncements.GetAsync(currentAccountId, board.EventId, 1, 0, null, cancellationToken);
+            NewDropCount = announcementSnapshot?.NewCount ?? 0;
+            var loadedSubmissionIds = board.RecentDrops.Select(value => value.SubmissionId).ToArray();
+            if (loadedSubmissionIds.Length > 0)
+                NewSubmissionIds = (await dropAnnouncements.GetNewSubmissionIdsAsync(currentAccountId, board.EventId, loadedSubmissionIds, cancellationToken)).ToHashSet();
+        }
         if (accountId is Guid actorAccountId)
         {
             try

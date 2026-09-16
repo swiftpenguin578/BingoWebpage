@@ -1,0 +1,99 @@
+@using Bingo.Application.Stats
+@model Bingo.Web.Pages.Events.TileSidebarView
+@{
+    string Status(StatsLuckStatus status) => status switch
+    {
+        StatsLuckStatus.NoEligibleActivity => T["No eligible activity yet"],
+        StatsLuckStatus.WaitingForActivityUpdate => T["Waiting for activity update"],
+        StatsLuckStatus.Incomplete => T["Incomplete activity data"],
+        _ => T["Waiting for activity data"]
+    };
+    string Luck(StatsLuckResult result) => result.Percentage is { } percent ? percent.ToString("+0.#;-0.#;0") + "%" : "—";
+    string LuckDescription(StatsLuckResult result) => result.Percentage is null ? Status(result.Status)
+        : result.Estimated ? T["Estimated Luck"] : T["Luck"];
+    string LuckClass(StatsLuckResult result) => result.Percentage is not { } percent ? ""
+        : decimal.Round(percent, 1, MidpointRounding.AwayFromZero) < 0 ? "tile-kc-negative" : "public-ui-positive-delta--success";
+    string Count(StatsTileKc? metric) => metric?.Count is { } value ? value.ToString("+#,##0;-#,##0;0") : "—";
+    string CountDescription(StatsTileKc? metric) => metric is null ? Status(StatsLuckStatus.WaitingForActivityData)
+        : metric.Count is null ? Status(metric.Status)
+        : metric.Estimated ? T["Estimated KC"] : metric.ZeroRecordedApproximation ? T["Zero recorded activity is an approximation"] : T["KC"];
+}
+<section class="tile-context-sidebar__section tile-kc-section" data-tile-activity>
+    <h2 class="team-rail-heading">@T["KC & Luck"]</h2>
+    @if (Model.Tile.Activity is not { } activity)
+    {
+        <p class="team-rail-supporting">@T["Tile activity is unavailable for this event."]</p>
+    }
+    else if (!activity.HasDropOutcomes)
+    {
+        <p class="team-rail-supporting">@T["This objective has no eligible drop activity."]</p>
+    }
+    else
+    {
+        <p class="team-rail-supporting">@T["Full-event KC"] · @T["Drops credited to this tile"]</p>
+        @if (activity.Stale && (activity.FetchedAt ?? activity.CalculatedAt) is { } updatedAt)
+        {
+            var updated = DateTimePresentation.ToTimezone(updatedAt);
+            <p class="tile-kc-stale-notice">@T["Last available result"] · <time datetime="@(updatedAt.ToString("O"))">@updated.ToString("d MMM HH:mm")</time></p>
+        }
+        @foreach (var metric in activity.Team.Metrics.DefaultIfEmpty())
+        {
+            @if (activity.Team.Metrics.Count > 1)
+            {
+                <h3 class="team-rail-subheading tile-kc-metric-heading">@(metric?.Name)</h3>
+            }
+            <dl class="team-metric-list" aria-label="@T["Team KC"]">
+                <div class="team-metric-row">
+                    <dt>@T["Team total"]</dt>
+                    <dd class="team-metric-value @LuckClass(activity.Team.Result)" title="@LuckDescription(activity.Team.Result)" aria-label="@($"{LuckDescription(activity.Team.Result)}: {Luck(activity.Team.Result)}")">@Luck(activity.Team.Result)</dd>
+                    <dd class="team-metric-value" title="@CountDescription(metric)" aria-label="@($"{CountDescription(metric)}: {Count(metric)}")"><span class="@(metric?.Count is not null ? "public-ui-positive-delta--success" : "")">@Count(metric)</span></dd>
+                </div>
+            </dl>
+        }
+        @if (activity.Team.Result.Percentage is null)
+        {
+            <p class="team-rail-supporting tile-kc-status">@Status(activity.Team.Result.Status)</p>
+        }
+        @if (activity.Team.Result.Estimated)
+        {
+            <p class="team-rail-supporting tile-kc-status">@T["Estimated: unranked starting KC is treated as zero."]</p>
+        }
+        @if (activity.Team.Result.ZeroRecordedApproximation)
+        {
+            <p class="team-rail-supporting tile-kc-status">@T["Zero recorded activity is an approximation."]</p>
+        }
+        @if (activity.Team.Players.Any(player => player.Metrics.Any(metric => metric.Count is > 0)))
+        {
+            <details class="team-contributor-block">
+                <summary class="team-rail-subheading"><span>@T["Contributors"]</span><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></summary>
+                @for (var metricIndex = 0; metricIndex < Math.Max(1, activity.Team.Metrics.Count); metricIndex++)
+                {
+                    var contributors = activity.Team.Players.Where(player => player.Metrics.ElementAtOrDefault(metricIndex)?.Count is > 0).ToArray();
+                    if (contributors.Length == 0)
+                    {
+                        continue;
+                    }
+                    @if (activity.Team.Metrics.Count > 1)
+                    {
+                        <h3 class="team-rail-subheading tile-kc-metric-heading">@activity.Team.Metrics[metricIndex].Name</h3>
+                    }
+                    <ul class="team-contributor-list" aria-label="@T["Tile activity contributors"]">
+                        @foreach (var player in contributors)
+                        {
+                            var metric = player.Metrics.ElementAtOrDefault(metricIndex);
+                            <li>
+                                <span class="team-contributor-rank @LuckClass(player.Result)" title="@LuckDescription(player.Result)" aria-label="@($"{LuckDescription(player.Result)}: {Luck(player.Result)}")">@Luck(player.Result)</span>
+                                <span class="team-contributor-name" title="@player.Name">@player.Name</span>
+                                <strong class="team-contributor-value @(metric?.Count is not null ? "public-ui-positive-delta--success" : "")" title="@CountDescription(metric)" aria-label="@($"{CountDescription(metric)}: {Count(metric)}")">@Count(metric)</strong>
+                                @if (player.Result.Percentage is null)
+                                {
+                                    <small class="tile-kc-player-status">@Status(player.Result.Status)</small>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+            </details>
+        }
+    }
+</section>
