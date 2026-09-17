@@ -9,8 +9,10 @@ namespace Bingo.BrowserTests;
 
 public sealed class OsrsWikiImageCacheTests
 {
-    [Fact]
-    public async Task WikiImagesAreDownloadedOnceAndServedFromPersistentCache()
+    [Theory]
+    [InlineData("https://oldschool.runescape.wiki/images/Test_image.png?123")]
+    [InlineData("https://oldschool.runescape.wiki/Special:Redirect/file/Unsired_detail.png")]
+    public async Task WikiImagesPreferHttp2AndAreDownloadedOnceAndServedFromPersistentCache(string source)
     {
         var root = Path.Combine(Path.GetTempPath(), $"bingo-wiki-images-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
@@ -18,7 +20,6 @@ public sealed class OsrsWikiImageCacheTests
         {
             var handler = new CountingImageHandler();
             var cache = CreateCache(root, handler);
-            const string source = "https://oldschool.runescape.wiki/images/Test_image.png?123";
 
             var first = await cache.GetAsync(source);
             var second = await cache.GetAsync(source);
@@ -28,6 +29,8 @@ public sealed class OsrsWikiImageCacheTests
             Assert.True(File.Exists(first.Path));
             Assert.Equal([1, 2, 3, 4], await File.ReadAllBytesAsync(first.Path));
             Assert.Equal(1, handler.RequestCount);
+            Assert.Equal(System.Net.HttpVersion.Version20, handler.RequestVersion);
+            Assert.Equal(HttpVersionPolicy.RequestVersionOrLower, handler.RequestVersionPolicy);
             Assert.True(cache.IsCached(source));
 
             var restartedHandler = new CountingImageHandler();
@@ -297,12 +300,16 @@ public sealed class OsrsWikiImageCacheTests
     private sealed class CountingImageHandler : HttpMessageHandler
     {
         public int RequestCount { get; private set; }
+        public Version? RequestVersion { get; private set; }
+        public HttpVersionPolicy? RequestVersionPolicy { get; private set; }
         public System.Net.HttpStatusCode Status { get; set; } = System.Net.HttpStatusCode.OK;
         public int? RetryAfterSeconds { get; set; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestCount++;
+            RequestVersion = request.Version;
+            RequestVersionPolicy = request.VersionPolicy;
             var response = new HttpResponseMessage(Status)
             {
                 RequestMessage = request,
