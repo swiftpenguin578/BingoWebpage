@@ -25,6 +25,15 @@ status, commit and push once to the existing PR #11 under the user's ongoing
 publication authorization. The user monitors the resulting CI. No merge or
 deployment is authorized.
 
+The follow-up run `36058018874` stopped during setup because both new
+`actions/download-artifact` references used a shortened SHA. The bounded
+workflow correction uses the official full 40-hex
+`d3f86a106a0bac45b974a628896c90dbdf5c8093` pin in both Integration jobs; no
+test, production, matrix or publication behavior changed. The same Sol
+reviewer's named recheck passed. This correction is limited to the one
+authorized commit and push to the existing PR; no additional publication action
+is planned.
+
 ## Timestamp fixture correction and CI boundary — 2026-09-24
 
 PR #11 CI run `36031424920` passed formatting, build, Domain, Application and
