@@ -1,5 +1,30 @@
 # Current project status
 
+## Authorized: parallel Integration CI jobs — 2026-09-24
+
+The user approved a GitHub Actions matrix to address Integration runtime. Latest
+run `36043832227` on `ff1338b` passed formatting, build and the 493 non-Integration
+cases; Integration logged no assertion failures before the 45-minute timeout,
+but did not complete and is not a pass. The exact contribution of coverage and
+container setup is unmeasured; further timing comparisons are not required.
+
+Use ten parallel Integration groups, with deterministic discovery-based assignment
+and a check that every discovered case belongs to exactly one group. Keep other
+tests in a separate job, retain PostgreSQL isolation and coverage, and let all
+groups finish when one fails. Preserve the required overall CI result and require
+every group plus the other checks to pass before the existing main-only image
+publication. Do not change test behavior, production code, the production-promotion
+workflow, or the preview/database. No timeout-only workaround or container reuse
+redesign is part of this assignment.
+
+The existing Terra/medium orchestrator owns a Luna/max implementer and independent
+Sol/high review. Validate discovery coverage, no overlaps/empty selections, workflow
+failure propagation, relevant script behavior and a bounded executable shard check;
+do not repeat the complete local suite. After passing checks/review, consolidate
+status, commit and push once to the existing PR #11 under the user's ongoing
+publication authorization. The user monitors the resulting CI. No merge or
+deployment is authorized.
+
 ## Timestamp fixture correction and CI boundary — 2026-09-24
 
 PR #11 CI run `36031424920` passed formatting, build, Domain, Application and
