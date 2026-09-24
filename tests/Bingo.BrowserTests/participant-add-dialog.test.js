@@ -73,6 +73,8 @@ class Node {
     }
     const named = selector.match(/^([^[]*)\[name=['"]([^'"]+)['"]\]$/);
     if (named) return (!named[1] || this.matches(named[1])) && this.getAttribute("name") === named[2];
+    const nameSuffix = selector.match(/^([^[]*)\[name\$=['"]([^'"]+)['"]\]$/);
+    if (nameSuffix) return (!nameSuffix[1] || this.matches(nameSuffix[1])) && (this.getAttribute("name") || "").endsWith(nameSuffix[2]);
     const open = selector.endsWith("[open]");
     if (open) selector = selector.slice(0, -6);
     const id = selector.match(/^([^.#]+)?#([\w-]+)$/);
@@ -127,8 +129,8 @@ function parentPage() {
   return page;
 }
 
-function addEditor() {
-  const editor = new Node("section", { className: "admin-dialog-page participant-add-dialog-page event-overview-section" });
+function addEditor(confirmation = false, cancelled = false) {
+  const editor = new Node("section", { className: "admin-dialog-page participant-add-dialog-page event-overview-section", dataset: cancelled ? { womValidationCancelled: "true" } : {} });
   const close = new Node("button", { dataset: { participantAddClose: "" } });
   const discard = new Node("div", { dataset: { participantAddDiscard: "" } });
   discard.hidden = true;
@@ -138,11 +140,36 @@ function addEditor() {
   const feedback = new Node("p", { dataset: { participantAddFeedback: "" } });
   feedback.hidden = true;
   const form = new Form("form");
+  const hasSubmittedValues = confirmation || cancelled;
   form.action = "/Admin/Events/Participants/test?handler=CreateInternalParticipant";
-  form.entries = [["InternalParticipant.AccountAnswers[1].CharacterName", ""]];
+  form.entries = [
+    ["InternalParticipant.AccountAnswers[1].CharacterName", hasSubmittedValues ? "Outage Alice" : ""],
+    ["InternalParticipant.Answers[2]", hasSubmittedValues ? "Preserved answer" : ""],
+    ["InternalParticipant.WomValidationConfirmationToken", confirmation ? "confirmation-token" : ""]
+  ];
   const input = new Node("input");
   input.setAttribute("name", form.entries[0][0]);
-  form.append(input);
+  input.value = form.entries[0][1];
+  const answer = new Node("input");
+  answer.setAttribute("name", form.entries[1][0]);
+  answer.value = form.entries[1][1];
+  const token = new Node("input");
+  token.setAttribute("name", form.entries[2][0]);
+  token.value = form.entries[2][1];
+  const normalSubmit = new Node("button", { dataset: { womValidationNormalSubmit: "" } });
+  normalSubmit.hidden = confirmation;
+  form.append(input, answer, token, normalSubmit);
+  let confirmationPanel = null;
+  let cancel = null;
+  let confirm = null;
+  if (confirmation) {
+    confirmationPanel = new Node("div", { dataset: { womValidationConfirmation: "" }, textContent: "WOM unavailable for Outage Alice. Use the details shown above anyway?" });
+    cancel = new Node("button", { dataset: { womValidationCancel: "" } });
+    cancel.setAttribute("formaction", "/Admin/Events/Participants/test?handler=CancelWomValidation");
+    confirm = new Node("button");
+    confirmationPanel.append(cancel, confirm);
+    form.append(confirmationPanel);
+  }
   editor.append(close, discard, feedback, form);
   editor.form = form;
   editor.close = close;
@@ -150,6 +177,13 @@ function addEditor() {
   editor.keep = keep;
   editor.discardConfirm = discardConfirm;
   editor.feedback = feedback;
+  editor.normalSubmit = normalSubmit;
+  editor.confirmation = confirmationPanel;
+  editor.cancelConfirmation = cancel;
+  editor.confirmConfirmation = confirm;
+  editor.accountInput = input;
+  editor.answerInput = answer;
+  editor.tokenInput = token;
   return editor;
 }
 
@@ -168,6 +202,10 @@ class Parser {
     return {
       querySelector(selector) {
         if (value === "editor" && selector === ".participant-add-dialog-page") return addEditor();
+        if (value === "confirmation" && selector === ".participant-add-dialog-page") return addEditor(true);
+        if (value === "confirmation" && selector === "[data-wom-validation-confirmation]") return new Node("div", { dataset: { womValidationConfirmation: "" } });
+        if (value === "cancelled" && selector === ".participant-add-dialog-page") return addEditor(false, true);
+        if (value === "cancelled" && selector === "[data-wom-validation-cancelled]") return new Node("div", { dataset: { womValidationCancelled: "true" } });
         if (value === "success" && selector === ".event-participants-page") return parentPage();
         if (value === "success" && selector === "#app-notice-region") return notice("success", "Internal participant created.");
         if (value === "refresh-failed" && selector === "#app-notice-region") return notice("success", "Internal participant created.");
@@ -208,7 +246,12 @@ global.HTMLDialogElement = Dialog;
 global.DOMParser = Parser;
 global.CustomEvent = class { constructor(type, options) { this.type = type; Object.assign(this, options); } };
 global.FormData = class {
-  constructor(form) { this.items = (form?.entries || []).map(entry => [...entry]); }
+  constructor(form) {
+    this.items = (form?.entries || []).map(([name, value]) => {
+      const input = form.querySelectorAll("input").find(item => item.getAttribute("name") === name);
+      return [name, input?.value ?? value];
+    });
+  }
   append(name, value) { this.items.push([name, value]); }
   [Symbol.iterator]() { return this.items[Symbol.iterator](); }
 };
@@ -230,9 +273,9 @@ global.window = {
   dispatchEvent(event) { windowListeners[event.type]?.forEach(listener => listener(event)); },
   scrollTo(value) { this.scrollX = value.left; this.scrollY = value.top; },
   fetch: async (url, options) => {
-    requested.push({ url: String(url), method: options?.method || "GET" });
+    requested.push({ url: String(url), method: options?.method || "GET", body: options?.body });
     if (options?.method === "POST" && outcome === "pending") return new Promise(resolve => { pendingResolve = resolve; });
-    if (options?.method === "POST") return { ok: true, url: initialUrl + "#players", redirected: true, headers: { get: () => null }, text: async () => outcome };
+    if (options?.method === "POST") return { ok: true, url: window.location.href, redirected: false, headers: { get: () => null }, text: async () => outcome };
     return { ok: true, url: String(url), headers: { get: () => null }, text: async () => "editor" };
   }
 };
@@ -307,6 +350,7 @@ const openAdd = async () => {
   const keep = editor.querySelector("[data-participant-add-keep]");
   const discardConfirm = editor.querySelector("[data-participant-add-discard-confirm]");
   editorForm.entries[0][1] = "typed character";
+  editorForm.querySelectorAll("input")[0].value = "typed character";
   close.dispatch("click");
   assert.equal(discard.hidden, false, "Dirty close opens the discard choice");
   keep.dispatch("click");
@@ -322,6 +366,7 @@ const openAdd = async () => {
   const failedEditor = dialog.querySelector(".participant-add-dialog-page");
   const failedForm = failedEditor.querySelector("form");
   failedForm.entries[0][1] = "keep on failure";
+  failedForm.querySelectorAll("input")[0].value = "keep on failure";
   assert.ok(dialog.open, "reopened Add participant modal is open");
   outcome = "error";
   failedForm.dispatch("submit", { submitter: null });
@@ -330,20 +375,81 @@ const openAdd = async () => {
   assert.equal(failedForm.entries[0][1], "keep on failure", "Failed creation retains typed input");
   assert.equal(failedEditor.querySelector("[data-participant-add-feedback]").textContent, "Capacity is full.", "Failed creation shows the rendered server message");
 
-  outcome = "pending";
+  outcome = "confirmation";
+  failedForm.entries = [
+    ["InternalParticipant.AccountAnswers[1].CharacterName", "Outage Alice"],
+    ["InternalParticipant.Answers[2]", "Preserved answer"],
+    ["InternalParticipant.WomValidationConfirmationToken", ""]
+  ];
+  failedForm.querySelectorAll("input")[0].value = "Outage Alice";
+  failedForm.querySelectorAll("input")[1].value = "Preserved answer";
   failedForm.dispatch("submit", { submitter: null });
+  await wait();
+  let confirmationEditor = dialog.querySelector(".participant-add-dialog-page");
+  let confirmationForm = confirmationEditor.querySelector("form");
+  let confirmationPanel = confirmationEditor.querySelector("[data-wom-validation-confirmation]");
+  let accountInput = confirmationForm.querySelector('input[name="InternalParticipant.AccountAnswers[1].CharacterName"]');
+  let answerInput = confirmationForm.querySelector('input[name="InternalParticipant.Answers[2]"]');
+  let tokenInput = confirmationForm.querySelector('input[name$=".WomValidationConfirmationToken"]');
+  let normalSubmit = confirmationForm.querySelector("[data-wom-validation-normal-submit]");
+  assert.equal(accountInput.value, "Outage Alice", "Operational confirmation retains the submitted account");
+  assert.equal(answerInput.value, "Preserved answer", "Operational confirmation retains the submitted answer");
+  assert.ok(confirmationPanel, "Operational failure displays an explicit confirmation beside the submitted form");
+  assert.equal(tokenInput.value, "confirmation-token", "Operational confirmation returns its token to the same form");
+  const cancelButton = confirmationPanel.querySelector("[data-wom-validation-cancel]");
+  outcome = "cancelled";
+  confirmationForm.dispatch("submit", { submitter: cancelButton });
+  await wait();
+  let cancelledEditor = dialog.querySelector(".participant-add-dialog-page");
+  confirmationForm = cancelledEditor.querySelector("form");
+  accountInput = confirmationForm.querySelector('input[name="InternalParticipant.AccountAnswers[1].CharacterName"]');
+  answerInput = confirmationForm.querySelector('input[name="InternalParticipant.Answers[2]"]');
+  tokenInput = confirmationForm.querySelector('input[name$=".WomValidationConfirmationToken"]');
+  normalSubmit = confirmationForm.querySelector("[data-wom-validation-normal-submit]");
+  assert.equal(requested.filter(item => item.method === "POST").at(-1).url, "/Admin/Events/Participants/test?handler=CancelWomValidation", "Cancel uses its normal server form action");
+  assert.equal(requested.filter(item => item.method === "POST").at(-1).body.items.find(([name]) => name.endsWith(".WomValidationConfirmationToken"))[1], "confirmation-token", "the cancel handler receives the one-use token to clear server-side");
+  assert.equal(cancelledEditor.dataset.womValidationCancelled, "true", "The server returns a cancellation marker for the dialog enhancement");
+  assert.equal(cancelledEditor.querySelector("[data-wom-validation-confirmation]"), null, "The server dismisses the outage confirmation");
+  assert.equal(tokenInput.value, "", "Cancel discards the one-use confirmation token");
+  assert.equal(normalSubmit.hidden, false, "Cancel restores the ordinary submit action");
+  assert.equal(accountInput.value, "Outage Alice", "Cancel preserves the submitted account");
+  assert.equal(answerInput.value, "Preserved answer", "Cancel preserves the submitted answer");
+
+  outcome = "confirmation";
+  confirmationForm.dispatch("submit", { submitter: normalSubmit });
+  await wait();
+  confirmationEditor = dialog.querySelector(".participant-add-dialog-page");
+  confirmationForm = confirmationEditor.querySelector("form");
+  confirmationPanel = confirmationEditor.querySelector("[data-wom-validation-confirmation]");
+  const postCountBeforeConfirmation = requested.filter(item => item.method === "POST").length;
+  outcome = "success";
+  confirmationForm.dispatch("submit", { submitter: confirmationPanel.querySelectorAll("button")[1] });
+  await wait();
+  const confirmedPost = requested.filter(item => item.method === "POST").at(-1);
+  assert.equal(requested.filter(item => item.method === "POST").length, postCountBeforeConfirmation + 1, "Explicit confirmation sends one follow-up request");
+  assert.equal(confirmedPost.body.items.find(([name]) => name === "InternalParticipant.AccountAnswers[1].CharacterName")[1], "Outage Alice");
+  assert.equal(confirmedPost.body.items.find(([name]) => name === "InternalParticipant.Answers[2]")[1], "Preserved answer");
+  assert.equal(confirmedPost.body.items.find(([name]) => name === "InternalParticipant.WomValidationConfirmationToken")[1], "confirmation-token");
+  assert.equal(document.querySelector("#participant-add-dialog"), null, "Confirmed participant creation returns to the Participants workspace");
+
+  outcome = "pending";
+  dialog = await openAdd();
+  const pendingEditor = dialog.querySelector(".participant-add-dialog-page");
+  const pendingForm = pendingEditor.querySelector("form");
+  const postsBeforePending = requested.filter(item => item.method === "POST").length;
+  pendingForm.dispatch("submit", { submitter: null });
   await wait(2);
-  assert.equal(requested.filter(item => item.method === "POST").length, 2, "Pending creation sends one request");
+  assert.equal(requested.filter(item => item.method === "POST").length, postsBeforePending + 1, "Pending creation sends one request");
   const cancel = dialog.dispatch("cancel");
   assert.equal(cancel.defaultPrevented, true, "Pending creation blocks Escape dismissal");
-  pendingResolve({ ok: true, url: initialUrl + "#players", redirected: true, headers: { get: () => null }, text: async () => "error" });
+  pendingResolve({ ok: true, url: window.location.href, redirected: false, headers: { get: () => null }, text: async () => "error" });
   await wait();
   assert.equal(dialog.open, true, "Pending failure leaves the modal open for retry");
 
   outcome = "success";
-  failedForm.entries[0][1] = "";
+  pendingForm.entries[0][1] = "";
   window.scrollY = 515;
-  failedForm.dispatch("submit", { submitter: null });
+  pendingForm.dispatch("submit", { submitter: null });
   await wait();
   assert.equal(document.querySelector("#participant-add-dialog"), null, "Successful creation closes the modal");
   assert.doesNotMatch(window.location.href, /addParticipant=1/, "Successful creation returns to the Participants route");
@@ -358,6 +464,7 @@ const openAdd = async () => {
     const completedEditor = dialog.querySelector(".participant-add-dialog-page");
     const completedForm = completedEditor.querySelector("form");
     completedForm.entries[0][1] = "created once";
+    completedForm.querySelectorAll("input")[0].value = "created once";
     const postsBefore = requested.filter(item => item.method === "POST").length;
     outcome = "refresh-failed";
     completedForm.dispatch("submit", { submitter: null });

@@ -1,12 +1,93 @@
 # Manual Test Checklist
 
-**Status:** Integrated candidate independently passed review; prepared walkthrough is ready. Manual acceptance remains pending. Older slice checklists remain separate history.
+**Status:** Current September follow-up, managed WOM functionality and boss leaderboards accepted by the user on 2026-09-23, with the explicit waivers/deferrals below. Older slice checklists remain separate history.
 
-**Last updated:** 2026-09-14
+**Last updated:** 2026-09-23
 
 **Purpose:** Preserve the user's manual acceptance checks outside chat without adding testing controls to the application.
 
 **Authority boundary:** This file records manual verification journeys, observed results, and accepted evidence only. Product behavior and scope, workflow contracts, data invariants, technical architecture, and UI rules/approval are owned by the active authority documents linked from `README.md`; this checklist does not redefine them.
+
+## Current walkthrough disposition — user acceptance, 2026-09-23
+
+The user said “everything approved” after the final boss-KC formatting and actual
+Board-family Stats masthead corrections. This closes the current manual acceptance
+round; page-specific visual approval is owned by `UI_PAGE_MATRIX.md`. The earlier
+pending/blocking wording in this document is historical where superseded here.
+
+- Real managed WOM creation and pre-Live deletion were manually exercised and
+  passed. The failed-create retry correction is running; its focused tests and
+  independent review passed. WOM controls' visual polish and the broader Admin
+  UI/backend overhaul remain explicitly deferred, not newly approved designs.
+- Boss leaderboards were manually exercised with real competition-period KC for
+  92/93 imported accounts. One unresolved historical account identity remains a
+  fixture coverage limitation, not a blocking product defect or fabricated zero.
+  Final `-1` → em dash, whole-number boss KC averages and actual shared Board
+  masthead on Stats received the user's final approval. Independent UI review of
+  these final display corrections was explicitly waived; focused checks/builds
+  passed, and no independent review PASS is claimed for them.
+- Checks 2.6, 3.8, 4.6 and 8.2 were explicitly approved. Approval does not claim
+  that each underlying scenario was manually executed.
+- Section 9's completion-time/finalization manual exercise was explicitly waived,
+  relying on existing automated evidence.
+- 10.2 has no actionable change through the current UI. If the Admin overhaul
+  exposes WOM-relevant edits, synchronization must be tested then.
+- Empty-team rejection and post-Live deletion/participant locks (10.3/10.4)
+  rely on existing automated checks; they are not outstanding manual blockers.
+- Real update-all and scheduled update/fetch verification (10.5/10.6) is deferred
+  to the live event by the user, relying on existing automated evidence meanwhile.
+  The one-off archived metrics backfill is not proof of the scheduled pipeline.
+- NEW acknowledgement passed with a newly submitted drop; seeded-data behavior
+  was not established as a product defect. Admin/SuperAdmin event-page-only banner
+  behavior was explicitly accepted.
+
+No commit, push, deployment, production data change or further implementation is
+implied by this acceptance.
+
+## Admin-managed WOM competition — 2026-09-22 (technical checks pending visual acceptance)
+
+The isolated candidate adds a managed-only Create/preview/update/delete journey to
+Admin Manage. Automated checks cover the complete pre-Live Playing roster,
+provider-normalized limits, protected receipt state, UTC payloads, and source-bound
+forms. Manual acceptance remains pending: review the English and Danish Manage
+sections for finalized, empty-team, pending/unknown, Live roster-lock, and
+pre-Live confirmed-delete states. Do not use a real WOM mutation or a user-owned
+database during this walkthrough.
+
+## Boss KC leaderboards — 2026-09-17 (technical review PASS; acceptance pending)
+
+Scope: PRODUCT_REQUIREMENTS.md section 16.1 and DELIVERY_PLAN.md section 19.
+Automated isolated fixture evidence is in
+`/private/tmp/bingo-boss-leaderboards-20260917/remediation-evidence.md`; final independent
+review PASS is in the same directory's `review.md`. No manual checks below are claimed
+executed. The user has build/run instructions for the existing local HTTPS7131 preview;
+its current restart/build state and visual acceptance are unverified. Do not reset data.
+
+- Enter Leaderboards through Board navigation. Default EHB & Drop EHB retains its
+  three existing views. Verify only MVP cells and the approved Danish Rank heading
+  changed in their tables. Rank reads Rank in both English and Danish in all views.
+- Open METRIC using the reused header dropdown. Select each of two relevant bosses;
+  Teams/Players and reload/back navigation remain coherent. Check an unlinked event.
+- Compare boss tables directly against existing table styling, sorting and expansion.
+  Check contributor-only rows/count/average, multi-account totals, a zero-contribution
+  team and one/tied/no MVP examples. No gain-unit suffixes; keep Start/End labels.
+- Inspect known stale/estimated figures and missing data: compatible values stay visible
+  without freshness/update status text; unknown per-account endpoints remain dashes.
+- Click a player's coral Drops number: its count is player-specific, while the existing
+  Drops destination searches that boss and selects the whole team, intentionally.
+- Check selector position with standings expanded/collapsed and at narrow widths/long
+  labels. Stack only when needed, with Metric ABOVE tabs and both left-aligned above
+  the divider. Exercise outside/repeated-trigger closing, Escape, option labels without
+  METRIC:, keyboard selection and team disclosure. Metric changes stay in place without
+  page reload/scroll jump; verify Back/Forward, repeated selection and usable failure
+  recovery. Check existing green and + on gains/MVP, arrow-free coral Drops count and
+  uniformly muted-blue dark headers. Check the light-mode METRIC trigger is ink normally
+  and blue when open, hovered or keyboard-focused. In Danish, boss Teams/Players headings read
+  Opnået/Start/Slut. Nested EHB headings omit EHB wording; Drop EHB headings are
+  unchanged. Record actual user acceptance.
+
+Objective-breakdown wording and tile-sidebar spacing remain deferred until this slice
+is approved. Existing unrelated page approvals remain valid.
 
 ## Ticket acceptance walkthrough — 2026-09-14
 
@@ -922,6 +1003,25 @@ Required routes: `/Admin/Events`, `/Admin/Events/Manage/{eventId}`, `/Admin/Even
 This checklist is the compact Slice 9 manual handoff. S9-01 through S9-07 passed; S9-05 preserved placements, metrics, and Version 1 history after unchanged TEST 84 re-finalization. S9-06 accepted the owner-rendered archived evidence link, current raw-image display, and unrelated/anonymous privacy boundaries; viewer presentation is deferred to the UI overhaul. Consolidated Slice 9 manual acceptance and final automated verification are approved; Slice 10 was not started.
 
 ## Slice 10 — Wise Old Man integration
+
+### Current SEP-02 scheduling authority — fixed hourly slots (2026-09-22)
+
+The current scheduling correction supersedes only the cadence and freshness
+claims in the historical S10-04 record below; that older manual evidence is
+retained unchanged as superseded history. For a retained actual Live start at
+18:00 UTC, the normal slots are 19:00, 20:00, 21:00, and every hour thereafter.
+There is no normal fetch solely because the event entered Live. A late fetch,
+retry, manual refresh, urgent assignment refresh, cooldown, restart, or resume
+does not move those slots; a downtime recovery performs at most one current due
+refresh before selecting the next future slot. A Live record without
+`ActualStartedAt` remains explicitly unscheduled. Compatible cached activity
+remains visible after one hour as stale-compatible data, without a public
+freshness/status banner.
+
+Focused automated evidence covers fake-time slot/retry/UTC-DST/resume/downtime,
+PostgreSQL lease/publication and stale-compatible projection behavior. No real
+Wise Old Man request is permitted. Manual visual acceptance of this correction
+remains separate from those technical checks.
 
 Reset Development data after applying migrations. The reset is idempotent and makes no Wise Old Man request:
 

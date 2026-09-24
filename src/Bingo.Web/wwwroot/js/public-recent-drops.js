@@ -16,10 +16,10 @@
     const eventId = root.querySelector("[data-progress-event]")?.dataset.progressEvent || documentObject.querySelector?.("[data-progress-event]")?.dataset.progressEvent;
     const unit = (value, singular) => `${value} ${value === 1 ? singular : `${singular}s`}`;
     const joinUnits = (first, second) => second ? `${first} ${second}` : first;
-    const formatElapsed = approvedAt => {
-      const approvedTime = Date.parse(approvedAt);
-      if (!Number.isFinite(approvedTime)) return justNowLabel;
-      const elapsed = Math.max(0, Date.now() - approvedTime);
+    const formatElapsed = submittedAt => {
+      const submittedTime = Date.parse(submittedAt);
+      if (!Number.isFinite(submittedTime)) return justNowLabel;
+      const elapsed = Math.max(0, Date.now() - submittedTime);
       const totalMinutes = Math.floor(elapsed / 60000);
       if (totalMinutes === 0) return justNowLabel;
       if (totalMinutes < 60) return `${totalMinutes} min ago`;
@@ -43,8 +43,6 @@
     let pending = false;
     let livePending = false;
     let liveQueued = false;
-    let liveRegion;
-    let liveBoundary;
     let debounceTimer;
     let queuedFilterTarget;
     let newRowsRevision = 0;
@@ -99,6 +97,9 @@
 
         const replacement = documentObject.importNode(nextRegion, true);
         currentRegion.replaceWith(replacement);
+        const nextDivider = parsed.querySelector("[data-public-recent-drops-first-divider]");
+        const currentDivider = root.querySelector("[data-public-recent-drops-first-divider]");
+        if (nextDivider && currentDivider) currentDivider.replaceWith(documentObject.importNode(nextDivider, true));
         const nextResult = parsed.querySelector("[data-public-recent-drops-result]");
         const result = root.querySelector("[data-public-recent-drops-result]");
         if (nextResult && result) result.textContent = nextResult.textContent;
@@ -150,6 +151,90 @@
         } catch { return; }
       }
     };
+    const groupKeyFor = submittedAt => {
+      const submittedTime = Date.parse(submittedAt || "");
+      if (!Number.isFinite(submittedTime)) return "older";
+      const elapsed = Date.now() - submittedTime;
+      if (elapsed <= 60 * 60 * 1000) return "last-hour";
+      if (elapsed <= 24 * 60 * 60 * 1000) return "last-24-hours";
+      return "older";
+    };
+    const requestedWindowSize = () => {
+      const parsed = Number.parseInt(new URL(windowObject.location.href).searchParams.get("dropCount") || "", 10);
+      return Number.isSafeInteger(parsed) && parsed > 0 ? Math.max(25, parsed) : 25;
+    };
+    const renderLiveFeed = (currentRegion, cards) => {
+      const groups = [
+        { key: "last-hour", label: currentRegion.dataset.lastHourLabel || "Last hour", cards: [] },
+        { key: "last-24-hours", label: currentRegion.dataset.last24HoursLabel || "Last 24 hours", cards: [] },
+        { key: "older", label: currentRegion.dataset.olderDropsLabel || "Older drops", cards: [] }
+      ];
+      cards.forEach(card => groups.find(group => group.key === groupKeyFor(card.dataset.publicRecentDropSubmittedAt))?.cards.push(card));
+      const visibleGroups = groups.filter(group => group.cards.length > 0);
+      let feed = currentRegion.querySelector(".public-ui-recent-drop-feed");
+      const firstDivider = root.querySelector("[data-public-recent-drops-first-divider]");
+      if (visibleGroups.length === 0) {
+        feed?.remove();
+        if (firstDivider) {
+          firstDivider.id = "live-recent-drops-empty-heading";
+          firstDivider.dataset.publicRecentDropsGroupHeading = "";
+          const label = firstDivider.querySelector("span");
+          if (label) label.textContent = currentRegion.dataset.dropsLabel || "Drops";
+        }
+        return;
+      }
+      currentRegion.querySelector(".public-feature-empty")?.remove();
+      if (!feed) {
+        feed = documentObject.createElement("div");
+        feed.className = "public-ui-recent-drop-feed";
+        currentRegion.prepend(feed);
+      }
+      if (!firstDivider) return;
+
+      const existingSections = new Map([...feed.querySelectorAll("[data-public-recent-drop-group]")]
+        .map(section => [section.dataset.publicRecentDropGroup, section]));
+      const orderedSections = [];
+      visibleGroups.forEach((group, index) => {
+        group.cards.sort((left, right) => {
+          const leftTime = Date.parse(left.dataset.publicRecentDropSubmittedAt || "");
+          const rightTime = Date.parse(right.dataset.publicRecentDropSubmittedAt || "");
+          return rightTime - leftTime || (right.dataset.publicRecentDropId || "").localeCompare(left.dataset.publicRecentDropId || "");
+        });
+        const section = existingSections.get(group.key) || documentObject.createElement("section");
+        section.className = "public-ui-recent-drop-group";
+        section.dataset.publicRecentDropGroup = group.key;
+        const grid = section.querySelector(".public-ui-recent-drop-grid") || documentObject.createElement("div");
+        grid.className = "public-ui-recent-drop-grid";
+        grid.replaceChildren(...group.cards);
+        if (index === 0) {
+          const oldHeading = section.querySelector("[data-public-recent-drops-group-heading]");
+          oldHeading?.remove();
+          firstDivider.id = `live-recent-drops-${group.key}-heading`;
+          firstDivider.dataset.publicRecentDropsGroupHeading = group.key;
+          const label = firstDivider.querySelector("span");
+          if (label) label.textContent = group.label;
+          section.setAttribute("aria-labelledby", firstDivider.id);
+          section.replaceChildren(grid);
+        } else {
+          let heading = section.querySelector("[data-public-recent-drops-group-heading]");
+          if (!heading) {
+            heading = documentObject.createElement("h3");
+            heading.className = "public-ui-recent-drop-divider";
+            heading.dataset.publicRecentDropsGroupHeading = group.key;
+            const label = documentObject.createElement("span");
+            heading.append(label);
+          }
+          heading.id = `live-recent-drops-${group.key}-heading`;
+          heading.dataset.publicRecentDropsGroupHeading = group.key;
+          const label = heading.querySelector("span");
+          if (label) label.textContent = group.label;
+          section.setAttribute("aria-labelledby", heading.id);
+          section.replaceChildren(heading, grid);
+        }
+        orderedSections.push(section);
+      });
+      feed.replaceChildren(...orderedSections);
+    };
     const reconcileLive = async () => {
       if (!eventId || new URL(windowObject.location.href).searchParams.get("view") !== "drops") return;
       if (pending) { liveQueued = true; return; }
@@ -157,40 +242,44 @@
       liveQueued = false;
       const currentRegion = root.querySelector("[data-public-recent-drops]");
       if (!currentRegion) return;
-      let feed = currentRegion.querySelector(".public-ui-recent-drop-feed");
       const existingCards = [...currentRegion.querySelectorAll("[data-public-recent-drop-id]")];
       const existingIds = new Set(existingCards.map(card => card.dataset.publicRecentDropId));
-      if (liveRegion !== currentRegion) {
-        liveRegion = currentRegion;
-        const latestLoaded = existingCards.reduce((latest, card) => {
-          const approvedAt = Date.parse(card.dataset.publicRecentDropApprovedAt || "");
-          const submissionId = card.dataset.publicRecentDropId || "";
-          if (!Number.isFinite(approvedAt) || !latest || approvedAt > latest.approvedAt || (approvedAt === latest.approvedAt && submissionId > latest.submissionId)) {
-            return Number.isFinite(approvedAt) ? { approvedAt, submissionId } : latest;
-          }
-          return latest;
-        }, null);
-        const renderedAt = Date.parse(currentRegion.dataset.publicRecentDropsSince || "");
-        liveBoundary = latestLoaded || { approvedAt: Number.isFinite(renderedAt) ? renderedAt : 0, submissionId: "" };
-      }
       const target = new URL(`/api/public/events/${encodeURIComponent(windowObject.location.pathname.split("/")[2] || "")}/recent-drops`, windowObject.location.href);
-      target.searchParams.set("limit", "100");
       if (search?.value.trim()) target.searchParams.set("dropSearch", search.value.trim());
       if (team?.value) target.searchParams.set("dropTeam", team.value);
       livePending = true;
       try {
+        const windowSize = requestedWindowSize();
         const loadedIds = [...existingIds];
-        const batches = [];
-        for (let index = 0; index < loadedIds.length; index += 100) batches.push(loadedIds.slice(index, index + 100));
-        if (!batches.length) batches.push([]);
+        const loadedBatches = [];
+        for (let index = 0; index < loadedIds.length; index += 100) loadedBatches.push(loadedIds.slice(index, index + 100));
+        if (!loadedBatches.length) loadedBatches.push([]);
         const invalidIds = new Set();
-        let payload;
-        for (const batch of batches) {
+        let payload = { drops: [] };
+        for (let offset = 0; offset < windowSize; offset += 100) {
+          target.searchParams.set("offset", String(offset));
+          target.searchParams.set("limit", String(Math.min(100, windowSize - offset)));
+          target.searchParams.set("loadedSubmissionIds", offset === 0 ? loadedBatches[0].join(",") : "");
+          const response = await windowObject.fetch(target, { credentials: "same-origin", headers: { Accept: "application/json" } });
+          if (!response.ok) return;
+          const result = await response.json();
+          if (offset === 0) {
+            payload = result;
+            if (Array.isArray(result.validSubmissionIds)) {
+              const validIds = new Set(result.validSubmissionIds);
+              loadedBatches[0].forEach(id => { if (!validIds.has(id)) invalidIds.add(id); });
+            }
+          } else if (Array.isArray(result.drops)) {
+            payload.drops.push(...result.drops);
+          }
+        }
+        for (const batch of loadedBatches.slice(1)) {
+          target.searchParams.set("offset", "0");
+          target.searchParams.set("limit", "1");
           target.searchParams.set("loadedSubmissionIds", batch.join(","));
           const response = await windowObject.fetch(target, { credentials: "same-origin", headers: { Accept: "application/json" } });
           if (!response.ok) return;
           const result = await response.json();
-          payload ??= result;
           if (Array.isArray(result.validSubmissionIds)) {
             const validIds = new Set(result.validSubmissionIds);
             batch.forEach(id => { if (!validIds.has(id)) invalidIds.add(id); });
@@ -203,23 +292,18 @@
         const scrollX = windowObject.scrollX;
         const scrollY = windowObject.scrollY;
         existingCards.forEach(card => { if (invalidIds.has(card.dataset.publicRecentDropId)) card.remove(); });
+        const liveSince = Date.parse(currentRegion.dataset.publicRecentDropsSince || "");
         const incoming = (payload.drops || []).filter(drop => {
           if (existingIds.has(drop.submissionId) || invalidIds.has(drop.submissionId)) return false;
-          const approvedAt = Date.parse(drop.approvedAt);
-          return Number.isFinite(approvedAt) && (approvedAt > liveBoundary.approvedAt || (approvedAt === liveBoundary.approvedAt && drop.submissionId > liveBoundary.submissionId));
+          const reviewedAt = Date.parse(drop.reviewedAt || "");
+          return Number.isFinite(liveSince) && Number.isFinite(reviewedAt) && reviewedAt >= liveSince;
         });
-        if (!feed && incoming.length) {
-          currentRegion.querySelector(".public-feature-empty")?.remove();
-          feed = documentObject.createElement("div"); feed.className = "public-ui-recent-drop-feed";
-          const grid = documentObject.createElement("div"); grid.className = "public-ui-recent-drop-grid";
-          feed.append(grid); currentRegion.prepend(feed);
-        }
-        const firstGrid = feed?.querySelector(".public-ui-recent-drop-grid");
-        incoming.reverse().forEach(drop => {
+        const incomingCards = incoming.map(drop => {
           const article = documentObject.createElement("article");
           article.className = "public-ui-surface public-ui-surface--charcoal public-ui-recent-drop-card";
           article.dataset.publicRecentDropId = drop.submissionId;
-          article.dataset.publicRecentDropApprovedAt = drop.approvedAt;
+          article.dataset.publicRecentDropSubmittedAt = drop.submittedAt;
+          article.dataset.publicRecentDropReviewedAt = drop.reviewedAt;
           const title = drop.dropName || drop.tileName;
           const heading = drop.bossName ? `${title} · ${drop.bossName}` : title;
           const thumbnail = documentObject.createElement(drop.evidenceAssetId ? "a" : "div");
@@ -239,9 +323,17 @@
           const headingNode = documentObject.createElement("strong"); headingNode.className = "public-ui-component-title public-ui-recent-drop-title"; headingNode.textContent = title;
           const context = documentObject.createElement("span"); context.className = "public-ui-supporting-text public-ui-recent-drop-activity"; context.textContent = drop.bossName || "";
           const metadata = documentObject.createElement("div"); metadata.className = "public-ui-recent-drop-metadata";
-          const player = documentObject.createElement("span"); player.className = "public-ui-supporting-text public-ui-recent-drop-player"; player.textContent = `${drop.playerName || participantLabel} · ${formatElapsed(drop.approvedAt)}`;
-          metadata.append(player); content.append(headingNode, context, metadata); article.append(thumbnail, content); firstGrid?.prepend(article);
+          const player = documentObject.createElement("span"); player.className = "public-ui-supporting-text public-ui-recent-drop-player"; player.textContent = `${drop.playerName || participantLabel} · ${formatElapsed(drop.submittedAt)}`;
+          metadata.append(player); content.append(headingNode, context, metadata); article.append(thumbnail, content); return article;
         });
+        const visibleCards = existingCards.filter(card => !invalidIds.has(card.dataset.publicRecentDropId)).concat(incomingCards)
+          .sort((left, right) => {
+            const leftTime = Date.parse(left.dataset.publicRecentDropSubmittedAt || "");
+            const rightTime = Date.parse(right.dataset.publicRecentDropSubmittedAt || "");
+            return rightTime - leftTime || (right.dataset.publicRecentDropId || "").localeCompare(left.dataset.publicRecentDropId || "");
+          })
+          .slice(0, windowSize);
+        renderLiveFeed(currentRegion, visibleCards);
         windowObject.scrollTo?.(scrollX, scrollY); windowObject.requestAnimationFrame?.(() => windowObject.scrollTo?.(scrollX, scrollY));
         await reconcileNewRows([...currentRegion.querySelectorAll("[data-public-recent-drop-id]")].map(card => card.dataset.publicRecentDropId));
       } catch { }

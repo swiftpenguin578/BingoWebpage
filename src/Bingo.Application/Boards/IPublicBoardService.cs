@@ -11,7 +11,7 @@ public interface IPublicBoardService
         => GetEventBoardAsync(eventSlug, recentDropCount, cancellationToken);
     Task<PublicTileDetails?> GetTileAsync(string eventSlug, string teamSlug, Guid tileId, CancellationToken cancellationToken = default);
     Task<PublicRecentDrop?> GetRecentDropAsync(string eventSlug, Guid submissionId, CancellationToken cancellationToken = default) => Task.FromResult<PublicRecentDrop?>(null);
-    Task<PublicRecentDropFeed?> GetRecentDropsAsync(string eventSlug, int limit = 25, string? dropSearch = null, string? dropTeam = null, IReadOnlyCollection<Guid>? loadedSubmissionIds = null, CancellationToken cancellationToken = default) => Task.FromResult<PublicRecentDropFeed?>(null);
+    Task<PublicRecentDropFeed?> GetRecentDropsAsync(string eventSlug, int limit = 25, string? dropSearch = null, string? dropTeam = null, IReadOnlyCollection<Guid>? loadedSubmissionIds = null, int offset = 0, CancellationToken cancellationToken = default) => Task.FromResult<PublicRecentDropFeed?>(null);
 }
 
 public sealed record PublicEventBoard(
@@ -49,7 +49,7 @@ public sealed record PublicPlayerRanking(
 public sealed record PublicDropEhbTeam(
     int Rank, Guid TeamId, string TeamName, int PlayerCount, int ContributingPlayerCount,
     int TotalDrops, decimal DropEhb, IReadOnlyList<string> MvpNames,
-    IReadOnlyList<PublicDropEhbPlayer> Players);
+    IReadOnlyList<PublicDropEhbPlayer> Players, decimal? MvpValue = null);
 
 public sealed record PublicDropEhbPlayer(
     Guid PlayerId, string PlayerName, decimal DropEhb, int ApprovedContribution, int ApprovedSubmissions,
@@ -63,7 +63,7 @@ public sealed record PublicRecentDrop(
     Guid SubmissionId, Guid TileId, string TileName,
     string TeamName, string TeamSlug, string? PlayerName,
     string? BossName, string? DropName, int Contribution,
-    DateTimeOffset ApprovedAt, Guid? EvidenceAssetId, int ProgressAfter, int Target);
+    DateTimeOffset SubmittedAt, DateTimeOffset? ReviewedAt, Guid? EvidenceAssetId, int ProgressAfter, int Target);
 
 public sealed record PublicRecentDropSummary(
     int TotalDrops, int DropsLast24Hours, decimal TotalDropEhb,

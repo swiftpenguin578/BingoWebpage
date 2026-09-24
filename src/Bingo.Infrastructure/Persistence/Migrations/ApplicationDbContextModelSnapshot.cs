@@ -951,9 +951,15 @@ namespace Bingo.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
+                        .HasMaxLength(16000)
+                        .HasColumnType("character varying(16000)")
                         .HasColumnName("description");
+
+                    b.Property<bool>("DescriptionIsAutomatic")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("description_is_automatic");
 
                     b.Property<decimal>("EstimatedEhb")
                         .HasPrecision(12, 4)
@@ -1151,6 +1157,12 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("column_index");
 
+                    b.Property<bool>("DescriptionIsAutomatic")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("description_is_automatic");
+
                     b.Property<string>("DescriptionSnapshot")
                         .IsRequired()
                         .HasMaxLength(4000)
@@ -1323,6 +1335,60 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.ToTable("template_requirement_drops", (string)null);
                 });
 
+            modelBuilder.Entity("Bingo.Domain.Boards.TileCompletionFact", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ApprovalSnapshotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approval_snapshot_id");
+
+                    b.Property<Guid>("BoardTileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("board_tile_id");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<bool>("IsComplete")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_complete");
+
+                    b.Property<string>("QualifyingContributionsJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("qualifying_contributions_json");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recorded_at");
+
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("team_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovalSnapshotId", "BoardTileId");
+
+                    b.HasIndex("EventId", "ApprovalSnapshotId", "TeamId");
+
+                    b.HasIndex("EventId", "TeamId", "BoardTileId", "ApprovalSnapshotId")
+                        .IsUnique();
+
+                    b.ToTable("tile_completion_facts", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_tile_completion_facts_incomplete", "is_complete OR (completed_at IS NULL AND qualifying_contributions_json = '[]'::jsonb)");
+                        });
+                });
+
             modelBuilder.Entity("Bingo.Domain.Boards.TileTemplate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1339,6 +1405,12 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)")
                         .HasColumnName("description");
+
+                    b.Property<bool>("DescriptionIsAutomatic")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("description_is_automatic");
 
                     b.Property<string>("EvidenceInstructions")
                         .IsRequired()
@@ -2566,6 +2638,10 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("completed_tiles");
 
+                    b.Property<DateTimeOffset?>("CurrentScoreReachedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("current_score_reached_at");
+
                     b.Property<decimal>("EhbTiebreak")
                         .HasPrecision(14, 4)
                         .HasColumnType("numeric(14,4)")
@@ -3286,6 +3362,249 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionManagement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ActualStartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("actual_started_at");
+
+                    b.Property<DateTimeOffset>("CompetitionEndsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("competition_ends_at");
+
+                    b.Property<long>("CompetitionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("competition_id");
+
+                    b.Property<DateTimeOffset>("CompetitionStartsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("competition_starts_at");
+
+                    b.Property<string>("CompetitionTitle")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("competition_title");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("LastAcknowledgedRosterJson")
+                        .HasMaxLength(100000)
+                        .HasColumnType("character varying(100000)")
+                        .HasColumnName("last_acknowledged_roster_json");
+
+                    b.Property<DateTimeOffset?>("LastAppliedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_applied_at");
+
+                    b.Property<string>("LastAppliedLocalFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("last_applied_local_fingerprint");
+
+                    b.Property<string>("LastAppliedRemoteFingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("last_applied_remote_fingerprint");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTimeOffset?>("LastErrorAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_error_at");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("last_error_code");
+
+                    b.Property<Guid?>("LastOperationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("last_operation_id");
+
+                    b.Property<string>("ManagedFieldScope")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("managed_field_scope");
+
+                    b.Property<long>("ManagementVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("management_version");
+
+                    b.Property<string>("ProtectedVerificationCode")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("protected_verification_code");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("SynchronizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("synchronization_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique();
+
+                    b.HasIndex("SynchronizationId");
+
+                    b.HasIndex("CompetitionId", "Status");
+
+                    b.ToTable("event_competition_management", (string)null);
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionManagementOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("ActorAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_account_id");
+
+                    b.Property<string>("ActorUsername")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("actor_username");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_count");
+
+                    b.Property<DateTimeOffset?>("ClaimedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("claimed_at");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DesiredFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("desired_fingerprint");
+
+                    b.Property<string>("DesiredPayloadJson")
+                        .IsRequired()
+                        .HasMaxLength(200000)
+                        .HasColumnType("character varying(200000)")
+                        .HasColumnName("desired_payload_json");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<long>("EventVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("event_version");
+
+                    b.Property<Guid?>("ManagementId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("management_id");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at");
+
+                    b.Property<string>("Phase")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("phase");
+
+                    b.Property<long?>("RemoteCompetitionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("remote_competition_id");
+
+                    b.Property<string>("RemoteReceiptReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("remote_receipt_reference");
+
+                    b.Property<string>("SafeError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("safe_error");
+
+                    b.Property<string>("SafeErrorCode")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("safe_error_code");
+
+                    b.Property<DateTimeOffset?>("SendingAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sending_at");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("operation_type");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorAccountId");
+
+                    b.HasIndex("ManagementId");
+
+                    b.HasIndex("EventId", "Type")
+                        .IsUnique()
+                        .HasFilter("phase IN ('Pending', 'Claimed', 'Sending', 'Retry', 'Unknown')");
+
+                    b.HasIndex("EventId", "DesiredFingerprint", "Phase");
+
+                    b.HasIndex("EventId", "Type", "Phase", "NextAttemptAt")
+                        .HasDatabaseName("IX_event_competition_management_operations_event_id_operation~1");
+
+                    b.ToTable("event_competition_management_operations", (string)null);
+                });
+
             modelBuilder.Entity("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionSynchronization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3405,6 +3724,103 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                     b.HasIndex("EventId", "CompetitionId", "NormalDueAt", "RetryDueAt");
 
                     b.ToTable("event_competition_synchronizations", (string)null);
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionUpdateAllSlot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("ActualStartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("actual_started_at");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_count");
+
+                    b.Property<DateTimeOffset?>("ClaimedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("claimed_at");
+
+                    b.Property<long>("CompetitionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("competition_id");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<Guid>("ManagementId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("management_id");
+
+                    b.Property<long>("ManagementVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("management_version");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at");
+
+                    b.Property<string>("Outcome")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("outcome");
+
+                    b.Property<string>("OutcomeCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("outcome_code");
+
+                    b.Property<DateTimeOffset>("PairedFetchAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paired_fetch_at");
+
+                    b.Property<DateTimeOffset>("ScheduledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("scheduled_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<int>("SynchronizationGeneration")
+                        .HasColumnType("integer")
+                        .HasColumnName("synchronization_generation");
+
+                    b.Property<Guid>("SynchronizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("synchronization_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ManagementId");
+
+                    b.HasIndex("SynchronizationId");
+
+                    b.HasIndex("CompetitionId", "PairedFetchAt")
+                        .IsUnique();
+
+                    b.HasIndex("EventId", "ScheduledAt", "Status");
+
+                    b.ToTable("event_competition_update_all_slots", (string)null);
                 });
 
             modelBuilder.Entity("Bingo.Domain.Signups.EventParticipant", b =>
@@ -4571,6 +4987,29 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("Bingo.Domain.Boards.TileCompletionFact", b =>
+                {
+                    b.HasOne("Bingo.Domain.Events.BingoEvent", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bingo.Domain.Boards.BoardApprovalTileSnapshot", null)
+                        .WithMany()
+                        .HasForeignKey("ApprovalSnapshotId", "BoardTileId")
+                        .HasPrincipalKey("ApprovalSnapshotId", "BoardTileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bingo.Domain.Teams.Team", null)
+                        .WithMany()
+                        .HasForeignKey("EventId", "TeamId")
+                        .HasPrincipalKey("EventId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Bingo.Domain.Events.BingoEvent", b =>
                 {
                     b.HasOne("Bingo.Domain.Events.EventBannerAsset", null)
@@ -4806,11 +5245,66 @@ namespace Bingo.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionManagement", b =>
+                {
+                    b.HasOne("Bingo.Domain.Events.BingoEvent", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionSynchronization", null)
+                        .WithMany()
+                        .HasForeignKey("SynchronizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionManagementOperation", b =>
+                {
+                    b.HasOne("Bingo.Domain.Access.Account", null)
+                        .WithMany()
+                        .HasForeignKey("ActorAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Bingo.Domain.Events.BingoEvent", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionManagement", null)
+                        .WithMany()
+                        .HasForeignKey("ManagementId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionSynchronization", b =>
                 {
                     b.HasOne("Bingo.Domain.Events.BingoEvent", null)
                         .WithMany()
                         .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionUpdateAllSlot", b =>
+                {
+                    b.HasOne("Bingo.Domain.Events.BingoEvent", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionManagement", null)
+                        .WithMany()
+                        .HasForeignKey("ManagementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bingo.Domain.Integrations.WiseOldMan.EventCompetitionSynchronization", null)
+                        .WithMany()
+                        .HasForeignKey("SynchronizationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

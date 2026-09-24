@@ -10,12 +10,13 @@ using Microsoft.Extensions.Options;
 
 namespace Bingo.BrowserTests;
 
-public sealed class PublicUiCatalogueAuthorizationTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(BrowserTestGroup.Name)]
+public sealed class PublicUiCatalogueAuthorizationTests
 {
     private const string TestScheme = "PublicUiTest";
     private readonly WebApplicationFactory<Program> factory;
 
-    public PublicUiCatalogueAuthorizationTests(WebApplicationFactory<Program> factory) => this.factory = factory;
+    public PublicUiCatalogueAuthorizationTests(BrowserTestApplicationFactory factory) => this.factory = factory;
 
     [Fact]
     public async Task AnonymousVisitorCannotOpenTheCatalogue()

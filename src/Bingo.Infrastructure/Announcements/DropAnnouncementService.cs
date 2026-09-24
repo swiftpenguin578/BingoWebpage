@@ -91,10 +91,12 @@ public sealed class DropAnnouncementService(ApplicationDbContext db, TimeProvide
                                         && submission.ReviewedAt >= ev.AnnouncementsTrackingStartedAt && submission.AnnouncementGeneration == ev.AnnouncementGeneration
                                         && submission.AnnouncementOrdinal > state.LastAutomaticExpansionOrdinal && submission.AnnouncementOrdinal <= maximumOrdinal
                                         && team.EventId == ev.Id && team.Active
-                                        && db.EventParticipants.Any(recipient => recipient.EventId == ev.Id && recipient.AccountId == accountId && recipient.SignupStatus == SignupStatus.Confirmed
-                                            && db.TeamMemberships.Any(membership => membership.EventParticipantId == recipient.Id && membership.LeftAt == null
-                                                && membership.JoinedAt <= submission.ReviewedAt
-                                                && db.Teams.Any(recipientTeam => recipientTeam.Id == membership.TeamId && recipientTeam.EventId == ev.Id && recipientTeam.Active)))
+                                        && db.Accounts.Any(account => account.Id == accountId && account.AccountType == AccountType.WebsiteAccount && account.Active
+                                            && (account.GlobalRole == GlobalRole.Admin || account.GlobalRole == GlobalRole.SuperAdmin
+                                                || db.EventParticipants.Any(recipient => recipient.EventId == ev.Id && recipient.AccountId == accountId && recipient.SignupStatus == SignupStatus.Confirmed
+                                                    && db.TeamMemberships.Any(membership => membership.EventParticipantId == recipient.Id && membership.LeftAt == null
+                                                        && membership.JoinedAt <= submission.ReviewedAt
+                                                        && db.Teams.Any(recipientTeam => recipientTeam.Id == membership.TeamId && recipientTeam.EventId == ev.Id && recipientTeam.Active)))))
                                         && !db.DropAnnouncementAcknowledgements.Any(a => a.AccountId == accountId && a.EventId == eventId && a.SubmissionId == submission.Id && a.BannerAcknowledgedAt != null)
                                   select submission.AnnouncementOrdinal).MaxAsync(cancellationToken);
             if (boundary is null) { await tx.CommitAsync(cancellationToken); return false; }
@@ -198,9 +200,11 @@ public sealed class DropAnnouncementService(ApplicationDbContext db, TimeProvide
                  && submission.ReviewedAt >= ev.AnnouncementsTrackingStartedAt && submission.AnnouncementGeneration == ev.AnnouncementGeneration
                  && submission.AnnouncementOrdinal != null && submission.AnnouncementOrdinal <= maximumOrdinal
                  && team.EventId == ev.Id && team.Active
-                 && db.EventParticipants.Any(recipient => recipient.EventId == ev.Id && recipient.AccountId == accountId && recipient.SignupStatus == SignupStatus.Confirmed
-                     && db.TeamMemberships.Any(membership => membership.EventParticipantId == recipient.Id && membership.LeftAt == null && membership.JoinedAt <= submission.ReviewedAt
-                         && db.Teams.Any(recipientTeam => recipientTeam.Id == membership.TeamId && recipientTeam.EventId == ev.Id && recipientTeam.Active)))
+                 && db.Accounts.Any(account => account.Id == accountId && account.AccountType == AccountType.WebsiteAccount && account.Active
+                     && (account.GlobalRole == GlobalRole.Admin || account.GlobalRole == GlobalRole.SuperAdmin
+                         || db.EventParticipants.Any(recipient => recipient.EventId == ev.Id && recipient.AccountId == accountId && recipient.SignupStatus == SignupStatus.Confirmed
+                             && db.TeamMemberships.Any(membership => membership.EventParticipantId == recipient.Id && membership.LeftAt == null && membership.JoinedAt <= submission.ReviewedAt
+                                 && db.Teams.Any(recipientTeam => recipientTeam.Id == membership.TeamId && recipientTeam.EventId == ev.Id && recipientTeam.Active)))))
            select submission.Id;
 
     private async Task<List<Guid>> OrderSubmissionIds(IQueryable<Guid> ids, int limit, int offset, CancellationToken cancellationToken)
@@ -232,9 +236,11 @@ public sealed class DropAnnouncementService(ApplicationDbContext db, TimeProvide
                                    && submission.ReviewedAt >= ev.AnnouncementsTrackingStartedAt && submission.AnnouncementGeneration == ev.AnnouncementGeneration
                                    && submission.AnnouncementOrdinal != null && submission.AnnouncementOrdinal <= maximumOrdinal
                                    && team.EventId == ev.Id && team.Active
-                                   && db.EventParticipants.Any(recipient => recipient.EventId == ev.Id && recipient.AccountId == accountId && recipient.SignupStatus == SignupStatus.Confirmed
-                                       && db.TeamMemberships.Any(membership => membership.EventParticipantId == recipient.Id && membership.LeftAt == null && membership.JoinedAt <= submission.ReviewedAt
-                                           && db.Teams.Any(recipientTeam => recipientTeam.Id == membership.TeamId && recipientTeam.EventId == ev.Id && recipientTeam.Active)))
+                                   && db.Accounts.Any(account => account.Id == accountId && account.AccountType == AccountType.WebsiteAccount && account.Active
+                                       && (account.GlobalRole == GlobalRole.Admin || account.GlobalRole == GlobalRole.SuperAdmin
+                                           || db.EventParticipants.Any(recipient => recipient.EventId == ev.Id && recipient.AccountId == accountId && recipient.SignupStatus == SignupStatus.Confirmed
+                                               && db.TeamMemberships.Any(membership => membership.EventParticipantId == recipient.Id && membership.LeftAt == null && membership.JoinedAt <= submission.ReviewedAt
+                                                   && db.Teams.Any(recipientTeam => recipientTeam.Id == membership.TeamId && recipientTeam.EventId == ev.Id && recipientTeam.Active)))))
                                    && submissionIds.Contains(submission.Id)
                              let progressAfter = (db.SubmissionContributions.AsNoTracking()
                                  .Where(contribution => contribution.TeamId == submission.TeamId && contribution.ReversedAt == null
@@ -281,14 +287,13 @@ public sealed class DropAnnouncementService(ApplicationDbContext db, TimeProvide
     }
 
     private Task<bool> IsEligibleAsync(Guid accountId, Guid eventId, CancellationToken cancellationToken)
-        => (from account in db.Accounts.AsNoTracking()
-            join participant in db.EventParticipants.AsNoTracking() on account.Id equals participant.AccountId
-            join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
-            join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
-            where account.Id == accountId && account.AccountType == AccountType.WebsiteAccount && account.Active
-                  && participant.EventId == eventId && participant.SignupStatus == SignupStatus.Confirmed && membership.LeftAt == null
-                  && team.EventId == eventId && team.Active
-            select account.Id).AnyAsync(cancellationToken);
+        => db.Accounts.AsNoTracking().AnyAsync(account => account.Id == accountId
+            && account.AccountType == AccountType.WebsiteAccount && account.Active
+            && (account.GlobalRole == GlobalRole.Admin || account.GlobalRole == GlobalRole.SuperAdmin
+                || db.EventParticipants.Any(participant => participant.EventId == eventId && participant.AccountId == accountId
+                    && participant.SignupStatus == SignupStatus.Confirmed
+                    && db.TeamMemberships.Any(membership => membership.EventParticipantId == participant.Id && membership.LeftAt == null
+                        && db.Teams.Any(team => team.Id == membership.TeamId && team.EventId == eventId && team.Active)))), cancellationToken);
 
     private static bool IsSerializationConflict(Exception exception)
     {

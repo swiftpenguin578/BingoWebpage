@@ -92,6 +92,241 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         Assert.All(preCommitStorage.DeleteTokens, token => Assert.False(token.IsCancellationRequested));
     }
 
+    [Fact]
+    public async Task CompletionFactUsesImmutableSubmittedAtAndRebalancesSurvivingEvidenceAtomically()
+    {
+        var setup = await SeedAsync(target: 2, allowHigherWeights: true, dropMaximum: 2, createAlternateWeightDrop: true);
+        var submittedAt = new[] { now.AddMinutes(-20), now.AddMinutes(-10) };
+        var clock = new MutableTimeProvider(submittedAt[0]);
+        await using var db = new ApplicationDbContext(options);
+        var team = await db.Teams.SingleAsync(value => value.Id == setup.TeamId);
+        team.Finalize(now.AddDays(-2));
+        await db.SaveChangesAsync();
+
+        var service = Service(db, clock);
+        var first = await service.CreateAsync(Command(setup) with { ClaimedWeight = 1 });
+        clock.Set(submittedAt[1]);
+        var second = await service.CreateAsync(Command(setup) with { DropSnapshotId = setup.AlternateDropId });
+        clock.Set(now.AddHours(1));
+        await service.ApproveAsync(first.SubmissionId, setup.AdminId);
+        clock.Set(now.AddHours(2));
+        await service.ApproveAsync(second.SubmissionId, setup.AdminId);
+
+        var firstSubmissionTime = await db.Submissions.Where(value => value.Id == first.SubmissionId).Select(value => value.SubmittedAt).SingleAsync();
+        var secondSubmissionTime = await db.Submissions.Where(value => value.Id == second.SubmissionId).Select(value => value.SubmittedAt).SingleAsync();
+        Assert.Equal(submittedAt[0], firstSubmissionTime);
+        Assert.Equal(submittedAt[1], secondSubmissionTime);
+        Assert.NotEqual(secondSubmissionTime, await db.Submissions.Where(value => value.Id == second.SubmissionId).Select(value => value.ReviewedAt).SingleAsync());
+
+        var board = await db.Boards.SingleAsync(value => value.EventId == setup.EventId);
+        var fact = await db.TileCompletionFacts.SingleAsync(value => value.EventId == setup.EventId && value.TeamId == setup.TeamId && value.BoardTileId == setup.TileId && value.ApprovalSnapshotId == board.ActiveApprovalSnapshotId);
+        Assert.True(fact.IsComplete);
+        Assert.Equal(secondSubmissionTime, fact.CompletedAt);
+        Assert.Contains(first.SubmissionId.ToString("D"), fact.QualifyingContributionsJson, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(second.SubmissionId.ToString("D"), fact.QualifyingContributionsJson, StringComparison.OrdinalIgnoreCase);
+
+        clock.Set(now.AddHours(3));
+        await service.ReverseAsync(first.SubmissionId, setup.AdminId, "Reverse the earlier contribution; later evidence can carry the objective.");
+
+        var survivingContribution = await db.SubmissionContributions.SingleAsync(value => value.SubmissionId == second.SubmissionId);
+        Assert.Equal(2, survivingContribution.Amount);
+        fact = await db.TileCompletionFacts.SingleAsync(value => value.Id == fact.Id);
+        Assert.True(fact.IsComplete);
+        Assert.Equal(secondSubmissionTime, fact.CompletedAt);
+        Assert.DoesNotContain(first.SubmissionId.ToString("D"), fact.QualifyingContributionsJson, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(second.SubmissionId.ToString("D"), fact.QualifyingContributionsJson, StringComparison.OrdinalIgnoreCase);
+
+        var eventSlug = await db.Events.Where(value => value.Id == setup.EventId).Select(value => value.Slug).SingleAsync();
+        var publicBoard = await new PublicBoardService(db, clock).GetEventBoardAsync(eventSlug);
+        var publicTeam = Assert.Single(publicBoard!.Teams);
+        Assert.True(publicTeam.Progress.Tiles.Single().Complete);
+        Assert.Equal(secondSubmissionTime, publicTeam.Progress.CurrentScoreReachedAt);
+    }
+
+    [Fact]
+    public async Task PublicBoardReadKeepsOneSnapshotAcrossConcurrentApproval()
+    {
+        var setup = await SeedAsync(target: 2, allowHigherWeights: false);
+        var clock = new MutableTimeProvider(now.AddMinutes(-30));
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            var team = await seed.Teams.SingleAsync(value => value.Id == setup.TeamId);
+            team.Finalize(now.AddDays(-2));
+            await seed.SaveChangesAsync();
+        }
+
+        var first = await CreateApprovedAsync(setup, clock, now.AddMinutes(-20), 1);
+        clock.Set(now.AddMinutes(-10));
+        SubmissionResult pending;
+        await using (var create = new ApplicationDbContext(options))
+            pending = await Service(create, clock).CreateAsync(Command(setup) with { ClaimedWeight = 1 });
+
+        var boundary = new PauseAfterTileCompletionFacts();
+        var readOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(boundary).Options;
+        await using var reader = new ApplicationDbContext(readOptions);
+        var read = new PublicBoardService(reader, clock).GetEventBoardAsync($"event-{setup.EventId:N}");
+        await boundary.Ready.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        try
+        {
+            clock.Set(now.AddMinutes(1));
+            await using var writer = new ApplicationDbContext(options);
+            await Service(writer, clock).ApproveAsync(pending.SubmissionId, setup.AdminId);
+        }
+        finally { boundary.Release.TrySetResult(); }
+
+        var snapshot = await read;
+        var snapshotTeam = Assert.Single(snapshot!.Teams);
+        Assert.False(snapshotTeam.Progress.BoardComplete);
+        Assert.Equal(1, snapshotTeam.Tiles.Single().Approved);
+        Assert.DoesNotContain(snapshot.RecentDrops, value => value.SubmissionId == pending.SubmissionId);
+        Assert.Contains(snapshot.RecentDrops, value => value.SubmissionId == first.SubmissionId);
+
+        await using var verify = new ApplicationDbContext(options);
+        var current = await new PublicBoardService(verify, clock).GetEventBoardAsync($"event-{setup.EventId:N}");
+        var currentTeam = Assert.Single(current!.Teams);
+        Assert.True(currentTeam.Progress.BoardComplete);
+        Assert.Contains(current.RecentDrops, value => value.SubmissionId == pending.SubmissionId);
+    }
+
+    [Fact]
+    public async Task PublicBoardReadKeepsOneSnapshotAcrossReversalThatLeavesTileComplete()
+    {
+        var setup = await SeedAsync(target: 2, allowHigherWeights: true, dropMaximum: 2, createAlternateWeightDrop: true);
+        var clock = new MutableTimeProvider(now.AddMinutes(-30));
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            var team = await seed.Teams.SingleAsync(value => value.Id == setup.TeamId);
+            team.Finalize(now.AddDays(-2));
+            await seed.SaveChangesAsync();
+        }
+
+        SubmissionResult olderSubmission;
+        clock.Set(now.AddMinutes(-20));
+        await using (var create = new ApplicationDbContext(options))
+            olderSubmission = await Service(create, clock).CreateAsync(Command(setup) with { DropSnapshotId = setup.AlternateDropId, ClaimedWeight = 2 });
+        clock.Set(now.AddMinutes(-10));
+        SubmissionResult laterSubmission;
+        await using (var create = new ApplicationDbContext(options))
+            laterSubmission = await Service(create, clock).CreateAsync(Command(setup) with { ClaimedWeight = 1 });
+        clock.Set(now);
+        await using (var reviewLater = new ApplicationDbContext(options))
+            await Service(reviewLater, clock).ApproveAsync(laterSubmission.SubmissionId, setup.AdminId);
+        clock.Set(now.AddMinutes(1));
+        await using (var reviewOlder = new ApplicationDbContext(options))
+            await Service(reviewOlder, clock).ApproveAsync(olderSubmission.SubmissionId, setup.AdminId);
+
+        var boundary = new PauseAfterTileCompletionFacts();
+        var readOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(boundary).Options;
+        await using var reader = new ApplicationDbContext(readOptions);
+        var read = new PublicBoardService(reader, clock).GetEventBoardAsync($"event-{setup.EventId:N}");
+        await boundary.Ready.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        try
+        {
+            clock.Set(now.AddMinutes(2));
+            await using var writer = new ApplicationDbContext(options);
+            await Service(writer, clock).ReverseAsync(laterSubmission.SubmissionId, setup.AdminId, "Use the surviving earlier submission");
+        }
+        finally { boundary.Release.TrySetResult(); }
+
+        var snapshot = await read;
+        var snapshotTeam = Assert.Single(snapshot!.Teams);
+        Assert.True(snapshotTeam.Progress.Tiles.Single().Complete);
+        Assert.Equal(now.AddMinutes(-10), snapshotTeam.Progress.CurrentScoreReachedAt);
+        Assert.Contains(snapshot.RecentDrops, value => value.SubmissionId == laterSubmission.SubmissionId);
+        Assert.Contains(snapshot.RecentDrops, value => value.SubmissionId == olderSubmission.SubmissionId);
+
+        await using var verify = new ApplicationDbContext(options);
+        var current = await new PublicBoardService(verify, clock).GetEventBoardAsync($"event-{setup.EventId:N}");
+        var currentTeam = Assert.Single(current!.Teams);
+        Assert.True(currentTeam.Progress.Tiles.Single().Complete);
+        Assert.Equal(now.AddMinutes(-20), currentTeam.Progress.CurrentScoreReachedAt);
+        Assert.DoesNotContain(current.RecentDrops, value => value.SubmissionId == laterSubmission.SubmissionId);
+        Assert.Contains(current.RecentDrops, value => value.SubmissionId == olderSubmission.SubmissionId);
+    }
+
+    [Fact]
+    public async Task NineToEightReversalUsesLatestSurvivingTileSubmissionTime()
+    {
+        var setup = await SeedAsync(target: 1, allowHigherWeights: false, boardRows: 3, boardColumns: 3);
+        var clock = new MutableTimeProvider(now.AddMinutes(-30));
+        await using var db = new ApplicationDbContext(options);
+        (await db.Teams.SingleAsync(value => value.Id == setup.TeamId)).Finalize(now.AddDays(-2));
+        await db.SaveChangesAsync();
+        var service = Service(db, clock);
+        var tileIds = setup.TileIds!;
+        var requirementIds = setup.RequirementIds!;
+        var submissions = new List<Guid>();
+        var submittedTimes = new List<DateTimeOffset>();
+        for (var index = 0; index < tileIds.Count; index++)
+        {
+            var submittedAt = now.AddMinutes(-30 + index);
+            clock.Set(submittedAt);
+            var dropId = await db.BoardRequirementDropSnapshots.Where(value => value.RequirementId == requirementIds[index])
+                .Select(value => (Guid?)value.Id).SingleAsync();
+            var created = await service.CreateAsync(Command(setup) with
+            {
+                BoardTileId = tileIds[index],
+                RequirementId = requirementIds[index],
+                DropSnapshotId = dropId
+            });
+            submissions.Add(created.SubmissionId);
+            submittedTimes.Add(submittedAt);
+        }
+
+        clock.Set(now.AddHours(1));
+        foreach (var submissionId in submissions) await service.ApproveAsync(submissionId, setup.AdminId);
+        var board = await db.Boards.SingleAsync(value => value.EventId == setup.EventId);
+        Assert.Equal(9, await db.TileCompletionFacts.CountAsync(value => value.TeamId == setup.TeamId && value.ApprovalSnapshotId == board.ActiveApprovalSnapshotId && value.IsComplete));
+
+        clock.Set(now.AddHours(3));
+        await service.ReverseAsync(submissions[^1], setup.AdminId, "Reverse the ninth tile.");
+
+        var activeFacts = await db.TileCompletionFacts.Where(value => value.TeamId == setup.TeamId && value.ApprovalSnapshotId == board.ActiveApprovalSnapshotId).ToListAsync();
+        Assert.Equal(8, activeFacts.Count(value => value.IsComplete));
+        Assert.Equal(submittedTimes[^2], activeFacts.Where(value => value.IsComplete).Max(value => value.CompletedAt));
+        Assert.Null(activeFacts.Single(value => value.BoardTileId == tileIds[^1]).CompletedAt);
+        var slug = await db.Events.Where(value => value.Id == setup.EventId).Select(value => value.Slug).SingleAsync();
+        var publicTeam = Assert.Single((await new PublicBoardService(db, clock).GetEventBoardAsync(slug))!.Teams);
+        Assert.False(publicTeam.Progress.BoardComplete);
+        Assert.Equal(8, publicTeam.Progress.CompletedTiles);
+        Assert.Equal(submittedTimes[^2], publicTeam.Progress.CurrentScoreReachedAt);
+        Assert.Null(publicTeam.Progress.BoardCompletedAt);
+    }
+
+    [Fact]
+    public async Task MultiRequirementTileCompletionUsesLatestObjectiveSubmissionAndBothProvenanceChains()
+    {
+        var setup = await SeedAsync(target: 1, allowHigherWeights: false, duplicatesAllowed: true, additionalObjectivesPerTile: 1);
+        var clock = new MutableTimeProvider(now.AddMinutes(-20));
+        await using var db = new ApplicationDbContext(options);
+        (await db.Teams.SingleAsync(value => value.Id == setup.TeamId)).Finalize(now.AddDays(-2));
+        await db.SaveChangesAsync();
+        var service = Service(db, clock);
+        var requirementIds = setup.RequirementIds!;
+        var dropIds = setup.DropIds!;
+        var firstTime = now.AddMinutes(-20);
+        var secondTime = now.AddMinutes(-10);
+        var first = await service.CreateAsync(Command(setup) with { RequirementId = requirementIds[0], DropSnapshotId = dropIds[0] });
+        clock.Set(secondTime);
+        var second = await service.CreateAsync(Command(setup) with { RequirementId = requirementIds[1], DropSnapshotId = dropIds[1] });
+        clock.Set(now.AddHours(1));
+        await service.ApproveAsync(first.SubmissionId, setup.AdminId);
+        clock.Set(now.AddHours(2));
+        await service.ApproveAsync(second.SubmissionId, setup.AdminId);
+
+        var board = await db.Boards.SingleAsync(value => value.EventId == setup.EventId);
+        var fact = await db.TileCompletionFacts.SingleAsync(value => value.TeamId == setup.TeamId && value.BoardTileId == setup.TileId && value.ApprovalSnapshotId == board.ActiveApprovalSnapshotId);
+        Assert.True(fact.IsComplete);
+        Assert.Equal(secondTime, fact.CompletedAt);
+        Assert.Contains(first.SubmissionId.ToString("D"), fact.QualifyingContributionsJson!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(second.SubmissionId.ToString("D"), fact.QualifyingContributionsJson!, StringComparison.OrdinalIgnoreCase);
+        var slug = await db.Events.Where(value => value.Id == setup.EventId).Select(value => value.Slug).SingleAsync();
+        var team = Assert.Single((await new PublicBoardService(db, clock).GetEventBoardAsync(slug))!.Teams);
+        Assert.Equal(secondTime, team.Progress.CurrentScoreReachedAt);
+        Assert.True(team.Progress.Tiles.Single().Complete);
+        Assert.Equal(firstTime, await db.Submissions.Where(value => value.Id == first.SubmissionId).Select(value => value.SubmittedAt).SingleAsync());
+    }
+
     [Theory]
     [InlineData(GlobalRole.Admin, TeamMembershipRole.Participant, EvidenceActorKind.Participant)]
     [InlineData(GlobalRole.Admin, TeamMembershipRole.Captain, EvidenceActorKind.Captain)]
@@ -903,9 +1138,11 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     [Fact]
     public async Task ReversedSubmissionCanHaveOneReopenedLinkedChildAndKeepsInactivePredecessorContribution()
     {
-        var setup = await SeedAsync(target: 3, allowHigherWeights: true);
+        var setup = await SeedAsync(target: 2, allowHigherWeights: true);
         var clock = new MutableTimeProvider(now);
         await using var db = new ApplicationDbContext(options);
+        (await db.Teams.SingleAsync(value => value.Id == setup.TeamId)).Finalize(now.AddDays(-2));
+        await db.SaveChangesAsync();
         var service = Service(db, clock);
         var predecessor = await service.CreateAsync(Command(setup));
         await service.ApproveAsync(predecessor.SubmissionId, setup.AdminId);
@@ -926,6 +1163,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
 
         eventItem.ReopenSubmissions(clock.GetUtcNow().AddHours(1), clock.GetUtcNow());
         await db.SaveChangesAsync();
+        clock.Set(now.AddMinutes(1));
         await using var evidence = new MemoryStream([9, 9, 9]);
         var child = await service.ResubmitAsync(new ResubmitSubmissionCommand(
             predecessor.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId,
@@ -939,9 +1177,17 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
             predecessor.SubmissionId, setup.CaptainId, setup.TileId, setup.RequirementId, setup.DropId,
             "duplicate", "duplicate.png", replayEvidence)));
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.ApproveAsync(predecessor.SubmissionId, setup.AdminId));
+        var childSubmittedAt = await db.Submissions.Where(value => value.Id == child.SubmissionId).Select(value => value.SubmittedAt).SingleAsync();
+        clock.Set(now.AddMinutes(2));
         await service.ApproveAsync(child.SubmissionId, setup.AdminId);
         Assert.True(await db.SubmissionContributions.AnyAsync(x => x.SubmissionId == child.SubmissionId && x.ReversedAt == null));
         Assert.True(await db.SubmissionContributions.AnyAsync(x => x.SubmissionId == predecessor.SubmissionId && x.ReversedAt != null));
+        var board = await db.Boards.SingleAsync(value => value.EventId == setup.EventId);
+        var fact = await db.TileCompletionFacts.SingleAsync(value => value.TeamId == setup.TeamId && value.BoardTileId == setup.TileId && value.ApprovalSnapshotId == board.ActiveApprovalSnapshotId);
+        Assert.True(fact.IsComplete);
+        Assert.Equal(childSubmittedAt, fact.CompletedAt);
+        Assert.Contains(child.SubmissionId.ToString("D"), fact.QualifyingContributionsJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(predecessor.SubmissionId.ToString("D"), fact.QualifyingContributionsJson, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -1553,13 +1799,25 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         }
     }
 
+    private async Task<SubmissionResult> CreateApprovedAsync(Setup setup, MutableTimeProvider clock, DateTimeOffset submittedAt, int claimedWeight)
+    {
+        clock.Set(submittedAt);
+        SubmissionResult submission;
+        await using (var create = new ApplicationDbContext(options))
+            submission = await Service(create, clock).CreateAsync(Command(setup) with { ClaimedWeight = claimedWeight });
+        clock.Set(submittedAt.AddMinutes(1));
+        await using (var review = new ApplicationDbContext(options))
+            await Service(review, clock).ApproveAsync(submission.SubmissionId, setup.AdminId);
+        return submission;
+    }
+
     private SubmissionService Service(ApplicationDbContext db, TimeProvider? clock = null, IEvidenceStorage? storage = null, IProgressNotifier? notifier = null) => new(db, storage ?? new FakeEvidenceStorage(), clock ?? new FixedTimeProvider(now), notifier);
 
     private static CreateSubmissionCommand Command(Setup setup) => new(
         setup.CaptainId, setup.EventId, setup.TeamId, setup.TileId, setup.RequirementId, setup.DropId,
         setup.ParticipantId, 1, "captain note", "proof.png", new MemoryStream([1, 2, 3]));
 
-    private async Task<Setup> SeedAsync(int target, bool allowHigherWeights, string? evidenceCode = null, bool manualObjective = false, bool duplicatesAllowed = true, int? dropMaximum = null, decimal tileEhb = 1, decimal dropEhb = 1)
+    private async Task<Setup> SeedAsync(int target, bool allowHigherWeights, string? evidenceCode = null, bool manualObjective = false, bool duplicatesAllowed = true, int? dropMaximum = null, decimal tileEhb = 1, decimal dropEhb = 1, int boardRows = 1, int boardColumns = 1, bool createAlternateWeightDrop = false, int additionalObjectivesPerTile = 0)
     {
         await using var db = new ApplicationDbContext(options);
         var eventId = Guid.NewGuid();
@@ -1587,24 +1845,59 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
         captainAccess.Enable();
         var admin = Account.CreateWebsite(adminId, "admin", "ADMIN", now.AddDays(-10));
         admin.SetGlobalRole(GlobalRole.Admin);
-        var board = new Board(boardId, eventId, "Board", 1, 1);
-        var tile = new BoardTile(tileId, boardId, Guid.NewGuid(), 0, 0, "Manual tile", "Complete it", "Show the message", tileEhb);
-        var requirement = new BoardRequirementSnapshot(requirementId, tileId, 0, target, duplicatesAllowed, allowHigherWeights, "Complete runs", manualObjective, allowHigherWeights ? 2 : 1);
-        var drop = dropId is Guid eligibleDropId
-            ? new BoardRequirementDropSnapshot(eligibleDropId, requirementId, Guid.NewGuid(), Guid.NewGuid(), "Test boss", "Test drop", "1/10", 0.1m, dropMaximum ?? (duplicatesAllowed ? null : 1), dropEhb, allowHigherWeights ? 2 : 1)
-            : null;
+        var board = new Board(boardId, eventId, "Board", boardRows, boardColumns);
+        var tileIds = Enumerable.Range(0, boardRows * boardColumns).Select(index => index == 0 ? tileId : Guid.NewGuid()).ToList();
+        var objectivesPerTile = additionalObjectivesPerTile + 1;
+        var requirementIds = Enumerable.Range(0, tileIds.Count * objectivesPerTile).Select(index => index == 0 ? requirementId : Guid.NewGuid()).ToList();
+        var dropIds = Enumerable.Range(0, requirementIds.Count).Select(index => manualObjective ? (Guid?)null : index == 0 ? dropId : Guid.NewGuid()).ToList();
+        var tiles = tileIds.Select((id, index) => new BoardTile(id, boardId, Guid.NewGuid(), index / boardColumns, index % boardColumns,
+            "Manual tile", "Complete it", "Show the message", tileEhb)).ToList();
+        var requirements = requirementIds.Select((id, index) => new BoardRequirementSnapshot(id, tileIds[index / objectivesPerTile], index % objectivesPerTile, target, duplicatesAllowed,
+            allowHigherWeights, "Complete runs", manualObjective, allowHigherWeights ? 2 : 1)).ToList();
+        var drops = requirements.Select((requirement, index) => dropIds[index] is Guid eligibleDropId
+            ? new BoardRequirementDropSnapshot(eligibleDropId, requirement.Id, Guid.NewGuid(), Guid.NewGuid(), "Test boss", "Test drop", "1/10", 0.1m,
+                dropMaximum ?? (duplicatesAllowed ? null : 1), dropEhb, createAlternateWeightDrop && index == 0 ? 1 : allowHigherWeights ? 2 : 1)
+            : null).Where(value => value is not null).Cast<BoardRequirementDropSnapshot>().ToList();
+        Guid? alternateDropId = null;
+        if (createAlternateWeightDrop)
+        {
+            alternateDropId = Guid.NewGuid();
+            drops.Add(new BoardRequirementDropSnapshot(alternateDropId.Value, requirements[0].Id, Guid.NewGuid(), Guid.NewGuid(), "Alternate test boss", "Alternate test drop", "1/20", 0.05m,
+                dropMaximum ?? (duplicatesAllowed ? null : 1), dropEhb, 2));
+        }
         var character = new OsrsCharacter(Guid.NewGuid(), "Player One", "PLAYER ONE", now);
         var assignment = new EventParticipantCharacter(Guid.NewGuid(), eventId, participantId, character.Id, 0, now, adminId, primaryQuestion.Id, EventCharacterRole.Playing, 500, EhbSource.Manual, null);
         db.AddRange(ev, form, primaryQuestion, team, participant, character, assignment, captain, admin, board, captainAccess,
-            new TeamMembership(Guid.NewGuid(), teamId, participantId, TeamMembershipRole.Participant, now.AddDays(-4), null, null),
-            tile, requirement);
-        if (drop is not null) db.BoardRequirementDropSnapshots.Add(drop);
+            new TeamMembership(Guid.NewGuid(), teamId, participantId, TeamMembershipRole.Participant, now.AddDays(-4), null, null));
+        db.AddRange(tiles);
+        db.AddRange(requirements);
+        db.BoardRequirementDropSnapshots.AddRange(drops);
         if (!string.IsNullOrEmpty(evidenceCode)) db.EvidenceCodes.Add(new EvidenceCode(Guid.NewGuid(), eventId, evidenceCode, now.AddMinutes(-10), adminId, now.AddMinutes(-10), null));
-        await BoardApprovalFixture.PublishAsync(db, board, now.AddDays(-1), [tile], [requirement], drop is null ? [] : [drop]);
-        return new Setup(eventId, teamId, participantId, captainId, adminId, tileId, requirementId, dropId);
+        await BoardApprovalFixture.PublishAsync(db, board, now.AddDays(-1), tiles, requirements, drops);
+        return new Setup(eventId, teamId, participantId, captainId, adminId, tileId, requirementId, dropId, tileIds, requirementIds, dropIds, alternateDropId);
     }
 
-    private sealed record Setup(Guid EventId, Guid TeamId, Guid ParticipantId, Guid CaptainId, Guid AdminId, Guid TileId, Guid RequirementId, Guid? DropId);
+    private sealed record Setup(Guid EventId, Guid TeamId, Guid ParticipantId, Guid CaptainId, Guid AdminId, Guid TileId, Guid RequirementId, Guid? DropId,
+        IReadOnlyList<Guid>? TileIds = null, IReadOnlyList<Guid>? RequirementIds = null, IReadOnlyList<Guid?>? DropIds = null, Guid? AlternateDropId = null);
+
+    private sealed class PauseAfterTileCompletionFacts : DbCommandInterceptor
+    {
+        private int paused;
+        public TaskCompletionSource Ready { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async ValueTask<DbDataReader> ReaderExecutedAsync(DbCommand command, CommandExecutedEventData eventData,
+            DbDataReader result, CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("tile_completion_facts", StringComparison.OrdinalIgnoreCase) &&
+                Interlocked.Exchange(ref paused, 1) == 0)
+            {
+                Ready.TrySetResult();
+                await Release.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+            }
+            return result;
+        }
+    }
 
     private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider
     {

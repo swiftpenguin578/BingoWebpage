@@ -107,7 +107,7 @@
             <div>
                 <p class="finalize-kicker">@T["Results ledger"]</p>
                 <h2 id="finalize-placements-heading">@(Model.Readiness.State is EventState.Finalized or EventState.Archived ? T["Official placements"] : T["Provisional placements"])</h2>
-                <p>@T["Board completion, completed rows and columns, tiles, then EHB."]</p>
+                <p>@T["Rank order: completed boards by effective finish time, then completed rows and columns, completed tiles, current score time, and EHB."]</p>
             </div>
             <span class="finalize-section-note">@Model.Readiness.Placements.Count teams</span>
         </header>
@@ -121,6 +121,7 @@
                         <th scope="col">@T["Completion"]</th>
                         <th scope="col">@T["Lines"]</th>
                         <th scope="col">@T["Tiles"]</th>
+                        <th scope="col">@T["Score time"]</th>
                         <th scope="col">@T["EHB"]</th>
                         <th class="finalize-actions-heading" scope="col">@T["Actions / Correction"]</th>
                     </tr>
@@ -145,6 +146,7 @@
                             </td>
                             <td data-label="@T["Lines"]"><span>@row.CompletedLines</span></td>
                             <td data-label="@T["Tiles"]"><span>@row.CompletedTiles</span></td>
+                            <td data-label="@T["Score time"]"><span>@(row.CurrentScoreReachedAt is { } scoreTime ? DateTimePresentation.Format(scoreTime, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) : "—")</span></td>
                             <td data-label="EHB"><span>@row.EhbTiebreak.ToString("0.##")</span></td>
                             <td class="finalize-actions-cell" data-label="@T["Actions / Correction"]">
                                 @if (Model.Readiness.State == EventState.AwaitingFinalReview && row.BoardComplete && shownAt is not null && Model.Readiness.EventStartsAt is not null && Model.Readiness.EventEndsAt is not null)
@@ -267,7 +269,7 @@
                             <div class="finalize-history-table-wrap">
                                 <table class="finalize-history-table">
                                     <thead>
-                                        <tr><th scope="col">@T["Place"]</th><th scope="col">@T["Team"]</th><th scope="col">@T["board"]</th><th scope="col">@T["Completion"]</th><th scope="col">@T["Lines"]</th><th scope="col">@T["Tiles"]</th><th scope="col">@T["EHB"]</th></tr>
+                                        <tr><th scope="col">@T["Place"]</th><th scope="col">@T["Team"]</th><th scope="col">@T["board"]</th><th scope="col">@T["Completion"]</th><th scope="col">@T["Lines"]</th><th scope="col">@T["Tiles"]</th><th scope="col">@T["Score time"]</th><th scope="col">@T["EHB"]</th></tr>
                                     </thead>
                                     <tbody>
                                         @foreach (var row in version.Placements)
@@ -279,6 +281,7 @@
                                                 <td data-label="@T["Completion"]"><span>@(row.BoardCompletedAt is { } completedAt ? DateTimePresentation.Format(completedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) : "—")</span></td>
                                                 <td data-label="@T["Lines"]"><span>@row.CompletedLines</span></td>
                                                 <td data-label="@T["Tiles"]"><span>@row.CompletedTiles</span></td>
+                                                <td data-label="@T["Score time"]"><span>@(row.CurrentScoreReachedAt is { } scoreTime ? DateTimePresentation.Format(scoreTime, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture) : "—")</span></td>
                                                 <td data-label="EHB"><span>@row.EhbTiebreak.ToString("0.##")</span></td>
                                             </tr>
                                         }

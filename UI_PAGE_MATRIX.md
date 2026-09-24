@@ -29,7 +29,7 @@ inherit the rail rule.
 | Event Create / `/Admin/Events/Create` | Admin creates an event | Detail/form | `Create.cshtml`; event-create fields/actions | Five-step route-backed creation flow and validation orientation | Date-time picker and progressive enhancement | Approved | Teams/Draft owner keeps navigation compatible |
 | Identity / `/Admin/Events/Identity/{id}` | Admin edits public event identity | Detail/form + optional rail | `Identity.cshtml`; `.identity-editor-layout`; Manage hierarchy | Form groups, banner upload, timezone confirmation, public context rail | Rail is wide-only and page-local | Approved | Preserve approved composition; timezone-confirmation auto-scroll/compact typography corrected, focused helper check and source review clear; manually approved 2026-09-09 |
 | Schedule / `/Admin/Events/Schedule/{id}` | Admin configures dates, capacity, automatic opening, and warnings | Detail/form + optional rail | `Schedule.cshtml`; `.schedule-editor-layout` | Schedule groups, honest read-only boundaries, explicit automatic-opening toggle, combined change/warning confirmation, combined date-time controls | Rail is wide-only and page-local | Approved — composition retained; schedule change/warning confirmation manually approved 2026-09-08 | Preserve accepted schedule confirmation; separate Overview lifecycle source review does not expand Schedule scope |
-| Manage/Overview / `/Admin/Events/Manage/{id}` | Admin reads readiness and runs lifecycle actions; SuperAdmin inspects/restores a hidden event | Detail/form + optional rail | `Manage.cshtml`; `.event-overview-section`, `.event-overview-row` | Operational summary, readiness rows, dates, controls, lifecycle actions; limited retained-lifecycle/quarantine-audit inspection and Restore only when reached from the separated Hidden area | Information rail is a page-local owner; hidden events expose no ordinary workspace or mutation | Approved | Six lifecycle confirmation corrections manually approved 2026-09-08; source review and focused JS/build checks clear, one unrelated stale source assertion recorded. No persisted handler execution claimed; preserve composition/invariants |
+| Manage/Overview / `/Admin/Events/Manage/{id}` | Admin reads readiness and runs lifecycle actions; SuperAdmin inspects/restores a hidden event | Detail/form + optional rail | `Manage.cshtml`; `.event-overview-section`, `.event-overview-row` | Operational summary, readiness rows, dates, controls, lifecycle actions; limited retained-lifecycle/quarantine-audit inspection and Restore only when reached from the separated Hidden area; managed WOM preview/Create/update/delete controls reuse this section and remain scoped to the managed source | Information rail is a page-local owner; hidden events expose no ordinary workspace or mutation | Existing composition approved; managed WOM addition awaiting user visual acceptance — 2026-09-22 | Technical source/build checks clear; manually inspect EN/DA empty-team, pending/unknown, Live lock and confirmed pre-Live delete states. Preserve existing manual-link, cache and lifecycle boundaries |
 | Events directory / `/Admin/Events/Index` | Admin finds an event and opens its workspace; SuperAdmin separates hidden events for limited control | Full-width data/table | `Events/Index.cshtml`; directory toolbar/table CSS | Search, state filter, sortable table, empty state, Workspace action; clearly separated SuperAdmin-only Hidden filter/area with Restore/limited Manage destination | `1100px` label/value cards; hidden area is not ordinary Admin visibility or a public bypass | Approved | Retain as full-width table reference; preserve the scoped Hidden area |
 | Participants / `/Admin/Events/Participants/{id}` | Admin manages signup settings and participants | Full-width data/table + accepted detail dialog | `Participants.cshtml`, `Participant.cshtml`; participant table/dialog classes | Compact settings, search/status controls, current/history groups, route fallback | Accepted participant-detail dialog states; page-local table markup | Approved — Manage and Add Participant user manual approval, 2026-09-08; C11 changes awaiting manual acceptance | Manage Remove/Restore/Transfer ownership auto-scroll correction accepted; focused regression/source review clear. Preserve guards, layout and separate page approvals C11 finalized-pre-Live departure, optional note, vacancy/replacement and follow-up states await user manual acceptance; existing composition approval remains. |
 | Signup questions / `/Admin/Events/Questions/{id}` | Admin edits the standard and custom questions shown on an event's public signup form | Detail/form + route dialog | `Questions.cshtml`; `_AdminLayout.cshtml`; `signup-questions-overlay.js` | Real route, Participants/signup-form dialog enhancement, add/edit/remove/reorder controls, compact confirmation, focus/history path | This route does not own CSV import; its ordinary presentation is the popup launched inside Participants | Approved — user manual acceptance of popup pilot and follow-up, 2026-09-08 | Scoped lifecycle/confirmation/typography, code-settings and fullscreen-responsive pilot source/browser/visual review clear; preserve accepted behavior and backend semantics; next-family rollout requires authorization |
@@ -136,11 +136,15 @@ persistence/authorization; allow necessary Razor, localization and scoped CSS in
 without silently changing the approved appearance or interactions. Any necessary visible
 or interaction deviation must be identified and agreed before changing it.
 
-Integration resolution: the existing app header/masthead retains its own shell. Below
-it, the Stats-only content wrapper preserves the approved prototype's 1640px maximum
-width and 3.6% inline padding (5% at ≤850px), without an inherited 88rem content cap or
-doubled gutters. This preserves the approved section geometry and does not change other
-pages or the masthead. Record the scoped wrapper in the source-to-production mapping.
+Integration resolution, manually approved 2026-09-23: the app header retains its
+shell, while Stats renders the actual shared Board/Drops/Leaderboards event masthead,
+including lifecycle status, result, player metric selector and conditional actions.
+The masthead and Stats content align to the approved 1640px border-box shell with
+3.6% inline padding (5% at ≤850px), without an inherited 88rem cap or doubled gutters.
+Other pages and Stats body behavior are unchanged. The earlier structure-only
+masthead with Stats-specific dates/player count was rejected and is superseded.
+The user approved the corrected running result (“everything approved”); independent
+UI review for this correction was explicitly skipped by the user, not passed.
 
 Explicit exclusions: do not port the prototype header or masthead; use the application's
 existing shell. Remove the prototype footer/demo strip, sample labels/dates, event-size,
@@ -669,3 +673,81 @@ The submission-workspace consolidation must preserve the neutral “Team
 workspace” terminology where already accepted. This is an implementation
 ownership correction, not a new visual direction; Captain-only readiness language
 remains explicit.
+
+
+## Boss KC leaderboard addition — authorized 2026-09-17
+
+PRODUCT_REQUIREMENTS.md section 16.1 and DELIVERY_PLAN.md section 19 own this bounded
+addition to Board's Leaderboards view. Existing Board-family approval remains intact.
+Reuse the existing tables and masthead dropdown. The new metric trigger matches tab
+styling and aligns immediately before expanded standings or at the right end of the
+horizontal divider when collapsed; narrow layouts may wrap above the divider.
+EHB/Drop EHB table changes are limited to MVP names/tie wording and individual values,
+plus the user-approved Rank heading in both English and Danish (replacing Placering).
+Final independent review must compare tables for unintended UI differences; user
+visual/interaction acceptance is pending. No agent browser/CUA inspection is authorized.
+Deferred objective wording/sidebar spacing are not part of this pass.
+
+Final numeric corrections manually approved 2026-09-23: boss KC `-1` sentinels
+render as em dashes like null in expanded Teams and Players, and boss team average
+gains display rounded whole numbers. Stored values, calculation/sort precision,
+contributor-only averaging and EHB/Drop EHB formatting remain unchanged. This
+approval covers the current running corrections together with the actual shared
+Stats masthead above. Independent UI review of this final display delta was skipped
+at the user's explicit request; focused checks passed. The broader walkthrough
+acceptance/waiver/deferral disposition is owned by MANUAL_TEST_CHECKLIST.md's
+“Current walkthrough disposition — user acceptance, 2026-09-23”.
+
+
+Boss KC leaderboard technical acceptance checkpoint — 2026-09-17: implementation and
+named remediation passed independent Sol High review; no remaining technical findings.
+Report `/private/tmp/bingo-boss-leaderboards-20260917/review.md`; frozen reviewed patch
+SHA-256 `8bc192ad83ea79b31c009be18738801933c56016f99a3322a2422810388a902b`.
+Existing EHB/Drop EHB structure/styles/interactions were source-compared; only agreed
+MVP/Rank changes are accepted technically. Source and automated checks do not establish
+visual/keyboard acceptance. **User manual acceptance remains pending.** Minor objective
+wording/sidebar spacing remain deferred; no publication occurred.
+
+
+Section 19 user visual feedback — 2026-09-17: acceptance is NOT granted. Correct selector
+close behavior and option prefix, existing green/signed gains and MVP values, no boss
+Drops arrow or leaderboard freshness/status text, late stacking with Metric above tabs
+and both left-aligned, and in-place metric switching without scroll-to-top. User selected
+muted blue for every dark-mode leaderboard header. These decisions supersede earlier
+stacked alignment/visible freshness instructions; cache integrity remains protected.
+Same-worker corrections and same-reviewer bounded recheck precede renewed user inspection.
+
+Active section 19 correction addition: Danish boss nested Teams/Players headings are
+Opnået/Start/Slut. Nested EHB Gained/Start/End headings omit redundant EHB wording;
+Drop EHB headings remain unchanged. User acceptance is still pending.
+
+User decision 2026-09-18: light-mode METRIC trigger text and chevron use existing ink
+normally, and existing blue when open, hovered or keyboard-focused. This replaces the
+earlier always-blue request. Included in the current correction pass; acceptance pending.
+
+User retest 2026-09-18: selector dismissal remains rejected at the observed preview;
+only option selection hides the menu. Reclicking METRIC/selected name/chevron and an
+outside click must close it without selecting a value, including after in-place metric
+replacement. Implementer notified while still running. Preview build identity is not
+verified, so no claim is made that the observed runtime includes the latest source fix.
+Actual menu visibility, not just open/ARIA state, remains a required acceptance check.
+
+
+Visual correction implementation checkpoint — 2026-09-18: worker reports all named
+corrections complete with focused automated checks passing; evidence at
+`/private/tmp/bingo-boss-leaderboards-20260917/visual-corrections-evidence.md`.
+No independent review of this correction delta or user visual acceptance is claimed.
+User explicitly deferred review until tomorrow; reviewer has not been dispatched.
+
+
+## Admin-managed WOM competitions — awaiting manual review, 2026-09-22
+
+User explicitly marked this addition **Awaiting manual review**. The scoped
+implementation and final independent Sol High recheck passed; this is technical
+acceptance only. User EN/DA manual inspection remains pending for the Admin
+creation preview/validation, automatic link and management feedback, errors and
+recovery, before-Live deletion confirmation, and affected event/team name inputs.
+Existing page approvals remain intact; this does not grant acceptance of the new
+states. Optional provider-ID rename recognition is omitted. No further worker
+pass or publication is active. Final technical evidence is the “Final named-only
+recheck” in `/Users/christopher/.codex/visualizations/2026/09/17/01a0b085-75ee-79b0-b40b-bba65b669d74/wom-independent-recheck-20260922.md`.

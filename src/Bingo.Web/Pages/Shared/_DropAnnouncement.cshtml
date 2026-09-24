@@ -2,9 +2,8 @@
 @inject Microsoft.Extensions.Localization.IStringLocalizer<Bingo.Web.SharedResource> T
 @{
     var accountId = User.GetAccountId();
-    var admin = User.IsInRole("Admin") || User.IsInRole("SuperAdmin");
 }
-@if (User.Identity?.IsAuthenticated == true && accountId is not null && !admin)
+@if (User.Identity?.IsAuthenticated == true && accountId is not null)
 {
     <aside class="drop-announcement" data-drop-announcement hidden data-account-id="@accountId"
            data-progression-label="@T["New tile progression"]" data-progression-template="@T["New tile progression: {0} / {1}"]" data-completed-label="@T["Tile completed"]" data-clear-success="@T["All new marks cleared."]"

@@ -397,7 +397,8 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests : IAsyncLifetime
         await db.SaveChangesAsync();
     }
 
-    private static SignupService Service(ApplicationDbContext db) => new(db, new SecretHasher(), TimeProvider.System);
+    private static SignupService Service(ApplicationDbContext db) =>
+        new(db, new SecretHasher(), TimeProvider.System, accountValidation: new SuccessfulWiseOldManAccountValidation());
     private static DefaultHttpContext AdminContext(Guid accountId) => new() { User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, accountId.ToString()), new Claim(ClaimTypes.Name, "admin")], "test")) };
     private static Account Website(string name, DateTimeOffset now, GlobalRole role = GlobalRole.User) { var account = Account.CreateWebsite(Guid.NewGuid(), name, name.ToUpperInvariant(), now); account.SetGlobalRole(role); return account; }
     private sealed record Setup(Guid EventId, Guid ConfirmedParticipantId, Guid ConfirmedOwnerId, IReadOnlyList<Guid> WaitingOwnerIds, Guid EnabledAdminId, Guid EnabledSuperAdminId, Guid DisabledAdminId, Guid UnrelatedUserId);

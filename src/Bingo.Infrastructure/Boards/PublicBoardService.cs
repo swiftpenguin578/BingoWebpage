@@ -20,6 +20,17 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
 
     public async Task<PublicEventBoard?> GetEventBoardAsync(string eventSlug, int recentDropCount, string? dropSearch, string? dropTeam, CancellationToken cancellationToken = default)
     {
+        if (db.Database.CurrentTransaction is not null)
+            return await ReadEventBoardAsync(eventSlug, recentDropCount, dropSearch, dropTeam, cancellationToken);
+
+        await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, cancellationToken);
+        var board = await ReadEventBoardAsync(eventSlug, recentDropCount, dropSearch, dropTeam, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return board;
+    }
+
+    private async Task<PublicEventBoard?> ReadEventBoardAsync(string eventSlug, int recentDropCount, string? dropSearch, string? dropTeam, CancellationToken cancellationToken)
+    {
         var bingoEvent = await db.Events.AsNoTracking().SingleOrDefaultAsync(value => value.Slug == eventSlug && value.HiddenAt == null, cancellationToken);
         if (bingoEvent is null) return null;
         if (bingoEvent.State == EventState.Discarded) return null;
@@ -89,6 +100,11 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                 .ToList());
         // Public board wording/rates must be read from the immutable approval tree.
         var teamIds = teams.Select(value => value.Id).ToList();
+        var completionFactsByTeam = (await db.TileCompletionFacts.AsNoTracking()
+                .Where(value => value.EventId == bingoEvent.Id && value.ApprovalSnapshotId == approvalId && teamIds.Contains(value.TeamId))
+                .ToListAsync(cancellationToken))
+            .GroupBy(value => value.TeamId)
+            .ToDictionary(group => group.Key, group => group.ToList());
         var rosterRows = await (from membership in db.TeamMemberships.AsNoTracking()
                                 join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
                                 join player in db.PrimaryCharacters().AsNoTracking() on membership.EventParticipantId equals player.ParticipantId
@@ -139,7 +155,7 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                 group.Select(row => new ProgressContribution(
                     row.contribution.Id, row.contribution.RequirementId, row.contribution.CreditedParticipantId, row.submission.CreditedCharacterName,
                     row.contribution.Amount, row.submission.SubmittedAt, 0,
-                    row.ItemIdSnapshot, row.SourceDropId, row.MaximumContribution))))
+                    row.ItemIdSnapshot, row.SourceDropId, row.MaximumContribution, row.submission.Id))))
             .ToDictionary(value => value.Id, value => value.Amount);
         var historicalProgressBySubmission = new Dictionary<Guid, (int ProgressAfter, int Target)>();
         var creditedByTeamTile = new Dictionary<(Guid TeamId, Guid TileId), int>();
@@ -181,6 +197,9 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                     estimatedAfter - estimatedBefore, row.ItemIdSnapshot, row.SourceDropId, row.MaximumContribution);
             }).ToList();
             var progress = PublicProgressCalculator.Calculate(approval.Rows, approval.Columns, definitions, contributions);
+            if (completionFactsByTeam.TryGetValue(team.Id, out var persistedFacts) && persistedFacts.Count > 0)
+                progress = PublicProgressCalculator.ApplyTileCompletionFacts(progress,
+                    persistedFacts.ToDictionary(value => value.BoardTileId, value => new PersistedTileCompletionTime(value.IsComplete, value.CompletedAt)));
             var contributionByPlayer = progress.Players.ToDictionary(value => value.PlayerId);
             var players = rosterRows
                 .Where(value => value.TeamId == team.Id)
@@ -296,7 +315,7 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                 return new PublicDropEhbTeam(
                     0, team.TeamId, team.TeamName, team.Progress.Players.Count, contributors.Count,
                     players.Sum(player => player.ApprovedSubmissions), players.Sum(player => player.DropEhb),
-                    mvpNames, players);
+                    mvpNames, players, contributors.Count == 0 ? null : contributors[0].DropEhb);
             })
             .OrderByDescending(team => team.DropEhb)
             .ThenByDescending(team => team.TotalDrops)
@@ -323,7 +342,7 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
         var approvedDropIds = approvedRows.Where(value => value.submission.DropSnapshotId is not null)
             .Select(value => value.submission.DropSnapshotId!.Value).Distinct().ToList();
         var approvedDropsById = publishedDrops;
-        var approvedAt = approvedRows.Select(value => value.submission.ReviewedAt ?? value.submission.SubmittedAt).ToList();
+        var submittedAt = approvedRows.Select(value => value.submission.SubmittedAt).ToList();
         var teamDropCounts = approvedRows.GroupBy(value => value.submission.TeamId)
             .ToDictionary(group => group.Key, group => group.Count());
         var highestDropEhbTeam = publicTeams
@@ -338,7 +357,7 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
             .FirstOrDefault();
         var recentDropSummary = new PublicRecentDropSummary(
             approvedRows.Count,
-            approvedAt.Count(value => value >= now.AddHours(-24) && value <= now),
+            submittedAt.Count(value => value >= now.AddHours(-24) && value <= now),
             publicTeams.Sum(value => value.Progress.EhbTiebreak),
             approvedRows.Select(value => value.submission.CreditedParticipantId).Distinct().Count(),
             rosterRows.Select(value => value.PlayerId).Distinct().Count(),
@@ -361,7 +380,10 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                 value.submission.CreditedCharacterName, value.team.Name
             }.Any(text => text?.Contains(term, StringComparison.OrdinalIgnoreCase) == true));
             return teamMatches && searchMatches;
-        }).ToList();
+        })
+            .OrderByDescending(value => value.submission.SubmittedAt)
+            .ThenByDescending(value => value.submission.Id)
+            .ToList();
         var visibleRecentDropCount = Math.Min(Math.Max(recentDropCount, 25), filteredRows.Count);
         var recentRows = filteredRows.Take(visibleRecentDropCount).ToList();
         var recentSubmissionIds = recentRows.Select(value => value.submission.Id).ToList();
@@ -376,7 +398,7 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                 value.submission.Id, value.tile.BoardTileId, frozenTiles[value.tile.BoardTileId].Name,
                 value.team.Name, value.team.Slug, value.submission.CreditedCharacterName,
                 drop?.BossName, drop?.ItemName,
-                value.submission.ApprovedContribution, value.submission.ReviewedAt ?? value.submission.SubmittedAt,
+                value.submission.ApprovedContribution, value.submission.SubmittedAt, value.submission.ReviewedAt,
                 recentAssets.GetValueOrDefault(value.submission.Id)?.Id, progress.ProgressAfter, progress.Target);
         }).ToList();
 
@@ -388,14 +410,14 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
 
     public async Task<PublicRecentDrop?> GetRecentDropAsync(string eventSlug, Guid submissionId, CancellationToken cancellationToken = default)
     {
-        var feed = await GetRecentDropsCoreAsync(eventSlug, 1, null, null, submissionId, null, cancellationToken);
+        var feed = await GetRecentDropsCoreAsync(eventSlug, 1, 0, null, null, submissionId, null, cancellationToken);
         return feed is { Drops.Count: > 0 } ? feed.Drops[0] : null;
     }
 
-    public Task<PublicRecentDropFeed?> GetRecentDropsAsync(string eventSlug, int limit = 25, string? dropSearch = null, string? dropTeam = null, IReadOnlyCollection<Guid>? loadedSubmissionIds = null, CancellationToken cancellationToken = default)
-        => GetRecentDropsCoreAsync(eventSlug, limit, dropSearch, dropTeam, null, loadedSubmissionIds, cancellationToken);
+    public Task<PublicRecentDropFeed?> GetRecentDropsAsync(string eventSlug, int limit = 25, string? dropSearch = null, string? dropTeam = null, IReadOnlyCollection<Guid>? loadedSubmissionIds = null, int offset = 0, CancellationToken cancellationToken = default)
+        => GetRecentDropsCoreAsync(eventSlug, limit, offset, dropSearch, dropTeam, null, loadedSubmissionIds, cancellationToken);
 
-    private async Task<PublicRecentDropFeed?> GetRecentDropsCoreAsync(string eventSlug, int limit, string? dropSearch, string? dropTeam, Guid? submissionId, IReadOnlyCollection<Guid>? loadedSubmissionIds, CancellationToken cancellationToken)
+    private async Task<PublicRecentDropFeed?> GetRecentDropsCoreAsync(string eventSlug, int limit, int offset, string? dropSearch, string? dropTeam, Guid? submissionId, IReadOnlyCollection<Guid>? loadedSubmissionIds, CancellationToken cancellationToken)
     {
         var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(value => value.Slug == eventSlug && value.HiddenAt == null, cancellationToken);
         if (ev is null || ev.State is EventState.Cancelled or EventState.Discarded) return null;
@@ -434,14 +456,15 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
             rows = rows.Where(value => (value.submission.DropSnapshotId != null && matchingDropIds.Contains(value.submission.DropSnapshotId.Value)) || value.tile.NameSnapshot.Contains(term) || value.submission.CreditedCharacterName.Contains(term) || value.team.Name.Contains(term));
         }
         var total = await rows.CountAsync(cancellationToken);
-        var recentRows = await rows.OrderByDescending(value => value.submission.ReviewedAt).ThenByDescending(value => value.submission.Id).Take(Math.Clamp(limit, 1, 100)).ToListAsync(cancellationToken);
+        var recentRows = await rows.OrderByDescending(value => value.submission.SubmittedAt).ThenByDescending(value => value.submission.Id)
+            .Skip(Math.Max(offset, 0)).Take(Math.Clamp(limit, 1, 100)).ToListAsync(cancellationToken);
         var drops = recentRows.Select(value =>
         {
             var drop = value.submission.DropSnapshotId is Guid dropId ? publishedDrops.GetValueOrDefault(dropId) : null;
             return new PublicRecentDrop(
                 value.submission.Id, value.tile.BoardTileId, value.tile.NameSnapshot, value.team.Name, value.team.Slug,
                 value.submission.CreditedCharacterName, drop?.BossName, drop?.ItemName,
-                value.submission.ApprovedContribution, value.submission.ReviewedAt!.Value, value.EvidenceAssetId, 0, 0);
+                value.submission.ApprovedContribution, value.submission.SubmittedAt, value.submission.ReviewedAt, value.EvidenceAssetId, 0, 0);
         }).ToList();
         return new PublicRecentDropFeed(drops, total, validIds);
     }

@@ -50,6 +50,10 @@ public static class PublicProgressCalculator
             .Where(column => tileResults.Where(tile => tile.Column == column).Count() == rows && tileResults.Where(tile => tile.Column == column).All(tile => tile.Complete))
             .ToList();
         var boardComplete = tileResults.Count == rows * columns && tileResults.All(value => value.Complete);
+        var completedTiles = tileResults.Where(value => value.Complete).ToList();
+        var currentScoreReachedAt = completedTiles.Count == 0 || completedTiles.Any(value => value.CompletedAt is null)
+            ? null
+            : completedTiles.Max(value => value.CompletedAt);
         var playerContributions = allocatedContributions
             .GroupBy(value => value.PlayerId)
             .Select(group => new CalculatedPlayerContribution(
@@ -68,7 +72,10 @@ public static class PublicProgressCalculator
             boardComplete,
             boardComplete ? tileResults.Max(value => value.CompletedAt) : null,
             allocatedContributions.Sum(value => value.EstimatedEhb),
-            playerContributions);
+            playerContributions)
+        {
+            CurrentScoreReachedAt = currentScoreReachedAt
+        };
     }
 
     public static IReadOnlyList<ProgressContribution> Allocate(
@@ -84,6 +91,66 @@ public static class PublicProgressCalculator
                 ? Allocate(requirement, group)
                 : (IEnumerable<ProgressContribution>)group)
             .ToList();
+    }
+
+    public static IReadOnlyList<CalculatedTileCompletionFact> CalculateTileCompletionFacts(
+        IReadOnlyList<ProgressTileDefinition> tiles,
+        IReadOnlyList<ProgressContribution> contributions)
+    {
+        var allocated = Allocate(tiles, contributions);
+        var byRequirement = allocated.GroupBy(value => value.RequirementId)
+            .ToDictionary(group => group.Key, group => group.OrderBy(value => value.SubmittedAt).ThenBy(value => value.Id).ToList());
+        var result = new List<CalculatedTileCompletionFact>(tiles.Count);
+
+        foreach (var tile in tiles)
+        {
+            var requirementTimes = new List<DateTimeOffset>(tile.Requirements.Count);
+            var provenance = new List<CompletionContributionProvenance>();
+            foreach (var requirement in tile.Requirements.OrderBy(value => value.Position))
+            {
+                var running = 0;
+                foreach (var contribution in byRequirement.GetValueOrDefault(requirement.Id) ?? [])
+                {
+                    running += contribution.Amount;
+                    provenance.Add(new CompletionContributionProvenance(requirement.Id, contribution.Id, contribution.SubmissionId,
+                        contribution.SubmittedAt, contribution.Amount));
+                    if (running < requirement.Target) continue;
+                    requirementTimes.Add(contribution.SubmittedAt);
+                    break;
+                }
+            }
+
+            var complete = tile.Requirements.Count > 0 && requirementTimes.Count == tile.Requirements.Count;
+            result.Add(new CalculatedTileCompletionFact(tile.Id, complete,
+                complete ? requirementTimes.Max() : null,
+                complete ? provenance : []));
+        }
+
+        return result;
+    }
+
+    public static CalculatedBoardProgress ApplyTileCompletionFacts(
+        CalculatedBoardProgress progress,
+        IReadOnlyDictionary<Guid, PersistedTileCompletionTime> facts)
+    {
+        if (facts.Count != progress.Tiles.Count || progress.Tiles.Any(tile => !facts.ContainsKey(tile.Id)))
+            throw new InvalidOperationException("Persisted tile completion facts do not cover the active board generation.");
+
+        var tiles = progress.Tiles.Select(tile =>
+        {
+            var fact = facts[tile.Id];
+            if (fact.IsComplete != tile.Complete)
+                throw new InvalidOperationException("Persisted tile completion facts disagree with approved evidence.");
+            return tile with { CompletedAt = fact.IsComplete ? fact.CompletedAt : null };
+        }).ToList();
+        var completed = tiles.Where(tile => tile.Complete).ToList();
+        var currentScoreReachedAt = completed.Count == 0 || completed.Any(tile => tile.CompletedAt is null)
+            ? null
+            : completed.Max(tile => tile.CompletedAt);
+        var boardCompletedAt = progress.BoardComplete && tiles.All(tile => tile.CompletedAt is not null)
+            ? tiles.Max(tile => tile.CompletedAt)
+            : null;
+        return progress with { Tiles = tiles, CurrentScoreReachedAt = currentScoreReachedAt, BoardCompletedAt = boardCompletedAt };
     }
 
     private static List<ProgressContribution> Allocate(
@@ -135,6 +202,7 @@ public static class PublicProgressCalculator
             .ThenBy(value => value.Progress.BoardComplete ? value.Progress.BoardCompletedAt : DateTimeOffset.MaxValue)
             .ThenByDescending(value => value.Progress.CompletedRows.Count + value.Progress.CompletedColumns.Count)
             .ThenByDescending(value => value.Progress.CompletedTiles)
+            .ThenBy(value => ScoreTime(value.Progress) ?? DateTimeOffset.MaxValue)
             .ThenByDescending(value => value.Progress.EhbTiebreak)
             .ThenBy(value => value.TeamName)
             .ToList();
@@ -153,15 +221,25 @@ public static class PublicProgressCalculator
         left.Progress.BoardCompletedAt == right.Progress.BoardCompletedAt &&
         left.Progress.CompletedRows.Count + left.Progress.CompletedColumns.Count == right.Progress.CompletedRows.Count + right.Progress.CompletedColumns.Count &&
         left.Progress.CompletedTiles == right.Progress.CompletedTiles &&
+        ScoreTime(left.Progress) == ScoreTime(right.Progress) &&
         left.Progress.EhbTiebreak == right.Progress.EhbTiebreak;
+
+    private static DateTimeOffset? ScoreTime(CalculatedBoardProgress progress) =>
+        progress.BoardComplete ? progress.BoardCompletedAt : progress.CurrentScoreReachedAt;
 }
 
 public sealed record ProgressTileDefinition(Guid Id, int Row, int Column, decimal EstimatedEhb, IReadOnlyList<ProgressRequirementDefinition> Requirements);
 public sealed record ProgressRequirementDefinition(Guid Id, int Position, int Target, bool DuplicatesAllowed = true);
-public sealed record ProgressContribution(Guid Id, Guid RequirementId, Guid PlayerId, string PlayerName, int Amount, DateTimeOffset SubmittedAt, decimal EstimatedEhb, Guid? ItemIdSnapshot = null, Guid? SourceDropId = null, int? MaximumContribution = null);
+public sealed record ProgressContribution(Guid Id, Guid RequirementId, Guid PlayerId, string PlayerName, int Amount, DateTimeOffset SubmittedAt, decimal EstimatedEhb, Guid? ItemIdSnapshot = null, Guid? SourceDropId = null, int? MaximumContribution = null, Guid? SubmissionId = null);
 public sealed record CalculatedRequirementProgress(Guid Id, int Target, int Approved, bool Complete, DateTimeOffset? CompletedAt);
 public sealed record CalculatedTileProgress(Guid Id, int Row, int Column, int Approved, int Target, bool Complete, DateTimeOffset? CompletedAt, decimal EstimatedEhb);
 public sealed record CalculatedPlayerContribution(Guid PlayerId, string PlayerName, decimal EstimatedEhb, int ApprovedContribution, int ApprovedSubmissions);
-public sealed record CalculatedBoardProgress(IReadOnlyList<CalculatedTileProgress> Tiles, int CompletedTiles, IReadOnlyList<int> CompletedRows, IReadOnlyList<int> CompletedColumns, bool BoardComplete, DateTimeOffset? BoardCompletedAt, decimal EhbTiebreak, IReadOnlyList<CalculatedPlayerContribution> Players);
+public sealed record CompletionContributionProvenance(Guid RequirementId, Guid ContributionId, Guid? SubmissionId, DateTimeOffset SubmittedAt, int EffectiveAmount);
+public sealed record CalculatedTileCompletionFact(Guid TileId, bool Complete, DateTimeOffset? CompletedAt, IReadOnlyList<CompletionContributionProvenance> QualifyingContributions);
+public sealed record PersistedTileCompletionTime(bool IsComplete, DateTimeOffset? CompletedAt);
+public sealed record CalculatedBoardProgress(IReadOnlyList<CalculatedTileProgress> Tiles, int CompletedTiles, IReadOnlyList<int> CompletedRows, IReadOnlyList<int> CompletedColumns, bool BoardComplete, DateTimeOffset? BoardCompletedAt, decimal EhbTiebreak, IReadOnlyList<CalculatedPlayerContribution> Players)
+{
+    public DateTimeOffset? CurrentScoreReachedAt { get; init; }
+}
 public sealed record UnrankedTeamProgress(Guid TeamId, string TeamName, CalculatedBoardProgress Progress);
 public sealed record RankedTeamProgress(Guid TeamId, string TeamName, CalculatedBoardProgress Progress, int Rank);

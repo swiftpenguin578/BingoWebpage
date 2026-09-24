@@ -17,7 +17,8 @@ public sealed class OnboardingModel(
     DiscordOnboardingStateService onboardingState,
     IStringLocalizer<SharedResource> text,
     ILogger<OnboardingModel> logger,
-    IWiseOldManPlayerLookup wiseOldMan) : PageModel
+    IWiseOldManPlayerLookup wiseOldMan,
+    IWiseOldManAccountValidation? accountValidation = null) : PageModel
 {
     [BindProperty] public InputModel Input { get; set; } = new();
 
@@ -36,6 +37,8 @@ public sealed class OnboardingModel(
                 ModelState.AddModelError(string.Empty, LookupFailure(result));
                 return Page();
             }
+
+            accountValidation?.RememberSuccessfulLookup(Input.OsrsCharacterName, result.FetchedAt!.Value);
 
             Input.SavedEhb = result.Ehb!.Value;
             ModelState.Remove("Input.SavedEhb");
@@ -61,6 +64,11 @@ public sealed class OnboardingModel(
             TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();
             return LocalRedirect(Url.IsLocalUrl(state.ReturnUrl) ? state.ReturnUrl : "/");
         }
+        catch (WiseOldManAccountValidationException exception)
+        {
+            ModelState.AddModelError(string.Empty, ValidationFailure(exception.Result));
+            return Page();
+        }
         catch (InvalidOperationException exception)
         {
             ModelState.AddModelError(string.Empty, SafeUserFailure.Message(text, logger, exception));
@@ -82,6 +90,10 @@ public sealed class OnboardingModel(
         _ when result.RetryAt is { } retryAt => text["Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {0}.", DateTimePresentation.Format(retryAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)].Value,
         _ => text["Wise Old Man is unavailable right now. Your current EHB was kept."].Value
     };
+
+    private string ValidationFailure(WiseOldManAccountValidationResult result) => result.HasKnownInvalid
+        ? text["Wise Old Man could not find the submitted character. Check the name and try again."].Value
+        : text["Wise Old Man is unavailable, so the account cannot be created right now. Try again later."].Value;
 
     public sealed class InputModel
     {

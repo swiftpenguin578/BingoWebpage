@@ -13,18 +13,20 @@ const localizedDocument = { documentElement: { dataset: {
 } } };
 
 class Node {
-  constructor({ dataset = {}, href = null, children = [], tagName = "div", open = false, id = null, value = "" } = {}) {
+  constructor({ dataset = {}, href = null, children = [], tagName = "div", className = "", open = false, id = null, value = "" } = {}) {
     this.dataset = dataset;
     this.ownerDocument = localizedDocument;
     this.href = href;
     this.id = id;
     this.tagName = tagName.toUpperCase();
+    this.className = className;
     this.open = open;
     this.value = value;
     this.children = children;
     this.listeners = {};
     this.attributes = {};
     this.hidden = false;
+    this.textContent = value;
     this.classList = {
       values: new Set(),
       contains(name) { return this.values.has(name); },
@@ -41,21 +43,35 @@ class Node {
   addEventListener(type, listener) { (this.listeners[type] ??= []).push(listener); }
   dispatch(type, event) { return (this.listeners[type] ?? []).map(listener => listener({ type, target: this, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, ...event })); }
   appendChild(child) { this.children = this.children.filter(value => value !== child); this.children.push(child); child.parentElement = this; return child; }
-  setAttribute(name, value) { this.attributes[name] = String(value); }
-  removeAttribute(name) { delete this.attributes[name]; }
+  setAttribute(name, value) { this.attributes[name] = String(value); if (name === "hidden") this.hidden = true; if (name === "disabled") this.disabled = true; }
+  removeAttribute(name) { delete this.attributes[name]; if (name === "hidden") this.hidden = false; if (name === "disabled") this.disabled = false; }
   getAttribute(name) { return name === "id" ? this.id : this.attributes[name]; }
   focus() { this.focused = true; }
   contains(node) { return node === this || this.children.some(child => child.contains(node)); }
+  replaceWith(node) {
+    const parent = this.parentElement;
+    const siblings = parent?.children;
+    if (!siblings) return;
+    const index = siblings.indexOf(this);
+    if (index >= 0) {
+      siblings.splice(index, 1, node);
+      this.parentElement = null;
+      node.parentElement = parent;
+    }
+  }
   closest(selector) { return selector === "[data-public-leaderboard-view]" && this.dataset.publicLeaderboardView ? this : null; }
   querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
   querySelectorAll(selector) {
     const matches = node => selector.split(",").some(value => {
       const current = value.trim();
       if (current === "summary") return node.tagName === "SUMMARY";
+      if (current.startsWith("#")) return node.id === current.slice(1);
+      if (current === ".public-ui-compact-dropdown-menu") return node.className === "public-ui-compact-dropdown-menu";
       if (current === "[data-public-ui-compact-dropdown]") return node.dataset.publicUiCompactDropdown !== undefined;
       if (current === "[data-public-ui-dropdown-option]") return node.dataset.publicUiDropdownOption !== undefined;
       if (current === "[data-public-ui-dropdown-label]") return node.dataset.publicUiDropdownLabel !== undefined;
       if (current === "[data-public-ui-dropdown-check]") return node.dataset.publicUiDropdownCheck !== undefined;
+      if (current === "[data-public-leaderboard-metric-selector]") return node.dataset.publicLeaderboardMetricSelector !== undefined;
       if (current === "[data-public-leaderboard-view]") return node.dataset.publicLeaderboardView !== undefined;
       if (current === "[data-public-leaderboard-panel]") return node.dataset.publicLeaderboardPanel !== undefined;
       if (current === "[data-public-leaderboard-switcher]") return node.dataset.publicLeaderboardSwitcher !== undefined;
@@ -177,7 +193,7 @@ const mastheadTrigger = new Node({ tagName: "summary" });
 const mastheadOptions = ["spooned", "drops", "ehb"].map((key, index) => new Node({ dataset: { publicUiDropdownOption: key, publicUiDropdownLabel: key === "spooned" ? "Most spooned" : key === "drops" ? "Highest DEHB" : "Highest EHB" }, children: [new Node({ dataset: { publicUiDropdownCheck: "" } })] }));
 mastheadOptions.forEach((option, index) => option.setAttribute("aria-selected", String(index === 0)));
 const mastheadLabel = new Node({ dataset: { publicUiDropdownLabel: "" } });
-const mastheadMenu = new Node({ children: mastheadOptions });
+const mastheadMenu = new Node({ className: "public-ui-compact-dropdown-menu", children: mastheadOptions });
 mastheadMetricSelector.children = [mastheadTrigger, mastheadLabel, mastheadMenu];
 mastheadTrigger.parentElement = mastheadMetricSelector;
 mastheadLabel.parentElement = mastheadMetricSelector;
@@ -190,8 +206,8 @@ const dropsMetric = new Node({ dataset: { publicLeaderboardStandingsMetric: "dro
 const standings = new Node({ children: [activityMetric, dropsMetric] });
 const railToggle = new Node({ dataset: { publicLeaderboardsRailToggle: "", expandedLabel: "Collapse Bingo standings", collapsedLabel: "Expand Bingo standings" } });
 const railBody = new Node({ dataset: { publicLeaderboardsRailBody: "" } });
-const leaderboardsLayout = new Node({ dataset: { publicLeaderboardsLayout: "" }, children: [railToggle, railBody] });
-const root = new Node({ children: [mastheadMetricSelector, mastheadSpoonedMetric, mastheadDropsMetric, mastheadEhbMetric, switcher, activityPanel, dropsPanel, playersPanel, standings, leaderboardsLayout] });
+const leaderboardsLayout = new Node({ dataset: { publicLeaderboardsLayout: "" }, children: [switcher, activityPanel, dropsPanel, playersPanel, standings, railToggle, railBody] });
+const root = new Node({ children: [mastheadMetricSelector, mastheadSpoonedMetric, mastheadDropsMetric, mastheadEhbMetric, leaderboardsLayout] });
 const stackedMedia = {
   matches: false,
   listeners: [],
@@ -214,7 +230,11 @@ assert.equal(mastheadSpoonedMetric.hidden, false);
 assert.equal(mastheadDropsMetric.hidden, true);
 assert.equal(mastheadEhbMetric.hidden, true);
 mastheadTrigger.dispatch("click");
+assert.equal(mastheadMetricSelector.open, true);
+assert.equal(mastheadMenu.hidden, false);
+mastheadTrigger.dispatch("click");
 assert.equal(mastheadMetricSelector.open, false);
+assert.equal(mastheadMenu.hidden, true);
 mastheadMetricSelector.open = true;
 mastheadTrigger.dispatch("keydown", { key: "ArrowDown" });
 assert.equal(mastheadOptions[1].focused, true);
@@ -260,6 +280,50 @@ const otherEventEhbMetric = new Node({ dataset: { publicMastheadMetric: "ehb" } 
 initialize(new Node({ children: [otherEventSelector, otherEventSpoonedMetric, otherEventDropsMetric, otherEventEhbMetric] }), window);
 assert.equal(otherEventSelector.dataset.publicUiDropdownValue, "spooned");
 assert.equal(otherEventSpoonedMetric.hidden, false);
+const metricSelector = new Node({ tagName: "details", dataset: { publicUiCompactDropdown: "", publicLeaderboardMetricSelector: "", publicLeaderboardMetricDefaultRanking: "activity" } });
+const metricTrigger = new Node({ tagName: "summary" });
+const metricLabel = new Node({ dataset: { publicUiDropdownLabel: "" } });
+const metricOptions = [
+  new Node({ dataset: { publicUiDropdownOption: "default", publicUiDropdownLabel: "EHB & Drop EHB" } }),
+  new Node({ dataset: { publicUiDropdownOption: "vorkath", publicUiDropdownLabel: "Vorkath" } })
+];
+metricOptions[1].setAttribute("aria-selected", "true");
+const metricMenu = new Node({ className: "public-ui-compact-dropdown-menu", children: metricOptions });
+metricSelector.children = [metricTrigger, metricLabel, metricMenu];
+metricSelector.children.forEach(child => child.parentElement = metricSelector);
+const metricTeamsLink = new Node({ dataset: { publicLeaderboardView: "teams" }, href: "https://example.test/Events/test/Board?view=leaderboards&ranking=teams&metric=vorkath" });
+const metricPlayersLink = new Node({ dataset: { publicLeaderboardView: "players" }, href: "https://example.test/Events/test/Board?view=leaderboards&ranking=players&metric=vorkath" });
+const metricSwitcher = new Node({ dataset: { publicLeaderboardSwitcher: "" }, children: [metricTeamsLink, metricPlayersLink] });
+const metricTeamsPanel = new Node({ dataset: { publicLeaderboardPanel: "metric-teams", publicLeaderboardPanelView: "teams", publicLeaderboardMode: "metric" } });
+const metricPlayersPanel = new Node({ dataset: { publicLeaderboardPanel: "metric-players", publicLeaderboardPanelView: "players", publicLeaderboardMode: "metric" } });
+const metricDefaultPanel = new Node({ dataset: { publicLeaderboardPanel: "activity", publicLeaderboardMode: "default" } });
+const metricStandings = new Node({ children: [
+  new Node({ dataset: { publicLeaderboardStandingsMetric: "activity" } }),
+  new Node({ dataset: { publicLeaderboardStandingsMetric: "boss" } })
+] });
+const metricLayout = new Node({ dataset: { publicLeaderboardsLayout: "", publicLeaderboardsMode: "metric" }, children: [metricSelector, metricSwitcher, metricTeamsPanel, metricPlayersPanel, metricDefaultPanel, metricStandings] });
+const metricRoot = metricLayout;
+const metricWindow = {
+  location: { href: metricTeamsLink.href },
+  history: { pushState(_state, _title, href) { metricWindow.location.href = href; } },
+  addEventListener(type, listener) { this.listeners ??= {}; (this.listeners[type] ??= []).push(listener); }
+};
+initialize(metricRoot, metricWindow);
+assert.equal(metricSelector.dataset.publicUiDropdownValue, "vorkath");
+assert.equal(metricTeamsPanel.hidden, false);
+assert.equal(metricPlayersPanel.hidden, true);
+assert.equal(metricDefaultPanel.hidden, true);
+assert.equal(metricStandings.children[0].hidden, true);
+assert.equal(metricStandings.children[1].hidden, false);
+metricSwitcher.dispatch("click", { target: metricPlayersLink });
+assert.equal(metricTeamsPanel.hidden, true);
+assert.equal(metricPlayersPanel.hidden, false);
+assert.match(metricWindow.location.href, /ranking=players/);
+metricSelector.open = true;
+metricOptions[0].dispatch("click");
+assert.equal(metricSelector.dataset.publicUiDropdownValue, "default");
+assert.doesNotMatch(metricWindow.location.href, /metric=vorkath/);
+assert.match(metricWindow.location.href, /ranking=players/);
 const ehbSortControls = ehbSortTable.querySelectorAll("[data-public-leaderboard-sort-control]");
 assert.equal(ehbSortControls[0].parentElement.attributes["aria-sort"], "none");
 assert.equal(ehbRows[0].dataset.rankLabel, "#1");
@@ -397,8 +461,10 @@ assert.equal(dropsLink.classList.values.has("is-current"), false);
 assert.equal(activityMetric.hidden, false);
 assert.equal(dropsMetric.hidden, true);
 
-const boardMarkup = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/Pages/Events/Board.cshtml"), "utf8");
-const boardModelMarkup = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/Pages/Events/Board.cshtml.cs"), "utf8");
+const boardPageMarkup = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/Pages/Events/Board.cshtml"), "utf8");
+const mastheadMarkup = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/Pages/Shared/_EventMasthead.cshtml"), "utf8");
+const boardMarkup = boardPageMarkup.replace('<partial name="_EventMasthead" model="Model.Masthead" />', mastheadMarkup);
+const boardModelMarkup = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/Pages/Events/Board.cshtml.cs"), "utf8") + fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/UI/EventMastheadModel.cs"), "utf8");
 const catalogueMarkup = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/Pages/Admin/PublicUi.cshtml"), "utf8");
 const publicBoardServiceMarkup = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Infrastructure/Boards/PublicBoardService.cs"), "utf8");
 const siteCss = ["site.transitional.foundation.css", "site.public-ui.css", "site.transitional.application.css"]
@@ -406,6 +472,24 @@ const siteCss = ["site.transitional.foundation.css", "site.public-ui.css", "site
   .join("\n");
 const publicUiCss = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/wwwroot/css/site.public-ui.css"), "utf8");
 const publicLeaderboardsJs = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/wwwroot/js/public-leaderboards.js"), "utf8");
+const danishResource = fs.readFileSync(path.join(__dirname, "../../src/Bingo.Web/Resources/SharedResource.da.resx"), "utf8");
+for (const key of [
+  "players",
+  "Leaderboard metric",
+  "Boss teams leaderboard",
+  "No boss activity is available yet",
+  "Multiple MVPs",
+  "Boss players leaderboard",
+  "No boss activity players are available yet",
+  "Select the exact managed WOM competition before deleting it.",
+  "The originating Admin is no longer enabled for this WOM operation.",
+  "The tile description mode changed. Edit and save the tile before approval.",
+  "{0} has an automatic description that is too long. Reduce the selected sources or objective count before approval.",
+  "The event or team changed while you were editing it. Reload and try again.",
+  "Your signup changed while you were editing it. Please reload and try again."
+]) {
+  assert.ok(danishResource.includes(`<data name="${key}" xml:space="preserve">`), `Danish shared resources include the exact new key: ${key}`);
+}
 // Limit column checks to the relevant table header so later tables cannot satisfy them.
 const tableHead = (markup, marker) => {
   const start = markup.indexOf(marker);
@@ -414,7 +498,7 @@ const tableHead = (markup, marker) => {
   assert.ok(head, `${marker} header is present`);
   return head;
 };
-const boardPlayersHead = tableHead(boardMarkup, "data-public-leaderboard-players-table");
+const boardPlayersHead = tableHead(boardMarkup, "id=\"public-leaderboard-players\"");
 const boardEhbHead = tableHead(boardMarkup, "public-ui-table--nested-ehb");
 const cataloguePlayersHead = tableHead(catalogueMarkup, "data-public-leaderboard-players-table");
 const catalogueEhbHead = tableHead(catalogueMarkup, "public-ui-table--nested-ehb");
@@ -450,6 +534,9 @@ assert.match(publicUiCss, /\.public-ui-compact-dropdown-option \{[^}]*font: inhe
 assert.match(publicUiCss, /\.public-ui-compact-dropdown-menu \{[^}]*max-height: 13rem;[^}]*overflow-y: auto;[^}]*overscroll-behavior: contain;[^}]*background: var\(--public-ui-control-overlay-surface\);[^}]*border: 1px solid rgba\(210, 220, 230, 0\.18\);/, "compact dropdown menu uses the named opaque control-overlay surface, bounded scrolling, and shared outline");
 assert.match(publicUiCss, /\.public-ui-evidence-drop \{[^}]*border: 1px dashed var\(--public-ui-divider\);/, "evidence upload empty state uses a complete spaced dashed perimeter");
 assert.match(publicUiCss, /\.public-ui-compact-dropdown:not\(\[open\]\) > \.public-ui-compact-dropdown-menu \{ display: none; \}/, "compact dropdown explicitly hides its menu while closed");
+assert.match(publicUiCss, /\.public-ui-compact-dropdown\[data-public-ui-dropdown-open="false"\] > \.public-ui-compact-dropdown-menu \{ display: none !important; \}/, "compact dropdown keeps its menu hidden through the explicit closed state");
+assert.match(publicUiCss, /\.public-ui-compact-dropdown\[data-public-ui-dropdown-open="true"\] > \.public-ui-compact-dropdown-menu \{ display: grid; \}/, "compact dropdown restores its menu display through the explicit open state");
+assert.match(publicLeaderboardsJs, /dropdown\.dataset\.publicUiDropdownOpen = String\(dropdown\.open\)/, "compact dropdown synchronizes the rendered open state used by the closed cascade");
 const boardMastheadDetails = boardMarkup.match(/<details[^>]*data-public-masthead-metric-selector[^>]*>/)?.[0] ?? "";
 const catalogueMastheadDetails = catalogueMarkup.match(/<details[^>]*data-public-masthead-metric-selector[^>]*>/)?.[0] ?? "";
 assert.match(boardMastheadDetails, /class="public-ui-masthead-metric-selector"[^>]*data-public-ui-compact-dropdown/, "production masthead uses the semantic disclosure owner and data hook");
@@ -490,9 +577,9 @@ assert.doesNotMatch(siteCss, /@media \(max-width: 1199px\) \{\s+\.public-event-d
 assert.doesNotMatch(siteCss, /\.public-event-dashboard \.public-dashboard-title h1 \{ font-size:/, "event title uses the shared component-title role without an oversized override");
 assert.match(siteCss, /\.public-event-dashboard \.public-dashboard-hero > \.public-dashboard-masthead-actions \{ justify-content: flex-end; \}/, "masthead actions occupy the far-right slot");
 assert.match(boardMarkup, /<tr class="public-ui-leaderboard-detail-row">\s*<td colspan="7">\s*<details/, "production leaderboards use full-width detail rows");
-assert.equal((boardMarkup.match(/public-ui-table--nested(?:\s|")/g) ?? []).length, 2, "production has one nested detail table per leaderboard variant");
+assert.equal((boardMarkup.match(/public-ui-table--nested(?:\s|")/g) ?? []).length, 3, "production has one nested detail table per leaderboard variant and boss metric mode");
 assert.match(boardMarkup, /data-public-leaderboard-view="activity"[\s\S]*?data-public-leaderboard-view="drops"[\s\S]*?data-public-leaderboard-view="players"/, "production exposes the route-backed three-view selector");
-assert.match(boardMarkup, /<div class="public-ui-leaderboards-tabs">\s*<nav[^>]*data-public-leaderboard-switcher[\s\S]*?<\/nav>\s*<\/div>\s*<div class="public-ui-leaderboards-divider" aria-hidden="true"><\/div>\s*<div class="public-ui-section public-ui-leaderboards-main">\s*<section[^>]*aria-label="@T\["Selected leaderboard"\]">\s*<div class="public-ui-surface-content">\s*<div id="public-leaderboard-activity"[\s\S]*?data-public-leaderboard-panel="drops"[\s\S]*?data-public-leaderboard-panel="players"/, "production tabs precede the shared surface containing all three panels");
+assert.match(boardMarkup, /<div class="public-ui-leaderboards-tabs">\s*<nav[^>]*data-public-leaderboard-switcher[\s\S]*?<\/nav>[\s\S]*?<\/div>\s*<div class="public-ui-leaderboards-divider" aria-hidden="true"><\/div>\s*<div class="public-ui-section public-ui-leaderboards-main">\s*<section[^>]*aria-label="@T\["Selected leaderboard"\]">\s*<div class="public-ui-surface-content">[\s\S]*?<div id="public-leaderboard-activity"[\s\S]*?data-public-leaderboard-panel="drops"[\s\S]*?data-public-leaderboard-panel="players"/, "production tabs and metric selector precede the shared surface containing all leaderboard panels");
 assert.match(boardPlayersHead, /@T\["Rank"\][\s\S]*?@T\["Player"\][\s\S]*?@T\["Team"\][\s\S]*?@T\["EHB gained"\][\s\S]*?@T\["Drop EHB"\][\s\S]*?@T\["Total drops"\][\s\S]*?@T\["WOM"\]/, "production Players header retains the ordered owner, metrics and WOM columns");
 assert.match(boardMarkup, /data-sort-player="@primaryAccountName" data-sort-team="@player\.TeamName" data-sort-ehb-gained="@\(player\.HasActivity \? participant\.TotalGainedEhb/, "production Players rows expose owner/team and conditional EHB sort values");
 assert.match(boardMarkup, /data-sort-ehb-gained="@\(player\.HasActivity \? participant\.TotalGainedEhb\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\) : null\)" data-sort-drop-ehb="@\(player\.TotalDrops > 0 \? player\.DropEhb\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\) : null\)" data-sort-total-drops="@player\.TotalDrops"/, "production Players rows expose conditional EHB and independent approved-drop sort values");
@@ -500,13 +587,19 @@ assert.match(boardMarkup, /player\.HasActivity \? player\.Rank\.ToString\(System
 assert.match(boardMarkup, /player\.TotalDrops > 0 \? player\.DropEhb\.ToString\("\+0\.00;-0\.00;0\.00"\) : "—"/, "production Players show an em dash for zero-drop Drop EHB");
 assert.match(boardMarkup, /class="public-ui-section-heading @\(player\.HasActivity \? "public-ui-positive-delta--success" : null\)">@gainedEhb/, "production unavailable EHB values omit the success color");
 assert.match(boardMarkup, /class="public-ui-section-heading @\(player\.TotalDrops > 0 \? "public-ui-positive-delta--success" : null\)">@\(player\.TotalDrops > 0/, "production unavailable Drop EHB values omit the success color");
-assert.match(boardEhbHead, /@T\["Rank"\][\s\S]*?@T\["Player"\][\s\S]*?@T\["EHB gained"\][\s\S]*?@T\["Start EHB"\][\s\S]*?@T\["End EHB"\][\s\S]*?@T\["WOM"\]/, "production EHB details retain the ordered six-column header");
+assert.match(boardEhbHead, /@T\["Rank"\][\s\S]*?@T\["Player"\][\s\S]*?@T\["Gained"\][\s\S]*?@T\["Start"\][\s\S]*?@T\["End"\][\s\S]*?@T\["WOM"\]/, "production EHB details retain the ordered six-column header without redundant EHB labels");
 assert.match(boardMarkup, /public-ui-table--nested-drop-ehb[\s\S]*?@T\["Rank"\][\s\S]*?@T\["Player"\][\s\S]*?@T\["Drop EHB"\][\s\S]*?@T\["Total drops"\][\s\S]*?@T\["Team share"\][\s\S]*?@T\["Drops"\]/, "production Drop EHB details use the approved six-column order");
 assert.match(boardMarkup, /var teamShareValue = team\.TotalDrops == 0 \? 0m : player\.ApprovedSubmissions \/ \(decimal\)team\.TotalDrops \* 100m;[\s\S]*?var teamShare = team\.TotalDrops == 0 \? "—" : \$"\{teamShareValue:0\.0\}%";[\s\S]*?<td><strong class="public-ui-section-heading">@teamShare<\/strong>/, "production Drop EHB details derive neutral team share from approved drop counts with an all-zero em dash");
 assert.match(boardMarkup, /data-sort-rank="@\(player\.ApprovedSubmissions > 0 \? \(playerIndex \+ 1\)\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\) : null\)"[\s\S]*?data-sort-drop-ehb="@\(player\.ApprovedSubmissions > 0 \? player\.DropEhb\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\) : null\)"[\s\S]*?player\.ApprovedSubmissions > 0 \? player\.DropEhb\.ToString\("\+0\.00;-0\.00;0\.00"\) : "—"/, "production Drop EHB rows keep unavailable rank and Drop EHB values out of numeric sorting");
-assert.equal((boardMarkup.match(/data-public-leaderboard-sort-table/g) ?? []).length, 3, "production marks both nested variants and Players as sortable tables");
+assert.equal((boardMarkup.match(/data-public-leaderboard-sort-table/g) ?? []).length, 5, "production marks both nested variants and both Players modes as sortable tables");
 assert.equal((catalogueMarkup.match(/data-public-leaderboard-sort-table/g) ?? []).length, 5, "catalogue marks both nested variants and Players as sortable tables");
-assert.equal((boardMarkup.match(/data-public-leaderboard-sort-control/g) ?? []).length, 16, "production exposes sortable nested and Players headers");
+assert.equal((boardMarkup.match(/data-public-leaderboard-sort-control/g) ?? []).length, 27, "production exposes sortable nested and Players headers for default and boss metrics");
+assert.match(boardMarkup, /public-ui-table--nested-metric[\s\S]*data-public-leaderboard-sort-key="rank"[\s\S]*data-public-leaderboard-sort-key="player"[\s\S]*data-public-leaderboard-sort-key="gained"[\s\S]*data-public-leaderboard-sort-key="start"[\s\S]*data-public-leaderboard-sort-key="end"[\s\S]*<th[^>]*>@T\["Drops"\]<\/th>/, "production boss detail rows retain the shared sortable Rank, Player, Gained, Start, End and Drops columns");
+assert.match(boardMarkup, /data-public-leaderboard-panel="metric-players"[\s\S]*data-public-leaderboard-sort-key="rank"[\s\S]*data-public-leaderboard-sort-key="player"[\s\S]*data-public-leaderboard-sort-key="team"[\s\S]*data-public-leaderboard-sort-key="gained"[\s\S]*data-public-leaderboard-sort-key="start"[\s\S]*data-public-leaderboard-sort-key="end"[\s\S]*<th[^>]*>@T\["Drops"\]<\/th>/, "production boss Players retains the shared sortable seven-column table contract");
+assert.match(boardMarkup, /data-public-leaderboard-metric-selector[\s\S]*data-public-ui-dropdown-option="default"[\s\S]*@foreach \(var option in Model\.MetricLeaderboard\.Options\)/, "production metric selector exposes the default and linked source options");
+assert.match(boardMarkup, /asp-route-dropSearch="@Model\.MetricLeaderboard\.Selected!\.DisplayName"[\s\S]*asp-route-dropTeam="@metricTeam\.TeamSlug"/, "production boss detail Drops links preserve the existing search and team filters");
+assert.match(publicLeaderboardsJs, /selectMetric\(metric\)[\s\S]*searchParams\.delete\("metric"\)[\s\S]*searchParams\.set\("ranking", \["teams", "players"\]\.includes\(currentRanking\) \? currentRanking : "teams"\)/, "metric selection keeps route-backed default and boss ranking transitions");
+assert.match(danishResource, /<data name="Rank" xml:space="preserve"><value>Rank<\/value><\/data>/, "Danish shared Rank heading keeps the approved English label");
 assert.match(boardMarkup, /data-sort-ehb-gained="@aggregateGainedEhb\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\)"[\s\S]*?data-sort-start-ehb="@aggregateStartEhb\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\)"[\s\S]*?data-sort-end-ehb="@aggregateEndEhb\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\)"/, "production EHB rows sort multi-account numeric aggregates");
 assert.match(boardMarkup, /data-sort-drop-ehb="@\(player\.ApprovedSubmissions > 0 \? player\.DropEhb\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\) : null\)"[\s\S]*?data-sort-total-drops="@player\.ApprovedSubmissions"[\s\S]*?data-sort-team-share="@teamShareValue\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\)"/, "production Drop EHB rows expose aggregate sort values and unavailable sentinels");
 assert.doesNotMatch(boardMarkup, /data-public-leaderboard-sort-key="(?:wom|drops)"/, "production action columns remain non-sortable");
@@ -630,3 +723,192 @@ const playersLabelledBy = playersPanelMarkup.match(/aria-labelledby="([^"\n]+)"/
 assert.ok(playersLabelledBy, "production Players panel retains an accessible label reference");
 for (const id of playersLabelledBy.split(/\s+/))
   assert.ok(boardMarkup.includes(`id="${id}"`), `production Players panel label resolves: ${id}`);
+
+assert.match(boardMarkup, /data-public-ui-dropdown-option="default" data-public-ui-dropdown-label="@T\["EHB & Drop EHB"\]"[\s\S]*?<span>@T\["EHB & Drop EHB"\]<\/span>/, "metric options expose plain labels while the trigger owns the METRIC prefix");
+assert.match(boardMarkup, /data-public-ui-dropdown-option="@option\.Metric" data-public-ui-dropdown-label="@option\.DisplayName"[\s\S]*?<span>@option\.DisplayName<\/span>/, "linked boss options expose plain localized names");
+assert.doesNotMatch(boardMarkup, /public-ui-leaderboard-status|@T\["Incomplete"\]|@T\["Stale"\]|@T\["Estimated"\]|@T\["Retained"\]|@T\["Waiting"\]/, "leaderboard panels contain no visible freshness or availability labels");
+assert.match(boardMarkup, /metricTeam\.TotalGained\.ToString\("\+0;-0;0"\)[\s\S]*?metricTeam\.AverageGained\.ToString\("\+0;-0;0"\)/, "boss team totals and displayed averages use signed whole numbers without changing sort precision");
+assert.match(boardMarkup, /var gained = account\.Gained is \{ \} gainedValue && gainedValue != -1m \? gainedValue\.ToString\("\+0;-0;0"\)/, "boss account gains use signed formatting while unknown values remain unavailable");
+assert.match(boardMarkup, /public-ui-leaderboard-mvp-value public-ui-positive-delta--success/, "all leaderboard MVP values reuse the green gain token");
+assert.doesNotMatch(boardMarkup, /data-public-leaderboard-panel\^="metric-"[\s\S]*?public-ui-leaderboard-drops-link[\s\S]*?content: "→"/, "boss Drops links have no arrow suffix");
+assert.match(siteCss, /@container \(max-width: 48rem\)[\s\S]*?public-ui-leaderboard-metric-selector[\s\S]*?grid-row: 1[\s\S]*?public-ui-view-switcher[\s\S]*?grid-row: 2/, "leaderboard controls stack by available container width with Metric above left-aligned tabs");
+assert.match(siteCss, /public-ui-leaderboard-metric-selector \{[^}]*color: var\(--board-ink\)/, "light leaderboard metric trigger uses the existing ink token by default");
+assert.match(siteCss, /public-ui-leaderboard-metric-selector\[open\] > summary \{ color: var\(--board-blue\); \}/, "leaderboard metric trigger uses blue while open");
+assert.match(siteCss, /public-ui-leaderboard-metric-selector > summary:hover,[\s\S]*?public-ui-leaderboard-metric-selector > summary:focus-visible \{ color: var\(--board-blue\); \}/, "leaderboard metric trigger uses blue on hover and keyboard focus");
+assert.match(siteCss, /html\[data-public-theme="dark"\][\s\S]*?public-ui-leaderboard-metric-selector \{ color: var\(--board-muted\); \}/, "dark leaderboard metric trigger keeps its existing closed-state treatment");
+assert.match(publicUiCss, /html\[data-public-theme="dark"\][\s\S]*?public-ui-leaderboards-main \.public-ui-table th[\s\S]*?color: var\(--board-blue\)/, "dark leaderboard headers use the muted blue token");
+assert.match(publicLeaderboardsJs, /fetchFunction\.call\(windowObject[\s\S]*?layout\.replaceWith\(nextLayout\)[\s\S]*?windowObject\.scrollTo/, "metric changes fetch and replace only the leaderboard layout while restoring scroll");
+assert.match(publicLeaderboardsJs, /requestSequence !== state\.requestSequence[\s\S]*?restoreUrlAfterFailure/, "metric changes ignore stale responses and recover the current view after failure");
+assert.match(danishResource, /<data name="Gained" xml:space="preserve"><value>Opnået<\/value><\/data>[\s\S]*?<data name="Sort by Gained" xml:space="preserve"><value>Sortér efter opnået<\/value><\/data>/, "Danish boss gained labels and sort names are localized");
+assert.match(danishResource, /<data name="End" xml:space="preserve"><value>Slut<\/value><\/data>[\s\S]*?<data name="Sort by End" xml:space="preserve"><value>Sortér efter slut<\/value><\/data>/, "Danish boss end labels and sort names are localized");
+assert.match(boardEhbHead, /data-public-leaderboard-sort-label="@T\["Gained"\]"[\s\S]*?@T\["Gained"\][\s\S]*?data-public-leaderboard-sort-label="@T\["Start"\]"[\s\S]*?@T\["Start"\][\s\S]*?data-public-leaderboard-sort-label="@T\["End"\]"[\s\S]*?@T\["End"\]/, "nested EHB headings remove redundant EHB suffixes while keeping aligned accessible sort labels");
+
+function makeMetricLayout(metric) {
+  const metricNames = { default: "EHB & Drop EHB", vorkath: "Vorkath", zulrah: "Zulrah" };
+  const selector = new Node({ tagName: "details", dataset: { publicUiCompactDropdown: "", publicLeaderboardMetricSelector: "", publicLeaderboardMetricDefaultRanking: "activity" } });
+  const trigger = new Node({ tagName: "summary" });
+  const label = new Node({ dataset: { publicUiDropdownLabel: "" } });
+  const options = Object.entries(metricNames).map(([key, name]) => new Node({ dataset: { publicUiDropdownOption: key, publicUiDropdownLabel: name } }));
+  options.forEach(option => option.setAttribute("aria-selected", String(option.dataset.publicUiDropdownOption === metric)));
+  const menu = new Node({ className: "public-ui-compact-dropdown-menu", children: options });
+  selector.children = [trigger, label, menu];
+  selector.children.forEach(child => child.parentElement = selector);
+
+  const teamsLink = new Node({ dataset: { publicLeaderboardView: "teams" }, href: "https://example.test/Events/test/Board?view=leaderboards&ranking=teams&metric=" + metric });
+  const playersLink = new Node({ dataset: { publicLeaderboardView: "players" }, href: "https://example.test/Events/test/Board?view=leaderboards&ranking=players&metric=" + metric });
+  const switcher = new Node({ dataset: { publicLeaderboardSwitcher: "" }, children: [teamsLink, playersLink] });
+  const teamSummary = new Node({ tagName: "summary" });
+  const teamDetails = new Node({ id: "metric-details-team-a", dataset: { publicLeaderboardDetails: "" }, children: [teamSummary] });
+  const teamControl = new Node({ dataset: { publicLeaderboardExpandControl: "" } });
+  teamControl.setAttribute("aria-controls", teamDetails.id);
+  const teamHeading = new Node({ dataset: { publicLeaderboardExpandHeading: "" } });
+  const teamCell = new Node({ dataset: { publicLeaderboardExpandCell: "" } });
+  const teamTable = new Node({ dataset: { publicLeaderboardTable: "" }, children: [teamHeading, teamCell, teamControl, teamDetails] });
+  const sortableTable = makeSortTable([
+    { key: "rank", type: "number", label: "Rank" },
+    { key: "gained", type: "number", label: "Gained" }
+  ], [
+    new Node({ dataset: { publicLeaderboardSortRow: "", sortRank: "1", sortGained: "20" } }),
+    new Node({ dataset: { publicLeaderboardSortRow: "", sortRank: "2", sortGained: "10" } })
+  ]);
+  const teamsPanel = new Node({ dataset: { publicLeaderboardPanel: "metric-teams", publicLeaderboardPanelView: "teams", publicLeaderboardMode: "metric" }, children: [teamTable, sortableTable] });
+  const playersPanel = new Node({ dataset: { publicLeaderboardPanel: "metric-players", publicLeaderboardPanelView: "players", publicLeaderboardMode: "metric" } });
+  const defaultPanel = new Node({ dataset: { publicLeaderboardPanel: "activity", publicLeaderboardMode: "default" } });
+  const standings = new Node({ children: [
+    new Node({ dataset: { publicLeaderboardStandingsMetric: "activity" } }),
+    new Node({ dataset: { publicLeaderboardStandingsMetric: "boss" } })
+  ] });
+  const railToggle = new Node({ dataset: { publicLeaderboardsRailToggle: "", expandedLabel: "Collapse", collapsedLabel: "Expand" } });
+  const railBody = new Node({ dataset: { publicLeaderboardsRailBody: "" } });
+  const layout = new Node({ dataset: { publicLeaderboardsLayout: "", publicLeaderboardsMode: "metric" }, children: [selector, switcher, teamsPanel, playersPanel, defaultPanel, standings, railToggle, railBody] });
+  return { layout, selector, trigger, label, options, menu, switcher, teamsLink, playersLink, teamsPanel, playersPanel, defaultPanel, standings, teamDetails, teamControl, sortableTable };
+}
+
+const flushMicrotasks = async (count = 5) => {
+  for (let index = 0; index < count; index++) await Promise.resolve();
+};
+
+(async () => {
+const initial = makeMetricLayout("vorkath");
+const metricHost = new Node({ children: [initial.layout] });
+const metricDocument = {
+  nodeType: 9,
+  documentElement: localizedDocument.documentElement,
+  listeners: {},
+  addEventListener(type, listener) { (this.listeners[type] ??= []).push(listener); },
+  dispatch(type, event) { return (this.listeners[type] ?? []).map(listener => listener({ type, target: this, ...event })); }
+};
+metricHost.ownerDocument = metricDocument;
+const pending = [];
+  const metricWindowWithFetch = {
+    location: { href: "https://example.test/Events/test/Board?view=leaderboards&ranking=teams&metric=vorkath" },
+    history: {
+      pushes: [], replaces: [],
+      pushState(_state, _title, href) { this.pushes.push(href); metricWindowWithFetch.location.href = href; },
+      replaceState(_state, _title, href) { this.replaces.push(href); metricWindowWithFetch.location.href = href; }
+    },
+    fetch(href) { return new Promise((resolve, reject) => pending.push({ href, resolve, reject })); },
+    scrollX: 123,
+    scrollY: 456,
+    scrolls: [],
+    scrollTo(x, y) { this.scrolls.push([x, y]); },
+    addEventListener(type, listener) { this.listeners ??= {}; (this.listeners[type] ??= []).push(listener); },
+    matchMedia() { return { matches: false, addEventListener() {} }; }
+  };
+
+  initialize(metricHost, metricWindowWithFetch);
+  initialize(metricHost, metricWindowWithFetch);
+  assert.equal(metricWindowWithFetch.listeners.popstate.length, 1, "metric initialization installs one history listener");
+  assert.equal(initial.label.textContent, "METRIC: Vorkath", "metric trigger owns the visible prefix");
+  assert.deepEqual(initial.options.map(option => option.dataset.publicUiDropdownLabel), ["EHB & Drop EHB", "Vorkath", "Zulrah"], "metric options keep plain labels");
+  initial.trigger.dispatch("click");
+  assert.equal(initial.selector.open, true, "metric trigger opens the disclosure");
+  assert.equal(initial.menu.hidden, false, "opened metric menu is visible");
+  assert.equal(initial.selector.dataset.publicUiDropdownOpen, "true", "opened metric menu exposes its open state");
+  initial.trigger.dispatch("click");
+  assert.equal(initial.selector.open, false, "repeated metric trigger click closes the disclosure");
+  assert.equal(initial.menu.hidden, true, "closed metric menu is hidden");
+  assert.equal(initial.selector.dataset.publicUiDropdownOpen, "false", "repeated metric trigger click exposes the closed state");
+  initial.trigger.dispatch("keydown", { key: "ArrowDown" });
+  initial.trigger.dispatch("keydown", { key: "Escape" });
+  assert.equal(initial.selector.open, false, "Escape closes the metric disclosure");
+  initial.selector.open = true;
+  const initialMetricLabel = initial.label.textContent;
+  metricDocument.dispatch("click", { target: new Node() });
+  assert.equal(initial.selector.open, false, "global outside click closes the metric disclosure");
+  assert.equal(initial.menu.hidden, true, "global outside click hides the metric menu");
+  assert.equal(initial.label.textContent, initialMetricLabel, "global outside click leaves the metric unchanged");
+
+  initial.teamControl.dispatch("click");
+  initial.layout.classList.toggle("is-rail-collapsed", true);
+  const sortControl = initial.sortableTable.querySelectorAll("[data-public-leaderboard-sort-control]")[1];
+  sortControl.dispatch("click");
+  const firstResponseLayout = makeMetricLayout("vorkath");
+  const secondResponseLayout = makeMetricLayout("zulrah");
+  initial.selector.open = true;
+  initial.options[2].dispatch("click");
+  await flushMicrotasks(2);
+  initial.selector.open = true;
+  initial.options[2].dispatch("click");
+  await flushMicrotasks(2);
+  assert.equal(pending.length, 2, "rapid metric changes issue bounded requests for each selected metric");
+  pending[0].resolve({ ok: true, text: () => Promise.resolve({ querySelector: () => firstResponseLayout.layout }) });
+  pending[1].resolve({ ok: true, text: () => Promise.resolve({ querySelector: () => secondResponseLayout.layout }) });
+  await flushMicrotasks(10);
+  const afterRace = metricHost.children[0];
+  assert.equal(afterRace, secondResponseLayout.layout, "the newest metric response wins the replacement race");
+  assert.equal(afterRace.classList.contains("is-rail-collapsed"), true, "rail collapse state survives metric replacement");
+  assert.equal(afterRace.querySelector("#metric-details-team-a").open, true, "expanded team state survives metric replacement");
+  assert.equal(afterRace.querySelectorAll("[data-public-leaderboard-sort-table]")[0].dataset.publicLeaderboardSortKey, "gained", "sort key survives metric replacement");
+  assert.deepEqual(metricWindowWithFetch.scrolls.at(-1), [123, 456], "metric replacement restores the viewport position");
+  assert.equal(metricWindowWithFetch.listeners.popstate.length, 1, "replacement does not add duplicate history listeners");
+  assert.equal(afterRace.querySelectorAll("[data-public-leaderboard-panel]").find(panel => panel.dataset.publicLeaderboardPanel === "metric-teams").hidden, false, "selected boss Teams tab remains active");
+  const replacementSelector = afterRace.querySelector("[data-public-leaderboard-metric-selector]");
+  const replacementTrigger = replacementSelector.querySelector("summary");
+  replacementTrigger.dispatch("click");
+  assert.equal(replacementSelector.open, true, "replacement reinitializes the metric trigger");
+  replacementTrigger.dispatch("click");
+  assert.equal(replacementSelector.open, false, "replacement metric trigger closes on a repeated click");
+  assert.equal(replacementSelector.querySelector(".public-ui-compact-dropdown-menu").hidden, true, "replacement metric menu is actually hidden after closing");
+  replacementSelector.open = true;
+  const replacementLabel = replacementSelector.querySelector("[data-public-ui-dropdown-label]").textContent;
+  metricDocument.dispatch("click", { target: new Node() });
+  assert.equal(replacementSelector.open, false, "outside click closes the replacement metric disclosure");
+  assert.equal(replacementSelector.querySelector(".public-ui-compact-dropdown-menu").hidden, true, "outside click hides the replacement metric menu");
+  assert.equal(replacementSelector.querySelector("[data-public-ui-dropdown-label]").textContent, replacementLabel, "outside click leaves the selected metric unchanged");
+
+  metricWindowWithFetch.location.href = "https://example.test/Events/test/Board?view=leaderboards&ranking=teams&metric=vorkath";
+  metricWindowWithFetch.listeners.popstate[0]();
+  await flushMicrotasks(2);
+  assert.equal(pending.length, 3, "Back navigation fetches the requested prior metric");
+  const backLayout = makeMetricLayout("vorkath");
+  pending[2].resolve({ ok: true, text: () => Promise.resolve({ querySelector: () => backLayout.layout }) });
+  await flushMicrotasks(10);
+  assert.equal(metricHost.children[0], backLayout.layout, "Back navigation replaces only the leaderboard layout");
+  assert.equal(backLayout.label.textContent, "METRIC: Vorkath", "Back navigation restores the selected metric label");
+
+  const beforeFailure = metricHost.children[0];
+  const failureParts = makeMetricLayout("zulrah");
+  const currentSelector = beforeFailure.querySelector("[data-public-leaderboard-metric-selector]");
+  currentSelector.open = true;
+  currentSelector.querySelectorAll("[data-public-ui-dropdown-option]")[2].dispatch("click");
+  await flushMicrotasks(2);
+  assert.equal(pending.length, 4, "failure path uses the same bounded request boundary");
+  pending[3].reject(new Error("fixture failure"));
+  await flushMicrotasks(8);
+  assert.equal(metricHost.children[0], beforeFailure, "failed metric update keeps the current usable data");
+  assert.match(metricWindowWithFetch.location.href, /metric=vorkath/, "failed metric update restores the prior URL");
+  assert.equal(currentSelector.dataset.publicUiDropdownValue, "vorkath", "failed metric update restores the prior selection");
+  assert.equal(currentSelector.open, false, "failed metric update leaves the selector closed");
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
+
+for (const [property, variable] of [["Gained", "gainedValue"], ["Start", "startValue"], ["End", "endValue"]]) {
+  assert.equal(boardMarkup.split(`account.${property} is { } ${variable} && ${variable} != -1m ?`).length - 1, 2, `${property}: both boss views treat null and -1 as unavailable for every account`);
+}
+for (const property of ["Start", "End"]) {
+  assert.equal(boardMarkup.split(`participant.Accounts.All(value => value.${property} is not null and not -1m)`).length - 1, 2, `${property}: missing boss baselines are excluded from numeric aggregate sort keys in both views`);
+}
+assert.match(boardMarkup, /data-sort-average-gained="@metricTeam\.AverageGained\.ToString\(System\.Globalization\.CultureInfo\.InvariantCulture\)"/, "boss average sort keeps its original precision");

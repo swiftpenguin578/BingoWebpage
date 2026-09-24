@@ -108,7 +108,8 @@ public sealed class Slice9Pass92LiveWithdrawalIntegrationTests : IAsyncLifetime
             var routeContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, seed.AdminId.ToString()), new Claim(ClaimTypes.Name, "admin")], "test")) };
             var route = new Bingo.Web.Pages.Admin.Events.ParticipantModel(routeDb, new EventParticipantCharacterService(routeDb, clock), Service(routeDb, clock))
             {
-                PageContext = new PageContext(new ActionContext(routeContext, new RouteData(), new PageActionDescriptor()))
+                PageContext = new PageContext(new ActionContext(routeContext, new RouteData(), new PageActionDescriptor())),
+                TempData = new TempDataDictionary(routeContext, new EmptyTempDataProvider())
             };
             Assert.IsType<PageResult>(await route.OnGetAsync(seed.EventId, seed.WaitingParticipantId, CancellationToken.None));
             Assert.NotNull(route.PromotionFollowUp);
@@ -441,7 +442,8 @@ public sealed class Slice9Pass92LiveWithdrawalIntegrationTests : IAsyncLifetime
         return new(item.Id, admin.Id, leaderOwner.Id, team.Id, departed.Id, waiting.Id, departedMembership.Id, departedMembership.Version, now);
     }
 
-    private static SignupService Service(ApplicationDbContext db, TimeProvider clock) => new(db, new SecretHasher(), clock);
+    private static SignupService Service(ApplicationDbContext db, TimeProvider clock) =>
+        new(db, new SecretHasher(), clock, accountValidation: new SuccessfulWiseOldManAccountValidation());
     private static EventParticipant Participant(Guid eventId, Account owner, string name, SignupStatus status, long sequence, DateTimeOffset now)
     {
         var participant = new EventParticipant(Guid.NewGuid(), eventId, status, sequence, now, SignupSource.Website);
@@ -457,6 +459,11 @@ public sealed class Slice9Pass92LiveWithdrawalIntegrationTests : IAsyncLifetime
     private static Account Website(string name, GlobalRole role, DateTimeOffset now) { var account = Account.CreateWebsite(Guid.NewGuid(), name, name.ToUpperInvariant(), now); account.SetGlobalRole(role); return account; }
     private sealed record Seed(Guid EventId, Guid AdminId, Guid LeaderOwnerId, Guid TeamId, Guid DepartedParticipantId, Guid WaitingParticipantId, Guid DepartedMembershipId, long DepartedMembershipVersion, DateTimeOffset Now);
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider { public override DateTimeOffset GetUtcNow() => now; }
+    private sealed class EmptyTempDataProvider : ITempDataProvider
+    {
+        public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();
+        public void SaveTempData(HttpContext context, IDictionary<string, object> values) { }
+    }
     private static string AntiforgeryToken(string page) => Regex.Match(page, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
     private static string InputValue(string page, string name) => Regex.Match(page, $"<input[^>]*name=\"{Regex.Escape(name)}\"[^>]*value=\"([^\"]*)\"").Groups[1].Value;
 }

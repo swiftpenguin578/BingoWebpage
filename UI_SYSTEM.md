@@ -226,6 +226,21 @@ the row; it does not inherit or duplicate the Board overview masthead. Before
 Board publication the roster remains a standalone destination with the ordinary
 top gap and no links into the unavailable Board family.
 
+Stats renders the actual shared Board/Drops/Leaderboards masthead partial for
+the same event, including its Event overview title, lifecycle countdown/status,
+result, player metric selector and conditional submission/WOM actions. It uses
+the same cached activity, roster ranking and authorized submission destination
+preparation; there is no Stats-specific replacement fact/action set.
+Its masthead and dashboard share the Stats border-box content shell: `1640px`
+maximum width, centered, with `3.6%` side padding (`5%` at `850px` and below).
+Shared Board-family artwork and rule behavior apply; the Board's `88rem` page
+width must not constrain Stats. Boss KC leaderboard account values render WOM's
+`-1` missing sentinel as an em dash, like null, in both Teams details and Players;
+missing start/end values do not enter numeric aggregate sort keys. Boss team
+average gains display rounded whole numbers while retaining signed green gains,
+contributor-only averaging and full calculation/sort precision. EHB and Drop EHB
+formatting remain unchanged.
+
 The Privacy masthead is the implementation authority for the ordinary Public
 UI masthead text stack. Its present roles map to a shared semantic copy role:
 the kicker is Barlow Condensed Public UI 600 at `1.1rem/1` with `.045em`

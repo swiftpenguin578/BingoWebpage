@@ -1572,18 +1572,22 @@ cannot silently revise the baseline or settle an unresolved product decision.
 
 #### 4.2.1 Lean execution and planner handoff
 
-**Current temporary model policy (2026-09-16): Luna Max implementation and focused
-checks, then one independent Sol High review; Astra only for a concrete escalation.
-The former Astra workflow is CURRENTLY SUPERSEDED, retained for reference only.**
-Follow [the active policy](AGENTS.md#active-temporary-solluna-workflow--2026-09-16)
-over historical assignments here. No separate routine verifier or repeated full
-suite per small correction; applicable final release gates still apply.
-Use subagents with the direct review/callback routing in AGENTS.md. Dispatchers end
-their turn; no periodic progress polling or waits. Every worker sends a brief
-end-of-turn callback, including review/recheck handoffs; questions/blockers and user
-input may also resume the planner. Handoff updates are informational, not review
-passes. After handling an update, end the turn again. Visible tasks are optional
-only when requested, not required for this workflow.
+The current roles, models and routing are owned by
+[AGENTS.md](AGENTS.md#active-workflow-and-model-defaults--2026-09-24): planner defines
+the work; Terra/medium orchestrator manages it; Luna/max implements and checks;
+one independent Sol/high reviewer reviews the stable correction. Explicit user
+model overrides are assignment-scoped. Historical model/workflow assignments
+elsewhere do not override this current policy.
+
+The planner hands off and ends its turn. The orchestrator owns the entire authorized
+implementation/review/remediation sequence and may use `wait_threads` for worker
+tasks or `wait_agent` for collaboration workers. It handles a completed worker's
+next action without waiting for planner permission again. Wake idle workers with
+`followup_task` (collaboration) or `send_message_to_thread` (standalone task); a
+queued `send_message` alone does not resume an idle worker. Report completion,
+genuine blockers or consequential questions to the planner, not every routine
+handoff. No additional verifier or management layer is implied. Separate visible
+tasks require an explicit user request.
 
 This is the reusable coordination procedure. Read it before dispatching work or
 resuming as planner; apply the assigned pass's gates without creating extra stages.
@@ -1601,19 +1605,22 @@ resuming as planner; apply the assigned pass's gates without creating extra stag
    no extra approval round. Name the existing implementation to reuse; do not add
    a preliminary reviewer by default. Report additional discoveries separately
    unless they directly block the agreed fixes.
-3. The worker implements a connected change and runs its focused checks. After one
-   focused lookup, unresolved consequential uncertainty goes to the calling planner:
-   what is unclear, the relevant evidence, and the recommended choice. Pause only
-   the dependent work and continue independent assigned work where useful.
-4. The planner answers from the approved scope and evidence. Ask the user only for
-   a new product/scope decision, required permission, environment blocker or manual
-   acceptance. Check promptly when progress stalls or a worker is interrupted;
-   repeated reading without a concrete result requires a narrower next step or a
-   changed approach, not another open-ended continuation.
-5. Run the required independent review once; remediate and recheck named findings
-   and direct consequences. For Admin popups, review is source-only and the user
-   supplies final visual acceptance. Stop at the assigned acceptance boundary.
-6. Before a planner handoff, consolidate the active `CURRENT_STATUS.md` entry with
+3. The orchestrator dispatches the implementer with the approved scope and exact
+   model. The implementer completes a connected change and runs its checks. After
+   one focused lookup, consequential uncertainty goes to the orchestrator with
+   evidence and a recommendation. Continue independent authorized work if useful.
+4. The orchestrator resolves ordinary execution/routing questions; the planner
+   resolves consequential scope/product decisions with the user when necessary.
+   The orchestrator may wait on workers, checks stalls and interrupted work, and
+   wakes the next owner promptly. Repeated reading without progress calls for a
+   narrower next step, not another open-ended continuation.
+5. The orchestrator dispatches one independent reviewer after the diff is stable,
+   routes findings to the same implementer and named rechecks to the same reviewer.
+   It sends the planner the final evidence and acceptance status at the assigned
+   boundary. Honor explicit user review waivers; do not claim skipped checks passed.
+   For Admin popups, applicable review is source-only and visual acceptance is the
+   user's. Stop when the authorized assignment is complete.
+6. Before delivery back to the planner, the orchestrator consolidates the active `CURRENT_STATUS.md` entry with
    the checkout/branch, assigned pass, completed work/checks and evidence locations,
    unresolved findings, active worker ownership (if any), acceptance state and exact
    next permitted action. Link this procedure; do not copy it into the handoff or
@@ -1623,13 +1630,15 @@ Use this compact worker brief; include only relevant facts and authority section
 
 ```text
 Role and approved model/reasoning:
+Exact originating planner and orchestrator IDs; callback/wake route:
 Checkout / branch:
 Observed problems and expected results (agreed fix list):
 Starting files/helper and established evidence:
 Protected behavior / non-goals / relevant authority sections:
 Required focused checks and completion boundary:
-Escalation: after one focused lookup, ask the calling planner about consequential
-uncertainty with evidence and a recommendation; continue independent assigned work.
+Escalation: after one focused lookup, send consequential uncertainty to the
+orchestrator with evidence and a recommendation; it involves the planner if needed.
+Continue independent assigned work; name and wake the next owner at handoff.
 Return: changed files, checks/results, unresolved findings and next needed action.
 ```
 
@@ -3868,3 +3877,217 @@ Luck unavailable while awaiting a coherent update. Do not clear known KC simply 
 freshness expired. Preserve reversal/assignment/source/lifecycle invalidation, team and
 metric scoping, and read-only page access. No fixture/provider refresh is a substitute
 for this correction. No browser inspection; use focused executable functionality tests.
+
+
+## 19. Boss KC leaderboards and MVP display — approved 2026-09-17
+
+### Scope and sequence
+
+User approved PRODUCT_REQUIREMENTS.md section 16.1 and authorized readiness followed
+by implementation if no blocking decision remains. This slice goes first. Objective
+breakdown wording and multi-boss tile-sidebar spacing are inventoried but DEFERRED
+until this slice receives user approval; no minor-change implementation is authorized
+in this pass. No publication, staging, commit, push, merge, deployment or user-owned
+runtime/database change is authorized.
+
+Assignment: `/private/tmp/BingoWebpage-fix-wiki-image-fetch`, branch
+`codex/fix-wiki-image-fetch`, baseline HEAD `ae1a8605372a613e53d87b73a8e0237c84c1faca`.
+Preserve the pre-existing CURRENT_STATUS handoff edit. The user-owned Documents checkout
+and its dirty work are out of scope. The current HTTPS7131 preview and both databases
+stay untouched. No browser/CUA inspection; the user performs visual acceptance.
+
+One read-only Sol High readiness review precedes production edits. Planner resolves
+named findings/decisions and reconciles this plan. Then one bounded Luna Max implementer
+owns the connected change and focused checks, followed by one fresh independent Sol High
+reviewer after implementation stops. Named remediation returns to that same reviewer.
+No routine verifier, second implementation chain, polling or wait loop. Every worker
+must send one end-of-turn callback via `mcp__codex_app__send_message_to_thread` to
+originating planner task `01a0b085-75ee-79b0-b40b-bba65b669d74`, reporting completed work,
+next owner, review status and blockers. User explicitly authorizes these scoped handoffs.
+
+### Reuse and complexity boundary
+
+Extend the existing Board page/model, public board/activity/Stats projections and
+existing cached event character metric data as necessary. Starting sources:
+`src/Bingo.Web/Pages/Events/Board.cshtml` and its page model;
+`src/Bingo.Web/wwwroot/js/public-leaderboards.js`; shared dropdown behavior/styles;
+`src/Bingo.Infrastructure/Boards/PublicBoardService.cs`;
+`src/Bingo.Infrastructure/WiseOldMan/EventCompetitionActivityProjection.cs`;
+`src/Bingo.Domain/Integrations/WiseOldMan/EventCompetitionCharacterMetricActivity.cs`;
+existing Stats metric/Luck queries and relevant Application contracts.
+
+Budget: zero new tables/migrations, provider jobs/calls, pages/routes, permissions,
+services, dependencies or generic abstractions. Local DTO additions/fields and bounded
+helpers inside existing owners are permitted when required. No new table component or
+visual system: adapt existing table markup, shared styles, sorting and disclosure.
+Reuse the masthead compact dropdown; style its leaderboard trigger like existing tabs.
+No changes to Drops search, luck formulas, board progress, attribution/history rules,
+catalogue data or stale-data validity safeguards. Readiness must identify any concrete
+need that cannot fit this budget before implementation.
+
+### Journeys, boundaries and planned evidence
+
+All public journeys begin at a published event's existing Board navigation and
+Leaderboards view, with anonymous/read-authorized access unchanged. These are read-only
+journeys: neither selection nor viewing writes event data or fetches provider data.
+
+| Journey / start | Action and expected result | Proof / boundary |
+| --- | --- | --- |
+| Published event, with/without linked WOM | Enter Leaderboards; default EHB & Drop EHB retains its three views; boss choices are relevant distinct metrics only when linked | Focused real HTTP route/render evidence; old query defaults and hidden/unpublished access preserved |
+| Linked event with two boss metrics and repeated tile placement | Select boss, switch Teams/Players, reload and follow existing navigation | Rendered route/query plus affected JS execution; no duplicated KC or new provider requests; selection stays coherent |
+| Team with positive/zero/missing values and multiple playing accounts | Read totals, contributor count/average, expand, then Players | Focused PostgreSQL projection and render tests; combine playing accounts, exclude informational accounts, no zero contributors; zero-contribution team remains without empty disclosure |
+| Complete, stale, estimated, partially missing or unavailable metric data | Read Start/End/Gained and switch metrics | Existing compatible stale values remain; missing is not zero; preserve assignment/source/lifecycle invalidation and underlying estimates; known values are not hidden merely due to age |
+| Player with approved boss drops across tiles | Click coral numeric Drops count | Follow emitted link to existing Drops route with boss search and team filter; whole-team results are intentional. Test link construction/navigation, not a new boss-search investigation |
+| One MVP, tied MVPs and no contribution | Read boss, EHB and Drop EHB team MVP cells | Focused projection/render checks: name +value or Multiple MVPs +shared value, never summed; no MVP without contribution |
+| Existing EHB/Drop EHB views | Compare baseline after selector use | Regression proof preserves calculations, player visibility, columns and interactions outside MVP cells and approved Rank localization; retain original signed formatting |
+| Desktop, narrow width, long label, standings expanded/collapsed | Open selector, choose metric, expand table and change views | Shared dropdown/leaderboard JS tests and source/cascade comparison; actual visual/keyboard/browser acceptance remains with user |
+| Retained/finalized event and refresh failure | Read compatible cached metrics where available | Focused existing lifecycle/cache boundaries; no refresh or fabricated historical KC; old events without metric data remain usable |
+
+Use README's existing commands. Readiness identifies the minimum isolated controlled
+fixtures and applicable existing tests; no user-owned fixture reset or provider traffic.
+Implementation requires affected executable PostgreSQL/HTTP checks, existing affected
+Node interaction harnesses, Web Release build and scoped formatting/diff checks. Reuse
+unaffected passing evidence; no blanket full-suite reruns for reassurance. Automated
+harness/source checks do not constitute browser or visual acceptance. A missing required
+execution boundary must be reported with a concrete manual/isolated execution path.
+
+### Review and acceptance
+
+Readiness must confirm data semantics/reuse, entry-point integration, minimal fixtures,
+verification coverage and the complexity budget. Report only concrete blocking defects
+or decisions; optional improvements do not expand approved scope. Review report lives at
+`/private/tmp/bingo-boss-leaderboards-20260917/readiness.md`.
+
+Final reviewer compares the frozen full diff to this plan and explicitly compares boss
+and existing tables for unintended UI differences (structure, classes, spacing, type,
+colors, number formatting, sorting/disclosure), allowing only the agreed columns/data,
+MVP content and selector. Existing EHB/Drop EHB tables may change only in MVP cells and the approved Danish
+Rank heading: use Rank in both languages across existing and new leaderboard tables.
+Check shared translation direct consumers as needed; no unrelated translation pass.
+User visually accepts the selector, standings alignment, wrapping and reused tables;
+UI_PAGE_MATRIX owns that approval. MANUAL_TEST_CHECKLIST carries the walk. Neither a
+readiness pass nor source review is manual acceptance. After final review/preflight,
+stop for the user's visual acceptance; do not start deferred minor changes beforehand.
+
+
+### Section 19 readiness reconciliation — 2026-09-17
+
+Independent Sol High readiness PASS: no unresolved product decision or budget blocker.
+Report `/private/tmp/bingo-boss-leaderboards-20260917/readiness.md`, SHA-256
+`aec6d8f9948b314a8e8ccc77a8c9bbaa51858474381236badcc149bf96f93b43`.
+Source-only readiness; no tests/provider/browser/runtime/database actions were run.
+Planner authorizes the connected Luna Max implementation within this frozen scope.
+
+Required technical integrations from readiness: consume the existing compatible metric
+cache/source boundary in a coherent read; never use a direct raw-cache read or mutable
+catalogue mapping as historical truth. Deduplicate activity by character/metric and
+approved drops by submission. Preserve known partial values with incompleteness metadata,
+estimated Start/End/Gained and assignment/source/lifecycle invalidation. Valid selected
+metrics with unavailable activity remain selected; invalid/unlinked/non-advertised inputs
+fall back to default. Route-backed selection, tabs and Back/Forward must agree.
+The existing standings metric display follows the selected boss team totals in boss mode;
+official bingo order and default-mode standings remain unchanged. This is a direct
+consumer integration, not a new standings ranking rule or table redesign.
+
+Use the readiness report's isolated PostgreSQL fixture and focused route/Node evidence
+plan. Scope format verification to changed files rather than expanding the correction.
+The implementer records exact isolated manual-preview setup or any execution blocker;
+it may not restart the user's current preview or mutate either user database. Explicit
+browser/CUA prohibition remains; Node harness evidence is not browser/visual acceptance.
+Implementation then goes to one fresh Sol High reviewer; readiness reviewer is not the
+final implementation reviewer. Final findings route to implementer, with one planner
+callback at each end-of-turn handoff. No new requirements or minor corrections added.
+
+
+Section 19 technical completion — 2026-09-17: Luna Max implementation and named
+remediation complete; same independent Sol High reviewer final PASS, no remaining
+technical findings. Report `/private/tmp/bingo-boss-leaderboards-20260917/review.md`;
+reviewed patch SHA-256 `8bc192ad83ea79b31c009be18738801933c56016f99a3322a2422810388a902b`.
+Evidence `/private/tmp/bingo-boss-leaderboards-20260917/remediation-evidence.md` records
+passing focused PostgreSQL/HTTP, affected Node, Web Release, scoped formatting and diff
+checks. Whole-solution formatting remains an unrelated baseline failure, not a pass.
+Only user visual/keyboard acceptance remains; no additional verifier/suite or deferred
+minor-change work is dispatched. This completion record is a documentation-only planner
+reconciliation after the frozen technical review; it does not alter reviewed code.
+
+
+### Section 19 visual-acceptance corrections — user directed 2026-09-17
+
+Prior technical PASS is retained for unchanged backend behavior; user visual acceptance
+revealed named corrections. This bounded pass supersedes earlier right-aligned stacked
+selector placement and visible freshness-status requirements. Same Luna Max implementer
+and same Sol High reviewer handle corrections/recheck. No second readiness review or
+broad backend re-review; objective wording/sidebar spacing remain deferred.
+
+1. Fix selector closing: repeated trigger click, outside click, Escape and option
+   selection must actually hide the menu. Check both open state and rendered CSS state;
+   existing shared dropdown closed-state rules must win the scoped cascade.
+2. Keep METRIC: in the trigger only, never in options. Preserve the selected plain-name
+   label as the menu and trigger update.
+3. All positive gained figures and MVP values use the same existing gain-green token
+   and signed + formatting. Include boss Teams/Players/nested accounts and all MVP
+   cells; keep raw Start/End, ranks, contributor counts and drop counts unsigned.
+4. Remove visible freshness/update/health status labels and timestamps throughout
+   leaderboard views, including repeated team/account notices. Keep compatible cached
+   numbers visible, unknown values unknown, and preserve all source/assignment/lifecycle
+   validity and aggregation semantics. This is a presentation change, not a cache or
+   data-quality relaxation. Per-account unknown endpoints must remain explicit dashes;
+   do not reintroduce the fixed missing-as-zero/summed-endpoint defect.
+5. Remove the boss numeric Drops link arrow; preserve coral count and existing URL.
+6. Delay stacking until actual available width requires it. Wide placement is unchanged;
+   when stacked, Metric is above the table tabs and BOTH are left-aligned above divider.
+   Preserve standings expanded/collapsed behavior and long metric names.
+7. User chose muted blue for ALL dark-mode leaderboard column headings, including
+   sortable and nested headings. Preserve clear hover/focus and other themes. This is
+   the authorized additional existing-table visual change, not a table redesign.
+8. Switch metric without full-page reload: use the existing page/render/query ownership
+   and a bounded fetch/replace of leaderboard content. Keep scroll position, URL and
+   Back/Forward coherent; reinitialize affected dropdown/sort/disclosure handlers once,
+   retain rail state, avoid duplicate global listeners, and prevent stale response races.
+   Retain usable content/recovery after fetch failure. No provider requests, all-boss
+   preloading, new services/tables/routes/dependencies or general navigation framework.
+
+Existing route URLs and direct reload/fallback remain valid. A fallback navigation, if
+unavoidable after a request failure, must return to the leaderboard rather than page top.
+The user preferred no reload; do not settle for only an anchor jump without a concrete
+blocker. Correct directly affected helpers if needed but do not redesign shared controls.
+
+Evidence: focused existing Node interaction tests for actual close/reopen/option labels,
+metric fetch/swap/reinitialization/scroll/history/race/failure behavior; focused scoped
+markup/CSS assertions for color, signs, no arrows/status labels and stack order. Update
+only HTTP/render assertions invalidated by approved presentation changes and run their
+focused filter if Razor/route rendering changes; reuse passing backend computation and
+cache-boundary evidence unless those owners change. Web Release and scoped format/diff
+checks remain. Source/CSS assertions do not establish actual browser/visual acceptance;
+no agent browser/CUA inspection. User owns screenshot/layout/browser acceptance.
+
+User screenshots are direct rejection evidence:
+`/var/folders/w5/74mg_d917xg33ry8_4qc9g5w0000gn/T/codex-clipboard-7140e625-4ba1-40cc-8c89-d74d8224a10e.png`
+and
+`/var/folders/w5/74mg_d917xg33ry8_4qc9g5w0000gn/T/codex-clipboard-bb05b045-d796-4625-a1f9-4fbb3ccb6866.png`.
+No automatic runtime restart; user now uses the existing preview launcher updated to
+build and run Release in one invocation, with existing private DB settings preserved.
+
+
+Additional user corrections to the active section 19 visual pass:
+9. Boss Teams nested/expanded and standalone Players Gained/Start/End headings must
+   translate to Opnået/Start/Slut in Danish; cover all boss occurrences and scoped
+   rendered localization assertions.
+10. Nested EHB account table only: remove redundant EHB prefix/suffix from these
+    headings, using localized Gained/Start/End. Do NOT change Drop EHB table headings
+    or unrelated standalone default Players metric labels. Keep sorting behavior and
+    accessible sort names consistent. Include in the same worker/reviewer correction
+    delta; no additional pass or fresh review chain.
+
+11. User decision 2026-09-18: the light-mode METRIC selector trigger (prefix,
+    selected name and chevron) uses existing ink normally, and existing blue when
+    open, hovered or keyboard-focused. This replaces the earlier always-blue request.
+    Preserve dark-mode styling; use existing tokens and scoped cascade checks. Include
+    in the current correction delta and same-reviewer handoff.
+
+
+Review stop boundary — user directed 2026-09-18: finish this correction pass and its
+focused checks, freeze evidence, then stop. Do not automatically dispatch/wake the
+reviewer or route a review request when the implementer finishes. User deferred review
+until tomorrow; wait for explicit resumption, not an automatic scheduled task. This
+supersedes the current correction pass's automatic review-handoff instruction only.

@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using Bingo.Application.Events;
 using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Infrastructure.WiseOldMan;
 using Bingo.Web.Security;
@@ -252,6 +254,266 @@ public sealed class Slice10Pass101WiseOldManTests
         Assert.Equal(competition.Competition.StartsAt, alternate.Competition.StartsAt);
         Assert.NotEqual(competition.Competition.EndsAt, alternate.Competition.EndsAt);
         Assert.True(alternate.Competition.EndsAt > clock.GetUtcNow());
+    }
+
+    [Fact]
+    public async Task ManagedCreateUsesUtcDatesAndDoesNotSendASecret()
+    {
+        var clock = new TestClock(new DateTimeOffset(2026, 9, 22, 12, 0, 0, TimeSpan.FromHours(2)));
+        string? requestBody = null;
+        using var http = new HttpClient(new DelegateHandler(async (request, cancellationToken) =>
+        {
+            requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Equal("/competitions", request.RequestUri!.AbsolutePath);
+            return Response("{\"id\":42,\"title\":\"Autumn Bingo\",\"startsAt\":\"2026-09-23T10:00:00Z\",\"endsAt\":\"2026-09-24T10:00:00Z\",\"verificationCode\":\"secret\"}", 19);
+        })) { BaseAddress = new Uri("https://fake.test/") };
+        var client = new WiseOldManCompetitionManagementClient(
+            new SingleClientFactory(http),
+            new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance),
+            clock,
+            new DataProtectionCompetitionCredentialProtector(new EphemeralDataProtectionProvider()));
+
+        var result = await client.CreateAsync(new(
+            "Autumn Bingo",
+            new DateTimeOffset(2026, 9, 23, 12, 0, 0, TimeSpan.FromHours(2)),
+            new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.FromHours(2)),
+            [new("Ravens", ["alice smith"])],
+            true));
+
+        Assert.True(result.Succeeded);
+        Assert.NotEqual("secret", result.ProtectedVerificationCode);
+        Assert.NotNull(result.ProtectedVerificationCode);
+        using var body = JsonDocument.Parse(requestBody!);
+        Assert.Equal("2026-09-23T10:00:00.0000000+00:00", body.RootElement.GetProperty("startsAt").GetString());
+        Assert.Equal("2026-09-24T10:00:00.0000000+00:00", body.RootElement.GetProperty("endsAt").GetString());
+        Assert.False(body.RootElement.TryGetProperty("verificationCode", out _));
+        Assert.Equal("alice smith", body.RootElement.GetProperty("teams")[0].GetProperty("participants")[0].GetString());
+    }
+
+    [Fact]
+    public void ManagedVerificationCodeIsProtectedAndRoundTripsWithoutExposingTheSecret()
+    {
+        var provider = new EphemeralDataProtectionProvider();
+        var protector = new DataProtectionCompetitionCredentialProtector(provider);
+        const string secret = "one-time-management-code";
+
+        var protectedValue = protector.Protect(secret);
+
+        Assert.NotEqual(secret, protectedValue);
+        Assert.Equal(secret, protector.Unprotect(protectedValue));
+    }
+
+    [Fact]
+    public async Task ManagedScheduleOnlyUpdateOmitsTeamsAndParticipantsFromPutBody()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        string? requestBody = null;
+        using var http = new HttpClient(new DelegateHandler(async (request, cancellationToken) =>
+        {
+            requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+            Assert.Equal(HttpMethod.Put, request.Method);
+            Assert.Equal("/competitions/42", request.RequestUri!.AbsolutePath);
+            return Response("{\"id\":42,\"title\":\"Autumn Bingo\",\"startsAt\":\"2026-09-23T10:00:00Z\",\"endsAt\":\"2026-09-24T10:00:00Z\"}", 19);
+        })) { BaseAddress = new Uri("https://fake.test/") };
+        var client = new WiseOldManCompetitionManagementClient(
+            new SingleClientFactory(http),
+            new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance),
+            clock,
+            new DataProtectionCompetitionCredentialProtector(new EphemeralDataProtectionProvider()));
+
+        var result = await client.UpdateAsync(42, new(
+            "Autumn Bingo",
+            clock.GetUtcNow().AddHours(1),
+            clock.GetUtcNow().AddHours(2),
+            [],
+            false), "secret");
+
+        Assert.True(result.Succeeded);
+        using var body = JsonDocument.Parse(requestBody!);
+        Assert.False(body.RootElement.TryGetProperty("teams", out _));
+        Assert.DoesNotContain(body.RootElement.EnumerateObject(), property => property.Name.Contains("participant", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task UpdateAllUsesTheOfficialEndpointBodyAndAcceptsAnEmptyAsyncAcknowledgement()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        string? requestBody = null;
+        using var http = new HttpClient(new DelegateHandler(async (request, cancellationToken) =>
+        {
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Equal("/competitions/42/update-all", request.RequestUri!.AbsolutePath);
+            requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+            return ResponseWithStatus(HttpStatusCode.Accepted, "{}", 19);
+        })) { BaseAddress = new Uri("https://fake.test/") };
+        var client = new WiseOldManCompetitionManagementClient(
+            new SingleClientFactory(http),
+            new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance),
+            clock,
+            new DataProtectionCompetitionCredentialProtector(new EphemeralDataProtectionProvider()));
+
+        var eligibilityChecked = false;
+        var result = await client.UpdateAllAsync(42, "secret-code", clock.GetUtcNow().AddMinutes(1), _ =>
+        {
+            eligibilityChecked = true;
+            return Task.FromResult(true);
+        });
+
+        Assert.True(result.Acknowledged);
+        Assert.True(eligibilityChecked);
+        using var body = JsonDocument.Parse(requestBody!);
+        Assert.Equal("secret-code", body.RootElement.GetProperty("verificationCode").GetString());
+        Assert.Single(body.RootElement.EnumerateObject());
+    }
+
+    [Fact]
+    public async Task UpdateAllDoesNotPostWhenSharedAdmissionWaitExceedsItsDispatchWindow()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var competingRequestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseCompetingRequest = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        using var http = new HttpClient(new DelegateHandler(async (request, cancellationToken) =>
+        {
+            Interlocked.Increment(ref calls);
+            competingRequestStarted.TrySetResult();
+            await releaseCompetingRequest.Task.WaitAsync(cancellationToken);
+            return ResponseWithStatus(HttpStatusCode.NotFound, "{}", 19);
+        })) { BaseAddress = new Uri("https://fake.test/") };
+        var client = new WiseOldManCompetitionManagementClient(
+            new SingleClientFactory(http),
+            new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance),
+            clock,
+            new DataProtectionCompetitionCredentialProtector(new EphemeralDataProtectionProvider()));
+
+        var competing = client.DeleteAsync(42, "secret-code");
+        await competingRequestStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var eligibilityCalls = 0;
+        var update = client.UpdateAllAsync(42, "secret-code", clock.GetUtcNow().AddSeconds(20), _ =>
+        {
+            Interlocked.Increment(ref eligibilityCalls);
+            return Task.FromResult(true);
+        });
+        clock.Advance(TimeSpan.FromSeconds(24));
+        releaseCompetingRequest.TrySetResult();
+
+        Assert.Equal(WiseOldManCompetitionWriteStatus.NotFound, (await competing).Status);
+        var result = await update;
+        Assert.Equal(WiseOldManUpdateAllStatus.Validation, result.Status);
+        Assert.Equal("DispatchWindowMissed", result.ErrorCode);
+        Assert.Equal(0, eligibilityCalls);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public async Task UpdateAllRechecksEligibilityAfterSharedAdmissionWaitAndDoesNotPostWhenChanged()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var competingRequestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseCompetingRequest = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        using var http = new HttpClient(new DelegateHandler(async (request, cancellationToken) =>
+        {
+            Interlocked.Increment(ref calls);
+            competingRequestStarted.TrySetResult();
+            await releaseCompetingRequest.Task.WaitAsync(cancellationToken);
+            return ResponseWithStatus(HttpStatusCode.NotFound, "{}", 19);
+        })) { BaseAddress = new Uri("https://fake.test/") };
+        var client = new WiseOldManCompetitionManagementClient(
+            new SingleClientFactory(http),
+            new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance),
+            clock,
+            new DataProtectionCompetitionCredentialProtector(new EphemeralDataProtectionProvider()));
+
+        var competing = client.DeleteAsync(42, "secret-code");
+        await competingRequestStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var eligibilityCalls = 0;
+        var update = client.UpdateAllAsync(42, "secret-code", clock.GetUtcNow().AddSeconds(20), _ =>
+        {
+            Interlocked.Increment(ref eligibilityCalls);
+            return Task.FromResult(false);
+        });
+        clock.Advance(TimeSpan.FromSeconds(5));
+        releaseCompetingRequest.TrySetResult();
+
+        Assert.Equal(WiseOldManCompetitionWriteStatus.NotFound, (await competing).Status);
+        var result = await update;
+        Assert.Equal(WiseOldManUpdateAllStatus.Validation, result.Status);
+        Assert.Equal("DispatchEligibilityChanged", result.ErrorCode);
+        Assert.Equal(1, eligibilityCalls);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public async Task UpdateAllProviderErrorsRedactTheCredentialAndUnknownPostIsNotAcknowledged()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        using var http = new HttpClient(new DelegateHandler(_ =>
+            ResponseWithStatus(HttpStatusCode.BadRequest, "{\"code\":\"secret-code\",\"message\":\"provider echoed secret-code\"}", 19)))
+        { BaseAddress = new Uri("https://fake.test/") };
+        var client = new WiseOldManCompetitionManagementClient(
+            new SingleClientFactory(http),
+            new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance),
+            clock,
+            new DataProtectionCompetitionCredentialProtector(new EphemeralDataProtectionProvider()));
+
+        var rejected = await client.UpdateAllAsync(42, "secret-code", clock.GetUtcNow().AddMinutes(1), _ => Task.FromResult(true));
+
+        Assert.Equal(WiseOldManUpdateAllStatus.Validation, rejected.Status);
+        Assert.DoesNotContain("secret-code", rejected.ErrorCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret-code", rejected.Message, StringComparison.Ordinal);
+
+        using var unknownHttp = new HttpClient(new DelegateHandler(_ => throw new HttpRequestException("connection dropped")))
+        { BaseAddress = new Uri("https://fake.test/") };
+        var unknownClient = new WiseOldManCompetitionManagementClient(
+            new SingleClientFactory(unknownHttp),
+            new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance),
+            clock,
+            new DataProtectionCompetitionCredentialProtector(new EphemeralDataProtectionProvider()));
+        var unknown = await unknownClient.UpdateAllAsync(42, "secret-code", clock.GetUtcNow().AddMinutes(1), _ => Task.FromResult(true));
+
+        Assert.Equal(WiseOldManUpdateAllStatus.Unknown, unknown.Status);
+        Assert.False(unknown.Acknowledged);
+    }
+
+    [Fact]
+    public async Task UpdateAllRateLimitIsAnExplicitClearRejectionWithRetryTime()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        using var http = new HttpClient(new DelegateHandler(_ =>
+            ResponseWithStatus(HttpStatusCode.TooManyRequests, "{}", 19, retryAfterSeconds: 17)))
+        { BaseAddress = new Uri("https://fake.test/") };
+        var client = new WiseOldManCompetitionManagementClient(
+            new SingleClientFactory(http),
+            new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance),
+            clock,
+            new DataProtectionCompetitionCredentialProtector(new EphemeralDataProtectionProvider()));
+
+        var result = await client.UpdateAllAsync(42, "secret-code", clock.GetUtcNow().AddMinutes(1), _ => Task.FromResult(true));
+
+        Assert.Equal(WiseOldManUpdateAllStatus.RateLimited, result.Status);
+        Assert.False(result.Acknowledged);
+        Assert.NotNull(result.RetryAt);
+    }
+
+    [Fact]
+    public async Task ProviderValidationErrorsRedactTheManagementCredential()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        using var http = new HttpClient(new DelegateHandler(_ => ResponseWithStatus(HttpStatusCode.BadRequest, "{\"code\":\"invalid-secret\",\"message\":\"provider echoed secret\"}", 19)))
+        { BaseAddress = new Uri("https://fake.test/") };
+        var client = new WiseOldManCompetitionManagementClient(
+            new SingleClientFactory(http),
+            new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance),
+            clock,
+            new DataProtectionCompetitionCredentialProtector(new EphemeralDataProtectionProvider()));
+
+        var result = await client.UpdateAsync(42, new("Autumn Bingo", clock.GetUtcNow().AddHours(1), clock.GetUtcNow().AddHours(2), [], false), "secret");
+
+        Assert.Equal(WiseOldManCompetitionWriteStatus.Validation, result.Status);
+        Assert.DoesNotContain("secret", result.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret", result.ErrorCode, StringComparison.Ordinal);
     }
 
     [Fact]

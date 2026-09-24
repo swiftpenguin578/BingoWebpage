@@ -55,7 +55,9 @@ public static partial class BoardPublicationQueries
         }
         if (projectedDrops.Select(x => x.Id).Distinct().Count() != projectedDrops.Count) return null;
         return new(approval,
-            tiles.Select(x => new BoardTile(x.BoardTileId, boardId, x.TileTemplateId, x.RowIndex, x.ColumnIndex, x.Name, x.Description, x.EvidenceInstructions, x.EstimatedEhb)).ToList(),
+            tiles.Select(x => new BoardTile(x.BoardTileId, boardId, x.TileTemplateId, x.RowIndex, x.ColumnIndex, x.Name,
+                x.Description, x.EvidenceInstructions, x.EstimatedEhb,
+                descriptionIsAutomatic: x.DescriptionIsAutomatic)).ToList(),
             requirements.Select(x => new BoardRequirementSnapshot(x.BoardRequirementSnapshotId, tileById[x.ApprovalTileSnapshotId].BoardTileId, x.Position,
                 x.TargetContribution, x.DuplicatesAllowed, x.AllowHigherWeightings, x.Description, x.ManualObjective, x.CreditedWeight)).ToList(), projectedDrops);
     }

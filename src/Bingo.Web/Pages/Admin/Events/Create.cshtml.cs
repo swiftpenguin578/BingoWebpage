@@ -35,6 +35,8 @@ public sealed class CreateModel(ApplicationDbContext db, ISecretHasher hasher, I
 
     public async Task<IActionResult> OnPostAsync(CancellationToken ct)
     {
+        if (WiseOldManCompetitionRules.ProviderCharacterCount(Input.Name.Trim()) > WiseOldManCompetitionRules.MaximumCompetitionTitleLength)
+            ModelState.AddModelError("Input.Name", Localize("Event names must be 50 characters or fewer."));
         if (!TryTimezone(Input.Timezone, out var timezone))
         {
             ModelState.AddModelError("Input.Timezone", Localize("Choose a supported timezone."));

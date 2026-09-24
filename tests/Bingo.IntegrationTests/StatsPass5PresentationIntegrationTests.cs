@@ -8,8 +8,10 @@ using Bingo.Domain.Events;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Events;
+using Bingo.Infrastructure.Evidence;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Stats;
+using Bingo.Infrastructure.WiseOldMan;
 using Bingo.Web;
 using Bingo.Web.Pages.Events;
 using Microsoft.AspNetCore.Http;
@@ -325,7 +327,8 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         return payload;
     }
 
-    private static StatsModel StatsPage(ApplicationDbContext db, FullStatsFixture f, Guid? actorId = null) => new(new PublicStatsService(db, f.Clock), new PublicBoardService(db, f.Clock), db, f.Clock)
+    private static StatsModel StatsPage(ApplicationDbContext db, FullStatsFixture f, Guid? actorId = null) => new(new PublicStatsService(db, f.Clock), new PublicBoardService(db, f.Clock), db, f.Clock,
+        new CachedEventCompetitionActivityProjection(db, f.Clock), new EvidenceAuthority(db))
     {
         PageContext = new PageContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, (actorId ?? f.Admin.Id).ToString())], "Test")) } }
     };

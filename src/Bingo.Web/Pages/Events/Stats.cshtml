@@ -11,33 +11,17 @@
 @{
     ViewData["Title"] = T["{0} stats", Model.Stats.Name];
     ViewData["HideBreadcrumbs"] = true;
-    ViewData["BodyClass"] = "public-ui-pass1 public-stats-page";
+    ViewData["BodyClass"] = "public-event-shell public-ui-pass1 public-stats-page";
 }
 @section Head {
     <link rel="stylesheet" href="~/css/stats-base.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/stats-density.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/stats-integration.css" asp-append-version="true" />
 }
-<section class="public-ui-page-width--wide public-teams-directory" data-public-ui-no-ambient>
-    <header class="public-teams-directory__masthead">
-        <div class="public-teams-directory__intro">
-            <div class="public-masthead-copy">
-                <span class="public-teams-directory__kicker public-masthead-kicker">@T["Stats"]</span>
-                <h1 class="public-teams-directory__title public-masthead-title">@Model.Stats.Name</h1>
-            </div>
-            <a class="public-teams-directory__back" asp-page="/Index">← @T["All events"]</a>
-            <dl class="public-teams-directory__meta">
-                <div><dt>@T["Event starts"]</dt><dd>@(Model.Stats.StartedAt is { } start ? DateTimePresentation.Format(start, "dd/MM/yyyy", Model.Stats.Timezone) : T["Not started"])</dd></div>
-                <div><dt>@T["Event ends"]</dt><dd>@(Model.Stats.EndedAt is { } end ? DateTimePresentation.Format(end, "dd/MM/yyyy", Model.Stats.Timezone) : T["Not ended"])</dd></div>
-                <div><dt>@T["players"]</dt><dd>@Model.Stats.Teams.Sum(team => team.Players.Count)</dd></div>
-            </dl>
-        </div>
-        <div class="landing-hero__art public-teams-directory__art" aria-hidden="true">
-            <div class="landing-hero__background"></div>
-            <img class="landing-hero__mark landing-hero__mark--light" src="~/images/branding/login-artwork.svg" asp-append-version="true" alt="" />
-            <img class="landing-hero__mark landing-hero__mark--dark" src="~/images/branding/login-artwork-dark.svg" asp-append-version="true" alt="" />
-        </div>
-    </header>
+<section class="public-stats-masthead-shell" data-public-ui-no-ambient>
+    <div class="public-stats-masthead-content">
+        <partial name="_EventMasthead" model="Model.Masthead" />
+    </div>
 </section>
 <div class="stats-page" data-stats-event="@Model.Stats.EventId" data-refresh-url="@Url.Page("/Events/Stats", "Data", new { slug = Model.Stats.Slug })">
 <div class="shell">
@@ -109,6 +93,11 @@
 <script id="stats-data" type="application/json">@Html.Raw(Model.BootstrapJson)</script>
 </div></div>
 @section Scripts {
+    @if (Model.Masthead.Board.EventEndsAt is not null)
+    {
+        <script src="~/js/public-countdown.js" asp-append-version="true"></script>
+    }
+    <script src="~/js/public-leaderboards.js" asp-append-version="true"></script>
     <script src="~/js/stats-adapter.js" asp-append-version="true"></script>
     <script src="~/js/stats-page.js" asp-append-version="true"></script>
 }

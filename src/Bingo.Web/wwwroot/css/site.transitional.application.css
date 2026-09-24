@@ -2804,6 +2804,13 @@ th {
 .event-manage-page .event-wom-form > button { flex: 0 0 auto; align-self: end; width: fit-content; min-width: 0; max-width: 100%; min-height: 2.2rem; margin-top: 1.05rem; overflow: hidden; font-size: 0.6875rem; text-overflow: ellipsis; white-space: nowrap; }
 .event-manage-page .event-control-static > form:not(.event-wom-form) { width: auto; justify-self: start; }
 .event-manage-page .event-wom-budget { margin: 0; color: var(--admin-muted); }
+.event-manage-page .event-wom-managed { display: grid; gap: 0.5rem; margin-top: 0.25rem; padding-top: 0.75rem; border-top: 1px solid var(--admin-border); }
+.event-manage-page .event-wom-managed h4 { margin: 0; color: var(--admin-text-soft); font-size: 0.6875rem; font-weight: 700; }
+.event-manage-page .event-wom-managed > p { margin: 0; }
+.event-manage-page .event-wom-preview-errors,
+.event-manage-page .event-wom-preview-teams { display: grid; gap: 0.25rem; margin: 0; padding-left: 1.1rem; color: var(--admin-muted); font-size: 0.65625rem; line-height: 1.35; }
+.event-manage-page .event-wom-preview-errors { color: var(--admin-danger); }
+.event-manage-page .event-wom-delete-form { justify-items: start; }
 .event-manage-page .event-wom-status-value { display: inline; font-weight: 600; }
 .event-manage-page .event-wom-status-value.event-wom-status-danger { color: var(--admin-danger); }
 .event-manage-page .event-wom-status-value.event-wom-status-success { color: var(--admin-success); }

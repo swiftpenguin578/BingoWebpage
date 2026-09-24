@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Net;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Bingo.Application.Events;
 using Bingo.Application.Evidence;
@@ -19,6 +20,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -91,12 +94,17 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         Assert.Equal(afterAck.EventVersion, (await ReadinessAsync()).EventVersion);
         Assert.Equal(3, await ResolutionCountAsync());
         await ResolveAllAsync();
+        var finalReadiness = await ReadinessAsync();
         var finalForm = Form(await client.GetStringAsync(FinalizeUrl), "Finalize");
         await PostAsync(client, finalForm, ("FinalizeConfirmation", "PUBLISH_OFFICIAL_RESULTS"));
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(EventState.Finalized, await verify.Events.Select(x => x.State).SingleAsync());
         var snapshot = await verify.EventFinalizations.SingleAsync();
         Assert.Equal(2, await verify.OfficialPlacements.CountAsync());
+        Assert.Contains("CurrentScoreReachedAt", snapshot.CalculationInputsJson, StringComparison.Ordinal);
+        foreach (var placement in finalReadiness.Placements)
+            Assert.Equal(placement.CurrentScoreReachedAt, await verify.OfficialPlacements.Where(value => value.TeamId == placement.TeamId)
+                .Select(value => value.CurrentScoreReachedAt).SingleAsync());
         var historical = await verify.FinalReviewResolutions.SingleAsync(x => x.BlockerKey == Key(first, fixture.TeamA));
         Assert.DoesNotContain(historical.Id.ToString(), snapshot.ConsumedResolutionIdsJson);
         Assert.Equal(3, await verify.FinalReviewResolutions.CountAsync(x => x.Kind == FinalReviewResolutionKind.CompletionTimeAcknowledgement));
@@ -105,6 +113,177 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         Assert.Contains("Team B", published);
         await PostAsync(client, finalForm, ("FinalizeConfirmation", "PUBLISH_OFFICIAL_RESULTS"));
         Assert.Single(await verify.EventFinalizations.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
+    public async Task IncompleteTieAcknowledgementSurvivesUnchangedInputsButNotChangedScoreTimeWhenTieReturns()
+    {
+        Guid originalB;
+        Guid earlyB;
+        Guid laterA;
+        Guid laterB;
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            // Publish a second, unfinished tile so this exercises placement review without
+            // the full-board completion-inspection blockers masking a stale tie resolution.
+            var board = await setup.Boards.SingleAsync(x => x.EventId == fixture.EventId);
+            var tile = await setup.BoardTiles.SingleAsync(x => x.Id == fixture.Tile);
+            var requirement = await setup.BoardRequirementSnapshots.SingleAsync(x => x.Id == fixture.Requirement);
+            var oldApproval = await setup.BoardApprovalSnapshots.SingleAsync(x => x.Id == board.ActiveApprovalSnapshotId);
+            board.BeginPublishedCorrection();
+            board.Resize(1, 2, 1);
+            var unfinished = new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 0, 1, "Unfinished objective", "Another run", "Show completion", 1m);
+            var unfinishedRequirement = new BoardRequirementSnapshot(Guid.NewGuid(), unfinished.Id, 0, 1, true, false, "Another run", true);
+            var approval = new BoardApprovalSnapshot(Guid.NewGuid(), board.Id, oldApproval.Version + 1, now, fixture.Admin,
+                oldApproval.Id, board.Name, 1, 2, 2m, board.CalculationVersion, board.Version, BoardState.Published);
+            setup.AddRange(unfinished, unfinishedRequirement, approval);
+            foreach (var (sourceTile, sourceRequirement) in new[] { (tile, requirement), (unfinished, unfinishedRequirement) })
+            {
+                var frozenTile = new BoardApprovalTileSnapshot(Guid.NewGuid(), approval.Id, sourceTile.Id, sourceTile.TileTemplateId,
+                    sourceTile.RowIndex, sourceTile.ColumnIndex, sourceTile.NameSnapshot, sourceTile.DescriptionSnapshot,
+                    sourceTile.EvidenceInstructionsSnapshot, sourceTile.EstimatedEhbSnapshot, null);
+                setup.AddRange(frozenTile, new BoardApprovalRequirementSnapshot(Guid.NewGuid(), frozenTile.Id, sourceRequirement.Id,
+                    sourceRequirement.Position, sourceRequirement.TargetContribution, sourceRequirement.DuplicatesAllowed,
+                    sourceRequirement.AllowHigherWeightings, sourceRequirement.CreditedWeight, sourceRequirement.Description, sourceRequirement.ManualObjective));
+            }
+            await setup.SaveChangesAsync();
+            board.ReplacePublishedApproval(approval.Id);
+
+            var sourceA = await setup.Submissions.SingleAsync(x => x.Id == fixture.First);
+            var sourceB = await setup.Submissions.SingleAsync(x => x.TeamId == fixture.TeamB);
+            originalB = sourceB.Id;
+            Submission NewEvidence(Submission source, DateTimeOffset submittedAt) => new(Guid.NewGuid(), fixture.EventId,
+                source.TeamId, fixture.Tile, fixture.Requirement, null, source.CreditedParticipantId, source.CreditedOsrsCharacterId,
+                source.CreditedCharacterName, fixture.Admin, 1, submittedAt, null, null);
+            var earlyEvidenceB = NewEvidence(sourceB, now.AddHours(-3));
+            var laterEvidenceA = NewEvidence(sourceA, now.AddHours(-2));
+            var laterEvidenceB = NewEvidence(sourceB, now.AddHours(-2));
+            setup.AddRange(earlyEvidenceB, laterEvidenceA, laterEvidenceB);
+            earlyB = earlyEvidenceB.Id;
+            laterA = laterEvidenceA.Id;
+            laterB = laterEvidenceB.Id;
+            await setup.SaveChangesAsync();
+        }
+
+        async Task ReverseAsync(Guid submissionId)
+        {
+            await using var db = new ApplicationDbContext(options);
+            await Submissions(db).ReverseAsync(submissionId, fixture.Admin, "Changed tie evidence");
+        }
+        static FinalReviewBlocker Tie(FinalReviewReadiness readiness) =>
+            readiness.Blockers.Single(x => x.Key.StartsWith("placement-tie-", StringComparison.Ordinal));
+        async Task ResolveTieAsync(FinalReviewReadiness readiness, string key)
+        {
+            await using var db = new ApplicationDbContext(options);
+            await Finalization(db).ResolveBlockerAsync(fixture.EventId, key, "Inspected current tie", true,
+                fixture.Admin, readiness.EventVersion, readiness.ReviewCycleId);
+        }
+
+        await ReverseAsync(originalB);
+        await ApproveAsync(fixture.First);
+        await ApproveAsync(earlyB);
+        var initial = await ReadinessAsync();
+        Assert.All(initial.Placements, x => { Assert.False(x.BoardComplete); Assert.Equal(1, x.CompletedTiles); Assert.Equal(now.AddHours(-3), x.CurrentScoreReachedAt); });
+        Assert.DoesNotContain(initial.Blockers, x => x.IsCompletionTimeAcknowledgement);
+        var oldKey = Tie(initial).Key;
+        await ResolveTieAsync(initial, oldKey);
+        await using (var unrelated = new ApplicationDbContext(options))
+            await Submissions(unrelated).RejectAsync(fixture.Replacement, fixture.Admin, "Unrelated pending evidence rejected");
+        var unchanged = await ReadinessAsync();
+        Assert.True(unchanged.EventVersion > initial.EventVersion);
+        Assert.Equal(oldKey, Tie(unchanged).Key);
+        Assert.True(Tie(unchanged).Resolved);
+
+        await ReverseAsync(fixture.First);
+        await ApproveAsync(laterA);
+        var broken = await ReadinessAsync();
+        Assert.DoesNotContain(broken.Blockers, x => x.Key.StartsWith("placement-tie-", StringComparison.Ordinal));
+        await ReverseAsync(earlyB);
+        await ApproveAsync(laterB);
+        var returned = await ReadinessAsync();
+        Assert.Equal(initial.ReviewCycleId, returned.ReviewCycleId);
+        foreach (var placement in returned.Placements)
+        {
+            var before = initial.Placements.Single(x => x.TeamId == placement.TeamId);
+            Assert.Equal(before with { CurrentScoreReachedAt = now.AddHours(-2) }, placement);
+        }
+        Assert.NotEqual(oldKey, Tie(returned).Key);
+        Assert.False(Tie(returned).Resolved);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => ResolveTieAsync(returned, oldKey));
+        Assert.Equal(1, await ResolutionCountAsync());
+        await ResolveTieAsync(returned, Tie(returned).Key);
+        Assert.True(Tie(await ReadinessAsync()).Resolved);
+        await using var history = new ApplicationDbContext(options);
+        Assert.Equal(2, await history.FinalReviewResolutions.CountAsync());
+        Assert.True(await history.FinalReviewResolutions.AnyAsync(x => x.BlockerKey == oldKey));
+    }
+
+    [Fact]
+    public async Task CompletionFactMigrationBackfillsDerivableCurrentFactsAndLeavesLegacyOfficialTimeUnknown()
+    {
+        var readiness = await ReadinessAsync();
+        var teamBPlacement = readiness.Placements.Single(value => value.TeamId == fixture.TeamB);
+        var submittedAt = await SubmissionSubmittedAtAsync(fixture.TeamB);
+        Assert.Equal(submittedAt, teamBPlacement.CurrentScoreReachedAt);
+
+        var secondObjectiveId = Guid.NewGuid();
+        var secondSubmissionId = Guid.NewGuid();
+        var secondSubmittedAt = now.AddHours(-1);
+        await using (var addObjective = new ApplicationDbContext(options))
+        {
+            var boardForBackfill = await addObjective.Boards.SingleAsync(value => value.EventId == fixture.EventId);
+            var approvalTile = await addObjective.BoardApprovalTileSnapshots.SingleAsync(value => value.ApprovalSnapshotId == boardForBackfill.ActiveApprovalSnapshotId);
+            var existing = await addObjective.Submissions.SingleAsync(value => value.TeamId == fixture.TeamB && value.Status == SubmissionStatus.Approved);
+            var objective = new BoardRequirementSnapshot(secondObjectiveId, fixture.Tile, 1, 1, true, false, "Second C33 objective", true);
+            var approvedObjective = new BoardApprovalRequirementSnapshot(Guid.NewGuid(), approvalTile.Id, objective.Id, 1, 1, true, false, 1, "Second C33 objective", true);
+            var secondSubmission = new Submission(secondSubmissionId, fixture.EventId, fixture.TeamB, fixture.Tile, objective.Id, null,
+                existing.CreditedParticipantId, existing.CreditedOsrsCharacterId, existing.CreditedCharacterName, fixture.Admin,
+                1, secondSubmittedAt, null, null);
+            secondSubmission.Approve(1, now);
+            addObjective.AddRange(objective, approvedObjective, secondSubmission,
+                new SubmissionContribution(Guid.NewGuid(), secondSubmission.Id, fixture.TeamB, objective.Id, null, existing.CreditedParticipantId, 1, now));
+            addObjective.TileCompletionFacts.RemoveRange(await addObjective.TileCompletionFacts.Where(value => value.EventId == fixture.EventId).ToListAsync());
+            await addObjective.SaveChangesAsync();
+        }
+
+        var finalizationId = Guid.NewGuid();
+        const string legacyInputs = "legacy-finalization-inputs";
+        const string legacyResults = "legacy-finalization-results";
+        await using (var legacyHistory = new ApplicationDbContext(options))
+        {
+            legacyHistory.EventFinalizations.Add(new EventFinalizationSnapshot(finalizationId, fixture.EventId, 1, now, fixture.Admin, readiness.ReviewCycleId,
+                "[]", legacyInputs, legacyResults));
+            legacyHistory.OfficialPlacements.Add(new OfficialPlacementSnapshot(Guid.NewGuid(), finalizationId, fixture.EventId,
+                fixture.TeamB, teamBPlacement.TeamName, teamBPlacement.Placement, teamBPlacement.BoardComplete,
+                teamBPlacement.CalculatedCompletedAt, teamBPlacement.CompletedLines, teamBPlacement.CompletedTiles, teamBPlacement.EhbTiebreak));
+            await legacyHistory.SaveChangesAsync();
+        }
+
+        const string preCompletionFactsMigration = "20260922204859_AddDerivedTileDescriptions";
+        await using (var downgrade = new ApplicationDbContext(options))
+            await downgrade.GetService<IMigrator>().MigrateAsync(preCompletionFactsMigration);
+        await using (var upgrade = new ApplicationDbContext(options))
+            await upgrade.GetService<IMigrator>().MigrateAsync();
+
+        await using var verify = new ApplicationDbContext(options);
+        var board = await verify.Boards.SingleAsync(value => value.EventId == fixture.EventId);
+        var teamAFact = await verify.TileCompletionFacts.SingleAsync(value => value.TeamId == fixture.TeamA && value.ApprovalSnapshotId == board.ActiveApprovalSnapshotId);
+        var teamBFact = await verify.TileCompletionFacts.SingleAsync(value => value.TeamId == fixture.TeamB && value.ApprovalSnapshotId == board.ActiveApprovalSnapshotId);
+        Assert.False(teamAFact.IsComplete);
+        Assert.Null(teamAFact.CompletedAt);
+        Assert.Equal("[]", teamAFact.QualifyingContributionsJson);
+        Assert.True(teamBFact.IsComplete);
+        Assert.Equal(secondSubmittedAt, teamBFact.CompletedAt);
+        Assert.Contains(fixture.Requirement.ToString("D"), teamBFact.QualifyingContributionsJson, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(secondObjectiveId.ToString("D"), teamBFact.QualifyingContributionsJson, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(secondSubmissionId.ToString("D"), teamBFact.QualifyingContributionsJson, StringComparison.OrdinalIgnoreCase);
+
+        var oldOfficial = await verify.OfficialPlacements.SingleAsync(value => value.FinalizationId == finalizationId);
+        Assert.Null(oldOfficial.CurrentScoreReachedAt);
+        var oldFinalization = await verify.EventFinalizations.SingleAsync(value => value.Id == finalizationId);
+        Assert.Equal(legacyInputs, oldFinalization.CalculationInputsJson);
+        Assert.Equal(legacyResults, oldFinalization.CalculationResultsJson);
+        Assert.Equal(secondSubmittedAt, (await ReadinessAsync()).Placements.Single(value => value.TeamId == fixture.TeamB).CurrentScoreReachedAt);
     }
 
     [Theory]
@@ -158,6 +337,79 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CorrectedEqualFinishTimesTieAndFreezeTheEffectiveScoreTime()
+    {
+        await ApproveAsync(fixture.First);
+        var before = await ReadinessAsync();
+        var teamA = before.Placements.Single(value => value.TeamId == fixture.TeamA);
+        var teamB = before.Placements.Single(value => value.TeamId == fixture.TeamB);
+        Assert.NotNull(teamA.CalculatedCompletedAt);
+        Assert.NotNull(teamB.CalculatedCompletedAt);
+        Assert.True(teamA.CalculatedCompletedAt.Value < teamB.CalculatedCompletedAt.Value);
+        Assert.True(teamA.Placement < teamB.Placement);
+        Assert.NotEqual(teamA.CurrentScoreReachedAt, teamB.CurrentScoreReachedAt);
+        await AcknowledgeAsync(fixture.TeamA);
+        await AcknowledgeAsync(fixture.TeamB);
+        var inspected = await ReadinessAsync();
+        var oldTeamBInspection = Key(inspected, fixture.TeamB);
+
+        await using (var correction = new ApplicationDbContext(options))
+            await Finalization(correction).CorrectCompletionAsync(fixture.EventId, fixture.TeamB,
+                teamA.CalculatedCompletedAt.Value, "Equalize the authoritative finish times", fixture.Admin,
+                inspected.EventVersion, inspected.ReviewCycleId);
+
+        var corrected = await ReadinessAsync();
+        var correctedA = corrected.Placements.Single(value => value.TeamId == fixture.TeamA);
+        var correctedB = corrected.Placements.Single(value => value.TeamId == fixture.TeamB);
+        Assert.Equal(correctedA.Placement, correctedB.Placement);
+        Assert.Equal(correctedA.CurrentScoreReachedAt, correctedB.CurrentScoreReachedAt);
+        Assert.Equal(correctedA.CalculatedCompletedAt, correctedB.CurrentScoreReachedAt);
+        Assert.NotEqual(oldTeamBInspection, Key(corrected, fixture.TeamB));
+        Assert.True(Blocker(corrected, fixture.TeamA).Resolved);
+        Assert.False(Blocker(corrected, fixture.TeamB).Resolved);
+        Assert.Contains(corrected.Blockers, value => value.Key.StartsWith("placement-tie-", StringComparison.Ordinal));
+
+        await using (var stale = new ApplicationDbContext(options))
+            await Assert.ThrowsAsync<InvalidOperationException>(() => Finalization(stale).AcknowledgeCompletionTimeAsync(
+                fixture.EventId, fixture.TeamB, fixture.Admin, corrected.EventVersion, corrected.ReviewCycleId, oldTeamBInspection));
+        await AcknowledgeAsync(fixture.TeamB);
+        await ResolveAllAsync();
+        await FinalizeAsync();
+
+        await using var verify = new ApplicationDbContext(options);
+        var snapshot = await verify.EventFinalizations.SingleAsync();
+        using var inputs = JsonDocument.Parse(snapshot.CalculationInputsJson!);
+        var teamBInput = inputs.RootElement.GetProperty("teams").EnumerateArray()
+            .Single(value => value.GetProperty("TeamId").GetGuid() == fixture.TeamB);
+        Assert.Equal(correctedB.CurrentScoreReachedAt, teamBInput.GetProperty("CurrentScoreReachedAt").GetDateTimeOffset());
+        Assert.Equal(correctedB.CurrentScoreReachedAt, await verify.OfficialPlacements
+            .Where(value => value.FinalizationId == snapshot.Id && value.TeamId == fixture.TeamB)
+            .Select(value => value.CurrentScoreReachedAt).SingleAsync());
+    }
+
+    [Fact]
+    public async Task FinalizationPageExplainsAndDisplaysScoreTimeInEnglishAndDanish()
+    {
+        await using var factory = Factory();
+        using var english = factory.CreateClient(new() { AllowAutoRedirect = false });
+        await LoginAsync(english, "c33-admin");
+        var englishHtml = WebUtility.HtmlDecode(await english.GetStringAsync(FinalizeUrl));
+        Assert.Contains("Rank order: completed boards by effective finish time", englishHtml, StringComparison.Ordinal);
+        Assert.Contains(">Score time</th>", englishHtml, StringComparison.Ordinal);
+        Assert.Contains(Regex.Matches(englishHtml, "<td data-label=\\\"Score time\\\"><span>(.*?)</span></td>")
+            .Cast<Match>(), match => match.Groups[1].Value != "—");
+
+        using var danish = factory.CreateClient(new() { AllowAutoRedirect = false });
+        danish.DefaultRequestHeaders.AcceptLanguage.ParseAdd("da");
+        await LoginAsync(danish, "c33-admin");
+        var danishHtml = WebUtility.HtmlDecode(await danish.GetStringAsync(FinalizeUrl));
+        Assert.Contains("Rangorden: fuldførte boards efter gældende sluttid", danishHtml, StringComparison.Ordinal);
+        Assert.Contains(">Scoretid</th>", danishHtml, StringComparison.Ordinal);
+        Assert.Contains(Regex.Matches(danishHtml, "<td data-label=\\\"Scoretid\\\"><span>(.*?)</span></td>")
+            .Cast<Match>(), match => match.Groups[1].Value != "—");
+    }
+
+    [Fact]
     public async Task MissingForgedAndUnauthorizedHttpTokensCannotWriteInspectionOrOfficialState()
     {
         await ApproveAsync(fixture.First);
@@ -193,12 +445,15 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         var first = await ReadinessAsync();
         await FinalizeAsync();
         string originalResults;
+        DateTimeOffset? originalScoreTime;
         Guid firstFinalization;
         await using (var db = new ApplicationDbContext(options))
         {
             var snapshot = await db.EventFinalizations.SingleAsync();
             firstFinalization = snapshot.Id;
             originalResults = snapshot.CalculationResultsJson!;
+            originalScoreTime = await db.OfficialPlacements.Where(value => value.FinalizationId == snapshot.Id && value.TeamId == fixture.TeamA)
+                .Select(value => value.CurrentScoreReachedAt).SingleAsync();
             var r = (await Finalization(db).GetReadinessAsync(fixture.EventId))!;
             await Finalization(db).UnfinalizeAsync(fixture.EventId, "C33 explicit new review cycle", true, Actor, r.EventVersion);
         }
@@ -220,6 +475,8 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         var old = await verify.EventFinalizations.SingleAsync(x => x.Id == firstFinalization);
         Assert.NotNull(old.UnfinalizedAt);
         Assert.Equal(originalResults, old.CalculationResultsJson);
+        Assert.Equal(originalScoreTime, await verify.OfficialPlacements.Where(value => value.FinalizationId == old.Id && value.TeamId == fixture.TeamA)
+            .Select(value => value.CurrentScoreReachedAt).SingleAsync());
         Assert.Equal(2, await verify.EventFinalizations.CountAsync());
         Assert.Equal(4, await verify.FinalReviewResolutions.CountAsync(x => x.Kind == FinalReviewResolutionKind.CompletionTimeAcknowledgement));
         await Assert.ThrowsAsync<InvalidOperationException>(() => Finalization(verify).FinalizeAsync(fixture.EventId, Actor, first.EventVersion));
@@ -438,6 +695,12 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     private static FinalReviewBlocker Blocker(FinalReviewReadiness r, Guid team) => r.Blockers.Single(x => x.TeamId == team && x.IsCompletionTimeAcknowledgement);
     private static string Key(FinalReviewReadiness r, Guid team) => Blocker(r, team).Key;
     private async Task<FinalReviewReadiness> ReadinessAsync() { await using var db = new ApplicationDbContext(options); return (await Finalization(db).GetReadinessAsync(fixture.EventId))!; }
+    private async Task<DateTimeOffset> SubmissionSubmittedAtAsync(Guid teamId)
+    {
+        await using var db = new ApplicationDbContext(options);
+        return await db.Submissions.Where(value => value.TeamId == teamId && value.Status == SubmissionStatus.Approved)
+            .Select(value => value.SubmittedAt).SingleAsync();
+    }
     private async Task<int> ResolutionCountAsync() { await using var db = new ApplicationDbContext(options); return await db.FinalReviewResolutions.CountAsync(); }
     private async Task ApproveAsync(Guid id) { await using var db = new ApplicationDbContext(options); await Submissions(db).ApproveAsync(id, fixture.Admin); }
     private async Task AcknowledgeAsync(Guid team)

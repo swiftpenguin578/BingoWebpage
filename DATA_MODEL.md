@@ -538,7 +538,7 @@ An event may have at most one Wise Old Man integration-state record. It owns:
 - event and competition identity plus validated competition title/start/end;
 - latest generation identity and completeness/error state;
 - last request and successful-fetch time;
-- separate next normal-cycle and retry due times;
+- separate fixed-hourly normal-slot and retry due times. A normal slot is UTC and anchored to the event's retained `actual_started_at` (first slot +1h); a missing anchor leaves the normal due explicitly `NULL` rather than creating a rolling fallback;
 - retry count;
 - opaque synchronization lease owner and expiry;
 - observed request-budget diagnostics needed by Admin projection.
@@ -549,7 +549,42 @@ Each synchronization attempt snapshots a generation identity, competition ID, an
 
 Lease acquisition and HTTP do not share a database transaction. Final cache publication succeeds only while the event remains `LIVE` and the competition ID, opaque lease owner, and assignment fingerprint still match. A later complete or partial generation is authoritative for projection and replaces older displayed values, although older rows may remain retained for recovery/diagnosis. A successful response with missing expected accounts persists only matched current-generation rows; missing accounts have no row, are never represented as zero, and never carry forward an older value. Partial projections show available totals and coverage when at least one expected account matches; zero matches show no rankings.
 
-Participant activity is the sum of their current generation's matched regular-character deltas. Team total sums current-member participant totals once; team average divides by current participants with at least one matched account rather than accounts. Every participant tied for the highest available total is a provisional MVP; coverage makes the partial state explicit. Synchronization stops outside `LIVE`; the latest generation state is retained without mutation and may resume only after a legitimate return to `LIVE`.
+Participant activity is the sum of their current generation's matched regular-character deltas. Team total sums current-member participant totals once; team average divides by current participants with at least one matched account rather than accounts. Every participant tied for the highest available total is a provisional MVP; coverage makes the partial state explicit. Synchronization stops outside `LIVE`; the latest generation state is retained without mutation and may resume only after a legitimate return to `LIVE`. Existing Live rows are reconciled lazily to the current anchored slot; a consumed current slot is detected from its recorded attempt time even when its legacy due value came from the old rolling cadence, so recovery advances to the next future slot without replaying a slot. Downtime does not backfill a burst, and retries/manual/urgent requests do not move the normal anchor.
+
+#### Admin-managed Wise Old Man competition state — authorized 2026-09-22
+
+The existing event competition link remains the source identity for both manual
+and managed integrations. A separate management record is created only after a
+successful explicit Create through the Admin-managed flow. It stores the event
+and link identity, encrypted versioned management code, managed-field scope,
+management status, last applied local and remote fingerprints, last acknowledged
+roster, management version, and the permanent `actual_started_at` cutover
+observed for destructive/roster decisions. The code is never stored in
+cleartext, public/statistics DTOs, TempData, logs, exceptions, or raw operation
+payloads. Manually linked records have no management record and cannot be
+upgraded by importing a credential.
+
+Durable management operations retain only an operation ID/type, authorized
+actor or originating local change, immutable desired fingerprint/payload
+reference, phase, remote ID/receipt reference, safe error code, retry timestamp,
+and outcome timestamps. PostgreSQL uniqueness/conditional claims serialize
+operations per managed event/link across Admin requests and worker instances;
+expired Sending claims become Unknown and never authorize a blind duplicate
+Create or Delete. Pending updates survive restart and coalesce to the newest
+permitted revision. Team/membership/assignment history and local evidence are
+never deleted by remote management.
+
+The managed desired fingerprint includes UTC schedule, active finalized draft
+publication, active memberships and teams, participant status, every unreleased
+Playing assignment, provider-normalized character names, and managed identity
+mapping. Before Live, a managed roster must contain every eligible Playing
+assignment for each active team and cannot contain an empty team. After the
+first actual Live start, roster mutations are permanently forbidden; dates-only
+updates remain permitted where the lifecycle contract allows them. A remote
+delete can be enqueued and dispatched only before that permanent marker, with
+fresh credentials, current authority, link/version, and explicit confirmation.
+An in-flight pre-Live operation may complete after Live and reconcile its exact
+receipt, while no new roster/delete request or destructive retry may be sent.
 
 ### 6.7 EventParticipantCharacterSwap
 
@@ -1130,6 +1165,7 @@ Fields:
 - `board_id`
 - `name`
 - `description`
+- `description_is_automatic`
 - `image_asset_id`
 - `objective_type`
 - `manual_ehb`, nullable and valid only for `MANUAL`
@@ -1144,6 +1180,15 @@ MANUAL
 
 `DROP_REQUIREMENTS` derives EHB from current catalogue/rate mechanics while the board is `DRAFT` and from its immutable approval snapshot once `VALIDATED`. It cannot store or use `manual_ehb`. `MANUAL` represents a custom objective and requires its explicitly configured manual EHB before board approval. Every requirement in a tile/template must match that single objective kind; mixed manual/drop requirements are invalid. Reject mixed create/update or new approval attempts without partial changes. Existing approved snapshots and historical competitive results are not rewritten; any retained invalid draft requires an explicit user correction into separate tiles.
 
+`description_is_automatic` records whether the tile description is derived from
+its current ordered requirements. New blank/whitespace-only edits set it true
+and store an empty editable description; nonblank edits store trimmed authored
+text and set it false. Existing nonblank template/working descriptions are
+backfilled as manual, including text that happens to match a former generator;
+existing blank descriptions are backfilled as automatic. No description text
+is rewritten by the migration. This applies to working/template records only;
+immutable approval snapshot text and mode are not backfilled or rewritten.
+
 ### 10.3 BoardTile
 
 Places its board-owned tile at one position. Moving/swapping changes positions; it does not duplicate the tile.
@@ -1156,6 +1201,7 @@ Fields:
 - `column_index`: zero-based
 - `name_snapshot`, nullable active-approval/publication projection
 - `description_snapshot`, nullable active-approval/publication projection
+- `description_is_automatic`
 - `image_snapshot`, nullable active-approval/publication projection
 - `estimated_ehb_snapshot`, nullable active-approval/publication projection
 
@@ -1270,7 +1316,16 @@ Fields:
 - `total_ehb`
 - `superseded_at`, nullable
 
-Child snapshot rows capture every tile position/name/description/artwork, requirement rule, boss/activity name and efficient rate, source drop plus immutable shared catalogue-item identity/name/rate/probability, contribution cap/weight, manual EHB, and derived tile/line/board EHB value.
+Child snapshot rows capture every tile position/name/description/artwork,
+`description_is_automatic`, requirement rule, boss/activity name and efficient
+rate, source drop plus immutable shared catalogue-item identity/name/rate/probability,
+contribution cap/weight, manual EHB, and derived tile/line/board EHB value.
+Automatic tile copy is materialized from ordered requirements and their selected
+drop/item/source identities during approval, stored with the automatic-mode
+flag, and then read only from the immutable approval snapshot. The frozen
+description column is sized for multi-objective output; approval rejects any
+derived text that exceeds its limit instead of truncating it. Discarding an
+open correction restores the prior mode along with the active approved copy.
 
 The immutable item identity is added by exactly one migration covering active event
 and approval drop snapshots. Historical rows are backfilled only when frozen
@@ -1482,7 +1537,21 @@ tile_complete = manual_progress >= manual target_contribution
 
 This supports both one-off objectives and repeated objectives such as three Inferno completions.
 
-`tile_completed_at` is the latest immutable submission time among the contributions necessary to first satisfy every requirement.
+For each requirement, its completion time is the immutable `SubmittedAt` of the
+effective contribution that first reaches the target. `tile_completed_at` is the
+latest requirement-completion time needed to satisfy every requirement.
+
+The current public approval generation persists one `tile_completion_facts` row
+per event, team, board tile, and approval snapshot. A completed row stores that
+tile time and JSON provenance for its qualifying requirement/contribution/
+submission identities and effective amounts. Approval and reversal/rebalance
+transactions reconcile affected rows from approved, non-reversed effective
+contributions; a linked correction child contributes its own immutable
+`SubmittedAt`. Reversal can update a still-complete tile's active-generation
+fact when its surviving threshold evidence changes. Replacement approval
+creates facts for the new generation without deleting prior-generation facts.
+Retained submissions and reversal history remain the source for reconstructing
+older active-generation state; public reads do not write competitive facts.
 
 ### 12.6 Row and column completion
 
@@ -1516,9 +1585,10 @@ When an approved submission is reversed:
 4. Recalculate the affected requirement and tile.
 5. Recalculate its row and column.
 6. Recalculate full-board completion.
-7. Recalculate team placements.
-8. Recalculate the credited player's statistics.
-9. Record before and after values in the audit log.
+7. Reconcile its active-generation tile completion fact and provenance.
+8. Recalculate team placements.
+9. Recalculate the credited player's statistics.
+10. Record before and after values in the audit log.
 
 ### 12.9 Historical reconstructed progress
 
@@ -1565,7 +1635,8 @@ Teams are ordered using the following comparison priority:
 2. Full-board obtained completion time, earliest first among finishers
 3. Completed rows and columns, highest first
 4. Completed tiles, highest first
-5. Configured EHB tie-break value, highest first
+5. Current score completion time, earliest first
+6. Configured EHB tie-break value, highest first
 
 Conceptually, non-finishers are compared using:
 
@@ -1573,9 +1644,17 @@ Conceptually, non-finishers are compared using:
 (
     completed_line_count,
     completed_tile_count,
+    current_score_reached_at,
     ehb_tiebreak_value
 )
 ```
+
+`current_score_reached_at` is the latest completion time among the team's
+currently complete tiles, using only the active approval generation; it is
+null when no tile is complete. For a complete board it agrees with the
+effective board finish time. The effective full-board finish (including an
+approved completion-time correction) remains the higher-priority comparison.
+Equal or null current-score times fall through to EHB and can remain tied.
 
 Finishers rank ahead of all non-finishers and are ordered by completion time.
 
@@ -1594,11 +1673,16 @@ Fields for an official `OfficialPlacementSnapshot` record:
 - `board_completed_at`
 - `completed_lines`
 - `completed_tiles`
+- `current_score_reached_at`
 - `ehb_tiebreak_value`
 - `finalized_at`
 - `calculation_snapshot`
 
 Unfinalizing does not delete the previous snapshot. It supersedes it with a new calculation after re-finalization.
+Historical official placements are never silently reranked or backfilled from
+today's evidence. Their new nullable `current_score_reached_at` remains null
+when the time was not recorded in that historical version; the recorded order
+and other fields remain unchanged.
 
 ## 14. EHB calculations
 
@@ -2079,7 +2163,7 @@ dependency list includes the table.
 The existing evidence and synchronization owners capture checkpoints before committing their
 event transaction. Manual and scheduled end, final-review completion corrections, finalization,
 archive and unfinalization use the same capture boundary. A new calculation requires a successful compatible activity
-batch inside the existing two-hour freshness window. Partial current batches retain explicit
+batch inside the existing one-hour freshness window. Partial current batches retain explicit
 per-player/source incompleteness; an already compatible complete checkpoint may instead retain
 its original full result and times with a stale label after a partial/failed observation.
 Purely additive approvals during an outage may retain that same full old calculation when its

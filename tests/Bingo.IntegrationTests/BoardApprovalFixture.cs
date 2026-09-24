@@ -38,7 +38,7 @@ internal static class BoardApprovalFixture
             var frozenTile = new BoardApprovalTileSnapshot(
                 Guid.NewGuid(), approval.Id, tile.Id, tile.TileTemplateId,
                 tile.RowIndex, tile.ColumnIndex, tile.NameSnapshot, tile.DescriptionSnapshot,
-                tile.EvidenceInstructionsSnapshot, tile.EstimatedEhbSnapshot, null);
+                tile.EvidenceInstructionsSnapshot, tile.EstimatedEhbSnapshot, null, tile.DescriptionIsAutomatic);
             approvalTiles.Add(tile.Id, frozenTile);
             db.BoardApprovalTileSnapshots.Add(frozenTile);
         }

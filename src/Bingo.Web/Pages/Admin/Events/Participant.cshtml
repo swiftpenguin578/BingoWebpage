@@ -75,6 +75,7 @@
             <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
             <input type="hidden" name="overlay" value="@overlayValue" />
             <input type="hidden" asp-for="Input.ExpectedResponseVersion" />
+            <input type="hidden" asp-for="Input.WomValidationConfirmationToken" />
             @if (Model.Questions.Any(question => question.Active))
             {
                     <section class="participant-edit-component participant-custom-answers">
@@ -87,6 +88,9 @@
                             var account = Model.Input.AccountAnswers.GetValueOrDefault(question.Id) ?? new ParticipantModel.AccountInput();
                             var accountName = $"Input.AccountAnswers[{question.Id}].CharacterName";
                             var accountEhb = $"Input.AccountAnswers[{question.Id}].Ehb";
+                            var accountEhbValue = ModelState.ContainsKey(accountEhb)
+                                ? ModelState[accountEhb]?.AttemptedValue ?? string.Empty
+                                : account.Ehb?.ToString(CultureInfo.InvariantCulture);
                             <div class="admin-field event-create-field @(question.Type == SignupQuestionType.Text ? "full-field" : null)" data-co-captain-field="@(question.SystemField == SignupSystemField.CoCaptainName ? "true" : null)" hidden="@(question.SystemField == SignupSystemField.CoCaptainName && !captainVolunteered ? "hidden" : null)">
                                 @if (question.Type == SignupQuestionType.Account)
                                 {
@@ -100,7 +104,7 @@
                                         {
                                             <div class="participant-account-field">
                                                 <label for="question-@question.Id-ehb">@T["EHB"]</label>
-                                                <input id="question-@question.Id-ehb" name="@accountEhb" value="@account.Ehb" class="form-control participant-short-field" type="number" min="0" step="0.01" placeholder="0" />
+                                                <input id="question-@question.Id-ehb" name="@accountEhb" value="@accountEhbValue" class="form-control participant-short-field" type="number" min="0" step="0.01" placeholder="0" />
                                                 <span asp-validation-for="Input.AccountAnswers[question.Id].Ehb" class="field-error"></span>
                                             </div>
                                         }
@@ -189,7 +193,8 @@
                     <h3>@T["Fill open vacancy"]</h3>
                     <p>@T["Choose an available waiting-list participant, or leave the selector blank and provide a validated internal participant. Contact remains manual."]</p>
                     <form method="post" asp-page-handler="FillVacancy" class="form-stack" data-update-targets="@partialTargets"><input type="hidden" name="overlay" value="@overlayValue" />
-                        <input asp-for="VacancyMembershipId" type="hidden" /><input asp-for="VacancyMembershipVersion" type="hidden" />
+                        <input asp-for="VacancyMembershipId" type="hidden" /><input asp-for="VacancyMembershipVersion" type="hidden" /><input asp-for="WomValidationConfirmationToken" type="hidden" />
+                        <input type="hidden" asp-for="InternalReplacement.WomValidationConfirmationToken" />
                         <label><span>@T["Waiting-list participant (optional)"]</span><select asp-for="ReplacementWaitingParticipantId" class="form-select"><option value="">@T["Create internal replacement"]</option>@foreach (var candidate in Model.WaitingReplacementCandidates) { <option value="@candidate.Id">@candidate.Name · #@candidate.Sequence</option> }</select></label>
                         <label><span>@T["Internal owner username (optional)"]</span><input asp-for="InternalReplacement.OwnerUsername" class="form-control" autocomplete="off" /></label>
                         @foreach (var question in Model.Questions.Where(x => x.Active))
@@ -204,7 +209,17 @@
                                 <label><span>@question.Label @if (question.Required) { <small>@T["Required"]</small> }</span><input name="InternalReplacement.Answers[@question.Id]" value="@Model.InternalReplacement.Answers.GetValueOrDefault(question.Id)" class="form-control" /></label>
                             }
                         }
-                        <button class="admin-button-secondary action-accent-outline" type="submit">@T["Confirm replacement"]</button>
+                        @if (Model.WomValidationConfirmationRequired)
+                        {
+                            <div class="event-confirmation-box" role="alertdialog" data-wom-validation-confirmation aria-labelledby="vacancy-wom-confirmation">
+                                <p><strong id="vacancy-wom-confirmation">@T["Wise Old Man is unavailable. These accounts could not be verified: {0}. Fill this vacancy with the details shown above anyway?", Model.WomValidationConfirmationNames]</strong></p>
+                                <div class="event-confirmation-actions">
+                                    <button class="admin-button-secondary" type="submit" asp-page-handler="CancelWomValidation" formnovalidate data-wom-validation-cancel>@T["Cancel"]</button>
+                                    <button class="admin-button-secondary action-danger-outline" type="submit">@T["Replace vacancy anyway"]</button>
+                                </div>
+                            </div>
+                        }
+                        <button class="admin-button-secondary action-accent-outline" type="submit" data-wom-validation-normal-submit hidden="@(Model.WomValidationConfirmationRequired ? "hidden" : null)">@T["Confirm replacement"]</button>
                     </form>
                 }
                 @if (Model.PromotionFollowUp is { } followUp)
@@ -255,6 +270,7 @@
                         <p><strong id="restore-participant-heading">@T["Restore {0}?", Model.Name]</strong><br />@T["Restore this signup using the current capacity and waiting-list rules."]</p>
                         <form method="post" asp-page-handler="Restore" class="event-confirmation-form" data-update-targets="@partialTargets">
                             <input type="hidden" name="overlay" value="@overlayValue" />
+                            <input asp-for="WomValidationConfirmationToken" type="hidden" />
                             <input type="hidden" name="ConfirmLifecycleAction" value="true" />
                             <div class="event-confirmation-actions">
                                 <button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button>

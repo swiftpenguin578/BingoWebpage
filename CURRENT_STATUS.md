@@ -1,5 +1,771 @@
 # Current project status
 
+## Release candidate packaging — 2026-09-24
+
+The user reports that the complete Release solution test gate
+(`dotnet test Bingo.slnx --configuration Release`) and the complete BrowserTests
+Node gate (`node --test tests/Bingo.BrowserTests/*.test.js`) both passed. This is
+user-reported acceptance evidence; this packaging worker did not rerun either
+complete gate and does not invent counts or agent-run logs. The earlier
+full-suite remediation entry below remains historically accurate: those gates
+were deferred by that remediation, whose bounded focused checks and independent
+Sol/high review passed.
+
+The user explicitly authorized packaging all accepted current feature and
+remediation work from `/private/tmp/BingoWebpage-wom-managed-20260922` on
+`codex/admin-wom-competitions`, including managed WOM competitions, September
+improvements, the shared actual Stats masthead, test-isolation/security
+corrections and maintained authority docs. Required migrations, designers and
+the EF model snapshot are included. The verified GitHub repository is
+`https://github.com/swiftpenguin578/BingoWebpage.git`; its `main` was verified
+at `68b16242a63497fe1b0677bc48c396d9dfb1fc79`, and the target branch had no
+existing GitHub PR before packaging. The checkout's `origin` remains the local
+source path by design; publication uses the separately verified GitHub URL.
+
+Bounded file-scope/privacy checks found no build outputs, `accounts.env`, dumps,
+database files, private evidence, real-participant data artifacts or local-only
+scripts in the candidate. Ignored `bin/` and `obj/` outputs remain untracked.
+The formatter limitation remains: the completed verification exited 2 only for
+accepted-baseline diagnostics, and its retry was blocked by sandbox Roslyn
+named-pipe permissions; no mass formatting was applied. The focused remediation
+Release build, BrowserTests/Stats/original-reproduction checks, safe-logging
+recheck and `git diff --check` remain recorded as passed in the remediation
+outcome; the user-reported complete suites supersede the prior pending gate.
+
+The running preview and manual database remain outside packaging scope:
+`http://127.0.0.1:5290`, database `bingo_manual_preview_wom_clean_20260923` /
+`manual_preview` at loopback `55529`. No preview restart, migration, seed,
+provider call or database mutation was performed. Before publication, record the
+final commit SHA(s), branch, verified GitHub remote, PR URL/number and target
+here. The next permitted action after the PR is created is the user's review and
+release decision; no merge, deployment or production mutation is implied.
+
+## New planner handoff — 2026-09-24
+
+The user explicitly requested a NEW planner task when the current full-suite
+orchestrator returns. The orchestrator has now returned its final technical PASS;
+the originating planner is handing off now. The user-run complete suites remain
+pending and are not a prerequisite for creating the requested planner task.
+Include exact source checkout/branch and dirty-work identity, actual test/review
+results and evidence, manual approvals/waivers, unresolved blockers, preview/data
+details, and the exact commit/deployment state and next authorized action. Do not
+equate manual approval or passing tests with production deployment or permission
+to publish. Preserve the current work until its release is handled.
+
+Reading order: `AGENTS.md` (current roles/models/routing), this handoff,
+`DELIVERY_PLAN.md` 4.2.1 and applicable release sections, the current remediation
+`PLAN.md`/outcome, `TICKETS_2026_09_FOLLOWUP.md`, and
+`MANUAL_TEST_CHECKLIST.md`'s current walkthrough disposition. `UI_PAGE_MATRIX.md`
+owns visual approval; consult `UI_SYSTEM.md` for UI changes. Read relevant sections
+of product/contracts/data/architecture documents only for the next assigned scope;
+`README.md` owns commands. Old pending statuses superseded by explicit acceptance
+must not reopen approved work. Do not ask the user to repeat the manual checklist.
+
+Discussed follow-ups are for AFTER the current work reaches production, not
+automatic implementation authorization or an agreed priority order:
+
+- Admin UI AND backend/workflow overhaul, including WOM controls' visual polish.
+  Preserve visual identity, but do not assume the legacy frontend, dependencies or
+  accumulated restrictions must survive. Repeated patching/inventories have failed
+  the user; they should not bear the burden of designing UX or discovering every
+  missed state. Separate state-preview/HTML ideas were discussed, but no final
+  overhaul design or implementation plan has been approved.
+- Reassess Luck using EHB spent versus expected EHB to receive a drop, compared
+  with current KC-based calculation. This is an evaluation idea, not an approved
+  formula change.
+- Missing gap below “Full-event KC · Drops credited to this tile” in tile-sidebar
+  KC & Luck when multiple bosses are listed.
+- Deferred IP/privacy work: minimize visitor IPs in Caddy error logs and consider
+  other log retention/documentation. Do not claim no IPs are stored: access logging
+  was not enabled in the inspected Caddyfile, but Caddy error logs had IP/request
+  metadata, cookies inspected were redacted, and UFW/journal logs retained network
+  metadata. Hosting-provider logging is separate; no changes were implemented.
+
+Real update-all/scheduled WOM fetch verification remains deferred to the live
+event by the user. Section 9 manual ranking checks were waived. Single-eligible-drop
+description wording is already implemented and approved, not another open ticket.
+
+## Authorized: full-suite remediation before commits — 2026-09-24
+
+Workflow clarified by the user: `AGENTS.md` owns the planner → Terra/medium
+orchestrator → Luna/max implementer → Sol/high reviewer policy. The orchestrator
+may wait on workers and owns waking the next owner; the planner does not handle
+routine handoffs. The new orchestrator task is `01a0d3bd-ef5c-7b90-bf38-3eae2c42da81`.
+
+The user's complete solution run exposed one Integration compilation error and
+four BrowserTests failures: 493 tests ran, 489 passed, four failed; Integration
+never executed. Prior manual feature approval remains intact, but the complete
+automated suite is not passing. A NEW Terra/medium orchestrator is assigned one
+Luna/max implementer and one independent Sol/high remediation reviewer. Scope,
+failure evidence, test-isolation requirements and routing are in
+`/Users/christopher/.codex/visualizations/2026/09/17/01a0b085-75ee-79b0-b40b-bba65b669d74/full-suite-remediation-20260924/PLAN.md`.
+Use the exact source checkout `/private/tmp/BingoWebpage-wom-managed-20260922`
+on `codex/admin-wom-competitions`; preserve the running preview and its database.
+The bounded remediation and its independent Sol/high review are complete with a
+technical **PASS**. The final remediation patch SHA-256 is
+`7adca716e8d36cc25cf80385eec721ea197e821f92cdabf6b70af5358087707b`; its
+sorted NUL tree manifest SHA-256 is
+`85a463a81ee8210e6a16221a20a3198ca4cc005c3a89a9aa5367b9afaf6999b2`.
+Review and command evidence is under `/private/tmp/full-suite-remediation-20260924-luna/`.
+
+Focused results: BrowserTests 130/130 before the named logging correction;
+the corrected safe-logging test 1/1 afterward; Stats Pass 5 22/22; direct
+original-reproduction group 24/24; Release build passed with 0 warnings/errors;
+and final `git diff --check` passed. The formatter's completed exit 2 reported
+accepted-baseline files only; its retry was blocked by sandbox Roslyn named-pipe
+permissions. A post-change Stats rerun was blocked during disposable-container
+startup, while its prior 22/22 result remains recorded. These are not product
+failures and are not claimed as replacement passes.
+
+At the user's direction, the complete `dotnet test Bingo.slnx --configuration
+Release` and `node --test tests/Bingo.BrowserTests/*.test.js` runs are **user-run
+gates** and remain unrun by this remediation; do not claim either as passing.
+The preview/manual database was not restarted, migrated, seeded or mutated; no
+external provider call, stage, commit, push, deployment, or UI re-review occurred.
+The originating planner now creates the requested new-planner handoff. The next
+release gate is for the user to run the deferred complete suites and report results.
+The receiving planner should read this handoff, acknowledge readiness, then await
+those results or the user's next instruction. No UI re-review, staging, commits or
+publication is authorized.
+
+## Final manual display corrections approved — 2026-09-23
+
+The three user-requested corrections are implemented in
+`/private/tmp/BingoWebpage-wom-managed-20260922`: boss KC `-1` sentinels display
+as em dashes, boss team average gains display as whole numbers, and Stats uses
+the actual shared Board/Drops/Leaderboards masthead (same event facts, player
+metrics and conditional actions) aligned to its own 1640px content shell. The
+user rejected the earlier structure-only Stats facts; that version is superseded. Stored KC, EHB, ranking/averaging semantics and local
+event data are unchanged. Focused checks passed: 29 executable Razor-expression
+cases for the unchanged numeric fixes. The actual-masthead correction passed
+4 database-free model tests (Archived/Live/pre-Live facts, tied rankings and missing
+activity), 68 Node checks (0 failed, 2 pre-existing skips), Release Web/Razor
+compilation and diff checks. Extraction equivalence checks prove the original Board
+masthead markup/conditionals and ranking logic are unchanged; both pages call the
+same partial, and the remaining Board body is byte-identical. Independent UI review was **skipped at the
+user's explicit request**, not passed. The user then explicitly approved the current
+running corrections (“everything approved”), including the actual shared Stats
+masthead. UI_PAGE_MATRIX.md records this page acceptance. The broader accepted,
+waived and deferred walkthrough scope is recorded in MANUAL_TEST_CHECKLIST.md's
+“Current walkthrough disposition — user acceptance, 2026-09-23”; that disposition
+supersedes older pending statements for the scope it names.
+
+The same local preview is running at `http://127.0.0.1:5290` (PID 54514), using
+the verified Release build and `Success Complete Real`. Homepage HTTP 200 and
+`/health/ready` Healthy; database identity remains
+`bingo_manual_preview_wom_clean_20260923` / `manual_preview` at loopback 55529
+(32 events). Official WOM provider, fake transport disabled and automatic activity
+synchronization disabled were confirmed by the launcher. No database migrations
+were needed. No provider request was triggered for these corrections.
+
+Evidence and the isolated three-fix diff are under
+`/private/tmp/sommerbingo-actual-masthead-20260923/`; original numeric-fix evidence
+remains in `/private/tmp/sommerbingo-final-display-fixes-20260923/`. No packaging or
+publication is authorized. This correction assignment is complete; no further edits,
+review or restart are pending.
+
+## Authorized: September Astra-review remediation — 2026-09-23
+
+The user approved remediation of the additional Astra review findings F1–F8,
+including inherited Danish keys, plus bounded investigation of its two verification
+concerns. The assigned GPT-6 Luna/max implementer completed the bounded corrections
+and focused checks. One fresh independent GPT-6 Sol/high reviewer passed the stable
+correction diff with no residual named finding or direct consequence; it reused the
+recorded focused execution evidence and did not rerun the tests. Original ticket-level
+passes remain historical evidence, while this supplemental correction now has its
+own technical **PASS**. Manual acceptance remains pending. SEP-08 ultrawide visual
+verification remains pending because a usable local browser renderer was
+unavailable; SEP-01's optional-validator concern showed no supported production
+bypass. No packaging or publication is authorized.
+
+Current assignment: `/Users/christopher/.codex/visualizations/2026/09/17/01a0b085-75ee-79b0-b40b-bba65b669d74/september-astra-review-20260923/REMEDIATION_BRIEF.md`.
+Original findings are in adjacent `REVIEW.md` and must remain unchanged.
+The correction outcome and source identity are recorded beside the brief in
+`REMEDIATION_OUTCOME.md`; orchestrator task `01a0c9bd-2e6c-7633-b9a3-ec2e21ce53d1`
+completed the independent-review handoff. The reviewed tracked diff SHA-256 is
+`411c4f6d73588bcd9503469f65d9759a2d05a52d49811abe544325ed079a2d43`;
+the combined source manifest SHA-256 is
+`392368aaaabe91d278b0971cc4f41aae27b798fe579ddf9dbc1ecfb6b6b33eac`.
+The next permitted action is user manual EN/DA inspection and a separate visual
+check of SEP-08 ultrawide geometry; no packaging or publication is authorized.
+
+## Authorized: September follow-up execution — 2026-09-22
+
+All nine September follow-up tickets are implemented and have passed their
+assigned independent technical reviews. SEP-04's tie-acknowledgement correction
+was implemented by a fresh GPT-6 Astra/high worker at the user's request and
+passed the original GPT-6 Sol/high reviewer's named recheck on 2026-09-23.
+Every ticket remains **Awaiting manual review**; no manual acceptance, packaging,
+or publication is inferred. The managed WOM feature and restored leaderboards
+retain their separate pending manual acceptance. The next permitted action is
+user manual inspection and release planning under the existing delivery gates.
+
+The user authorized a visible Terra medium orchestrator to execute
+`TICKETS_2026_09_FOLLOWUP.md` in the six batches recorded there, starting with
+SEP-02 then SEP-03. Luna max implements; a fresh Sol high independently reviews
+each stable batch. Passed batches await manual review while execution continues.
+The orchestrator owns worker handoffs and reports only blockers, consequential
+questions or full completion to the originating planner. SEP-02 remediation and
+the same-reviewer named-only recheck by `/root/sep02_review` are complete with a
+technical **PASS**; SEP-03 implementation, remediation and its same assigned
+independent review/recheck are also complete with a technical **PASS**. Both
+batches are now **Awaiting manual review** and manual acceptance is not inferred.
+SEP-01's five named findings and focused checks are complete; its same assigned
+independent Sol High reviewer recheck also passed technically. SEP-01 is now
+**Awaiting manual review**; manual EN/DA acceptance remains pending and is not
+inferred.
+SEP-05 and SEP-07 implementation, focused checks, named SEP-07 pagination
+remediation and the same assigned independent review/recheck are complete with
+a technical **PASS**. This batch is **Awaiting manual review**; EN/DA visual
+acceptance for the affected public event pages remains pending and is not
+inferred.
+SEP-08 and SEP-09 implementation, focused checks, and independent technical
+review are complete with a technical **PASS**. Both are **Awaiting manual
+review**; Stats wide/narrow and Board countdown EN/DA visual acceptance remain
+pending. The Board countdown uses rendered event state on load/refresh only;
+manual page acceptance is not inferred.
+The development reset helper remains limited by its known PostgreSQL
+foreign-key truncate failure. No new SEP-02 or SEP-03 reviewer dispatch is
+permitted.
+Use the existing checkout and protected baseline below. No packaging, production
+mutation or publication is authorized. Prior WOM manual acceptance stays pending.
+
+## SEP-02 fixed-hourly remediation — 2026-09-22
+
+The initial fixed-hourly implementation received two named review findings:
+legacy future due values could replay an already-consumed current slot, and
+manual success/failure on a Live row without `ActualStartedAt` could manufacture
+a rolling due time. The source correction, focused migration-state tests, and
+current authority/checklist updates are complete. Domain slot tests pass 6/6;
+focused synchronization passes 7/7, metric-cache/publication passes 7/7,
+activity projection passes 2/2, and the Release IntegrationTests build passes
+with 0 warnings/errors. The development reset helper remains limited by its
+known PostgreSQL foreign-key truncate failure
+(`DevelopmentScenarioSeeder.ResetAndSeedAsync`). The same-reviewer named-only
+recheck by `/root/sep02_review` is complete with a technical **PASS**. SEP-02
+remains **Awaiting manual review**; manual acceptance is not inferred.
+
+## SEP-03 four-hour WOM update-all — 2026-09-22
+
+The bounded implementation, named P1 remediation and same assigned independent
+Sol High source review/recheck are complete with focused checks passing and a
+technical **PASS**. SEP-03 is now **Awaiting manual review**; manual acceptance
+is not inferred. The
+implementation adds a durable update-all slot receipt keyed by remote
+competition and paired fetch slot, fixed +3h45m/+4h schedule helpers, atomic
+PostgreSQL claiming and expiry-to-ambiguous handling, protected-credential-safe
+`POST /competitions/:id/update-all` acknowledgement handling, and the existing
+management/manual-link advisory lock. A future pending receipt now rebinds only
+its mutable management-version/source-generation lineage under that lock when
+the same active managed link remains compatible; terminal receipts remain
+immutable, and a deletion/recreate boundary cannot revive an old receipt. The
+existing hourly synchronization worker/state is not gated by update-all
+outcomes.
+
+Focused evidence:
+
+- `EventCompetitionUpdateAllSlotTests` — 4/4 (UTC boundary, midnight, DST,
+  strict end-window and terminal receipt behavior).
+- `Slice10Pass101WiseOldManTests` update-all client checks — 3/3 (official POST
+  body, empty 202 acknowledgement, provider error redaction, ambiguous POST).
+- `EventCompetitionManagementIntegrationTests` — 11/11, including two-context
+  claim/restart, expired ambiguous claim, manual-link advisory-lock race,
+  update-all failure followed by an independent paired hourly fetch, future
+  receipt rebinding after management/source lineage changes with exactly one
+  POST, and deletion/recreate plus competition-replacement skips.
+- The two new future-receipt PostgreSQL regressions — 2/2.
+- `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers`
+  — passed with 0 warnings/errors; `git diff --check` — passed.
+
+Schema is carried by `20260922163951_AddWiseOldManUpdateAllSlots` with its
+designer and updated model snapshot; the remediation requires no additional
+migration. The development reset helper limitation recorded for SEP-02 remains
+unchanged; no production database, real WOM request, restart or publication
+occurred. The separate F5 correction now rechecks the dispatch deadline and
+event/link/end eligibility after shared limiter admission; its focused controlled
+HTTP/PostgreSQL regressions passed. That supplemental correction awaits the
+orchestrator's fresh named-finding review; manual acceptance remains pending.
+
+## SEP-01 active account validation — 2026-09-22
+
+Five named SEP-01 findings across the initial review and follow-up recheck have
+been remediated; the same assigned independent Sol High reviewer recheck is
+complete with a technical **PASS**. SEP-01 is **Awaiting manual review**; manual
+EN/DA acceptance remains pending and is not inferred. Direct `SignupService`, `MyAccountsService` and
+`AccountIdentityService` account-name writes now require a validator and fail
+closed when one is absent; controlled test validators keep valid direct-service
+fixtures explicit, while CSV remains outside this contract. Admin internal
+participant creation and vacancy replacement now return the submitted form
+with an explicit same-form confirmation on WOM operational failure; Cancel
+clears the one-use token while retaining the account and answer inputs. The
+add-participant form is forced visible when confirmation returns even if the
+request URL no longer has `addParticipant=1`. Both Cancel buttons submit to a
+server handler which clears its confirmation token and returns the form with
+all entered account/answer values intact; JavaScript only enhances the
+response. The single-use confirmation fingerprint includes the target team
+for manual pre-formed entry and the target vacancy for replacement, in addition
+to the existing actor/action/event/participant/name-set/version context.
+
+The original validation contract remains narrow: a transient five-minute exact
+normalized-name success cache over the existing WOM player lookup validates
+non-CSV active account writes across My Accounts create/edit/reactivate,
+onboarding, authenticated signup create/edit, Admin participant create/edit,
+manual pre-formed entry, rejoin/restore and vacancy replacement. Known invalid
+names always block; normal users are blocked on operational failure; only an
+enabled Admin can explicitly confirm an operational failure. Existing EHB
+fetch semantics are unchanged, raw successful fetches only prewarm the
+validation cache, and CSV/saved-EHB/payment/notes/reorder/unlink paths remain
+outside the contract. No migration, background scanner, real WOM call or
+production database change was introduced.
+
+Focused evidence on controlled PostgreSQL fixtures:
+
+- Release web build — 0 warnings/errors.
+- `Slice4AuthenticatedSignupIntegrationTests` — 38/38 on the preceding pass;
+  the follow-up no-JS path has its own direct regression below.
+- `WiseOldManAccountValidationTests` — 4/4, including target-team and
+  target-vacancy token binding.
+- Direct My Accounts/onboarding missing-validator tests — 2/2; direct internal
+  participant missing-validator test — 1/1.
+- `InternalParticipantOutageConfirmationAndCancelWorkWithoutJavaScript` — 1/1;
+  `InternalReplacementOutageConfirmationRetainsTheOriginalForm`, including
+  no-JavaScript cancellation — 1/1.
+- `participant-add-dialog.test.js` — passed (Node exit 0).
+- The prior focused SEP-01 baseline checks remain recorded below; no full suite
+  was run for this remediation.
+
+`git diff --check` passed after the remediation and handoff update. The technical
+review boundary is complete; the next permitted action for SEP-01 is manual EN/DA
+acceptance. No additional review is dispatched and manual acceptance is not
+inferred.
+
+## SEP-05 + SEP-07 technical handoff — 2026-09-22
+
+Implementation and focused checks are complete on `/private/tmp/BingoWebpage-wom-managed-20260922`,
+branch `codex/admin-wom-competitions`. The same assigned reviewer
+`/root/sep05_sep07_review` completed the named SEP-07 live-pagination recheck
+with a technical **PASS**. SEP-05 and SEP-07 are **Awaiting manual review**;
+manual EN/DA acceptance for the affected public event pages remains pending
+and is not inferred.
+
+SEP-05 reuses existing account/event/submission unread state. Active Admin and
+SuperAdmin accounts are eligible for the viewed public event's existing banner
+and NEW markers without participant membership; exact-event reads and mutation
+eligibility preserve account/event isolation, while `/current` remains
+participant-scoped. The public shared banner root is no longer role-excluded;
+the client targets the event ID already rendered by the page and clears stale
+state on an exact-event 404. No Admin-layout banner or new notification state
+was added.
+
+SEP-07 carries both immutable `SubmittedAt` and arrival `ReviewedAt` through the
+existing public feed projection. The event Board overview top-three, Drops
+ordering/date groups and last-24-hours count use submission time. Live
+reconciliation still detects new approval arrivals by review time, then
+deduplicates and inserts/re-groups them by submission time. The live API keeps
+its 100-row request cap and now pages with an offset; reconciliation fetches
+enough rows for the requested rendered `dropCount`, then caps the merged cards
+back to that window after submission-time ordering. A rank-110 late approval is
+reachable in a 125-row window, while a rank-50 late approval does not expand a
+25-row window. Other progress ranking/history clocks and announcement
+NEW/arrival semantics are unchanged.
+
+Focused evidence (controlled PostgreSQL fixtures): `DropAnnouncementPersistenceIntegrationTests`
+and `PublicRecentDropValidity` / the new
+`PublicRecentDropsUseSubmittedAtForOrderingAndLast24HoursAcrossProjectionAndHttp`
+filter — 11/11 passed, including active Admin/SuperAdmin, revocation/disablement,
+automatic banner claim, split banner/Drops acknowledgement, clear-all and
+cross-user/event state, the viewed-event HTTP/banner route, API and Board/Drops
+ordering, date groups, last-24-hour projection and API offset pagination.
+Related Node tests
+`drop-announcement.test.js`, `drop-announcement-races.test.js` and
+`public-recent-drops-live.test.js` — 23/23 passed, including exact 25/125
+window boundaries, late-approved older submissions, paged rank-110 retrieval,
+deduplication, correct insertion and unchanged banner arrival targeting. The
+focused Release integration test build passed; no full suite, manual visual
+acceptance, staging, commit, publication or production mutation was performed.
+
+## SEP-08 + SEP-09 technical handoff — 2026-09-22
+
+Both UI corrections, focused checks, and independent technical review are
+complete on `/private/tmp/BingoWebpage-wom-managed-20260922`, branch
+`codex/admin-wom-competitions`, with a technical **PASS**. Manual EN/DA visual
+acceptance remains pending; no screenshots or user acceptance are claimed.
+
+SEP-08 adds the `public-stats-masthead` hook in `Stats.cshtml`. The loaded-after-
+shared `stats-integration.css` computes a nonnegative inset from the viewport
+and `--public-page-wide`, applies it only to the masthead intro and divider,
+and reduces divider width by the same inset so its right endpoint stays at the
+viewport edge. The masthead wrapper and artwork origin remain unchanged. Its
+inset is zero at or below the existing 88rem content maximum, including the
+existing narrow layouts.
+
+SEP-09 renders `Starts in` for the pre-Live `Draft`, `SignupOpen` and
+`SignupClosed` states, with the existing board-blue token for its badge and
+dot. Live remains coral with the existing Live wording; ended states continue
+to use the existing Ended wording and coral style. The initial accessible group
+label follows the rendered status. Countdown JavaScript, hidden timer label,
+timestamps, units, progress and its dynamic ARIA calculation are unchanged, so
+an open page still updates only its hidden timer until refreshed.
+
+Focused evidence:
+
+- `dotnet build src/Bingo.Web/Bingo.Web.csproj --configuration Release --no-restore --disable-build-servers` — passed, 0 warnings/errors.
+- Focused Node browser tests `public-countdown.test.js` and `stats-production.test.js` — 67 passed, 2 skipped, 0 failed. The added assertions cover EN/DA pre-Live copy/color and page-scoped Stats inset/right-edge geometry.
+- `git diff --check` — passed.
+
+No app restart, manual visual acceptance, staging, commit, push, deployment or
+production mutation occurred.
+
+The independent reviewer confirmed that the scoped CSS geometry, lifecycle
+wording and colors, localization, and unchanged timer behavior match the ticket
+contracts; `git diff --check` passed. The recorded Release build and focused
+Node results remain the implementation evidence above. Both tickets are
+**Awaiting manual review**; no technical or visual evidence is being inferred
+beyond those results.
+
+## SEP-06 implementation handoff — 2026-09-22
+
+Implementation, focused checks, and the same assigned independent reviewer
+recheck are complete with a technical **PASS**. The independent reviewer
+`/root/sep06_review` passed after the named P1 correction; the scoped correction
+diff SHA-256 was
+`acea5c53f5a03ca1b64268148d8ad4e3124cdffa74562ca7fcafb10f38fca434`.
+SEP-06 is **Awaiting manual review**; EN/DA UI acceptance remains pending and
+is not inferred.
+
+The SEP-06 implementation is in `/private/tmp/BingoWebpage-wom-managed-20260922`
+on `codex/admin-wom-competitions`. The user explicitly authorized deriving
+legacy blank/whitespace working descriptions; nonblank working/template text
+remains manual, and approval-snapshot descriptions/modes are left untouched by
+the migration. The additive migration flags only blank/whitespace `tile_templates`
+and `board_tiles` descriptions as automatic. It does not inspect or rewrite
+frozen approval snapshots.
+
+The board editor now stores blank input as an empty automatic description and
+keeps nonblank input manual; the shared formatter uses selected catalogue drops
+and ordered requirements for draft preview and approval materialization. Approval
+freezes rendered text and mode; public Board/Tile consumers continue using the
+frozen copy, and correction discard restores the prior mode and text. Focused
+formatter, edit/approval/correction, localization, direct public-consumer, and
+predecessor-migration upgrade tests have been added.
+
+Focused verification passed:
+
+- `dotnet test tests/Bingo.Application.Tests/Bingo.Application.Tests.csproj --no-restore --configuration Release --filter FullyQualifiedName~TileDescriptionFormatterTests --disable-build-servers -m:1` — 4/4 passed.
+- `dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-restore --configuration Release --filter FullyQualifiedName~DerivedDescriptionMigrationMarksOnlyLegacyWorkingBlanksAndLeavesFrozenTextUntouched --disable-build-servers -m:1` — 1/1 passed.
+- Focused `BoardApprovalTicketBatchIntegrationTests` selection for blank/manual edit, weighted-target approval, correction discard, and EN/DA placeholder — 4/4 passed against disposable PostgreSQL Testcontainers.
+- Same-reviewer PostgreSQL publication/drawer and correction-discard recheck — 3/3 passed; published projection carries frozen description/mode to the Captain drawer, and correction discard clears automatic working/template text.
+- `git diff --check` — passed.
+
+The first attempts exposed and corrected migration namespace formatting and a
+nested-await compile error. Ordinary sandbox test execution also hit named-pipe
+and VSTest socket-bind permission denials; scoped elevated runs then compiled
+all projects and passed the focused tests above. No staging, commit, push, app
+restart, or user/production database mutation was performed. Manual EN/DA
+acceptance remains the next gate; no visual acceptance is claimed.
+
+## SEP-04 implementation handoff — 2026-09-23
+
+Implementation, focused checks, independent review and the same reviewer's
+named recheck are complete with a technical **PASS**. SEP-04 is **Awaiting manual
+review**; no manual acceptance is inferred. This is the final authorized backlog
+batch. The checkout remains
+`/private/tmp/BingoWebpage-wom-managed-20260922` on
+`codex/admin-wom-competitions`; earlier WOM/leaderboard/SEP-01–09 changes remain
+preserved. No staging, commit, push, deployment, application restart, or
+production database mutation occurred.
+
+SEP-04 adds durable completion facts per event/team/tile/approval generation,
+with qualifying contribution and submission provenance. The calculator uses
+effective approved contributions and immutable `SubmittedAt`; approval,
+reversal/rebalance, and corrected-publication transactions reconcile facts.
+Public board reads project facts but never write them. Nullable
+`CurrentScoreReachedAt` is the latest currently complete tile time, ordered
+after effective full-board finish, lines, and tiles, and before EHB; rank
+equality uses the same field. Future acknowledgments and finalization inputs /
+official snapshots include it. The migration reconstructs only derivable
+current active-generation facts for active finalized teams; legacy official
+placements and prior finalization versions are left unchanged, with the new
+field null where it was not historically recorded. This does not silently
+rerank old official results.
+
+Focused checks passed:
+
+- Release Web build — 0 warnings, 0 errors.
+- Release IntegrationTests build — 0 warnings, 0 errors.
+- `PublicProgressCalculatorTests` — 14/14.
+- Focused `SubmissionWorkflowTests` selection — 4/4, covering distinct
+  submission/review times, rebalanced still-complete evidence, nine-to-eight
+  reversal, multi-requirement tile time, and linked corrected-child provenance.
+- Corrected-publication generation switch and injected fact-write rollback —
+  2/2 against disposable PostgreSQL/Testcontainers databases.
+- `C33FinalizationFreshnessTests` focused official-history/freshness selection
+  — 3/3; the expanded multi-requirement migration backfill fixture was rerun
+  separately and passed 1/1 against disposable PostgreSQL/Testcontainers.
+- `git diff --check` — passed after the final authority/status updates.
+- After the reviewer found a stale placement-tie acknowledgement key, the
+  user-requested GPT-6 Astra/high remediator included current competitive
+  inputs, including `CurrentScoreReachedAt`, in the deterministic tie key.
+  Release IntegrationTests build passed with 0 warnings/errors; the focused
+  disposable-PostgreSQL C33 selection passed 4/4, including the tie-break,
+  return and renewed-acknowledgement regression; `git diff --check` passed.
+  Two-file correction diff SHA-256:
+  `38145658a7c26160278390b07efbe308c470af36fa4b3d0c4feaccf9994287a7`.
+  The original `/root/sep04_review` reviewer passed this named recheck.
+
+The broader suites were not rerun. SEP-06 also remains technical **PASS** with
+manual EN/DA review pending. SEP-04's manual review has not been performed.
+
+## Awaiting manual review: Admin-managed WOM competitions — 2026-09-22
+
+User explicitly marked this feature **Awaiting manual review**. Implementation
+and the same independent Sol High review/recheck are complete: **PASS**.
+No further implementation, review dispatch or publication is active. The next
+permitted action for this feature is user EN/DA manual inspection of the Admin
+journey; record page acceptance only in `UI_PAGE_MATRIX.md`. The separate September follow-up backlog is now authorized as recorded above.
+
+Checkout: `/private/tmp/BingoWebpage-wom-managed-20260922`.
+Branch: `codex/admin-wom-competitions`.
+Base/HEAD: `ae1a8605372a613e53d87b73a8e0237c84c1faca`.
+The restored leaderboard patch SHA-256 is
+`22b2950c8ea05ae30d708dadbf6588684bb776a7c03e1766cbae8aaaee033bf3`.
+The reviewed 42-row WOM manifest SHA-256 is
+`4cbc1dd21d9d6fbe7993f046d27fff4fe2043cf0c8ad280e466232d56b29a7be`.
+This status-only update follows the reviewed snapshot and does not change
+production code or represent another code-review pass.
+
+Final review: `/Users/christopher/.codex/visualizations/2026/09/17/01a0b085-75ee-79b0-b40b-bba65b669d74/wom-independent-recheck-20260922.md`,
+“Final named-only recheck” verdict PASS. Durable checks and baseline evidence:
+`/Users/christopher/.codex/visualizations/2026/09/17/01a0b085-75ee-79b0-b40b-bba65b669d74/wom-baseline-evidence.md`.
+Release build and focused checks passed as recorded there. The earlier 143/143
+synchronization result was reused; a later timed-out attempt is not a new pass.
+Optional provider-ID rename recognition remains omitted. No commit, staging,
+push, deployment, restart, real WOM mutation or production database change occurred.
+Leaderboard restoration does not renew its deferred review/manual acceptance.
+
+Prior checkpoints below are historical evidence only; their dispatch/resume
+instructions are superseded by this awaiting-manual-review status. Follow
+[lean execution and planner handoff](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+
+## Resumed implementation verification — 2026-09-22
+
+The authorized work resumed from the saved pause checkpoint. The corrected
+`EventCompetitionManagementService.cs:262` status predicate now builds
+successfully. The required post-fix checks completed on the unchanged stable
+source delta:
+
+- `dotnet build Bingo.slnx --configuration Release --no-restore --disable-build-servers` — passed, 0 warnings, 0 errors.
+- `WiseOldManCompetitionRulesTests` — 5/5 passed.
+- `Slice10Pass101WiseOldManTests` — 11/11 passed.
+- `ManagedCompetitionUiTests` — 2/2 passed.
+- `git diff --check` — passed.
+
+The WOM manifest remains 36 rows with SHA-256
+`12051e438bb7d75e9eb5c45aff6d75a34e0c290c1154679f1370a63007c59f41`.
+No process is running. The next permitted action is to dispatch exactly one
+fresh independent `gpt-5.6-sol` / `high` reviewer against this complete
+checkout and its separate restored leaderboard baseline. Manual EN/DA visual
+acceptance remains pending, provider-player-ID rename recognition remains
+explicitly omitted, and no publication claim is authorized.
+
+## Paused worker checkpoint — 2026-09-22
+
+The user requested a graceful pause after the implementation pass. This worker
+has stopped dispatching stages, review, remediation and new checks. The safe
+checkout is `/private/tmp/BingoWebpage-wom-managed-20260922` on branch
+`codex/admin-wom-competitions`, based on
+`ae1a8605372a613e53d87b73a8e0237c84c1faca`. The restored leaderboard baseline
+is the exact patch
+`/private/tmp/bingo-boss-leaderboards-20260917/final-visual-corrections-with-safari-paint.patch`
+with SHA-256
+`22b2950c8ea05ae30d708dadbf6588684bb776a7c03e1766cbae8aaaee033bf3`.
+
+The WOM and authority delta against the baseline-only materialization
+`/private/tmp/BingoWebpage-wom-baseline-20260922` is recorded as the 36-row
+manifest
+`/Users/christopher/.codex/visualizations/2026/09/17/01a0b085-75ee-79b0-b40b-bba65b669d74/wom-implementation-manifest-20260922.txt`.
+Its current SHA-256 is
+`12051e438bb7d75e9eb5c45aff6d75a34e0c290c1154679f1370a63007c59f41`. The
+manifest covers the scoped authority
+updates, application/domain management contracts and rules, infrastructure
+management service/client/configuration/migration, web worker/credential
+protector/Admin Manage flow/name limits/localization, and focused tests. No
+commit, stage, push, deployment, app restart, real WOM mutation or user database
+operation was performed.
+
+Baseline restoration and source-completeness validation completed: patch
+application, Release restore/build, restored leaderboard Node harness, and the
+focused PostgreSQL leaderboard route/projection test passed. The WOM pass also
+completed these checks before the final source edits: Release solution build
+(0 warnings/errors); `WiseOldManCompetitionRulesTests` 5/5; managed WOM
+adapter/credential integration slice 11/11; `ManagedCompetitionUiTests` 2/2;
+`EventCreationUiTests` 27/27; `DateTimePresentationTests` 2/2; the focused
+PostgreSQL schedule mismatch test 1/1; the focused finalized-roster Live-boundary
+test 12/12; and `Slice10Pass102CompetitionSynchronizationTests` 143/143. The
+complete synchronization slice took 5m07s and finished successfully. No process
+is running now.
+
+Immediately before the pause, the implementation added the final active-state
+recovery and draft-reopen fence, then one release build exposed an EF expression
+tree error for the new status filter (`CS8122` at
+`EventCompetitionManagementService.cs:262`). The expression was corrected to
+explicit comparisons, but the build was not rerun after that correction. Thus
+the exact next permitted step on resume is to rerun the Release build and the
+direct management/rules/UI checks, then refresh the manifest hash and evidence.
+Only after those checks pass may this worker dispatch the single fresh Sol High
+independent reviewer. The reviewer has not been dispatched. Manual visual
+acceptance of the Admin Manage EN/DA journey remains pending. Provider-player
+ID rename recognition is explicitly omitted and must remain disclosed.
+
+Worker ownership remains `/root/wom_competitions_orchestrator` for reconciliation
+and next-step routing; this worker owns the isolated implementation checkout and
+must resume only after the orchestrator/user lifts the pause.
+
+## Active planner handoff — 2026-09-17
+
+This entry supersedes the historical active assignments below. User authorized
+the boss KC leaderboard/MVP slice on 2026-09-17, readiness first, then bounded
+implementation if readiness clears. No publication or database repair is authorized.
+Follow [lean execution](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff)
+and the ACTIVE temporary Sol/Luna workflow in AGENTS.md. The user reaffirmed that
+this workflow supersedes the retained Astra defaults; the initial handoff's claim
+that Astra defaults were reinstated was incorrect and is withdrawn.
+
+- Working checkout: `/private/tmp/BingoWebpage-fix-wiki-image-fetch`, branch
+  `codex/fix-wiki-image-fetch`, HEAD `ae1a8605372a613e53d87b73a8e0237c84c1faca`.
+  Clean before this handoff documentation edit. The e420 worktree is an older
+  detached checkout; `/private/tmp/BingoWebpage-drop-announcements` is no longer
+  a valid Git checkout. Do not implement in either.
+- PR #9 and PR #10 are merged and deployed. Current production merge is
+  `68b16242a63497fe1b0677bc48c396d9dfb1fc79`; PR #10 fixes the actual Wiki image
+  HttpRequestMessage to prefer HTTP/2 with HTTP/1 fallback and extends integration
+  step timeout from 30 to 45 minutes. PR/main CI passed; production deployment
+  run `35252206190` succeeded, public health returned 200. Image digest:
+  `sha256:c532b9b0820df9910cb4358b5c91c874bedbcac7349e64981209bf1db620a14c`.
+  Evidence: `/private/tmp/bingo-http2-deploy-20260917/` and
+  `/private/tmp/bingo-wiki-http2-fix-20260917/`. No further deployment is pending.
+- Latest completed task: fix local HTTPS7131 missing-column error
+  (`events.announcement_generation`). Current build is now connected to the
+  previous preview database `bingo_stats_manual` at loopback55519. Actual homepage
+  and readiness both returned 200; no missing-column exception in the new log.
+  App PID18909 / launcher18906 at verification (recheck identity before stopping).
+  Reusable launcher:
+  `/private/tmp/bingo-local-schema-repair-20260917/run-https-preview.sh`.
+  It reads private allowlisted existing settings; do not print credentials.
+  Development admin bootstrap and automatic WOM synchronization are disabled.
+  No migration, seed or repair was performed to restore this preview.
+- The old default localhost5432 database `bingo` is preserved. Backup and exact
+  diagnosis: `/private/tmp/bingo-local-schema-repair-20260917/handoff.md`.
+  It has 53 migrations through AddEventQuarantine; migration preflight rejected
+  12 drop snapshots attached to manual objectives in two development fixtures,
+  including a Live/Published approval. No migration applied and no historical
+  rows were deleted. Do not bypass guards or repair that database without a new
+  authorized scope. Preview DB has 66 migrations through SaveStatsGuidanceAndArtwork;
+  final PopulateRetainedCatalogue data migration remains unapplied. Homepage
+  success does not establish full-page acceptance or full migration completion.
+- User's normal repository `/Users/christopher/Documents/BingoWebpage` is on
+  `feature/boss-artwork` and has unrelated dirty documentation, TeamBoard markup,
+  launchSettings, artwork guide/assets and tmp work. Preserve it. Those recent
+  artwork changes are NOT all merged. Do not checkout/reset/stash or import them.
+- Catalogue images resolved by user confirmation on 2026-09-17: the user updated
+  the catalogue URLs and reports that every item now has an image. The previous
+  recovery cached 318 of 376 images; its 58 HTTP/2 404 results are historical
+  evidence, not a current outstanding list. Report:
+  `/private/tmp/bingo-pr9-image-recovery-20260917/live-report.json`.
+  This is user-confirmed image coverage; no fresh automated download/cache check
+  was run, and repository catalogue data was not synchronized by the planner.
+  No further image investigation is assigned.
+- Active slice: boss KC leaderboards and EHB/Drop EHB MVP display, as approved in
+  PRODUCT_REQUIREMENTS.md section 16.1 and DELIVERY_PLAN.md section 19. Readiness
+  review by `/root/boss_leaderboards_readiness` (Sol High) passed; report:
+  `/private/tmp/bingo-boss-leaderboards-20260917/readiness.md`. Planner reconciled
+  the existing standings metric consumer and cache/route safeguards in section 19.
+  Luna Max implementation and named remediation are complete. Independent Sol High
+  reviewer `/root/boss_leaderboards_review` reports final PASS with no remaining
+  technical findings. Report: `/private/tmp/bingo-boss-leaderboards-20260917/review.md`.
+  Reviewed patch SHA-256: `8bc192ad83ea79b31c009be18738801933c56016f99a3322a2422810388a902b`.
+  Evidence: `/private/tmp/bingo-boss-leaderboards-20260917/remediation-evidence.md`.
+  PostgreSQL/HTTP BossLeaderboard fixture 1/1, affected Node harness, Web Release
+  (0 warnings/errors), scoped four-project formatting and diff checks passed.
+  Whole-solution formatting failed on unrelated baseline test-project compilation;
+  it is not claimed passed. Rank localization is included. User visual/keyboard
+  acceptance remains pending in UI_PAGE_MATRIX.md; no browser inspection performed.
+  User visual feedback now requires section 19's named presentation/interaction
+  corrections: dropdown close/options, green signed gains/MVP, no freshness text or
+  drop arrows, late wrapping with Metric above left-aligned tabs, muted-blue dark
+  headers, and in-place metric switching with preserved position/history. Prior
+  technical PASS applies to unchanged computation/cache logic; corrections and same
+  reviewer recheck are pending. `/root/boss_leaderboards_implementation` owns this
+  bounded continuation; `/root/boss_leaderboards_review` remains its reviewer.
+  User added Danish boss Gained/Start/End localization (Opnået/Start/Slut) and removal
+  of redundant EHB wording from nested EHB headers only; worker notified and these
+  are included in the same correction delta. Drop EHB headings stay unchanged.
+  On 2026-09-18 user chose ink for light-mode METRIC trigger text/chevron normally,
+  blue when open/hovered/keyboard-focused, replacing the earlier always-blue request.
+  Worker notified; included in the same pending visual correction pass.
+  The subsequent visual correction pass is now complete and stopped. Implementer
+  reports trigger/outside dismissal fixed, including after metric replacement, plus
+  all named styling/localization/status/responsive and in-place switching corrections.
+  Latest passing worker evidence: `/private/tmp/bingo-boss-leaderboards-20260917/visual-corrections-evidence.md`.
+  Correction patch SHA-256: `0d15feb6e7b91b34b8729298b922f3a72bc458382583397f1ecc9a558e8b1feb`;
+  full patch SHA-256: `9ec339a4521c0793381b397961a1667bc864c1aa7b447f02d15b7d8513ae02bf`.
+  Affected Node harness/syntax, PostgreSQL/HTTP fixture 1/1, Web Release 0 warnings/errors,
+  scoped formatting and diff checks passed per worker. These new corrections have NOT
+  received independent review or user visual acceptance. No reviewer was dispatched.
+  Targeted Safari selector inspection was subsequently authorized on 2026-09-18.
+  Served JS/CSS matched the checkout. Safari 26.5.2 closes the selector logically
+  (hidden/display:none/zero geometry and absent options in accessibility tree), but
+  leaves its pixels painted. A page-only scoped CSS experiment keeping native
+  details content renderable and the closed menu grid invisible/noninteractive
+  cleared trigger, outside-click and Escape ghosts with original scrolling restored.
+  Removing the details-content rule reproduced the failure. Evidence:
+  `/private/tmp/bingo-boss-leaderboards-20260917/safari-live-inspection.md` and
+  `selector-dismissal-diagnosis.md` in the same directory. Production correction
+  is assigned to the existing Luna Max implementer; no JS or shared-menu redesign.
+  Keyboard/replacement and other browser validation remain pending. Broader review
+  remains deferred at the user's request; this diagnostic is not a review pass.
+  No packaging/publication or automatic minor-change dispatch is authorized.
+  User requested build/run commands and received the existing database-safe launcher;
+  the older port7131 listener was verified as this checkout's Bingo.Web PID18909
+  before providing a graceful stop command. Whether the user restarted successfully
+  has not been verified; do not treat prior runtime identity as current.
+- Deferred until this slice is visually approved: objective wording (one eligible
+  drop: "Collect X [drop name]"; multiple eligible drops in a multi-objective breakdown:
+  eligible boss wording, with combined sources sharing the objective target), and
+  missing gap beneath the tile KC/Luck description before multiple boss headings.
+  Neither minor correction is part of the current worker assignment. Manual EHB
+  restriction to custom challenges was traced to C19; restoration is not requested.
+- No old image-recovery, deployment or runtime worker is active. Do not revive them.
+
+Planner constraints: orchestrate; do not implement production code. No browser/CUA
+inspection. Preserve databases, approvals and existing dirty work. Keep corrections
+bounded and reuse evidence; no broad re-review, repeated suite or periodic polling.
+Worker briefs must explicitly require completion, blocker and handoff callbacks to
+the NEW planner's task ID using send_message_to_thread so an idle planner wakes;
+do not keep targeting the old planner `01a0a975-da3d-7cf0-a6dc-8b5a07b77688`.
+User wants dispatch-and-stop, with concise updates when workers report back.
+
+Current workflow: Luna Max implementation/remediation and focused checks, then
+one independent Sol High review after implementation stops. The implementer may
+dispatch that one reviewer under the existing direct routing policy; corrections
+return to the same reviewer. Astra worker assignments require a concrete justified
+escalation. No separate routine verifier or manager pass. Set model/reasoning
+explicitly with bounded context; every worker sends the planner an end-of-turn
+callback, including review handoffs. Retained Astra defaults are inactive.
+
+Next permitted action: user explicitly authorized an immediate narrow Sol High diagnosis
+of the still-broken METRIC dismissal only. `/root/boss_leaderboards_review` is inspecting
+cause and smallest fix, with report at
+`/private/tmp/bingo-boss-leaderboards-20260917/selector-dismissal-diagnosis.md`.
+Read-only local static-asset checks may distinguish served code from checkout; no
+browser/CUA, preview restart or user-data mutation. This is NOT resumption of the broader
+correction review, which remains deferred. Reviewer reports diagnosis to planner first;
+no automatic broad review or acceptance. Visual/keyboard acceptance remains pending.
+Minor changes remain
+deferred until this slice's approval. Keep production and both databases untouched;
+no automatic preview restart or periodic wait/poll. Planner callback task remains
+`01a0b085-75ee-79b0-b40b-bba65b669d74`.
+
 ## Active: Package and push reviewed corrections for PR #9 CI — 2026-09-16
 
 Assignment checkout `/private/tmp/BingoWebpage-drop-announcements`, branch
@@ -5711,3 +6477,109 @@ comparison tabs to one type scale, and chart labels/secondary text to consistent
 sizes. Increased the smallest team/item metadata for readability and used tabular numerals
 for data. Accepted colors, section arrangement and both highlight-card compositions retained.
 CSS-only prototype pass; user supplies visual feedback. No app build or browser review.
+
+## WOM remediation checkpoint — 2026-09-22
+
+The authorized Admin-managed WOM implementation remains in the isolated checkout
+`/private/tmp/BingoWebpage-wom-managed-20260922` on branch
+`codex/admin-wom-competitions`, based on exact commit
+`ae1a8605372a613e53d87b73a8e0237c84c1faca`. The restored leaderboard baseline is
+the separately recorded patch
+`/private/tmp/bingo-boss-leaderboards-20260917/final-visual-corrections-with-safari-paint.patch`
+with SHA-256
+`22b2950c8ea05ae30d708dadbf6588684bb776a7c03e1766cbae8aaaee033bf3`. The baseline-only
+comparison checkout is `/private/tmp/BingoWebpage-wom-baseline-20260922`.
+No commit, staging, push, merge, deployment, application restart, production database
+mutation, or real WOM write was performed.
+
+The current WOM/authority delta is the 42-row manifest
+`/Users/christopher/.codex/visualizations/2026/09/17/01a0b085-75ee-79b0-b40b-bba65b669d74/wom-implementation-manifest-20260922.txt`
+with SHA-256
+`7f5110ca615288987cc668907cf069bafbfba79cdd1ebd843e00f1bf71fec20c`.
+It excludes this status file. Baseline evidence remains in
+`/Users/christopher/.codex/visualizations/2026/09/17/01a0b085-75ee-79b0-b40b-bba65b669d74/wom-baseline-evidence.md`;
+the independent review remains at
+`/Users/christopher/.codex/visualizations/2026/09/17/01a0b085-75ee-79b0-b40b-bba65b669d74/wom-independent-review-20260922.md`.
+
+The named review findings were remediated in the active diff: managed schedule saves
+retain the manual-link five-minute rule while allowing active managed windows; Create
+receipts seed remote and acknowledged-roster baselines; Unknown and expired Sending
+operations have durable bounded read-only reconciliation, while an unresolved Create
+remains persisted and blocks any second POST; Create/Update/Delete dispatches
+revalidate current authority, state, version, fingerprint, source and shared-reference
+conditions; stale known Updates rebuild the current desired projection and the Live
+boundary sends current dates-only state; competition-scoped PostgreSQL advisory locks
+serialize manual linking with managed provider writes and deletes; roster-bearing
+automatic updates refuse shared remote IDs; receipt persistence retries reload mutable
+records; dates-only PUT payloads omit roster fields; provider credentials are protected
+before the application result and provider error text is redacted; metadata-only title
+edits use the synchronization metadata path and preserve the existing stats assignment
+fingerprint, generation and cadence; and managed validation/recovery feedback is
+localized through stable codes or safe localized fallbacks. Provider-ID rename
+recognition remains explicitly omitted.
+
+The latest named P1 is also remediated: `EventCompetitionSynchronizationService`
+now acquires the requested competition's PostgreSQL advisory lock before the manual
+provider GET and holds it through the serialized local save. The two-context
+integration case changes the provider title and window during the managed write,
+proves the manual read remains blocked until that write releases the lock, and then
+proves the manual link safely refuses the current window mismatch rather than saving
+stale metadata.
+
+Final remediation checks passed:
+
+- `dotnet build Bingo.slnx --configuration Release --no-restore` — passed with 0 warnings and 0 errors.
+- `WiseOldManCompetitionRulesTests` — 5/5.
+- `EventCompetitionSynchronizationTests` — 2/2.
+- `ManagedCompetitionUiTests` — 2/2.
+- `Slice10Pass101WiseOldManTests` — 13/13.
+- `SaveScheduleAllowsManagedWindowChangesBeyondFiveMinutesForAutomaticUpdate` — 1/1 against disposable PostgreSQL/Testcontainers data.
+- `EventCompetitionManagementIntegrationTests` — 5/5 against disposable PostgreSQL/Testcontainers data, covering persisted Unknown Create blocking, 429/edit convergence, stale retry/current Live payload and fingerprint, the two-context competition-reference race with changed provider title/window and safe manual refusal, and receipt-save retry.
+- `git diff --check` — passed.
+
+The existing full `Slice10Pass102CompetitionSynchronizationTests` evidence remains
+143/143 from the prior stable run and is reused for unrelated synchronization behavior.
+A post-remediation rerun of that class was stopped after roughly five minutes with no
+test output while its test host remained active; it produced no test result and is
+recorded as an infrastructure timeout rather than a product verdict. The directly
+affected managed schedule case passed independently before and after the final edits.
+
+The first independent Sol/high review and its same-reviewer recheck returned CHANGES
+REQUIRED with the named findings recorded in the reports above. The implementation is
+now stable after named-only remediation and the focused checks above. The exact next
+step is a named-only recheck by the same reviewer task
+`/root/wom_competitions_orchestrator/wom_competitions_review`; reviewer dispatch/recheck
+routing is pending because this worker currently has no callable `followup_task`
+collaboration tool. The parent orchestrator must wake that same reviewer with the
+checkout, manifest, reports, and results in this checkpoint.
+The latest recheck report is
+`/Users/christopher/.codex/visualizations/2026/09/17/01a0b085-75ee-79b0-b40b-bba65b669d74/wom-independent-recheck-20260922.md`
+with SHA-256
+`70b802ff04ee5559222b7417292c800333ec31c477412dda355d7d8574465719`.
+Manual EN/DA visual acceptance remains pending; no publication claim is made.
+
+## Named recheck follow-up — 2026-09-22
+
+The same-reviewer recheck report at
+`/Users/christopher/.codex/visualizations/2026/09/17/01a0b085-75ee-79b0-b40b-bba65b669d74/wom-independent-recheck-20260922.md`
+has SHA-256
+`70b802ff04ee5559222b7417292c800333ec31c477412dda355d7d8574465719`. Its remaining
+P1 is remediated in exactly these files: `src/Bingo.Infrastructure/Events/EventCompetitionSynchronizationService.cs`
+and `tests/Bingo.IntegrationTests/EventCompetitionManagementIntegrationTests.cs`.
+Manual linking now acquires the requested competition advisory lock before provider
+validation and retains it through the serializable local save. The two-context test
+changes provider title/window during the managed write, asserts the manual provider
+read is blocked, then asserts the manual link safely refuses the current window
+mismatch. The active source hashes are `1646aea2eae61bbc1229b6b104e357f19bd46b5fd47fbeb73c2cb7035a546fea`
+and `811d3397f0bc54c9a2d19e3d73463a3bed3fe443dc2b7a272e7aed9949f5accb`.
+
+The bounded validation passed: Release build 0 warnings/0 errors; disposable
+PostgreSQL `EventCompetitionManagementIntegrationTests` 5/5; domain
+`EventCompetitionSynchronizationTests` 2/2; and `git diff --check`. The refreshed
+42-row WOM manifest is mirrored at `/private/tmp/wom-implementation-manifest-20260922.txt`
+and its evidence copy has SHA-256
+`4cbc1dd21d9d6fbe7993f046d27fff4fe2043cf0c8ad280e466232d56b29a7be`. No commit,
+stage, push, deployment, restart, production DB write, or real WOM mutation occurred.
+The parent orchestrator is the next owner to route the same Sol/high reviewer for
+named-only recheck. Manual EN/DA visual acceptance remains pending; rename remains
+omitted; no publication claim is made.

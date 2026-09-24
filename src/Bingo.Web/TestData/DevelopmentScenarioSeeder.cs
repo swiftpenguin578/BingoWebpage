@@ -1153,7 +1153,7 @@ public sealed class DevelopmentScenarioSeeder(
         var synchronization = new EventCompetitionSynchronization(
             Guid.NewGuid(), bingoEvent.Id, 1, 1515, "TEST 15 local cached competition",
             bingoEvent.EventStartsAt, bingoEvent.EventEndsAt, fingerprint, fetchedAt);
-        synchronization.MarkSuccess(fetchedAt, fetchedAt, true, "[]", null);
+        synchronization.MarkSuccess(fetchedAt, fetchedAt, true, "[]", null, bingoEvent.EventStartsAt);
         db.EventCompetitionSynchronizations.Add(synchronization);
         var characters = seedCharacters.Values.ToDictionary(value => value.Id);
         db.EventCompetitionCharacterActivities.AddRange(assignments.Select((assignment, index) =>
@@ -2164,6 +2164,8 @@ public sealed class DevelopmentScenarioSeeder(
                 scheduled_signup_opening_attempts, scheduled_event_start_attempts, event_state_transitions, event_banner_cleanups, events, audit_entries, personal_notifications,
                 account_event_accesses, password_credential_tokens, account_discord_identity_transitions,
                 waiting_list_promotion_follow_ups,
+                tile_completion_facts,
+                event_competition_update_all_slots, event_competition_management_operations, event_competition_management,
                 event_competition_character_activity, event_competition_character_metric_activity,
                 event_stats_luck_checkpoints, event_luck_outcome_bases, event_item_prices, event_competition_synchronizations
             RESTART IDENTITY;

@@ -15,7 +15,8 @@ public sealed class MyAccountsModel(
     MyAccountsService accounts,
     IWiseOldManPlayerLookup wiseOldMan,
     IStringLocalizer<SharedResource> text,
-    ILogger<MyAccountsModel> logger) : PageModel
+    ILogger<MyAccountsModel> logger,
+    IWiseOldManAccountValidation? accountValidation = null) : PageModel
 {
     public IReadOnlyList<MyAccountCharacter> Links { get; private set; } = [];
     public Guid? FetchFailureLinkId { get; private set; }
@@ -43,6 +44,11 @@ public sealed class MyAccountsModel(
             await accounts.AddOrReactivateAsync(AccountId, Add.CharacterName, Add.PersonalLabel, Add.SavedEhb, ct);
             return Success("Character added to My Accounts.");
         }
+        catch (WiseOldManAccountValidationException exception)
+        {
+            ModelState.AddModelError(string.Empty, ValidationFailure(exception.Result));
+            return await ReloadAsync(ct);
+        }
         catch (InvalidOperationException exception) { return await FailureAsync(exception, ct); }
     }
 
@@ -59,6 +65,7 @@ public sealed class MyAccountsModel(
                 ModelState.AddModelError(string.Empty, LookupFailure(result));
                 return await ReloadAsync(ct);
             }
+            accountValidation?.RememberSuccessfulLookup(Add.CharacterName, result.FetchedAt!.Value);
             Add.SavedEhb = MyAccountsService.RoundEhb(result.Ehb!.Value);
             ModelState.Remove("Add.SavedEhb");
             return await ReloadAsync(ct);
@@ -77,6 +84,11 @@ public sealed class MyAccountsModel(
         {
             await accounts.UpdateAsync(AccountId, Edit.LinkId, Edit.Version!.Value, Edit.CharacterName, Edit.PersonalLabel, Edit.SavedEhb, ct);
             return Success("My Accounts details saved.");
+        }
+        catch (WiseOldManAccountValidationException exception)
+        {
+            ModelState.AddModelError(string.Empty, ValidationFailure(exception.Result));
+            return await ReloadAsync(ct);
         }
         catch (MyAccountsCorrectionConflictException exception)
         {
@@ -100,6 +112,7 @@ public sealed class MyAccountsModel(
                 ModelState.AddModelError(string.Empty, LookupFailure(result));
                 return await ReloadAsync(ct);
             }
+            accountValidation?.RememberSuccessfulLookup(Edit.CharacterName, result.FetchedAt!.Value);
             var fetchedEhb = MyAccountsService.RoundEhb(result.Ehb!.Value);
             Edit.SavedEhb = fetchedEhb;
             FetchFailureLinkId = Edit.LinkId;
@@ -188,6 +201,13 @@ public sealed class MyAccountsModel(
         _ when result.RetryAt is { } retryAt => text["Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {0}.", DateTimePresentation.Format(retryAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)].Value,
         _ => text["Wise Old Man is unavailable right now. Your current EHB was kept."].Value
     };
+
+    private string ValidationFailure(WiseOldManAccountValidationResult result)
+    {
+        if (result.HasKnownInvalid)
+            return text["Wise Old Man could not find one or more submitted characters. Check the names and try again."].Value;
+        return text["Wise Old Man is unavailable, so these account names could not be verified. Try again later."].Value;
+    }
 
     private async Task<bool> LoadAsync(CancellationToken ct)
     {

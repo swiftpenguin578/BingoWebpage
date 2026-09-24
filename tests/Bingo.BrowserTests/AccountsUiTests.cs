@@ -3,11 +3,12 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Bingo.BrowserTests;
 
-public sealed class AccountsUiTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(BrowserTestGroup.Name)]
+public sealed class AccountsUiTests
 {
     private readonly HttpClient client;
 
-    public AccountsUiTests(WebApplicationFactory<Program> factory) => client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+    public AccountsUiTests(BrowserTestApplicationFactory factory) => client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
     [Fact]
     public async Task AccountsRoutesRequireAdminAccess()

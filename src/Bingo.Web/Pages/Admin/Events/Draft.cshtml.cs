@@ -6,9 +6,11 @@ using System.Text.Json;
 using Bingo.Application.Access;
 using Bingo.Application.Auditing;
 using Bingo.Application.Evidence;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Signups;
 using Bingo.Application.Teams;
 using Bingo.Domain.Boards;
+using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
@@ -27,7 +29,7 @@ using Npgsql;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, ISignupService signupService, EventParticipantCharacterService characterService, IEvidenceStorage? storage = null, PreformedRosterCsvImportService? csvImport = null, ITeamCaptainAuthorityService? captainAuthority = null, IStringLocalizer<SharedResource>? text = null) : PageModel
+public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, ISignupService signupService, EventParticipantCharacterService characterService, IEvidenceStorage? storage = null, PreformedRosterCsvImportService? csvImport = null, ITeamCaptainAuthorityService? captainAuthority = null, IStringLocalizer<SharedResource>? text = null, IWiseOldManAccountValidation? accountValidation = null) : PageModel
 {
     public string EventName { get; private set; } = string.Empty; public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId; public string Sort { get; private set; } = "ehb"; public DraftView? Draft { get; private set; }
     public Guid EventId { get; private set; }
@@ -48,14 +50,20 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     public Guid? DraftControllerAccountId { get; private set; }
     public PreformedRosterCsvImportService.Preview? CsvPreview { get; private set; }
     public Guid? RosterTeamId { get; private set; }
+    public string? PendingExternalMemberName { get; private set; }
+    public decimal? PendingExternalMemberEhb { get; private set; }
+    public string? PendingExternalMemberAdditionalAccounts { get; private set; }
+    public TeamMembershipRole PendingExternalMemberRole { get; private set; } = TeamMembershipRole.Participant;
     public bool CsvFileError { get; private set; }
     public string? DraftControllerName { get; private set; }
     public DateTimeOffset? DraftControllerLeaseExpiresAt { get; private set; }
     public bool DraftOrderReady { get; private set; }
+    public string? WomValidationConfirmationToken { get; private set; }
     public async Task<IActionResult> OnGetAsync(Guid id, string? sort, CancellationToken ct, Guid? rosterTeamId = null)
     {
         if (TempData["GeneratedCaptainCredentials"] is string json) GeneratedCredentials = JsonSerializer.Deserialize<List<GeneratedCaptainCredential>>(json) ?? [];
         CurrentAccountId = AdminId;
+        WomValidationConfirmationToken = TempData.Peek("WomValidationConfirmationToken") as string;
         if (!await Load(id, sort, ct)) return NotFound();
         RosterTeamId = rosterTeamId is { } requested && Teams.Any(team => team.Id == requested) ? requested : null;
         if (Participants.Count > 0)
@@ -67,6 +75,16 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
                 .ToDictionaryAsync(participant => participant.Id, participant => participant.PaymentStatus, ct);
         }
         await LoadControllerState(id, ct);
+        if (TempData["WomValidationExternalMember"] is string pendingJson &&
+            JsonSerializer.Deserialize<PendingExternalMember>(pendingJson) is { } pending &&
+            pending.TeamId == RosterTeamId)
+        {
+            PendingExternalMemberName = pending.Name;
+            PendingExternalMemberEhb = pending.Ehb;
+            PendingExternalMemberAdditionalAccounts = pending.AdditionalAccounts;
+            PendingExternalMemberRole = pending.Role;
+            WomValidationConfirmationToken ??= pending.ConfirmationToken;
+        }
         return Page();
     }
 
@@ -79,6 +97,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         if (draft is null) { draft = new DraftSession(Guid.NewGuid(), id, 1); db.DraftSessions.Add(draft); }
         if (draft.State is DraftState.Running or DraftState.Paused) { SetStatus(Localize("Team structure is locked while a private draft is active; cancel the private draft to return to setup."), UiMessageType.Error); return RedirectToPage(new { id }); }
         if (string.IsNullOrWhiteSpace(name)) { SetStatus(Localize("A team name is required."), UiMessageType.Error); return RedirectToPage(new { id }); }
+        if (WiseOldManCompetitionRules.ProviderCharacterCount(name.Trim()) > WiseOldManCompetitionRules.MaximumTeamNameLength) { SetStatus(Localize("Team names must be 30 characters or fewer."), UiMessageType.Error); return RedirectToPage(new { id }); }
         if (!CanDirectPreEventRosterMutation(ev)) { SetStatus(Localize("Direct roster changes are available only before the configured event start."), UiMessageType.Error); return RedirectToPage(new { id }); }
         if (draft.State == DraftState.Finalized && formationType == TeamFormationType.Drafted) { SetStatus(Localize("Drafted teams cannot be added after the draft has been completed."), UiMessageType.Error); return RedirectToPage(new { id }); }
         if (draft.State == DraftState.Finalized && !confirmed) { SetStatus(Localize("Confirm this published pre-formed correction."), UiMessageType.Error); return RedirectToPage(new { id }); }
@@ -120,6 +139,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         var team = await db.Teams.SingleOrDefaultAsync(x => x.Id == teamId && x.EventId == id, ct); if (team is null) return NotFound();
         var ev = await db.Events.AsNoTracking().SingleAsync(x => x.Id == id, ct);
         if (ev.ActualStartedAt is not null || team.Version != version || string.IsNullOrWhiteSpace(name)) { SetStatus(ev.ActualStartedAt is not null ? Localize("Team metadata is locked after event start.") : Localize("This team changed; reload and try again."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
+        if (WiseOldManCompetitionRules.ProviderCharacterCount(name.Trim()) > WiseOldManCompetitionRules.MaximumTeamNameLength && !string.Equals(team.Name, name.Trim(), StringComparison.Ordinal)) { SetStatus(Localize("Team names must be 30 characters or fewer."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         var before = TeamAuditState(team);
         StoredEvidence? uploaded = null; await using var tx = await db.Database.BeginTransactionAsync(ct);
         try
@@ -162,10 +182,12 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         else await audit.WriteAsync(AdminId, User.Identity?.Name ?? "Admin", "team.member_added", "team", teamId.ToString(), $"{participantId}: {assignmentReason}", ct);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); SetStatus(Localize("{0} added to {1}.", participantName, team.Name), UiMessageType.Success); return RedirectToPage(new { id, rosterTeamId });
     }
-    public async Task<IActionResult> OnPostAddExternalMemberAsync(Guid id, Guid teamId, string name, decimal ehb, string? additionalAccounts, CancellationToken ct, bool confirmed = false, Guid? rosterTeamId = null, TeamMembershipRole role = TeamMembershipRole.Participant)
+    public async Task<IActionResult> OnPostAddExternalMemberAsync(Guid id, Guid teamId, string name, decimal ehb, string? additionalAccounts, CancellationToken ct, bool confirmed = false, Guid? rosterTeamId = null, TeamMembershipRole role = TeamMembershipRole.Participant, string? womValidationConfirmationToken = null)
     {
         if (HasInvalidRoleBinding() || !IsRosterRole(role)) { SetStatus(Localize("Choose Participant, Captain, or Co-captain."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         if (role != TeamMembershipRole.Participant && captainAuthority is null) return StatusCode(StatusCodes.Status503ServiceUnavailable);
+        if (!await db.Accounts.AsNoTracking().AnyAsync(x => x.Id == AdminId && x.Active && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin), ct))
+            return Forbid();
         var team = await db.Teams.AsNoTracking().SingleOrDefaultAsync(x =>
             x.Id == teamId && x.EventId == id && x.FormationType == TeamFormationType.Preformed, ct);
         if (team is null) return BadRequest();
@@ -173,9 +195,45 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
         if (ev is null || !CanDirectPreEventRosterMutation(ev)) { SetStatus(Localize("Direct roster additions are available only before the configured event start."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
         if (draft?.State == DraftState.Finalized && !confirmed) { SetStatus(Localize("Confirm this published pre-formed correction."), UiMessageType.Error); return RedirectToPage(new { id, rosterTeamId }); }
 
+        if (accountValidation is not null)
+        {
+            var names = new[] { name }.Concat((additionalAccounts ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).ToList();
+            var validation = await accountValidation.ValidateAsync(new WiseOldManAccountValidationRequest(
+                AdminId, "participant.manual-preformed", id, null, null, names, true, womValidationConfirmationToken,
+                TargetTeamId: teamId), ct);
+            if (!validation.CanProceed)
+            {
+                TempData["WomValidationExternalMember"] = JsonSerializer.Serialize(new PendingExternalMember(
+                    teamId, name, ehb, additionalAccounts, role, validation.ConfirmationToken));
+                if (validation.ConfirmationToken is not null) TempData["WomValidationConfirmationToken"] = validation.ConfirmationToken;
+                SetStatus(validation.HasKnownInvalid
+                    ? Localize("Wise Old Man could not find one or more submitted characters. Check the names and try again.")
+                    : Localize(validation.Outcome == WiseOldManAccountValidationOutcome.ConfirmationRequired
+                        ? "Wise Old Man is unavailable. Confirm again to add these unverified accounts, or cancel to leave the roster unchanged."
+                        : "Wise Old Man is unavailable, so these account names could not be verified. Try again later."), UiMessageType.Error);
+                return RedirectToPage(new { id, rosterTeamId });
+            }
+        }
+
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         try
         {
+            var lockedEvent = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {id} FOR UPDATE")
+                .SingleOrDefaultAsync(ct);
+            if (lockedEvent is not null) await db.Entry(lockedEvent).ReloadAsync(ct);
+            var lockedTeam = await db.Teams.SingleOrDefaultAsync(x => x.Id == teamId && x.EventId == id && x.Active && x.FormationType == TeamFormationType.Preformed, ct);
+            var lockedDraft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
+            if (lockedDraft is not null) await db.Entry(lockedDraft).ReloadAsync(ct);
+            if (lockedEvent is null || lockedTeam is null || !CanDirectPreEventRosterMutation(lockedEvent) ||
+                (lockedDraft?.State == DraftState.Finalized && !confirmed))
+            {
+                await transaction.RollbackAsync(ct);
+                SetStatus(Localize("The event or team changed while you were editing it. Reload and try again."), UiMessageType.Error);
+                return RedirectToPage(new { id, rosterTeamId });
+            }
+            ev = lockedEvent;
+            team = lockedTeam;
+            draft = lockedDraft;
             var sequence = (await db.EventParticipants.Where(x => x.EventId == id).MaxAsync(x => (long?)x.SignupSequence, ct) ?? 0) + 1;
             var participant = new EventParticipant(Guid.NewGuid(), id, SignupStatus.Confirmed, sequence, time.GetUtcNow(), SignupSource.AdminCreated);
             db.EventParticipants.Add(participant);
@@ -194,7 +252,8 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
                 }
             }
             if (draft?.State == DraftState.Finalized) { await db.SaveChangesAsync(ct); await RepublishPreformedCorrectionAsync(ev, draft, "team.member_added", membership.Id, ct); }
-            else await audit.WriteAsync(AdminId, User.Identity?.Name ?? "Admin", "team.member_added", "team", teamId.ToString(), $"{participant.Id}: Manual pre-formed roster", ct);
+            else await audit.WriteAsync(AdminId, User.Identity?.Name ?? "Admin", "team.member_added", "team", teamId.ToString(),
+                string.IsNullOrWhiteSpace(womValidationConfirmationToken) ? $"{participant.Id}: Manual pre-formed roster" : $"{participant.Id}: Manual pre-formed roster; Wise Old Man operational failure explicitly confirmed", ct);
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             SetStatus(Localize("{0} added to {1}.", name.Trim(), team.Name), UiMessageType.Success);
@@ -808,6 +867,7 @@ public sealed class DraftModel(ApplicationDbContext db, TimeProvider time, IAudi
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private void SetStatus(string message, UiMessageType type) { TempData["StatusMessage"] = message; TempData[UiMessage.TypeKey] = type.ToString(); }
     private void StoreCredentials(IReadOnlyList<GeneratedCaptainCredential> credentials) { if (credentials.Count > 0) TempData["GeneratedCaptainCredentials"] = JsonSerializer.Serialize(credentials); }
+    private sealed record PendingExternalMember(Guid TeamId, string Name, decimal Ehb, string? AdditionalAccounts, TeamMembershipRole Role, string? ConfirmationToken);
     private sealed record DerivedDraftState(IReadOnlyList<Guid> IncludedParticipantIds, DraftRosterDistribution Distribution, IReadOnlyDictionary<Guid, int> RosterSizes, IReadOnlyDictionary<Guid, int> ProjectedFinalSizes, IReadOnlyList<string> Blockers);
     public sealed record DraftView(Guid Id, DraftState State, bool FirstPickRecorded); public sealed record ParticipantView(Guid Id, string Name, decimal Ehb, DateTimeOffset SignedUpAt, bool CaptainVolunteer, Guid? TeamId, string? TeamName, SignupStatus SignupStatus); public sealed record TeamView(Guid Id, string Name, TeamFormationType FormationType, string? Affiliation, string? ImageUrl, int? DraftPosition, long Version, bool IsCurrent, int ProjectedFinalSize, IReadOnlyList<MemberView> Members, bool HasCurrentCaptain, bool HasUsableCaptain, bool HasEnabledEmergencyAccess, decimal TotalEhb); public sealed record MemberView(Guid MembershipId, string Name, decimal Ehb, TeamMembershipRole Role, long Version, bool External, int? PickNumber, Guid ParticipantId = default); public sealed record TurnView(int PickNumber, int RoundNumber, Guid TeamId, string TeamName); public sealed record PickView(int PickNumber, string PlayerName, string TeamName);
 }

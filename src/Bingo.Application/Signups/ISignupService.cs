@@ -35,8 +35,14 @@ public interface ISignupService
     Task<ParticipantLifecycleResult> RejoinAsync(Guid eventId, Guid participantId, Guid accountId, string actorName, CancellationToken cancellationToken = default)
         => Task.FromException<ParticipantLifecycleResult>(new NotSupportedException("Participant lifecycle is not available."));
 
+    Task<ParticipantLifecycleResult> RejoinAsync(Guid eventId, Guid participantId, Guid accountId, string actorName, string? womValidationConfirmationToken, CancellationToken cancellationToken = default)
+        => RejoinAsync(eventId, participantId, accountId, actorName, cancellationToken);
+
     Task<ParticipantLifecycleResult> RestoreAsync(Guid eventId, Guid participantId, Guid adminAccountId, string adminName, CancellationToken cancellationToken = default)
         => Task.FromException<ParticipantLifecycleResult>(new NotSupportedException("Participant lifecycle is not available."));
+
+    Task<ParticipantLifecycleResult> RestoreAsync(Guid eventId, Guid participantId, Guid adminAccountId, string adminName, string? womValidationConfirmationToken, CancellationToken cancellationToken = default)
+        => RestoreAsync(eventId, participantId, adminAccountId, adminName, cancellationToken);
 
     Task<ParticipantPaymentResult> SetPaymentAsync(Guid eventId, Guid participantId, Guid? actorAccountId, string actorName, PaymentStatus payment, CancellationToken cancellationToken = default)
         => Task.FromException<ParticipantPaymentResult>(new NotSupportedException("Participant payment is not available."));
@@ -63,7 +69,7 @@ public interface ISignupService
         => Task.FromException<PromotionFollowUpResult>(new NotSupportedException("Promotion follow-up is not available."));
 }
 
-public sealed record ParticipantLifecycleResult(bool Succeeded, string? Error, SignupStatus? Status = null, int? WaitingPosition = null, bool Changed = false);
+public sealed record ParticipantLifecycleResult(bool Succeeded, string? Error, SignupStatus? Status = null, int? WaitingPosition = null, bool Changed = false, string? WomValidationConfirmationToken = null);
 public sealed record SignupAdministrationResult(bool Succeeded, string? Error = null, int PromotedParticipants = 0, int? EffectiveParticipantCap = null);
 public sealed record ParticipantPaymentResult(bool Succeeded, string? Error, bool Changed = false);
 public sealed record AdminAccountAnswer(string? CharacterName, decimal? Ehb);
@@ -75,8 +81,9 @@ public sealed record AdminParticipantChangeRequest(
     Guid? OwnerAccountId,
     IReadOnlyDictionary<Guid, AdminAccountAnswer> AccountAnswers,
     IReadOnlyDictionary<Guid, string> Answers,
-    int? ExpectedResponseVersion = null);
-public sealed record AdminParticipantResult(bool Succeeded, string? Error, Guid? ParticipantId = null, SignupStatus? Status = null, int? WaitingPosition = null);
+    int? ExpectedResponseVersion = null,
+    string? WomValidationConfirmationToken = null);
+public sealed record AdminParticipantResult(bool Succeeded, string? Error, Guid? ParticipantId = null, SignupStatus? Status = null, int? WaitingPosition = null, string? WomValidationConfirmationToken = null);
 public sealed record ParticipantOwnershipTransferRequest(Guid EventId, Guid ParticipantId, Guid ActorAccountId, string ActorName, Guid? DestinationOwnerAccountId, Guid? ExpectedOwnerAccountId = null, bool Confirmed = false);
 public sealed record ParticipantOwnershipTransferResult(bool Succeeded, string? Error, bool Changed = false);
 public sealed record LiveWithdrawalRequest(Guid EventId, Guid ParticipantId, Guid ActorAccountId, string ActorName, long? ExpectedMembershipVersion = null);
@@ -87,7 +94,8 @@ public sealed record LiveReplacementRequest(
     string ActorName,
     Guid? WaitingParticipantId = null,
     AdminParticipantChangeRequest? InternalParticipant = null,
-    long? ExpectedVacancyVersion = null);
+    long? ExpectedVacancyVersion = null,
+    string? WomValidationConfirmationToken = null);
 public sealed record LiveParticipantResult(
     bool Succeeded,
     string? Error = null,
@@ -95,5 +103,6 @@ public sealed record LiveParticipantResult(
     Guid? MembershipId = null,
     Guid? ParticipantId = null,
     DateTimeOffset? EffectiveAtUtc = null,
-    Guid? FollowUpId = null);
+    Guid? FollowUpId = null,
+    string? WomValidationConfirmationToken = null);
 public sealed record PromotionFollowUpResult(bool Succeeded, string? Error = null, bool Changed = false);

@@ -60,14 +60,30 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
         var placements = new List<ProvisionalPlacement>();
         if (boardView is not null)
         {
-            var unranked = boardView.Teams.Select(team => new UnrankedTeamProgress(team.TeamId, team.TeamName,
-                corrections.TryGetValue(team.TeamId, out var correction) && team.Progress.BoardComplete ? team.Progress with { BoardCompletedAt = correction.CorrectedCompletedAt } : team.Progress)).ToList();
+            var unranked = boardView.Teams.Select(team =>
+            {
+                var progress = team.Progress;
+                if (progress.BoardComplete && corrections.TryGetValue(team.TeamId, out var correction))
+                    progress = progress with
+                    {
+                        BoardCompletedAt = correction.CorrectedCompletedAt,
+                        CurrentScoreReachedAt = correction.CorrectedCompletedAt
+                    };
+                return new UnrankedTeamProgress(team.TeamId, team.TeamName, progress);
+            }).ToList();
             var ranked = PublicProgressCalculator.Rank(unranked);
-            placements = ranked.Select(value => { var original = boardView.Teams.Single(x => x.TeamId == value.TeamId); return new ProvisionalPlacement(value.TeamId, value.TeamName, value.Rank, value.Progress.BoardComplete, original.Progress.BoardCompletedAt, corrections.GetValueOrDefault(value.TeamId)?.CorrectedCompletedAt, value.Progress.CompletedRows.Count + value.Progress.CompletedColumns.Count, value.Progress.CompletedTiles, value.Progress.EhbTiebreak); }).ToList();
+            placements = ranked.Select(value =>
+            {
+                var original = boardView.Teams.Single(team => team.TeamId == value.TeamId);
+                return new ProvisionalPlacement(value.TeamId, value.TeamName, value.Rank, value.Progress.BoardComplete,
+                    original.Progress.BoardCompletedAt, corrections.GetValueOrDefault(value.TeamId)?.CorrectedCompletedAt,
+                    value.Progress.CompletedRows.Count + value.Progress.CompletedColumns.Count,
+                    value.Progress.CompletedTiles, value.Progress.EhbTiebreak, value.Progress.CurrentScoreReachedAt);
+            }).ToList();
             var inspectionKeys = await CompletionAcknowledgementKeysAsync(eventId, cycleId, placements, corrections, ct);
             foreach (var completed in placements.Where(x => x.BoardComplete))
                 blockers.Add(new(inspectionKeys[completed.TeamId], "Completion time inspected", $"Confirm that {completed.TeamName}'s completion time was inspected.", null, false, false, null, true, completed.TeamId));
-            foreach (var tie in placements.GroupBy(x => x.Placement).Where(x => x.Count() > 1)) blockers.Add(new(BlockerKey($"placement-tie-{tie.Key}", tie.Select(x => x.TeamId)), $"Tie at placement {tie.Key}", $"{string.Join(", ", tie.Select(x => x.TeamName))} currently have identical ranking values. Confirm the tie or correct a completion time.", null, true, false, null));
+            foreach (var tie in placements.GroupBy(x => x.Placement).Where(x => x.Count() > 1)) blockers.Add(new(PlacementTieKey(tie), $"Tie at placement {tie.Key}", $"{string.Join(", ", tie.Select(x => x.TeamName))} currently have identical ranking values. Confirm the tie or correct a completion time.", null, true, false, null));
         }
 
         var resolutions = cycleId == Guid.Empty ? [] : await db.FinalReviewResolutions.AsNoTracking().Where(x => x.ReviewCycleId == cycleId).OrderByDescending(x => x.ResolvedAt).ToListAsync(ct);
@@ -79,8 +95,8 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
 
         var finalIds = finals.Select(x => x.Id).ToList();
         var official = finalIds.Count == 0 ? [] : await db.OfficialPlacements.AsNoTracking().Where(x => finalIds.Contains(x.FinalizationId)).OrderBy(x => x.Placement).ThenBy(x => x.TeamName).ToListAsync(ct);
-        var history = finals.Select(f => new FinalizationHistoryRow(f.Id, f.Version, f.FinalizedAt, f.UnfinalizedAt is null, f.UnfinalizedAt, f.UnfinalizeReason, official.Where(x => x.FinalizationId == f.Id).Select(x => new OfficialPlacementRow(x.Placement, x.TeamName, x.BoardComplete, x.BoardCompletedAt, x.CompletedLines, x.CompletedTiles, x.EhbTiebreak)).ToList())).ToList();
-        if (activeFinal is not null && (ev.State is EventState.Finalized or EventState.Archived)) placements = official.Where(x => x.FinalizationId == activeFinal.Id).Select(x => new ProvisionalPlacement(x.TeamId, x.TeamName, x.Placement, x.BoardComplete, x.BoardCompletedAt, null, x.CompletedLines, x.CompletedTiles, x.EhbTiebreak)).ToList();
+        var history = finals.Select(f => new FinalizationHistoryRow(f.Id, f.Version, f.FinalizedAt, f.UnfinalizedAt is null, f.UnfinalizedAt, f.UnfinalizeReason, official.Where(x => x.FinalizationId == f.Id).Select(x => new OfficialPlacementRow(x.Placement, x.TeamName, x.BoardComplete, x.BoardCompletedAt, x.CompletedLines, x.CompletedTiles, x.EhbTiebreak, x.CurrentScoreReachedAt)).ToList())).ToList();
+        if (activeFinal is not null && (ev.State is EventState.Finalized or EventState.Archived)) placements = official.Where(x => x.FinalizationId == activeFinal.Id).Select(x => new ProvisionalPlacement(x.TeamId, x.TeamName, x.Placement, x.BoardComplete, x.BoardCompletedAt, null, x.CompletedLines, x.CompletedTiles, x.EhbTiebreak, x.CurrentScoreReachedAt)).ToList();
         return new(eventId, ev.Name, ev.State, scheduledStart, scheduledEnd, effectiveCutoff, ev.AcceptsNewSubmissions(now), blockers, placements, history, cycleId, ev.Version);
     }
 
@@ -181,11 +197,11 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
             var version = (await db.EventFinalizations.Where(x => x.EventId == eventId).MaxAsync(x => (int?)x.Version, ct) ?? 0) + 1;
             var currentKeys = readiness.Blockers.Where(x => x.Resolved).Select(x => x.Key).ToList();
             var resolutions = await db.FinalReviewResolutions.Where(x => x.ReviewCycleId == readiness.ReviewCycleId && currentKeys.Contains(x.BlockerKey)).OrderBy(x => x.ResolvedAt).ToListAsync(ct);
-            var calcInputs = JsonSerializer.Serialize(new { readiness.ReviewCycleId, readiness.EventStartsAt, readiness.EventEndsAt, readiness.SubmissionCutoff, resolutions = resolutions.Select(x => new { x.Id, x.BlockerKey, x.Kind, x.TeamId }), teams = readiness.Placements.Select(x => new { x.TeamId, x.TeamName, x.BoardComplete, x.CalculatedCompletedAt, x.CorrectedCompletedAt }) });
+            var calcInputs = JsonSerializer.Serialize(new { readiness.ReviewCycleId, readiness.EventStartsAt, readiness.EventEndsAt, readiness.SubmissionCutoff, resolutions = resolutions.Select(x => new { x.Id, x.BlockerKey, x.Kind, x.TeamId }), teams = readiness.Placements.Select(x => new { x.TeamId, x.TeamName, x.BoardComplete, x.CalculatedCompletedAt, x.CorrectedCompletedAt, x.CurrentScoreReachedAt }) });
             var calcResults = JsonSerializer.Serialize(readiness.Placements);
             var snapshot = new EventFinalizationSnapshot(Guid.NewGuid(), eventId, version, now, actor.Id, readiness.ReviewCycleId, JsonSerializer.Serialize(resolutions.Select(x => x.Id)), calcInputs, calcResults);
             db.EventFinalizations.Add(snapshot);
-            foreach (var row in readiness.Placements) db.OfficialPlacements.Add(new OfficialPlacementSnapshot(Guid.NewGuid(), snapshot.Id, eventId, row.TeamId, row.TeamName, row.Placement, row.BoardComplete, row.CorrectedCompletedAt ?? row.CalculatedCompletedAt, row.CompletedLines, row.CompletedTiles, row.EhbTiebreak));
+            foreach (var row in readiness.Placements) db.OfficialPlacements.Add(new OfficialPlacementSnapshot(Guid.NewGuid(), snapshot.Id, eventId, row.TeamId, row.TeamName, row.Placement, row.BoardComplete, row.CorrectedCompletedAt ?? row.CalculatedCompletedAt, row.CompletedLines, row.CompletedTiles, row.EhbTiebreak, row.CurrentScoreReachedAt));
             var from = ev.State;
             ev.ClearAnnouncements();
             ev.FinalizeResults(now);
@@ -336,11 +352,27 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
                 x.CalculatedCompletedAt,
                 x.CompletedLines,
                 x.CompletedTiles,
+                x.CurrentScoreReachedAt,
                 x.EhbTiebreak
             });
-            return $"completion-time-inspected-v2-{x.TeamId:N}-{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))}";
+            return $"completion-time-inspected-v3-{x.TeamId:N}-{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))}";
         });
     }
+    private static string PlacementTieKey(IGrouping<int, ProvisionalPlacement> tie)
+    {
+        var identity = JsonSerializer.Serialize(tie.OrderBy(x => x.TeamId).Select(x => new
+        {
+            x.TeamId,
+            x.BoardComplete,
+            EffectiveCompletedAt = x.BoardComplete ? x.CorrectedCompletedAt ?? x.CalculatedCompletedAt : null,
+            x.CompletedLines,
+            x.CompletedTiles,
+            x.CurrentScoreReachedAt,
+            x.EhbTiebreak
+        }));
+        return $"placement-tie-{tie.Key}-v2-{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))}";
+    }
+
     private static string BlockerKey(string prefix, IEnumerable<Guid> ids) { var value = string.Join(',', ids.OrderBy(x => x)); var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)))[..16]; return $"{prefix}-{hash}"; }
 
     private async Task NotifyProgressAsync(Guid eventId, CancellationToken ct)

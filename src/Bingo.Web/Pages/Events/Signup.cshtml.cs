@@ -15,7 +15,7 @@ using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Events;
 
-public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService signupService, TimeProvider timeProvider, IStringLocalizer<SharedResource>? text = null, IWiseOldManPlayerLookup? wiseOldMan = null, ISignupLookupTokenService? lookupTokens = null, MyAccountsService? myAccounts = null) : PageModel
+public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService signupService, TimeProvider timeProvider, IStringLocalizer<SharedResource>? text = null, IWiseOldManPlayerLookup? wiseOldMan = null, ISignupLookupTokenService? lookupTokens = null, MyAccountsService? myAccounts = null, IWiseOldManAccountValidation? accountValidation = null) : PageModel
 {
     public EventInfo? EventView { get; private set; }
     public IReadOnlyList<QuestionView> Questions { get; private set; } = [];
@@ -159,6 +159,7 @@ public sealed class SignupModel(ApplicationDbContext dbContext, ISignupService s
             return;
         }
         var fetchedAt = result.FetchedAt!.Value;
+        accountValidation?.RememberSuccessfulLookup(account.Name, fetchedAt);
         var issuedAt = timeProvider.GetUtcNow();
         var fetchedEhb = MyAccountsService.RoundEhb(result.Ehb!.Value);
         var lookupToken = lookupTokens.Create(normalizedCharacterName, fetchedEhb, fetchedAt, issuedAt, issuedAt.AddMinutes(5));

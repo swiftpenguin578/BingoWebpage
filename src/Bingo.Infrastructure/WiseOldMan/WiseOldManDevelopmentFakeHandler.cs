@@ -26,7 +26,12 @@ public sealed class WiseOldManDevelopmentFakeHandler(
         if (path.Length > routeStart + 1 && string.Equals(path[routeStart], "players", StringComparison.OrdinalIgnoreCase))
             return Task.FromResult(PlayerResponse(Uri.UnescapeDataString(path[routeStart + 1])));
         if (path.Length > routeStart + 1 && string.Equals(path[routeStart], "competitions", StringComparison.OrdinalIgnoreCase) && long.TryParse(path[routeStart + 1], out var competitionId))
+        {
+            if (path.Length > routeStart + 2 && string.Equals(path[routeStart + 2], "update-all", StringComparison.OrdinalIgnoreCase)
+                && request.Method == HttpMethod.Post)
+                return Task.FromResult(UpdateAllResponse(competitionId));
             return Task.FromResult(CompetitionResponse(competitionId));
+        }
         return Task.FromResult(Response(HttpStatusCode.NotFound, "{}"));
     }
 
@@ -75,6 +80,17 @@ public sealed class WiseOldManDevelopmentFakeHandler(
             updatedAt = now,
             participations = players
         }));
+    }
+
+    private HttpResponseMessage UpdateAllResponse(long competitionId)
+    {
+        if (competitionId is not (1515 or 1516)) return Response(HttpStatusCode.NotFound, "{}");
+        var mode = options.DevelopmentFake.CompetitionMode.Trim();
+        if (string.Equals(mode, "Unavailable", StringComparison.OrdinalIgnoreCase))
+            return Response(HttpStatusCode.ServiceUnavailable, "{}");
+        if (string.Equals(mode, "RateLimited", StringComparison.OrdinalIgnoreCase))
+            return RateLimitedResponse();
+        return Response(HttpStatusCode.Accepted, "{}");
     }
 
     private HttpResponseMessage RateLimitedResponse()

@@ -25,7 +25,7 @@ using Microsoft.Extensions.Localization;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService signupService, EventParticipantCharacterService characterService, IAuditWriter auditWriter, IEventReadinessEvaluator readinessEvaluator, IEventSignupLifecycleService signupLifecycle, IEventLifecycleService eventLifecycle, IEventDestructiveLifecycleService destructiveLifecycle, TimeProvider timeProvider, IEventCompetitionSynchronizationService? competitionSynchronization = null, IStringLocalizer<SharedResource>? text = null, IHostEnvironment? environment = null, IEventFinalizationService? finalizationService = null, IEventQuarantineService? quarantine = null) : PageModel
+public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService signupService, EventParticipantCharacterService characterService, IAuditWriter auditWriter, IEventReadinessEvaluator readinessEvaluator, IEventSignupLifecycleService signupLifecycle, IEventLifecycleService eventLifecycle, IEventDestructiveLifecycleService destructiveLifecycle, TimeProvider timeProvider, IEventCompetitionSynchronizationService? competitionSynchronization = null, IStringLocalizer<SharedResource>? text = null, IHostEnvironment? environment = null, IEventFinalizationService? finalizationService = null, IEventQuarantineService? quarantine = null, IEventCompetitionManagementService? competitionManagement = null) : PageModel
 {
     public EventDetails? EventView { get; private set; }
     public IReadOnlyList<EvidenceCodeRow> EvidenceCodes { get; private set; } = [];
@@ -43,6 +43,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     public bool ShowDevelopmentCompetitionControl { get; private set; }
     public bool ShowAllControlStages { get; private set; }
     public EventCompetitionView? CompetitionIntegration { get; private set; }
+    public EventCompetitionManagementView? CompetitionManagement { get; private set; }
     public string? PrivateCancellationReason { get; private set; }
     public IReadOnlyList<QuarantineAuditRow> QuarantineAuditHistory { get; private set; } = [];
     public bool SignupWarningAcknowledged => EventView is not null && WarningsAcknowledged(EventView.Id, SignupReadiness);
@@ -64,6 +65,8 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     [BindProperty] public bool ConfirmCompetitionSchedule { get; set; }
     [BindProperty] public bool ConfirmCompetitionClear { get; set; }
     [BindProperty, StringLength(2000)] public string? CompetitionClearReason { get; set; }
+    [BindProperty] public bool ConfirmManagedCompetitionDelete { get; set; }
+    [BindProperty, Range(1, long.MaxValue)] public long? ManagedCompetitionDeleteId { get; set; }
     [BindProperty] public bool AcknowledgeSignupWarnings { get; set; }
     [BindProperty] public string[] SignupWarningCodes { get; set; } = [];
     [BindProperty] public bool AcceptProposedClose { get; set; }
@@ -212,6 +215,27 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
                     ? Localize("The cached competition result is still within its refresh window.")
                     : CompetitionRefreshFailure(result);
             SetStatus(message, result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        }
+        catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }
+        return RedirectToPage(new { id });
+    }
+    public async Task<IActionResult> OnPostCreateManagedCompetitionAsync(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var result = await (competitionManagement ?? throw new InvalidOperationException("Managed competition management is not configured.")).CreateAsync(id, EventVersion, Actor, ct);
+            SetStatus(result.Succeeded ? Localize("Managed WOM competition creation recorded.") : LocalizeManagedError(result.ErrorCode, result.Error, "The managed WOM competition could not be created."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        }
+        catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }
+        return RedirectToPage(new { id });
+    }
+    public async Task<IActionResult> OnPostDeleteManagedCompetitionAsync(Guid id, CancellationToken ct)
+    {
+        if (HasBindingErrors(nameof(ManagedCompetitionDeleteId))) { SetStatus(Localize("Select the exact managed WOM competition before deleting it."), UiMessageType.Error); return RedirectToPage(new { id }); }
+        try
+        {
+            var result = await (competitionManagement ?? throw new InvalidOperationException("Managed competition management is not configured.")).DeleteAsync(id, EventVersion, ManagedCompetitionDeleteId!.Value, ConfirmManagedCompetitionDelete, Actor, ct);
+            SetStatus(result.Succeeded ? Localize("Managed WOM competition deletion recorded.") : LocalizeManagedError(result.ErrorCode, result.Error, "The managed WOM competition could not be deleted."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         }
         catch (UnauthorizedAccessException exception) { SetStatus(exception.Message, UiMessageType.Error); }
         return RedirectToPage(new { id });
@@ -470,6 +494,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             && !await dbContext.Submissions.AnyAsync(x => x.EventId == id, ct);
         PrivateCancellationReason = item.State == EventState.Cancelled ? item.CancellationReason : null;
         CompetitionIntegration = competitionSynchronization is null ? null : await competitionSynchronization.GetAsync(id, ct);
+        CompetitionManagement = competitionManagement is null ? null : await competitionManagement.GetAsync(id, ct);
         ShowAllControlStages = environment?.IsDevelopment() == true && Request.Query.ContainsKey("preview-all-controls");
         ShowDevelopmentCompetitionControl = environment?.IsDevelopment() == true && item.IsDevelopmentFixture && item.Slug == "test-15-dkl-live" && item.State == EventState.Live && CompetitionIntegration?.Configured == true;
         var failedOpening = await dbContext.ScheduledSignupOpeningAttempts.AsNoTracking().Where(x => x.EventId == id && !x.Opened && x.ResolvedAt == null).OrderByDescending(x => x.AttemptedAt).FirstOrDefaultAsync(ct);
@@ -551,6 +576,56 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
 
     private string Localize(string key, params object[] arguments)
         => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
+    public string LocalizeManagedError(string? code, string? message, string fallback)
+    {
+        if (string.Equals(code, "SharedSource", StringComparison.Ordinal)) return Localize("This managed WOM competition is referenced by another event; automatic updates are paused.");
+        if (string.Equals(code, "ExternalDrift", StringComparison.Ordinal)) return Localize("The managed WOM competition changed outside Bingo; automatic updates are paused for Admin review.");
+        if (string.Equals(code, "SourceMissing", StringComparison.Ordinal)) return Localize("The managed WOM competition no longer exists; automatic updates are paused.");
+        if (string.Equals(code, "UnknownOutcome", StringComparison.Ordinal) || string.Equals(code, "ClaimExpired", StringComparison.Ordinal) || string.Equals(code, "ReconciliationUnavailable", StringComparison.Ordinal)) return Localize("The WOM operation outcome is uncertain and is being checked without another write.");
+        if (string.Equals(code, "DeleteStillPresent", StringComparison.Ordinal)) return Localize("The WOM competition still exists; deletion was not retried and will be checked again.");
+        if (string.Equals(code, "DeleteReconciliationRequired", StringComparison.Ordinal) || string.Equals(code, "ReconciliationRequired", StringComparison.Ordinal)) return Localize("The WOM operation outcome remains unresolved; Admin review is required.");
+        if (string.Equals(code, "AdminRevoked", StringComparison.Ordinal)) return Localize("The originating Admin is no longer enabled for this WOM operation.");
+        if (string.Equals(code, "StaleCreate", StringComparison.Ordinal) || string.Equals(code, "StaleUpdate", StringComparison.Ordinal) || string.Equals(code, "StaleDelete", StringComparison.Ordinal)) return Localize("The event changed before the WOM operation was dispatched; review the current values and retry.");
+        if (string.Equals(code, "InvalidConfiguration", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(message))
+            return string.Join(" ", message.Split(". ", StringSplitOptions.RemoveEmptyEntries).Select(part => LocalizeManagedErrorText(part.EndsWith('.') ? part : part + ".", "The managed WOM operation needs Admin attention.")));
+        if (!string.IsNullOrWhiteSpace(code)) return Localize("The managed WOM operation needs Admin attention.");
+        return string.IsNullOrWhiteSpace(message) ? Localize(fallback) : LocalizeManagedErrorText(message, fallback);
+    }
+    private string LocalizeManagedErrorText(string message, string? fallback = null)
+    {
+        const string emptyTeamPrefix = "Cannot create WOM competition with empty teams. Affected team: ";
+        if (message.StartsWith(emptyTeamPrefix, StringComparison.Ordinal))
+            return Localize("Cannot create WOM competition with empty teams. Affected team: {0}.", message[emptyTeamPrefix.Length..].TrimEnd('.'));
+        const string assignmentPrefix = "Participant ";
+        const string assignmentSeparator = " has no eligible Playing assignment for team ";
+        if (message.StartsWith(assignmentPrefix, StringComparison.Ordinal) && message.Contains(assignmentSeparator, StringComparison.Ordinal))
+        {
+            var separator = message.IndexOf(assignmentSeparator, StringComparison.Ordinal);
+            return Localize("Participant {0} has no eligible Playing assignment for team {1}.", message[assignmentPrefix.Length..separator], message[(separator + assignmentSeparator.Length)..].TrimEnd('.'));
+        }
+        const string duplicateTeamPrefix = "Team name '";
+        if (message.StartsWith(duplicateTeamPrefix, StringComparison.Ordinal) && message.EndsWith(" is empty or duplicated after WOM normalization.", StringComparison.Ordinal))
+            return Localize("Team name '{0}' is empty or duplicated after WOM normalization.", message[duplicateTeamPrefix.Length..^" is empty or duplicated after WOM normalization.".Length]);
+        const string teamLengthPrefix = "Team '";
+        if (message.StartsWith(teamLengthPrefix, StringComparison.Ordinal) && message.EndsWith(" must be between 1 and 30 characters for WOM.", StringComparison.Ordinal))
+            return Localize("Team '{0}' must be between 1 and 30 characters for WOM.", message[teamLengthPrefix.Length..^" must be between 1 and 30 characters for WOM.".Length]);
+        const string invalidPlayerPrefix = "Player name '";
+        if (message.StartsWith(invalidPlayerPrefix, StringComparison.Ordinal) && message.EndsWith(" is not a valid WOM name.", StringComparison.Ordinal))
+            return Localize("Player name '{0}' is not a valid WOM name.", message[invalidPlayerPrefix.Length..^" is not a valid WOM name.".Length]);
+        if (message.StartsWith(invalidPlayerPrefix, StringComparison.Ordinal) && message.EndsWith(" is duplicated after WOM normalization.", StringComparison.Ordinal))
+            return Localize("Player name '{0}' is duplicated after WOM normalization.", message[invalidPlayerPrefix.Length..^" is duplicated after WOM normalization.".Length]);
+        return message switch
+        {
+            "The event name must be between 1 and 50 characters for WOM." => Localize("The event name must be between 1 and 50 characters for WOM."),
+            "The WOM competition end must be after its start." => Localize("The WOM competition end must be after its start."),
+            "The WOM competition schedule must be in the future." => Localize("The WOM competition schedule must be in the future."),
+            "A WOM competition can only be created before the event starts." => Localize("A WOM competition can only be created before the event starts."),
+            "The event must be visible before WOM management." => Localize("The event must be visible before WOM management."),
+            "The event must have a configured start and end before WOM management." => Localize("The event must have a configured start and end before WOM management."),
+            "The event must have at least one active team before WOM management." => Localize("The event must have at least one active team before WOM management."),
+            _ => Localize(fallback ?? "The managed WOM operation needs Admin attention.")
+        };
+    }
     private string[] AcknowledgedSignupWarningCodes(Guid id)
         => (TempData.Peek(SignupConfirmationKey(id, "warnings")) as string ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries);
     private bool WarningsAcknowledged(Guid id, SignupReadiness? readiness)

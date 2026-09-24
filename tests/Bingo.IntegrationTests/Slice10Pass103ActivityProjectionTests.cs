@@ -230,7 +230,7 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             var seededLiveId = await db.Events.Where(value => value.Slug == "test-15-dkl-live").Select(value => value.Id).SingleAsync();
             var seededSynchronization = await db.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == seededLiveId);
             Assert.True(seededSynchronization.NormalDueAt <= clock.GetUtcNow());
-            Assert.True(seededSynchronization.LastSuccessfulAt <= clock.GetUtcNow().AddHours(-2));
+            Assert.True(seededSynchronization.LastSuccessfulAt <= clock.GetUtcNow().AddHours(-1));
         }
 
         Guid liveId;
@@ -289,8 +289,8 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         Assert.Contains("Dev Activity Secondary", board, StringComparison.Ordinal);
         Assert.Contains("public-ui-leaderboard-detail-row", board, StringComparison.Ordinal);
         Assert.Contains("public-ui-table--nested", board, StringComparison.Ordinal);
-        Assert.Contains("Start EHB", board, StringComparison.Ordinal);
-        Assert.Contains("End EHB", board, StringComparison.Ordinal);
+        Assert.Contains(">Start</span>", board, StringComparison.Ordinal);
+        Assert.Contains(">End</span>", board, StringComparison.Ordinal);
         Assert.Contains("—", board, StringComparison.Ordinal);
         Assert.Contains("wiseoldman.net/players/Dev%20Player%20001", board, StringComparison.Ordinal);
         Assert.Contains("wiseoldman.net/players/Dev%20Activity%20Secondary", board, StringComparison.Ordinal);
@@ -371,7 +371,7 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             await seeder.ResetAndSeedAsync();
             var live = await db.Events.SingleAsync(value => value.Slug == "test-15-dkl-live");
             var synchronization = await db.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == live.Id);
-            synchronization.MarkSuccess(clock.GetUtcNow(), clock.GetUtcNow(), true, "[]", null);
+            synchronization.MarkSuccess(clock.GetUtcNow(), clock.GetUtcNow(), true, "[]", null, live.EventStartsAt);
             await db.SaveChangesAsync();
         }
 
@@ -440,7 +440,8 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             var state = await verify.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == (verify.Events.Where(value => value.Slug == "test-15-dkl-live").Select(value => value.Id).Single()));
             Assert.True(state.LatestComplete);
             Assert.NotNull(state.LastSuccessfulAt);
-            Assert.Equal(state.LastSuccessfulAt!.Value.AddHours(2), state.NormalDueAt);
+            var actualStartedAt = await verify.Events.Where(value => value.Id == state.EventId).Select(value => value.ActualStartedAt).SingleAsync();
+            Assert.Equal(EventCompetitionSynchronization.NextNormalSlot(actualStartedAt!.Value, state.LastSuccessfulAt!.Value), state.NormalDueAt);
             Assert.Null(state.RetryDueAt);
             Assert.Equal(expectedNames.Count, await verify.EventCompetitionCharacterActivities.CountAsync(value => value.EventId == state.EventId && value.Generation == state.Generation));
         }

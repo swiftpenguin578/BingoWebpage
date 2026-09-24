@@ -63,10 +63,10 @@ public sealed class BoardApprovalTileSnapshot
 {
     private BoardApprovalTileSnapshot() { }
 
-    public BoardApprovalTileSnapshot(Guid id, Guid approvalSnapshotId, Guid boardTileId, Guid tileTemplateId, int row, int column, string name, string description, string evidenceInstructions, decimal estimatedEhb, string? artworkReference)
+    public BoardApprovalTileSnapshot(Guid id, Guid approvalSnapshotId, Guid boardTileId, Guid tileTemplateId, int row, int column, string name, string description, string evidenceInstructions, decimal estimatedEhb, string? artworkReference, bool descriptionIsAutomatic = false)
     {
         Id = id; ApprovalSnapshotId = approvalSnapshotId; BoardTileId = boardTileId; TileTemplateId = tileTemplateId;
-        RowIndex = row; ColumnIndex = column; Name = name; Description = description; EvidenceInstructions = evidenceInstructions;
+        RowIndex = row; ColumnIndex = column; Name = name; Description = description; DescriptionIsAutomatic = descriptionIsAutomatic; EvidenceInstructions = evidenceInstructions;
         EstimatedEhb = estimatedEhb; ArtworkReference = artworkReference;
     }
 
@@ -78,6 +78,7 @@ public sealed class BoardApprovalTileSnapshot
     public int ColumnIndex { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
+    public bool DescriptionIsAutomatic { get; private set; }
     public string EvidenceInstructions { get; private set; } = string.Empty;
     public decimal EstimatedEhb { get; private set; }
     public string? ArtworkReference { get; private set; }

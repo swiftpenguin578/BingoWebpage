@@ -184,7 +184,7 @@ public sealed class Slice3CreationIdentityPersistenceIntegrationTests : IAsyncLi
     {
         await using var db = new ApplicationDbContext(options);
         var actor = Guid.NewGuid();
-        foreach (var name in new[] { "Duplicate display name", "Duplicate display name", new string('a', 200), new string('a', 200) })
+        foreach (var name in new[] { "Duplicate display name", "Duplicate display name", new string('a', 50), new string('a', 50) })
         {
             var page = Creation(db, new MemoryStorage(), actor, new() { Name = name, Timezone = "UTC" });
             Assert.IsType<RedirectToPageResult>(await page.OnPostAsync(CancellationToken.None));

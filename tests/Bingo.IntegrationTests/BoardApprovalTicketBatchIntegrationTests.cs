@@ -4,12 +4,20 @@ using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Catalogue;
+using Bingo.Domain.Evidence;
 using Bingo.Domain.Events;
+using Bingo.Domain.Signups;
+using Bingo.Domain.Teams;
+using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web;
+using Bingo.Web.Pages.Admin.Events;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
@@ -179,6 +187,63 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     }
 
     [Fact]
+    public async Task PublishedCorrectionSwitchesCompletionFactsToNewGenerationAndRetainsPriorFacts()
+    {
+        var fixture = await SeedApprovalBatchAsync(correction: true);
+        var completion = await AddCompletionAsync(fixture);
+        var view = await LoadBoardAsync(fixture.Event.Id, fixture.Admin.Id);
+        await using (var approvalDb = new ApplicationDbContext(options))
+        {
+            var page = Page(approvalDb, fixture.Admin.Id);
+            page.BoardVersion = view.BoardView!.Version;
+            page.ApprovalCatalogueFingerprint = view.ApprovalCatalogueFingerprint;
+            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(fixture.Event.Id, true, CancellationToken.None));
+            Assert.Contains("Corrected board published as a replacement snapshot.", page.TempData["StatusMessage"]?.ToString(), StringComparison.Ordinal);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var activeId = await verify.Boards.Where(value => value.Id == fixture.Board.Id).Select(value => value.ActiveApprovalSnapshotId).SingleAsync();
+        Assert.NotEqual(fixture.PriorApprovalId, activeId);
+        var prior = await verify.TileCompletionFacts.SingleAsync(value => value.TeamId == completion.TeamId && value.ApprovalSnapshotId == fixture.PriorApprovalId);
+        var current = await verify.TileCompletionFacts.SingleAsync(value => value.TeamId == completion.TeamId && value.ApprovalSnapshotId == activeId);
+        Assert.True(prior.IsComplete);
+        Assert.Equal(completion.SubmittedAt, prior.CompletedAt);
+        Assert.Contains(completion.SubmissionId.ToString("D"), prior.QualifyingContributionsJson!, StringComparison.OrdinalIgnoreCase);
+        Assert.True(current.IsComplete);
+        Assert.Equal(completion.SubmittedAt, current.CompletedAt);
+        Assert.Contains(completion.SubmissionId.ToString("D"), current.QualifyingContributionsJson!, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(2, await verify.TileCompletionFacts.CountAsync(value => value.TeamId == completion.TeamId));
+    }
+
+    [Fact]
+    public async Task FailedReplacementCompletionFactWriteRollsBackPublicationGenerationAndFacts()
+    {
+        var fixture = await SeedApprovalBatchAsync(correction: true);
+        var completion = await AddCompletionAsync(fixture);
+        var view = await LoadBoardAsync(fixture.Event.Id, fixture.Admin.Id);
+        var failure = new CompletionFactFailure();
+        var faultOptions = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(failure).Options;
+        await using (var approvalDb = new ApplicationDbContext(faultOptions))
+        {
+            var page = Page(approvalDb, fixture.Admin.Id);
+            page.BoardVersion = view.BoardView!.Version;
+            page.ApprovalCatalogueFingerprint = view.ApprovalCatalogueFingerprint;
+            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(fixture.Event.Id, true, CancellationToken.None));
+        }
+
+        Assert.True(failure.Triggered);
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(fixture.PriorApprovalId, await verify.Boards.Where(value => value.Id == fixture.Board.Id).Select(value => value.ActiveApprovalSnapshotId).SingleAsync());
+        Assert.Equal(BoardState.Published, await verify.Boards.Where(value => value.Id == fixture.Board.Id).Select(value => value.State).SingleAsync());
+        Assert.Single(await verify.BoardApprovalSnapshots.Where(value => value.BoardId == fixture.Board.Id).ToListAsync());
+        var fact = await verify.TileCompletionFacts.SingleAsync(value => value.TeamId == completion.TeamId);
+        Assert.Equal(fixture.PriorApprovalId, fact.ApprovalSnapshotId);
+        Assert.Equal(completion.SubmittedAt, fact.CompletedAt);
+        Assert.Contains(completion.SubmissionId.ToString("D"), fact.QualifyingContributionsJson!, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(await verify.AuditEntries.Where(value => value.EventId == fixture.Event.Id && value.Action == "board.published_corrected").ToListAsync());
+    }
+
+    [Fact]
     public async Task BoardApprovalBatchReportsCommittedApprovalWhenNotificationFails()
     {
         var fixture = await SeedApprovalBatchAsync();
@@ -226,6 +291,218 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         Assert.Contains("Board approved privately.", result, StringComparison.Ordinal);
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(manual ? 7m : 2m, (await verify.BoardApprovalSnapshots.SingleAsync(x => x.BoardId == fixture.Board.Id)).TotalEhbEstimate);
+    }
+
+    [Fact]
+    public async Task BlankTileDescriptionDerivesAndFreezesWeightedTargetWhileManualTextRemainsAuthored()
+    {
+        var fixture = await SeedApprovalBatchAsync(correction: true);
+        await AddPublicBoardTeamAsync(fixture);
+
+        await SaveTileDescriptionAsync(fixture, "Authored wording", 2, [fixture.Drop.Id], []);
+        await using (var verifyManual = new ApplicationDbContext(options))
+        {
+            var template = await verifyManual.TileTemplates.SingleAsync(x => x.Id == fixture.Template.Id);
+            var tile = await verifyManual.BoardTiles.SingleAsync(x => x.Id == fixture.Tile.Id);
+            Assert.Equal("Authored wording", template.Description);
+            Assert.Equal("Authored wording", tile.DescriptionSnapshot);
+            Assert.False(template.DescriptionIsAutomatic);
+            Assert.False(tile.DescriptionIsAutomatic);
+        }
+
+        var secondItem = new CatalogueItem(Guid.NewGuid(), "Batch item two", "BATCH ITEM TWO");
+        secondItem.SetPrice(0, CataloguePriceSource.Manual, DateTimeOffset.UtcNow);
+        var secondDrop = new SourceDrop(Guid.NewGuid(), fixture.Boss.Id, secondItem.Id, "1/20", .05m, null, DateTimeOffset.UtcNow);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(secondItem, secondDrop);
+            await setup.SaveChangesAsync();
+        }
+
+        await SaveTileDescriptionAsync(fixture, null, 5, [fixture.Drop.Id, secondDrop.Id], [(fixture.Drop.Id, 5)]);
+        var automaticDraft = await LoadBoardAsync(fixture.Event.Id, fixture.Admin.Id);
+        Assert.Equal("Collect 5 eligible drops from Batch boss", Assert.Single(automaticDraft.Tiles).Description);
+        Assert.Equal(string.Empty, Assert.Single(automaticDraft.TileEditors).Description);
+
+        await using (var verifyAutomatic = new ApplicationDbContext(options))
+        {
+            var template = await verifyAutomatic.TileTemplates.SingleAsync(x => x.Id == fixture.Template.Id);
+            var tile = await verifyAutomatic.BoardTiles.SingleAsync(x => x.Id == fixture.Tile.Id);
+            Assert.Equal(string.Empty, template.Description);
+            Assert.Equal(string.Empty, tile.DescriptionSnapshot);
+            Assert.True(template.DescriptionIsAutomatic);
+            Assert.True(tile.DescriptionIsAutomatic);
+            Assert.True((await verifyAutomatic.BoardRequirementSnapshots.SingleAsync(x => x.BoardTileId == fixture.Tile.Id)).AllowHigherWeightings);
+        }
+
+        var approvalView = await LoadBoardAsync(fixture.Event.Id, fixture.Admin.Id);
+        await using (var approveDb = new ApplicationDbContext(options))
+        {
+            var page = Page(approveDb, fixture.Admin.Id);
+            page.BoardVersion = approvalView.BoardView!.Version;
+            page.ApprovalCatalogueFingerprint = approvalView.ApprovalCatalogueFingerprint;
+            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(fixture.Event.Id, true, CancellationToken.None));
+            Assert.Equal("Corrected board published as a replacement snapshot. The prior public snapshot remains in history.", page.TempData["StatusMessage"]?.ToString());
+        }
+
+        const string frozenDescription = "Collect 5 eligible drops from Batch boss";
+        await using (var rename = new ApplicationDbContext(options))
+        {
+            (await rename.CatalogueItems.SingleAsync(x => x.Id == secondItem.Id)).Update("Renamed batch item", "RENAMED BATCH ITEM", null, null);
+            await rename.SaveChangesAsync();
+        }
+
+        await using var publicDb = new ApplicationDbContext(options);
+        var activeApprovalId = (await publicDb.Boards.SingleAsync(x => x.Id == fixture.Board.Id)).ActiveApprovalSnapshotId;
+        var approval = await publicDb.BoardApprovalSnapshots.SingleAsync(x => x.Id == activeApprovalId);
+        var frozen = await publicDb.BoardApprovalTileSnapshots.SingleAsync(x => x.ApprovalSnapshotId == approval.Id);
+        Assert.Equal(frozenDescription, frozen.Description);
+        Assert.True(frozen.DescriptionIsAutomatic);
+        var publicBoard = await new Bingo.Infrastructure.Boards.PublicBoardService(publicDb, TimeProvider.System).GetEventBoardAsync(fixture.Event.Slug);
+        var team = Assert.Single(publicBoard!.Teams);
+        var publicTile = Assert.Single(team.Tiles);
+        Assert.Equal(frozenDescription, publicTile.Description);
+        var publicDetails = await new Bingo.Infrastructure.Boards.PublicBoardService(publicDb, TimeProvider.System).GetTileAsync(fixture.Event.Slug, team.TeamSlug, fixture.Tile.Id);
+        Assert.Equal(frozenDescription, publicDetails!.Description);
+    }
+
+    [Fact]
+    public async Task DerivedDescriptionMigrationMarksOnlyLegacyWorkingBlanksAndLeavesFrozenTextUntouched()
+    {
+        var fixture = await SeedApprovalBatchAsync(correction: true);
+        var manualTemplate = new TileTemplate(Guid.NewGuid(), "Manual tile", "Keep this authored template", ObjectiveType.DropRequirements, "", null);
+        var manualTile = new BoardTile(Guid.NewGuid(), fixture.Board.Id, manualTemplate.Id, 0, 1, manualTemplate.Name, "Keep this authored tile", "", 1m);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            (await setup.Boards.SingleAsync(x => x.Id == fixture.Board.Id)).Resize(1, 2, 1);
+            setup.AddRange(manualTemplate, manualTile);
+            await setup.SaveChangesAsync();
+        }
+
+        const string previousMigration = "20260922163951_AddWiseOldManUpdateAllSlots";
+        await using (var downgrade = new ApplicationDbContext(options))
+            await downgrade.GetService<IMigrator>().MigrateAsync(previousMigration);
+
+        const string legacyTemplateBlank = " \t\n ";
+        const string legacyTileBlank = "\t  \n";
+        await using (var legacy = new ApplicationDbContext(options))
+        {
+            await legacy.Database.ExecuteSqlInterpolatedAsync($"UPDATE tile_templates SET description = {legacyTemplateBlank} WHERE id = {fixture.Template.Id}");
+            await legacy.Database.ExecuteSqlInterpolatedAsync($"UPDATE board_tiles SET description_snapshot = {legacyTileBlank} WHERE id = {fixture.Tile.Id}");
+        }
+
+        await using (var upgrade = new ApplicationDbContext(options))
+            await upgrade.GetService<IMigrator>().MigrateAsync();
+
+        await using var verify = new ApplicationDbContext(options);
+        var automaticTemplate = await verify.TileTemplates.SingleAsync(x => x.Id == fixture.Template.Id);
+        var automaticTile = await verify.BoardTiles.SingleAsync(x => x.Id == fixture.Tile.Id);
+        Assert.Equal(legacyTemplateBlank, automaticTemplate.Description);
+        Assert.True(automaticTemplate.DescriptionIsAutomatic);
+        Assert.Equal(legacyTileBlank, automaticTile.DescriptionSnapshot);
+        Assert.True(automaticTile.DescriptionIsAutomatic);
+
+        var retainedManualTemplate = await verify.TileTemplates.SingleAsync(x => x.Id == manualTemplate.Id);
+        var retainedManualTile = await verify.BoardTiles.SingleAsync(x => x.Id == manualTile.Id);
+        Assert.Equal("Keep this authored template", retainedManualTemplate.Description);
+        Assert.False(retainedManualTemplate.DescriptionIsAutomatic);
+        Assert.Equal("Keep this authored tile", retainedManualTile.DescriptionSnapshot);
+        Assert.False(retainedManualTile.DescriptionIsAutomatic);
+
+        var frozen = await verify.BoardApprovalTileSnapshots.SingleAsync(x => x.ApprovalSnapshotId == fixture.PriorApprovalId);
+        Assert.Equal("Batch objective", frozen.Description);
+        Assert.False(frozen.DescriptionIsAutomatic);
+    }
+
+    [Fact]
+    public async Task DiscardCorrectionRestoresPreviousManualDescriptionAndMode()
+    {
+        var fixture = await SeedApprovalBatchAsync(correction: true);
+        await SaveTileDescriptionAsync(fixture, null, 1, [fixture.Drop.Id], []);
+        await using (var changed = new ApplicationDbContext(options))
+        {
+            Assert.True((await changed.TileTemplates.SingleAsync(x => x.Id == fixture.Template.Id)).DescriptionIsAutomatic);
+        }
+
+        var view = await LoadBoardAsync(fixture.Event.Id, fixture.Admin.Id);
+        await using (var discardDb = new ApplicationDbContext(options))
+        {
+            var page = Page(discardDb, fixture.Admin.Id);
+            page.BoardVersion = view.BoardView!.Version;
+            Assert.IsType<RedirectToPageResult>(await page.OnPostDiscardCorrectionAsync(fixture.Event.Id, true, CancellationToken.None));
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var tile = await verify.BoardTiles.SingleAsync(x => x.Id == fixture.Tile.Id);
+        var template = await verify.TileTemplates.SingleAsync(x => x.Id == fixture.Template.Id);
+        Assert.Equal("Batch objective", tile.DescriptionSnapshot);
+        Assert.Equal("Batch objective", template.Description);
+        Assert.False(tile.DescriptionIsAutomatic);
+        Assert.False(template.DescriptionIsAutomatic);
+        var activeApproval = await verify.BoardApprovalTileSnapshots.SingleAsync(x => x.ApprovalSnapshotId == fixture.PriorApprovalId);
+        Assert.Equal("Batch objective", activeApproval.Description);
+        Assert.False(activeApproval.DescriptionIsAutomatic);
+    }
+
+    [Fact]
+    public async Task DiscardAutomaticCorrectionRestoresBlankWorkingTextWithoutChangingFrozenCopy()
+    {
+        var fixture = await SeedApprovalBatchAsync(correction: true);
+        await SaveTileDescriptionAsync(fixture, null, 1, [fixture.Drop.Id], []);
+
+        var approvalView = await LoadBoardAsync(fixture.Event.Id, fixture.Admin.Id);
+        await using (var approveDb = new ApplicationDbContext(options))
+        {
+            var page = Page(approveDb, fixture.Admin.Id);
+            page.BoardVersion = approvalView.BoardView!.Version;
+            page.ApprovalCatalogueFingerprint = approvalView.ApprovalCatalogueFingerprint;
+            Assert.IsType<RedirectToPageResult>(await page.OnPostApproveAsync(fixture.Event.Id, true, CancellationToken.None));
+        }
+
+        const string frozenDescription = "Collect 1 Batch item";
+        await using (var reopenDb = new ApplicationDbContext(options))
+        {
+            var page = Page(reopenDb, fixture.Admin.Id);
+            Assert.IsType<RedirectToPageResult>(await page.OnPostCorrectPublishedAsync(fixture.Event.Id, true, "Test automatic description restoration", CancellationToken.None));
+        }
+        await SaveTileDescriptionAsync(fixture, "Private correction wording", 1, [fixture.Drop.Id], []);
+
+        var discardView = await LoadBoardAsync(fixture.Event.Id, fixture.Admin.Id);
+        await using (var discardDb = new ApplicationDbContext(options))
+        {
+            var page = Page(discardDb, fixture.Admin.Id);
+            page.BoardVersion = discardView.BoardView!.Version;
+            Assert.IsType<RedirectToPageResult>(await page.OnPostDiscardCorrectionAsync(fixture.Event.Id, true, CancellationToken.None));
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var tile = await verify.BoardTiles.SingleAsync(x => x.Id == fixture.Tile.Id);
+        var template = await verify.TileTemplates.SingleAsync(x => x.Id == fixture.Template.Id);
+        Assert.Equal(string.Empty, tile.DescriptionSnapshot);
+        Assert.True(tile.DescriptionIsAutomatic);
+        Assert.Equal(string.Empty, template.Description);
+        Assert.True(template.DescriptionIsAutomatic);
+        var activeApprovalId = (await verify.Boards.SingleAsync(x => x.Id == fixture.Board.Id)).ActiveApprovalSnapshotId;
+        var frozen = await verify.BoardApprovalTileSnapshots.SingleAsync(x => x.ApprovalSnapshotId == activeApprovalId);
+        Assert.Equal(frozenDescription, frozen.Description);
+        Assert.True(frozen.DescriptionIsAutomatic);
+        var publication = await verify.PublishedObjectivesAsync(fixture.Event.Id);
+        Assert.Equal(frozenDescription, Assert.Single(publication!.Tiles).DescriptionSnapshot);
+    }
+
+    [Theory]
+    [InlineData("en", "Auto-generated from tile requirements")]
+    [InlineData("da", "Genereres automatisk ud fra tile-krav")]
+    public async Task BoardDescriptionPlaceholderUsesRequestedCulture(string culture, string expected)
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        await using var factory = ApprovalBatchFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+        await LoginAsync(client, fixture.Admin.LoginName);
+        var html = WebUtility.HtmlDecode(await client.GetStringAsync(fixture.Path));
+
+        Assert.Contains($"placeholder=\"{expected}\"", html, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -300,6 +577,70 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         return await client.GetStringAsync(response.Headers.Location);
     }
+    private async Task SaveTileDescriptionAsync(ApprovalBatchFixture fixture, string? description, int target, IReadOnlyList<Guid> dropIds, IReadOnlyList<(Guid DropId, int Weight)> dropWeights)
+    {
+        var displayed = await LoadBoardAsync(fixture.Event.Id, fixture.Admin.Id);
+        await using var db = new ApplicationDbContext(options);
+        var requirementId = await db.BoardRequirementSnapshots.Where(x => x.BoardTileId == fixture.Tile.Id).Select(x => x.Id).SingleAsync();
+        var page = Page(db, fixture.Admin.Id);
+        page.BoardVersion = displayed.BoardView!.Version;
+        page.TileDraft = new BoardModel.TileDraftInput
+        {
+            TileId = fixture.Tile.Id,
+            Position = 0,
+            Name = fixture.Tile.NameSnapshot,
+            Description = description,
+            Requirements = [new BoardModel.RequirementInput
+            {
+                RequirementId = requirementId,
+                Kind = "drops",
+                Target = target,
+                DuplicatesAllowed = true,
+                BossIds = [fixture.Boss.Id],
+                DropIds = dropIds.ToList(),
+                DropWeights = dropWeights.ToDictionary(value => value.DropId, value => value.Weight)
+            }]
+        };
+        Assert.IsType<RedirectToPageResult>(await page.OnPostEditTileAsync(fixture.Event.Id, CancellationToken.None));
+        Assert.Equal("committed", page.TempData["BoardTileOutcome"]?.ToString());
+    }
+    private async Task AddPublicBoardTeamAsync(ApprovalBatchFixture fixture)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var team = new Bingo.Domain.Teams.Team(Guid.NewGuid(), fixture.Event.Id, "Batch team", "batch-team", Bingo.Domain.Teams.TeamFormationType.Preformed, null, false, now);
+        team.Finalize(now);
+        await using var db = new ApplicationDbContext(options);
+        db.Teams.Add(team);
+        await db.SaveChangesAsync();
+    }
+    private async Task<ManualCompletionFixture> AddCompletionAsync(ApprovalBatchFixture fixture)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var team = new Team(Guid.NewGuid(), fixture.Event.Id, "Completion team", "completion-team", TeamFormationType.Preformed, null, false, now);
+        team.Finalize(now);
+        var participant = new EventParticipant(Guid.NewGuid(), fixture.Event.Id, SignupStatus.Confirmed, 1, now.AddDays(-1), SignupSource.AdminCreated);
+        var character = new OsrsCharacter(Guid.NewGuid(), "Completion player", "COMPLETION PLAYER", now);
+        var assignment = new EventParticipantCharacter(Guid.NewGuid(), fixture.Event.Id, participant.Id, character.Id, 0, now,
+            fixture.Admin.Id, null, EventCharacterRole.Playing, 1m, EhbSource.Manual, null);
+        await using var db = new ApplicationDbContext(options);
+        var workingDropId = await db.BoardRequirementDropSnapshots.Where(value => value.RequirementId == fixture.Requirement.Id)
+            .Select(value => value.Id).SingleAsync();
+        var submission = new Submission(Guid.NewGuid(), fixture.Event.Id, team.Id, fixture.Tile.Id, fixture.Requirement.Id, workingDropId,
+            participant.Id, character.Id, character.DisplayName, fixture.Admin.Id, 1, now.AddMinutes(-10), null, null);
+        submission.Approve(1, now);
+        var contribution = new SubmissionContribution(Guid.NewGuid(), submission.Id, team.Id, fixture.Requirement.Id, workingDropId, participant.Id, 1, now);
+        db.AddRange(team, participant, character, assignment,
+            new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, "completion fixture"),
+            submission, contribution);
+        await db.SaveChangesAsync();
+        var publication = await db.ApprovalObjectivesAsync(fixture.Board.Id, fixture.PriorApprovalId!.Value)
+            ?? throw new InvalidOperationException("The prior published approval is unavailable.");
+        await TileCompletionFactReconciler.ReconcileAsync(db, fixture.Event.Id, publication, [team.Id], now);
+        await db.SaveChangesAsync();
+        var fact = await db.TileCompletionFacts.SingleAsync(value => value.TeamId == team.Id && value.ApprovalSnapshotId == fixture.PriorApprovalId);
+        Assert.True(fact.IsComplete);
+        return new(team.Id, submission.Id, submission.SubmittedAt);
+    }
     private async Task<ApprovalBatchFixture> SeedApprovalBatchAsync(bool manual = false, bool missingEstimate = false, bool correction = false)
     {
         var now = DateTimeOffset.UtcNow;
@@ -355,6 +696,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     {
         public string Path => $"/Admin/Events/Board/{Event.Id}";
     }
+    private sealed record ManualCompletionFixture(Guid TeamId, Guid SubmissionId, DateTimeOffset SubmittedAt);
     private sealed class ApprovalBatchSaveBarrier : SaveChangesInterceptor
     {
         public TaskCompletionSource<bool> Ready { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -381,6 +723,19 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             {
                 Triggered = true;
                 throw databaseFailure ? new DbUpdateException("sensitive-internal-marker") : new InvalidOperationException("sensitive-internal-marker");
+            }
+            return ValueTask.FromResult(result);
+        }
+    }
+    private sealed class CompletionFactFailure : SaveChangesInterceptor
+    {
+        public bool Triggered { get; private set; }
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (eventData.Context!.ChangeTracker.Entries<TileCompletionFact>().Any(entry => entry.State == EntityState.Added))
+            {
+                Triggered = true;
+                throw new DbUpdateException("injected completion fact write failure");
             }
             return ValueTask.FromResult(result);
         }

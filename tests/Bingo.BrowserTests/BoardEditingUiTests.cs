@@ -33,6 +33,30 @@ public sealed class BoardEditingUiTests
     }
 
     [Fact]
+    public void AutomaticTileDescriptionPlaceholderIsLocalizedAndEditorInputStaysSeparate()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var boardMarkup = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "src",
+            "Bingo.Web",
+            "Pages",
+            "Admin",
+            "Events",
+            "Board.cshtml"));
+        var danishResources = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "src",
+            "Bingo.Web",
+            "Resources",
+            "SharedResource.da.resx"));
+
+        Assert.Contains("placeholder=\"@T[\"Auto-generated from tile requirements\"]\"", boardMarkup);
+        Assert.Contains("name=\"Auto-generated from tile requirements\"", danishResources);
+        Assert.Contains("<value>Genereres automatisk ud fra tile-krav</value>", danishResources);
+    }
+
+    [Fact]
     public void TileActionsSurviveBoardCellSwaps()
     {
         var repositoryRoot = FindRepositoryRoot();

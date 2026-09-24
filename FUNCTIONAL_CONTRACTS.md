@@ -375,6 +375,17 @@ Manual team-roster additions allow Participant (default), Captain or Co-captain 
 
 **Authoritative happy path:** Fill every grid position with valid tile/objective data and automatic EHB for catalogue/drop tiles or explicit EHB for custom/manual objectives. Approve in a transaction that rechecks completeness and creates an immutable approval snapshot. After draft finalization, use a separately confirmed Publish board action/transaction. Event start requires publication.
 
+Tile description input is optional. Blank/whitespace-only input previews a
+description derived from the current structured requirements without filling the
+editable field; nonblank text remains an Admin-authored override until cleared
+and saved. Drop copy preserves configured target quantities regardless of
+weighting, uses a distinct selected item name when only one item is selected,
+and otherwise shows selected source names as alternatives. Separate required
+objectives follow stored order. Approval freezes both rendered text and mode;
+catalogue or working edits do not change old approvals, and discarding a private
+correction restores the prior mode and approved copy. Existing nonblank
+descriptions stay manual, even if they match the former generator.
+
 **Permissions and history:** Any enabled Admin may approve. Editing competitive content invalidates an unpublished approval and retains its history. Initial publication and publication of a corrected replacement both require server-enforced confirmation. Publication uses the active snapshot without recalculating from mutable catalogue data. Post-publication correction requires confirmation, a reason, a replacement snapshot, and preserved prior history; it is available only in SignupClosed, Live, or AwaitingFinalReview and is unavailable in terminal, Cancelled, Hidden, or Discarded states.
 
 **Objective identity and evidence protection (C20, user approved 2026-09-14):**
@@ -566,6 +577,13 @@ the same current input identity under existing authorized replay rules. Fresh in
 and finalization then proceed through the existing confirmed workflow. No silent rewrite
 or republication of previous official results or retained-data repair.
 
+The current nullable score-completion time is part of that competitive identity,
+acknowledgment hash, future finalization inputs, and official placement snapshot. It is
+the latest immutable completion time of the currently complete active-generation tiles,
+null when no tile is complete; full-board completion corrections remain authoritative.
+Legacy official versions keep their recorded order and fields, with the new time left
+null when it was not captured then; current evidence must not be used to rerank them.
+
 **Failure and recovery:** Stale readiness, concurrent finalization, or a missing blocker resolution fails before official mutation. Captain website roles remain historical but cannot mutate closed/finalized events. Assignment of a Captain never auto-generates a password; emergency credentials are explicit fallbacks, disabled by default, and disabled at cutoff until explicitly re-enabled.
 
 **Acceptance outcome:** Official results have one explicit immutable version at a time, every unresolved competitive blocker is visible, and correction cannot silently rewrite evidence or reopen gameplay.
@@ -756,9 +774,32 @@ or history is authorized.
 
 **Authoritative happy path:** A successful explicit signup/edit account lookup fills the current EHB control and immediately updates the authenticated owner's existing linked My Accounts character with the fetched EHB before signup submission; it creates or changes no event participant or assignment. Manual entry remains available, and a submitted signup stores the manual or freshly fetched event EHB snapshot. During Live, one cached competition-details synchronization fetches all relevant data no more often than the approved interval and derives participant/team activity locally.
 
-**Permissions and history:** Wise Old Man is read-only and supplementary. Every regular `PLAYING` event assignment may contribute full cached competition delta; informational/alts are excluded. Cached activity is not official results and never changes signup snapshots, evidence credit, lifecycle readiness, or finalization authority. Public/team projections expose only privacy-safe matched totals, provisional/partial state, and coverage counts; exact missing names remain Admin-only.
+**Permissions and history:** Wise Old Man remains read-only and supplementary
+for participants, public pages, cached statistics, and manually linked
+competitions. A narrowly scoped enabled Admin exception may explicitly create,
+automatically manage, or delete a competition created through the Admin-managed
+flow described in this contract. Every regular `PLAYING` event assignment may
+contribute full cached competition delta; informational/alts are excluded.
+Cached activity is not official results and never changes signup snapshots,
+evidence credit, lifecycle readiness, or finalization authority. Public/team
+projections expose only privacy-safe matched totals, provisional/partial state,
+and coverage counts; exact missing names remain Admin-only.
 
 **Failure and recovery:** Rate limit, unavailable, malformed, not-found, or partial responses produce accurate retry/incomplete/manual-entry feedback and never clear a valid entered EHB or the owner-linked My Accounts value or block an event transition. Missing accounts have no zero or carried-forward value; zero matches show no rankings. During Live, an Admin may replace a failed competition integration only with a validated competition whose window already matches the event within five minutes; Live replacement cannot clear the integration or synchronize the event schedule. Sync stops outside Live, retains readable cache, and resumes only on a legitimate return to Live. No Wise Old Man notification family or per-viewer request is introduced.
+
+For an Admin-managed competition, local validation rejects malformed or
+normalized-duplicate names, missing authoritative assignments, incompatible
+schedule, and any active event team with no eligible Playing account before a
+POST or PUT. The empty-team message is **Cannot create WOM competition with
+empty teams.** and identifies affected teams. Syntactically valid but untracked
+names do not trigger existence lookups. Provider errors preserve the complete
+intended roster and become retryable, corrective, or unknown operation states;
+timeouts after dispatch never cause an automatic second Create. Durable claims
+coalesce permitted changes and fence stale responses. Creation saves the
+existing link and protected receipt in one local persistence path. Once actual
+Live has begun, a dispatched operation may reconcile but a new roster or delete
+write cannot be sent. Remote deletion requires an explicit confirmed action and
+is forbidden after the first actual Live start; it never removes local history.
 
 **Acceptance outcome:** WoM provides only explicit account lookup and cached Live competition activity, with manual EHB and the Bingo event model remaining authoritative and public output privacy-safe.
 

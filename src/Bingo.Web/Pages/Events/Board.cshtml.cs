@@ -4,6 +4,7 @@ using Bingo.Application.Evidence;
 using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Domain.Events;
 using Bingo.Web.Security;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -21,24 +22,28 @@ public sealed class BoardModel(
 
     public PublicEventBoard Board { get; private set; } = null!;
     public EventCompetitionActivityProjection Activity { get; private set; } = null!;
+    public EventCompetitionMetricLeaderboard MetricLeaderboard { get; private set; } = new(EventCompetitionActivityState.NotConfigured, 0, null, null, [], null, []);
     public IReadOnlyList<LeaderboardPlayer> Players { get; private set; } = [];
-    public LeaderboardPlayer? MostSpooned { get; private set; }
-    public LeaderboardPlayer? HighestDropEhb { get; private set; }
-    public LeaderboardPlayer? HighestEhb { get; private set; }
+    public EventMastheadModel Masthead { get; private set; } = null!;
+    public LeaderboardPlayer? MostSpooned => Masthead.MostSpooned;
+    public LeaderboardPlayer? HighestDropEhb => Masthead.HighestDropEhb;
+    public LeaderboardPlayer? HighestEhb => Masthead.HighestEhb;
     public string ActiveView { get; private set; } = "mission";
     public string ActiveRanking { get; private set; } = "activity";
+    public bool IsMetricMode => MetricLeaderboard.IsBossMode;
+    public string? SelectedMetric => MetricLeaderboard.Selected?.Metric;
     public string? DropSearch { get; private set; }
     public string? DropTeam { get; private set; }
-    public string? SubmissionTeamSlug { get; private set; }
+    public string? SubmissionTeamSlug => Masthead.SubmissionTeamSlug;
     public DateTimeOffset RecentDropsReconcileSince { get; private set; }
     public Guid? SubmissionId { get; private set; }
     public PublicRecentDrop? SelectedDrop { get; private set; }
     public IReadOnlySet<Guid> NewSubmissionIds { get; private set; } = new HashSet<Guid>();
     public int NewDropCount { get; private set; }
 
-    public static string FormatElapsed(DateTimeOffset approvedAt, DateTimeOffset now)
+    public static string FormatElapsed(DateTimeOffset submittedAt, DateTimeOffset now)
     {
-        var elapsed = now - approvedAt;
+        var elapsed = now - submittedAt;
         if (elapsed < TimeSpan.Zero) elapsed = TimeSpan.Zero;
         var totalMinutes = (int)elapsed.TotalMinutes;
         if (totalMinutes < 60) return $"{totalMinutes} min ago";
@@ -72,7 +77,7 @@ public sealed class BoardModel(
 
     private static string JoinUnits(string first, string? second) => second is null ? first : $"{first} {second}";
 
-    public async Task<IActionResult> OnGetAsync(string slug, string? view, string? ranking, int? dropCount, string? dropSearch, string? dropTeam, Guid? submissionId, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnGetAsync(string slug, string? view, string? ranking, string? metric, int? dropCount, string? dropSearch, string? dropTeam, Guid? submissionId, CancellationToken cancellationToken)
     {
         RecentDropsReconcileSince = time.GetUtcNow();
         var requestedDropCount = Math.Max(DefaultRecentDropCount, dropCount ?? DefaultRecentDropCount);
@@ -94,90 +99,16 @@ public sealed class BoardModel(
             if (loadedSubmissionIds.Length > 0)
                 NewSubmissionIds = (await dropAnnouncements.GetNewSubmissionIdsAsync(currentAccountId, board.EventId, loadedSubmissionIds, cancellationToken)).ToHashSet();
         }
-        if (accountId is Guid actorAccountId)
-        {
-            try
-            {
-                var scope = await evidenceAuthority.ResolveActorAsync(actorAccountId, board.EventId, User.GetTeamId(), time.GetUtcNow(), cancellationToken);
-                if (scope.Kind != EvidenceActorKind.Administrator && scope.EventId == board.EventId)
-                    SubmissionTeamSlug = board.Teams.SingleOrDefault(team => team.TeamId == scope.TeamId)?.TeamSlug;
-            }
-            catch (InvalidOperationException)
-            {
-                SubmissionTeamSlug = null;
-            }
-        }
         Activity = await activity.GetAsync(board.EventId, cancellationToken);
-        var rosterPlayers = board.RosterPlayers ?? Activity.Teams
-            .SelectMany(team => team.Participants.Select(participant => new PublicRosterPlayer(
-                team.TeamId, team.TeamName, participant.ParticipantId, participant.ParticipantName,
-                participant.PlayingAccountNames is { Count: > 0 } ? participant.PlayingAccountNames : [participant.ParticipantName])))
-            .ToList();
-        var activityParticipantsById = Activity.Teams
-            .SelectMany(team => team.Participants)
-            .ToDictionary(participant => participant.ParticipantId);
-        var dropPlayersById = (board.DropEhbTeams ?? Array.Empty<PublicDropEhbTeam>())
-            .SelectMany(team => team.Players)
-            .ToDictionary(player => player.PlayerId);
-        var playerRows = rosterPlayers
-            .Select(roster =>
-            {
-                var participant = activityParticipantsById.GetValueOrDefault(roster.PlayerId);
-                var hasActivity = Activity.HasRankings && participant is not null;
-                var displayParticipant = participant ?? new EventCompetitionParticipantActivity(
-                    roster.PlayerId, roster.PlayerName, 0m, [], PlayingAccountNames: roster.PlayingAccountNames);
-                var dropPlayer = dropPlayersById.GetValueOrDefault(roster.PlayerId);
-                return new
-                {
-                    roster.TeamName,
-                    Participant = displayParticipant,
-                    HasActivity = hasActivity,
-                    DropEhb = dropPlayer?.DropEhb ?? 0m,
-                    TotalDrops = dropPlayer?.ApprovedSubmissions ?? 0
-                };
-            })
-            .OrderByDescending(value => value.HasActivity)
-            .ThenByDescending(value => value.HasActivity ? value.Participant.TotalGainedEhb : 0m)
-            .ThenBy(value => value.Participant.ParticipantName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(value => value.TeamName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(value => value.Participant.ParticipantId)
-            .ToList();
-        var rankedPlayers = new List<LeaderboardPlayer>(playerRows.Count);
-        var activityRank = 0;
-        for (var index = 0; index < playerRows.Count; index++)
-        {
-            var current = playerRows[index];
-            var rank = 0;
-            if (current.HasActivity)
-            {
-                activityRank++;
-                rank = index == 0 || !playerRows[index - 1].HasActivity || playerRows[index - 1].Participant.TotalGainedEhb != current.Participant.TotalGainedEhb
-                    ? activityRank
-                    : rankedPlayers[index - 1].Rank;
-            }
-            rankedPlayers.Add(new(rank, current.TeamName, current.Participant, current.DropEhb, current.TotalDrops, current.HasActivity));
-        }
-        Players = rankedPlayers;
-        MostSpooned = Players
-            .Where(value => value.TotalDrops > 0)
-            .OrderByDescending(value => value.TotalDrops)
-            .ThenBy(value => value.Participant.ParticipantName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(value => value.Participant.ParticipantId)
-            .FirstOrDefault();
-        HighestDropEhb = Players
-            .Where(value => value.DropEhb > 0)
-            .OrderByDescending(value => value.DropEhb)
-            .ThenBy(value => value.Participant.ParticipantName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(value => value.Participant.ParticipantId)
-            .FirstOrDefault();
-        HighestEhb = Players
-            .Where(value => value.HasActivity && value.Participant.TotalGainedEhb > 0)
-            .OrderByDescending(value => value.Participant.TotalGainedEhb)
-            .ThenBy(value => value.Participant.ParticipantName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(value => value.Participant.ParticipantId)
-            .FirstOrDefault();
+        MetricLeaderboard = view == "leaderboards" || !string.IsNullOrWhiteSpace(metric)
+            ? await activity.GetMetricLeaderboardAsync(board.EventId, metric, cancellationToken)
+            : new(EventCompetitionActivityState.NotConfigured, 0, null, null, [], null, []);
+        Masthead = await EventMastheadModel.CreateAsync(board, Activity, evidenceAuthority, User, time, cancellationToken);
+        Players = Masthead.Players;
         ActiveView = view is "drops" or "leaderboards" ? view : "mission";
-        ActiveRanking = ranking is "drops" or "players" ? ranking : "activity";
+        ActiveRanking = IsMetricMode
+            ? ranking is "teams" or "players" ? ranking : "teams"
+            : ranking is "drops" or "players" ? ranking : "activity";
         return Page();
     }
 

@@ -43,7 +43,7 @@ public sealed partial class PublicStatsService
     }
 
     private static bool CanCalculate(CompetitionMetricCache? cache) => cache is { SuccessfulBatch: true, Compatible: true, ActivityBatchId: not null } &&
-        cache.LastAttemptAt is { } attempted && attempted.AddHours(2) > cache.ReadAt;
+        cache.LastAttemptAt is { } attempted && attempted.AddHours(1) > cache.ReadAt;
     private static string LifecycleFingerprint(BingoEvent ev) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
         JsonSerializer.Serialize(new { ev.State, ev.ActualStartedAt, ev.ActualEndedAt, ev.FinalizedAt, ev.ArchivedAt, ev.ResultsPublished })))).ToLowerInvariant();
     private static string AssignmentFingerprint(StatsData data, CompetitionMetricCache cache) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(

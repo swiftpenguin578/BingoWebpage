@@ -242,6 +242,7 @@ Board and draft administration use two complementary concurrency mechanisms:
 - Reopening a finalized draft is a pre-event exceptional transition requiring strong confirmation and a written reason. It withdraws the public roster/pick-order projection, preserves the board's independent publication, retains structural team locks, and appends transition history before allowing stack undo/repicking.
 - Board approval uses the board aggregate's optimistic concurrency version. Approval requires a full grid and valid tiles; any later private competitive-content edit atomically returns the board to Draft while retaining the superseded approval record.
 - A Draft board reads catalogue-backed names, images, source-drop rates, and EHB mechanics live. Relevant catalogue writes invalidate its derived projections and notify open editors; the server recalculates authoritative tile, line, total, and per-player estimates from current catalogue rows rather than treating cached editor values as competitive history.
+- A blank tile description remains blank in the template/working edit field and is derived for the draft preview from current ordered requirement and selected-drop names. Nonblank text is explicitly manual. Approval stores the rendered description and mode in the immutable approval snapshot; public consumers keep reading that frozen copy, and correction discard restores the active snapshot's prior mode and text.
 - Approve board is the snapshot transaction. It locks or version-checks the board and every referenced catalogue row, validates the complete grid, calculates all competitive values, writes a new immutable `BoardApprovalSnapshot`, and assigns it as the board's active approval version atomically. A concurrency conflict fails without producing a partial snapshot.
 - Validated preview and publication read the active approval snapshot without recalculation. Explicit unapproval or a private competitive edit clears the active pointer, retains the superseded snapshot, returns the board to Draft, and resumes live catalogue derivation.
 - Preview board shares the public board renderer and responsive component rules. Draft preview supplies live derived catalogue data, validated preview supplies the active frozen snapshot, administrator-only EHB/edit controls are omitted, and preview has no command path that can approve or publish.
@@ -440,6 +441,29 @@ WoM-assisted EHB entry is an explicit per-account command that runs only after a
 Slice 10 uses one typed Wise Old Man v2 client for both explicit account lookup and cached event-competition synchronization. The client supplies a contactable User-Agent, optional secret-configured API key, bounded timeout, structured operational logging, and one process-wide limiter; version one deliberately runs one application replica. Limiter admission is serialized. After restart, exactly one bootstrap request establishes the remote window before other callers proceed. Bootstrap admission releases on every outcome; missing/untrustworthy headers or transport failure cause a fail-closed pause of at least 60 seconds before one new bootstrap attempt. The limiter observes remote limit/remaining/reset headers, reserves the final three requests for both traffic types, and rejects manual requests locally before exhaustion. Automatic cycles have one initial attempt plus three scheduled retries; separate retry and normal-cycle due times prevent sleeping workers and immediate exhaustion loops.
 
 Competition synchronization is a separate small hosted worker rather than network work inside the critical lifecycle worker. It acquires an opaque fenced lease in a short transaction, performs HTTP after committing, and publishes only in a second transaction that rechecks `Live`, competition ID, lease owner, assignment fingerprint, and cooldown. One competition-details response is mapped to every current unreleased `PLAYING` event assignment and atomically publishes a local per-character generation plus completeness/error state. A successful partial generation publishes only matched rows, with explicit privacy-safe coverage and no zero/carry-forward values; a zero-match partial generation has no rankings. A newer complete or partial generation replaces older displayed values. Public and team projections depend only on PostgreSQL cache data and label local time as **Fetched from Wise Old Man**; they never depend on external request latency or imply that the GET actively updated upstream players. No Redis, message broker, distributed limiter, generic job framework, or second application replica is introduced.
+
+Admin-managed WOM writes use a separate typed management service and hosted
+worker. Domain/application code owns finalized-draft eligibility, provider-name
+normalization, complete roster projection, empty-team rejection, the 50/30
+name limits, and the permanent `actual_started_at` roster/delete boundary.
+Infrastructure owns the POST/PUT/DELETE adapter, structured provider errors,
+Data Protection code protection, PostgreSQL operation claims, and short
+transactional receipt/reconciliation updates. Razor only binds the existing
+Admin Manage forms and localized feedback. The worker never holds a database
+transaction across HTTP and never invokes the statistics polling path or
+`update-all`.
+
+Explicit Create sends one complete team payload and, on success, persists the
+existing event link plus the protected management receipt. Unknown Create
+outcomes are durable and stop automatic retries; a local persistence failure
+retries saving the same receipt rather than creating again. Automatic updates
+coalesce permitted local revisions and revalidate current state at dispatch.
+After actual Live, a sent operation may reconcile but fresh roster/delete
+dispatches and destructive retries are rejected; a permitted Live end update
+contains dates only. Manual ID links never receive credentials or management
+opt-in. Rename support is intentionally omitted unless a small unchanged
+provider-ID recognition path is independently safe; reading My Accounts cannot
+rewrite frozen event identity.
 
 Exactly one playing account is active/drop-eligible for a participant at a time. The primary account activates at event start. Normal swaps are available only while the event is `LIVE`, are unlimited during that state, and append an immutable transition with effective and recorded UTC timestamps. Event end closes normal swaps. The swap mutation uses optimistic concurrency or a row lock so simultaneous requests cannot both succeed from the same prior active character. Participants act for themselves, captains/co-captains act for unlinked members of their own external team, and admins may make audited corrections.
 

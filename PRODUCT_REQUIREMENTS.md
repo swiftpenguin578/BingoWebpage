@@ -465,11 +465,20 @@ Ranking priority is:
 1. Full-board completion, ordered by immutable submission time of the final qualifying submission
 2. Most completed rows and columns
 3. Most completed tiles
-4. Highest configured EHB tie-break value
+4. Earlier current-score completion time
+5. Highest configured EHB tie-break value
 
 The first team to complete the entire board wins. The event and board remain open until the official event end and admin finalization. Other teams may continue for fun or for second- and third-place prizes.
 
 Full-board completion is based on the immutable server submission time of the evidence that completed the final tile, not the time an admin reviewed it. Captains and admins do not edit this timestamp.
+
+For teams that have not completed the full board, current-score completion time
+is the latest immutable completion time among their currently complete tiles;
+it is null when no tile is complete. It breaks ties only after equal completed
+lines and tiles, and before configured EHB. Reversals use the surviving valid
+tile completions, never the reversal/review clock. An approved complete-board
+time correction remains higher priority than this field. Exact equal values may
+remain a shared placement under the existing final-review process.
 
 EHB is used for board estimation, line balancing, player contribution statistics, and final tie-breaking. It does not otherwise award team points.
 
@@ -555,6 +564,20 @@ A tile contains:
 - Active/published state
 
 Tiles belong to one event board. The editor supports moving/swapping them but does not duplicate tiles, copy them from earlier events, import them, or expose a reusable tile-template workflow.
+
+An empty or whitespace-only tile description is automatic: the board editor
+derives its preview from the current ordered objectives and selected eligible
+drops, and leaves the editable description field blank with a localized
+placeholder. A nonblank description is an Admin-authored override and remains
+unchanged when requirements are edited. Clearing and saving returns the tile to
+automatic mode. For drop objectives, the configured target is always shown even
+when selected drops carry higher contribution weights. One distinct catalogue
+item uses its item name; otherwise selected source names are joined as
+alternatives, while separate required objectives follow their stored order.
+Manual objectives combine their authored objective descriptions in that order.
+Approval freezes the rendered description and its mode with the immutable tile
+snapshot; existing nonblank text and all existing published copy remain
+unchanged by catalogue or draft edits.
 
 ### 10.2 Requirement builder
 
@@ -1033,6 +1056,73 @@ The leaderboard may display:
 
 The primary player ranking is estimated EHB contribution, matching the community's existing practice. Team and player EHB use the same allocation: each approved contribution receives its proportional share of the tile's combined expected EHB snapshot. Completing a tile credits exactly its expected EHB and completing a board credits exactly the board's expected EHB. Do not sum standalone time-to-specific-drop values for alternative eligible drops, because the same kills roll those alternatives together. The product must label this clearly as an estimate; it measures credited expected objective effort rather than actual time played.
 
+### 16.1 Boss KC leaderboard selection — approved 2026-09-17
+
+The existing public Leaderboards page gains a metric selector. Its default option,
+EHB & Drop EHB, preserves the current EHB / Drop EHB / Players views. With WOM linked,
+offer the distinct relevant bingo boss/mode metrics, alphabetically; selecting one
+shows Teams / Players views for that metric's full-event gained KC. Reuse the existing
+cached activity and playing-account attribution; selection never fetches provider data.
+
+Teams columns: Rank, Team, Players, Total gained, Avg. gained, MVP. Players counts
+participants with known positive gained KC, and average divides their total by that
+contributor count. Team expansion and the standalone Players view show only those
+contributors. Keep zero-contribution teams visible without an MVP or empty expansion.
+Combine each participant's playing accounts; informational accounts remain excluded.
+Players columns: Rank, Player, Team, Gained, Start, End, Drops. Preserve Start/End labels
+during the event and compatible cached values when stale; missing data must not become
+zero. Do not display freshness/update/health status text or timestamps in leaderboard
+views (including repeated per-team/account notices). Retain semantic cache safeguards,
+per-account unknown values and necessary estimate distinctions without freshness labels. Separate boss/mode metrics must not duplicate
+KC through repeated tile placement or be added into a heterogeneous total.
+
+Drops displays the participant's approved event drop count attributed to that boss,
+across tiles, as a coral clickable number. It navigates to the existing Drops view
+with the boss name searched and that participant's team selected. The destination
+intentionally includes the whole team's matching drops. Boss-name search already
+works per user confirmation: no search redesign or separate investigation is in scope.
+
+For boss KC and existing EHB/Drop EHB team tables, MVP displays the name and individual
+signed contribution; equal top contributions display Multiple MVPs and the common
+individual value, never their sum. No contribution means no MVP. Reuse existing signed
+number formatting without unit suffixes. Positive gained values and MVP contributions
+use the same existing gain-green and + prefix (raw Start/End counts remain raw). Existing
+EHB/Drop EHB columns, calculations and participant visibility remain unchanged; only
+MVP/Rank and the approved shared presentation/selector corrections below may change;
+boss contributor-only rules do not apply to those existing views. The one additional
+approved label change is Rank in both English and Danish across the existing and new
+leaderboard tables; replace Danish Placering for this heading without unrelated
+translation changes.
+
+Use the existing table structure/styles/sorting/expansion, with no new table design
+or separate table component. Reuse the page-header dropdown menu and interaction.
+The trigger reads METRIC: [selected name] plus a downward chevron and matches the
+leaderboard tab styling. In light mode its text and chevron use existing ink normally,
+and existing blue when open, hovered or keyboard-focused. It shares their row above the horizontal divider, right-aligned
+immediately before the standings divider when standings is expanded, or with the
+horizontal divider's right end when collapsed. On insufficient width it may wrap to
+a stacked arrangement only when the available content width actually requires it;
+Metric is then above the tabs, and both are left-aligned above the divider. Do not
+stack early at an unrelated viewport breakpoint. METRIC: is a trigger prefix only;
+menu options show their names without that prefix. The menu closes on outside click,
+repeated trigger click, Escape and selection. Positive gains/MVP values use the existing
+green and signed format; the coral numeric Drops link has no arrow suffix. Dark-mode
+column headings are consistently muted blue across all leaderboard tables (including
+sortable/nested headings), with visible hover/focus behavior.
+
+Metric switching updates the leaderboard in place without a full document navigation
+or scrolling to the page top. Fetch only the selected view as needed using existing
+route/render owners; do not preload every boss or fetch WOM. Keep selected controls,
+standings metric, URL, Back/Forward, sorting and expansion coherent after updates.
+Prevent an older response from replacing a newer selection; on failure retain the
+last usable view and a usable recovery path. Direct navigation/reload remains supported.
+Boss table Gained/Start/End headings are localized as Opnået/Start/Slut in Danish,
+including both expanded Teams and standalone Players presentations. The nested EHB
+account table uses Gained/Start/End without redundant EHB prefix/suffix, localized
+accordingly. This label simplification does not apply to the Drop EHB table or other
+standalone default Players metric headings. Preserve sorting and accessible labels.
+User visual acceptance remains required.
+
 ## 17. Drafting
 
 ### 17.1 Version-one draft flow
@@ -1134,7 +1224,36 @@ Each My accounts link may store an optional personal EHB default. A regular Acco
 
 An event may optionally link to one existing Wise Old Man competition. Creation may use its exact UTC start/end as schedule defaults. Linking it later to a pre-Live event compares schedules and explicitly offers to synchronize the event schedule; otherwise both boundaries must match within five minutes. Live correction requires an already matching competition and invalidates the prior displayed cache; AwaitingFinalReview, Finalized, Archived, and Cancelled configuration is read-only.
 
-While and only while the event is Live, the server uses one cached competition-details synchronization at most every two hours to derive gained-EHB participant and team activity locally. It never calls Wise Old Man per viewer, player, or team. Every registered regular account contributes to its participant total; Alt/informational accounts are excluded. If the newest result lacks any expected account, public rankings are withheld even when an older complete cache exists. Team average is participant-based and tied top participants share MVP. Wise Old Man availability, configuration, or completeness never blocks event progression.
+The Admin Manage WOM surface also supports one explicit, complete creation flow
+for a finalized pre-Live event. It builds one whole team payload from every
+active membership and every unreleased `PLAYING` event-character assignment for
+confirmed participants, including pre-formed teams. It does not validate player
+existence or snapshots first; plausible names are sent to WOM and the provider's
+normal validation response is shown. Event names are limited to 50 characters
+and team names to 30 for new or changed values, using provider-compatible
+normalization. Retained overlength historical names remain readable and are
+reported as a correction before creation rather than truncated.
+
+Successful explicit creation stores the existing competition link and a
+protected management credential automatically. Only links created through this
+flow receive automatic management state; manually linked competitions remain
+read-only and never gain imported credentials or an opt-in mode. Permitted
+pre-Live schedule, roster, membership, team, and account corrections enqueue a
+coalesced update through the existing provider limiter. Once an event has ever
+entered Live, WOM participants are permanently locked: an already dispatched
+request may finish and reconcile, but no new roster or delete dispatch/retry is
+allowed. A Live end correction can send dates only. Local Live replacement and
+evidence history remain authoritative and are never rewritten to match WOM.
+
+Remote deletion is a separate confirmed Admin action available only before the
+first actual Live start, with current authority, fresh link/version, protected
+credentials, and an explicit target confirmation. It removes only the remote
+competition and preserves all local participants, assignments, evidence,
+results, and prior source history. Cancel, reopen, unlink, or ordinary lifecycle
+changes never imply remote deletion. Public pages and existing statistics
+continue to consume cached WOM data read-only.
+
+While and only while the event is Live, the server uses cached competition details on fixed UTC hourly slots anchored to the event's retained actual Live start: the first normal slot is one hour after that start, followed by each successive hour. Starting the event alone does not trigger an immediate normal fetch. Delayed, manual, urgent, and retry requests do not move the anchor; retries remain separately due, and downtime permits one current due refresh before the next future slot rather than a burst of missed requests. A Live record without an actual-start anchor remains unscheduled rather than inventing a rolling cadence. The server never calls Wise Old Man per viewer, player, or team. Every registered regular account contributes to its participant total; Alt/informational accounts are excluded. If the newest result lacks any expected account, public rankings are withheld even when an older complete cache exists. Compatible cached activity remains visible when older than one hour without adding public freshness/status banners. Team average is participant-based and tied top participants share MVP. Wise Old Man availability, configuration, or completeness never blocks event progression.
 
 To limit unwanted submissions, an admin may protect the form with an event-specific signup code distributed through Discord. Admins can close and reopen signups at any allowed pre-draft time. Reopening a form that already has responses requires confirmation and automatic history but no written reason.
 

@@ -1,7 +1,9 @@
+using System.Data;
 using System.Net;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Teams;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
@@ -215,6 +217,38 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
             .Select(match => match.Value).ToArray();
         Assert.DoesNotContain(removalForms, form => form.Contains(websiteMembershipId.ToString(), StringComparison.Ordinal));
         Assert.Contains(removalForms, form => form.Contains(externalMembershipId.ToString(), StringComparison.Ordinal) && form.Contains("name=\"confirmed\" value=\"true\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExternalPreformedMemberRechecksEventStartAfterWiseOldManLookup()
+    {
+        var setup = await SeedAsync();
+        var teamId = Guid.NewGuid();
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.Teams.Add(new Team(teamId, setup.EventId, "Preformed", "preformed", TeamFormationType.Preformed, null, false));
+            await seed.SaveChangesAsync();
+        }
+        await StartAndScrambleAsync(setup);
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostPickAsync(setup.EventId, setup.PlayerIds[2], CancellationToken.None));
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostPickAsync(setup.EventId, setup.PlayerIds[3], CancellationToken.None));
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostFinalizeAsync(setup.EventId, CancellationToken.None, true));
+        var before = await ExternalRosterCountsAsync(setup.EventId);
+        var validation = new BarrierWiseOldManAccountValidation();
+        var mutation = ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddExternalMemberAsync(
+            setup.EventId, teamId, "External after event start", 5m, null, CancellationToken.None, confirmed: true), accountValidation: validation);
+
+        await validation.LookupStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await StartEventAtLifecycleBoundaryAsync(setup.EventId);
+        validation.Release();
+        Assert.IsType<RedirectToPageResult>(await mutation);
+
+        await using var verify = new ApplicationDbContext(options);
+        var startedAt = await verify.Events.Where(value => value.Id == setup.EventId).Select(value => value.ActualStartedAt).SingleAsync();
+        Assert.Equal(now, startedAt);
+        Assert.Equal(before, await ExternalRosterCountsAsync(setup.EventId));
+        Assert.False(await verify.OsrsCharacters.AnyAsync(value => value.NormalizedName == "EXTERNAL AFTER EVENT START"));
+        Assert.False(await verify.AuditEntries.AnyAsync(value => value.EventId == setup.EventId && value.Action == "team.member_added" && value.TargetId == teamId.ToString()));
     }
 
     [Fact]
@@ -447,7 +481,7 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
             setup.EventId, teamId, setup.PlayerIds[2], "Rejected role", CancellationToken.None,
             role: TeamMembershipRole.Captain), captainAuthority: new RejectingCaptainAuthority());
         Assert.Equal(before, await RosterMutationCountsAsync(setup.EventId));
-        var externalTeamName = $"External rollback {Guid.NewGuid():N}";
+        var externalTeamName = $"External rollback {Guid.NewGuid():N}"[..30];
         await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(setup.EventId, externalTeamName, TeamFormationType.Preformed, null, CancellationToken.None));
         var externalTeamId = await TeamIdAsync(setup.EventId, externalTeamName);
         var externalBefore = await ExternalRosterCountsAsync(setup.EventId);
@@ -465,7 +499,7 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
     {
         var setup = await SeedAsync();
         var draftedTeamId = await TeamIdAsync(setup.EventId, "Second");
-        var externalTeamName = $"External malformed {Guid.NewGuid():N}";
+        var externalTeamName = $"External malformed {Guid.NewGuid():N}"[..30];
         await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(setup.EventId, externalTeamName, TeamFormationType.Preformed, null, CancellationToken.None));
         var externalTeamId = await TeamIdAsync(setup.EventId, externalTeamName);
 
@@ -1020,10 +1054,23 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
         return new(
             await db.EventParticipants.CountAsync(participant => participant.EventId == eventId && participant.Source == SignupSource.AdminCreated),
             await db.EventParticipantCharacters.CountAsync(assignment => assignment.EventId == eventId),
-            await db.TeamMemberships.CountAsync(membership => teamIds.Contains(membership.TeamId)));
+            await db.TeamMemberships.CountAsync(membership => teamIds.Contains(membership.TeamId)),
+            await db.AuditEntries.CountAsync(entry => entry.EventId == eventId),
+            await db.DraftPublicationCycles.CountAsync(cycle => db.DraftSessions.Any(draft => draft.Id == cycle.DraftSessionId && draft.EventId == eventId)),
+            await db.DraftPublicationRosters.CountAsync(row => db.DraftPublicationCycles.Any(cycle => cycle.Id == row.DraftPublicationCycleId && db.DraftSessions.Any(draft => draft.Id == cycle.DraftSessionId && draft.EventId == eventId))));
     }
 
-    private async Task<IActionResult> ExecuteAsync(Guid eventId, Guid accountId, Func<DraftModel, Task<IActionResult>> action, Bingo.Application.Auditing.IAuditWriter? auditWriter = null, IAdminCollaborationNotifier? collaboration = null, DateTimeOffset? at = null, ITeamCaptainAuthorityService? captainAuthority = null)
+    private async Task StartEventAtLifecycleBoundaryAsync(Guid eventId)
+    {
+        await using var db = new ApplicationDbContext(options);
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleAsync();
+        item.StartEvent(now);
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+    }
+
+    private async Task<IActionResult> ExecuteAsync(Guid eventId, Guid accountId, Func<DraftModel, Task<IActionResult>> action, Bingo.Application.Auditing.IAuditWriter? auditWriter = null, IAdminCollaborationNotifier? collaboration = null, DateTimeOffset? at = null, ITeamCaptainAuthorityService? captainAuthority = null, IWiseOldManAccountValidation? accountValidation = null)
     {
         await using var db = new ApplicationDbContext(options);
         var context = new DefaultHttpContext
@@ -1032,7 +1079,7 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
                 [new Claim(ClaimTypes.NameIdentifier, accountId.ToString()), new Claim(ClaimTypes.Name, $"admin-{accountId:N}")], "test"))
         };
         var clock = new FixedTimeProvider(at ?? now);
-        var page = new DraftModel(db, clock, auditWriter ?? new AuditWriter(db, clock), collaboration ?? new NullAdminCollaborationNotifier(), null!, new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, clock), captainAuthority: captainAuthority ?? new TeamCaptainAuthorityService(db, clock))
+        var page = new DraftModel(db, clock, auditWriter ?? new AuditWriter(db, clock), collaboration ?? new NullAdminCollaborationNotifier(), null!, new Bingo.Infrastructure.Signups.EventParticipantCharacterService(db, clock), captainAuthority: captainAuthority ?? new TeamCaptainAuthorityService(db, clock), accountValidation: accountValidation)
         {
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new EmptyTempDataProvider())
@@ -1151,7 +1198,19 @@ public sealed class DraftOperationsIntegrationTests : IAsyncLifetime
 
     private sealed record Setup(Guid EventId, Guid FirstAdminId, Guid SecondAdminId, Guid[] PlayerIds);
     private sealed record MutationSnapshot(string Memberships, string Assignments, string Cycles, string Roster, int AuditCount, int NotificationCount);
-    private sealed record ExternalRosterCounts(int Participants, int CharacterReservations, int Memberships);
+    private sealed record ExternalRosterCounts(int Participants, int CharacterReservations, int Memberships, int AuditEntries, int PublicationCycles, int PublishedRosterRows);
+    private sealed class BarrierWiseOldManAccountValidation : IWiseOldManAccountValidation
+    {
+        private readonly TaskCompletionSource<bool> release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> LookupStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public void Release() => release.TrySetResult(true);
+        public async Task<WiseOldManAccountValidationResult> ValidateAsync(WiseOldManAccountValidationRequest request, CancellationToken cancellationToken = default)
+        {
+            LookupStarted.TrySetResult(true);
+            await release.Task.WaitAsync(cancellationToken);
+            return new(WiseOldManAccountValidationOutcome.Success, []);
+        }
+    }
     private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider { public override DateTimeOffset GetUtcNow() => value; }
     private sealed class EmptyTempDataProvider : ITempDataProvider { public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>(); public void SaveTempData(HttpContext context, IDictionary<string, object> values) { } }
     private sealed class ThrowingAuditWriter : Bingo.Application.Auditing.IAuditWriter { public Task WriteAsync(Guid? actorAccountId, string actorUsername, string action, string targetType, string? targetId = null, string? details = null, CancellationToken cancellationToken = default) => throw new InvalidOperationException("Injected audit failure"); public Task WriteAsync(Guid? actorAccountId, string actorUsername, string action, string targetType, string? targetId, string? details, Guid? eventId, CancellationToken cancellationToken = default) => throw new InvalidOperationException("Injected audit failure"); }

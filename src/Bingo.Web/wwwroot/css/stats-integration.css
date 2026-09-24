@@ -98,3 +98,26 @@ body.public-stats-page .stats-page {
 
 /* Overlap the fractional scrollport edge instead of leaving a scroll-under seam. */
 .public-stats-page .stats-page .luck-stack .luck-rows > .luck-row.luck-pinned-row { margin-top: 0; top: -1px; }
+
+/* Stats keeps its full-width canvas when enabling the shared Board masthead. */
+body.public-stats-page.public-event-shell.public-ui-pass1 > .container > main {
+  width: 100%;
+  padding-inline: var(--public-page-gutter) !important;
+}
+
+/* Reuse the Board-family masthead inside the same border-box shell as Stats.
+   Percentage padding resolves against the full-width parent, including ultrawide. */
+body.public-stats-page .public-stats-masthead-shell {
+  width: calc(100% + 2 * var(--public-page-gutter));
+  margin-inline: calc(-1 * var(--public-page-gutter));
+  padding-top: 0.65rem;
+}
+body.public-stats-page .public-stats-masthead-content {
+  box-sizing: border-box;
+  max-width: 1640px;
+  margin-inline: auto;
+  padding-inline: 3.6%;
+}
+@media (max-width: 850px) {
+  body.public-stats-page .public-stats-masthead-content { padding-inline: 5%; }
+}
