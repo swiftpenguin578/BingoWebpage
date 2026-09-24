@@ -1,10 +1,10 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Infrastructure.Persistence;
-using Bingo.Application.Integrations.WiseOldMan;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 

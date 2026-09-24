@@ -267,7 +267,8 @@ public sealed class Slice10Pass101WiseOldManTests
             Assert.Equal(HttpMethod.Post, request.Method);
             Assert.Equal("/competitions", request.RequestUri!.AbsolutePath);
             return Response("{\"id\":42,\"title\":\"Autumn Bingo\",\"startsAt\":\"2026-09-23T10:00:00Z\",\"endsAt\":\"2026-09-24T10:00:00Z\",\"verificationCode\":\"secret\"}", 19);
-        })) { BaseAddress = new Uri("https://fake.test/") };
+        }))
+        { BaseAddress = new Uri("https://fake.test/") };
         var client = new WiseOldManCompetitionManagementClient(
             new SingleClientFactory(http),
             new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance),
@@ -315,7 +316,8 @@ public sealed class Slice10Pass101WiseOldManTests
             Assert.Equal(HttpMethod.Put, request.Method);
             Assert.Equal("/competitions/42", request.RequestUri!.AbsolutePath);
             return Response("{\"id\":42,\"title\":\"Autumn Bingo\",\"startsAt\":\"2026-09-23T10:00:00Z\",\"endsAt\":\"2026-09-24T10:00:00Z\"}", 19);
-        })) { BaseAddress = new Uri("https://fake.test/") };
+        }))
+        { BaseAddress = new Uri("https://fake.test/") };
         var client = new WiseOldManCompetitionManagementClient(
             new SingleClientFactory(http),
             new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance),
@@ -346,7 +348,8 @@ public sealed class Slice10Pass101WiseOldManTests
             Assert.Equal("/competitions/42/update-all", request.RequestUri!.AbsolutePath);
             requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
             return ResponseWithStatus(HttpStatusCode.Accepted, "{}", 19);
-        })) { BaseAddress = new Uri("https://fake.test/") };
+        }))
+        { BaseAddress = new Uri("https://fake.test/") };
         var client = new WiseOldManCompetitionManagementClient(
             new SingleClientFactory(http),
             new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance),
@@ -380,7 +383,8 @@ public sealed class Slice10Pass101WiseOldManTests
             competingRequestStarted.TrySetResult();
             await releaseCompetingRequest.Task.WaitAsync(cancellationToken);
             return ResponseWithStatus(HttpStatusCode.NotFound, "{}", 19);
-        })) { BaseAddress = new Uri("https://fake.test/") };
+        }))
+        { BaseAddress = new Uri("https://fake.test/") };
         var client = new WiseOldManCompetitionManagementClient(
             new SingleClientFactory(http),
             new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance),
@@ -419,7 +423,8 @@ public sealed class Slice10Pass101WiseOldManTests
             competingRequestStarted.TrySetResult();
             await releaseCompetingRequest.Task.WaitAsync(cancellationToken);
             return ResponseWithStatus(HttpStatusCode.NotFound, "{}", 19);
-        })) { BaseAddress = new Uri("https://fake.test/") };
+        }))
+        { BaseAddress = new Uri("https://fake.test/") };
         var client = new WiseOldManCompetitionManagementClient(
             new SingleClientFactory(http),
             new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance),

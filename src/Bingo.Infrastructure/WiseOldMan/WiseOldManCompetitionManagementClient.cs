@@ -275,7 +275,7 @@ public sealed class WiseOldManCompetitionManagementClient(
         var endsAt = ParseDate(competitionElement, "endsAt") ?? requested.EndsAt;
         var code = FirstString(root, "verificationCode", "verification_code", "code");
         var competition = new WiseOldManCompetition(id, title?.Trim() ?? requested.Title, startsAt, endsAt, time.GetUtcNow(), []);
-            return new(WiseOldManCompetitionWriteStatus.Success, competition, ProtectedVerificationCode: string.IsNullOrWhiteSpace(code) ? null : credentialProtector.Protect(code), Message: "Wise Old Man competition write succeeded.");
+        return new(WiseOldManCompetitionWriteStatus.Success, competition, ProtectedVerificationCode: string.IsNullOrWhiteSpace(code) ? null : credentialProtector.Protect(code), Message: "Wise Old Man competition write succeeded.");
     }
 
     private static async Task<(string? Code, string? Message, IReadOnlyList<string>? AffectedParticipants)> ParseErrorAsync(HttpResponseMessage response, string? verificationCode, CancellationToken cancellationToken)

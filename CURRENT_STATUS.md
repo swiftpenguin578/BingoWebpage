@@ -1,5 +1,28 @@
 # Current project status
 
+## Formatter correction and CI monitor — 2026-09-24
+
+PR #11's first CI attempt failed at the formatting gate before the build and
+tests ran. The reviewed follow-up is a formatter-only correction on top of
+`07189702c53608a9181d1c9821e2d0234b58d1ed`: 20 existing source/test/migration
+files, patch SHA-256
+`6ddbe7baf7ca022bbbaa80c5c8b07db5840805e44b2298acd756c19c536dd22a`, and
+changed-path NUL manifest SHA-256
+`cfee49358ae7d8fd07c8d98af8b03d8b8d543054bff960a39671894169129d07`.
+
+Fresh independent Sol/high review passed. The exact formatter verification
+exited 0 with no output, and `git diff --check` exited 0. The delta contains
+only 311 whitespace changes, 3 charset corrections and 11 import order
+corrections; migration bodies/SQL, production behavior, tests/literals, UI and
+CI configuration are unchanged. No full suite was rerun for this correction.
+The existing user-reported complete .NET and BrowserTests passes remain valid
+acceptance evidence, and the previously recorded focused remediation results
+and formatter limitation remain historical context for the earlier baseline.
+
+The next action is to monitor PR #11 CI for the corrected formatting gate and
+subsequent build/test results. No preview restart, database/provider action,
+merge, deployment or production mutation is authorized by this correction.
+
 ## Release candidate packaging — 2026-09-24
 
 The user reports that the complete Release solution test gate

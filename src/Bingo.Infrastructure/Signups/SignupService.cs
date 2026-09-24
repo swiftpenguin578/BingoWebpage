@@ -1,9 +1,9 @@
 using System.Data;
 using System.Security.Cryptography;
 using System.Text;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Security;
 using Bingo.Application.Signups;
-using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;

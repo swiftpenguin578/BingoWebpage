@@ -1,9 +1,8 @@
 using System.Collections.Concurrent;
 using System.Data.Common;
 using System.Net;
-using System.Text.RegularExpressions;
 using System.Text.Json;
-using Bingo.Web;
+using System.Text.RegularExpressions;
 using Bingo.Application.Events;
 using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Domain.Access;
@@ -13,6 +12,7 @@ using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Web;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;

@@ -9,75 +9,75 @@ namespace Bingo.Infrastructure.Persistence.Migrations;
 /// <inheritdoc />
 public partial class AddTileCompletionFactsAndCurrentScoreReachedAt : Migration
 {
-        /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.AddColumn<DateTimeOffset>(
-                name: "current_score_reached_at",
-                table: "official_placements",
-                type: "timestamp with time zone",
-                nullable: true);
+    /// <inheritdoc />
+    protected override void Up(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.AddColumn<DateTimeOffset>(
+            name: "current_score_reached_at",
+            table: "official_placements",
+            type: "timestamp with time zone",
+            nullable: true);
 
-            migrationBuilder.AddUniqueConstraint(
-                name: "AK_board_approval_tile_snapshots_approval_snapshot_id_board_ti~",
-                table: "board_approval_tile_snapshots",
-                columns: new[] { "approval_snapshot_id", "board_tile_id" });
+        migrationBuilder.AddUniqueConstraint(
+            name: "AK_board_approval_tile_snapshots_approval_snapshot_id_board_ti~",
+            table: "board_approval_tile_snapshots",
+            columns: new[] { "approval_snapshot_id", "board_tile_id" });
 
-            migrationBuilder.CreateTable(
-                name: "tile_completion_facts",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    event_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    team_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    board_tile_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    approval_snapshot_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    is_complete = table.Column<bool>(type: "boolean", nullable: false),
-                    completed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    qualifying_contributions_json = table.Column<string>(type: "jsonb", nullable: true),
-                    recorded_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_tile_completion_facts", x => x.id);
-                    table.CheckConstraint("ck_tile_completion_facts_incomplete", "is_complete OR (completed_at IS NULL AND qualifying_contributions_json = '[]'::jsonb)");
-                    table.ForeignKey(
-                        name: "FK_tile_completion_facts_board_approval_tile_snapshots_approva~",
-                        columns: x => new { x.approval_snapshot_id, x.board_tile_id },
-                        principalTable: "board_approval_tile_snapshots",
-                        principalColumns: new[] { "approval_snapshot_id", "board_tile_id" },
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_tile_completion_facts_events_event_id",
-                        column: x => x.event_id,
-                        principalTable: "events",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_tile_completion_facts_teams_event_id_team_id",
-                        columns: x => new { x.event_id, x.team_id },
-                        principalTable: "teams",
-                        principalColumns: new[] { "event_id", "id" },
-                        onDelete: ReferentialAction.Restrict);
-                });
+        migrationBuilder.CreateTable(
+            name: "tile_completion_facts",
+            columns: table => new
+            {
+                id = table.Column<Guid>(type: "uuid", nullable: false),
+                event_id = table.Column<Guid>(type: "uuid", nullable: false),
+                team_id = table.Column<Guid>(type: "uuid", nullable: false),
+                board_tile_id = table.Column<Guid>(type: "uuid", nullable: false),
+                approval_snapshot_id = table.Column<Guid>(type: "uuid", nullable: false),
+                is_complete = table.Column<bool>(type: "boolean", nullable: false),
+                completed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                qualifying_contributions_json = table.Column<string>(type: "jsonb", nullable: true),
+                recorded_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_tile_completion_facts", x => x.id);
+                table.CheckConstraint("ck_tile_completion_facts_incomplete", "is_complete OR (completed_at IS NULL AND qualifying_contributions_json = '[]'::jsonb)");
+                table.ForeignKey(
+                    name: "FK_tile_completion_facts_board_approval_tile_snapshots_approva~",
+                    columns: x => new { x.approval_snapshot_id, x.board_tile_id },
+                    principalTable: "board_approval_tile_snapshots",
+                    principalColumns: new[] { "approval_snapshot_id", "board_tile_id" },
+                    onDelete: ReferentialAction.Restrict);
+                table.ForeignKey(
+                    name: "FK_tile_completion_facts_events_event_id",
+                    column: x => x.event_id,
+                    principalTable: "events",
+                    principalColumn: "id",
+                    onDelete: ReferentialAction.Restrict);
+                table.ForeignKey(
+                    name: "FK_tile_completion_facts_teams_event_id_team_id",
+                    columns: x => new { x.event_id, x.team_id },
+                    principalTable: "teams",
+                    principalColumns: new[] { "event_id", "id" },
+                    onDelete: ReferentialAction.Restrict);
+            });
 
-            migrationBuilder.CreateIndex(
-                name: "IX_tile_completion_facts_approval_snapshot_id_board_tile_id",
-                table: "tile_completion_facts",
-                columns: new[] { "approval_snapshot_id", "board_tile_id" });
+        migrationBuilder.CreateIndex(
+            name: "IX_tile_completion_facts_approval_snapshot_id_board_tile_id",
+            table: "tile_completion_facts",
+            columns: new[] { "approval_snapshot_id", "board_tile_id" });
 
-            migrationBuilder.CreateIndex(
-                name: "IX_tile_completion_facts_event_id_approval_snapshot_id_team_id",
-                table: "tile_completion_facts",
-                columns: new[] { "event_id", "approval_snapshot_id", "team_id" });
+        migrationBuilder.CreateIndex(
+            name: "IX_tile_completion_facts_event_id_approval_snapshot_id_team_id",
+            table: "tile_completion_facts",
+            columns: new[] { "event_id", "approval_snapshot_id", "team_id" });
 
-            migrationBuilder.CreateIndex(
-                name: "IX_tile_completion_facts_event_id_team_id_board_tile_id_approv~",
-                table: "tile_completion_facts",
-                columns: new[] { "event_id", "team_id", "board_tile_id", "approval_snapshot_id" },
-                unique: true);
+        migrationBuilder.CreateIndex(
+            name: "IX_tile_completion_facts_event_id_team_id_board_tile_id_approv~",
+            table: "tile_completion_facts",
+            columns: new[] { "event_id", "team_id", "board_tile_id", "approval_snapshot_id" },
+            unique: true);
 
-            migrationBuilder.Sql("""
+        migrationBuilder.Sql("""
                 WITH active_generation AS (
                     SELECT b.event_id, b.active_approval_snapshot_id AS approval_snapshot_id
                     FROM boards b
@@ -214,20 +214,20 @@ public partial class AddTileCompletionFactsAndCurrentScoreReachedAt : Migration
                     WHERE expected.event_id = tile.event_id AND expected.team_id = tile.team_id AND expected.approval_snapshot_id = tile.approval_snapshot_id
                 );
                 """);
-        }
+    }
 
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.DropTable(
-                name: "tile_completion_facts");
+    /// <inheritdoc />
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.DropTable(
+            name: "tile_completion_facts");
 
-            migrationBuilder.DropUniqueConstraint(
-                name: "AK_board_approval_tile_snapshots_approval_snapshot_id_board_ti~",
-                table: "board_approval_tile_snapshots");
+        migrationBuilder.DropUniqueConstraint(
+            name: "AK_board_approval_tile_snapshots_approval_snapshot_id_board_ti~",
+            table: "board_approval_tile_snapshots");
 
-            migrationBuilder.DropColumn(
-                name: "current_score_reached_at",
-                table: "official_placements");
-        }
+        migrationBuilder.DropColumn(
+            name: "current_score_reached_at",
+            table: "official_placements");
+    }
 }

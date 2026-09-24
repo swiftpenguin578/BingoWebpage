@@ -55,19 +55,19 @@ public static class TileCompletionFactReconciler
         var byKey = existing.ToDictionary(value => (value.TeamId, value.BoardTileId));
 
         foreach (var teamId in teamIds)
-        foreach (var completion in completionByTeam[teamId])
-        {
-            var provenanceJson = completion.Complete
-                ? JsonSerializer.Serialize(completion.QualifyingContributions)
-                : "[]";
-            if (byKey.TryGetValue((teamId, completion.TileId), out var current))
+            foreach (var completion in completionByTeam[teamId])
             {
-                current.Reconcile(completion.Complete, completion.CompletedAt, provenanceJson, recordedAt);
-                continue;
-            }
+                var provenanceJson = completion.Complete
+                    ? JsonSerializer.Serialize(completion.QualifyingContributions)
+                    : "[]";
+                if (byKey.TryGetValue((teamId, completion.TileId), out var current))
+                {
+                    current.Reconcile(completion.Complete, completion.CompletedAt, provenanceJson, recordedAt);
+                    continue;
+                }
 
-            db.TileCompletionFacts.Add(new TileCompletionFact(Guid.NewGuid(), eventId, teamId, completion.TileId,
-                publication.Approval.Id, completion.Complete, completion.CompletedAt, provenanceJson, recordedAt));
-        }
+                db.TileCompletionFacts.Add(new TileCompletionFact(Guid.NewGuid(), eventId, teamId, completion.TileId,
+                    publication.Approval.Id, completion.Complete, completion.CompletedAt, provenanceJson, recordedAt));
+            }
     }
 }

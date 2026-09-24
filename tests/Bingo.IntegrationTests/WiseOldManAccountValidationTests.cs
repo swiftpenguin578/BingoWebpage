@@ -1,6 +1,6 @@
+using System.Globalization;
 using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Infrastructure.WiseOldMan;
-using System.Globalization;
 
 namespace Bingo.IntegrationTests;
 
@@ -12,7 +12,7 @@ public sealed class WiseOldManAccountValidationTests
         var clock = new MutableClock(DateTimeOffset.Parse("2026-09-22T10:00:00Z", CultureInfo.InvariantCulture));
         var lookup = new RecordingLookup(_ => new(WiseOldManLookupStatus.Success, 10m, clock.GetUtcNow()));
         var validator = new WiseOldManAccountValidation(lookup, clock);
-        var request = Request([" Alice " ]);
+        var request = Request([" Alice "]);
 
         Assert.Equal(WiseOldManAccountValidationOutcome.Success, (await validator.ValidateAsync(request)).Outcome);
         Assert.Equal(WiseOldManAccountValidationOutcome.Success, (await validator.ValidateAsync(request with { CharacterNames = ["ALICE"] })).Outcome);
