@@ -35,10 +35,16 @@ outcome; the user-reported complete suites supersede the prior pending gate.
 The running preview and manual database remain outside packaging scope:
 `http://127.0.0.1:5290`, database `bingo_manual_preview_wom_clean_20260923` /
 `manual_preview` at loopback `55529`. No preview restart, migration, seed,
-provider call or database mutation was performed. Before publication, record the
-final commit SHA(s), branch, verified GitHub remote, PR URL/number and target
-here. The next permitted action after the PR is created is the user's review and
-release decision; no merge, deployment or production mutation is implied.
+provider call or database mutation was performed. The release-candidate commit
+is `e652358446daa84157cecd6db5b7b8ca893dffc0` on
+`codex/admin-wom-competitions`, pushed through the verified GitHub URL while the
+checkout's local `origin` remained unchanged. PR #11 is open at
+https://github.com/swiftpenguin578/BingoWebpage/pull/11, targeting `main`.
+The final nonmutating publication checks confirmed the pushed branch ref,
+GitHub `main` ref, no duplicate existing PR, a clean release-candidate commit,
+staged whitespace/privacy/file-scope checks, and the recorded focused evidence.
+The next permitted action is the user's PR review and release decision; no merge,
+deployment or production mutation is implied.
 
 ## New planner handoff — 2026-09-24
 
