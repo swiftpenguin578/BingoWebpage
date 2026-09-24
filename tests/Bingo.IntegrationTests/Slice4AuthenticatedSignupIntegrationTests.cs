@@ -416,7 +416,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     [InlineData(true)]
     public async Task RestorationUsesOnlyAssignmentsReleasedAtWithdrawal(bool adminRestore)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
         await using var db = new ApplicationDbContext(options);
         var owner = Website($"restore-owner-{Guid.NewGuid():N}", now);
         var borrower = Website($"restore-borrower-{Guid.NewGuid():N}", now);

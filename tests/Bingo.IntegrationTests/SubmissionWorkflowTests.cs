@@ -41,7 +41,7 @@ public sealed class SubmissionWorkflowTests : IAsyncLifetime
     private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_submission_tests").WithUsername("bingo").WithPassword("bingo_test_password").Build();
     private DbContextOptions<ApplicationDbContext> options = null!;
-    private readonly DateTimeOffset now = DateTimeOffset.UtcNow;
+    private readonly DateTimeOffset now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
 
     public async Task InitializeAsync()
     {

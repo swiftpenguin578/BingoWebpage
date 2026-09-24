@@ -34,6 +34,12 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
         .WithPassword("bingo_test_password")
         .Build();
 
+    // Keep the seed input deliberately non-microsecond-aligned so this class
+    // exercises the PostgreSQL timestamp boundary. SeedEventAsync derives the
+    // provider fixture from the persisted schedule, which is the value the
+    // application compares when calculating fingerprints and durable receipts.
+    private static readonly DateTimeOffset NonMicrosecondFixtureNow =
+        new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero).AddTicks(7);
     private string connectionString = string.Empty;
 
     public async Task InitializeAsync()
@@ -210,7 +216,7 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task StaleRetryRequeuesCurrentLiveDatesAndRecordsCurrentFingerprint()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(NonMicrosecondFixtureNow);
         var fixture = await SeedEventAsync(clock, live: true, competitionId: 4101);
         var remote = fixture.RemoteCompetition!;
         var managementClient = new RecordingManagementClient();
@@ -266,7 +272,7 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task RateLimitedUpdateCoalescesAnEditedPreLiveProjectionBeforePut()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(NonMicrosecondFixtureNow);
         var fixture = await SeedEventAsync(clock, live: false, competitionId: 4151);
         var remote = fixture.RemoteCompetition!;
         var managementClient = new RecordingManagementClient();
@@ -373,7 +379,7 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task ReceiptSaveRetryReloadsManagementAndCompletesTheOperation()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(NonMicrosecondFixtureNow);
         var fixture = await SeedEventAsync(clock, live: true, competitionId: 4301);
         var remote = fixture.RemoteCompetition!;
         var interceptor = new ThrowOnceAfterArmingInterceptor();
@@ -418,7 +424,7 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task UpdateAllSlotIsClaimedOnceAcrossTwoContextsAndReceiptSurvivesRestart()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var clock = new TestClock(NonMicrosecondFixtureNow);
         var fixture = await SeedEventAsync(clock, live: true, competitionId: 4401,
             startsOverride: clock.GetUtcNow().AddMinutes(-30), endsOverride: clock.GetUtcNow().AddHours(10));
         var managementClient = new RecordingManagementClient();
@@ -851,11 +857,16 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
         WiseOldManCompetition? remote = null;
         if (competitionId is { } id)
         {
-            remote = new WiseOldManCompetition(id, eventItem.Name, startsAt, endsAt, now, []);
-            state = new EventCompetitionSynchronization(Guid.NewGuid(), eventItem.Id, 1, id, remote.Title, startsAt, endsAt, "fixture-assignments", now);
-            management = new EventCompetitionManagement(Guid.NewGuid(), eventItem.Id, state.Id, id, remote.Title, startsAt, endsAt,
+            var rawRemote = new WiseOldManCompetition(id, eventItem.Name, startsAt, endsAt, now, []);
+            remote = rawRemote with
+            {
+                StartsAt = startsAt.AddTicks(-(startsAt.Ticks % TimeSpan.TicksPerMicrosecond)),
+                EndsAt = endsAt.AddTicks(-(endsAt.Ticks % TimeSpan.TicksPerMicrosecond))
+            };
+            state = new EventCompetitionSynchronization(Guid.NewGuid(), eventItem.Id, 1, id, remote.Title, remote.StartsAt, remote.EndsAt, "fixture-assignments", now);
+            management = new EventCompetitionManagement(Guid.NewGuid(), eventItem.Id, state.Id, id, remote.Title, remote.StartsAt, remote.EndsAt,
                 "protected:secret", "stale-local-fingerprint", now);
-            management.MarkApplied(Guid.NewGuid(), "stale-local-fingerprint", RemoteFingerprint(remote), "[]", remote.Title, startsAt, endsAt, now);
+            management.MarkApplied(Guid.NewGuid(), "stale-local-fingerprint", RemoteFingerprint(remote), "[]", remote.Title, remote.StartsAt, remote.EndsAt, now);
             management.ObserveActualStart(eventItem.ActualStartedAt, now);
         }
 
@@ -864,6 +875,17 @@ public sealed class EventCompetitionManagementIntegrationTests : IAsyncLifetime
         if (state is not null) db.Add(state);
         if (management is not null) db.Add(management);
         await db.SaveChangesAsync();
+
+        if (remote is not null)
+        {
+            var persistedSchedule = await db.Events.AsNoTracking()
+                .Where(x => x.Id == eventItem.Id)
+                .Select(x => new { x.EventStartsAt, x.EventEndsAt })
+                .SingleAsync();
+            Assert.Equal(startsAt.AddTicks(-(startsAt.Ticks % TimeSpan.TicksPerMicrosecond)), persistedSchedule.EventStartsAt!.Value);
+            Assert.Equal(endsAt.AddTicks(-(endsAt.Ticks % TimeSpan.TicksPerMicrosecond)), persistedSchedule.EventEndsAt!.Value);
+        }
+
         return new(eventItem.Id, eventItem.Version, new(admin.Id, admin.LoginName), management?.Id, remote);
     }
 

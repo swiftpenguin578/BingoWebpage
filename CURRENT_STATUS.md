@@ -1,5 +1,27 @@
 # Current project status
 
+## Timestamp fixture correction and CI boundary — 2026-09-24
+
+PR #11 CI run `36031424920` passed formatting, build, Domain, Application and
+Browser steps. Its Integration step exposed 11 timestamp-precision failures
+and then the 45-minute capacity timeout; CI is not claimed passed. The timeout
+diagnosis is infrastructure capacity from 946 cases creating 46 per-test
+containers, not a product failure, and this correction does not change timeout,
+parallelism, container or CI configuration.
+
+The reviewed follow-up is test/docs-only: `AGENTS.md` records the PostgreSQL
+microsecond-boundary test rule, and four Integration test files now use
+deterministic UTC fixtures plus explicit persisted microsecond normalization.
+Stale/fingerprint/evidence/concurrency assertions remain intact. Fresh
+independent Sol/high review passed. Focused PostgreSQL checks passed 12/12, the
+Release build passed with 0 warnings/errors, exact formatter verification exited
+0, and `git diff --check` passed. The full suite was intentionally not rerun.
+
+The next boundary is the existing PR's CI after this single correction push;
+the user will monitor it. No claim of a passing CI run is made here. No preview
+restart, database/provider action, merge, deployment or production mutation is
+authorized by this correction.
+
 ## Formatter correction and CI monitor — 2026-09-24
 
 PR #11's first CI attempt failed at the formatting gate before the build and

@@ -25,6 +25,9 @@ namespace Bingo.IntegrationTests;
 
 public sealed partial class Slice6CatalogueAdministrationIntegrationTests
 {
+    private static readonly DateTimeOffset CompletionFixtureNow =
+        new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
+
     [Theory]
     [InlineData("boss", false)]
     [InlineData("drop", false)]
@@ -615,7 +618,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     }
     private async Task<ManualCompletionFixture> AddCompletionAsync(ApprovalBatchFixture fixture)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = CompletionFixtureNow;
         var team = new Team(Guid.NewGuid(), fixture.Event.Id, "Completion team", "completion-team", TeamFormationType.Preformed, null, false, now);
         team.Finalize(now);
         var participant = new EventParticipant(Guid.NewGuid(), fixture.Event.Id, SignupStatus.Confirmed, 1, now.AddDays(-1), SignupSource.AdminCreated);

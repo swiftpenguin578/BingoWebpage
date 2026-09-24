@@ -175,6 +175,18 @@ they do not silently become defaults for the next task.
 - Behavior changes need executable checks. Security, persistence, concurrency and
   navigation checks must exercise the relevant boundary; source review is not a
   substitute for execution, and in-memory tests do not prove PostgreSQL behavior.
+- All timestamp tests must explicitly respect the precision of the boundary being
+  tested. PostgreSQL timestamps retain microseconds; .NET values can contain
+  finer 100-nanosecond ticks. Do not rely on the local operating system's clock
+  precision or compare an unnormalized wall-clock value exactly with its persisted
+  round-trip value. Use deterministic UTC instants and microsecond-aligned fixture
+  values for ordinary persistence tests, or derive the expected value using the
+  actual persistence precision. Preserve exact assertions at that precision rather
+  than adding broad tolerances, sleeps or rounding to seconds to make CI pass.
+  For timestamp-dependent fingerprints, stale checks, receipts, scheduling and
+  ordering, include non-microsecond-aligned input and a real PostgreSQL round trip
+  where relevant so normalization cannot hide a production correctness defect.
+  Tests must behave consistently on local runs and Linux GitHub Actions runners.
 - Follow the applicable delivery procedures in `DELIVERY_PLAN.md` sections 4.1–4.6:
   planning/readiness for major functional slices, change control for material changes,
   evidence at affected boundaries, required review, slice preflight and completion.
