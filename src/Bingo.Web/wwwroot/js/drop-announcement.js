@@ -15,6 +15,9 @@
     const token = root.querySelector('input[name="__RequestVerificationToken"]')?.value;
     const accountId = root.dataset.accountId;
     const storagePrefix = `bingo:drop-announcement:${accountId}:`;
+    const viewedEventId = () => document.querySelector('[data-progress-event]')?.dataset.progressEvent
+        || document.querySelector('[data-stats-event]')?.dataset.statsEvent
+        || null;
     const MOTION_MS = 320;
     const HEIGHT_MS = MOTION_MS * 2;
     const DISPLAY_MS = 10000;
@@ -380,10 +383,14 @@
         if (mutationsPending) { refreshQueued = true; return; }
         refreshQueued = false;
         try {
-            const response = await fetch('/api/drop-announcements/current?limit=100', { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+            const eventId = viewedEventId();
+            const url = eventId
+                ? `/api/drop-announcements/${encodeURIComponent(eventId)}?limit=100`
+                : '/api/drop-announcements/current?limit=100';
+            const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
             const incoming = response.ok && response.status !== 204 ? await response.json() : null;
             if (revision !== requestRevision || mutationsPending) return;
-            if (response.status === 204) {
+            if (response.status === 204 || (eventId && response.status === 404)) {
                 stateRevision += 1;
                 try { if (key()) sessionStorage.removeItem(key()); } catch { }
                 clearStateTransition();

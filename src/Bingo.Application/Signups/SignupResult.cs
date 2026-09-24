@@ -8,4 +8,5 @@ public sealed record SignupResult(
     Guid? ParticipantId,
     SignupStatus? Status,
     int? WaitingListPosition,
-    Guid? AccountQuestionId = null);
+    Guid? AccountQuestionId = null,
+    string? WomValidationConfirmationToken = null);

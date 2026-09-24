@@ -10,7 +10,7 @@
     const string updateTargets = "#app-notice-region, .event-participants-page";
 }
 
-<div class="admin-dialog-page participant-add-dialog-page event-overview-section" aria-labelledby="participant-add-dialog-title" aria-describedby="participant-add-dialog-description">
+<div class="admin-dialog-page participant-add-dialog-page event-overview-section" aria-labelledby="participant-add-dialog-title" aria-describedby="participant-add-dialog-description" data-wom-validation-cancelled="@(Model.WomValidationConfirmationCancelled ? "true" : null)">
     <div class="event-overview-section-heading admin-dialog-component-heading">
         <div><h2 id="participant-add-dialog-title">@T["Add participant"]</h2><p id="participant-add-dialog-description">@T["Use the active signup form. An owner is optional; external roster members are managed in Teams / Draft, not here."]</p></div>
         <button type="button" class="admin-route-dialog-close" data-participant-add-close aria-label="@T["Close add participant"]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
@@ -21,6 +21,7 @@
     </div>
     <p class="participant-add-editor-feedback" data-participant-add-feedback role="alert" tabindex="-1" hidden></p>
     <form method="post" asp-page-handler="CreateInternalParticipant" class="admin-dialog-form" data-update-targets="@updateTargets">
+        <input type="hidden" asp-for="InternalParticipant.WomValidationConfirmationToken" />
         <input type="hidden" name="ParticipantSearch" value="@Model.ParticipantSearch" /><input type="hidden" name="ParticipantStatus" value="@Model.ParticipantStatus" /><input type="hidden" name="ParticipantPayment" value="@Model.ParticipantPayment" /><input type="hidden" name="ParticipantDiscord" value="@Model.ParticipantDiscord" /><input type="hidden" name="ParticipantCaptain" value="@Model.ParticipantCaptain" /><input type="hidden" name="ParticipantSource" value="@Model.ParticipantSource" /><input type="hidden" name="ParticipantTeamId" value="@Model.ParticipantTeamId" /><input type="hidden" name="sort" value="@Model.Sort" /><input type="hidden" name="direction" value="@Model.Direction" />
         <section class="event-overview-row admin-dialog-form-section" aria-labelledby="participant-owner-heading">
             <div class="admin-dialog-section-heading"><div><h4 id="participant-owner-heading">@T["Owner and identity"]</h4><p>@T["Link the signup to an existing website account when one is known."]</p></div></div>
@@ -82,6 +83,16 @@
                 </div>
             </section>
         }
-        <div class="admin-dialog-page-actions"><button class="btn admin-button-create" type="submit">+ @T["Create participant"]</button></div>
+        @if (Model.WomValidationConfirmationRequired)
+        {
+            <div class="event-confirmation-box" role="alertdialog" data-wom-validation-confirmation aria-labelledby="internal-participant-wom-confirmation">
+                <p><strong id="internal-participant-wom-confirmation">@T["Wise Old Man is unavailable. These accounts could not be verified: {0}. Create the participant with the details shown above anyway?", Model.WomValidationConfirmationNames]</strong></p>
+                <div class="event-confirmation-actions">
+                    <button class="admin-button-secondary" type="submit" asp-page-handler="CancelWomValidation" formnovalidate data-wom-validation-cancel>@T["Cancel"]</button>
+                    <button class="admin-button-secondary action-danger-outline" type="submit">@T["Create participant anyway"]</button>
+                </div>
+            </div>
+        }
+        <div class="admin-dialog-page-actions"><button class="btn admin-button-create" type="submit" data-wom-validation-normal-submit hidden="@(Model.WomValidationConfirmationRequired ? "hidden" : null)">+ @T["Create participant"]</button></div>
     </form>
 </div>

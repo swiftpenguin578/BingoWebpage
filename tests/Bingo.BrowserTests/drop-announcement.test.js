@@ -11,6 +11,12 @@ const drops = fs.readFileSync(path.join(root, "src/Bingo.Web/wwwroot/js/public-r
 const board = fs.readFileSync(path.join(root, "src/Bingo.Web/Pages/Events/Board.cshtml"), "utf8");
 const boardModel = fs.readFileSync(path.join(root, "src/Bingo.Web/Pages/Events/Board.cshtml.cs"), "utf8");
 
+assert.match(layout, /User\.Identity\?\.IsAuthenticated == true && accountId is not null/, "the public banner is available to authenticated Admins as well as participants");
+assert.doesNotMatch(layout, /!admin/, "the shared public banner no longer excludes Admin accounts");
+assert.match(script, /data-progress-event/);
+assert.match(script, /data-stats-event/);
+assert.match(script, /api\/drop-announcements\/current\?limit=100/, "pages without event context retain participant-scoped fallback");
+assert.match(script, /eventId && response\.status === 404/, "an exact-event denial clears a stale banner snapshot");
 assert.match(script, /oldId = current\(\)\?\.submissionId/);
 assert.match(script, /queue\.some\(item => !oldIds\.has\(item\.submissionId\)\)/, "bursts preserve the selected item while detecting later arrivals");
 assert.match(script, /dataset\.countdown = 'held'/, "focus and pointer interaction hold the local countdown");

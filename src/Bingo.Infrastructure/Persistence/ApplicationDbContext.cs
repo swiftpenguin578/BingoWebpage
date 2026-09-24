@@ -104,6 +104,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<BoardApprovalRequirementSnapshot> BoardApprovalRequirementSnapshots => Set<BoardApprovalRequirementSnapshot>();
     public DbSet<BoardApprovalRequirementBossSnapshot> BoardApprovalRequirementBossSnapshots => Set<BoardApprovalRequirementBossSnapshot>();
     public DbSet<BoardApprovalRequirementDropSnapshot> BoardApprovalRequirementDropSnapshots => Set<BoardApprovalRequirementDropSnapshot>();
+    public DbSet<TileCompletionFact> TileCompletionFacts => Set<TileCompletionFact>();
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<TeamImageAsset> TeamImageAssets => Set<TeamImageAsset>();
     public DbSet<TeamMembership> TeamMemberships => Set<TeamMembership>();
@@ -122,6 +123,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<EventCompetitionSynchronization> EventCompetitionSynchronizations => Set<EventCompetitionSynchronization>();
     public DbSet<EventCompetitionCharacterActivity> EventCompetitionCharacterActivities => Set<EventCompetitionCharacterActivity>();
     public DbSet<EventCompetitionCharacterMetricActivity> EventCompetitionCharacterMetricActivities => Set<EventCompetitionCharacterMetricActivity>();
+    public DbSet<EventCompetitionManagement> EventCompetitionManagements => Set<EventCompetitionManagement>();
+    public DbSet<EventCompetitionManagementOperation> EventCompetitionManagementOperations => Set<EventCompetitionManagementOperation>();
+    public DbSet<EventCompetitionUpdateAllSlot> EventCompetitionUpdateAllSlots => Set<EventCompetitionUpdateAllSlot>();
     public DbSet<EventLuckOutcomeBasis> EventLuckOutcomeBases => Set<EventLuckOutcomeBasis>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

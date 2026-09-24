@@ -348,22 +348,23 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     }
 
     private async Task<FullStatsFixture> FullStatsFixtureAsync(int rolls = 1, bool secondOutcome = false, int target = 10, int weight = 1,
-        int players = 1, bool extraRegular = false, string metric = "vorkath", int dimensions = 2)
+        int players = 1, bool extraRegular = false, string metric = "vorkath", int dimensions = 2, int actualStartedHoursAgo = 1, int eventDurationHours = 11, DateTimeOffset? clockNow = null)
     {
-        var clock = new TestClock(new DateTimeOffset(2026, 9, 15, 12, 0, 0, TimeSpan.Zero)); var now = clock.GetUtcNow();
+        var clock = new TestClock(clockNow ?? new DateTimeOffset(2026, 9, 15, 12, 0, 0, TimeSpan.Zero)); var now = clock.GetUtcNow();
         var admin = Account.CreateWebsite(Guid.NewGuid(), "StatsAdmin", "STATSADMIN", now); admin.SetGlobalRole(GlobalRole.SuperAdmin);
-        var ev = new BingoEvent(Guid.NewGuid(), "Synthetic Stats event", "stats-event", "", "UTC", now.AddHours(-3), now.AddHours(-2), now.AddHours(-1), now.AddHours(10), now.AddHours(10), 20, admin.Id, now);
-        ev.OpenSignups(now.AddHours(-3)); ev.CloseSignups(now.AddHours(-2)); ev.SetBoardPublication(true, now.AddHours(-2)); ev.MarkFirstPublic(now.AddHours(-3)); ev.StartEvent(now.AddHours(-1));
-        var team = new Team(Guid.NewGuid(), ev.Id, "Public team", "public-team", TeamFormationType.Drafted, null, true); team.Finalize(now.AddHours(-2));
-        var participants = Enumerable.Range(0, players).Select(i => new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, i + 1, now.AddHours(-3), SignupSource.Website)).ToArray();
+        var actualStart = now.AddHours(-actualStartedHoursAgo);
+        var ev = new BingoEvent(Guid.NewGuid(), "Synthetic Stats event", "stats-event", "", "UTC", actualStart.AddHours(-2), actualStart.AddHours(-1), actualStart, actualStart.AddHours(eventDurationHours), actualStart.AddHours(eventDurationHours), 20, admin.Id, now);
+        ev.OpenSignups(actualStart.AddHours(-2)); ev.CloseSignups(actualStart.AddHours(-1)); ev.SetBoardPublication(true, actualStart.AddHours(-1)); ev.MarkFirstPublic(actualStart.AddHours(-2)); ev.StartEvent(actualStart);
+        var team = new Team(Guid.NewGuid(), ev.Id, "Public team", "public-team", TeamFormationType.Drafted, null, true); team.Finalize(actualStart.AddHours(-1));
+        var participants = Enumerable.Range(0, players).Select(i => new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, i + 1, actualStart.AddHours(-2), SignupSource.Website)).ToArray();
         var chars = participants.Select((_, i) => new OsrsCharacter(Guid.NewGuid(), "Stats Player " + i, "STATS PLAYER " + i, now)).ToArray();
         var form = new SignupForm(Guid.NewGuid(), ev.Id, now.AddHours(-3));
         var primary = new SignupQuestion(Guid.NewGuid(), form.Id, ev.Id, "primary", "Primary account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
-        var assignments = participants.Select((p, i) => new EventParticipantCharacter(Guid.NewGuid(), ev.Id, p.Id, chars[i].Id, 0, now.AddHours(-2), null, primary.Id, EventCharacterRole.Playing, 0, EhbSource.Manual, null)).ToList();
+        var assignments = participants.Select((p, i) => new EventParticipantCharacter(Guid.NewGuid(), ev.Id, p.Id, chars[i].Id, 0, actualStart.AddHours(-1), null, primary.Id, EventCharacterRole.Playing, 0, EhbSource.Manual, null)).ToList();
         var regular = new OsrsCharacter(Guid.NewGuid(), "Regular two", "REGULAR TWO", now);
-        if (extraRegular) assignments.Add(new(Guid.NewGuid(), ev.Id, participants[0].Id, regular.Id, 1, now.AddHours(-2), null, null, EventCharacterRole.Playing, 0, EhbSource.Manual, null));
+        if (extraRegular) assignments.Add(new(Guid.NewGuid(), ev.Id, participants[0].Id, regular.Id, 1, actualStart.AddHours(-1), null, null, EventCharacterRole.Playing, 0, EhbSource.Manual, null));
         var alt = new OsrsCharacter(Guid.NewGuid(), "Informational", "INFORMATIONAL", now);
-        assignments.Add(new(Guid.NewGuid(), ev.Id, participants[0].Id, alt.Id, 2, now.AddHours(-2), null, null, EventCharacterRole.Informational, null, null, null));
+        assignments.Add(new(Guid.NewGuid(), ev.Id, participants[0].Id, alt.Id, 2, actualStart.AddHours(-1), null, null, EventCharacterRole.Informational, null, null, null));
         var boss = new BossActivity(Guid.NewGuid(), "Vorkath fixture", "stats-source", "Boss", 10, now); boss.ConfigureApi(metric); boss.RecordMapping(ApiMappingStatus.Verified, now);
         var items = Enumerable.Range(0, secondOutcome ? 2 : 1).Select(i => { var item = new CatalogueItem(Guid.NewGuid(), "Exact variant " + i, "EXACT VARIANT " + i); item.SetPrice(100 + i * 100, CataloguePriceSource.Manual, now); item.Update(item.Name, item.NormalizedName, null, null, "https://oldschool.runescape.wiki/images/Dragon_warhammer.png"); return item; }).ToArray();
         var sources = items.Select((item, i) => new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, i == 0 ? "1/100" : "1/200", i == 0 ? .01m : .005m, 1, now)).ToArray();

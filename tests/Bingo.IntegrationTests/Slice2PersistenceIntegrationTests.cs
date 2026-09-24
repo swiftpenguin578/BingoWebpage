@@ -155,7 +155,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         var second = Website($"my-accounts-second-{Guid.NewGuid():N}", now);
         db.AddRange(first, second);
         await db.SaveChangesAsync();
-        var service = new MyAccountsService(db, TimeProvider.System);
+        var service = new MyAccountsService(db, TimeProvider.System, new SuccessfulWiseOldManAccountValidation());
 
         await service.AddOrReactivateAsync(first.Id, "Shared Account", "Main", 11m, CancellationToken.None);
         var original = await db.AccountOsrsCharacters.AsNoTracking().SingleAsync(item => item.AccountId == first.Id);
@@ -203,7 +203,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         var other = Website($"my-accounts-other-{Guid.NewGuid():N}", now);
         db.AddRange(owner, other);
         await db.SaveChangesAsync();
-        var service = new MyAccountsService(db, TimeProvider.System);
+        var service = new MyAccountsService(db, TimeProvider.System, new SuccessfulWiseOldManAccountValidation());
         await service.AddOrReactivateAsync(owner.Id, "Scoped Character", "Owner", 10m, CancellationToken.None);
         var link = await db.AccountOsrsCharacters.SingleAsync(item => item.AccountId == owner.Id);
 
@@ -231,7 +231,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         db.AddRange(owner, oldCharacter, link, open, closed, openParticipant, closedParticipant, openAssignment, closedAssignment);
         await db.SaveChangesAsync();
 
-        await new MyAccountsService(db, TimeProvider.System).UpdateAsync(owner.Id, link.Id, link.Version, "Misspelled", link.PersonalLabel, 77m, CancellationToken.None);
+        await new MyAccountsService(db, TimeProvider.System, new SuccessfulWiseOldManAccountValidation()).UpdateAsync(owner.Id, link.Id, link.Version, "Misspelled", link.PersonalLabel, 77m, CancellationToken.None);
 
         var corrected = await db.OsrsCharacters.SingleAsync(item => item.NormalizedName == "MISSPELLED");
         var persistedLink = await db.AccountOsrsCharacters.SingleAsync(item => item.Id == link.Id);
@@ -389,7 +389,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
             new SignupAnswer(Guid.NewGuid(), ownerParticipant.Id, primary.Id, primary.Label, string.Empty, oldCharacter.Id));
         await db.SaveChangesAsync();
 
-        await Assert.ThrowsAsync<MyAccountsCorrectionConflictException>(() => new MyAccountsService(db, TimeProvider.System).CorrectAsync(owner.Id, link.Id, "Typo", CancellationToken.None));
+        await Assert.ThrowsAsync<MyAccountsCorrectionConflictException>(() => new MyAccountsService(db, TimeProvider.System, new SuccessfulWiseOldManAccountValidation()).CorrectAsync(owner.Id, link.Id, "Typo", CancellationToken.None));
 
         Assert.Equal(oldCharacter.Id, await db.AccountOsrsCharacters.Where(item => item.Id == link.Id).Select(item => item.OsrsCharacterId).SingleAsync());
         Assert.Equal(oldCharacter.Id, await db.EventParticipantCharacters.Where(item => item.Id == oldAssignment.Id).Select(item => item.OsrsCharacterId).SingleAsync());
@@ -668,15 +668,44 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         var passwords = new PasswordHasher<Account>();
 
         await Task.WhenAll(
-            new AccountIdentityService(first, passwords, TimeProvider.System)
+            new AccountIdentityService(first, passwords, TimeProvider.System, new SuccessfulWiseOldManAccountValidation())
                 .CompleteOnboardingAsync("concurrent-discord-one", "One", "concurrent-user-one", "Concurrent Shared", "long-password-one", CancellationToken.None),
-            new AccountIdentityService(second, passwords, TimeProvider.System)
+            new AccountIdentityService(second, passwords, TimeProvider.System, new SuccessfulWiseOldManAccountValidation())
                 .CompleteOnboardingAsync("concurrent-discord-two", "Two", "concurrent-user-two", "Concurrent Shared", "long-password-two", CancellationToken.None));
 
         await using var verification = new ApplicationDbContext(options);
         var character = await verification.OsrsCharacters.SingleAsync(item => item.NormalizedName == "CONCURRENT SHARED");
         Assert.Equal(2, await verification.Accounts.CountAsync(item => item.NormalizedLoginName == "CONCURRENT-USER-ONE" || item.NormalizedLoginName == "CONCURRENT-USER-TWO"));
         Assert.Equal(2, await verification.AccountOsrsCharacters.CountAsync(item => item.OsrsCharacterId == character.Id));
+    }
+
+    [Fact]
+    public async Task MyAccountsAddFailsClosedWithoutAnAccountValidator()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var db = new ApplicationDbContext(options);
+        var owner = Website($"my-accounts-no-validator-{Guid.NewGuid():N}", now);
+        db.Accounts.Add(owner);
+        await db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new MyAccountsService(db, TimeProvider.System).AddOrReactivateAsync(owner.Id, "Unverified Account", null, null, CancellationToken.None));
+
+        Assert.Empty(await db.AccountOsrsCharacters.AsNoTracking().Where(item => item.AccountId == owner.Id).ToListAsync());
+        Assert.False(await db.OsrsCharacters.AsNoTracking().AnyAsync(item => item.NormalizedName == "UNVERIFIED ACCOUNT"));
+    }
+
+    [Fact]
+    public async Task OnboardingFailsClosedWithoutAnAccountValidator()
+    {
+        await using var db = new ApplicationDbContext(options);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new AccountIdentityService(db, new PasswordHasher<Account>(), TimeProvider.System)
+                .CompleteOnboardingAsync("no-validator-discord", "No validator", "no-validator-user", "Unverified Account", "long-password-one", CancellationToken.None));
+
+        Assert.False(await db.Accounts.AsNoTracking().AnyAsync(item => item.DiscordUserId == "no-validator-discord"));
+        Assert.False(await db.OsrsCharacters.AsNoTracking().AnyAsync(item => item.NormalizedName == "UNVERIFIED ACCOUNT"));
     }
 
     [Fact]

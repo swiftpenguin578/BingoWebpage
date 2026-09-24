@@ -32,12 +32,12 @@ public static class DropAnnouncementEndpoints
         return Results.Ok(await announcements.GetNewSubmissionIdsAsync(accountId, eventId, ids, cancellationToken));
     }
 
-    private static async Task<IResult> GetRecentDropsAsync(string slug, IPublicBoardService boards, int? limit, string? dropSearch, string? dropTeam, string? loadedSubmissionIds, CancellationToken cancellationToken)
+    private static async Task<IResult> GetRecentDropsAsync(string slug, IPublicBoardService boards, int? limit, int? offset, string? dropSearch, string? dropTeam, string? loadedSubmissionIds, CancellationToken cancellationToken)
     {
         var ids = loadedSubmissionIds?.Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(value => Guid.TryParse(value, out var id) ? id : Guid.Empty)
             .Where(value => value != Guid.Empty).Distinct().Take(100).ToArray();
-        var feed = await boards.GetRecentDropsAsync(slug, limit ?? 25, dropSearch, dropTeam, ids, cancellationToken);
+        var feed = await boards.GetRecentDropsAsync(slug, limit ?? 25, dropSearch, dropTeam, ids, Math.Max(offset ?? 0, 0), cancellationToken);
         return feed is null ? Results.NotFound() : Results.Ok(feed);
     }
 

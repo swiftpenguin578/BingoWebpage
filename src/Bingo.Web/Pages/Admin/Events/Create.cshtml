@@ -50,7 +50,7 @@
                                 <label asp-for="Input.Name">@T["Event name"]</label>
                                 <span asp-validation-for="Input.Name" class="field-error event-create-inline-error"></span>
                             </div>
-                            <input asp-for="Input.Name" class="form-control" autocomplete="off" aria-describedby="Input_Name-error" data-val-required="Required" data-summary-source="name" />
+                            <input asp-for="Input.Name" class="form-control" maxlength="50" autocomplete="off" aria-describedby="Input_Name-error" data-val-required="Required" data-summary-source="name" />
                             <small>@T["The public link is generated from this name and can be adjusted before publication."]</small>
                         </div>
                         <div class="admin-field event-create-field">

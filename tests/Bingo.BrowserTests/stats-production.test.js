@@ -187,6 +187,30 @@ test('ambient app panel and Bootstrap toast defaults cannot alter approved layou
  assert.match(css,/\.stats-page \.toast:not\(\[hidden\]\) \{ display: block; \}/);
  const h=harness();h.api.setMode('players');h.api.pinPlayer(h.api.rankedPlayers()[0].id);assert.equal(h.document.querySelector('#toast').hidden,false);
 });
+test('Stats reuses the Board masthead inside its own full-width 1640px shell',()=>{
+ const view=fs.readFileSync(path.join(root,'Pages/Events/Stats.cshtml'),'utf8');
+ const css=fs.readFileSync(path.join(root,'wwwroot/css/stats-integration.css'),'utf8');
+ const base=fs.readFileSync(path.join(root,'wwwroot/css/stats-base.css'),'utf8');
+ const board=fs.readFileSync(path.join(root,'Pages/Events/Board.cshtml'),'utf8');
+ const masthead=fs.readFileSync(path.join(root,'Pages/Shared/_EventMasthead.cshtml'),'utf8');
+ const statsModel=fs.readFileSync(path.join(root,'Pages/Events/Stats.cshtml.cs'),'utf8');
+ assert.ok(view.includes('<partial name="_EventMasthead" model="Model.Masthead" />'));
+ assert.ok(board.includes('<partial name="_EventMasthead" model="Model.Masthead" />'));
+ assert.match(statsModel,/EventMastheadModel\.CreateAsync\(eventBoard,[\s\S]*activity\.GetAsync\(eventBoard\.EventId/);
+ assert.match(view,/public-countdown\.js/);
+ assert.match(view,/public-leaderboards\.js/);
+ assert.doesNotMatch(view,/public-board-masthead__fact|@T\["Event starts"\]|@T\["players"\]|@T\["All events"\]/);
+ assert.match(view,/public-event-shell public-ui-pass1 public-stats-page/);
+ for(const part of ['hero','identity','title','art','facts','fact','actions']) assert.ok(masthead.includes(`public-board-masthead__${part}`));
+ assert.doesNotMatch(view,/public-teams-directory/);
+ assert.match(css,/body\.public-stats-page\.public-event-shell\.public-ui-pass1 > \.container > main \{[^}]*width: 100%;[^}]*padding-inline: var\(--public-page-gutter\) !important;/s);
+ assert.match(css,/\.public-stats-masthead-shell \{[^}]*width: calc\(100% \+ 2 \* var\(--public-page-gutter\)\);[^}]*margin-inline: calc\(-1 \* var\(--public-page-gutter\)\);/s);
+ assert.match(css,/\.public-stats-masthead-content \{[^}]*box-sizing: border-box;[^}]*max-width: 1640px;[^}]*margin-inline: auto;[^}]*padding-inline: 3\.6%;/s);
+ assert.match(css,/@media \(max-width: 850px\) \{[^}]*\.public-stats-masthead-content \{ padding-inline: 5%;/s);
+ assert.match(base,/\.shell\{max-width:1640px;margin:auto;padding:0 3\.6%\}/);
+ assert.match(base,/@media\(max-width:850px\)[\s\S]*\.shell\{padding:0 5%\}/);
+ assert.doesNotMatch(css,/stats-masthead-inset|--public-page-wide/);
+});
 
 function movedPlayerFixture(){
  const p=fixture(),old=p.stats.teams[0].players[0],current=p.stats.teams[1].players[0];

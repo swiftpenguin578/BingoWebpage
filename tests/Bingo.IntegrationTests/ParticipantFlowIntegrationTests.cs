@@ -1,6 +1,8 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Signups;
 using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
@@ -42,6 +44,103 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
+
+    [Fact]
+    public async Task DirectInternalParticipantCreationFailsClosedWithoutAnAccountValidator()
+    {
+        var admin = Website($"validation-admin-{Guid.NewGuid():N}", GlobalRole.Admin);
+        var item = ClosedEvent(admin, $"validation-event-{Guid.NewGuid():N}");
+        var form = new SignupForm(Guid.NewGuid(), item.Id, now);
+        var question = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null,
+            SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(admin, item, form, question);
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var service = new SignupService(db, new SecretHasher(), new FixedClock(now));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAdminParticipantAsync(new(item.Id, null, admin.Id, admin.LoginName, null,
+                new Dictionary<Guid, AdminAccountAnswer> { [question.Id] = new("Unverified Internal", 1m) }, new Dictionary<Guid, string>())));
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Empty(await verify.EventParticipants.Where(x => x.EventId == item.Id).ToListAsync());
+        Assert.False(await verify.OsrsCharacters.AnyAsync(x => x.NormalizedName == "UNVERIFIED INTERNAL"));
+    }
+
+    [Fact]
+    public async Task AdminParticipantEditRendersAndBindsFreshOutageConfirmationToken()
+    {
+        var admin = Website($"edit-validation-admin-{Guid.NewGuid():N}", GlobalRole.Admin);
+        var item = ClosedEvent(admin, $"edit-validation-{Guid.NewGuid():N}");
+        var form = new SignupForm(Guid.NewGuid(), item.Id, now);
+        var question = new SignupQuestion(Guid.NewGuid(), form.Id, item.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null,
+            SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var participant = new EventParticipant(Guid.NewGuid(), item.Id, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated);
+        var existingCharacter = new OsrsCharacter(Guid.NewGuid(), "Existing Edit Account", "EXISTING EDIT ACCOUNT", now);
+        var existingAssignment = new EventParticipantCharacter(Guid.NewGuid(), item.Id, participant.Id, existingCharacter.Id, 0, now,
+            admin.Id, question.Id, EventCharacterRole.Playing, 1m, EhbSource.Manual, null);
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.AddRange(admin, item, form, question, participant, existingCharacter, existingAssignment);
+            await seed.SaveChangesAsync();
+        }
+
+        var validation = new ContextBoundEditConfirmation();
+        await using var factory = Factory(validation);
+        using var client = Client(factory);
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("da");
+        await LoginAsync(client, admin);
+        var route = $"/Admin/Events/Participant/{item.Id}/Participants/{participant.Id}";
+        var initialPage = await client.GetStringAsync(route);
+        var editVersion = await CurrentResponseVersionAsync(participant.Id);
+
+        async Task<(HttpStatusCode Status, string Html)> PostEditAsync(string token, string characterName)
+        {
+            using var response = await client.PostAsync(route, new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["__RequestVerificationToken"] = Token(initialPage),
+                ["Input.ExpectedResponseVersion"] = editVersion.ToString(CultureInfo.InvariantCulture),
+                ["Input.WomValidationConfirmationToken"] = token,
+                [$"Input.AccountAnswers[{question.Id}].CharacterName"] = characterName,
+                [$"Input.AccountAnswers[{question.Id}].Ehb"] = "5.5"
+            }));
+            return (response.StatusCode, WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync()));
+        }
+
+        var first = await PostEditAsync("", "First Outage Edit");
+        Assert.Equal(HttpStatusCode.OK, first.Status);
+        Assert.Equal("edit-confirmation-1", HiddenValue(first.Html, "Input.WomValidationConfirmationToken"));
+        Assert.Contains("Wise Old Man er ikke tilgængelig. Bekræft igen for at gemme disse ubekræftede konti, eller annullér for at lade holdlisten være uændret.", first.Html, StringComparison.Ordinal);
+        Assert.Contains("value=\"First Outage Edit\"", first.Html, StringComparison.Ordinal);
+        Assert.Contains("value=\"5.5\"", first.Html, StringComparison.Ordinal);
+
+        // Abandoning the pending edit by reopening the route performs no write and starts with no hidden confirmation token.
+        var cancelled = await client.GetStringAsync(route);
+        Assert.Equal(string.Empty, HiddenValue(WebUtility.HtmlDecode(cancelled), "Input.WomValidationConfirmationToken"));
+        Assert.Equal("Existing Edit Account", await CurrentParticipantCharacterAsync(participant.Id));
+
+        var changed = await PostEditAsync("edit-confirmation-1", "Changed Outage Edit");
+        Assert.Equal(HttpStatusCode.OK, changed.Status);
+        Assert.Equal("edit-confirmation-2", HiddenValue(changed.Html, "Input.WomValidationConfirmationToken"));
+        Assert.Contains("value=\"Changed Outage Edit\"", changed.Html, StringComparison.Ordinal);
+        Assert.Contains("value=\"5.5\"", changed.Html, StringComparison.Ordinal);
+
+        var accepted = await PostEditAsync("edit-confirmation-2", "Changed Outage Edit");
+        Assert.Equal(HttpStatusCode.Redirect, accepted.Status);
+        Assert.Equal("Changed Outage Edit", await CurrentParticipantCharacterAsync(participant.Id));
+        await using (var verify = new ApplicationDbContext(options))
+            Assert.Equal((decimal?)5.5m, await verify.EventParticipantCharacters.Where(value => value.EventParticipantId == participant.Id && value.ReleasedAt == null).Select(value => value.EhbSnapshot).SingleAsync());
+        Assert.Equal(3, validation.Requests.Count);
+        Assert.Equal("First Outage Edit", Assert.Single(validation.Requests[0].CharacterNames));
+        Assert.Equal("Changed Outage Edit", Assert.Single(validation.Requests[1].CharacterNames));
+        Assert.Equal("Changed Outage Edit", Assert.Single(validation.Requests[2].CharacterNames));
+        Assert.Equal("participant.edit", validation.Requests[^1].Action);
+        Assert.Equal(participant.Id, validation.Requests[^1].ParticipantId);
+    }
 
     [Theory]
     [InlineData("encoding", "en")]
@@ -110,7 +209,7 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         async Task<Guid> AddWaiterAsync(string name)
         {
             await using var db = new ApplicationDbContext(options);
-            var result = await new SignupService(db, new SecretHasher(), new FixedClock(now)).CreateAdminParticipantAsync(new(item.Id, null, admin.Id, admin.LoginName, null,
+            var result = await new SignupService(db, new SecretHasher(), new FixedClock(now), accountValidation: new SuccessfulWiseOldManAccountValidation()).CreateAdminParticipantAsync(new(item.Id, null, admin.Id, admin.LoginName, null,
                 new Dictionary<Guid, AdminAccountAnswer> { [question.Id] = new(name, 1m) }, new Dictionary<Guid, string>()));
             Assert.True(result.Succeeded, result.Error);
             return result.ParticipantId!.Value;
@@ -391,12 +490,17 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         return WebUtility.HtmlDecode(await destination.Content.ReadAsStringAsync());
     }
 
-    private WebApplicationFactory<Program> Factory() => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+    private WebApplicationFactory<Program> Factory(IWiseOldManAccountValidation? accountValidation = null) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()).ConfigureServices(services =>
         {
             services.RemoveAll<IHostedService>();
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(new FixedClock(now));
+            if (accountValidation is not null)
+            {
+                services.RemoveAll<IWiseOldManAccountValidation>();
+                services.AddSingleton(accountValidation);
+            }
             services.ConfigureAll<HttpClientFactoryOptions>(settings => settings.HttpMessageHandlerBuilderActions.Add(builder => builder.PrimaryHandler = new BlockExternalRequests()));
         }));
 
@@ -435,6 +539,25 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         Assert.NotEmpty(token);
         return WebUtility.HtmlDecode(token);
     }
+    private async Task<string> CurrentParticipantCharacterAsync(Guid participantId)
+    {
+        await using var db = new ApplicationDbContext(options);
+        return await (from assignment in db.EventParticipantCharacters
+                      join character in db.OsrsCharacters on assignment.OsrsCharacterId equals character.Id
+                      where assignment.EventParticipantId == participantId && assignment.ReleasedAt == null
+                      select character.DisplayName).SingleAsync();
+    }
+    private async Task<int> CurrentResponseVersionAsync(Guid participantId)
+    {
+        await using var db = new ApplicationDbContext(options);
+        return await db.EventParticipants.Where(participant => participant.Id == participantId).Select(participant => participant.ResponseVersion).SingleAsync();
+    }
+    private static string HiddenValue(string html, string name)
+    {
+        var match = Regex.Match(html, "<input\\b(?=[^>]*\\bname=\"" + Regex.Escape(name) + "\")(?=[^>]*\\bvalue=\"([^\"]*)\")[^>]*>");
+        Assert.True(match.Success, $"Could not find hidden input '{name}'.");
+        return WebUtility.HtmlDecode(match.Groups[1].Value);
+    }
     private sealed class RejectNotifications : SaveChangesInterceptor
     {
         public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
@@ -445,6 +568,29 @@ public sealed class ParticipantFlowIntegrationTests : IAsyncLifetime
         }
     }
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider { public override DateTimeOffset GetUtcNow() => now; }
+    private sealed class ContextBoundEditConfirmation : IWiseOldManAccountValidation
+    {
+        private readonly Dictionary<string, string> issued = new(StringComparer.Ordinal);
+        private int nextToken;
+        public List<WiseOldManAccountValidationRequest> Requests { get; } = [];
+        public Task<WiseOldManAccountValidationResult> ValidateAsync(WiseOldManAccountValidationRequest request, CancellationToken cancellationToken = default)
+        {
+            Requests.Add(request);
+            var binding = string.Join("|", request.ActorAccountId, request.Action, request.EventId, request.ParticipantId,
+                request.ExpectedVersion, string.Join(",", request.CharacterNames.Select(name => name.Trim().ToUpperInvariant()).Order(StringComparer.Ordinal)));
+            if (request.ConfirmationToken is { } token && issued.TryGetValue(token, out var expected) && expected == binding)
+            {
+                issued.Remove(token);
+                return Task.FromResult(new WiseOldManAccountValidationResult(WiseOldManAccountValidationOutcome.ConfirmedOperationalFailure, []));
+            }
+
+            var issuedToken = $"edit-confirmation-{++nextToken}";
+            issued[issuedToken] = binding;
+            var name = request.CharacterNames.FirstOrDefault() ?? "Edited account";
+            var issue = new WiseOldManAccountValidationIssue(name, name.Trim().ToUpperInvariant(), WiseOldManLookupStatus.Unavailable);
+            return Task.FromResult(new WiseOldManAccountValidationResult(WiseOldManAccountValidationOutcome.ConfirmationRequired, [issue], issuedToken));
+        }
+    }
     private sealed class BlockExternalRequests : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => throw new InvalidOperationException("External providers are disabled in participant-flow tests.");

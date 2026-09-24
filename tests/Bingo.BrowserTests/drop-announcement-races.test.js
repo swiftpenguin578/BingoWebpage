@@ -20,12 +20,19 @@ class Element {
   getBoundingClientRect() { return { height: 100 }; }
   contains() { return false; }
 }
-function setup({ initial = snapshot(), claim = async () => response({ claimed: true }) } = {}) {
+function setup({ initial = snapshot(), claim = async () => response({ claimed: true }), eventContext = null } = {}) {
   const root = new Element(); root.dataset.accountId = 'account'; root.parts = {};
   for (const name of ['main', 'nav', 'previous', 'next', 'position', 'link', 'count', 'expand', 'dismiss']) root.parts[`[data-drop-announcement-${name}]`] = new Element();
   root.parts['input[name="__RequestVerificationToken"]'] = { value: 'antiforgery' };
   const clear = new Element(); clear.dataset.dropEventId = 'event';
   const badge = new Element();
+  const progressMarker = new Element();
+  const statsMarker = new Element();
+  const setEventContext = context => {
+    progressMarker.dataset.progressEvent = context?.progressEvent;
+    statsMarker.dataset.statsEvent = context?.statsEvent;
+  };
+  setEventContext(eventContext);
   const nav = new Element(); nav.dataset.dropNavigationSlug = 'event'; nav.parts = { '[data-drop-navigation-new]': badge };
   const events = {};
   const timers = [];
@@ -40,7 +47,9 @@ function setup({ initial = snapshot(), claim = async () => response({ claimed: t
     matchMedia: () => ({ matches: true })
   };
   const document = {
-    querySelector: selector => selector === '[data-drop-announcement]' ? root : selector === '[data-drop-clear-all]' ? clear : null,
+    querySelector: selector => selector === '[data-drop-announcement]' ? root : selector === '[data-drop-clear-all]' ? clear
+      : selector === '[data-progress-event]' ? (progressMarker.dataset.progressEvent ? progressMarker : null)
+        : selector === '[data-stats-event]' ? (statsMarker.dataset.statsEvent ? statsMarker : null) : null,
     querySelectorAll: selector => selector === '[data-drop-navigation]' ? [nav] : [],
     createElement: () => new Element(), createTextNode: textContent => ({ textContent }), addEventListener() {}
   };
@@ -49,11 +58,30 @@ function setup({ initial = snapshot(), claim = async () => response({ claimed: t
     CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } },
     fetch: (url, options) => {
       requests.push({ url, options });
-      return url.includes('/current?') ? state.get() : url.endsWith('/claim') ? state.claim() : state.mutation(url, options);
+      return url.includes('/current?') || /\/api\/drop-announcements\/[^?]+\?limit=/.test(url)
+        ? state.get(url) : url.endsWith('/claim') ? state.claim() : state.mutation(url, options);
     }
   });
-  return { state, root, clear, badge, events, storage, requests, timers, refresh: () => events['bingo-progress-changed']() };
+  return { state, root, clear, badge, events, storage, requests, timers, setEventContext, refresh: () => events['bingo-progress-changed']() };
 }
+
+test('event pages target the viewed Board or Stats event and a 404 clears a stale snapshot', async () => {
+  const h = setup({ eventContext: { progressEvent: 'board-event' } }); await flush();
+  assert.ok(h.requests.some(request => request.url.includes('/api/drop-announcements/board-event?limit=100')));
+  assert.equal(h.root.dataset.visible, 'true');
+
+  h.setEventContext({ statsEvent: 'stats-event' });
+  h.state.get = async url => url.includes('/stats-event?') ? { ok: false, status: 404, json: async () => null } : response(snapshot());
+  await h.refresh(); await flush();
+  assert.ok(h.requests.some(request => request.url.includes('/api/drop-announcements/stats-event?limit=100')));
+  assert.equal(h.root.hidden, true, 'an exact-event 404 clears a banner from the previous viewed event');
+  assert.equal(h.badge.hidden, true);
+
+  h.setEventContext(null);
+  h.state.get = async () => response(null);
+  await h.refresh(); await flush();
+  assert.ok(h.requests.some(request => request.url.includes('/api/drop-announcements/current?limit=100')), 'pages without event context keep the participant-scoped fallback');
+});
 
 test('a delayed eligible GET cannot restore a queue or NEW badge after a newer finalized response', async () => {
   const h = setup(); await flush();

@@ -27,6 +27,7 @@
 
   function initialize(root) {
     initializeConfirmationFocus(root);
+    initializeWomValidationConfirmation(root);
     initializeOverviewLifecycleConfirmations(root);
     initializeCopyLinks(root);
     initializeDatePickers(root);
@@ -111,6 +112,21 @@
         if (type === "number" || type === "date") return Number(left) - Number(right);
         return left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
       }
+    });
+  }
+
+  function initializeWomValidationConfirmation(root) {
+    root.querySelectorAll("[data-wom-validation-confirmation]").forEach((confirmation) => {
+      if (confirmation.dataset.womValidationConfirmationReady === "true") return;
+      confirmation.dataset.womValidationConfirmationReady = "true";
+      const cancel = confirmation.querySelector("[data-wom-validation-cancel]");
+      if (!(cancel instanceof HTMLElement)) return;
+      confirmation.addEventListener("keydown", event => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
+        cancel.click();
+      });
     });
   }
 
@@ -252,6 +268,7 @@
     const bindEditor = () => {
       const currentEditor = content?.querySelector("[data-participant-edit-page]") || editor;
       initializeOwnerAccountPicker(currentEditor);
+      initializeWomValidationConfirmation(currentEditor);
       const title = currentEditor?.querySelector("[data-participant-edit-close]") ? "participant-edit-dialog-title" : null;
       if (title) dialog?.setAttribute("aria-labelledby", title);
       dialog?.setAttribute("aria-describedby", "participant-edit-dialog-description");
@@ -333,10 +350,18 @@
         if (!response.ok) throw new Error();
         const navigation = response.headers.get("X-Bingo-Post-Navigation");
         if (navigation) { window.location.assign(navigation); return; }
-        const parsed = new DOMParser().parseFromString(await response.text(), "text/html");
+        const html = await response.text();
+        const parsed = new DOMParser().parseFromString(html, "text/html");
+        const nextEditor = parsed.querySelector("[data-participant-edit-page]");
+        if (nextEditor?.querySelector("[data-wom-validation-confirmation]")) {
+          const scrollTop = content?.scrollTop;
+          setEditor(nextEditor);
+          if (content) content.scrollTop = scrollTop;
+          currentEditor()?.querySelector("[data-wom-validation-cancel]")?.focus({ preventScroll: true });
+          return;
+        }
         const errors = Array.from(parsed.querySelectorAll(".field-validation-error, .validation-summary-errors, .app-toast-error .app-toast-copy span, .app-toast-warning .app-toast-copy span")).map(error => error.textContent.trim()).filter(Boolean);
         if (errors.length) { guard.showFailure(errors.join(" ")); return; }
-        const nextEditor = parsed.querySelector("[data-participant-edit-page]");
         if (!(nextEditor instanceof HTMLElement)) {
           if (response.redirected && new URL(response.url).pathname !== currentUrl().pathname) { window.location.assign(response.url); return; }
           throw new Error();
@@ -761,6 +786,7 @@
       else dialog.removeAttribute("aria-describedby");
       currentEditor?.querySelector("[data-participant-add-close]")?.addEventListener("click", closeWithHistory);
       initializeOwnerAccountPicker(currentEditor);
+      initializeWomValidationConfirmation(currentEditor);
       guard.initialize();
       currentEditor.querySelectorAll("form").forEach(form => {
         form.addEventListener("submit", event => {
@@ -985,7 +1011,18 @@
           window.location.assign(destination.href);
           return;
         }
-        const parsed = new DOMParser().parseFromString(await response.text(), "text/html");
+        const html = await response.text();
+        const parsed = new DOMParser().parseFromString(html, "text/html");
+        if (parsed.querySelector("[data-wom-validation-confirmation]")) {
+          replaceEditor(html);
+          content.querySelector("[data-wom-validation-cancel]")?.focus({ preventScroll: true });
+          return;
+        }
+        if (parsed.querySelector("[data-wom-validation-cancelled]")) {
+          replaceEditor(html);
+          content.querySelector("[data-wom-validation-normal-submit]")?.focus({ preventScroll: true });
+          return;
+        }
         const notice = parsed.querySelector("#app-notice-region");
         const success = notice?.querySelector(".app-toast-success");
         if (!(success instanceof HTMLElement)) {

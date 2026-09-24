@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Text.Json;
 using Bingo.Application.Access;
 using Bingo.Application.Evidence;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;
 using Bingo.Infrastructure.Persistence;
@@ -56,6 +57,9 @@ public sealed class IdentityModel(ApplicationDbContext db, IEvidenceStorage stor
         }
         if (Input.Version != item.Version) { ModelState.AddModelError(string.Empty, Localize("This event changed while you were editing it. Review the latest values and try again.")); Populate(item, preserveInput: true); return Page(); }
         var validTimezone = TryTimezone(Input.Timezone, out _);
+        if (WiseOldManCompetitionRules.ProviderCharacterCount(Input.Name.Trim()) > WiseOldManCompetitionRules.MaximumCompetitionTitleLength
+            && !string.Equals(item.Name, Input.Name.Trim(), StringComparison.Ordinal))
+            ModelState.AddModelError("Input.Name", Localize("Event names must be 50 characters or fewer."));
         if (!validTimezone) ModelState.AddModelError("Input.Timezone", Localize("Choose a supported timezone."));
         var slug = EventSlugGenerator.Generate(string.IsNullOrWhiteSpace(Input.Slug) ? Input.Name : Input.Slug);
         if (!string.Equals(slug, Input.Slug?.Trim(), StringComparison.Ordinal)) ModelState.AddModelError("Input.Slug", Localize("Use lowercase letters, numbers, and hyphens for the event link."));

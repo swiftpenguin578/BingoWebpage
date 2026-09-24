@@ -131,8 +131,11 @@ if (builder.Environment.IsDevelopment())
 builder.Services.AddSingleton<WiseOldManRequestLimiter>();
 builder.Services.AddSingleton<WiseOldManClient>();
 builder.Services.AddSingleton<IWiseOldManPlayerLookup>(serviceProvider => serviceProvider.GetRequiredService<WiseOldManClient>());
+builder.Services.AddSingleton<IWiseOldManAccountValidation, WiseOldManAccountValidation>();
 builder.Services.AddSingleton<IWiseOldManCompetitionClient>(serviceProvider => serviceProvider.GetRequiredService<WiseOldManClient>());
 builder.Services.AddSingleton<IWiseOldManStatus>(serviceProvider => serviceProvider.GetRequiredService<WiseOldManClient>());
+builder.Services.AddSingleton<IWiseOldManCompetitionManagementClient, WiseOldManCompetitionManagementClient>();
+builder.Services.AddSingleton<ICompetitionCredentialProtector, DataProtectionCompetitionCredentialProtector>();
 builder.Services.AddHttpClient("OsrsWikiPrices", Bingo.Infrastructure.Catalogue.CatalogueApiClient.ConfigurePriceClient);
 builder.Services.AddSingleton<Bingo.Application.Catalogue.ICatalogueApiClient, Bingo.Infrastructure.Catalogue.CatalogueApiClient>();
 builder.Services.AddHttpClient("OsrsWiki", client =>
@@ -160,6 +163,7 @@ builder.Services.AddScoped<EventMutationCapabilityPageFilter>();
 builder.Services.AddSingleton<WorkerHeartbeatRegistry>();
 builder.Services.AddHostedService<EventLifecycleWorker>();
 builder.Services.AddHostedService<EventCompetitionSynchronizationWorker>();
+builder.Services.AddHostedService<EventCompetitionManagementWorker>();
 builder.Services.AddScoped<IAuthorizationHandler, AccountAuthorizationHandler>();
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

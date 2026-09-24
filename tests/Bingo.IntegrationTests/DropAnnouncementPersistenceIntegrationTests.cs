@@ -121,6 +121,106 @@ public sealed class DropAnnouncementPersistenceIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ActiveAdminsReadTheViewedEventWithoutSharingAcknowledgementsAcrossUsersOrEvents()
+    {
+        var firstEvent = await SeedAsync();
+        var secondEvent = await SeedAsync(playerName: $"Player-{Guid.NewGuid():N}");
+        var admin = Account.CreateWebsite(Guid.NewGuid(), $"admin-{Guid.NewGuid():N}", $"ADMIN-{Guid.NewGuid():N}", DateTimeOffset.UtcNow);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var superAdmin = Account.CreateWebsite(Guid.NewGuid(), $"owner-{Guid.NewGuid():N}", $"OWNER-{Guid.NewGuid():N}", DateTimeOffset.UtcNow);
+        superAdmin.SetGlobalRole(GlobalRole.SuperAdmin);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.AddRange(admin, superAdmin);
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var read = new ApplicationDbContext(options))
+        {
+            var service = new DropAnnouncementService(read, TimeProvider.System);
+            var adminFirstEvent = await service.GetAsync(admin.Id, firstEvent.EventId);
+            var adminSecondEvent = await service.GetAsync(admin.Id, secondEvent.EventId);
+            var ownerFirstEvent = await service.GetAsync(superAdmin.Id, firstEvent.EventId);
+            Assert.NotNull(adminFirstEvent);
+            Assert.NotNull(adminSecondEvent);
+            Assert.NotNull(ownerFirstEvent);
+            Assert.Contains(firstEvent.SubmissionId, adminFirstEvent.NewSubmissionIds);
+            Assert.Contains(secondEvent.SubmissionId, adminSecondEvent.NewSubmissionIds);
+            Assert.Contains(firstEvent.SubmissionId, ownerFirstEvent.NewSubmissionIds);
+            Assert.Null(await service.GetCurrentAsync(admin.Id));
+        }
+
+        await using (var claim = new ApplicationDbContext(options))
+            Assert.True(await new DropAnnouncementService(claim, TimeProvider.System).ClaimAutomaticExpansionAsync(admin.Id, firstEvent.EventId));
+        await using (var write = new ApplicationDbContext(options))
+            await new DropAnnouncementService(write, TimeProvider.System).ClearAllNewAsync(admin.Id, secondEvent.EventId);
+
+        await using (var read = new ApplicationDbContext(options))
+        {
+            var service = new DropAnnouncementService(read, TimeProvider.System);
+            var adminFirstEvent = await service.GetAsync(admin.Id, firstEvent.EventId);
+            var adminSecondEvent = await service.GetAsync(admin.Id, secondEvent.EventId);
+            var ownerFirstEvent = await service.GetAsync(superAdmin.Id, firstEvent.EventId);
+            Assert.NotNull(adminFirstEvent);
+            Assert.NotNull(adminSecondEvent);
+            Assert.NotNull(ownerFirstEvent);
+            Assert.Contains(adminFirstEvent.Queue, entry => entry.SubmissionId == firstEvent.SubmissionId);
+            Assert.Contains(firstEvent.SubmissionId, adminFirstEvent.NewSubmissionIds);
+            Assert.Empty(adminSecondEvent.Queue);
+            Assert.Empty(adminSecondEvent.NewSubmissionIds);
+            Assert.Contains(ownerFirstEvent.Queue, entry => entry.SubmissionId == firstEvent.SubmissionId);
+            Assert.Contains(firstEvent.SubmissionId, ownerFirstEvent.NewSubmissionIds);
+        }
+
+        await using (var acknowledgeBanner = new ApplicationDbContext(options))
+            await new DropAnnouncementService(acknowledgeBanner, TimeProvider.System).AcknowledgeBannerAsync(admin.Id, firstEvent.EventId, [firstEvent.SubmissionId]);
+        await using (var read = new ApplicationDbContext(options))
+        {
+            var adminFirstEvent = await new DropAnnouncementService(read, TimeProvider.System).GetAsync(admin.Id, firstEvent.EventId);
+            Assert.NotNull(adminFirstEvent);
+            Assert.Empty(adminFirstEvent.Queue);
+            Assert.Contains(firstEvent.SubmissionId, adminFirstEvent.NewSubmissionIds);
+        }
+
+        await using (var acknowledgeDrops = new ApplicationDbContext(options))
+            await new DropAnnouncementService(acknowledgeDrops, TimeProvider.System).AcknowledgeDropsAsync(admin.Id, firstEvent.EventId, [firstEvent.SubmissionId]);
+        await using (var read = new ApplicationDbContext(options))
+        {
+            var adminFirstEvent = await new DropAnnouncementService(read, TimeProvider.System).GetAsync(admin.Id, firstEvent.EventId);
+            var ownerFirstEvent = await new DropAnnouncementService(read, TimeProvider.System).GetAsync(superAdmin.Id, firstEvent.EventId);
+            Assert.NotNull(adminFirstEvent);
+            Assert.NotNull(ownerFirstEvent);
+            Assert.Empty(adminFirstEvent.Queue);
+            Assert.Empty(adminFirstEvent.NewSubmissionIds);
+            Assert.Contains(ownerFirstEvent.Queue, entry => entry.SubmissionId == firstEvent.SubmissionId);
+            Assert.Contains(firstEvent.SubmissionId, ownerFirstEvent.NewSubmissionIds);
+        }
+
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var persistedAdmin = await setup.Accounts.SingleAsync(account => account.Id == admin.Id);
+            persistedAdmin.SetGlobalRole(GlobalRole.User);
+            await setup.SaveChangesAsync();
+        }
+        await using (var revoked = new ApplicationDbContext(options))
+        {
+            var service = new DropAnnouncementService(revoked, TimeProvider.System);
+            Assert.Null(await service.GetAsync(admin.Id, secondEvent.EventId));
+            Assert.False(await service.ClaimAutomaticExpansionAsync(admin.Id, secondEvent.EventId));
+        }
+
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var persistedAdmin = await setup.Accounts.SingleAsync(account => account.Id == admin.Id);
+            persistedAdmin.SetGlobalRole(GlobalRole.Admin);
+            persistedAdmin.Disable(DateTimeOffset.UtcNow);
+            await setup.SaveChangesAsync();
+        }
+        await using var disabled = new ApplicationDbContext(options);
+        Assert.Null(await new DropAnnouncementService(disabled, TimeProvider.System).GetAsync(admin.Id, secondEvent.EventId));
+    }
+
+    [Fact]
     public async Task ExactAcknowledgementAndGenerationBoundaryKeepLaterApprovalsNew()
     {
         var seed = await SeedAsync();
@@ -318,6 +418,33 @@ public sealed class DropAnnouncementPersistenceIntegrationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Redirect, otherLogin.StatusCode);
         using var denied = await nonParticipant.GetAsync($"/api/drop-announcements/{seed.EventId}");
         Assert.Equal(HttpStatusCode.NotFound, denied.StatusCode);
+
+        var adminLoginName = $"admin-{Guid.NewGuid():N}";
+        var admin = Account.CreateWebsite(Guid.NewGuid(), adminLoginName, adminLoginName.ToUpperInvariant(), DateTimeOffset.UtcNow);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        admin.SetPasswordHash(new PasswordHasher<Account>().HashPassword(admin, "password"), false);
+        await using (var db = new ApplicationDbContext(options)) { db.Accounts.Add(admin); await db.SaveChangesAsync(); }
+        using var administrator = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var adminLoginPage = await administrator.GetStringAsync("/Account/Login");
+        using var adminLogin = await administrator.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = admin.LoginName,
+            ["Input.Password"] = "password",
+            ["__RequestVerificationToken"] = AntiforgeryToken(adminLoginPage)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, adminLogin.StatusCode);
+        using var participantFallback = await administrator.GetAsync("/api/drop-announcements/current");
+        Assert.Equal(HttpStatusCode.NoContent, participantFallback.StatusCode);
+        using var viewedEvent = await administrator.GetAsync($"/api/drop-announcements/{seed.EventId}");
+        Assert.Equal(HttpStatusCode.OK, viewedEvent.StatusCode);
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            (await setup.Teams.SingleAsync(team => team.Id == seed.TeamId)).Finalize(DateTimeOffset.UtcNow);
+            await setup.SaveChangesAsync();
+        }
+        var boardPage = await administrator.GetStringAsync($"/Events/{seed.EventSlug}/Board");
+        Assert.Contains("data-progress-event=\"" + seed.EventId + "\"", boardPage);
+        Assert.Contains("data-drop-announcement", boardPage);
     }
 
     [Fact]
@@ -345,7 +472,7 @@ public sealed class DropAnnouncementPersistenceIntegrationTests : IAsyncLifetime
         Assert.Equal(original, Assert.Single(after!.Queue));
     }
 
-    private async Task<Seed> SeedAsync(bool catalogueDrop = false)
+    private async Task<Seed> SeedAsync(bool catalogueDrop = false, string? playerName = null)
     {
         var now = DateTimeOffset.UtcNow.AddMinutes(-5);
         var loginName = $"drop-{Guid.NewGuid():N}";
@@ -366,7 +493,8 @@ public sealed class DropAnnouncementPersistenceIntegrationTests : IAsyncLifetime
         var participant = new EventParticipant(Guid.NewGuid(), eventItem.Id, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated);
         participant.AssignOwner(account);
         var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, null);
-        var character = new OsrsCharacter(Guid.NewGuid(), "Player", "PLAYER", now);
+        var characterName = string.IsNullOrWhiteSpace(playerName) ? "Player" : playerName;
+        var character = new OsrsCharacter(Guid.NewGuid(), characterName, characterName.ToUpperInvariant(), now);
         var submission = new Submission(Guid.NewGuid(), eventItem.Id, team.Id, tile.Id, requirement.Id, drop?.Id, participant.Id, character.Id, character.DisplayName, account.Id, 1, now, null, null);
         submission.Approve(1, now, eventItem.AnnouncementGeneration, false, eventItem.ReserveAnnouncementOrdinal());
         var contribution = new SubmissionContribution(Guid.NewGuid(), submission.Id, team.Id, requirement.Id, drop?.Id, participant.Id, 1, now);

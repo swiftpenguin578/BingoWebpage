@@ -339,7 +339,7 @@ public sealed class EventLifecycleService(
     {
         var synchronization = await db.EventCompetitionSynchronizations.SingleOrDefaultAsync(x => x.EventId == eventId, ct);
         if (synchronization is { LastAttemptAt: null, LastSuccessfulAt: null, CompetitionId: not null })
-            synchronization.MakeNormalRefreshDue(liveAt.AddHours(2));
+            synchronization.MakeNormalRefreshDue(liveAt.AddHours(1));
     }
 
     private async Task<BingoEvent> EventAsync(Guid eventId, long version, CancellationToken ct)

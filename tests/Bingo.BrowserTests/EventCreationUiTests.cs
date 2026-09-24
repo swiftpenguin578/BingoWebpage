@@ -5,11 +5,12 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Bingo.BrowserTests;
 
-public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(BrowserTestGroup.Name)]
+public sealed class EventCreationUiTests
 {
     private readonly HttpClient client;
 
-    public EventCreationUiTests(WebApplicationFactory<Program> factory)
+    public EventCreationUiTests(BrowserTestApplicationFactory factory)
     {
         client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
     }
@@ -372,7 +373,9 @@ public sealed class EventCreationUiTests : IClassFixture<WebApplicationFactory<P
         Assert.Contains("max-height: min(38rem, calc(100dvh - 7rem))", siteCss);
         Assert.Contains("width: min(41rem, calc(100vw - 3rem))", siteCss);
         Assert.Contains("participant-account-controls { display: grid;", siteCss);
-        Assert.Contains("class=\"btn admin-button-create\" type=\"submit\">+ @T[\"Create participant\"]", participantForm);
+        Assert.Contains("class=\"btn admin-button-create\" type=\"submit\" data-wom-validation-normal-submit", participantForm);
+        Assert.Contains("hidden=\"@(Model.WomValidationConfirmationRequired ? \"hidden\" : null)\"", participantForm);
+        Assert.Contains(">+ @T[\"Create participant\"]", participantForm);
         Assert.Contains(".admin-shell-body .admin-button-create", siteCss);
         Assert.DoesNotContain("participant-add-dialog-page .admin-dialog-page-actions .admin-button-primary", siteCss);
         Assert.Contains("font-family: inherit; font-size: 0.875rem; font-weight: 600", siteCss);

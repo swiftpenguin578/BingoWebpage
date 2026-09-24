@@ -35,6 +35,7 @@ public sealed class ParticipantModel(
     [BindProperty, StringLength(4000)] public string? PrivateWithdrawalNote { get; set; }
     [BindProperty] public long? ExpectedMembershipVersion { get; set; }
     [BindProperty] public Guid? ReplacementWaitingParticipantId { get; set; }
+    [BindProperty] public string? WomValidationConfirmationToken { get; set; }
     [BindProperty] public InternalReplacementInput InternalReplacement { get; set; } = new();
     [BindProperty] public bool Overlay { get; set; }
     public bool IsOverlay => Overlay || string.Equals(Request.Query["overlay"], "1", StringComparison.Ordinal);
@@ -49,6 +50,11 @@ public sealed class ParticipantModel(
     [BindProperty] public Guid? VacancyMembershipId { get; set; }
     [BindProperty] public long? VacancyMembershipVersion { get; set; }
     public bool CanAdminRestore { get; private set; }
+    public bool WomValidationConfirmationRequired { get; private set; }
+    public string WomValidationConfirmationNames => string.Join(", ", InternalReplacement.AccountAnswers.Values
+        .Where(answer => !string.IsNullOrWhiteSpace(answer.CharacterName))
+        .Select(answer => answer.CharacterName!.Trim())
+        .DistinctBy(name => name.ToUpperInvariant(), StringComparer.Ordinal));
     public Guid EventId { get; private set; }
     public Guid RouteParticipantId { get; private set; }
     public PaymentStatus Payment { get; private set; }
@@ -74,8 +80,26 @@ public sealed class ParticipantModel(
     {
         Overlay = ResolveSubmittedOverlay(overlay);
         var actorId = User.GetAccountId(); if (actorId is null) return Forbid();
-        var result = signupService is null ? new AdminParticipantResult(false, "Participant correction is not available.") : await signupService.CorrectAdminParticipantAsync(new AdminParticipantChangeRequest(id, participantId, actorId.Value, User.Identity?.Name ?? "Admin", null, Input.AccountAnswers.ToDictionary(x => x.Key, x => new AdminAccountAnswer(x.Value.CharacterName, x.Value.Ehb)), Input.CustomAnswers, Input.ExpectedResponseVersion), ct);
-        if (!result.Succeeded) { ModelState.AddModelError(string.Empty, IsResponseConflict(result.Error) ? (text?[Localize("Your signup changed while you were editing it. Please reload and try again.")].Value ?? Localize("Your signup changed while you were editing it. Please reload and try again.")) : result.Error ?? Localize("Participant details could not be saved.")); if (!await LoadAsync(id, participantId, false, ct)) return NotFound(); return Page(); }
+        var result = signupService is null ? new AdminParticipantResult(false, "Participant correction is not available.") : await signupService.CorrectAdminParticipantAsync(new AdminParticipantChangeRequest(id, participantId, actorId.Value, User.Identity?.Name ?? "Admin", null, Input.AccountAnswers.ToDictionary(x => x.Key, x => new AdminAccountAnswer(x.Value.CharacterName, PostedEhb(x.Key, x.Value.Ehb))), Input.CustomAnswers, Input.ExpectedResponseVersion, Input.WomValidationConfirmationToken), ct);
+        if (!result.Succeeded)
+        {
+            var confirmationToken = result.WomValidationConfirmationToken;
+            Input.WomValidationConfirmationToken = confirmationToken ?? Input.WomValidationConfirmationToken;
+            if (confirmationToken is not null)
+            {
+                ModelState.Remove("Input.WomValidationConfirmationToken");
+            }
+            ModelState.AddModelError(string.Empty, IsResponseConflict(result.Error)
+                ? Localize("Your signup changed while you were editing it. Please reload and try again.")
+                : Localize(result.Error ?? "Participant details could not be saved."));
+            if (!await LoadAsync(id, participantId, false, ct)) return NotFound();
+            if (confirmationToken is not null)
+            {
+                Input.WomValidationConfirmationToken = confirmationToken;
+                ModelState.Remove("Input.WomValidationConfirmationToken");
+            }
+            return Page();
+        }
         SetStatus(Localize("Participant details saved."), UiMessageType.Success);
         return RedirectToParticipant(id, participantId);
     }
@@ -144,13 +168,45 @@ public sealed class ParticipantModel(
         }
         var internalRequest = ReplacementWaitingParticipantId is null
             ? new AdminParticipantChangeRequest(id, null, actorId.Value, User.Identity?.Name ?? "Admin", ownerId,
-                InternalReplacement.AccountAnswers.ToDictionary(x => x.Key, x => new AdminAccountAnswer(x.Value.CharacterName, x.Value.Ehb)), InternalReplacement.Answers)
+                InternalReplacement.AccountAnswers.ToDictionary(x => x.Key, x => new AdminAccountAnswer(x.Value.CharacterName, x.Value.Ehb)), InternalReplacement.Answers, null, InternalReplacement.WomValidationConfirmationToken)
             : null;
         var result = signupService is null
             ? new LiveParticipantResult(false, "Live participant replacement is not available.")
-            : await signupService.ReplaceVacancyAsync(new LiveReplacementRequest(id, VacancyMembershipId.Value, actorId.Value, User.Identity?.Name ?? "Admin", ReplacementWaitingParticipantId, internalRequest, VacancyMembershipVersion), ct);
+            : await signupService.ReplaceVacancyAsync(new LiveReplacementRequest(id, VacancyMembershipId.Value, actorId.Value, User.Identity?.Name ?? "Admin", ReplacementWaitingParticipantId, internalRequest, VacancyMembershipVersion, WomValidationConfirmationToken), ct);
+        if (internalRequest is not null && result.WomValidationConfirmationToken is { } confirmationToken)
+        {
+            if (!await LoadAsync(id, participantId, false, ct)) return NotFound();
+            WomValidationConfirmationToken = confirmationToken;
+            InternalReplacement.WomValidationConfirmationToken = confirmationToken;
+            ModelState.Remove(nameof(WomValidationConfirmationToken));
+            ModelState.Remove("InternalReplacement.WomValidationConfirmationToken");
+            WomValidationConfirmationRequired = true;
+            return Page();
+        }
+        WomValidationConfirmationToken = result.WomValidationConfirmationToken ?? WomValidationConfirmationToken;
+        if (result.WomValidationConfirmationToken is not null && internalRequest is not null)
+            InternalReplacement.WomValidationConfirmationToken = result.WomValidationConfirmationToken;
+        if (result.WomValidationConfirmationToken is not null)
+            TempData["WomValidationConfirmationToken"] = result.WomValidationConfirmationToken;
         SetStatus(result.Succeeded ? Localize("Replacement saved.") : Localize(result.Error ?? "The vacancy could not be filled."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToParticipant(id, participantId);
+    }
+
+    public async Task<IActionResult> OnPostCancelWomValidationAsync(Guid id, Guid participantId, [FromForm] bool overlay, CancellationToken ct)
+    {
+        Overlay = ResolveSubmittedOverlay(overlay);
+        WomValidationConfirmationToken = null;
+        InternalReplacement.WomValidationConfirmationToken = null;
+        ModelState.Remove(nameof(WomValidationConfirmationToken));
+        ModelState.Remove("InternalReplacement.WomValidationConfirmationToken");
+        TempData.Remove("WomValidationConfirmationToken");
+        if (!await LoadAsync(id, participantId, false, ct)) return NotFound();
+        WomValidationConfirmationToken = null;
+        InternalReplacement.WomValidationConfirmationToken = null;
+        ModelState.Remove(nameof(WomValidationConfirmationToken));
+        ModelState.Remove("InternalReplacement.WomValidationConfirmationToken");
+        WomValidationConfirmationRequired = false;
+        return Page();
     }
 
     public async Task<IActionResult> OnPostCompletePromotionFollowUpAsync(Guid id, Guid participantId, Guid followUpId, [FromForm] bool overlay, CancellationToken ct)
@@ -167,8 +223,13 @@ public sealed class ParticipantModel(
         Overlay = ResolveSubmittedOverlay(overlay);
         if (!ConfirmLifecycleAction) { SetStatus(Localize("Confirm the restoration before continuing."), UiMessageType.Error); return RedirectToParticipant(id, participantId); }
         var accountId = User.GetAccountId(); if (accountId is null) return Forbid();
-        var result = signupService is null ? new ParticipantLifecycleResult(false, "Participant lifecycle is not available.") : await signupService.RestoreAsync(id, participantId, accountId.Value, User.Identity?.Name ?? "Admin", ct);
-        SetStatus(result.Succeeded ? Localize("Participant restored.") : result.Error ?? Localize("Participant could not be restored."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        var result = signupService is null ? new ParticipantLifecycleResult(false, "Participant lifecycle is not available.") : await signupService.RestoreAsync(id, participantId, accountId.Value, User.Identity?.Name ?? "Admin", WomValidationConfirmationToken, ct);
+        if (result.WomValidationConfirmationToken is not null)
+        {
+            WomValidationConfirmationToken = result.WomValidationConfirmationToken;
+            TempData["WomValidationConfirmationToken"] = result.WomValidationConfirmationToken;
+        }
+        SetStatus(result.Succeeded ? Localize("Participant restored.") : Localize(result.Error ?? "Participant could not be restored."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return RedirectToParticipant(id, participantId);
     }
 
@@ -183,6 +244,11 @@ public sealed class ParticipantModel(
             await dbContext.DraftPublicationCycles.AnyAsync(x => x.DraftSessionId == draft!.Id && x.SupersededAt == null, ct);
 
         EventId = id;
+        if (TempData.Peek("WomValidationConfirmationToken") is string pendingValidation)
+        {
+            WomValidationConfirmationToken = pendingValidation;
+            InternalReplacement.WomValidationConfirmationToken = pendingValidation;
+        }
         RouteParticipantId = participantId;
         Payment = participant.PaymentStatus;
         EventName = bingoEvent.Name;
@@ -303,6 +369,15 @@ public sealed class ParticipantModel(
         return true;
     }
 
+    private decimal? PostedEhb(Guid questionId, decimal? boundValue)
+    {
+        if (ModelState.TryGetValue($"Input.AccountAnswers[{questionId}].Ehb", out var state) &&
+            state.AttemptedValue is { } attempted && attempted.Contains('.', StringComparison.Ordinal) &&
+            decimal.TryParse(attempted, NumberStyles.Number, CultureInfo.InvariantCulture, out var invariantValue))
+            return invariantValue;
+        return boundValue;
+    }
+
     private string Localize(string key, params object[] arguments) => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
     private void SetStatus(string message, UiMessageType type)
     {
@@ -333,6 +408,7 @@ public sealed class ParticipantModel(
         public Dictionary<Guid, AccountInput> AccountAnswers { get; set; } = [];
         public Dictionary<Guid, string> CustomAnswers { get; set; } = [];
         public int? ExpectedResponseVersion { get; set; }
+        public string? WomValidationConfirmationToken { get; set; }
     }
     public sealed class AccountInput { [StringLength(100)] public string? CharacterName { get; set; } [Range(0, 100000)] public decimal? Ehb { get; set; } }
 
@@ -341,6 +417,7 @@ public sealed class ParticipantModel(
         [StringLength(100)] public string? OwnerUsername { get; set; }
         public Dictionary<Guid, AccountInput> AccountAnswers { get; set; } = [];
         public Dictionary<Guid, string> Answers { get; set; } = [];
+        public string? WomValidationConfirmationToken { get; set; }
     }
 
     public sealed record ReplacementCandidate(Guid Id, string Name, long Sequence);

@@ -12,7 +12,9 @@ using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Admin.Events;
@@ -27,6 +29,12 @@ public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService si
     public IReadOnlyList<ParticipantModel.QuestionView> ActiveSignupQuestions { get; private set; } = [];
     public int TotalParticipantCount { get; private set; }
     public int WithdrawnParticipantCount { get; private set; }
+    public bool WomValidationConfirmationRequired { get; private set; }
+    public bool WomValidationConfirmationCancelled { get; private set; }
+    public string WomValidationConfirmationNames => string.Join(", ", InternalParticipant.AccountAnswers.Values
+        .Where(answer => !string.IsNullOrWhiteSpace(answer.CharacterName))
+        .Select(answer => answer.CharacterName!.Trim())
+        .DistinctBy(name => name.ToUpperInvariant(), StringComparer.Ordinal));
 
     [BindProperty] public InternalParticipantInput InternalParticipant { get; set; } = new();
     [BindProperty] public SignupAdministrationInput SignupAdministration { get; set; } = new();
@@ -39,7 +47,8 @@ public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService si
     [BindProperty(SupportsGet = true)] public Guid? ParticipantTeamId { get; set; }
     [BindProperty(SupportsGet = true)] public string? Sort { get; set; }
     [BindProperty(SupportsGet = true)] public string? Direction { get; set; }
-    public bool AddParticipant => Request.Query.TryGetValue("addParticipant", out var value) && (value == "1" || bool.TryParse(value, out var enabled) && enabled);
+    public bool AddParticipant => WomValidationConfirmationRequired || WomValidationConfirmationCancelled ||
+        Request.Query.TryGetValue("addParticipant", out var value) && (value == "1" || bool.TryParse(value, out var enabled) && enabled);
 
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
         => await LoadAsync(id, ct) ? Page() : NotFound();
@@ -74,6 +83,19 @@ public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService si
         return FilteredRedirect(id);
     }
 
+    public async Task<IActionResult> OnPostCancelWomValidationAsync(Guid id, CancellationToken ct)
+    {
+        InternalParticipant.WomValidationConfirmationToken = null;
+        ModelState.Remove("InternalParticipant.WomValidationConfirmationToken");
+        TryGetTempData()?.Remove("WomValidationConfirmationToken");
+        if (!await LoadAsync(id, ct)) return NotFound();
+        InternalParticipant.WomValidationConfirmationToken = null;
+        ModelState.Remove("InternalParticipant.WomValidationConfirmationToken");
+        WomValidationConfirmationRequired = false;
+        WomValidationConfirmationCancelled = true;
+        return Page();
+    }
+
     public async Task<IActionResult> OnPostPaymentAsync(Guid id, Guid participantId, PaymentStatus payment, CancellationToken ct)
     {
         var result = await signupService.SetPaymentAsync(id, participantId, User.GetAccountId(), User.Identity?.Name ?? "Admin", payment, ct);
@@ -105,10 +127,18 @@ public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService si
         if (actorId is null) return Forbid();
 
         var result = await signupService.CreateAdminParticipantAsync(new AdminParticipantChangeRequest(id, null, actorId.Value, User.Identity?.Name ?? "Admin", InternalParticipant.OwnerAccountId,
-            InternalParticipant.AccountAnswers.ToDictionary(item => item.Key, item => new AdminAccountAnswer(item.Value.CharacterName, item.Value.Ehb)), InternalParticipant.Answers), ct);
+            InternalParticipant.AccountAnswers.ToDictionary(item => item.Key, item => new AdminAccountAnswer(item.Value.CharacterName, item.Value.Ehb)), InternalParticipant.Answers, null, InternalParticipant.WomValidationConfirmationToken), ct);
+        if (result.WomValidationConfirmationToken is { } confirmationToken)
+        {
+            if (!await LoadAsync(id, ct)) return NotFound();
+            InternalParticipant.WomValidationConfirmationToken = confirmationToken;
+            ModelState.Remove("InternalParticipant.WomValidationConfirmationToken");
+            WomValidationConfirmationRequired = true;
+            return Page();
+        }
         SetStatus(result.Succeeded
             ? result.Status == SignupStatus.WaitingList ? Localize("Internal participant created at waiting-list position {0}.", result.WaitingPosition?.ToString(CultureInfo.CurrentCulture) ?? string.Empty) : Localize("Internal participant created.")
-            : result.Error ?? Localize("Internal participant could not be created."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+            : Localize(result.Error ?? "Internal participant could not be created."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         return FilteredRedirect(id);
     }
 
@@ -123,6 +153,8 @@ public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService si
                 !db.TeamMemberships.Any(membership => membership.EventParticipantId == item.Id && membership.LeftAt == null &&
                     db.Teams.Any(team => team.Id == membership.TeamId && team.EventId == id && team.Active && team.FormationType == TeamFormationType.Preformed)))
             .OrderBy(item => item.SignedUpAt).ThenBy(item => item.SignupSequence).ToListAsync(ct);
+        if (TryGetTempData()?.Peek("WomValidationConfirmationToken") is string pendingValidation)
+            InternalParticipant.WomValidationConfirmationToken = pendingValidation;
         ActiveSignupQuestions = await db.SignupQuestions.AsNoTracking().Where(item => item.EventId == id && item.Active).OrderBy(item => item.Position)
             .Select(item => new ParticipantModel.QuestionView(item.Id, item.Label, item.Type, item.Required, true, item.AccountAnswerRole, item.SystemField, item.Options == null ? Array.Empty<string>() : item.Options.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), null)).ToListAsync(ct);
         TotalParticipantCount = allParticipants.Count;
@@ -192,6 +224,13 @@ public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService si
         return true;
     }
 
+    private ITempDataDictionary? TryGetTempData()
+    {
+        var httpContext = PageContext?.HttpContext;
+        if (httpContext?.RequestServices is not { } services) return null;
+        return services.GetService<ITempDataDictionaryFactory>()?.GetTempData(httpContext);
+    }
+
     private RedirectToPageResult FilteredRedirect(Guid id)
         => RedirectToPage(null, null, new { id, ParticipantSearch, ParticipantStatus, ParticipantPayment, ParticipantDiscord, ParticipantCaptain, ParticipantSource, ParticipantTeamId, Sort, Direction }, "players");
 
@@ -211,6 +250,7 @@ public sealed class ParticipantsModel(ApplicationDbContext db, ISignupService si
         public Guid? OwnerAccountId { get; set; }
         public Dictionary<Guid, ParticipantModel.AccountInput> AccountAnswers { get; set; } = [];
         public Dictionary<Guid, string> Answers { get; set; } = [];
+        public string? WomValidationConfirmationToken { get; set; }
     }
 
     public sealed class SignupAdministrationInput

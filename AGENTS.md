@@ -8,7 +8,7 @@ OSRS Community Bingo platform: ASP.NET Core/Razor, PostgreSQL and EF Core.
   `git status --short --branch`; preserve all existing changes.
 - Read the active handoff in `CURRENT_STATUS.md` and the assigned plan section.
   Read further authority sections only to resolve a question relevant to the task.
-- Before delegating or resuming coordination, planners read
+- Before delegating or resuming coordination, planners and orchestrators read
   [the lean execution workflow](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
 - A continuing worker should reuse established evidence and source knowledge.
   Reread only changed or missing context; do not restart discovery after a handoff.
@@ -28,180 +28,98 @@ Each worker has exactly one assigned role.
   list is a starting point, not permission to ignore a required integration fix.
 - Report material changes to product behavior, scope or architecture before
   implementing them. Record unrelated findings without silently adding them.
-- Resolve ordinary technical details independently. If one focused lookup leaves
-  consequential uncertainty about intended behavior, scope or conflicting
-  instructions, ask the calling planner before proceeding with that part.
-- **Planner:** defines the task, selects approved workers, checks progress and
-  reconciles delivery. Does not implement production code or review its own work.
-- **Implementer/remediator:** changes only the assigned behavior or named findings
-  and runs its focused checks. Does not independently review itself.
-- **Reviewer:** remains read-only and reports concrete defects or scope deviations.
-  Does not turn optional improvements into requirements.
-- **Verifier:** executes assigned checks without changing production behavior.
+- Resolve ordinary technical details within the approved scope. Workers raise
+  consequential uncertainty to the orchestrator; the orchestrator resolves routing
+  and ordinary execution details, and sends product/scope decisions to the planner.
+- **Planner:** works with the user to define outcomes, scope, protected behavior,
+  acceptance and the plan. Assigns an orchestrator, resolves consequential decisions
+  and reconciles delivery. Does not implement production code, perform independent
+  review, or manage routine worker handoffs. Documentation-only planning/policy
+  edits may be completed directly with scoped checks.
+- **Orchestrator:** executes the approved plan by assigning implementers/reviewers,
+  tracking ownership and progress, routing findings and waking the next owner.
+  May wait on workers and must handle their completion. Does not implement
+  production code, review its own assignment, invent scope or grant user approval.
+- **Implementer/remediator:** changes only assigned behavior or named findings,
+  runs applicable checks and sends the diff/evidence to the orchestrator. Does
+  not independently review itself or launch extra workers by default.
+- **Reviewer:** independently reviews the stable assigned diff read-only and
+  reports concrete defects or scope deviations to the orchestrator. Rechecks its
+  own named findings after remediation; optional improvements are not requirements.
+- **Verifier:** optional, only when the assignment explicitly calls for a separate
+  verification role. Routine checks belong to the implementer.
 - **Packager:** acts only under explicit staging, commit, merge or push authority.
-- The planner may delegate bounded subtasks when useful independent work justifies
-  it. Give concurrent writers disjoint ownership; reuse compatible workers instead
-  of repeating discovery. Use a fresh independent reviewer, never the implementer.
-- Create separate user-owned tasks only when explicitly requested. Workers report
-  to their calling planner through collaboration tools, or return normally if those
-  tools are unavailable; never infer a destination from pinned or recent tasks.
-- Worker briefs name the role, checkout, outcome, protected scope, relevant authority
-  sections, approved model/reasoning, checks and stop boundary. Workers do not
-  dispatch additional workers or start another pass on their own.
+- Give concurrent writers disjoint ownership; reuse compatible workers and existing
+  evidence rather than repeating discovery. Use a fresh reviewer, never the
+  implementer, for required independent review.
+- Create separate user-owned tasks only when explicitly requested. Otherwise use
+  collaboration subagents for the approved roles. This policy does not authorize
+  new visible tasks, new work, packaging or publication by itself.
 
-### Model defaults
+### Active workflow and model defaults — 2026-09-24
 
-#### ACTIVE: temporary Sol/Luna workflow — 2026-09-16
+This is the single current role/model/routing policy. It replaces the former
+Astra ticket trial, temporary direct planner-to-worker workflow and historical
+model tables. Their history is retained in Git, not as competing instructions.
+Task-specific user overrides take precedence only for their stated assignment;
+they do not silently become defaults for the next task.
 
-**CURRENTLY IN FORCE. The Astra ticket trial and outside-ticket defaults below
-are TEMPORARILY SUPERSEDED in full. They are retained for reference only and must
-not be followed unless the user explicitly reinstates them.** This applies to
-ticket work and the current release corrections alike, overriding conflicting
-historical model/workflow assignments in other repository documents.
+| Role | Model / reasoning | Owns |
+| --- | --- | --- |
+| Planner | Current user-selected planner | Scope, plan, consequential decisions, delivery reconciliation |
+| Orchestrator | `gpt-5.6-terra` / `medium` | Worker dispatch, waits, handoffs, progress and completion |
+| Implementer/remediator | `gpt-5.6-luna` / `max` | Implementation, focused checks and named remediation |
+| Independent reviewer | `gpt-5.6-sol` / `high` | Stable-diff review and named rechecks |
 
-- Use `gpt-5.6-luna` / `max` for bounded implementation, remediation and the
-  implementer's own focused checks.
-- Use one fresh `gpt-5.6-sol` / `high` independent reviewer after implementation
-  and its focused checks are complete. Never review a diff still being changed.
-- Use collaboration subagents for these bounded assignments; visible Codex tasks
-  are unnecessary unless explicitly requested. The planner dispatches and ends
-  its turn. Do not keep the planner active with periodic waits, status polling or
-  timed progress messages. Resume on a worker's end-of-turn update, genuine
-  question/blocker or user request. An informational handoff update needs only
-  a brief acknowledgement/status reconciliation, then end the turn again.
-  If an update reveals a scope, safety, sequencing or verification problem, the
-  planner intervenes with the responsible worker before affected work proceeds;
-  this does not authorize production implementation or self-review by the planner.
-- The implementer is authorized to dispatch its one reviewer after focused checks
-  pass, then end its turn. Findings go only to the implementer; corrections return
-  to the same reviewer. Use `followup_task` to resume an idle worker, rather than
-  a message that merely queues without waking it. Detailed findings and remediation
-  remain between those workers; the planner receives a brief status notification
-  whenever either worker ends a turn, including review dispatch and recheck handoffs.
-  A handoff notification is not a passed review or permission to advance delivery.
-- Briefs must include the exact originating Codex task ID and explicitly authorize
-  every worker to use `send_message_to_thread` once before ending each turn, waking
-  the planner with what completed, the handoff recipient/next owner, review status
-  and any blocker or decision needed. Use the same route for genuine questions;
-  include full evidence references in the final passed review. Do not send duplicate
-  callbacks or wait for planner acknowledgement before an authorized worker handoff.
-  Never infer the destination from pinned/recent tasks. This delegation
-  and direct review routing override the generic prohibition on worker dispatch;
-  they authorize one reviewer, not additional implementation or verifier chains.
-- If a worker cannot dispatch or wake its assigned reviewer/implementer because
-  the required tool is unavailable or the callback route is disallowed, notify
-  the planner with the exact recipient and ready handoff. The planner performs
-  that routing only; do not bypass a rejected action or duplicate the review.
-- Use Astra only for an escalation justified by a concrete difficulty; record
-  the reason and explicit model/reasoning in the brief. It is not the default
-  implementation or review assignment.
-- Do not add a separate routine verifier or manager pass. Reuse passing evidence;
-  after remediation, recheck named findings and their direct consequences only.
-- Preserve applicable final release gates; do not repeat full suites for every
-  small correction. Documentation-only policy edits need scoped consistency and
-  diff checks, not implementation/review worker chains.
-- Set model/reasoning explicitly with bounded context when dispatching. Continue
-  only the current authorized assignment; this policy does not restart continuous
-  ticket execution or authorize new user-owned tasks, packaging or publication.
-
-#### CURRENTLY SUPERSEDED — Ticket execution trial — 2026-09-13
-
-**INACTIVE FOR NOW. Original text retained below; all claims of precedence and
-standing execution rules in this subsection are superseded by the active
-2026-09-16 workflow above. Do not use it as current dispatch authority.**
-
-For application-sweep tickets, this user-approved trial overrides conflicting
-model, delegation and orchestration rules elsewhere, including UI-specific rules
-and older ticket workflows:
-
-- Continuous ticket execution RESUMED by explicit user instruction on 2026-09-14,
-  with the same approvals and routing. CURRENT_STATUS owns current execution state.
-- Continuous ticket execution authorized by the user, 2026-09-13 and resumed
-  2026-09-14: when the
-  originating planner receives a passed batch review, it records the result centrally
-  as Awaiting manual acceptance, selects the next coherent eligible group from the
-  existing ledger, and creates the next visible saved-project Astra xhigh implementer
-  without asking for fresh batch approval. Each brief authorizes exactly one fresh
-  Astra xhigh reviewer and bounded same-reviewer remediation/recheck. This standing
-  request explicitly authorizes those successive task creations, overriding older
-  per-batch approval/no-next-batch stops for the planner only. Workers remain bounded
-  to their assignment and keep the corrected delivery sequence below. Involve the
-  user only for a genuine blocker, consequential decision or approval outside existing
-  authority, or other required attention. Deferred/blocked/closed dispositions,
-  unresolved product/data decisions and manual acceptance are not automatically
-  approved. Packaging, combined release work, data repair and publication remain
-  separate. Stop when no eligible work remains and report the actual remaining needs.
-- Use `gpt-6-astra` with `xhigh` reasoning for implementation, focused verification
-  and remediation. The assigned implementer does this work directly.
-- Do not automatically spawn subagents, managers, verifiers or worker tasks.
-  Delegation or separate task creation requires an explicit user request; never
-  select Luna, Terra, Sol or another model as an automatic fallback.
-- Review the completed ticket or coherent PR batch in a fresh `gpt-6-astra` /
-  `xhigh` review task when authorized. The user may explicitly authorize the
-  implementer to create that separate reviewer after focused checks pass; this
-  permits one reviewer task, not implementation subagents or model substitution.
-  Never turn self-checks into an independent-review claim.
-- C11 task-specific sequencing: its existing required one-time readiness gate uses
-  the SAME single independent Astra xhigh reviewer later assigned final code review.
-  The implementer may create that one reviewer before production edits, supplying the
-  frozen scope and bounded technical plan. Readiness findings go to implementer;
-  readiness pass goes to planner and authorizes only planner reconciliation/go-ahead,
-  not manual acceptance or another batch. After planner go-ahead, implementation
-  returns to that reviewer for final review and permitted named recheck. This adds
-  no second reviewer/task chain or repeated readiness review for confidence.
-- User-corrected ticket delivery: the implementer sends its review request,
-  complete diff and evidence ONLY to its assigned reviewer, then stops. After
-  named remediation it requests recheck ONLY from the SAME reviewer. It does not
-  send the planner an implementation checkpoint, reviewer-dispatch notice or
-  duplicate handoff. The reviewer sends a passed review ONLY to the originating
-  planner; required remediation or incomplete/blocked verdict ONLY to the
-  implementer. Never send one verdict to both. This overrides older handoff
-  instructions for the current and future ticket batches.
-- Standing user authorization, 2026-09-13: batch-relevant handoffs among the
-  assigned implementer, its assigned independent reviewer and originating planner
-  are authorized, including private repository paths, branches, diff hashes,
-  findings and check/evidence results needed for that work. Do not ask the user
-  again for these handoffs or named remediation/recheck delivery. Verify exact
-  destination IDs and include this authorization in each task brief. Keep findings
-  or incomplete verdicts implementer-only and passes planner-only. This grants no
-  unrelated recipients, new work or publication. If automatic approval review
-  nevertheless rejects delivery, stop that action and record/report the block once;
-  do not bypass it, retry it or repeat a user approval request for this standing scope.
-- Create future repository implementer, remediator and reviewer tasks under the
-  saved BingoWebpage project, using its ID from list_projects; do not use projectless
-  tasks merely because code lives in an isolated checkout. Keep implementation
-  isolated in a worktree. Give reviewers the exact implementation checkout and
-  complete diff; do not accidentally review an empty/new worktree. This applies
-  to future task creation and does not authorize moving existing work.
-- Run the smallest relevant checks. Do not add full-suite runs, screenshot loops
-  or browser walkthroughs by default; retain applicable required release gates.
-- Historical role/model assignments are not instructions to recreate the former
-  manager/worker hierarchy. This trial does not authorize new tickets, commits,
-  pushes or deployment.
-
-#### CURRENTLY SUPERSEDED — Defaults outside the ticket trial
-
-**INACTIVE FOR NOW. The original defaults and their precedence language below
-are retained for reference, superseded by the active 2026-09-16 workflow above.**
-
-These current defaults supersede historical assignments elsewhere. Explicit user
-choices take precedence; task-specific exceptions stay in the task brief and current
-handoff. Do not silently substitute another model or reasoning level.
-
-| Work | Model / reasoning |
-| --- | --- |
-| Planner and independent reviewer | `gpt-6-astra` / high |
-| General implementation and remediation | `gpt-6-astra` / medium |
-| Coupled or high-risk implementation | `gpt-6-astra` / high |
-| Small, precisely diagnosed non-UI corrections | `gpt-6-astra` / low |
-| Routine UI implementation and corrections | `gpt-5.6-luna` / max |
-| Verification executing agreed gates | `gpt-5.6-luna` / high |
-
-The planner sets model and reasoning explicitly before dispatch; do not rely on
-inherited settings. Use a self-contained or bounded context, not a full-history fork
-that overrides selection. Other models/levels require user approval. Escalate for a
-concrete difficulty or risk; touching a UI/security/data file alone is not sufficient.
-Assess time and usage across implementation, corrections and acceptance together.
+- Set the exact model/reasoning explicitly with bounded context when dispatching.
+  Do not silently substitute another model/version or reasoning level. If the
+  configured model is unavailable, report that precise issue. An Astra assignment
+  requires an explicit user override; difficulty alone is not authorization to
+  change the implementer or reviewer model. Preserve compatible work/evidence when
+  the user changes models; do not restart discovery automatically.
+- Normal route: **planner → orchestrator → implementer → orchestrator → reviewer
+  → orchestrator**. Findings return to the same implementer, then the same reviewer.
+  The orchestrator carries that cycle through its authorized completion boundary.
+  Direct implementer/reviewer routing is allowed only if the brief explicitly
+  assigns it; the orchestrator still owns progress and recovery of missed handoffs.
+- The **planner** dispatches and ends its turn. It does not stay active with waits,
+  periodic polling or routine handoff updates. The orchestrator reports completion,
+  genuine blockers or consequential questions to the planner; routine findings and
+  rechecks stay within the orchestrator's assignment. The planner may inspect or
+  intervene when the user requests status or a concrete stall becomes apparent.
+- The **orchestrator is explicitly allowed to use `wait_threads` on worker tasks**
+  and `wait_agent` on collaboration workers. Use the tool appropriate to the worker,
+  verified IDs and supported cursors; do not busy-poll unchanged state. A timeout
+  is not completion and does not prove that a worker is still making progress.
+- When a worker completes, the orchestrator inspects the result and performs the
+  next authorized handoff without waiting for planner acknowledgement. For an idle
+  collaboration worker use `followup_task`, not `send_message`, which only queues a
+  message. For an existing standalone task use `send_message_to_thread`. Workers
+  must not remain finished with an actionable review/remediation handoff unassigned.
+- The orchestrator may end a turn when awaiting a genuine user/planner decision,
+  at an explicit stop boundary, or when a verified callback will wake it for ongoing
+  work. Otherwise use the supported wait mechanism to receive completion and act.
+  If a route/tool fails, preserve the exact checkpoint and report the missing owner
+  or capability; never claim that sending a queued message started a worker.
+- Briefs include exact planner/orchestrator task IDs, worker identities when known,
+  role, model/reasoning, checkout/branch, assigned outcome, protected scope, relevant
+  authorities, checks and stop boundary. Verify recipients; never infer them from
+  pinned/recent tasks. Scope-limited worker/orchestrator/planner handoffs containing
+  repository paths, findings and evidence are authorized, not unrelated recipients.
+- Workers return outcomes to their orchestrator using collaboration tools or the
+  explicitly assigned task callback. If the orchestrator is not actively waiting,
+  use a callback that wakes it. One completion notification per recipient suffices;
+  do not send every worker's routine update to the planner as well.
+- One fresh independent reviewer follows stable implementation and applicable
+  checks. Never review a changing diff. Reuse passing evidence; after remediation,
+  recheck named findings and direct consequences. Do not add a routine verifier,
+  a second orchestration layer or repeat broad review for reassurance.
+- Follow explicit user review waivers and acceptance decisions. Record skipped,
+  passed, manually accepted and deferred distinctly. A handoff or successful build
+  is not an independent review pass; technical approval is not manual acceptance.
+- Preserve applicable release gates, but do not repeat full suites for every small
+  correction. Documentation-only policy edits need scoped consistency/diff checks,
+  not implementation/review worker chains.
 
 ## Protect the repository and data
 
@@ -233,8 +151,9 @@ Assess time and usage across implementation, corrections and acceptance together
   before choosing the next step.
 - Complete a connected behavior before opening another area. Provide an early
   working checkpoint; repeated reading or a restated plan is not implementation.
-- The planner checks prolonged lack of progress and interrupted workers promptly.
-  A timed-out wait does not establish that a worker is still running.
+- The orchestrator checks prolonged lack of progress and interrupted workers promptly.
+  The planner intervenes on an escalation or user request. A timed-out wait does not
+  establish that a worker is still running.
 - Do not repeat a failed command without a changed condition or different evidence.
   After a clear environment failure, stop dependent checks and report the blocker.
 - Change approach after two unsuccessful attempts at the same problem. Stop after
@@ -256,6 +175,18 @@ Assess time and usage across implementation, corrections and acceptance together
 - Behavior changes need executable checks. Security, persistence, concurrency and
   navigation checks must exercise the relevant boundary; source review is not a
   substitute for execution, and in-memory tests do not prove PostgreSQL behavior.
+- All timestamp tests must explicitly respect the precision of the boundary being
+  tested. PostgreSQL timestamps retain microseconds; .NET values can contain
+  finer 100-nanosecond ticks. Do not rely on the local operating system's clock
+  precision or compare an unnormalized wall-clock value exactly with its persisted
+  round-trip value. Use deterministic UTC instants and microsecond-aligned fixture
+  values for ordinary persistence tests, or derive the expected value using the
+  actual persistence precision. Preserve exact assertions at that precision rather
+  than adding broad tolerances, sleeps or rounding to seconds to make CI pass.
+  For timestamp-dependent fingerprints, stale checks, receipts, scheduling and
+  ordering, include non-microsecond-aligned input and a real PostgreSQL round trip
+  where relevant so normalization cannot hide a production correctness defect.
+  Tests must behave consistently on local runs and Linux GitHub Actions runners.
 - Follow the applicable delivery procedures in `DELIVERY_PLAN.md` sections 4.1–4.6:
   planning/readiness for major functional slices, change control for material changes,
   evidence at affected boundaries, required review, slice preflight and completion.

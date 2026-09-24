@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Infrastructure.Persistence;
@@ -10,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Bingo.Web.Security;
 
 /// <summary>Transactional Slice 1 identity mutations. Raw credential links never persist.</summary>
-public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHasher<Account> passwords, TimeProvider time)
+public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHasher<Account> passwords, TimeProvider time, IWiseOldManAccountValidation? accountValidation = null)
 {
     public async Task<UsernameRenameResult> RenameUsernameAsync(Guid accountId, string proposedUsername, string currentPassword, CancellationToken ct)
     {
@@ -58,6 +59,10 @@ public sealed class AccountIdentityService(ApplicationDbContext db, IPasswordHas
         if (string.IsNullOrWhiteSpace(discordUserId)) throw new InvalidOperationException("Discord authentication is required.");
         if (string.IsNullOrWhiteSpace(name)) throw new InvalidOperationException("A public username is required.");
         if (string.IsNullOrWhiteSpace(characterName)) throw new InvalidOperationException("An OSRS character name is required.");
+        var validator = accountValidation ?? throw new InvalidOperationException("Wise Old Man account validation is required to complete onboarding.");
+        var validation = await validator.ValidateAsync(new WiseOldManAccountValidationRequest(
+            Guid.Empty, "onboarding.create", null, null, null, [characterName], false), ct);
+        if (!validation.CanProceed) throw new WiseOldManAccountValidationException(validation);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         if (await db.Accounts.AnyAsync(x => x.NormalizedLoginName == normalized || x.DiscordUserId == discordUserId, ct)) throw new InvalidOperationException("That username or Discord account is already in use.");
         await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({normalizedCharacter}, 0))", ct);

@@ -13,6 +13,7 @@ public sealed class WorkerHeartbeatRegistry(TimeProvider time)
 {
     public const string EventLifecycleWorker = "event-lifecycle";
     public const string CompetitionSynchronizationWorker = "competition-synchronization";
+    public const string CompetitionManagementWorker = "competition-management";
     private readonly ConcurrentDictionary<string, long> beats = new(StringComparer.Ordinal);
 
     public void Beat(string workerName) => beats[workerName] = time.GetTimestamp();

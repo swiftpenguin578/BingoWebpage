@@ -293,7 +293,7 @@
                         <div class="tile-editor-section-heading"><h3>@T["Tile details"]</h3></div>
                         <div class="tile-details-grid">
                             <div class="admin-field"><label asp-for="TileDraft.Name"><span class="tile-field-label"><span>@T["Tile name"]</span><small>@T["Suggested from selected bosses"]</small></span></label><input asp-for="TileDraft.Name" id="tile-name" class="form-control" placeholder="@T["Suggested automatically"]" /></div>
-                            <div class="admin-field"><label asp-for="TileDraft.Description"><span class="tile-field-label"><span>@T["Short description"]</span><small>@T["Optional"]</small></span></label><input asp-for="TileDraft.Description" class="form-control" /></div>
+                            <div class="admin-field"><label asp-for="TileDraft.Description"><span class="tile-field-label"><span>@T["Short description"]</span><small>@T["Optional"]</small></span></label><input asp-for="TileDraft.Description" class="form-control" placeholder="@T["Auto-generated from tile requirements"]" /></div>
                         </div>
                         <div class="admin-field"><label asp-for="TileDraft.Image"><span class="tile-field-label"><span>@T["Custom tile image"]</span><small>@T["Optional managed upload"]</small></span></label><input asp-for="TileDraft.Image" class="form-control" accept="image/png,image/jpeg,image/webp" /></div>
                         <label class="checkbox-row" id="tile-remove-image-row" hidden><input asp-for="TileDraft.RemoveImage" /> @T["Remove the current custom image"]</label>

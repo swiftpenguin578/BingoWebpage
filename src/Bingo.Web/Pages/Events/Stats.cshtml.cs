@@ -2,6 +2,8 @@ using System.Data;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bingo.Application.Boards;
+using Bingo.Application.Evidence;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Stats;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
@@ -11,6 +13,7 @@ using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Catalogue;
 using Bingo.Web.Security;
+using Bingo.Web.UI;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -20,13 +23,14 @@ namespace Bingo.Web.Pages.Events;
 
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class StatsModel(IPublicStatsService stats, IPublicBoardService boards, ApplicationDbContext db, TimeProvider time,
-    OsrsWikiImageCache? wikiImages = null) : PageModel
+    IEventCompetitionActivityProjection activity, IEvidenceAuthority evidenceAuthority, OsrsWikiImageCache? wikiImages = null) : PageModel
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter() }
     };
     public PublicEventStats Stats { get; private set; } = null!;
+    public EventMastheadModel Masthead { get; private set; } = null!;
     public string? CancelledEventName { get; private set; }
     public bool CanSaveGuidance { get; private set; }
     public bool CanEditArtwork { get; private set; }
@@ -48,6 +52,10 @@ public sealed class StatsModel(IPublicStatsService stats, IPublicBoardService bo
             CancelledEventName = board.EventName;
             return Page();
         }
+        var eventBoard = await boards.GetEventBoardAsync(slug, 0, cancellationToken);
+        if (eventBoard is null || eventBoard.EventId != result.EventId) return NotFound();
+        Masthead = await EventMastheadModel.CreateAsync(eventBoard,
+            await activity.GetAsync(eventBoard.EventId, cancellationToken), evidenceAuthority, User, time, cancellationToken);
         Stats = result;
         BootstrapJson = JsonSerializer.Serialize(await PresentationAsync(result, cancellationToken), JsonOptions);
         return Page();

@@ -452,7 +452,7 @@
   <data name="Wise Old Man integration" xml:space="preserve"><value>Wise Old Man-integration</value></data>
   <data name="EHB status" xml:space="preserve"><value>EHB-status</value></data>
   <data name="This view will rank teams by total EHB gained, average gain, and MVP, with each team expanding into its individual players." xml:space="preserve"><value>Denne visning vil rangere hold efter samlet optjent EHB, gennemsnitlig fremgang og MVP, med hvert hold udvidet til sine individuelle spillere.</value></data>
-  <data name="Rank" xml:space="preserve"><value>Placering</value></data>
+  <data name="Rank" xml:space="preserve"><value>Rank</value></data>
   <data name="Total gained" xml:space="preserve"><value>Samlet opnået</value></data>
   <data name="Average" xml:space="preserve"><value>Gennemsnit</value></data>
   <data name="MVP" xml:space="preserve"><value>MVP</value></data>
@@ -645,6 +645,16 @@
   <data name="Wise Old Man is temporarily busy. Try again after {0}." xml:space="preserve"><value>Wise Old Man er midlertidigt optaget. Prøv igen efter {0}.</value></data>
   <data name="Wise Old Man is unavailable right now. Your current EHB was kept." xml:space="preserve"><value>Wise Old Man er ikke tilgængelig lige nu. Din nuværende EHB blev bevaret.</value></data>
   <data name="Wise Old Man is unavailable right now. Your current EHB was kept. Try again after {0}." xml:space="preserve"><value>Wise Old Man er ikke tilgængelig lige nu. Din nuværende EHB blev bevaret. Prøv igen efter {0}.</value></data>
+  <data name="Wise Old Man could not find one or more submitted characters. Check the names and try again." xml:space="preserve"><value>Wise Old Man kunne ikke finde en eller flere indsendte karakterer. Kontrollér navnene, og prøv igen.</value></data>
+  <data name="Wise Old Man could not find the submitted character. Check the name and try again." xml:space="preserve"><value>Wise Old Man kunne ikke finde den indsendte karakter. Kontrollér navnet, og prøv igen.</value></data>
+  <data name="Wise Old Man is unavailable, so these account names could not be verified. Try again later." xml:space="preserve"><value>Wise Old Man er ikke tilgængelig, så disse kontonavne kunne ikke bekræftes. Prøv igen senere.</value></data>
+  <data name="Wise Old Man is unavailable, so the account cannot be created right now. Try again later." xml:space="preserve"><value>Wise Old Man er ikke tilgængelig, så kontoen kan ikke oprettes lige nu. Prøv igen senere.</value></data>
+  <data name="Wise Old Man is unavailable. Confirm again to save these unverified accounts, or cancel to leave the roster unchanged." xml:space="preserve"><value>Wise Old Man er ikke tilgængelig. Bekræft igen for at gemme disse ubekræftede konti, eller annullér for at lade holdlisten være uændret.</value></data>
+  <data name="Wise Old Man is unavailable. Confirm again to add these unverified accounts, or cancel to leave the roster unchanged." xml:space="preserve"><value>Wise Old Man er ikke tilgængelig. Bekræft igen for at tilføje disse ubekræftede konti, eller annullér for at lade holdlisten være uændret.</value></data>
+  <data name="Wise Old Man is unavailable. These accounts could not be verified: {0}. Create the participant with the details shown above anyway?" xml:space="preserve"><value>Wise Old Man er ikke tilgængelig. Disse konti kunne ikke bekræftes: {0}. Opret deltageren med oplysningerne ovenfor alligevel?</value></data>
+  <data name="Wise Old Man is unavailable. These accounts could not be verified: {0}. Fill this vacancy with the details shown above anyway?" xml:space="preserve"><value>Wise Old Man er ikke tilgængelig. Disse konti kunne ikke bekræftes: {0}. Udfyld denne ledige plads med oplysningerne ovenfor alligevel?</value></data>
+  <data name="Create participant anyway" xml:space="preserve"><value>Opret deltager alligevel</value></data>
+  <data name="Replace vacancy anyway" xml:space="preserve"><value>Udfyld ledig plads alligevel</value></data>
   <data name="Saved EHB fetched from Wise Old Man." xml:space="preserve"><value>Gemt EHB blev hentet fra Wise Old Man.</value></data>
   <data name="Wise Old Man request status" xml:space="preserve"><value>Wise Old Man-anmodningsstatus</value></data>
   <data name="Competition refresh completed." xml:space="preserve"><value>Opdatering af konkurrencen er gennemført.</value></data>
@@ -899,6 +909,7 @@
   <data name="Drops" xml:space="preserve"><value>Drops</value></data>
   <data name="EHB gained" xml:space="preserve"><value>Opnået EHB</value></data>
   <data name="End EHB" xml:space="preserve"><value>EHB ved slut</value></data>
+  <data name="End" xml:space="preserve"><value>Slut</value></data>
   <data name="Ended" xml:space="preserve"><value>Afsluttet</value></data>
   <data name="Ends {0}" xml:space="preserve"><value>Slutter {0}</value></data>
   <data name="Evidence" xml:space="preserve"><value>Bevis</value></data>
@@ -906,6 +917,7 @@
   <data name="Expand" xml:space="preserve"><value>Fold ud</value></data>
   <data name="Expand Bingo standings" xml:space="preserve"><value>Fold Bingo-stillingen ud</value></data>
   <data name="First page" xml:space="preserve"><value>Første side</value></data>
+  <data name="Gained" xml:space="preserve"><value>Opnået</value></data>
   <data name="Highest DEHB" xml:space="preserve"><value>Højeste DEHB</value></data>
   <data name="Highest EHB" xml:space="preserve"><value>Højeste EHB</value></data>
   <data name="In the lead" xml:space="preserve"><value>Førende</value></data>
@@ -953,9 +965,12 @@
   <data name="Sort by Drop EHB" xml:space="preserve"><value>Sortér efter Drop EHB</value></data>
   <data name="Sort by EHB gained" xml:space="preserve"><value>Sortér efter opnået EHB</value></data>
   <data name="Sort by End EHB" xml:space="preserve"><value>Sortér efter EHB ved slut</value></data>
+  <data name="Sort by End" xml:space="preserve"><value>Sortér efter slut</value></data>
+  <data name="Sort by Gained" xml:space="preserve"><value>Sortér efter opnået</value></data>
   <data name="Sort by Player" xml:space="preserve"><value>Sortér efter spiller</value></data>
   <data name="Sort by Rank" xml:space="preserve"><value>Sortér efter rang</value></data>
   <data name="Sort by Start EHB" xml:space="preserve"><value>Sortér efter EHB ved start</value></data>
+  <data name="Sort by Start" xml:space="preserve"><value>Sortér efter start</value></data>
   <data name="Sort by Status" xml:space="preserve"><value>Sortér efter status</value></data>
   <data name="Sort by Submitted" xml:space="preserve"><value>Sortér efter indsendelse</value></data>
   <data name="Sort by Team" xml:space="preserve"><value>Sortér efter hold</value></data>
@@ -964,6 +979,7 @@
   <data name="Sort by Total drops" xml:space="preserve"><value>Sortér efter samlede drops</value></data>
   <data name="Source" xml:space="preserve"><value>Kilde</value></data>
   <data name="Start EHB" xml:space="preserve"><value>EHB ved start</value></data>
+  <data name="Start" xml:space="preserve"><value>Start</value></data>
   <data name="Starts {0}" xml:space="preserve"><value>Starter {0}</value></data>
   <data name="Stop inspecting" xml:space="preserve"><value>Stop inspektion</value></data>
   <data name="Submission history" xml:space="preserve"><value>Indsendelseshistorik</value></data>
@@ -1782,7 +1798,7 @@
   <data name="Average tile" xml:space="preserve"><value>Gennemsnitlig tile</value></data>
   <data name="Back to" xml:space="preserve"><value>Tilbage til</value></data>
   <data name="Based on {0} players" xml:space="preserve"><value>Baseret på {0} spillere</value></data>
-  <data name="Board completion, completed rows and columns, tiles, then EHB." xml:space="preserve"><value>Board-fuldførelse, fuldførte rækker og kolonner, tiles og derefter EHB.</value></data>
+  <data name="Rank order: completed boards by effective finish time, then completed rows and columns, completed tiles, current score time, and EHB." xml:space="preserve"><value>Rangorden: fuldførte boards efter gældende sluttid, derefter fuldførte rækker og kolonner, fuldførte tiles, aktuel scoretid og EHB.</value></data>
   <data name="Board readiness needs attention" xml:space="preserve"><value>Boardets klarhed kræver opmærksomhed</value></data>
   <data name="Board setup" xml:space="preserve"><value>Boardopsætning</value></data>
   <data name="Board size" xml:space="preserve"><value>Boardstørrelse</value></data>
@@ -1932,6 +1948,7 @@
   <data name="Required for a custom challenge; otherwise overrides the live catalogue calculation." xml:space="preserve"><value>Påkrævet for en brugerdefineret udfordring; ellers tilsidesætter den katalogets aktuelle beregning.</value></data>
   <data name="Resolved manually:" xml:space="preserve"><value>Løst manuelt:</value></data>
   <data name="Results ledger" xml:space="preserve"><value>Resultatbog</value></data>
+  <data name="Score time" xml:space="preserve"><value>Scoretid</value></data>
   <data name="Retained record" xml:space="preserve"><value>Bevaret post</value></data>
   <data name="Return this board to live draft values? The approval remains in history." xml:space="preserve"><value>Vil du føre dette Board tilbage til aktive draftværdier? Godkendelsen forbliver i historikken.</value></data>
   <data name="Review add team" xml:space="preserve"><value>Gennemgå tilføjelse af hold</value></data>
@@ -1953,6 +1970,8 @@
   <data name="Search the pool or sort a column before starting the draft." xml:space="preserve"><value>Søg i puljen, eller sortér en kolonne, før draft starter.</value></data>
   <data name="Select one or more bosses or activities when their drops share the same total. Add another objective only when this tile needs separate totals." xml:space="preserve"><value>Vælg en eller flere bosser eller aktiviteter, når deres drops deler samme total. Tilføj kun endnu et mål, når denne tile har brug for separate totaler.</value></data>
   <data name="Short description" xml:space="preserve"><value>Kort beskrivelse</value></data>
+  <data name="Auto-generated from tile requirements" xml:space="preserve"><value>Genereres automatisk ud fra tile-krav</value></data>
+  <data name="Tile description cannot be longer than 4000 characters." xml:space="preserve"><value>Tilebeskrivelsen må højst være 4000 tegn lang.</value></data>
   <data name="Signup status: {0}" xml:space="preserve"><value>Tilmeldingsstatus: {0}</value></data>
   <data name="Start private correction" xml:space="preserve"><value>Start privat rettelse</value></data>
   <data name="Suggested automatically" xml:space="preserve"><value>Foreslås automatisk</value></data>
@@ -2836,4 +2855,54 @@
   <data name="The catalogue changed while the tile was being saved. No tile was added; reload and try again." xml:space="preserve">
     <value>Kataloget blev ændret, mens feltet blev gemt. Intet felt blev tilføjet; genindlæs, og prøv igen.</value>
   </data>
+  <data name="Managed WOM competition" xml:space="preserve"><value>Administreret WOM-konkurrence</value></data>
+  <data name="NotManaged" xml:space="preserve"><value>Ikke administreret</value></data>
+  <data name="Failed" xml:space="preserve"><value>Fejlet</value></data>
+  <data name="Conflict" xml:space="preserve"><value>Konflikt</value></data>
+  <data name="Deleted" xml:space="preserve"><value>Slettet</value></data>
+  <data name="Protected" xml:space="preserve"><value>Beskyttet</value></data>
+  <data name="Preview uses every confirmed participant's unreleased Playing assignment." xml:space="preserve"><value>Forhåndsvisningen bruger alle bekræftede deltageres ikke-frigivne Playing-tilknytning.</value></data>
+  <data name="Create managed WOM competition" xml:space="preserve"><value>Opret administreret WOM-konkurrence</value></data>
+  <data name="Delete managed WOM competition" xml:space="preserve"><value>Slet administreret WOM-konkurrence</value></data>
+  <data name="I confirm deletion of this exact managed WOM competition." xml:space="preserve"><value>Jeg bekræfter sletning af netop denne administrerede WOM-konkurrence.</value></data>
+  <data name="Managed WOM competition creation recorded." xml:space="preserve"><value>Oprettelsen af den administrerede WOM-konkurrence er registreret.</value></data>
+  <data name="The managed WOM competition could not be created." xml:space="preserve"><value>Den administrerede WOM-konkurrence kunne ikke oprettes.</value></data>
+  <data name="Managed WOM competition deletion recorded." xml:space="preserve"><value>Sletningen af den administrerede WOM-konkurrence er registreret.</value></data>
+  <data name="The managed WOM competition could not be deleted." xml:space="preserve"><value>Den administrerede WOM-konkurrence kunne ikke slettes.</value></data>
+  <data name="retry pending" xml:space="preserve"><value>venter på nyt forsøg</value></data>
+  <data name="{0} participant(s)" xml:space="preserve"><value>{0} deltager(e)</value></data>
+  <data name="Event names must be 50 characters or fewer." xml:space="preserve"><value>Eventnavne må højst være på 50 tegn.</value></data>
+  <data name="Team names must be 30 characters or fewer." xml:space="preserve"><value>Holdnavne må højst være på 30 tegn.</value></data>
+  <data name="The WOM operation outcome is uncertain and is being checked without another write." xml:space="preserve"><value>Resultatet af WOM-handlingen er usikkert og kontrolleres uden en ny skrivning.</value></data>
+  <data name="The WOM operation outcome remains unresolved; Admin review is required." xml:space="preserve"><value>Resultatet af WOM-handlingen er stadig uafklaret; en administrator skal gennemgå den.</value></data>
+  <data name="The WOM competition still exists; deletion was not retried and will be checked again." xml:space="preserve"><value>WOM-konkurrencen findes stadig; sletningen blev ikke forsøgt igen og kontrolleres igen.</value></data>
+  <data name="The event changed before the WOM operation was dispatched; review the current values and retry." xml:space="preserve"><value>Eventet blev ændret, før WOM-handlingen blev sendt; gennemgå de aktuelle værdier, og prøv igen.</value></data>
+  <data name="This managed WOM competition is referenced by another event; automatic updates are paused." xml:space="preserve"><value>Denne administrerede WOM-konkurrence bruges af et andet event; automatiske opdateringer er sat på pause.</value></data>
+  <data name="The managed WOM competition changed outside Bingo; automatic updates are paused for Admin review." xml:space="preserve"><value>Den administrerede WOM-konkurrence blev ændret uden for Bingo; automatiske opdateringer er sat på pause, indtil en administrator har gennemgået den.</value></data>
+  <data name="The managed WOM competition no longer exists; automatic updates are paused." xml:space="preserve"><value>Den administrerede WOM-konkurrence findes ikke længere; automatiske opdateringer er sat på pause.</value></data>
+  <data name="Cannot create WOM competition with empty teams. Affected team: {0}." xml:space="preserve"><value>WOM-konkurrencen kan ikke oprettes med tomme hold. Berørt hold: {0}.</value></data>
+  <data name="The event name must be between 1 and 50 characters for WOM." xml:space="preserve"><value>Eventnavnet skal være mellem 1 og 50 tegn til WOM.</value></data>
+  <data name="The WOM competition end must be after its start." xml:space="preserve"><value>WOM-konkurrencens slut skal ligge efter dens start.</value></data>
+  <data name="The WOM competition schedule must be in the future." xml:space="preserve"><value>WOM-konkurrencens tidsplan skal ligge i fremtiden.</value></data>
+  <data name="Participant {0} has no eligible Playing assignment for team {1}." xml:space="preserve"><value>Deltageren {0} har ingen gyldig Playing-tilknytning til holdet {1}.</value></data>
+  <data name="A WOM competition can only be created before the event starts." xml:space="preserve"><value>En WOM-konkurrence kan kun oprettes, før eventet starter.</value></data>
+  <data name="Team name '{0}' is empty or duplicated after WOM normalization." xml:space="preserve"><value>Holdnavnet '{0}' er tomt eller gentaget efter WOM-normalisering.</value></data>
+  <data name="Team '{0}' must be between 1 and 30 characters for WOM." xml:space="preserve"><value>Holdet '{0}' skal være mellem 1 og 30 tegn til WOM.</value></data>
+  <data name="Player name '{0}' is not a valid WOM name." xml:space="preserve"><value>Spillernavnet '{0}' er ikke et gyldigt WOM-navn.</value></data>
+  <data name="Player name '{0}' is duplicated after WOM normalization." xml:space="preserve"><value>Spillernavnet '{0}' er gentaget efter WOM-normalisering.</value></data>
+  <data name="The event must be visible before WOM management." xml:space="preserve"><value>Eventet skal være synligt, før WOM kan administreres.</value></data>
+  <data name="The event must have a configured start and end before WOM management." xml:space="preserve"><value>Eventet skal have en konfigureret start og slut, før WOM kan administreres.</value></data>
+  <data name="The event must have at least one active team before WOM management." xml:space="preserve"><value>Eventet skal have mindst ét aktivt hold, før WOM kan administreres.</value></data>
+  <data name="The managed WOM operation needs Admin attention." xml:space="preserve"><value>Den administrerede WOM-handling kræver administratorens opmærksomhed.</value></data>
+  <data name="The tile description mode changed. Edit and save the tile before approval." xml:space="preserve"><value>Beskrivelsestypen for feltet er ændret. Redigér og gem feltet før godkendelse.</value></data>
+  <data name="{0} has an automatic description that is too long. Reduce the selected sources or objective count before approval." xml:space="preserve"><value>{0} har en automatisk beskrivelse, der er for lang. Reducér de valgte kilder eller antallet af mål før godkendelse.</value></data>
+  <data name="The event or team changed while you were editing it. Reload and try again." xml:space="preserve"><value>Begivenheden eller holdet blev ændret, mens du redigerede. Genindlæs, og prøv igen.</value></data>
+  <data name="Leaderboard metric" xml:space="preserve"><value>Ranglistemåling</value></data>
+  <data name="Boss teams leaderboard" xml:space="preserve"><value>Boss-holdrangliste</value></data>
+  <data name="No boss activity is available yet" xml:space="preserve"><value>Der er endnu ingen bossaktivitet.</value></data>
+  <data name="Multiple MVPs" xml:space="preserve"><value>Flere MVP'er</value></data>
+  <data name="Boss players leaderboard" xml:space="preserve"><value>Boss-spillerrangliste</value></data>
+  <data name="No boss activity players are available yet" xml:space="preserve"><value>Der er endnu ingen spillere med bossaktivitet.</value></data>
+  <data name="Select the exact managed WOM competition before deleting it." xml:space="preserve"><value>Vælg den præcise administrerede WOM-konkurrence, før du sletter den.</value></data>
+  <data name="The originating Admin is no longer enabled for this WOM operation." xml:space="preserve"><value>Den oprindelige Admin er ikke længere aktiveret til denne WOM-handling.</value></data>
 </root>

@@ -39,7 +39,7 @@ public sealed partial class EventCompetitionSynchronizationService
         var complete = compatible && sources.SourcesAvailable && state.LatestMetricsComplete == true &&
             expected.All(account => sources.Metrics.All(metric => rows.Any(row => row.OsrsCharacterId == account && row.Metric == metric &&
                 row.ActivityBatchId == state.MetricActivityBatchId && row.LastIssue is null && row.RecordedActivity() is not null)));
-        var stale = !complete || rows.Any(x => x.FetchedAt is null || x.FetchedAt.Value.AddHours(2) <= time.GetUtcNow());
+        var stale = !complete || rows.Any(x => x.FetchedAt is null || x.FetchedAt.Value.AddHours(1) <= time.GetUtcNow());
         return new(state.CompetitionId.Value, state.Generation, assignmentFingerprint, sources, state.MetricActivityBatchId,
             compatible, complete, stale, state.LastMetricAttemptAt, rows,
             state.LastMetricAttemptAt is not null && state.LastMetricAttemptAt == state.LastSuccessfulAt &&

@@ -84,8 +84,19 @@ public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
             var team = new Team(teamId, eventId, "Retained focus team", $"retained-focus-team-{eventId:N}", TeamFormationType.Preformed, null, false);
             await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO accounts (id, password_hash, must_change_password, account_type, active, authorization_version, login_name, normalized_login_name, global_role, public_username, normalized_public_username, password_version, version, created_at) VALUES ({owner.Id}, {"hash"}, FALSE, {"WebsiteAccount"}, TRUE, 1, {owner.LoginName}, {owner.NormalizedLoginName}, {"None"}, {owner.LoginName}, {owner.NormalizedLoginName}, 1, 1, {now})");
             await retained.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO events (id, name, slug, description, timezone, state, signup_opens_at, signup_closes_at, event_starts_at, event_ends_at, submission_cutoff_at, participant_cap, waiting_list_enabled, require_signup_code, participant_list_published, draft_results_published, team_rosters_published, board_published, results_published, draft_locked, created_by_account_id, created_at) VALUES ({eventItem.Id}, {eventItem.Name}, {eventItem.Slug}, {""}, {eventItem.Timezone}, {"Draft"}, {now}, {now}, {now}, {now.AddDays(1)}, {now.AddDays(1)}, {20}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {false}, {ownerId}, {now})");
-            retained.AddRange(board, tile, requirement, team);
+            retained.AddRange(board, requirement, team);
             await retained.SaveChangesAsync();
+            // This rehearsal intentionally stops before the later derived-description migration.
+            // Insert the historical board-tile shape without asking the current model to write its
+            // post-rehearsal description_is_automatic column.
+            await retained.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO board_tiles
+                    (id, board_id, tile_template_id, row_index, column_index, name_snapshot,
+                     description_snapshot, evidence_instructions_snapshot, estimated_ehb_snapshot)
+                VALUES
+                    ({tile.Id}, {board.Id}, {tile.TileTemplateId}, {tile.RowIndex}, {tile.ColumnIndex},
+                     {tile.NameSnapshot}, {tile.DescriptionSnapshot}, {tile.EvidenceInstructionsSnapshot}, {tile.EstimatedEhbSnapshot})
+                """);
             await retained.Database.ExecuteSqlInterpolatedAsync($"""
                 INSERT INTO submission_contributions
                     (id, submission_id, team_id, requirement_id, drop_snapshot_id, credited_participant_id, amount, applied_at, reversed_at)

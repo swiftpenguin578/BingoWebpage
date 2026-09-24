@@ -24,7 +24,7 @@ public sealed partial class EventCompetitionSynchronizationService(
     TimeProvider time) : IEventCompetitionSynchronizationService
 {
     private const string DevelopmentTest15Slug = "test-15-dkl-live";
-    private static readonly TimeSpan NormalInterval = TimeSpan.FromHours(2);
+    private static readonly TimeSpan NormalInterval = TimeSpan.FromHours(1);
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
 
     public async Task<EventCompetitionView?> GetAsync(Guid eventId, CancellationToken cancellationToken = default)
@@ -51,20 +51,34 @@ public sealed partial class EventCompetitionSynchronizationService(
         string? competitionClearReason, CancellationToken cancellationToken = default)
     {
         await RequireAdminAsync(actor, cancellationToken);
-        WiseOldManCompetition? competition = null;
-        if (competitionId is { } requestedId)
-        {
-            var result = await competitionClient.GetCompetitionAsync(requestedId, cancellationToken);
-            if (!result.Succeeded) return new(false, result.Message ?? "The competition could not be validated.");
-            competition = result.Competition!;
-            if (competition.Id != requestedId) return new(false, "Wise Old Man returned a different competition ID.");
-        }
-
+        if (await db.EventCompetitionManagements.AsNoTracking().AnyAsync(x => x.EventId == eventId && x.Status != EventCompetitionManagementStatus.Deleted, cancellationToken))
+            return new(false, "This event has a managed WOM competition. Use managed competition controls for its title, schedule, roster, and deletion.");
+        var previousCompetitionId = await db.EventCompetitionSynchronizations.AsNoTracking()
+            .Where(x => x.EventId == eventId)
+            .Select(x => x.CompetitionId)
+            .SingleOrDefaultAsync(cancellationToken);
         try
         {
+            await using var competitionReferenceLock = await CompetitionReferenceLock.AcquireManyAsync(
+                db,
+                new[] { previousCompetitionId, competitionId }.OfType<long>(),
+                cancellationToken);
+            WiseOldManCompetition? competition = null;
+            if (competitionId is { } requestedId)
+            {
+                var result = await competitionClient.GetCompetitionAsync(requestedId, cancellationToken);
+                if (!result.Succeeded) return new(false, result.Message ?? "The competition could not be validated.");
+                competition = result.Competition!;
+                if (competition.Id != requestedId) return new(false, "Wise Old Man returned a different competition ID.");
+            }
+
             await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
-            var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, cancellationToken);
+            var item = await db.Events
+                .FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE")
+                .SingleOrDefaultAsync(cancellationToken);
             if (item is null) return new(false, "The event was not found.");
+            if (await db.EventCompetitionManagements.AnyAsync(x => x.EventId == eventId && x.Status != EventCompetitionManagementStatus.Deleted, cancellationToken))
+                return new(false, "This event has a managed WOM competition. Use managed competition controls for its title, schedule, roster, and deletion.");
             if (item.Version != expectedEventVersion) return new(false, "This event changed in another request. Reload before changing its competition.");
             if (item.State is EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived or EventState.Cancelled or EventState.Discarded)
                 return new(false, "Competition integration is read-only after live play.");
@@ -105,7 +119,6 @@ public sealed partial class EventCompetitionSynchronizationService(
 
             var fingerprint = await AssignmentFingerprintAsync(eventId, cancellationToken);
             var state = await db.EventCompetitionSynchronizations.SingleOrDefaultAsync(x => x.EventId == eventId, cancellationToken);
-            var previousCompetitionId = state?.CompetitionId;
             if (state is null)
             {
                 state = new EventCompetitionSynchronization(Guid.NewGuid(), eventId, 1, competitionId,
@@ -131,6 +144,10 @@ public sealed partial class EventCompetitionSynchronizationService(
             return new(false, "This event changed in another request. Reload before changing its competition.");
         }
         catch (PostgresException exception) when (exception.SqlState is PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.UniqueViolation)
+        {
+            return new(false, "This event changed in another request. Reload before changing its competition.");
+        }
+        catch (Exception exception) when (ContainsCompetitionConcurrencyFailure(exception))
         {
             return new(false, "This event changed in another request. Reload before changing its competition.");
         }
@@ -172,8 +189,15 @@ public sealed partial class EventCompetitionSynchronizationService(
     {
         var now = time.GetUtcNow();
         var eventIds = await db.EventCompetitionSynchronizations.AsNoTracking()
-            .Where(x => x.CompetitionId != null && (x.NormalDueAt <= now || x.RetryDueAt <= now))
-            .Join(db.Events.AsNoTracking().Where(x => x.HiddenAt == null && x.State == EventState.Live), x => x.EventId, x => x.Id, (x, _) => x.EventId)
+            .Where(x => x.CompetitionId != null)
+            .Join(db.Events.AsNoTracking().Where(x => x.HiddenAt == null && x.State == EventState.Live && x.ActualStartedAt != null),
+                x => x.EventId, x => x.Id, (x, item) => new { x.EventId, x.NormalDueAt, x.RetryDueAt, item.ActualStartedAt })
+            // Existing Live rows may still contain a rolling due time from the previous cadence.
+            // Include anchored rows lazily so AcquireLeaseAsync can reconcile one current slot;
+            // it will cheaply skip rows whose fixed next slot is still in the future.
+            .Where(x => x.NormalDueAt == null || x.NormalDueAt <= now || x.RetryDueAt <= now ||
+                        x.ActualStartedAt <= now.AddHours(-1))
+            .Select(x => x.EventId)
             .Distinct().ToListAsync(cancellationToken);
         foreach (var eventId in eventIds)
         {
@@ -211,13 +235,17 @@ public sealed partial class EventCompetitionSynchronizationService(
         if (state?.CompetitionId is not { } competitionId) return null;
         if (state.LeaseExpiresAt is { } leaseExpiry && leaseExpiry > now) return null;
         var fingerprint = await AssignmentFingerprintAsync(eventId, cancellationToken);
-        if (!string.Equals(state.AssignmentFingerprint, fingerprint, StringComparison.Ordinal))
+        var assignmentChanged = !string.Equals(state.AssignmentFingerprint, fingerprint, StringComparison.Ordinal);
+        if (assignmentChanged)
             state.BeginReplacementGeneration(fingerprint, now);
+        else
+            state.ReconcileNormalSlot(item.ActualStartedAt, now);
         if (manual)
         {
             if (state.LastSuccessfulAt is { } successfulAt && successfulAt.Add(NormalInterval) > now) return null;
             if (state.RetryDueAt is { } retryDue && retryDue > now) return null;
-            if (state.NormalDueAt is { } normalDue && normalDue > now) return null;
+            var hasCompletedOrAttemptedRefresh = state.LastAttemptAt is not null || state.LastSuccessfulAt is not null;
+            if (hasCompletedOrAttemptedRefresh && state.NormalDueAt is { } normalDue && normalDue > now) return null;
         }
         else
         {
@@ -226,7 +254,7 @@ public sealed partial class EventCompetitionSynchronizationService(
         }
 
         if (state.RetryDueAt is null && state.NormalDueAt is { } normalDueAt && normalDueAt <= now)
-            state.BeginNormalCycle(now);
+            state.BeginNormalAttempt(item.ActualStartedAt, now);
 
         await db.RetainLuckOutcomeBasesAsync(eventId, now, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
@@ -312,17 +340,17 @@ public sealed partial class EventCompetitionSynchronizationService(
                 state.MarkMetricBatch(batchId, complete, now);
             }
             else state.MarkMetricFailure(now);
-            state.MarkSuccess(now, result.Competition.LastUpdatedAt, missing.Count == 0, JsonSerializer.Serialize(missing), missing.Count == 0 ? null : "The competition response is missing one or more current Playing accounts.");
+            state.MarkSuccess(now, result.Competition.LastUpdatedAt, missing.Count == 0, JsonSerializer.Serialize(missing), missing.Count == 0 ? null : "The competition response is missing one or more current Playing accounts.", item.ActualStartedAt);
         }
         else if (result.Status is WiseOldManCompetitionStatus.NotFound or WiseOldManCompetitionStatus.Invalid)
         {
-            state.MarkFailure(now, "Permanent", result.Message ?? "The Wise Old Man competition configuration is invalid.", null);
+            state.MarkFailure(now, "Permanent", result.Message ?? "The Wise Old Man competition configuration is invalid.", null, item.ActualStartedAt);
         }
         else
         {
             var retryNumber = state.RetryCount;
             var fallback = now.AddMinutes(retryNumber switch { 0 => 1, 1 => 2, _ => 4 });
-            state.MarkFailure(now, result.Status.ToString(), result.Message ?? "Wise Old Man could not refresh the competition.", result.RetryAt ?? fallback);
+            state.MarkFailure(now, result.Status.ToString(), result.Message ?? "Wise Old Man could not refresh the competition.", result.RetryAt ?? fallback, item.ActualStartedAt);
         }
         if (!result.Succeeded || result.Competition!.Id != lease.CompetitionId)
         {
@@ -379,6 +407,18 @@ public sealed partial class EventCompetitionSynchronizationService(
     }
 
     private static string Normalize(string value) => value.Trim().Replace('_', ' ').ToUpperInvariant();
+
+    private static bool ContainsCompetitionConcurrencyFailure(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.UniqueViolation })
+                return true;
+        }
+
+        return false;
+    }
+
     private sealed record ExpectedAssignment(Guid CharacterId, string DisplayName, string NormalizedName);
     private sealed record SyncLease(Guid EventId, Guid StateId, int Generation, long CompetitionId, string Owner, string AssignmentFingerprint, IReadOnlyList<ExpectedAssignment> Expected, LuckSourceRequest SourceRequest);
 }

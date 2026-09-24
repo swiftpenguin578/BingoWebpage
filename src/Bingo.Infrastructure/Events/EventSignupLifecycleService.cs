@@ -6,6 +6,7 @@ using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
+using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
@@ -404,6 +405,8 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
         var competitionStart = proposedCompetition?.StartsAt;
         var competitionEnd = proposedCompetition?.EndsAt;
         var hasCompetition = proposedCompetition is not null;
+        var managedCompetition = await db.EventCompetitionManagements.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.EventId == item.Id && x.Status != EventCompetitionManagementStatus.Deleted, ct);
         if (proposedCompetition is null)
         {
             var linkedCompetition = await db.EventCompetitionSynchronizations.AsNoTracking().SingleOrDefaultAsync(x => x.EventId == item.Id && x.CompetitionId != null, ct);
@@ -411,7 +414,7 @@ public sealed class EventSignupLifecycleService(ApplicationDbContext db, IEventR
             competitionStart = linkedCompetition?.CompetitionStartsAt;
             competitionEnd = linkedCompetition?.CompetitionEndsAt;
         }
-        if (hasCompetition)
+        if (hasCompetition && managedCompetition is null)
             if (proposedStart is not { } start || proposedEnd is not { } end || competitionStart is not { } expectedStart || competitionEnd is not { } expectedEnd || Math.Abs((start - expectedStart).TotalMinutes) > 5 || Math.Abs((end - expectedEnd).TotalMinutes) > 5)
                 return "The linked Wise Old Man competition must remain within five minutes of the event window.";
         return null;

@@ -173,7 +173,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
         await using (var verifyStart = new ApplicationDbContext(options))
         {
             var scheduled = await verifyStart.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id);
-            var expectedScheduledDue = now.AddHours(2);
+            var expectedScheduledDue = now.AddHours(1);
             Assert.Equal(expectedScheduledDue.AddTicks(-(expectedScheduledDue.Ticks % TimeSpan.TicksPerMicrosecond)), scheduled.NormalDueAt);
         }
         await using (var beforeDue = new ApplicationDbContext(options))
@@ -182,13 +182,13 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
         }
         Assert.Equal(0, fake.Calls);
 
-        clock.Advance(TimeSpan.FromHours(2));
+        clock.Advance(TimeSpan.FromHours(1));
         await using (var firstDue = new ApplicationDbContext(options))
         {
             await new EventCompetitionSynchronizationService(firstDue, fake, new FixedStatus(), clock).ProcessDueAsync();
         }
         Assert.Equal(1, fake.Calls);
-        var firstNormalDue = clock.GetUtcNow().AddHours(2);
+        var firstNormalDue = now.AddHours(2);
         await using (var afterFirstFetch = new ApplicationDbContext(options))
         {
             Assert.Equal(firstNormalDue.AddTicks(-(firstNormalDue.Ticks % TimeSpan.TicksPerMicrosecond)), (await new EventCompetitionSynchronizationService(afterFirstFetch, fake, new FixedStatus(), clock).GetAsync(eventItem.Id))!.NormalDueAt);
@@ -233,7 +233,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
         }
         Assert.Equal(2, fake.Calls);
         await using var verifyRecovery = new ApplicationDbContext(options);
-        var expectedRecoveryDue = clock.GetUtcNow().AddHours(2);
+        var expectedRecoveryDue = now.AddHours(2);
         Assert.Equal(expectedRecoveryDue.AddTicks(-(expectedRecoveryDue.Ticks % TimeSpan.TicksPerMicrosecond)), (await verifyRecovery.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == eventItem.Id)).NormalDueAt);
     }
 
@@ -441,7 +441,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
     }
 
     [Fact]
-    public async Task FourTemporaryFailuresExhaustTheRetryCycleWithoutMovingTheTwoHourAnchor()
+    public async Task FourTemporaryFailuresExhaustTheRetryCycleWithoutMovingTheFixedHourlyAnchor()
     {
         var clock = new TestClock(DateTimeOffset.UtcNow);
         var now = clock.GetUtcNow();
@@ -464,6 +464,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             var service = new EventCompetitionSynchronizationService(db, fake, new FixedStatus(), clock);
             Assert.True((await service.ConfigureAsync(eventItem.Id, eventItem.Version, 44, false, new(admin.Id, admin.LoginName))).Succeeded);
             await service.RefreshAsync(eventItem.Id, new(admin.Id, admin.LoginName));
+            clock.Advance(TimeSpan.FromHours(1)); await service.ProcessDueAsync();
             clock.Advance(TimeSpan.FromMinutes(1)); await service.ProcessDueAsync();
             clock.Advance(TimeSpan.FromMinutes(2)); await service.ProcessDueAsync();
             clock.Advance(TimeSpan.FromMinutes(4)); await service.ProcessDueAsync();
@@ -473,11 +474,11 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
             var expectedAnchor = now.AddHours(2);
             Assert.Equal(expectedAnchor.AddTicks(-(expectedAnchor.Ticks % TimeSpan.TicksPerMicrosecond)), view.NormalDueAt);
             Assert.Equal(5, fake.Calls);
-            clock.Advance(TimeSpan.FromHours(2));
+            clock.Advance(TimeSpan.FromHours(1));
             await service.ProcessDueAsync();
             view = await service.GetAsync(eventItem.Id);
             Assert.Equal(1, view!.RetryCount);
-            var expectedRetryAnchor = clock.GetUtcNow().AddHours(2);
+            var expectedRetryAnchor = now.AddHours(3);
             Assert.Equal(expectedRetryAnchor.AddTicks(-(expectedRetryAnchor.Ticks % TimeSpan.TicksPerMicrosecond)), view.NormalDueAt);
             Assert.Equal(6, fake.Calls);
         }
@@ -854,6 +855,29 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests : IAsy
         Assert.False(result.Succeeded);
         Assert.Contains("within five minutes", result.Error);
         var expectedEnd = now.AddDays(2);
+        Assert.Equal(expectedEnd.AddTicks(-(expectedEnd.Ticks % TimeSpan.TicksPerMicrosecond)), (await db.Events.AsNoTracking().SingleAsync(x => x.Id == item.Id)).EventEndsAt);
+    }
+
+    [Fact]
+    public async Task SaveScheduleAllowsManagedWindowChangesBeyondFiveMinutesForAutomaticUpdate()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var actor = new LifecycleActor(Guid.NewGuid(), "managed-schedule-admin");
+        var item = new BingoEvent(Guid.NewGuid(), "Managed schedule", $"managed-schedule-{Guid.NewGuid():N}", "UTC", actor.Id, now);
+        item.ConfigureSchedule(now.AddHours(1), now.AddHours(2), null, now.AddDays(1), now.AddDays(2), 20);
+        var state = new EventCompetitionSynchronization(Guid.NewGuid(), item.Id, 1, 99, "Managed competition", item.EventStartsAt, item.EventEndsAt, "", now);
+        var management = new EventCompetitionManagement(Guid.NewGuid(), item.Id, state.Id, 99, "Managed competition", item.EventStartsAt!.Value, item.EventEndsAt!.Value, "protected", "local", now);
+        await using var db = new ApplicationDbContext(options);
+        db.AddRange(item, state, management);
+        await db.SaveChangesAsync();
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>()).Build();
+        var service = new EventSignupLifecycleService(db, new EventReadinessEvaluator(db, configuration), new TestClock(now));
+        var values = new EventScheduleValues(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt!.Value.AddHours(2), item.ParticipantCap, false);
+
+        var result = await service.SaveScheduleAsync(item.Id, item.Version, values, false, actor);
+
+        Assert.True(result.Succeeded, result.Error);
+        var expectedEnd = now.AddDays(2).AddHours(2);
         Assert.Equal(expectedEnd.AddTicks(-(expectedEnd.Ticks % TimeSpan.TicksPerMicrosecond)), (await db.Events.AsNoTracking().SingleAsync(x => x.Id == item.Id)).EventEndsAt);
     }
 

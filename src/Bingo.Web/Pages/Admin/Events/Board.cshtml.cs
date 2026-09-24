@@ -155,9 +155,10 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         var selectedBosses = await db.BossActivities.Where(x => selectedBossIds.Contains(x.Id)).OrderBy(x => x.Name).ToListAsync(ct);
         var name = string.IsNullOrWhiteSpace(TileDraft.Name) ? DefaultTileName(selectedBosses.Select(x => x.Name)) : TileDraft.Name.Trim();
         var requirementDescriptions = TileDraft.Requirements.Select(RequirementDescription).ToList();
-        var description = string.IsNullOrWhiteSpace(TileDraft.Description) ? string.Join("; ", requirementDescriptions) : TileDraft.Description.Trim();
+        var descriptionIsAutomatic = string.IsNullOrWhiteSpace(TileDraft.Description);
+        var description = descriptionIsAutomatic ? string.Empty : TileDraft.Description!.Trim();
         var objectiveType = TileDraft.Requirements.All(x => x.IsManual) ? ObjectiveType.Manual : ObjectiveType.DropRequirements;
-        var template = new TileTemplate(Guid.NewGuid(), name, description, objectiveType, string.Empty, TileDraft.ManualEhb);
+        var template = new TileTemplate(Guid.NewGuid(), name, description, objectiveType, string.Empty, TileDraft.ManualEhb, descriptionIsAutomatic: descriptionIsAutomatic);
         db.TileTemplates.Add(template);
         var requirements = new List<TileTemplateRequirement>();
         for (var index = 0; index < TileDraft.Requirements.Count; index++)
@@ -236,7 +237,8 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             var selectedBosses = await db.BossActivities.Where(x => selectedBossIds.Contains(x.Id)).OrderBy(x => x.Name).ToListAsync(ct);
             var name = string.IsNullOrWhiteSpace(TileDraft.Name) ? DefaultTileName(selectedBosses.Select(x => x.Name)) : TileDraft.Name.Trim();
             var requirementDescriptions = TileDraft.Requirements.Select(RequirementDescription).ToList();
-            var description = string.IsNullOrWhiteSpace(TileDraft.Description) ? string.Join("; ", requirementDescriptions) : TileDraft.Description.Trim();
+            var descriptionIsAutomatic = string.IsNullOrWhiteSpace(TileDraft.Description);
+            var description = descriptionIsAutomatic ? string.Empty : TileDraft.Description!.Trim();
             var objectiveType = TileDraft.Requirements.All(x => x.IsManual) ? ObjectiveType.Manual : ObjectiveType.DropRequirements;
             var template = await db.TileTemplates.SingleAsync(x => x.Id == tile.TileTemplateId, ct);
             var oldSnapshots = await db.BoardRequirementSnapshots.Where(x => x.BoardTileId == tile.Id).ToListAsync(ct);
@@ -266,7 +268,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             var protectsPublishedScoring = publishedTileRequirements.Any(x => evidenced.Contains(x.BoardRequirementSnapshotId));
             if (protectsPublishedScoring && TileDraft.Requirements.Sum(x => (long)x.Target) != publishedTileRequirements.Sum(x => (long)x.TargetContribution))
                 throw new InvalidOperationException("Objectives with submitted evidence cannot change requirements or scoring, or be removed. Only wording corrections are allowed.");
-            template.Update(name, description, objectiveType, string.Empty, TileDraft.ManualEhb);
+            template.Update(name, description, objectiveType, string.Empty, TileDraft.ManualEhb, descriptionIsAutomatic: descriptionIsAutomatic);
 
             var oldTemplateRequirements = await db.TileTemplateRequirements.Where(x => x.TileTemplateId == template.Id).ToListAsync(ct);
             var oldTemplateRequirementIds = oldTemplateRequirements.Select(x => x.Id).ToList();
@@ -311,7 +313,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             if (protectsPublishedScoring && decimal.Round(ehb, 4) != publishedTile!.EstimatedEhb)
                 throw new InvalidOperationException("Objectives with submitted evidence cannot change requirements or scoring, or be removed. Only wording corrections are allowed.");
             board.SetTotalEhb(Math.Max(0, board.TotalEhbEstimate - tile.EstimatedEhbSnapshot + ehb));
-            tile.UpdateContent(name, description, string.Empty, ehb);
+            tile.UpdateContent(name, description, string.Empty, ehb, descriptionIsAutomatic: descriptionIsAutomatic);
             uploaded = await ReplaceTileImageAsync(id, tile, ct);
             await db.SaveChangesAsync(ct);
             await WriteAudit("board.tile_edited", board, before, new { board = BoardAuditState(board), tile = await TileAuditStateAsync(tile, ct) }, ct);
@@ -633,13 +635,16 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         await db.SaveChangesAsync(ct);
         foreach (var tile in published.Tiles)
         {
+            var workingDescription = tile.DescriptionIsAutomatic ? string.Empty : tile.DescriptionSnapshot;
             var restored = tiles.SingleOrDefault(x => x.Id == tile.Id);
             if (restored is null) { restored = tile; db.BoardTiles.Add(restored); }
             else db.Entry(restored).CurrentValues.SetValues(tile);
+            restored.UpdateContent(tile.NameSnapshot, workingDescription, tile.EvidenceInstructionsSnapshot,
+                tile.EstimatedEhbSnapshot, tile.ImageUrlSnapshot, tile.DescriptionIsAutomatic);
             if (restoredImages.TryGetValue(tile.Id, out var image)) { image.Restore(); restored.SetActiveImageAsset(image.Id); }
             foreach (var imageToRetire in images.Where(x => x.BoardTileId == tile.Id && x.Id != restored.ActiveImageAssetId)) imageToRetire.Replace(time.GetUtcNow());
             var tileRequirements = published.Requirements.Where(x => x.BoardTileId == tile.Id).ToList();
-            templates[tile.TileTemplateId].Update(tile.NameSnapshot, tile.DescriptionSnapshot, tileRequirements.All(x => x.ManualObjective) ? ObjectiveType.Manual : ObjectiveType.DropRequirements, tile.EvidenceInstructionsSnapshot, manualEstimates[tile.Id]);
+            templates[tile.TileTemplateId].Update(tile.NameSnapshot, workingDescription, tileRequirements.All(x => x.ManualObjective) ? ObjectiveType.Manual : ObjectiveType.DropRequirements, tile.EvidenceInstructionsSnapshot, manualEstimates[tile.Id], descriptionIsAutomatic: tile.DescriptionIsAutomatic);
             foreach (var requirement in tileRequirements)
             {
                 var restoredRequirement = requirements.SingleOrDefault(x => x.Id == requirement.Id);
@@ -715,6 +720,14 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                 publishingCorrection
                     ? $"{{\"state\":\"Published\",\"activeApprovalSnapshotId\":\"{snapshot.Id}\",\"approvalVersion\":{snapshot.Version}}}"
                     : $"{{\"state\":\"Validated\",\"activeApprovalSnapshotId\":\"{snapshot.Id}\",\"approvalVersion\":{snapshot.Version}}}");
+            await db.SaveChangesAsync(ct);
+            var completionPublication = await db.ApprovalObjectivesAsync(board.Id, snapshot.Id, ct)
+                ?? throw new InvalidOperationException("The approved tile completion inputs are unavailable.");
+            var completionTeamIds = await db.Teams.AsNoTracking()
+                .Where(team => team.EventId == id && team.Active && team.FinalizedAt != null)
+                .Select(team => team.Id)
+                .ToListAsync(ct);
+            await TileCompletionFactReconciler.ReconcileAsync(db, id, completionPublication, completionTeamIds, time.GetUtcNow(), ct);
             await db.SaveChangesAsync(ct);
             await db.RetainLuckOutcomeBasesAsync(id, time.GetUtcNow(), ct);
             await db.SaveChangesAsync(ct);
@@ -904,12 +917,33 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
                     throw new BoardApprovalValidationException("A managed tile image no longer belongs to this event. Correct the tile before approval.");
                 artwork = image.StorageKey;
             }
-            var approvalTile = new BoardApprovalTileSnapshot(Guid.NewGuid(), approval.Id, tile.Id, tile.TileTemplateId, tile.RowIndex, tile.ColumnIndex, tile.NameSnapshot, tile.DescriptionSnapshot, string.Empty, 0m, artwork);
-            db.BoardApprovalTileSnapshots.Add(approvalTile);
             var tileRequirements = requirements.Where(x => x.BoardTileId == tile.Id).OrderBy(x => x.Position).ToList();
             if (tileRequirements.Select(x => x.ManualObjective).Distinct().Count() > 1)
                 throw new BoardApprovalValidationException("Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind.");
             var template = templates[tile.TileTemplateId];
+            if (template.DescriptionIsAutomatic != tile.DescriptionIsAutomatic)
+                throw new BoardApprovalValidationException("The tile description mode changed. Edit and save the tile before approval.");
+            var description = tile.DescriptionSnapshot;
+            if (tile.DescriptionIsAutomatic)
+            {
+                var descriptionRequirements = tileRequirements.Select(requirement =>
+                {
+                    var selectedDrops = requirementDrops.Where(drop => drop.RequirementId == requirement.Id)
+                        .Select(drop => currentDrops.TryGetValue(drop.SourceDropId, out var selectedDrop)
+                            ? new TileDescriptionDrop(drop.ItemIdSnapshot, selectedDrop.Item.Name, selectedDrop.Boss.Name)
+                            : null)
+                        .Where(value => value is not null)
+                        .Select(value => value!)
+                        .ToList();
+                    return new TileDescriptionRequirement(requirement.Position, requirement.TargetContribution,
+                        requirement.ManualObjective, requirement.Description, selectedDrops);
+                });
+                description = TileDescriptionFormatter.Format(descriptionRequirements);
+                if (description.Length > TileDescriptionFormatter.MaximumFrozenDescriptionLength)
+                    throw new BoardApprovalValidationException("{0} has an automatic description that is too long. Reduce the selected sources or objective count before approval.", tile.NameSnapshot);
+            }
+            var approvalTile = new BoardApprovalTileSnapshot(Guid.NewGuid(), approval.Id, tile.Id, tile.TileTemplateId, tile.RowIndex, tile.ColumnIndex, tile.NameSnapshot, description, string.Empty, 0m, artwork, tile.DescriptionIsAutomatic);
+            db.BoardApprovalTileSnapshots.Add(approvalTile);
             var manualTile = tileRequirements.All(x => x.ManualObjective);
             if ((template.ObjectiveType == ObjectiveType.Manual) != manualTile)
                 throw new BoardApprovalValidationException("The tile kind does not match its objectives. Edit and save the tile with one objective kind before approval.");
@@ -1118,7 +1152,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             var rates = rateRows.Select(x => new EligibleDropRate(x.boss.EfficientCompletionsPerHour, x.drop.NumericProbability, x.drop.ItemId, x.boss.Id, x.link.CreditedWeight, x.drop.RollsPerCompletion, x.drop.RollGroup));
             estimates.Add(EhbCalculator.CalculateDropRequirement(requirement.TargetContribution, rates, requirement.DuplicatesAllowed));
         }
-        var ehb = EhbCalculator.CalculateTileEstimate(template.ObjectiveType, requirements.Zip(estimates, (requirement, estimate) => (requirement.ManualObjective, estimate)), template.ManualEhbOverride); var boardTile = new BoardTile(Guid.NewGuid(), board.Id, template.Id, position / board.Columns, position % board.Columns, template.Name, template.Description, template.EvidenceInstructions, ehb, template.ImageUrl); db.BoardTiles.Add(boardTile);
+        var ehb = EhbCalculator.CalculateTileEstimate(template.ObjectiveType, requirements.Zip(estimates, (requirement, estimate) => (requirement.ManualObjective, estimate)), template.ManualEhbOverride); var boardTile = new BoardTile(Guid.NewGuid(), board.Id, template.Id, position / board.Columns, position % board.Columns, template.Name, template.Description, template.EvidenceInstructions, ehb, template.ImageUrl, template.DescriptionIsAutomatic); db.BoardTiles.Add(boardTile);
         foreach (var requirement in requirements)
         {
             var snapshot = new BoardRequirementSnapshot(Guid.NewGuid(), boardTile.Id, requirement.Position, requirement.TargetContribution, requirement.DuplicatesAllowed, requirement.AllowHigherWeightings, requirement.Description, requirement.ManualObjective); db.BoardRequirementSnapshots.Add(snapshot);
@@ -1236,7 +1270,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         var managedImages = await db.BoardTileImageAssets.AsNoTracking().Where(image => tileIds.Contains(image.BoardTileId) && image.ReplacedAt == null).ToDictionaryAsync(image => image.Id, ct);
         TileEditors = boardTilesForEditors.Select(tile => new TileEditorView(tile.Id,
             useLiveDerivation ? tile.NameSnapshot : frozenTiles[tile.Id].Name,
-            useLiveDerivation ? tile.DescriptionSnapshot : frozenTiles[tile.Id].Description,
+            tile.DescriptionIsAutomatic ? string.Empty : useLiveDerivation ? tile.DescriptionSnapshot : frozenTiles[tile.Id].Description,
             tile.ActiveImageAssetId is { } imageId && managedImages.TryGetValue(imageId, out var image) && image.BoardTileId == tile.Id && image.EventId == id ? Url.Page("Board", "TileImage", new { id, tileId = tile.Id }) : null,
             editorTemplates.GetValueOrDefault(tile.TileTemplateId) is { ObjectiveType: ObjectiveType.Manual } manualTemplate ? manualTemplate.ManualEhbOverride : null,
             requirementsByTile.GetValueOrDefault(tile.Id, []).Select(requirement => new RequirementEditorView(requirement.Id, requirement.ManualObjective ? "challenge" : "drops", requirement.Description, requirement.TargetContribution, requirement.DuplicatesAllowed,
@@ -1389,7 +1423,17 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
             var ehb = templates.TryGetValue(tile.TileTemplateId, out var template)
                 ? EhbCalculator.CalculateTileEstimate(template.ObjectiveType, requirements.Zip(estimates, (requirement, estimate) => (requirement.ManualObjective, estimate)), template.ManualEhbOverride)
                 : 0;
-            return new TileView(tile.Id, tile.RowIndex * columns + tile.ColumnIndex, tile.NameSnapshot, tile.DescriptionSnapshot, string.Empty, ehb);
+            var description = tile.DescriptionIsAutomatic
+                ? TileDescriptionFormatter.Format(requirements.Select(requirement => new TileDescriptionRequirement(
+                    requirement.Position,
+                    requirement.TargetContribution,
+                    requirement.ManualObjective,
+                    requirement.Description,
+                    dropsByRequirement.GetValueOrDefault(requirement.Id, [])
+                        .Select(drop => new TileDescriptionDrop(drop.Drop.ItemId, drop.Item.Name, drop.Boss.Name))
+                        .ToList())))
+                : tile.DescriptionSnapshot;
+            return new TileView(tile.Id, tile.RowIndex * columns + tile.ColumnIndex, tile.NameSnapshot, description, string.Empty, ehb);
         }).ToList();
     }
     private static List<TileView> BuildFrozenTiles(
@@ -1403,7 +1447,7 @@ public sealed class BoardModel(ApplicationDbContext db, TimeProvider time, IAudi
         }).ToList();
     private static string RequirementDescription(RequirementInput input) => input.IsManual ? input.Description!.Trim() : $"Collect {input.Target} eligible drop{(input.Target == 1 ? string.Empty : "s")}";
 
-    public sealed class TileDraftInput { public Guid? TileId { get; set; } public int Position { get; set; } public string? Name { get; set; } public string? Description { get; set; } public IFormFile? Image { get; set; } public bool RemoveImage { get; set; } [Range(0, 100000)] public decimal? ManualEhb { get; set; } public List<RequirementInput> Requirements { get; set; } = [new()]; }
+    public sealed class TileDraftInput { public Guid? TileId { get; set; } public int Position { get; set; } public string? Name { get; set; } [StringLength(TileDescriptionFormatter.MaximumManualDescriptionLength, ErrorMessage = "Tile description cannot be longer than 4000 characters.")] public string? Description { get; set; } public IFormFile? Image { get; set; } public bool RemoveImage { get; set; } [Range(0, 100000)] public decimal? ManualEhb { get; set; } public List<RequirementInput> Requirements { get; set; } = [new()]; }
     public sealed class RequirementInput { public Guid? RequirementId { get; set; } public string Kind { get; set; } = "drops"; public string? Description { get; set; } [Range(1, 10000)] public int Target { get; set; } = 1; public bool DuplicatesAllowed { get; set; } = true; public Dictionary<Guid, int> DropWeights { get; set; } = []; public List<Guid> BossIds { get; set; } = []; public List<Guid> DropIds { get; set; } = []; public bool IsManual => string.Equals(Kind, "challenge", StringComparison.OrdinalIgnoreCase); public int WeightFor(Guid dropId) => Math.Max(1, DropWeights.GetValueOrDefault(dropId, 1)); public bool HasHigherWeights => DropIds.Any(x => WeightFor(x) > 1); }
     public sealed record BoardDetails(int Rows, int Columns, BoardState State, decimal TotalEhb, long Version, bool PublishedCorrectionInProgress);
     public sealed record BoardStatistics(decimal TotalEhb, int? TeamSize, decimal? EhbPerPlayer, decimal? EhbPerPlayerPerDay, decimal AverageTileEhb, decimal LowestLineEhb, decimal HighestLineEhb, int MissingEhbTiles, decimal DurationDays);

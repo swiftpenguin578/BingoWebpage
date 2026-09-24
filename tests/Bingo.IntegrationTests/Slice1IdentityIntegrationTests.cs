@@ -18,6 +18,7 @@ using Bingo.Infrastructure.Auditing;
 using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.WiseOldMan;
 using Bingo.Web.Catalogue;
 using Bingo.Web.Events;
 using Bingo.Web.Navigation;
@@ -451,7 +452,8 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         var request = new DefaultHttpContext { RequestServices = callbackContext.RequestServices };
         request.Request.Headers.Cookie = callbackContext.Response.Headers.SetCookie.Single()!.Split(';')[0];
         var lookup = new FixedWiseOldManPlayerLookup();
-        var page = new Bingo.Web.Pages.Account.OnboardingModel(new AccountIdentityService(db, passwords, clock), new AccountAuthenticationService(db, passwords, clock), onboarding, new PassthroughLocalizer(), Microsoft.Extensions.Logging.Abstractions.NullLogger<Bingo.Web.Pages.Account.OnboardingModel>.Instance, lookup)
+        var accountValidation = new WiseOldManAccountValidation(lookup, clock);
+        var page = new Bingo.Web.Pages.Account.OnboardingModel(new AccountIdentityService(db, passwords, clock, accountValidation), new AccountAuthenticationService(db, passwords, clock), onboarding, new PassthroughLocalizer(), Microsoft.Extensions.Logging.Abstractions.NullLogger<Bingo.Web.Pages.Account.OnboardingModel>.Instance, lookup, accountValidation)
         {
             PageContext = new PageContext(new ActionContext(request, new RouteData(), new PageActionDescriptor()))
         };
@@ -479,7 +481,9 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
         Assert.Empty(await db.Accounts.Where(account => account.DiscordUserId == "slice1-onboarding-discord").ToListAsync());
 
         await using var retryDb = new ApplicationDbContext(options);
-        var retry = new Bingo.Web.Pages.Account.OnboardingModel(new AccountIdentityService(retryDb, passwords, clock), new AccountAuthenticationService(retryDb, passwords, clock), onboarding, new PassthroughLocalizer(), Microsoft.Extensions.Logging.Abstractions.NullLogger<Bingo.Web.Pages.Account.OnboardingModel>.Instance, new FixedWiseOldManPlayerLookup())
+        var retryLookup = new FixedWiseOldManPlayerLookup();
+        var retryValidation = new WiseOldManAccountValidation(retryLookup, clock);
+        var retry = new Bingo.Web.Pages.Account.OnboardingModel(new AccountIdentityService(retryDb, passwords, clock, retryValidation), new AccountAuthenticationService(retryDb, passwords, clock), onboarding, new PassthroughLocalizer(), Microsoft.Extensions.Logging.Abstractions.NullLogger<Bingo.Web.Pages.Account.OnboardingModel>.Instance, retryLookup, retryValidation)
         {
             PageContext = new PageContext(new ActionContext(request, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(request, new DictionaryTempDataProvider()),
@@ -1770,7 +1774,8 @@ public sealed class Slice1IdentityIntegrationTests : IAsyncLifetime
                     .BuildServiceProvider()
             };
             request.Request.Headers.Cookie = issue.Response.Headers.SetCookie.Single()!.Split(';')[0];
-            var page = new Bingo.Web.Pages.Account.OnboardingModel(new AccountIdentityService(db, passwords, time), new AccountAuthenticationService(db, passwords, time), state, new PassthroughLocalizer(), Microsoft.Extensions.Logging.Abstractions.NullLogger<Bingo.Web.Pages.Account.OnboardingModel>.Instance, new FixedWiseOldManPlayerLookup())
+            var validation = new SuccessfulWiseOldManAccountValidation();
+            var page = new Bingo.Web.Pages.Account.OnboardingModel(new AccountIdentityService(db, passwords, time, validation), new AccountAuthenticationService(db, passwords, time), state, new PassthroughLocalizer(), Microsoft.Extensions.Logging.Abstractions.NullLogger<Bingo.Web.Pages.Account.OnboardingModel>.Instance, new FixedWiseOldManPlayerLookup(), validation)
             {
                 PageContext = new PageContext(new ActionContext(request, new RouteData(), new PageActionDescriptor())),
                 TempData = new TempDataDictionary(request, new DictionaryTempDataProvider()),

@@ -445,7 +445,7 @@ else
                 {
                     <section class="event-admin-control-group"><div><h3>@T["Event cancelled"]</h3><p>@T["This event is terminal and no scheduled or ordinary event action can reactivate it."]</p></div><p class="event-control-status"><strong>@T["Private Admin reason:"]</strong> @(Model.PrivateCancellationReason ?? T["Visual preview cancellation reason."].Value)</p></section>
                 }
-                @{ var integration = Model.CompetitionIntegration; var integrationEditable = showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live; var integrationStatusClass = integration is null || !integration.Configured || !string.IsNullOrWhiteSpace(integration.LastError) ? "event-wom-status-danger" : integration.Complete == true ? "event-wom-status-success" : integration.RetryDueAt is not null ? "event-wom-status-warning" : "event-wom-status-info"; var hasRequestBudget = integration?.RequestStatus.ObservedRemaining is not null || integration?.RequestStatus.ObservedLimit is not null || integration?.RequestStatus.ResetAt is not null; }
+                    @{ var integration = Model.CompetitionIntegration; var managed = Model.CompetitionManagement; var integrationEditable = showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live; var managedEditable = showAllControlStages || eventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed; var integrationStatusClass = integration is null || !integration.Configured || !string.IsNullOrWhiteSpace(integration.LastError) ? "event-wom-status-danger" : integration.Complete == true ? "event-wom-status-success" : integration.RetryDueAt is not null ? "event-wom-status-warning" : "event-wom-status-info"; var hasRequestBudget = integration?.RequestStatus.ObservedRemaining is not null || integration?.RequestStatus.ObservedLimit is not null || integration?.RequestStatus.ResetAt is not null; }
                 <section class="event-admin-control-group event-wom-section" aria-labelledby="competition-integration-heading">
                     <div class="event-wom-header">
                         <h3 id="competition-integration-heading">@T["Wise Old Man competition"]</h3>
@@ -460,7 +460,7 @@ else
                     }
                     </div>
                     <div class="event-control-static">
-                    @if (integrationEditable)
+                    @if (integrationEditable && managed?.Enabled != true)
                     {
                         <form method="post" asp-page-handler="Competition" class="form-stack event-wom-form">
                             <input asp-for="EventVersion" type="hidden" />
@@ -488,6 +488,50 @@ else
                             }
                         }
                     }
+                        @if (managed is not null)
+                        {
+                            <div class="event-wom-managed">
+                                <h4>@T["Managed WOM competition"]</h4>
+                                <p class="event-control-status event-wom-status"><strong>@T["Status:"]</strong> <span class="event-wom-status-value @(managed.Status is "Active" ? "event-wom-status-success" : managed.Status is "Pending" or "Unknown" ? "event-wom-status-warning" : managed.Status is "NotManaged" or "Deleted" ? "event-wom-status-info" : "event-wom-status-danger")">@T[managed.Status]@(managed.CompetitionId is { } managedId ? $" · {managedId}" : string.Empty)@(managed.LastOperationType is { } operationType ? $" · {operationType}" : string.Empty)@(managed.PendingAt is { } pendingAt ? $" · {T["retry pending"]} {DateTimePresentation.Format(pendingAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)}" : string.Empty)</span></p>
+                                @if (!string.IsNullOrWhiteSpace(managed.LastError))
+                                {
+                                    <p class="event-control-status event-wom-status-danger">@Model.LocalizeManagedError(managed.LastErrorCode, managed.LastError, "The managed WOM operation needs Admin attention.")</p>
+                                }
+                                @if (managed.Preview is { } preview)
+                                {
+                                    <p><small>@T["Preview uses every confirmed participant's unreleased Playing assignment."]</small></p>
+                                    @if (preview.Errors.Count > 0)
+                                    {
+                                        <ul class="event-wom-preview-errors">@foreach (var error in preview.Errors) { <li>@Model.LocalizeManagedError(null, error, error)</li> }</ul>
+                                    }
+                                    <ul class="event-wom-preview-teams">
+                                    @foreach (var team in preview.Teams)
+                                    {
+                                        <li><strong>@team.Name</strong> · @(team.Empty ? T["Empty"] : T["{0} participant(s)", team.Participants.Count])</li>
+                                    }
+                                    </ul>
+                                }
+                                @if (managedEditable && managed.Preview?.Valid == true
+                                    && (managed.Status == "NotManaged"
+                                        || (managed.LastOperationType == "Create"
+                                            && (managed.Status == "Failed" || managed.Status == "Cancelled"))))
+                                {
+                                    <form method="post" asp-page-handler="CreateManagedCompetition" class="form-stack">
+                                        <input asp-for="EventVersion" type="hidden" />
+                                        <button class="btn admin-button-secondary" type="submit">@T["Create managed WOM competition"]</button>
+                                    </form>
+                                }
+                                @if (managedEditable && managed.CompetitionId is { } deleteId && managed.Status is not "Deleted")
+                                {
+                                    <form method="post" asp-page-handler="DeleteManagedCompetition" class="form-stack event-wom-delete-form">
+                                        <input asp-for="EventVersion" type="hidden" />
+                                        <input asp-for="ManagedCompetitionDeleteId" type="hidden" value="@deleteId" />
+                                        <label><input asp-for="ConfirmManagedCompetitionDelete" /> @T["I confirm deletion of this exact managed WOM competition."]</label>
+                                        <button class="btn event-create-cancel action-danger-outline" type="submit">@T["Delete managed WOM competition"]</button>
+                                    </form>
+                                }
+                            </div>
+                        }
                     @if (hasRequestBudget)
                     {
                         <p class="event-wom-budget"><small>@T["Request budget:"] @(integration?.RequestStatus.ObservedRemaining?.ToString() ?? "—") @T["remaining"]@(integration?.RequestStatus.ObservedLimit is { } limit ? $" {T["of {0}", limit]}" : string.Empty)@(integration?.RequestStatus.ResetAt is { } reset ? $" · {T["reset"]} {DateTimePresentation.Format(reset, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)}" : string.Empty)</small></p>

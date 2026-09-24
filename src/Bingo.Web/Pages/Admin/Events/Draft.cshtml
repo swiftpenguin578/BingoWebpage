@@ -1,5 +1,6 @@
 @page "{id:guid}"
 @model Bingo.Web.Pages.Admin.Events.DraftModel
+@using System.Globalization
 @using Bingo.Domain.Teams
 @using Bingo.Domain.Signups
 @{
@@ -14,7 +15,7 @@
 
 @if (Model.Draft is null)
 {
-<section class="event-overview-section draft-team-setup"><div class="event-overview-section-heading"><h2>@T["Team setup"]</h2></div><p>@T["Create individual Drafted or Pre-formed teams. The draft distribution is calculated from confirmed participants and drafted teams."]</p><form method="post" asp-page-handler="AddTeam" class="form-stack"><label class="admin-field"><span class="field-label">@T["Name"]</span><input name="name" class="form-control" required /></label><label class="admin-field"><span class="field-label">@T["Formation"]</span><select name="formationType" class="form-select"><option value="Drafted">@T["Drafted"]</option><option value="Preformed">@T["Pre-formed"]</option></select></label><label class="admin-field"><span class="field-label">@T["Affiliation / clan"]</span><input name="affiliation" class="form-control" /></label><button class="admin-button-create">＋ @T["Add team"]</button></form></section>
+<section class="event-overview-section draft-team-setup"><div class="event-overview-section-heading"><h2>@T["Team setup"]</h2></div><p>@T["Create individual Drafted or Pre-formed teams. The draft distribution is calculated from confirmed participants and drafted teams."]</p><form method="post" asp-page-handler="AddTeam" class="form-stack"><label class="admin-field"><span class="field-label">@T["Name"]</span><input name="name" class="form-control" maxlength="30" required /></label><label class="admin-field"><span class="field-label">@T["Formation"]</span><select name="formationType" class="form-select"><option value="Drafted">@T["Drafted"]</option><option value="Preformed">@T["Pre-formed"]</option></select></label><label class="admin-field"><span class="field-label">@T["Affiliation / clan"]</span><input name="affiliation" class="form-control" /></label><button class="admin-button-create">＋ @T["Add team"]</button></form></section>
 }
 else if (isActiveDraft)
 {
@@ -470,7 +471,7 @@ else
             <form method="post" enctype="multipart/form-data" asp-page-handler="UpdateTeam" asp-route-rosterTeamId="@team.Id" class="form-stack team-details-form">
                 <input type="hidden" name="teamId" value="@team.Id" />
                 <input type="hidden" name="rosterTeamId" value="@team.Id" />
-                <label class="admin-field"><span class="field-label">@T["Name"]</span><input name="name" value="@team.Name" class="form-control" required /></label>
+                <label class="admin-field"><span class="field-label">@T["Name"]</span><input name="name" value="@team.Name" maxlength="30" class="form-control" required /></label>
                 <label class="admin-field"><span class="field-label">@T["Affiliation / clan"]</span><input name="affiliation" value="@team.Affiliation" class="form-control" /></label>
                 <input type="hidden" name="version" value="@team.Version" />
                 @if (!string.IsNullOrWhiteSpace(team.ImageUrl))
@@ -624,11 +625,12 @@ else
                         <form method="post" asp-page-handler="AddExternalMember" asp-route-rosterTeamId="@team.Id" class="form-stack team-add-player-form">
                             <input type="hidden" name="teamId" value="@team.Id" />
                             <input type="hidden" name="rosterTeamId" value="@team.Id" />
-                            <label class="admin-field"><span class="field-label">@T["In-game name"]</span><input name="name" class="form-control" required /></label>
-                            <label class="admin-field"><span class="field-label">@T["Primary EHB"]</span><input name="ehb" type="number" min="0" step="0.01" class="form-control" required /></label>
-                            <label class="admin-field"><span class="field-label">@T["Additional OSRS accounts (one per line)"]</span><textarea name="additionalAccounts" class="form-control"></textarea></label>
-                            <label class="admin-field"><span class="field-label">@T["Role"]</span><select name="role" class="form-select"><option value="Participant" selected>@T["Participant"]</option><option value="Captain">@T["Captain"]</option><option value="CoCaptain">@T["Co-captain"]</option></select></label>
+                            <label class="admin-field"><span class="field-label">@T["In-game name"]</span><input name="name" value="@(Model.RosterTeamId == team.Id ? Model.PendingExternalMemberName : null)" class="form-control" required /></label>
+                            <label class="admin-field"><span class="field-label">@T["Primary EHB"]</span><input name="ehb" value="@(Model.RosterTeamId == team.Id ? Model.PendingExternalMemberEhb?.ToString(CultureInfo.InvariantCulture) : null)" type="number" min="0" step="0.01" class="form-control" required /></label>
+                            <label class="admin-field"><span class="field-label">@T["Additional OSRS accounts (one per line)"]</span><textarea name="additionalAccounts" class="form-control">@(Model.RosterTeamId == team.Id ? Model.PendingExternalMemberAdditionalAccounts : null)</textarea></label>
+                            <label class="admin-field"><span class="field-label">@T["Role"]</span><select name="role" class="form-select"><option value="Participant" selected="@(Model.RosterTeamId != team.Id || Model.PendingExternalMemberRole == TeamMembershipRole.Participant ? "selected" : null)">@T["Participant"]</option><option value="Captain" selected="@(Model.RosterTeamId == team.Id && Model.PendingExternalMemberRole == TeamMembershipRole.Captain ? "selected" : null)">@T["Captain"]</option><option value="CoCaptain" selected="@(Model.RosterTeamId == team.Id && Model.PendingExternalMemberRole == TeamMembershipRole.CoCaptain ? "selected" : null)">@T["Co-captain"]</option></select></label>
                             <input type="hidden" name="confirmed" value="true" />
+                            <input type="hidden" name="womValidationConfirmationToken" value="@Model.WomValidationConfirmationToken" />
                             <div class="event-confirmation-actions"><button class="action-danger-outline">@T["Confirm add player"]</button><button type="button" class="admin-button-secondary" data-confirmation-cancel>@T["Cancel"]</button></div>
                         </form>
                     </div>
@@ -638,10 +640,11 @@ else
                     <form method="post" asp-page-handler="AddExternalMember" asp-route-rosterTeamId="@team.Id" class="form-stack team-add-player-form">
                         <input type="hidden" name="teamId" value="@team.Id" />
                         <input type="hidden" name="rosterTeamId" value="@team.Id" />
-                        <label class="admin-field"><span class="field-label">@T["In-game name"]</span><input name="name" class="form-control" required /></label>
-                        <label class="admin-field"><span class="field-label">@T["Primary EHB"]</span><input name="ehb" type="number" min="0" step="0.01" class="form-control" required /></label>
-                        <label class="admin-field"><span class="field-label">@T["Additional OSRS accounts (one per line)"]</span><textarea name="additionalAccounts" class="form-control"></textarea></label>
-                        <label class="admin-field"><span class="field-label">@T["Role"]</span><select name="role" class="form-select"><option value="Participant" selected>@T["Participant"]</option><option value="Captain">@T["Captain"]</option><option value="CoCaptain">@T["Co-captain"]</option></select></label>
+                        <label class="admin-field"><span class="field-label">@T["In-game name"]</span><input name="name" value="@(Model.RosterTeamId == team.Id ? Model.PendingExternalMemberName : null)" class="form-control" required /></label>
+                        <label class="admin-field"><span class="field-label">@T["Primary EHB"]</span><input name="ehb" value="@(Model.RosterTeamId == team.Id ? Model.PendingExternalMemberEhb?.ToString(CultureInfo.InvariantCulture) : null)" type="number" min="0" step="0.01" class="form-control" required /></label>
+                        <label class="admin-field"><span class="field-label">@T["Additional OSRS accounts (one per line)"]</span><textarea name="additionalAccounts" class="form-control">@(Model.RosterTeamId == team.Id ? Model.PendingExternalMemberAdditionalAccounts : null)</textarea></label>
+                        <label class="admin-field"><span class="field-label">@T["Role"]</span><select name="role" class="form-select"><option value="Participant" selected="@(Model.RosterTeamId != team.Id || Model.PendingExternalMemberRole == TeamMembershipRole.Participant ? "selected" : null)">@T["Participant"]</option><option value="Captain" selected="@(Model.RosterTeamId == team.Id && Model.PendingExternalMemberRole == TeamMembershipRole.Captain ? "selected" : null)">@T["Captain"]</option><option value="CoCaptain" selected="@(Model.RosterTeamId == team.Id && Model.PendingExternalMemberRole == TeamMembershipRole.CoCaptain ? "selected" : null)">@T["Co-captain"]</option></select></label>
+                        <input type="hidden" name="womValidationConfirmationToken" value="@Model.WomValidationConfirmationToken" />
                         <div class="dialog-actions"><button class="admin-button-primary">@T["Add player"]</button></div>
                     </form>
                 }

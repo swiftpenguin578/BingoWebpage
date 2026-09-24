@@ -1,4 +1,5 @@
 using System.Data;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
@@ -9,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 namespace Bingo.Web.Security;
 
 /// <summary>Account-scoped My Accounts mutations. A global character is never an ownership claim.</summary>
-public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time)
+public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time, IWiseOldManAccountValidation? accountValidation = null)
 {
     public async Task<IReadOnlyList<MyAccountCharacter>> ListAsync(Guid accountId, CancellationToken ct)
     {
@@ -41,6 +42,8 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
     {
         var cleanName = RequireCharacterName(characterName);
         savedEhb = NormalizeEhb(savedEhb);
+        await RequireWebsiteAccountAsync(accountId, ct);
+        await ValidateAsync(accountId, "my-accounts.add", null, null, cleanName, ct);
         await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
         var now = time.GetUtcNow();
         await LockCharacterAsync(cleanName, ct);
@@ -71,6 +74,9 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
     {
         var cleanName = RequireCharacterName(characterName);
         savedEhb = NormalizeEhb(savedEhb);
+        await RequireWebsiteAccountAsync(accountId, ct);
+        await RequireActiveLinkVersionAsync(accountId, linkId, expectedVersion, ct);
+        await ValidateAsync(accountId, "my-accounts.edit", null, expectedVersion, cleanName, ct);
         await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
         var link = await ActiveLinkAsync(accountId, linkId, ct);
         if (link.Version != expectedVersion)
@@ -136,6 +142,9 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
     public async Task CorrectAsync(Guid accountId, Guid linkId, string correctedName, CancellationToken ct)
     {
         var cleanName = RequireCharacterName(correctedName);
+        await RequireWebsiteAccountAsync(accountId, ct);
+        await RequireActiveLinkAsync(accountId, linkId, ct);
+        await ValidateAsync(accountId, "my-accounts.correct", null, null, cleanName, ct);
         await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
         await LockCharacterAsync(cleanName, ct);
         var link = await ActiveLinkAsync(accountId, linkId, ct);
@@ -214,6 +223,26 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
     private async Task<AccountOsrsCharacter> ActiveLinkAsync(Guid accountId, Guid linkId, CancellationToken ct) =>
         await db.AccountOsrsCharacters.SingleOrDefaultAsync(item => item.Id == linkId && item.AccountId == accountId && item.Active, ct)
             ?? throw new InvalidOperationException("That character is no longer available in your My Accounts list.");
+
+    private async Task RequireActiveLinkAsync(Guid accountId, Guid linkId, CancellationToken ct)
+    {
+        _ = await ActiveLinkAsync(accountId, linkId, ct);
+    }
+
+    private async Task RequireActiveLinkVersionAsync(Guid accountId, Guid linkId, int expectedVersion, CancellationToken ct)
+    {
+        var link = await ActiveLinkAsync(accountId, linkId, ct);
+        if (link.Version != expectedVersion)
+            throw new InvalidOperationException("Your My Accounts changes conflicted with another update. Please reload and try again.");
+    }
+
+    private async Task ValidateAsync(Guid accountId, string action, Guid? participantId, long? expectedVersion, string name, CancellationToken ct)
+    {
+        var validator = accountValidation ?? throw new InvalidOperationException("Wise Old Man account validation is required for My Accounts changes.");
+        var result = await validator.ValidateAsync(new WiseOldManAccountValidationRequest(
+            accountId, action, null, participantId, expectedVersion, [name], false), ct);
+        if (!result.CanProceed) throw new WiseOldManAccountValidationException(result);
+    }
 
     private async Task RequireWebsiteAccountAsync(Guid accountId, CancellationToken ct)
     {

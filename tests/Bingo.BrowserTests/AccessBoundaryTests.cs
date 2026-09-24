@@ -19,11 +19,12 @@ using Microsoft.Extensions.Options;
 
 namespace Bingo.BrowserTests;
 
-public sealed class AccessBoundaryTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(BrowserTestGroup.Name)]
+public sealed class AccessBoundaryTests
 {
     private readonly HttpClient _client;
 
-    public AccessBoundaryTests(WebApplicationFactory<Program> factory)
+    public AccessBoundaryTests(BrowserTestApplicationFactory factory)
     {
         _factory = factory;
         _client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
@@ -257,8 +258,9 @@ public sealed class AccessBoundaryTests : IClassFixture<WebApplicationFactory<Pr
         for (var index = 0; index < 5; index++) networkThrottle.RecordFailure("unrelated", "unknown");
         var networkResponse = await PostLoginAsync(networkConfigured.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }), "bob", "another-not-a-password");
         Assert.Contains("The username or password is incorrect.", networkResponse, StringComparison.Ordinal);
-        Assert.Contains(logs.Messages, message => message.Contains("Password login blocked", StringComparison.Ordinal));
-        Assert.DoesNotContain(logs.Messages, message => message.Contains("alice", StringComparison.OrdinalIgnoreCase) || message.Contains("bob", StringComparison.OrdinalIgnoreCase) || message.Contains("password", StringComparison.OrdinalIgnoreCase) && !message.Contains("Password login blocked", StringComparison.Ordinal));
+        Assert.Contains(logs.Messages, message => message.Contains($"{typeof(LoginModel).FullName}: Password login blocked", StringComparison.Ordinal));
+        foreach (var submittedValue in new[] { "alice", "bob", "not-a-password", "another-not-a-password" })
+            Assert.DoesNotContain(logs.Messages, message => message.Contains(submittedValue, StringComparison.OrdinalIgnoreCase));
     }
 
     private static async Task<string> PostLoginAsync(HttpClient client, string username, string password)
@@ -285,13 +287,13 @@ public sealed class AccessBoundaryTests : IClassFixture<WebApplicationFactory<Pr
     private sealed class CapturingLoggerProvider : ILoggerProvider
     {
         public List<string> Messages { get; } = [];
-        public ILogger CreateLogger(string categoryName) => new CapturingLogger(Messages);
+        public ILogger CreateLogger(string categoryName) => new CapturingLogger(Messages, categoryName);
         public void Dispose() { }
     }
-    private sealed class CapturingLogger(List<string> messages) : ILogger
+    private sealed class CapturingLogger(List<string> messages, string categoryName) : ILogger
     {
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel logLevel) => true;
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) => messages.Add(formatter(state, exception));
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) => messages.Add($"{categoryName}: {formatter(state, exception)}");
     }
 }

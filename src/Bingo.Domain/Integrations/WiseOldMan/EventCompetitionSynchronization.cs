@@ -2,6 +2,8 @@ namespace Bingo.Domain.Integrations.WiseOldMan;
 
 public sealed class EventCompetitionSynchronization
 {
+    private static readonly TimeSpan NormalSlotInterval = TimeSpan.FromHours(1);
+
     private EventCompetitionSynchronization() { }
 
     public EventCompetitionSynchronization(
@@ -105,6 +107,20 @@ public sealed class EventCompetitionSynchronization
         LeaseExpiresAt = null;
     }
 
+    public void UpdateMetadata(
+        long? competitionId,
+        string? title,
+        DateTimeOffset? competitionStartsAt,
+        DateTimeOffset? competitionEndsAt,
+        DateTimeOffset now)
+    {
+        CompetitionId = competitionId;
+        CompetitionTitle = title?.Trim();
+        CompetitionStartsAt = competitionStartsAt?.ToUniversalTime();
+        CompetitionEndsAt = competitionEndsAt?.ToUniversalTime();
+        CycleStartedAt ??= now.ToUniversalTime();
+    }
+
     public void BeginReplacementGeneration(string assignmentFingerprint, DateTimeOffset now)
     {
         Generation++;
@@ -127,7 +143,9 @@ public sealed class EventCompetitionSynchronization
     {
         now = now.ToUniversalTime();
         CycleStartedAt = now;
-        NormalDueAt = now.AddHours(2);
+        // This compatibility path has no actual Live-start anchor, so it must not
+        // invent a rolling schedule. Anchored callers use BeginNormalAttempt below.
+        NormalDueAt = null;
         RetryDueAt = null;
         RetryCount = 0;
     }
@@ -137,19 +155,94 @@ public sealed class EventCompetitionSynchronization
     public void PrepareDevelopmentRefreshDue(DateTimeOffset now)
     {
         now = now.ToUniversalTime();
-        LastSuccessfulAt = now.AddHours(-2);
+        LastSuccessfulAt = now.Subtract(NormalSlotInterval);
         NormalDueAt = now;
         RetryDueAt = null;
+    }
+
+    public static DateTimeOffset FirstNormalSlot(DateTimeOffset actualStartedAt) =>
+        actualStartedAt.ToUniversalTime().Add(NormalSlotInterval);
+
+    public static DateTimeOffset? CurrentNormalSlot(DateTimeOffset actualStartedAt, DateTimeOffset now)
+    {
+        var first = FirstNormalSlot(actualStartedAt);
+        now = now.ToUniversalTime();
+        if (now < first) return null;
+
+        var elapsedSlots = (now - first).Ticks / NormalSlotInterval.Ticks;
+        return first.AddTicks(elapsedSlots * NormalSlotInterval.Ticks);
+    }
+
+    public static DateTimeOffset NextNormalSlot(DateTimeOffset actualStartedAt, DateTimeOffset now) =>
+        CurrentNormalSlot(actualStartedAt, now) is { } current
+            ? current.Add(NormalSlotInterval)
+            : FirstNormalSlot(actualStartedAt);
+
+    /// <summary>
+    /// Lazily repairs the persisted normal due time to the fixed schedule for an existing Live event.
+    /// A due value that is already in the past is intentionally left alone so an explicit/urgent
+    /// refresh remains due; the next completed attempt advances to the next fixed future slot.
+    /// </summary>
+    public void ReconcileNormalSlot(DateTimeOffset? actualStartedAt, DateTimeOffset now)
+    {
+        if (actualStartedAt is not { } anchor)
+        {
+            NormalDueAt = null;
+            return;
+        }
+
+        now = now.ToUniversalTime();
+        var current = CurrentNormalSlot(anchor, now);
+        var next = NextNormalSlot(anchor, now);
+        var currentConsumed = current is { } currentSlot && LastAttemptAt is { } lastAttempt && lastAttempt >= currentSlot;
+        if (NormalDueAt is null)
+        {
+            NormalDueAt = currentConsumed ? next : current ?? next;
+            return;
+        }
+
+        var due = NormalDueAt.Value.ToUniversalTime();
+        if (due <= now && LastAttemptAt is null && LastSuccessfulAt is null)
+        {
+            NormalDueAt = current ?? next;
+            return;
+        }
+
+        if (due > now && due == next && current is { } slot && !currentConsumed)
+        {
+            NormalDueAt = slot;
+            return;
+        }
+
+        if (due > now && due != next)
+            NormalDueAt = currentConsumed ? next : current ?? next;
+    }
+
+    public void AdvanceNormalSlot(DateTimeOffset? actualStartedAt, DateTimeOffset now)
+    {
+        now = now.ToUniversalTime();
+        NormalDueAt = actualStartedAt is { } anchor
+            ? NextNormalSlot(anchor, now)
+            : null;
+    }
+
+    public void BeginNormalAttempt(DateTimeOffset? actualStartedAt, DateTimeOffset now)
+    {
+        now = now.ToUniversalTime();
+        CycleStartedAt = now;
+        RetryDueAt = null;
+        RetryCount = 0;
+        AdvanceNormalSlot(actualStartedAt, now);
     }
 
     public void MarkAttempt(DateTimeOffset now)
     {
         LastAttemptAt = now.ToUniversalTime();
         if (CycleStartedAt is null) CycleStartedAt = now.ToUniversalTime();
-        if (NormalDueAt is null) NormalDueAt = now.ToUniversalTime().AddHours(2);
     }
 
-    public void MarkSuccess(DateTimeOffset now, DateTimeOffset? upstreamUpdatedAt, bool complete, string? missingAccounts, string? error)
+    public void MarkSuccess(DateTimeOffset now, DateTimeOffset? upstreamUpdatedAt, bool complete, string? missingAccounts, string? error,
+        DateTimeOffset? actualStartedAt = null)
     {
         now = now.ToUniversalTime();
         LastAttemptAt = now;
@@ -160,7 +253,7 @@ public sealed class EventCompetitionSynchronization
         LastErrorKind = complete ? null : "Incomplete";
         LastError = error;
         CycleStartedAt = now;
-        NormalDueAt = now.AddHours(2);
+        AdvanceNormalSlot(actualStartedAt, now);
         RetryDueAt = null;
         RetryCount = 0;
     }
@@ -183,7 +276,8 @@ public sealed class EventCompetitionSynchronization
         LeaseExpiresAt = null;
     }
 
-    public void MarkFailure(DateTimeOffset now, string kind, string error, DateTimeOffset? retryAt)
+    public void MarkFailure(DateTimeOffset now, string kind, string error, DateTimeOffset? retryAt,
+        DateTimeOffset? actualStartedAt = null)
     {
         now = now.ToUniversalTime();
         LastAttemptAt = now;
@@ -191,7 +285,7 @@ public sealed class EventCompetitionSynchronization
         LastErrorKind = kind;
         LastError = error;
         if (CycleStartedAt is null) CycleStartedAt = now;
-        if (NormalDueAt is null || NormalDueAt <= now) NormalDueAt = now.AddHours(2);
+        AdvanceNormalSlot(actualStartedAt, now);
         if (retryAt is { } due && RetryCount < 3)
         {
             RetryCount++;

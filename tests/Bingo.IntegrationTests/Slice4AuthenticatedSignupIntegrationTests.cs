@@ -46,6 +46,9 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
+    private static SignupService Signup(ApplicationDbContext db, TimeProvider? timeProvider = null, ISignupLookupTokenService? lookupTokens = null) =>
+        new(db, new SecretHasher(), timeProvider ?? TimeProvider.System, lookupTokens, new SuccessfulWiseOldManAccountValidation());
+
     [Fact]
     public async Task CoCaptainMigrationBackfillsExistingFormsWithoutTouchingRetainedAnswers()
     {
@@ -156,7 +159,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var mainLink = new AccountOsrsCharacter(Guid.NewGuid(), admin.Id, main.Id, admin.Id, true, 0, null, 18m, now);
         db.AddRange(admin, bingoEvent, form, regular, captain, coCaptain, main, mainLink);
         await db.SaveChangesAsync();
-        var service = new SignupService(db, new SecretHasher(), new FixedSignupTimeProvider(now));
+        var service = Signup(db, new FixedSignupTimeProvider(now));
         var accountAnswers = new Dictionary<Guid, AuthenticatedAccountAnswer> { [regular.Id] = new(main.Id, 18m) };
 
         var created = await service.SignUpAuthenticatedAsync(new(bingoEvent.Id, admin.Id, accountAnswers,
@@ -226,7 +229,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             new AccountOsrsCharacter(Guid.NewGuid(), admin.Id, main.Id, admin.Id, true, 0, null, 12m, now),
             new AccountOsrsCharacter(Guid.NewGuid(), borrower.Id, alt.Id, borrower.Id, true, 0, null, 7m, now));
         await db.SaveChangesAsync();
-        var service = new SignupService(db, new SecretHasher(), TimeProvider.System);
+        var service = Signup(db);
         var signedUp = await service.SignUpAuthenticatedAsync(new(bingoEvent.Id, admin.Id,
             new Dictionary<Guid, AuthenticatedAccountAnswer> { [primary.Id] = new(main.Id, 12m), [optional.Id] = new(alt.Id, role == EventCharacterRole.Playing ? 7m : null) },
             new Dictionary<Guid, string> { [answered.Id] = "erase this answer", [original.Id] = "keep this history" }, null));
@@ -246,7 +249,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var version = participant.ResponseVersion;
         var formVersion = form.Version;
         await using (var failing = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(new ThrowOnParticipantAudit("signup_question.deleted")).Options))
-            await Assert.ThrowsAsync<InvalidOperationException>(() => new SignupService(failing, new SecretHasher(), TimeProvider.System).DeleteQuestionAsync(bingoEvent.Id, optional.Id, admin.Id, admin.LoginName));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => Signup(failing).DeleteQuestionAsync(bingoEvent.Id, optional.Id, admin.Id, admin.LoginName));
         Assert.True(await db.SignupQuestions.AsNoTracking().Where(x => x.Id == optional.Id).Select(x => x.Active).SingleAsync());
         Assert.True(await db.EventParticipantCharacters.AnyAsync(x => x.SignupQuestionId == optional.Id && x.ReleasedAt == null));
 
@@ -340,7 +343,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         otherParticipant.AssignOwner(other);
         db.AddRange(otherParticipant, new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, otherParticipant.Id, reserved.Id, 0, now, other.Id, primary.Id, EventCharacterRole.Playing, 8m, EhbSource.Manual, null));
         await db.SaveChangesAsync();
-        var service = new SignupService(db, new SecretHasher(), TimeProvider.System);
+        var service = Signup(db);
         Guid? existingId = null;
         if (edit)
         {
@@ -413,22 +416,24 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     [InlineData(true)]
     public async Task RestorationUsesOnlyAssignmentsReleasedAtWithdrawal(bool adminRestore)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
         await using var db = new ApplicationDbContext(options);
         var owner = Website($"restore-owner-{Guid.NewGuid():N}", now);
         var borrower = Website($"restore-borrower-{Guid.NewGuid():N}", now);
-        var bingoEvent = Event(owner.Id, now);
+        var admin = Website($"restore-admin-{Guid.NewGuid():N}", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var bingoEvent = Event(admin.Id, now);
         var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
         var primary = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var alt = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "alt", "Alt", SignupQuestionType.Account, false, 1, null, SignupSystemField.None, EventCharacterRole.Informational);
         var main = new OsrsCharacter(Guid.NewGuid(), "Restore main", $"RESTORE MAIN {Guid.NewGuid():N}", now);
         var alternate = new OsrsCharacter(Guid.NewGuid(), "Removed alt", $"REMOVED ALT {Guid.NewGuid():N}", now);
-        db.AddRange(owner, borrower, bingoEvent, form, primary, alt, main, alternate,
+        db.AddRange(owner, borrower, admin, bingoEvent, form, primary, alt, main, alternate,
             new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, main.Id, owner.Id, true, 0, null, 18m, now),
             new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, alternate.Id, owner.Id, false, 1, null, null, now),
             new AccountOsrsCharacter(Guid.NewGuid(), borrower.Id, alternate.Id, borrower.Id, true, 0, null, 9m, now));
         await db.SaveChangesAsync();
-        var service = new SignupService(db, new SecretHasher(), new FixedSignupTimeProvider(now));
+        var service = Signup(db, new FixedSignupTimeProvider(now));
         var selected = new Dictionary<Guid, AuthenticatedAccountAnswer> { [primary.Id] = new(main.Id, 18m), [alt.Id] = new(alternate.Id, null) };
         var created = await service.SignUpAuthenticatedAsync(new(bingoEvent.Id, owner.Id, selected, new Dictionary<Guid, string>(), null));
         Assert.True(created.Succeeded, created.Error);
@@ -457,7 +462,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             new Dictionary<Guid, AuthenticatedAccountAnswer> { [primary.Id] = new(alternate.Id, 9m) }, new Dictionary<Guid, string>(), null));
         Assert.True(borrowed.Succeeded, borrowed.Error);
         var restored = adminRestore
-            ? await service.RestoreAsync(bingoEvent.Id, participant.Id, owner.Id, owner.LoginName)
+            ? await service.RestoreAsync(bingoEvent.Id, participant.Id, admin.Id, admin.LoginName)
             : await service.RejoinAsync(bingoEvent.Id, participant.Id, owner.Id, owner.LoginName);
         Assert.True(restored.Succeeded, restored.Error);
         Assert.Equal(retainedIds.Order(), (await db.EventParticipantCharacters.Where(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null).Select(x => x.OsrsCharacterId).ToListAsync()).Order());
@@ -490,7 +495,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Guid participantId;
         await using (var signupDb = new ApplicationDbContext(options))
         {
-            var signup = await new SignupService(signupDb, new SecretHasher(), new FixedSignupTimeProvider(now))
+            var signup = await Signup(signupDb, new FixedSignupTimeProvider(now))
                 .SignUpAuthenticatedAsync(new(bingoEvent.Id, owner.Id,
                     new Dictionary<Guid, AuthenticatedAccountAnswer> { [primary.Id] = new(original.Id, 18m) },
                     new Dictionary<Guid, string>(), null));
@@ -520,7 +525,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await using (var accountsDb = new ApplicationDbContext(options))
         {
             var savedLink = await accountsDb.AccountOsrsCharacters.SingleAsync(item => item.Id == link.Id);
-            await new MyAccountsService(accountsDb, new FixedSignupTimeProvider(now))
+            await new MyAccountsService(accountsDb, new FixedSignupTimeProvider(now), new SuccessfulWiseOldManAccountValidation())
                 .UpdateAsync(owner.Id, savedLink.Id, savedLink.Version, "Corrected restore name", savedLink.PersonalLabel, savedLink.SavedEhb, CancellationToken.None);
             correctedId = await accountsDb.OsrsCharacters.Where(item => item.NormalizedName == "CORRECTED RESTORE NAME").Select(item => item.Id).SingleAsync();
         }
@@ -535,14 +540,14 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
         await using (var withdrawalDb = new ApplicationDbContext(options))
         {
-            var withdrawn = await new SignupService(withdrawalDb, new SecretHasher(), new FixedSignupTimeProvider(now))
+            var withdrawn = await Signup(withdrawalDb, new FixedSignupTimeProvider(now))
                 .WithdrawAsync(bingoEvent.Id, participantId, owner.Id, owner.LoginName, false);
             Assert.True(withdrawn.Succeeded, withdrawn.Error);
         }
 
         await using (var restoreDb = new ApplicationDbContext(options))
         {
-            var signup = new SignupService(restoreDb, new SecretHasher(), new FixedSignupTimeProvider(now));
+            var signup = Signup(restoreDb, new FixedSignupTimeProvider(now));
             var restored = adminRestore
                 ? await signup.RestoreAsync(bingoEvent.Id, participantId, admin.Id, admin.LoginName)
                 : await signup.RejoinAsync(bingoEvent.Id, participantId, owner.Id, owner.LoginName);
@@ -573,7 +578,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var link = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, main.Id, owner.Id, true, 0, null, 18m, now);
         db.AddRange(owner, bingoEvent, form, primary, answer, main, link);
         await db.SaveChangesAsync();
-        Assert.True((await new SignupService(db, new SecretHasher(), TimeProvider.System).SignUpAuthenticatedAsync(new(bingoEvent.Id, owner.Id,
+        Assert.True((await Signup(db).SignUpAuthenticatedAsync(new(bingoEvent.Id, owner.Id,
             new Dictionary<Guid, AuthenticatedAccountAnswer> { [primary.Id] = new(main.Id, 18m) }, new Dictionary<Guid, string> { [answer.Id] = "original" }, null))).Succeeded);
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
@@ -641,7 +646,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var link = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, null, 12m, now);
         db.AddRange(owner, bingoEvent, form, regular, captain, character, link);
         await db.SaveChangesAsync();
-        var service = new SignupService(db, new SecretHasher(), TimeProvider.System);
+        var service = Signup(db);
 
         var created = await service.SignUpAuthenticatedAsync(new AuthenticatedSignupRequest(
             bingoEvent.Id, owner.Id,
@@ -707,7 +712,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await db.SaveChangesAsync();
 
         var tokens = new SignupLookupTokenService(new EphemeralDataProtectionProvider());
-        var service = new SignupService(db, new SecretHasher(), TimeProvider.System, tokens);
+        var service = Signup(db, lookupTokens: tokens);
         var validToken = tokens.Create(character.NormalizedName, 22m, now.AddSeconds(-1), now, now.AddMinutes(5));
         var created = await service.SignUpAuthenticatedAsync(new AuthenticatedSignupRequest(
             bingoEvent.Id, owner.Id,
@@ -973,7 +978,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var secondLink = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, secondCharacter.Id, owner.Id, false, 1, null, 44m, now);
         db.AddRange(owner, bingoEvent, form, regular, firstCharacter, secondCharacter, firstLink, secondLink);
         await db.SaveChangesAsync();
-        var service = new SignupService(db, new SecretHasher(), TimeProvider.System);
+        var service = Signup(db);
 
         var created = await service.SignUpAuthenticatedAsync(new AuthenticatedSignupRequest(
             bingoEvent.Id, owner.Id,
@@ -1136,7 +1141,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
         await using (var db = new ApplicationDbContext(options))
         {
-            var service = new SignupService(db, new SecretHasher(), TimeProvider.System);
+            var service = Signup(db);
             var result = await service.SignUpAuthenticatedAsync(new AuthenticatedSignupRequest(eventId, ownerId, new Dictionary<Guid, AuthenticatedAccountAnswer> { [regularId] = new(characterId, 15m) }, new Dictionary<Guid, string>(), null));
             Assert.True(result.Succeeded);
         }
@@ -1374,7 +1379,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             var link = new AccountOsrsCharacter(Guid.NewGuid(), player.Id, character.Id, player.Id, true, 0, null, 10m, now);
             db.AddRange(admin, player, bingoEvent, form, regular, captain, custom, character, link);
             await db.SaveChangesAsync();
-            var service = new SignupService(db, new SecretHasher(), TimeProvider.System);
+            var service = Signup(db);
             var signedUp = await service.SignUpAuthenticatedAsync(new AuthenticatedSignupRequest(bingoEvent.Id, player.Id, new Dictionary<Guid, AuthenticatedAccountAnswer> { [regular.Id] = new(character.Id, 10m) }, new Dictionary<Guid, string> { [custom.Id] = "High" }, null));
             Assert.True(signedUp.Succeeded);
             db.ChangeTracker.Clear();
@@ -1635,7 +1640,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await using (var serviceDb = new ApplicationDbContext(options))
         {
             var withdrawn = await serviceDb.EventParticipants.SingleAsync(x => x.Id == participant.Id);
-            var result = await new SignupService(serviceDb, new SecretHasher(), TimeProvider.System).SignUpAuthenticatedAsync(new AuthenticatedSignupRequest(bingoEvent.Id, owner.Id,
+            var result = await Signup(serviceDb).SignUpAuthenticatedAsync(new AuthenticatedSignupRequest(bingoEvent.Id, owner.Id,
                 new Dictionary<Guid, AuthenticatedAccountAnswer> { [primary.Id] = new(character.Id, 99m), [alt.Id] = new(alternate.Id, 999m, "stale-token") },
                 new Dictionary<Guid, string>(), null, withdrawn.ResponseVersion));
             Assert.False(result.Succeeded);
@@ -1839,7 +1844,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             await setup.SaveChangesAsync();
 
             await using var signupDb = new ApplicationDbContext(options);
-            var signedUp = await new SignupService(signupDb, new SecretHasher(), new FixedSignupTimeProvider(now))
+            var signedUp = await Signup(signupDb, new FixedSignupTimeProvider(now))
                 .SignUpAuthenticatedAsync(new(bingoEvent.Id, owner.Id,
                     new Dictionary<Guid, AuthenticatedAccountAnswer> { [primary.Id] = new(character.Id, 18m) },
                     new Dictionary<Guid, string>(), null));
@@ -1868,7 +1873,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
         await using (var lifecycle = new ApplicationDbContext(options))
         {
-            var withdrawn = await new SignupService(lifecycle, new SecretHasher(), new FixedSignupTimeProvider(now))
+            var withdrawn = await Signup(lifecycle, new FixedSignupTimeProvider(now))
                 .WithdrawAsync(eventId, participantId, await lifecycle.Accounts.Where(x => x.LoginName == adminLogin).Select(x => x.Id).SingleAsync(), adminLogin, true);
             Assert.True(withdrawn.Succeeded, withdrawn.Error);
         }
@@ -1897,7 +1902,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await using (var lifecycle = new ApplicationDbContext(options))
         {
             var adminId = await lifecycle.Accounts.Where(x => x.LoginName == adminLogin).Select(x => x.Id).SingleAsync();
-            var restored = await new SignupService(lifecycle, new SecretHasher(), new FixedSignupTimeProvider(now))
+            var restored = await Signup(lifecycle, new FixedSignupTimeProvider(now))
                 .RestoreAsync(eventId, participantId, adminId, adminLogin);
             Assert.True(restored.Succeeded, restored.Error);
         }
@@ -2256,7 +2261,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             .Options;
         await using (var failingPayment = new ApplicationDbContext(paymentOptions))
         {
-            var result = await new SignupService(failingPayment, new SecretHasher(), TimeProvider.System)
+            var result = await Signup(failingPayment)
                 .SetPaymentAsync(bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, PaymentStatus.Paid);
             Assert.False(result.Succeeded);
             Assert.Contains("try again", result.Error, StringComparison.OrdinalIgnoreCase);
@@ -2267,7 +2272,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             .Options;
         await using (var failingNote = new ApplicationDbContext(noteOptions))
         {
-            var result = await new SignupService(failingNote, new SecretHasher(), TimeProvider.System)
+            var result = await Signup(failingNote)
                 .SetAdminNotesAsync(bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, "private note", string.Empty);
             Assert.False(result.Succeeded);
             Assert.Contains("try again", result.Error, StringComparison.OrdinalIgnoreCase);
@@ -2360,13 +2365,13 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         foreach (var row in seeded.Where(row => row.Event.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview))
         {
             await using var db = new ApplicationDbContext(options);
-            var result = await new SignupService(db, new SecretHasher(), TimeProvider.System).TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(row.Event.Id, row.Participant.Id, admin.Id, admin.LoginName, transferTarget.Id, null, true));
+            var result = await Signup(db).TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(row.Event.Id, row.Participant.Id, admin.Id, admin.LoginName, transferTarget.Id, null, true));
             Assert.True(result.Succeeded, $"Ownership transfer failed for {row.Key}: {result.Error}");
         }
         foreach (var row in seeded)
         {
             await using var db = new ApplicationDbContext(options);
-            var service = new SignupService(db, new SecretHasher(), TimeProvider.System);
+            var service = Signup(db);
             var payment = await service.SetPaymentAsync(row.Event.Id, row.Participant.Id, admin.Id, admin.LoginName, PaymentStatus.Paid);
             Assert.True(payment.Succeeded, $"Payment failed for {row.Key}: {payment.Error}");
             var note = await service.SetAdminNotesAsync(row.Event.Id, row.Participant.Id, admin.Id, admin.LoginName, $"note-{row.Key}", string.Empty);
@@ -2386,7 +2391,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
         await using (var denied = new ApplicationDbContext(options))
         {
-            var service = new SignupService(denied, new SecretHasher(), TimeProvider.System);
+            var service = Signup(denied);
             foreach (var row in seeded.Where(row => row.Event.State is EventState.Finalized or EventState.Archived or EventState.Cancelled))
             {
                 var result = await service.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(row.Event.Id, row.Participant.Id, admin.Id, admin.LoginName, transferTarget.Id, null, true));
@@ -2405,6 +2410,92 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             Assert.False(await verify.EventParticipants.Where(x => x.Id == hiddenParticipant.Id).Select(x => x.PaymentReceived).SingleAsync());
             Assert.Equal(EventState.Discarded, await verify.Events.Where(x => x.Id == discarded.Id).Select(x => x.State).SingleAsync());
         }
+    }
+
+    [Fact]
+    public async Task InternalParticipantOutageConfirmationAndCancelWorkWithoutJavaScript()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var admin = Website($"internal-outage-admin-{Guid.NewGuid():N}", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "password"), false, now, incrementVersion: false);
+        var bingoEvent = Event(admin.Id, now);
+        bingoEvent.CloseSignups(now);
+        var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+        var primary = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null,
+            SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var answer = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "cancel-answer", "Cancel answer", SignupQuestionType.Text, false, 1, null);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(admin, bingoEvent, form, primary, answer);
+            await db.SaveChangesAsync();
+        }
+
+        var offlineLookup = new UnavailableWiseOldManPlayerLookup();
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
+            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .ConfigureServices(services =>
+            {
+                services.RemoveAll<IWiseOldManPlayerLookup>();
+                services.AddSingleton<IWiseOldManPlayerLookup>(offlineLookup);
+            }));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var loginPage = await client.GetStringAsync("/Account/Login");
+        using (var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = admin.LoginName,
+            ["Input.Password"] = "password",
+            ["__RequestVerificationToken"] = AntiforgeryToken(loginPage)
+        }))) Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
+
+        var route = $"/Admin/Events/Participants/{bingoEvent.Id}";
+        var page = await client.GetStringAsync($"{route}?addParticipant=1");
+        const string characterName = "Internal outage Alice";
+        const string submittedAnswer = "Keep this answer after cancel";
+        var characterField = $"InternalParticipant.AccountAnswers[{primary.Id}].CharacterName";
+        var ehbField = $"InternalParticipant.AccountAnswers[{primary.Id}].Ehb";
+        var answerField = $"InternalParticipant.Answers[{answer.Id}]";
+        var fields = new Dictionary<string, string>
+        {
+            [characterField] = characterName,
+            [ehbField] = "7.25",
+            [answerField] = submittedAnswer,
+            ["__RequestVerificationToken"] = AntiforgeryToken(page)
+        };
+        using var confirmationResponse = await client.PostAsync($"{route}?handler=CreateInternalParticipant", new FormUrlEncodedContent(fields));
+        Assert.Equal(HttpStatusCode.OK, confirmationResponse.StatusCode);
+        var confirmation = await confirmationResponse.Content.ReadAsStringAsync();
+        Assert.Contains("data-wom-validation-confirmation", confirmation, StringComparison.Ordinal);
+        Assert.Contains("participant-add-route-page", confirmation, StringComparison.Ordinal);
+        Assert.Equal(characterName, InputValueByName(confirmation, characterField));
+        Assert.Equal("7.25", InputValueByName(confirmation, ehbField));
+        Assert.Equal(submittedAnswer, InputValueByName(confirmation, answerField));
+        var token = InputValueByName(confirmation, "InternalParticipant.WomValidationConfirmationToken");
+        Assert.NotEmpty(token);
+
+        var cancelButton = Regex.Match(confirmation, "<button(?=[^>]*data-wom-validation-cancel)[^>]*>").Value;
+        Assert.Contains("type=\"submit\"", cancelButton, StringComparison.Ordinal);
+        var cancelAction = WebUtility.HtmlDecode(Regex.Match(cancelButton, "formaction=\"([^\"]+)\"").Groups[1].Value);
+        Assert.Contains("handler=CancelWomValidation", cancelAction, StringComparison.Ordinal);
+        var cancelUri = new Uri(new Uri(client.BaseAddress!, route), cancelAction);
+        var cancelFields = new Dictionary<string, string>(fields)
+        {
+            ["InternalParticipant.WomValidationConfirmationToken"] = token,
+            ["__RequestVerificationToken"] = AntiforgeryToken(confirmation)
+        };
+        using var cancelledResponse = await client.PostAsync(cancelUri.PathAndQuery, new FormUrlEncodedContent(cancelFields));
+        Assert.Equal(HttpStatusCode.OK, cancelledResponse.StatusCode);
+        var cancelled = await cancelledResponse.Content.ReadAsStringAsync();
+        Assert.Contains("data-wom-validation-cancelled=\"true\"", cancelled, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-wom-validation-confirmation", cancelled, StringComparison.Ordinal);
+        Assert.Equal(characterName, InputValueByName(cancelled, characterField));
+        Assert.Equal("7.25", InputValueByName(cancelled, ehbField));
+        Assert.Equal(submittedAnswer, InputValueByName(cancelled, answerField));
+        Assert.Empty(InputValueByName(cancelled, "InternalParticipant.WomValidationConfirmationToken"));
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Empty(await verify.EventParticipants.Where(item => item.EventId == bingoEvent.Id).ToListAsync());
+        Assert.False(await verify.OsrsCharacters.AnyAsync(item => item.NormalizedName == "INTERNAL OUTAGE ALICE"));
+        Assert.True(offlineLookup.Calls >= 1);
     }
 
     [Fact]
@@ -2536,7 +2627,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         {
             await start.Task;
             await using var context = new ApplicationDbContext(options);
-            var service = new SignupService(context, new SecretHasher(), TimeProvider.System);
+            var service = Signup(context);
             return await service.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, destination, original.Id, true));
         }
     }
@@ -2555,7 +2646,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var failingOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).AddInterceptors(new ThrowOnOwnershipAudit()).Options;
         await using (var failing = new ApplicationDbContext(failingOptions))
         {
-            var service = new SignupService(failing, new SecretHasher(), TimeProvider.System);
+            var service = Signup(failing);
             var result = await service.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, destination.Id, original.Id, true));
             Assert.False(result.Succeeded);
             Assert.Contains("try again", result.Error, StringComparison.OrdinalIgnoreCase);
@@ -2655,6 +2746,8 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     });
 
     private static string InputValue(string page, string id) => Regex.Match(page, $"<input id=\"{id}\"[^>]*value=\"([^\"]*)\"").Groups[1].Value;
+    private static string InputValueByName(string page, string name) => WebUtility.HtmlDecode(Regex.Match(page,
+        $"<input(?=[^>]*\\bname=\"{Regex.Escape(name)}\")(?=[^>]*\\bvalue=\"([^\"]*)\")[^>]*>").Groups[1].Value);
     private static string HiddenValue(string page, string id) => Regex.Match(InputTag(page, id), "value=\"([^\"]*)\"").Groups[1].Value;
 
     private static string RenderedParticipantDetailRoute(string page, Guid participantId) =>
@@ -2682,6 +2775,17 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             Calls++;
             var ehb = characterName == "Route WoM Add" ? 3000.09582m : 17.5m;
             return Task.FromResult(new WiseOldManPlayerLookupResult(WiseOldManLookupStatus.Success, ehb, DateTimeOffset.UtcNow));
+        }
+    }
+
+    private sealed class UnavailableWiseOldManPlayerLookup : IWiseOldManPlayerLookup
+    {
+        public int Calls { get; private set; }
+
+        public Task<WiseOldManPlayerLookupResult> LookupPlayerAsync(string characterName, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return Task.FromResult(new WiseOldManPlayerLookupResult(WiseOldManLookupStatus.Unavailable));
         }
     }
 }

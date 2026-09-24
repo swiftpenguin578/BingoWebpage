@@ -2,11 +2,12 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Bingo.BrowserTests;
 
-public sealed class HomePageTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(BrowserTestGroup.Name)]
+public sealed class HomePageTests
 {
     private readonly HttpClient _client;
 
-    public HomePageTests(WebApplicationFactory<Program> factory)
+    public HomePageTests(BrowserTestApplicationFactory factory)
     {
         _client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {

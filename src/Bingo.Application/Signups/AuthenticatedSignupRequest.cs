@@ -6,6 +6,7 @@ public sealed record AuthenticatedSignupRequest(
     IReadOnlyDictionary<Guid, AuthenticatedAccountAnswer> AccountAnswers,
     IReadOnlyDictionary<Guid, string> Answers,
     string? SignupCode,
-    int? ExpectedResponseVersion = null);
+    int? ExpectedResponseVersion = null,
+    string? WomValidationConfirmationToken = null);
 
 public sealed record AuthenticatedAccountAnswer(Guid OsrsCharacterId, decimal? Ehb, string? WiseOldManLookupToken = null);

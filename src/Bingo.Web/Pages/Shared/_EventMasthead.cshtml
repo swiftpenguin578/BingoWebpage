@@ -1,0 +1,209 @@
+@model Bingo.Web.UI.EventMastheadModel
+@using Bingo.Application.Boards
+@using Bingo.Domain.Events
+@{
+    var totalTiles = Model.Board.Rows * Model.Board.Columns;
+    var eventStart = Model.Board.EventStartsAt?.ToUniversalTime().ToString("O");
+    var eventEnd = Model.Board.EventEndsAt?.ToUniversalTime().ToString("O");
+    var eventStatus = Model.Board.EventState switch
+    {
+        EventState.Live => T["Live"],
+        EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived or EventState.Cancelled => T["Ended"],
+        _ => T["Upcoming"]
+    };
+    var countdownIsPreLive = Model.Board.EventState is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
+    var countdownStatus = countdownIsPreLive ? T["Starts in"] : eventStatus;
+    var showSubmitDrop = Model.Board.SubmissionsOpen;
+    var hasDualMastheadActions = showSubmitDrop && Model.Board.WiseOldManCompetitionId is not null;
+    var leadResult = Model.Board.EventResult;
+    if (leadResult is null && Model.Board.EventState == EventState.Live)
+    {
+        var currentLeader = Model.Board.Teams.FirstOrDefault(value => value.Rank == 1);
+        if (currentLeader is not null)
+        {
+            leadResult = new PublicEventResult(currentLeader.TeamName, currentLeader.TeamSlug, false);
+        }
+    }
+    var resultTeams = leadResult?.Teams ?? (leadResult is { } result ? [new PublicEventResultTeam(result.TeamName, result.TeamSlug)] : []);
+    var leadTeam = resultTeams.Count == 1
+        ? (!string.IsNullOrWhiteSpace(resultTeams[0].TeamSlug)
+            ? Model.Board.Teams.FirstOrDefault(team => string.Equals(team.TeamSlug, resultTeams[0].TeamSlug, StringComparison.OrdinalIgnoreCase))
+            : null)
+            ?? Model.Board.Teams.FirstOrDefault(team => string.Equals(team.TeamName, resultTeams[0].TeamName, StringComparison.OrdinalIgnoreCase))
+        : null;
+    var leadCompletionText = resultTeams.Count > 1
+        ? T["Tied for first"]
+        : leadTeam is null
+        ? T["Completion unavailable"]
+        : T["{0}% complete", totalTiles == 0 ? 0 : leadTeam.Progress.CompletedTiles * 100 / totalTiles];
+    var leadLabel = leadResult?.IsOfficial == true ? (resultTeams.Count > 1 ? T["Tie"] : T["Winner"]) : leadResult is not null ? T["In the lead"] : T["Results pending"];
+    var boardOverviewUrl = Url.Page("/Events/Board", new { slug = Model.Board.EventSlug });
+    var submissionHref = User.Identity?.IsAuthenticated != true
+        ? Url.Page("/Account/Login", new { ReturnUrl = boardOverviewUrl })
+        : Model.SubmissionTeamSlug is not null
+            ? Url.Page("/Events/TeamBoard", new { slug = Model.Board.EventSlug, teamSlug = Model.SubmissionTeamSlug, submission = true })
+            : boardOverviewUrl;
+}
+
+<div class="public-board-masthead">
+    <header class="public-board-masthead__hero">
+        <div class="public-board-masthead__identity">
+            <div class="public-masthead-copy">
+                <span class="public-ui-overline public-masthead-kicker">@T["Event overview"]</span>
+                <h1 class="public-board-masthead__title public-masthead-title">@Model.Board.EventName</h1>
+            </div>
+        </div>
+
+        <div class="landing-hero__art public-board-masthead__art" aria-hidden="true">
+            <div class="landing-hero__background"></div>
+            <img class="landing-hero__mark landing-hero__mark--light" src="~/images/branding/login-artwork.svg" asp-append-version="true" alt="" />
+            <img class="landing-hero__mark landing-hero__mark--dark" src="~/images/branding/login-artwork-dark.svg" asp-append-version="true" alt="" />
+        </div>
+
+        <div class="public-board-masthead__facts">
+            @if (Model.Board.EventEndsAt is not null)
+            {
+                <section class="public-board-masthead__fact public-board-masthead__countdown public-ui-countdown"
+                         data-public-countdown data-countdown-start="@eventStart" data-countdown-end="@eventEnd"
+                         role="group" aria-label="@countdownStatus"
+                         data-countdown-live-label="@T["Live"]" data-countdown-upcoming-label="@T["Starts in"]" data-countdown-ended-label="@T["Event ended"]"
+                         data-countdown-days-label="@T["DAYS"]" data-countdown-hours-label="@T["HRS"]" data-countdown-minutes-label="@T["MIN"]" data-countdown-seconds-label="@T["SEC"]">
+                    <span class="public-board-masthead__live-status@(countdownIsPreLive ? " public-board-masthead__live-status--pre-live" : string.Empty)" aria-hidden="true"><span class="public-board-masthead__live-dot"></span>@countdownStatus</span>
+                    <span class="public-ui-overline" data-countdown-label aria-hidden="true" hidden>@T["Ends in"]</span>
+                    <div class="public-ui-countdown-values" aria-hidden="true">
+                        <span class="public-ui-countdown-segment">
+                            <strong class="public-ui-data-value public-ui-countdown-value" data-countdown-value="days">00</strong>
+                            <span class="public-ui-countdown-unit-label">@T["DAYS"]</span>
+                        </span>
+                        <span class="public-ui-countdown-separator" aria-hidden="true">:</span>
+                        <span class="public-ui-countdown-segment">
+                            <strong class="public-ui-data-value public-ui-countdown-value" data-countdown-value="hours">00</strong>
+                            <span class="public-ui-countdown-unit-label">@T["HRS"]</span>
+                        </span>
+                        <span class="public-ui-countdown-separator" aria-hidden="true">:</span>
+                        <span class="public-ui-countdown-segment">
+                            <strong class="public-ui-data-value public-ui-countdown-value" data-countdown-value="minutes">00</strong>
+                            <span class="public-ui-countdown-unit-label">@T["MIN"]</span>
+                        </span>
+                    </div>
+                    <div class="public-ui-countdown-compatibility" hidden>
+                        <strong class="public-ui-countdown-value" data-countdown-value="seconds">00</strong>
+                    </div>
+                    <div class="public-ui-countdown-progress" aria-hidden="true" hidden>
+                        <span class="public-ui-data-line" data-countdown-progress></span>
+                    </div>
+                </section>
+            }
+            else
+            {
+                <section class="public-board-masthead__fact public-board-masthead__countdown" role="group" aria-label="@T["Event status"]">
+                    <span class="public-ui-overline">@T["Status"]</span>
+                    <strong class="public-board-masthead__status-value">@eventStatus</strong>
+                </section>
+            }
+
+            <section class="public-board-masthead__fact public-board-masthead__result" aria-label="@T["Current result"]">
+                <span class="public-ui-overline">@leadLabel</span>
+                @if (leadResult is { } currentResult)
+                {
+                    <div class="public-board-masthead__result-row">
+                        <strong class="public-board-masthead__rank">01</strong>
+                        <div>
+                            <strong class="public-board-masthead__fact-title">@currentResult.TeamName</strong>
+                            <span class="public-ui-supporting-text">@leadCompletionText</span>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <span class="public-ui-supporting-text">@T["Results pending"]</span>
+                }
+            </section>
+
+            <section class="public-board-masthead__fact public-board-masthead__metric" aria-label="@T["Player ranking metric"]">
+            @if (Model.Activity.HasRankings)
+            {
+                <details class="public-ui-masthead-metric-selector" data-public-ui-compact-dropdown data-public-masthead-metric-selector data-public-masthead-event="@Model.Board.EventId">
+                    <summary class="public-ui-overline public-ui-compact-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="public-masthead-metric-options">
+                        <span data-public-ui-dropdown-label>@T["Most spooned"]</span>
+                        <svg class="public-ui-masthead-metric-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
+                    </summary>
+                    <div id="public-masthead-metric-options" class="public-ui-compact-dropdown-menu" role="listbox" aria-label="@T["Player ranking metric"]" tabindex="-1">
+                        <button type="button" class="public-ui-compact-dropdown-option" role="option" data-public-ui-dropdown-option="spooned" data-public-ui-dropdown-label="@T["Most spooned"]" aria-selected="true"><span>@T["Most spooned"]</span><svg data-public-ui-dropdown-check aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" hidden><path d="m5 12 4 4L19 6" /></svg></button>
+                        <button type="button" class="public-ui-compact-dropdown-option" role="option" data-public-ui-dropdown-option="drops" data-public-ui-dropdown-label="@T["Highest DEHB"]" aria-selected="false"><span>@T["Highest DEHB"]</span><svg data-public-ui-dropdown-check aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" hidden><path d="m5 12 4 4L19 6" /></svg></button>
+                        <button type="button" class="public-ui-compact-dropdown-option" role="option" data-public-ui-dropdown-option="ehb" data-public-ui-dropdown-label="@T["Highest EHB"]" aria-selected="false"><span>@T["Highest EHB"]</span><svg data-public-ui-dropdown-check aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" hidden><path d="m5 12 4 4L19 6" /></svg></button>
+                    </div>
+                </details>
+            }
+            else
+            {
+                <span class="public-ui-overline">@T["Highest DEHB"]</span>
+            }
+            <div class="public-ui-masthead-metric" data-public-masthead-metric="spooned" hidden="@(Model.Activity.HasRankings ? null : "hidden")">
+                    @if (Model.MostSpooned is { } mostSpooned)
+                    {
+                        <div class="public-board-masthead__metric-row">
+                            <strong class="public-board-masthead__metric-value">@mostSpooned.TotalDrops.ToString("0")</strong>
+                            <div>
+                                <strong class="public-board-masthead__fact-title">@mostSpooned.Participant.ParticipantName</strong>
+                                <span class="public-ui-supporting-text">@mostSpooned.TeamName</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <span class="public-ui-supporting-text">@T["No activity data available"]</span>
+                    }
+                </div>
+            <div class="public-ui-masthead-metric" data-public-masthead-metric="drops" hidden="@(Model.Activity.HasRankings ? "hidden" : null)">
+                    @if (Model.HighestDropEhb is { } highestDropEhb)
+                    {
+                        <div class="public-board-masthead__metric-row">
+                            <strong class="public-board-masthead__metric-value">@highestDropEhb.DropEhb.ToString("0;-0;0")</strong>
+                            <div>
+                                <strong class="public-board-masthead__fact-title">@highestDropEhb.Participant.ParticipantName</strong>
+                                <span class="public-ui-supporting-text">@highestDropEhb.TeamName</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <span class="public-ui-supporting-text">@T["No activity data available"]</span>
+                    }
+                </div>
+            <div class="public-ui-masthead-metric" data-public-masthead-metric="ehb" hidden>
+                    @if (Model.HighestEhb is { } highestEhb)
+                    {
+                        <div class="public-board-masthead__metric-row">
+                            <strong class="public-board-masthead__metric-value">@highestEhb.Participant.TotalGainedEhb.ToString("0;-0;0")</strong>
+                            <div>
+                                <strong class="public-board-masthead__fact-title">@highestEhb.Participant.ParticipantName</strong>
+                                <span class="public-ui-supporting-text">@highestEhb.TeamName</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <span class="public-ui-supporting-text">@T["No activity data available"]</span>
+                    }
+            </div>
+            </section>
+
+            <div class="public-ui-action-list public-board-masthead__actions @(hasDualMastheadActions ? "public-board-masthead__actions--dual" : null)" aria-label="@T["Actions"]">
+            @if (showSubmitDrop)
+            {
+                <a class="public-ui-action public-ui-action--commit" href="@submissionHref" data-open-submission-workspace>@T["Submit drop"] →</a>
+            }
+            @if (Model.Board.WiseOldManCompetitionId is { } competitionId)
+            {
+                <a class="public-ui-action public-ui-action--standard public-ui-action--hyperlink" href="https://wiseoldman.net/competitions/@competitionId" target="_blank" rel="noopener noreferrer" aria-label="@T["View Wise Old Man competition"]" title="@T["View Wise Old Man competition"]">@T["WOM"] →</a>
+            }
+            @if (!showSubmitDrop && Model.Board.WiseOldManCompetitionId is null)
+            {
+                <span class="public-ui-supporting-text">@T["No actions available"]</span>
+            }
+            </div>
+        </div>
+
+    </header>
+</div>

@@ -16,21 +16,17 @@
     ViewData["CompactNavigation"] = true;
     ViewData["BodyClass"] = "public-event-shell public-ui-pass1 public-board-page public-board-overview";
     var totalTiles = Model.Board.Rows * Model.Board.Columns;
+    var eventStart = Model.Board.EventStartsAt?.ToUniversalTime().ToString("O");
+    var eventEnd = Model.Board.EventEndsAt?.ToUniversalTime().ToString("O");
     var isMission = Model.ActiveView == "mission";
     var isDrops = Model.ActiveView == "drops";
     var isLeaderboards = Model.ActiveView == "leaderboards";
     var dropEhbTeams = Model.Board.DropEhbTeams ?? Array.Empty<PublicDropEhbTeam>();
     var activityTeamsById = Model.Activity.Teams.ToDictionary(value => value.TeamId);
     var dropEhbTeamsById = dropEhbTeams.ToDictionary(value => value.TeamId);
+    var metricTeamsById = Model.MetricLeaderboard.Teams.ToDictionary(value => value.TeamId);
+    var selectedMetricValue = Model.SelectedMetric ?? "default";
     var recentActivity = Model.Board.RecentDrops.Take(3).ToList();
-    var eventStart = Model.Board.EventStartsAt?.ToUniversalTime().ToString("O");
-    var eventEnd = Model.Board.EventEndsAt?.ToUniversalTime().ToString("O");
-    var eventStatus = Model.Board.EventState switch
-    {
-        EventState.Live => T["Live"],
-        EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived or EventState.Cancelled => T["Ended"],
-        _ => T["Upcoming"]
-    };
     var activityStateText = Model.Activity.State switch
     {
         Bingo.Application.Integrations.WiseOldMan.EventCompetitionActivityState.NotConfigured => T["Activity tracking is not configured."],
@@ -44,201 +40,11 @@
         _ => T["Activity cache is current."]
     };
     var elapsedNow = DateTimeOffset.UtcNow;
-    var showSubmitDrop = Model.Board.SubmissionsOpen;
-    var hasDualMastheadActions = showSubmitDrop && Model.Board.WiseOldManCompetitionId is not null;
-    var leadResult = Model.Board.EventResult;
-    if (leadResult is null && Model.Board.EventState == EventState.Live)
-    {
-        var currentLeader = Model.Board.Teams.FirstOrDefault(value => value.Rank == 1);
-        if (currentLeader is not null)
-        {
-            leadResult = new PublicEventResult(currentLeader.TeamName, currentLeader.TeamSlug, false);
-        }
-    }
-    var resultTeams = leadResult?.Teams ?? (leadResult is { } result ? [new PublicEventResultTeam(result.TeamName, result.TeamSlug)] : []);
-    var leadTeam = resultTeams.Count == 1
-        ? (!string.IsNullOrWhiteSpace(resultTeams[0].TeamSlug)
-            ? Model.Board.Teams.FirstOrDefault(team => string.Equals(team.TeamSlug, resultTeams[0].TeamSlug, StringComparison.OrdinalIgnoreCase))
-            : null)
-            ?? Model.Board.Teams.FirstOrDefault(team => string.Equals(team.TeamName, resultTeams[0].TeamName, StringComparison.OrdinalIgnoreCase))
-        : null;
-    var leadCompletionText = resultTeams.Count > 1
-        ? T["Tied for first"]
-        : leadTeam is null
-        ? T["Completion unavailable"]
-        : T["{0}% complete", totalTiles == 0 ? 0 : leadTeam.Progress.CompletedTiles * 100 / totalTiles];
-    var leadLabel = leadResult?.IsOfficial == true ? (resultTeams.Count > 1 ? T["Tie"] : T["Winner"]) : leadResult is not null ? T["In the lead"] : T["Results pending"];
-    var boardOverviewUrl = Url.Page("/Events/Board", new { slug = Model.Board.EventSlug });
-    var submissionHref = User.Identity?.IsAuthenticated != true
-        ? Url.Page("/Account/Login", new { ReturnUrl = boardOverviewUrl })
-        : Model.SubmissionTeamSlug is not null
-            ? Url.Page("/Events/TeamBoard", new { slug = Model.Board.EventSlug, teamSlug = Model.SubmissionTeamSlug, submission = true })
-            : boardOverviewUrl;
+
 }
 
 <section class="public-event-dashboard" data-progress-event="@Model.Board.EventId">
-    <div class="public-board-masthead">
-        <header class="public-board-masthead__hero">
-            <div class="public-board-masthead__identity">
-                <div class="public-masthead-copy">
-                    <span class="public-ui-overline public-masthead-kicker">@T["Event overview"]</span>
-                    <h1 class="public-board-masthead__title public-masthead-title">@Model.Board.EventName</h1>
-                </div>
-            </div>
-
-            <div class="landing-hero__art public-board-masthead__art" aria-hidden="true">
-                <div class="landing-hero__background"></div>
-                <img class="landing-hero__mark landing-hero__mark--light" src="~/images/branding/login-artwork.svg" asp-append-version="true" alt="" />
-                <img class="landing-hero__mark landing-hero__mark--dark" src="~/images/branding/login-artwork-dark.svg" asp-append-version="true" alt="" />
-            </div>
-
-            <div class="public-board-masthead__facts">
-                @if (Model.Board.EventEndsAt is not null)
-                {
-                    <section class="public-board-masthead__fact public-board-masthead__countdown public-ui-countdown"
-                             data-public-countdown data-countdown-start="@eventStart" data-countdown-end="@eventEnd"
-                             role="group" aria-label="@T["Ends in"]"
-                             data-countdown-live-label="@T["Live"]" data-countdown-upcoming-label="@T["Starts in"]" data-countdown-ended-label="@T["Event ended"]"
-                             data-countdown-days-label="@T["DAYS"]" data-countdown-hours-label="@T["HRS"]" data-countdown-minutes-label="@T["MIN"]" data-countdown-seconds-label="@T["SEC"]">
-                        <span class="public-board-masthead__live-status" aria-hidden="true"><span class="public-board-masthead__live-dot"></span>@T["Live"]</span>
-                        <span class="public-ui-overline" data-countdown-label aria-hidden="true" hidden>@T["Ends in"]</span>
-                        <div class="public-ui-countdown-values" aria-hidden="true">
-                            <span class="public-ui-countdown-segment">
-                                <strong class="public-ui-data-value public-ui-countdown-value" data-countdown-value="days">00</strong>
-                                <span class="public-ui-countdown-unit-label">@T["DAYS"]</span>
-                            </span>
-                            <span class="public-ui-countdown-separator" aria-hidden="true">:</span>
-                            <span class="public-ui-countdown-segment">
-                                <strong class="public-ui-data-value public-ui-countdown-value" data-countdown-value="hours">00</strong>
-                                <span class="public-ui-countdown-unit-label">@T["HRS"]</span>
-                            </span>
-                            <span class="public-ui-countdown-separator" aria-hidden="true">:</span>
-                            <span class="public-ui-countdown-segment">
-                                <strong class="public-ui-data-value public-ui-countdown-value" data-countdown-value="minutes">00</strong>
-                                <span class="public-ui-countdown-unit-label">@T["MIN"]</span>
-                            </span>
-                        </div>
-                        <div class="public-ui-countdown-compatibility" hidden>
-                            <strong class="public-ui-countdown-value" data-countdown-value="seconds">00</strong>
-                        </div>
-                        <div class="public-ui-countdown-progress" aria-hidden="true" hidden>
-                            <span class="public-ui-data-line" data-countdown-progress></span>
-                        </div>
-                    </section>
-                }
-                else
-                {
-                    <section class="public-board-masthead__fact public-board-masthead__countdown" role="group" aria-label="@T["Event status"]">
-                        <span class="public-ui-overline">@T["Status"]</span>
-                        <strong class="public-board-masthead__status-value">@eventStatus</strong>
-                    </section>
-                }
-
-                <section class="public-board-masthead__fact public-board-masthead__result" aria-label="@T["Current result"]">
-                    <span class="public-ui-overline">@leadLabel</span>
-                    @if (leadResult is { } currentResult)
-                    {
-                        <div class="public-board-masthead__result-row">
-                            <strong class="public-board-masthead__rank">01</strong>
-                            <div>
-                                <strong class="public-board-masthead__fact-title">@currentResult.TeamName</strong>
-                                <span class="public-ui-supporting-text">@leadCompletionText</span>
-                            </div>
-                        </div>
-                    }
-                    else
-                    {
-                        <span class="public-ui-supporting-text">@T["Results pending"]</span>
-                    }
-                </section>
-
-                <section class="public-board-masthead__fact public-board-masthead__metric" aria-label="@T["Player ranking metric"]">
-                @if (Model.Activity.HasRankings)
-                {
-                    <details class="public-ui-masthead-metric-selector" data-public-ui-compact-dropdown data-public-masthead-metric-selector data-public-masthead-event="@Model.Board.EventId">
-                        <summary class="public-ui-overline public-ui-compact-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="public-masthead-metric-options">
-                            <span data-public-ui-dropdown-label>@T["Most spooned"]</span>
-                            <svg class="public-ui-masthead-metric-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
-                        </summary>
-                        <div id="public-masthead-metric-options" class="public-ui-compact-dropdown-menu" role="listbox" aria-label="@T["Player ranking metric"]" tabindex="-1">
-                            <button type="button" class="public-ui-compact-dropdown-option" role="option" data-public-ui-dropdown-option="spooned" data-public-ui-dropdown-label="@T["Most spooned"]" aria-selected="true"><span>@T["Most spooned"]</span><svg data-public-ui-dropdown-check aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" hidden><path d="m5 12 4 4L19 6" /></svg></button>
-                            <button type="button" class="public-ui-compact-dropdown-option" role="option" data-public-ui-dropdown-option="drops" data-public-ui-dropdown-label="@T["Highest DEHB"]" aria-selected="false"><span>@T["Highest DEHB"]</span><svg data-public-ui-dropdown-check aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" hidden><path d="m5 12 4 4L19 6" /></svg></button>
-                            <button type="button" class="public-ui-compact-dropdown-option" role="option" data-public-ui-dropdown-option="ehb" data-public-ui-dropdown-label="@T["Highest EHB"]" aria-selected="false"><span>@T["Highest EHB"]</span><svg data-public-ui-dropdown-check aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" hidden><path d="m5 12 4 4L19 6" /></svg></button>
-                        </div>
-                    </details>
-                }
-                else
-                {
-                    <span class="public-ui-overline">@T["Highest DEHB"]</span>
-                }
-                <div class="public-ui-masthead-metric" data-public-masthead-metric="spooned" hidden="@(Model.Activity.HasRankings ? null : "hidden")">
-                        @if (Model.MostSpooned is { } mostSpooned)
-                        {
-                            <div class="public-board-masthead__metric-row">
-                                <strong class="public-board-masthead__metric-value">@mostSpooned.TotalDrops.ToString("0")</strong>
-                                <div>
-                                    <strong class="public-board-masthead__fact-title">@mostSpooned.Participant.ParticipantName</strong>
-                                    <span class="public-ui-supporting-text">@mostSpooned.TeamName</span>
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <span class="public-ui-supporting-text">@T["No activity data available"]</span>
-                        }
-                    </div>
-                <div class="public-ui-masthead-metric" data-public-masthead-metric="drops" hidden="@(Model.Activity.HasRankings ? "hidden" : null)">
-                        @if (Model.HighestDropEhb is { } highestDropEhb)
-                        {
-                            <div class="public-board-masthead__metric-row">
-                                <strong class="public-board-masthead__metric-value">@highestDropEhb.DropEhb.ToString("0;-0;0")</strong>
-                                <div>
-                                    <strong class="public-board-masthead__fact-title">@highestDropEhb.Participant.ParticipantName</strong>
-                                    <span class="public-ui-supporting-text">@highestDropEhb.TeamName</span>
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <span class="public-ui-supporting-text">@T["No activity data available"]</span>
-                        }
-                    </div>
-                <div class="public-ui-masthead-metric" data-public-masthead-metric="ehb" hidden>
-                        @if (Model.HighestEhb is { } highestEhb)
-                        {
-                            <div class="public-board-masthead__metric-row">
-                                <strong class="public-board-masthead__metric-value">@highestEhb.Participant.TotalGainedEhb.ToString("0;-0;0")</strong>
-                                <div>
-                                    <strong class="public-board-masthead__fact-title">@highestEhb.Participant.ParticipantName</strong>
-                                    <span class="public-ui-supporting-text">@highestEhb.TeamName</span>
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <span class="public-ui-supporting-text">@T["No activity data available"]</span>
-                        }
-                </div>
-                </section>
-
-                <div class="public-ui-action-list public-board-masthead__actions @(hasDualMastheadActions ? "public-board-masthead__actions--dual" : null)" aria-label="@T["Actions"]">
-                @if (showSubmitDrop)
-                {
-                    <a class="public-ui-action public-ui-action--commit" href="@submissionHref" data-open-submission-workspace>@T["Submit drop"] →</a>
-                }
-                @if (Model.Board.WiseOldManCompetitionId is { } competitionId)
-                {
-                    <a class="public-ui-action public-ui-action--standard public-ui-action--hyperlink" href="https://wiseoldman.net/competitions/@competitionId" target="_blank" rel="noopener noreferrer" aria-label="@T["View Wise Old Man competition"]" title="@T["View Wise Old Man competition"]">@T["WOM"] →</a>
-                }
-                @if (!showSubmitDrop && Model.Board.WiseOldManCompetitionId is null)
-                {
-                    <span class="public-ui-supporting-text">@T["No actions available"]</span>
-                }
-                </div>
-            </div>
-
-        </header>
-    </div>
+    <partial name="_EventMasthead" model="Model.Masthead" />
 
     @if (isMission)
     {
@@ -319,13 +125,13 @@
                         {
                             var activityPlayer = string.IsNullOrWhiteSpace(activity.PlayerName) ? T["Participant"] : activity.PlayerName;
                             var activityName = activity.DropName ?? activity.TileName;
-                            <article class="public-board-activity__item">
+                            <article class="public-board-activity__item" data-public-board-activity-submission-id="@activity.SubmissionId">
                                 <span class="public-board-activity__marker" aria-hidden="true">✓</span>
                                 <div class="public-board-activity__copy">
                                     <strong>@activityPlayer</strong>
                                     <span class="public-board-activity__drop">@activityName</span>
                                     <span class="public-board-activity__meta public-board-activity__team">@activity.TeamName</span>
-                                    <span class="public-board-activity__meta public-board-activity__time">@BoardModel.FormatElapsed(activity.ApprovedAt, elapsedNow)</span>
+                                    <span class="public-board-activity__meta public-board-activity__time">@BoardModel.FormatElapsed(activity.SubmittedAt, elapsedNow)</span>
                                 </div>
                             </article>
                         }
@@ -343,9 +149,9 @@
                 var last24HoursCutoff = elapsedNow.AddHours(-24);
                 var recentDropGroups = new[]
                 {
-                    (Heading: T["Last hour"], HeadingId: "live-recent-drops-last-hour-heading", Drops: Model.Board.RecentDrops.Where(drop => drop.ApprovedAt >= lastHourCutoff).ToList()),
-                    (Heading: T["Last 24 hours"], HeadingId: "live-recent-drops-last-24-hours-heading", Drops: Model.Board.RecentDrops.Where(drop => drop.ApprovedAt < lastHourCutoff && drop.ApprovedAt >= last24HoursCutoff).ToList()),
-                    (Heading: T["Older drops"], HeadingId: "live-recent-drops-older-heading", Drops: Model.Board.RecentDrops.Where(drop => drop.ApprovedAt < last24HoursCutoff).ToList())
+                    (Key: "last-hour", Heading: T["Last hour"], HeadingId: "live-recent-drops-last-hour-heading", Drops: Model.Board.RecentDrops.Where(drop => drop.SubmittedAt >= lastHourCutoff).ToList()),
+                    (Key: "last-24-hours", Heading: T["Last 24 hours"], HeadingId: "live-recent-drops-last-24-hours-heading", Drops: Model.Board.RecentDrops.Where(drop => drop.SubmittedAt < lastHourCutoff && drop.SubmittedAt >= last24HoursCutoff).ToList()),
+                    (Key: "older", Heading: T["Older drops"], HeadingId: "live-recent-drops-older-heading", Drops: Model.Board.RecentDrops.Where(drop => drop.SubmittedAt < last24HoursCutoff).ToList())
                 };
                 var totalRecentDrops = recentDropStats.TotalDrops;
                 var filteredRecentDropTotal = Model.Board.RecentDropFilteredTotal ?? totalRecentDrops;
@@ -373,18 +179,18 @@
                 @if (visibleRecentDropGroups.Count > 0)
                 {
                     var firstRecentDropGroup = visibleRecentDropGroups[0];
-                    <h3 id="@firstRecentDropGroup.HeadingId" class="public-ui-recent-drop-divider public-ui-recent-drops-shared-divider"><span>@firstRecentDropGroup.Heading</span></h3>
+                    <h3 id="@firstRecentDropGroup.HeadingId" class="public-ui-recent-drop-divider public-ui-recent-drops-shared-divider" data-public-recent-drops-first-divider data-public-recent-drops-group-heading="@firstRecentDropGroup.Key"><span>@firstRecentDropGroup.Heading</span></h3>
                 }
                 else
                 {
-                    <h3 id="live-recent-drops-empty-heading" class="public-ui-recent-drop-divider public-ui-recent-drops-shared-divider"><span>@T["Drops"]</span></h3>
+                    <h3 id="live-recent-drops-empty-heading" class="public-ui-recent-drop-divider public-ui-recent-drops-shared-divider" data-public-recent-drops-first-divider data-public-recent-drops-group-heading=""><span>@T["Drops"]</span></h3>
                 }
                 @if (Model.NewDropCount > 0 && User.Identity?.IsAuthenticated == true)
                 {
                     <button type="button" class="public-ui-action public-ui-action--text public-ui-action--compact public-ui-recent-drops-clear-new" data-drop-clear-all data-drop-event-id="@Model.Board.EventId">@T["Clear all new"]</button>
                 }
                 <div class="public-ui-recent-drops-main">
-                <div id="recent-drops-latest" class="public-ui-recent-drop-region" data-public-recent-drops data-public-recent-drops-since="@Model.RecentDropsReconcileSince.ToUniversalTime().ToString("O")" data-new-label="@T["NEW"]" data-participant-label="@T["Participant"]" data-evidence-alt-template="@T["Approved evidence from {0}"]" data-just-now-label="@T["Just now"]" aria-live="polite" tabindex="-1">
+                <div id="recent-drops-latest" class="public-ui-recent-drop-region" data-public-recent-drops data-public-recent-drops-since="@Model.RecentDropsReconcileSince.ToUniversalTime().ToString("O")" data-new-label="@T["NEW"]" data-participant-label="@T["Participant"]" data-evidence-alt-template="@T["Approved evidence from {0}"]" data-just-now-label="@T["Just now"]" data-drops-label="@T["Drops"]" data-last-hour-label="@T["Last hour"]" data-last-24-hours-label="@T["Last 24 hours"]" data-older-drops-label="@T["Older drops"]" aria-live="polite" tabindex="-1">
                     @if (visibleRecentDropGroups.Count == 0)
                     {
                         @if (hasDropFilters && totalRecentDrops > 0)
@@ -402,10 +208,10 @@
                         @for (var groupIndex = 0; groupIndex < visibleRecentDropGroups.Count; groupIndex++)
                         {
                             var group = visibleRecentDropGroups[groupIndex];
-                            <section class="public-ui-recent-drop-group" aria-labelledby="@group.HeadingId">
+                            <section class="public-ui-recent-drop-group" data-public-recent-drop-group="@group.Key" aria-labelledby="@group.HeadingId">
                                 @if (groupIndex > 0)
                                 {
-                                    <h3 id="@group.HeadingId" class="public-ui-recent-drop-divider"><span>@group.Heading</span></h3>
+                                    <h3 id="@group.HeadingId" class="public-ui-recent-drop-divider" data-public-recent-drops-group-heading="@group.Key"><span>@group.Heading</span></h3>
                                 }
                                 <div class="public-ui-recent-drop-grid">
                             @foreach (var drop in group.Drops)
@@ -414,7 +220,7 @@
                                 var dropHeading = string.IsNullOrWhiteSpace(drop.BossName) ? dropTitle : $"{dropTitle} · {drop.BossName}";
                                 var dropContext = !string.IsNullOrWhiteSpace(drop.BossName) ? drop.BossName : (drop.DropName is not null ? drop.TileName : null);
                                 var playerName = string.IsNullOrWhiteSpace(drop.PlayerName) ? T["Participant"].Value : drop.PlayerName;
-                                <article class="public-ui-surface public-ui-surface--charcoal public-ui-recent-drop-card" data-public-recent-drop-id="@drop.SubmissionId" data-public-recent-drop-approved-at="@drop.ApprovedAt.ToUniversalTime().ToString("O")">
+                                    <article class="public-ui-surface public-ui-surface--charcoal public-ui-recent-drop-card" data-public-recent-drop-id="@drop.SubmissionId" data-public-recent-drop-submitted-at="@drop.SubmittedAt.ToUniversalTime().ToString("O")" data-public-recent-drop-reviewed-at="@drop.ReviewedAt?.ToUniversalTime().ToString("O")">
                                     @if (drop.EvidenceAssetId is Guid assetId)
                                     {
                                         <a href="/Evidence/@assetId" class="public-ui-recent-drop-thumbnail" data-evidence-image="/Evidence/@assetId" data-evidence-alt="@T["Approved evidence from {0}", playerName]" data-evidence-drop="@dropHeading" data-evidence-player="@playerName" data-evidence-team="@drop.TeamName" data-evidence-source="@T["Recent drops"]" data-evidence-submission-id="@drop.SubmissionId" data-evidence-event-id="@Model.Board.EventId">
@@ -433,7 +239,7 @@
                                         }
                                         <strong class="public-ui-recent-drop-progression" title="@T["{0} progress", drop.TileName]">@drop.ProgressAfter/@drop.Target</strong>
                                         <div class="public-ui-recent-drop-metadata">
-                                            <span class="public-ui-supporting-text public-ui-recent-drop-player">@playerName · @BoardModel.FormatElapsed(drop.ApprovedAt, elapsedNow)</span>
+                                            <span class="public-ui-supporting-text public-ui-recent-drop-player">@playerName · @BoardModel.FormatElapsed(drop.SubmittedAt, elapsedNow)</span>
                                             <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-recent-drop-team-link"
                                                asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@drop.TeamSlug">@drop.TeamName</a>
                                         </div>
@@ -511,22 +317,221 @@
     else
     {
         <section class="public-dashboard-view" aria-label="@T["Leaderboards"]">
-            <div class="public-ui-leaderboards-layout" data-public-leaderboards-layout>
+            <div class="public-ui-leaderboards-layout" data-public-leaderboards-layout data-public-leaderboards-mode="@(Model.IsMetricMode ? "metric" : "default")">
                 <div class="public-ui-leaderboards-tabs">
-                    <nav class="public-ui-view-switcher" aria-label="@T["Leaderboard table views"]" data-public-leaderboard-switcher>
-                        <a id="public-leaderboard-activity-link" class="public-ui-view-switcher-item @(Model.ActiveRanking == "activity" ? "is-current" : null)" aria-current="@(Model.ActiveRanking == "activity" ? "page" : null)" aria-controls="public-leaderboard-activity"
-                           data-public-leaderboard-view="activity" asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards" asp-route-ranking="activity">@T["EHB"]</a>
-                        <a id="public-leaderboard-drops-link" class="public-ui-view-switcher-item @(Model.ActiveRanking == "drops" ? "is-current" : null)" aria-current="@(Model.ActiveRanking == "drops" ? "page" : null)" aria-controls="public-leaderboard-drops"
-                           data-public-leaderboard-view="drops" asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards" asp-route-ranking="drops">@T["Drop EHB"]</a>
-                        <a id="public-leaderboard-players-link" class="public-ui-view-switcher-item @(Model.ActiveRanking == "players" ? "is-current" : null)" aria-current="@(Model.ActiveRanking == "players" ? "page" : null)" aria-controls="public-leaderboard-players"
-                           data-public-leaderboard-view="players" asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards" asp-route-ranking="players">@T["players"]</a>
+                    <nav class="public-ui-view-switcher @(Model.IsMetricMode ? "public-ui-view-switcher--two" : null)" aria-label="@T["Leaderboard table views"]" data-public-leaderboard-switcher>
+                        @if (Model.IsMetricMode)
+                        {
+                            <a id="public-leaderboard-metric-teams-link" class="public-ui-view-switcher-item @(Model.ActiveRanking == "teams" ? "is-current" : null)" aria-current="@(Model.ActiveRanking == "teams" ? "page" : null)" aria-controls="public-leaderboard-metric-teams"
+                               data-public-leaderboard-view="teams" asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards" asp-route-ranking="teams" asp-route-metric="@Model.SelectedMetric">@T["Teams"]</a>
+                            <a id="public-leaderboard-metric-players-link" class="public-ui-view-switcher-item @(Model.ActiveRanking == "players" ? "is-current" : null)" aria-current="@(Model.ActiveRanking == "players" ? "page" : null)" aria-controls="public-leaderboard-metric-players"
+                               data-public-leaderboard-view="players" asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards" asp-route-ranking="players" asp-route-metric="@Model.SelectedMetric">@T["players"]</a>
+                        }
+                        else
+                        {
+                            <a id="public-leaderboard-activity-link" class="public-ui-view-switcher-item @(Model.ActiveRanking == "activity" ? "is-current" : null)" aria-current="@(Model.ActiveRanking == "activity" ? "page" : null)" aria-controls="public-leaderboard-activity"
+                               data-public-leaderboard-view="activity" asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards" asp-route-ranking="activity">@T["EHB"]</a>
+                            <a id="public-leaderboard-drops-link" class="public-ui-view-switcher-item @(Model.ActiveRanking == "drops" ? "is-current" : null)" aria-current="@(Model.ActiveRanking == "drops" ? "page" : null)" aria-controls="public-leaderboard-drops"
+                               data-public-leaderboard-view="drops" asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards" asp-route-ranking="drops">@T["Drop EHB"]</a>
+                            <a id="public-leaderboard-players-link" class="public-ui-view-switcher-item @(Model.ActiveRanking == "players" ? "is-current" : null)" aria-current="@(Model.ActiveRanking == "players" ? "page" : null)" aria-controls="public-leaderboard-players"
+                               data-public-leaderboard-view="players" asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="leaderboards" asp-route-ranking="players">@T["players"]</a>
+                        }
                     </nav>
+                    <details class="public-ui-compact-dropdown public-ui-leaderboard-metric-selector" data-public-ui-compact-dropdown data-public-leaderboard-metric-selector data-public-leaderboard-metric-default-ranking="activity">
+                        <summary class="public-ui-compact-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+                            <span data-public-ui-dropdown-label>METRIC: @(Model.MetricLeaderboard.Selected?.DisplayName ?? T["EHB & Drop EHB"])</span>
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
+                        </summary>
+                        <div class="public-ui-compact-dropdown-menu" role="listbox" aria-label="@T["Leaderboard metric"]">
+                            <button type="button" class="public-ui-compact-dropdown-option" data-public-ui-dropdown-option="default" data-public-ui-dropdown-label="@T["EHB & Drop EHB"]" role="option" aria-selected="@(selectedMetricValue == "default" ? "true" : "false")">
+                                <span>@T["EHB & Drop EHB"]</span><svg data-public-ui-dropdown-check aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" hidden="@(selectedMetricValue == "default" ? null : "hidden")"><path d="m5 12 4 4L19 6" /></svg>
+                            </button>
+                            @foreach (var option in Model.MetricLeaderboard.Options)
+                            {
+                                <button type="button" class="public-ui-compact-dropdown-option" data-public-ui-dropdown-option="@option.Metric" data-public-ui-dropdown-label="@option.DisplayName" role="option" aria-selected="@(string.Equals(selectedMetricValue, option.Metric, StringComparison.Ordinal) ? "true" : "false")">
+                                    <span>@option.DisplayName</span><svg data-public-ui-dropdown-check aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" hidden="@(string.Equals(selectedMetricValue, option.Metric, StringComparison.Ordinal) ? null : "hidden")"><path d="m5 12 4 4L19 6" /></svg>
+                                </button>
+                            }
+                        </div>
+                    </details>
                 </div>
                 <div class="public-ui-leaderboards-divider" aria-hidden="true"></div>
                 <div class="public-ui-section public-ui-leaderboards-main">
                     <section class="public-ui-surface public-ui-surface--charcoal" aria-label="@T["Selected leaderboard"]">
                         <div class="public-ui-surface-content">
-                            <div id="public-leaderboard-activity" data-public-leaderboard-panel="activity" aria-labelledby="public-leaderboard-activity-link" hidden="@(Model.ActiveRanking == "activity" ? null : "hidden")">
+                            @if (Model.IsMetricMode)
+                            {
+                                <div id="public-leaderboard-metric-teams" data-public-leaderboard-panel="metric-teams" data-public-leaderboard-panel-view="teams" data-public-leaderboard-mode="metric" aria-labelledby="public-leaderboard-metric-teams-link" hidden="@(Model.ActiveRanking == "teams" ? null : "hidden")">
+                                    <div class="public-ui-section">
+                                        <table class="public-ui-table" data-public-leaderboard-table aria-label="@T["Boss teams leaderboard"]">
+                                            <thead>
+                                                <tr><th class="public-ui-supporting-text" scope="col">@T["Rank"]</th><th class="public-ui-supporting-text" scope="col">@T["Team"]</th><th class="public-ui-supporting-text" scope="col">@T["players"]</th><th class="public-ui-supporting-text" scope="col">@T["Total gained"]</th><th class="public-ui-supporting-text" scope="col">@T["Avg. gained"]</th><th class="public-ui-supporting-text" scope="col">@T["MVP"]</th><th class="public-ui-leaderboard-expand-heading" data-public-leaderboard-expand-heading scope="col"><span class="visually-hidden">@T["Expand"]</span></th></tr>
+                                            </thead>
+                                            @if (Model.MetricLeaderboard.Teams.Count == 0)
+                                            {
+                                                <tbody><tr><td colspan="7"><strong class="public-ui-supporting-text">@T["No boss activity is available yet"]</strong></td></tr></tbody>
+                                            }
+                                            else
+                                            {
+                                                <tbody>
+                                                    @foreach (var metricTeam in Model.MetricLeaderboard.Teams.OrderBy(value => value.Rank).ThenBy(value => value.TeamName, StringComparer.OrdinalIgnoreCase))
+                                                    {
+                                                        var detailsId = $"public-leaderboard-metric-details-{metricTeam.TeamId:N}";
+                                                        <tr data-public-leaderboard-sort-row data-sort-rank="@metricTeam.Rank" data-sort-team="@metricTeam.TeamName" data-sort-players="@metricTeam.ContributingParticipantCount" data-sort-total-gained="@metricTeam.TotalGained.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-sort-average-gained="@metricTeam.AverageGained.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                                                            <td><strong class="public-ui-section-heading">@metricTeam.Rank.ToString("00")</strong></td>
+                                                            <td>
+                                                                <strong class="public-ui-section-heading">@metricTeam.TeamName</strong>
+                                                            </td>
+                                                            <td><strong class="public-ui-section-heading">@metricTeam.ContributingParticipantCount</strong></td>
+                                                            <td><strong class="public-ui-section-heading public-ui-positive-delta--success">@metricTeam.TotalGained.ToString("+0;-0;0")</strong></td>
+                                                            <td><strong class="public-ui-section-heading public-ui-positive-delta--success">@metricTeam.AverageGained.ToString("+0;-0;0")</strong></td>
+                                                            <td>
+                                                                <strong class="public-ui-section-heading">
+                                                                    @if (metricTeam.MvpNames.Count > 1) { @T["Multiple MVPs"] } else { @string.Join(", ", metricTeam.MvpNames) }
+                                                                    @if (metricTeam.MvpValue is { } mvpValue) { <span class="public-ui-leaderboard-mvp-value public-ui-positive-delta--success">@mvpValue.ToString("+0;-0;0")</span> }
+                                                                </strong>
+                                                            </td>
+                                                            @if (metricTeam.Participants.Count > 0)
+                                                            {
+                                                                <td class="public-ui-leaderboard-expand-cell" data-public-leaderboard-expand-cell><button type="button" class="public-ui-leaderboard-expand-control" data-public-leaderboard-expand-control aria-controls="@detailsId" aria-expanded="false" aria-label="@T["Toggle {0} details", metricTeam.TeamName]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></td>
+                                                            }
+                                                            else
+                                                            {
+                                                                <td class="public-ui-leaderboard-expand-cell"></td>
+                                                            }
+                                                        </tr>
+                                                        @if (metricTeam.Participants.Count > 0)
+                                                        {
+                                                            <tr class="public-ui-leaderboard-detail-row">
+                                                                <td colspan="7">
+                                                                    <details id="@detailsId" data-public-leaderboard-details>
+                                                                        <summary class="public-ui-leaderboard-detail-summary"><span class="public-ui-supporting-text">@T["Show {0} details", metricTeam.TeamName]</span></summary>
+                                                                        <table class="public-ui-table public-ui-table--nested public-ui-table--nested-metric" data-public-leaderboard-sort-table aria-label="@T["{0} player details", metricTeam.TeamName]">
+                                                                            <thead><tr><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="rank" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Rank"]" aria-label="@T["Sort by Rank"]"><span>@T["Rank"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="player" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Player"]" aria-label="@T["Sort by Player"]"><span>@T["Player"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="gained" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Gained"]" aria-label="@T["Sort by Gained"]"><span>@T["Gained"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="start" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Start"]" aria-label="@T["Sort by Start"]"><span>@T["Start"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="end" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["End"]" aria-label="@T["Sort by End"]"><span>@T["End"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col">@T["Drops"]</th></tr></thead>
+                                                                            <tbody>
+                                                                                @for (var participantIndex = 0; participantIndex < metricTeam.Participants.Count; participantIndex++)
+                                                                                {
+                                                                                    var participant = metricTeam.Participants[participantIndex];
+                                                                                    var participantRank = metricTeam.Participants.Take(participantIndex).Count(value => value.TotalGained > participant.TotalGained) + 1;
+                                                                                    var primaryAccountName = participant.Accounts.FirstOrDefault()?.CharacterName ?? participant.ParticipantName;
+                                                                                    var aggregateStart = participant.Accounts.Count > 0 && participant.Accounts.All(value => value.Start is not null and not -1m) ? participant.Accounts.Sum(value => value.Start!.Value) : (decimal?)null;
+                                                                                    var aggregateEnd = participant.Accounts.Count > 0 && participant.Accounts.All(value => value.End is not null and not -1m) ? participant.Accounts.Sum(value => value.End!.Value) : (decimal?)null;
+                                                                                    <tr data-public-leaderboard-sort-row data-sort-rank="@participantRank" data-sort-player="@primaryAccountName" data-sort-gained="@participant.TotalGained.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-sort-start="@aggregateStart?.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-sort-end="@aggregateEnd?.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-sort-drops="@participant.DropCount">
+                                                                                        <td><strong class="public-ui-section-heading">@participantRank.ToString("00")</strong></td>
+                                                                                        <td>
+                                                                                            @for (var accountIndex = 0; accountIndex < participant.Accounts.Count; accountIndex++)
+                                                                                            {
+                                                                                                var account = participant.Accounts[accountIndex];
+                                                                                                if (accountIndex == 0) { <strong class="public-ui-section-heading">@account.CharacterName</strong> } else { <small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">@account.CharacterName</small> }
+                                                                                            }
+                                                                                        </td>
+                                                                                        <td>
+                                                                                            @for (var accountIndex = 0; accountIndex < participant.Accounts.Count; accountIndex++)
+                                                                                            {
+                                                                                                var account = participant.Accounts[accountIndex];
+                                                                                                var gained = account.Gained is { } gainedValue && gainedValue != -1m ? gainedValue.ToString("+0;-0;0") : "—";
+                                                                                                if (accountIndex == 0) { <strong class="public-ui-section-heading public-ui-positive-delta--success">@gained</strong> } else { <small class="public-ui-supporting-text public-ui-positive-delta--success public-ui-leaderboard-detail-secondary">@gained</small> }
+                                                                                            }
+                                                                                        </td>
+                                                                                        <td>@for (var accountIndex = 0; accountIndex < participant.Accounts.Count; accountIndex++) { var account = participant.Accounts[accountIndex]; var start = account.Start is { } startValue && startValue != -1m ? startValue.ToString("0") : "—"; if (accountIndex == 0) { <strong class="public-ui-section-heading">@start</strong> } else { <small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">@start</small> } }</td>
+                                                                                        <td>@for (var accountIndex = 0; accountIndex < participant.Accounts.Count; accountIndex++) { var account = participant.Accounts[accountIndex]; var end = account.End is { } endValue && endValue != -1m ? endValue.ToString("0") : "—"; if (accountIndex == 0) { <strong class="public-ui-section-heading">@end</strong> } else { <small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">@end</small> } }</td>
+                                                                                        <td>
+                                                                                            @if (participant.DropCount > 0)
+                                                                                            {
+                                                                                                <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-leaderboard-drops-link" asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="drops" asp-route-dropSearch="@Model.MetricLeaderboard.Selected!.DisplayName" asp-route-dropTeam="@metricTeam.TeamSlug">@participant.DropCount</a>
+                                                                                            }
+                                                                                            else
+                                                                                            {
+                                                                                                <span class="public-ui-supporting-text">—</span>
+                                                                                            }
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                }
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </details>
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    }
+                                                </tbody>
+                                            }
+                                        </table>
+                                    </div>
+                                </div>
+                                <div id="public-leaderboard-metric-players" data-public-leaderboard-panel="metric-players" data-public-leaderboard-panel-view="players" data-public-leaderboard-mode="metric" aria-labelledby="public-leaderboard-metric-players-link" hidden="@(Model.ActiveRanking == "players" ? null : "hidden")">
+                                    <div class="public-ui-section">
+                                        <table class="public-ui-table public-ui-table--players" data-public-leaderboard-table data-public-leaderboard-sort-table data-public-leaderboard-players-table aria-label="@T["Boss players leaderboard"]">
+                                            <thead><tr><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="rank" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Rank"]" aria-label="@T["Sort by Rank"]"><span>@T["Rank"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="player" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Player"]" aria-label="@T["Sort by Player"]"><span>@T["Player"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="team" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Team"]" aria-label="@T["Sort by Team"]"><span>@T["Team"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="gained" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Gained"]" aria-label="@T["Sort by Gained"]"><span>@T["Gained"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="start" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Start"]" aria-label="@T["Sort by Start"]"><span>@T["Start"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="end" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["End"]" aria-label="@T["Sort by End"]"><span>@T["End"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col">@T["Drops"]</th></tr></thead>
+                                            <tbody>
+                                                @{ var metricPlayers = Model.MetricLeaderboard.Teams.SelectMany(team => team.Participants.Select(participant => new { team, participant })).OrderByDescending(value => value.participant.TotalGained).ThenBy(value => value.participant.ParticipantName, StringComparer.OrdinalIgnoreCase).ThenBy(value => value.participant.ParticipantId).ToList(); }
+                                                @if (metricPlayers.Count == 0)
+                                                {
+                                                    <tr><td colspan="7"><strong class="public-ui-supporting-text">@T["No boss activity players are available yet"]</strong></td></tr>
+                                                }
+                                                else
+                                                {
+                                                    @for (var playerIndex = 0; playerIndex < metricPlayers.Count; playerIndex++)
+                                                    {
+                                                        var entry = metricPlayers[playerIndex];
+                                                        var participant = entry.participant;
+                                                        var playerRank = metricPlayers.Take(playerIndex).Count(value => value.participant.TotalGained > participant.TotalGained) + 1;
+                                                        var primaryAccountName = participant.Accounts.FirstOrDefault()?.CharacterName ?? participant.ParticipantName;
+                                                        var aggregateStart = participant.Accounts.Count > 0 && participant.Accounts.All(value => value.Start is not null and not -1m) ? participant.Accounts.Sum(value => value.Start!.Value) : (decimal?)null;
+                                                        var aggregateEnd = participant.Accounts.Count > 0 && participant.Accounts.All(value => value.End is not null and not -1m) ? participant.Accounts.Sum(value => value.End!.Value) : (decimal?)null;
+                                                        <tr data-public-leaderboard-sort-row data-sort-rank="@playerRank" data-sort-player="@primaryAccountName" data-sort-team="@entry.team.TeamName" data-sort-gained="@participant.TotalGained.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-sort-start="@aggregateStart?.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-sort-end="@aggregateEnd?.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-sort-drops="@participant.DropCount">
+                                                            <td><strong class="public-ui-section-heading">@playerRank.ToString("00")</strong></td>
+                                                            <td>
+                                                                @for (var accountIndex = 0; accountIndex < participant.Accounts.Count; accountIndex++)
+                                                                {
+                                                                    var account = participant.Accounts[accountIndex];
+                                                                    if (accountIndex == 0) { <strong class="public-ui-section-heading">@account.CharacterName</strong> } else { <small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">@account.CharacterName</small> }
+                                                                }
+                                                            </td>
+                                                            <td><strong class="public-ui-section-heading">@entry.team.TeamName</strong></td>
+                                                            <td>
+                                                                @for (var accountIndex = 0; accountIndex < participant.Accounts.Count; accountIndex++)
+                                                                {
+                                                                    var account = participant.Accounts[accountIndex];
+                                                                    var gained = account.Gained is { } gainedValue && gainedValue != -1m ? gainedValue.ToString("+0;-0;0") : "—";
+                                                                    if (accountIndex == 0) { <strong class="public-ui-section-heading public-ui-positive-delta--success">@gained</strong> } else { <small class="public-ui-supporting-text public-ui-positive-delta--success public-ui-leaderboard-detail-secondary">@gained</small> }
+                                                                }
+                                                            </td>
+                                                            <td>
+                                                                @for (var accountIndex = 0; accountIndex < participant.Accounts.Count; accountIndex++)
+                                                                {
+                                                                    var account = participant.Accounts[accountIndex];
+                                                                    var start = account.Start is { } startValue && startValue != -1m ? startValue.ToString("0") : "—";
+                                                                    if (accountIndex == 0) { <strong class="public-ui-section-heading">@start</strong> } else { <small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">@start</small> }
+                                                                }
+                                                            </td>
+                                                            <td>
+                                                                @for (var accountIndex = 0; accountIndex < participant.Accounts.Count; accountIndex++)
+                                                                {
+                                                                    var account = participant.Accounts[accountIndex];
+                                                                    var end = account.End is { } endValue && endValue != -1m ? endValue.ToString("0") : "—";
+                                                                    if (accountIndex == 0) { <strong class="public-ui-section-heading">@end</strong> } else { <small class="public-ui-supporting-text public-ui-leaderboard-detail-secondary">@end</small> }
+                                                                }
+                                                            </td>
+                                                            <td>@if (participant.DropCount > 0) { <a class="public-ui-action public-ui-action--text public-ui-action--hyperlink public-ui-leaderboard-drops-link" asp-page="/Events/Board" asp-route-slug="@Model.Board.EventSlug" asp-route-view="drops" asp-route-dropSearch="@Model.MetricLeaderboard.Selected!.DisplayName" asp-route-dropTeam="@entry.team.TeamSlug">@participant.DropCount</a> } else { <span class="public-ui-supporting-text">—</span> }</td>
+                                                        </tr>
+                                                    }
+                                                }
+                                            </tbody>
+                                        </table>
+                                        <nav class="public-ui-leaderboard-pagination" data-public-leaderboard-pagination hidden aria-label="@T["Players pages"]">
+                                            <span class="public-ui-supporting-text" data-public-leaderboard-page-label>@T["Page {0} of {1}", 1, 1]</span>
+                                            <span class="public-ui-leaderboard-pagination-controls">
+                                                <button type="button" class="public-ui-leaderboard-pagination-control" data-public-leaderboard-page-control="first" aria-label="@T["First page"]" aria-disabled="true" disabled><svg class="public-ui-leaderboard-pagination-icon public-ui-leaderboard-pagination-icon--first" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 6v12" /><path d="m15 6-6 6 6 6" /></svg></button>
+                                                <button type="button" class="public-ui-leaderboard-pagination-control" data-public-leaderboard-page-control="previous" aria-label="@T["Previous page"]" aria-disabled="true" disabled><svg class="public-ui-leaderboard-pagination-icon public-ui-leaderboard-pagination-icon--previous" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m15 6-6 6 6 6" /></svg></button>
+                                                <button type="button" class="public-ui-leaderboard-pagination-control" data-public-leaderboard-page-control="next" aria-label="@T["Next page"]" aria-disabled="false"><svg class="public-ui-leaderboard-pagination-icon public-ui-leaderboard-pagination-icon--next" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m9 6 6 6-6 6" /></svg></button>
+                                                <button type="button" class="public-ui-leaderboard-pagination-control" data-public-leaderboard-page-control="last" aria-label="@T["Last page"]" aria-disabled="false"><svg class="public-ui-leaderboard-pagination-icon public-ui-leaderboard-pagination-icon--last" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m9 6 6 6-6 6" /><path d="M20 6v12" /></svg></button>
+                                            </span>
+                                        </nav>
+                                    </div>
+                                </div>
+                            }
+                            <div id="public-leaderboard-activity" data-public-leaderboard-panel="activity" data-public-leaderboard-mode="default" aria-labelledby="public-leaderboard-activity-link" hidden="@((!Model.IsMetricMode && Model.ActiveRanking == "activity") ? null : "hidden")">
                                 <div class="public-ui-section">
                                     <table class="public-ui-table" data-public-leaderboard-table aria-label="@T["EHB leaderboard"]">
                                         <thead>
@@ -548,7 +553,12 @@
                                                         <td><strong class="public-ui-section-heading">@activityTeam.ExpectedParticipantCount</strong></td>
                                                         <td><strong class="public-ui-section-heading public-ui-positive-delta--success">@activityTeam.TotalGainedEhb.ToString("+0.00;-0.00;0.00")</strong></td>
                                                         <td><strong class="public-ui-section-heading public-ui-positive-delta--success">@activityTeam.AverageGainedEhb.ToString("+0.00;-0.00;0.00")</strong></td>
-                                                        <td><strong class="public-ui-section-heading">@string.Join(", ", activityTeam.MvpNames)</strong></td>
+                                                        <td>
+                                                            <strong class="public-ui-section-heading">
+                                                                @if (activityTeam.MvpNames.Count > 1) { @T["Multiple MVPs"] } else { @string.Join(", ", activityTeam.MvpNames) }
+                                                                @if (activityTeam.MvpValue is { } mvpValue) { <span class="public-ui-leaderboard-mvp-value public-ui-positive-delta--success">@mvpValue.ToString("+0.00;-0.00;0.00")</span> }
+                                                            </strong>
+                                                        </td>
                                                         <td class="public-ui-leaderboard-expand-cell" data-public-leaderboard-expand-cell><button type="button" class="public-ui-leaderboard-expand-control" data-public-leaderboard-expand-control aria-controls="@detailsId" aria-expanded="false" aria-label="@T["Toggle {0} details", activityTeam.TeamName]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></td>
                                                     </tr>
                                                     <tr class="public-ui-leaderboard-detail-row">
@@ -556,7 +566,7 @@
                                                             <details id="@detailsId" data-public-leaderboard-details>
                                                                 <summary class="public-ui-leaderboard-detail-summary"><span class="public-ui-supporting-text">@T["Show {0} details", activityTeam.TeamName]</span></summary>
                                                                 <table class="public-ui-table public-ui-table--nested public-ui-table--nested-ehb" data-public-leaderboard-sort-table aria-label="@T["{0} player details", activityTeam.TeamName]">
-                                                                    <thead><tr><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="rank" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Rank"]" aria-label="@T["Sort by Rank"]"><span>@T["Rank"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="player" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Player"]" aria-label="@T["Sort by Player"]"><span>@T["Player"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="ehb-gained" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["EHB gained"]" aria-label="@T["Sort by EHB gained"]"><span>@T["EHB gained"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="start-ehb" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Start EHB"]" aria-label="@T["Sort by Start EHB"]"><span>@T["Start EHB"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="end-ehb" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["End EHB"]" aria-label="@T["Sort by End EHB"]"><span>@T["End EHB"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col">@T["WOM"]</th></tr></thead>
+                                                                    <thead><tr><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="rank" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Rank"]" aria-label="@T["Sort by Rank"]"><span>@T["Rank"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="player" data-public-leaderboard-sort-type="text" data-public-leaderboard-sort-label="@T["Player"]" aria-label="@T["Sort by Player"]"><span>@T["Player"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="ehb-gained" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Gained"]" aria-label="@T["Sort by Gained"]"><span>@T["Gained"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="start-ehb" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["Start"]" aria-label="@T["Sort by Start"]"><span>@T["Start"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col" aria-sort="none"><button type="button" class="public-ui-table-sort-control" data-public-leaderboard-sort-control data-public-leaderboard-sort-key="end-ehb" data-public-leaderboard-sort-type="number" data-public-leaderboard-sort-label="@T["End"]" aria-label="@T["Sort by End"]"><span>@T["End"]</span><svg class="public-ui-table-sort-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></th><th class="public-ui-supporting-text" scope="col">@T["WOM"]</th></tr></thead>
                                                                     <tbody>
                                                                         @for (var participantIndex = 0; participantIndex < activityTeam.Participants.Count; participantIndex++)
                                                                         {
@@ -627,7 +637,7 @@
                                     </table>
                                 </div>
                             </div>
-                            <div id="public-leaderboard-drops" data-public-leaderboard-panel="drops" aria-labelledby="public-leaderboard-drops-link" hidden="@(Model.ActiveRanking == "drops" ? null : "hidden")">
+                            <div id="public-leaderboard-drops" data-public-leaderboard-panel="drops" data-public-leaderboard-mode="default" aria-labelledby="public-leaderboard-drops-link" hidden="@((!Model.IsMetricMode && Model.ActiveRanking == "drops") ? null : "hidden")">
                                 <div class="public-ui-section">
                                     <table class="public-ui-table" data-public-leaderboard-table aria-label="@T["Drop EHB leaderboard"]">
                                         <thead><tr><th class="public-ui-supporting-text" scope="col">@T["Rank"]</th><th class="public-ui-supporting-text" scope="col">@T["Team"]</th><th class="public-ui-supporting-text" scope="col">@T["players"]</th><th class="public-ui-supporting-text" scope="col">@T["Total drops"]</th><th class="public-ui-supporting-text" scope="col">@T["Drop EHB"]</th><th class="public-ui-supporting-text" scope="col">@T["MVP"]</th><th class="public-ui-leaderboard-expand-heading" data-public-leaderboard-expand-heading scope="col"><span class="visually-hidden">@T["Expand"]</span></th></tr></thead>
@@ -641,7 +651,12 @@
                                                     <td><strong class="public-ui-section-heading">@team.PlayerCount</strong></td>
                                                     <td><strong class="public-ui-section-heading">@team.TotalDrops</strong></td>
                                                     <td><strong class="public-ui-section-heading public-ui-positive-delta--success">@team.DropEhb.ToString("+0.00;-0.00;0.00")</strong></td>
-                                                    <td><strong class="public-ui-section-heading">@string.Join(", ", team.MvpNames)</strong></td>
+                                                    <td>
+                                                        <strong class="public-ui-section-heading">
+                                                            @if (team.MvpNames.Count > 1) { @T["Multiple MVPs"] } else { @string.Join(", ", team.MvpNames) }
+                                                            @if (team.MvpValue is { } mvpValue) { <span class="public-ui-leaderboard-mvp-value public-ui-positive-delta--success">@mvpValue.ToString("+0.00;-0.00;0.00")</span> }
+                                                        </strong>
+                                                    </td>
                                                     <td class="public-ui-leaderboard-expand-cell" data-public-leaderboard-expand-cell><button type="button" class="public-ui-leaderboard-expand-control" data-public-leaderboard-expand-control aria-controls="@detailsId" aria-expanded="false" aria-label="@T["Toggle {0} details", team.TeamName]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button></td>
                                                 </tr>
                                                 <tr class="public-ui-leaderboard-detail-row">
@@ -678,7 +693,7 @@
                                     </table>
                                 </div>
                             </div>
-                    <section id="public-leaderboard-players" data-public-leaderboard-panel="players" aria-labelledby="public-leaderboard-players-link" hidden="@(Model.ActiveRanking == "players" ? null : "hidden")">
+                    <section id="public-leaderboard-players" data-public-leaderboard-panel="players" data-public-leaderboard-mode="default" aria-labelledby="public-leaderboard-players-link" hidden="@((!Model.IsMetricMode && Model.ActiveRanking == "players") ? null : "hidden")">
                         <div class="public-ui-section">
                             <table class="public-ui-table public-ui-table--players" data-public-leaderboard-table data-public-leaderboard-sort-table data-public-leaderboard-players-table aria-label="@T["Players leaderboard"]">
                                 <thead>
@@ -768,9 +783,11 @@
                                     var lines = team.Progress.CompletedRows.Count + team.Progress.CompletedColumns.Count;
                                     var activityTeam = activityTeamsById.GetValueOrDefault(team.TeamId);
                                     var dropEhbTeam = dropEhbTeamsById.GetValueOrDefault(team.TeamId);
+                                    var metricTeam = metricTeamsById.GetValueOrDefault(team.TeamId);
                                     var hasActivityMetric = activityTeam is not null && activityTeam.Participants.Count > 0;
                                     var activityMetricClass = hasActivityMetric ? "public-ui-section-heading public-ui-positive-delta--success" : "public-ui-section-heading";
                                     var dropEhbMetricClass = dropEhbTeam is null ? "public-ui-section-heading" : "public-ui-section-heading public-ui-positive-delta--success";
+                                    var metricClass = metricTeam is { TotalGained: > 0 } ? "public-ui-section-heading public-ui-positive-delta--success" : "public-ui-section-heading";
                                     <li>
                                         <strong class="public-ui-data-value">@team.Rank.ToString("00")</strong>
                                         <div>
@@ -779,6 +796,7 @@
                                         </div>
                                         <strong data-public-leaderboard-standings-metric="activity" class="@activityMetricClass" hidden="@(Model.ActiveRanking == "activity" ? null : "hidden")">@(hasActivityMetric ? $"{activityTeam!.TotalGainedEhb.ToString("+0.00;-0.00;0.00")} EHB" : "— EHB")</strong>
                                         <strong data-public-leaderboard-standings-metric="drops" class="@dropEhbMetricClass" hidden="@(Model.ActiveRanking == "drops" ? null : "hidden")">@(dropEhbTeam is null ? "— DEHB" : $"{dropEhbTeam.DropEhb.ToString("+0.00;-0.00;0.00")} DEHB")</strong>
+                                        <strong data-public-leaderboard-standings-metric="boss" class="@metricClass" hidden="@(Model.IsMetricMode ? null : "hidden")">@(metricTeam is null ? "— KC" : $"{metricTeam.TotalGained.ToString("+0;-0;0")} KC")</strong>
                                     </li>
                                 }
                             </ol>

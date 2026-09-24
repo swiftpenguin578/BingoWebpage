@@ -67,6 +67,8 @@ public static class DependencyInjection
         services.AddScoped<IEventQuarantineService, EventQuarantineService>();
         services.AddScoped<IEventDestructiveLifecycleService, EventDestructiveLifecycleService>();
         services.AddScoped<IEventCompetitionSynchronizationService, EventCompetitionSynchronizationService>();
+        services.AddScoped<IEventCompetitionManagementService, EventCompetitionManagementService>();
+        services.AddScoped<IEventCompetitionUpdateAllService, EventCompetitionUpdateAllService>();
         services.AddScoped<IEventCompetitionActivityProjection, CachedEventCompetitionActivityProjection>();
         services.AddScoped<IEventBannerCleanupService, EventBannerCleanupService>();
         services.AddScoped<ITeamCaptainAuthorityService, TeamCaptainAuthorityService>();

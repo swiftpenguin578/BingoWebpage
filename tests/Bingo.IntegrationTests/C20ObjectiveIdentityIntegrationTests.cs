@@ -27,6 +27,30 @@ namespace Bingo.IntegrationTests;
 public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fixture) : IClassFixture<C20Database>
 {
     [Fact]
+    public async Task PublishedAutomaticDescriptionIsPreservedInCaptainDrawerProjection()
+    {
+        var f = await SeedAsync(automaticDescription: true, captain: true);
+        using var admin = await ClientAsync(f.Admin);
+        using var captain = await ClientAsync(f.Owner);
+        await StartCorrectionAsync(admin, f);
+        await PublishCorrectionAsync(admin, f);
+
+        var expectedDescription = $"Collect 5 {f.Drop.ItemName}";
+        await using (var db = fixture.Db())
+        {
+            var publication = await db.PublishedObjectivesAsync(f.Event.Id);
+            var publishedTile = Assert.Single(publication!.Tiles);
+            Assert.Equal(expectedDescription, publishedTile.DescriptionSnapshot);
+            Assert.True(publishedTile.DescriptionIsAutomatic);
+        }
+
+        var path = $"/Captain/Submit/{f.Tile.Id}?handler=Drawer&eventId={f.Event.Id}&teamId={f.Team.Id}";
+        using var response = await captain.GetAsync(path);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(expectedDescription, await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task WordingCorrectionPreservesApprovedAndPendingIdentityPublicReadsAndReplacementHistory()
     {
         var f = await SeedAsync();
@@ -173,7 +197,7 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         Assert.Equal(before, await IntegrityAsync(f));
     }
 
-    private async Task<Fixture> SeedAsync(bool manual = false)
+    private async Task<Fixture> SeedAsync(bool manual = false, bool automaticDescription = false, bool captain = false)
     {
         var now = DateTimeOffset.UtcNow;
         var suffix = Guid.NewGuid().ToString("N")[..12];
@@ -193,15 +217,16 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         var participant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, 1, now.AddDays(-1), SignupSource.Website); participant.AssignOwner(owner);
         var character = new OsrsCharacter(Guid.NewGuid(), "Player " + suffix, "PLAYER " + suffix.ToUpperInvariant(), now);
         var assignment = new EventParticipantCharacter(Guid.NewGuid(), ev.Id, participant.Id, character.Id, 0, now.AddDays(-1), null, null, EventCharacterRole.Playing, 10m, EhbSource.Manual, null);
-        var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now.AddDays(-1), null, "fixture");
+        var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, captain ? TeamMembershipRole.Captain : TeamMembershipRole.Participant, now.AddDays(-1), null, "fixture");
         var boss = new BossActivity(Guid.NewGuid(), "C20 boss " + suffix, "boss-" + suffix, "Boss", 10m, now);
         var item = new CatalogueItem(Guid.NewGuid(), "C20 drop " + suffix, "DROP " + suffix.ToUpperInvariant());
         item.SetPrice(0, CataloguePriceSource.Manual, now);
         var source = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, "1/10", .1m, 1m, now);
-        var template = new TileTemplate(Guid.NewGuid(), "Original title", "Original description", manual ? ObjectiveType.Manual : ObjectiveType.DropRequirements, "", manual ? 5m : null);
+        var description = automaticDescription ? string.Empty : "Original description";
+        var template = new TileTemplate(Guid.NewGuid(), "Original title", description, manual ? ObjectiveType.Manual : ObjectiveType.DropRequirements, "", manual ? 5m : null, descriptionIsAutomatic: automaticDescription);
         var templateRequirement = new TileTemplateRequirement(Guid.NewGuid(), template.Id, 1, 5, true, false, manual ? "Complete five runs" : "Collect 5 eligible drops", manual);
         var board = new Board(Guid.NewGuid(), ev.Id, "C20 board", 1, 1); board.SetTotalEhb(5m);
-        var tile = new BoardTile(Guid.NewGuid(), board.Id, template.Id, 0, 0, template.Name, template.Description, "", 5m);
+        var tile = new BoardTile(Guid.NewGuid(), board.Id, template.Id, 0, 0, template.Name, template.Description, "", 5m, descriptionIsAutomatic: automaticDescription);
         var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 1, 5, true, false, templateRequirement.Description, manual);
         var drop = new BoardRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, source.Id, item.Id, boss.Name, item.Name, source.DisplayRate, source.NumericProbability, null, 1m);
         await using var db = fixture.Db();

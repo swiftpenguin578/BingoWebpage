@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Bingo.Application.Evidence;
+using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Application.Signups;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
@@ -47,7 +48,7 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
     private ApplicationDbContext Db(params IInterceptor[] interceptors) => new(new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(interceptors).Options);
-    private SignupService Service(ApplicationDbContext db) => new(db, new SecretHasher(), clock);
+    private SignupService Service(ApplicationDbContext db) => new(db, new SecretHasher(), clock, accountValidation: new SuccessfulWiseOldManAccountValidation());
 
     [Fact]
     public async Task HttpDepartureWaitingFillPreservesPublicationPicksNotesReservationsAndNotificationAccess()
@@ -272,6 +273,62 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         Assert.Equal(3, await db.DraftPublicationCycles.CountAsync());
         Assert.Contains("Internal replacement", RosterSection(await admin.GetStringAsync(TeamsPath(seed))));
         Assert.DoesNotContain("internal private answer", await admin.GetStringAsync(TeamsPath(seed)));
+    }
+
+    [Fact]
+    public async Task InternalReplacementOutageConfirmationRetainsTheOriginalForm()
+    {
+        var seed = await SeedAsync();
+        await WithdrawAsync(seed);
+        await using var factory = Factory(unavailablePlayerLookup: true);
+        using var admin = await LoginAsync(factory, "c11-admin");
+        var path = ParticipantPath(seed, seed.DepartedId);
+        var page = await admin.GetStringAsync(path);
+        var form = new Dictionary<string, string>
+        {
+            ["VacancyMembershipId"] = Input(page, "VacancyMembershipId"),
+            ["VacancyMembershipVersion"] = Input(page, "VacancyMembershipVersion"),
+            [$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].CharacterName"] = "Internal outage replacement",
+            [$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].Ehb"] = "42",
+            [$"InternalReplacement.Answers[{seed.AnswerQuestionId}]"] = "retained replacement answer"
+        };
+        var unchanged = await StateHashAsync();
+
+        using var response = await PostAsync(admin, path, "FillVacancy", page, form);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        Assert.Contains("data-wom-validation-confirmation", html);
+        Assert.Contains("Internal outage replacement", html);
+        Assert.Contains("Wise Old Man is unavailable", html);
+        Assert.Equal(form[$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].CharacterName"], Input(html, $"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].CharacterName"));
+        Assert.Equal(form[$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].Ehb"], Input(html, $"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].Ehb"));
+        Assert.Equal(form[$"InternalReplacement.Answers[{seed.AnswerQuestionId}]"], Input(html, $"InternalReplacement.Answers[{seed.AnswerQuestionId}]"));
+        Assert.Equal(form["VacancyMembershipId"], Input(html, "VacancyMembershipId"));
+        Assert.Equal(form["VacancyMembershipVersion"], Input(html, "VacancyMembershipVersion"));
+        var confirmationToken = Input(html, "InternalReplacement.WomValidationConfirmationToken");
+        Assert.NotEmpty(confirmationToken);
+        var cancelButton = Regex.Match(html, "<button(?=[^>]*data-wom-validation-cancel)[^>]*>").Value;
+        Assert.Contains("type=\"submit\"", cancelButton, StringComparison.Ordinal);
+        Assert.Contains("formaction=\"", cancelButton, StringComparison.Ordinal);
+        Assert.Contains("handler=CancelWomValidation", cancelButton, StringComparison.Ordinal);
+
+        var cancelFields = new Dictionary<string, string>(form)
+        {
+            ["overlay"] = "false",
+            ["WomValidationConfirmationToken"] = Input(html, "WomValidationConfirmationToken"),
+            ["InternalReplacement.WomValidationConfirmationToken"] = confirmationToken
+        };
+        using var cancelled = await PostAsync(admin, path, "CancelWomValidation", html, cancelFields);
+        Assert.Equal(HttpStatusCode.OK, cancelled.StatusCode);
+        var cancelledHtml = WebUtility.HtmlDecode(await cancelled.Content.ReadAsStringAsync());
+        Assert.DoesNotContain("data-wom-validation-confirmation", cancelledHtml, StringComparison.Ordinal);
+        Assert.Equal(form[$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].CharacterName"], Input(cancelledHtml, $"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].CharacterName"));
+        Assert.Equal(form[$"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].Ehb"], Input(cancelledHtml, $"InternalReplacement.AccountAnswers[{seed.PrimaryQuestionId}].Ehb"));
+        Assert.Equal(form[$"InternalReplacement.Answers[{seed.AnswerQuestionId}]"], Input(cancelledHtml, $"InternalReplacement.Answers[{seed.AnswerQuestionId}]"));
+        Assert.Empty(Input(cancelledHtml, "WomValidationConfirmationToken"));
+        Assert.Empty(Input(cancelledHtml, "InternalReplacement.WomValidationConfirmationToken"));
+        Assert.Equal(unchanged, await StateHashAsync());
+        Assert.Equal(unchanged, await StateHashAsync());
     }
 
     [Fact]
@@ -756,10 +813,12 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
         }, Title(replacement.Id));
     }
 
-    private WebApplicationFactory<Program> Factory(IInterceptor? interceptor = null) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+    private WebApplicationFactory<Program> Factory(IInterceptor? interceptor = null, bool unavailablePlayerLookup = false) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()).ConfigureServices(services =>
         {
             services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(clock);
+            services.RemoveAll<IWiseOldManPlayerLookup>();
+            services.AddSingleton<IWiseOldManPlayerLookup>(unavailablePlayerLookup ? new UnavailableWiseOldManPlayerLookup() : new SuccessfulWiseOldManPlayerLookup());
             // Exercise lifecycle through its real HTTP action without a background scheduler racing the deterministic fixture clock.
             services.RemoveAll<IHostedService>();
             if (interceptor is not null) services.AddDbContext<ApplicationDbContext>(configuration => configuration.AddInterceptors(interceptor));
@@ -900,6 +959,11 @@ public sealed class C11FinalizedRosterIntegrationTests : IAsyncLifetime
     private static string TeamsPath(Seed seed) => $"/Events/{seed.Slug}/Teams";
     private static string RosterSection(string page) => page.Split("data-public-ui-team-roster")[1].Split("data-public-ui-draft-results")[0];
     private static string PickSection(string page) => page.Split("data-public-ui-draft-results")[1];
+    private sealed class UnavailableWiseOldManPlayerLookup : IWiseOldManPlayerLookup
+    {
+        public Task<WiseOldManPlayerLookupResult> LookupPlayerAsync(string characterName, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new WiseOldManPlayerLookupResult(WiseOldManLookupStatus.Unavailable));
+    }
     private static async Task<string> FollowNoticeAsync(HttpClient client, Guid notice, string target)
     {
         Assert.Contains(notice.ToString(), await client.GetStringAsync("/Notifications"));
